@@ -50,6 +50,12 @@ def test_entity_neighbors_resolve_and_callgraph_exports(client, db_session, test
         graphml = client.get(f"/callgraph/export?entity_id={target.id}&format=graphml")
         assert graphml.status_code == 200
         assert "graphml" in graphml.text
+
+        search_result = client.get("/search", params={"q": "TARGET", "types": "entity"})
+        assert search_result.status_code == 200
+        target_hit = next(hit for hit in search_result.json()["results"] if hit["node_id"] == target.id)
+        assert target_hit["node_meta"]["source_id"] == source.id
+        assert target_hit["node_meta"]["file_path"] == "TARGET.CBL"
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

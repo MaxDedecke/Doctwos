@@ -527,6 +527,11 @@ PATCH /users/{id}                       F-004: Rolle, Name, aktiv/deaktiviert
 POST /users/{id}/reset-password         F-004: neues Startpasswort, hebt die Sperre mit auf
 POST /users/{id}/unlock                 F-005: Sperre aufheben
 ```
+
+> **Praxisnachzug 31.07.2026:** Globale Entity-Suchtreffer führen neben
+> `file_path` auch `source_id`, damit Code aus eigenständigen Git-Wissensquellen
+> über deren Worktree-Content-Endpunkt geöffnet wird. Der projektgebundene
+> `repo_id`-Abruf bleibt nur der Legacy-Fallback.
 Alle Endpunkte laufen unter der bestehenden `_authenticated`-Dependency und der bestehenden projekt-/team-Sichtbarkeitsprüfung (`_is_project_visible` aus `api/graph.py` wird nach `core/projects.py` gehoben und wiederverwendet).
 
 ---

@@ -1272,7 +1272,7 @@ function AppContent() {
     pinEntityFocus(ent);
     loadFileReferences(ent.file_path, ent.name, projectOverride);
 
-    await handleFileSelect(ent.file_path, ent.start_line, null, projectOverride);
+    await handleFileSelect(ent.file_path, ent.start_line, ent.source_id ?? null, projectOverride);
   };
 
   const handleNavigateBack = async () => {
@@ -1311,6 +1311,7 @@ function AppContent() {
         start_line: meta.start_line,
         name: result.node_label,
         type: meta.type,
+        source_id: meta.source_id,
       }, targetProject);
     } else if (result.node_type === 'document') {
       const filePath = meta.file_path || result.node_label;

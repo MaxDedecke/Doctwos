@@ -78,6 +78,12 @@ def search_nodes(
                 "node_meta": {
                     "type": e.type,
                     "file_path": e.file_path,
+                    # Code-Dateien können aus einer eigenständigen Git-
+                    # KnowledgeSource stammen (project_id/repo_id ist dann
+                    # absichtlich NULL). Das Frontend braucht source_id, um
+                    # den Worktree-Inhalt über /knowledge-sources/{id}/content
+                    # statt über den alten Repository-Endpunkt zu laden.
+                    "source_id": e.source_id,
                     "project_id": e.project_id,
                     "start_line": e.start_line,
                 },

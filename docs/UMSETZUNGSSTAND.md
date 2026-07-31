@@ -1007,3 +1007,13 @@ per Autogenerate gegengeprüft (Delta leer).
     weiterhin fachlich. Ein Regressionstest bildet zwei FILLER in
     `WS-REPORT-HEADER` nach; die COBOL-Suite bleibt mit 110/110 ausgewählten Tests
     grün.
+
+14. **Codeöffnung aus der globalen Suche korrigiert** — Entity-Suchtreffer
+    enthielten bisher keine `source_id`. Bei Code aus einer eigenständigen
+    Git-Wissensquelle fiel das Frontend deshalb fälschlich auf den alten
+    projektgebundenen Repository-Endpunkt zurück und zeigte „Datei konnte nicht
+    geladen werden“. `services/search.py` liefert die Quellen-ID nun im
+    `node_meta`; die Entity-Navigation reicht sie an
+    `/knowledge-sources/{id}/content` durch. Der alte `repo_id`-Pfad bleibt als
+    Fallback für klassische Projekt-Repositories erhalten. Der Backend-Test prüft
+    Dateipfad und Quellen-ID im Suchtreffer; TypeScript und Vitest sind grün.
