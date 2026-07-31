@@ -1,10 +1,11 @@
 # Doctwos — Technischer Implementierungsplan v1.0
 
-> **Umsetzungsstand (31.07.2026):** AP-0 bis AP-7 sind abgeschlossen und
+> **Umsetzungsstand (31.07.2026):** AP-0 bis AP-8 sind abgeschlossen und
 > verifiziert. Dazu gehören der COBOL-Parser, resumable Multi-Branch-Git-Sync,
 > Entity-/Kantenpersistenz, Fokus- und Zeilenreferenzen, Call-Graph, Job-Center,
-> de/en-i18n sowie das eigenständige Doctwos-Redesign mit Fujitsu-Farbwelt.
-> Als Nächstes folgt AP-8.
+> de/en-i18n, das eigenständige Doctwos-Redesign mit Fujitsu-Farbwelt sowie der
+> Konnektoren-Nachzug (Confluence/Jira/WebDAV/FolderWatch/Upload nachgetestet).
+> Als Nächstes folgt AP-9.
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
@@ -700,7 +701,7 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | ~~**AP-5**~~ | ~~Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip~~ **erledigt** | AP-4 | 2,5 | F-061, F-064…069 |
 | ~~**AP-6**~~ | ~~Call-Graph-View + Export~~ **erledigt** | AP-4 | 1,5 | F-066 |
 | ~~**AP-7**~~ | ~~Design-Token-System (Fujitsu), Job-Center, i18n-Nachzug~~ **erledigt** | AP-5 | 1,5 | NF-006, NF-014 |
-| **AP-8** | Konnektoren-Nachzug (Upload/CSV, Confluence/Jira/WebDAV-Retest) | AP-3 | 1,0 | F-011, F-012, F-017, F-018 |
+| ~~**AP-8**~~ | ~~Konnektoren-Nachzug (Upload/CSV, Confluence/Jira/WebDAV-Retest)~~ **erledigt** | AP-3 | 1,0 | F-011, F-012, F-017, F-018 |
 | **AP-9** | Härtung: Lasttest, Barrierefreiheit, OSS-Clearing, Offline-Bundle, Doku | alle | 2,0 | NF-002/003/010/011/012 |
 | | **Summe** | | **22,5 PW** | |
 
@@ -745,9 +746,7 @@ Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
 > Laufend gepflegt in `docs/UMSETZUNGSSTAND.md` — die Liste hier hält nur den groben Kurs fest.
 
-1. **AP-8 umsetzen:** Upload sowie Confluence/Jira/WebDAV/FolderWatch nachtesten
-   und fehlende Orphan-/Chunked-Download-Regressionstests ergänzen.
-2. **AP-9 umsetzen:** Lasttests, BITV-Abnahme, Lizenzprüfung, Offline-Bundle und
+1. **AP-9 umsetzen:** Lasttests, BITV-Abnahme, Lizenzprüfung, Offline-Bundle und
    Abschlussdokumentation.
-3. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen und
+2. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen und
    Erstindexierungsdauer an repräsentativen Kundendaten messen.

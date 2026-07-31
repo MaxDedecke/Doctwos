@@ -1,5 +1,8 @@
+import os
+
 import pytest
 
+from core.config import UPLOADS_DIR
 from models.database import KnowledgeSource, Project, ProjectMembership, User
 from conftest import TEST_USERNAME
 
@@ -100,3 +103,56 @@ def test_get_project_knowledge_sources_lists_only_attached(client, make_project)
     assert resp.status_code == 200
     names = [s["name"] for s in resp.json()]
     assert names == ["a"]
+
+
+def test_upload_local_document_creates_source_and_saves_file(client, make_project, db_session):
+    project_id = make_project()
+
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "Handbuch.txt", "project_id": str(project_id)},
+        files={"file": ("Handbuch.txt", b"COBOL Betriebshandbuch Inhalt", "text/plain")},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["type"] == "Local"
+    assert body["name"] == "Handbuch.txt"
+
+    source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == body["id"]).first()
+    assert source is not None
+    assert source.spaces["filename"] == "Handbuch.txt"
+
+    expected_path = os.path.join(UPLOADS_DIR, f"{source.id}_Handbuch.txt")
+    assert os.path.isfile(expected_path)
+    with open(expected_path, "rb") as f:
+        assert f.read() == b"COBOL Betriebshandbuch Inhalt"
+
+    os.remove(expected_path)
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+    db_session.commit()
+
+
+def test_upload_local_document_sanitizes_path_traversal_in_filename(client, make_project, db_session):
+    """F-018: der Dateiname kommt vom Client (multipart filename) -- os.path.basename()
+    muss einen Pfad wie '../../etc/passwd' auf den reinen Dateinamen kappen, sonst
+    könnte der Upload außerhalb von UPLOADS_DIR schreiben."""
+    project_id = make_project()
+
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "evil", "project_id": str(project_id)},
+        files={"file": ("../../etc/passwd", b"harmless", "text/plain")},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == body["id"]).first()
+    assert source is not None
+    assert ".." not in source.spaces["path"]
+
+    expected_path = os.path.join(UPLOADS_DIR, f"{source.id}_passwd")
+    assert os.path.isfile(expected_path)
+
+    os.remove(expected_path)
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+    db_session.commit()

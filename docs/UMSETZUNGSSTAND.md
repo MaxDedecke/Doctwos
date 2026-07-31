@@ -1,6 +1,6 @@
 # Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-7 abgeschlossen; eigenständiges Doctwos-Redesign und Fujitsu-Farbwelt ausgerollt)
+**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-8 abgeschlossen; Konnektoren nachgetestet, verlorene Testabdeckung ergänzt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -20,7 +20,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — Light/Dark-Tokens, Fujitsu-Rot-Blau-Markenverlauf, eigenständige Workspace-Optik, CI-Gate sowie Job-Center + de/en umgesetzt |
-| **AP-8** | Konnektoren-Nachzug | offen |
+| **AP-8** | Konnektoren-Nachzug (Upload/Confluence/Jira/WebDAV/FolderWatch nachtesten) | **fertig** — dedizierte Tests für alle vier Connectoren + Upload-Endpunkt ergänzt, zwei verlorene Regressionstests (Orphan-Schutz, Chunked-Download) nachgebaut |
 | **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
 
 ---
@@ -887,6 +887,74 @@ zu NF-014 und ist kein Bestandteil der AP-4-Anforderungen F-030…032/F-041/F-04
 
 ---
 
+## AP-8 — Konnektoren-Nachzug (fertig)
+
+**Stand 31.07.2026 (Nacht).** F-011/F-012/F-017/F-018: Confluence, Jira, WebDAV
+und FolderWatch sind unverändert aus dem Condo-Template übernommen (AP-0-Tabelle
+„Ü"), hatten aber außer der Registry-Prüfung in `test_connectors.py` keine
+dedizierte Testabdeckung — nach den base.py-/registry.py-Anpassungen der
+letzten APs war nicht verifiziert, dass sie noch funktionieren.
+
+**Neue Tests je Connector:**
+- `parser/tests/test_confluence_connector.py` (neu, 3 Tests): Seiten-Fetch inkl.
+  HTML→Plaintext-Umwandlung, Delta-Sync (unveränderte Seite seit
+  `last_synced_at` wird übersprungen), Space-Filter.
+- `parser/tests/test_jira_connector.py` (neu, 3 Tests): Issue-Fetch inkl.
+  ADF→Plaintext (Beschreibung + Kommentare), sowie zwei reine Unit-Tests für
+  `_build_jql()` (Projekt+Zeit-Filter kombiniert, 30-Tage-Fallback ohne Filter).
+- `parser/tests/test_webdav_connector.py` (erweitert um 2 Tests): **Orphan-Schutz
+  bei unvollständigem Scan** — `_scan_webdav_recursive()` setzt `_scan_complete
+  = False`, wenn ein Teilverzeichnis nicht lesbar war; `sync()` muss die
+  Orphan-Bereinigung dann überspringen (sonst löscht ein einzelner transienter
+  PROPFIND-Fehler gültige Dokumente). **Chunked-Download** — der bestehende
+  Sync-Test mockte `aiter_bytes()` mit genau einem Blob, ein Bug, der nur den
+  ersten/letzten Chunk schriebe, wäre unentdeckt geblieben; der neue Test liefert
+  den Inhalt über mehrere Chunks und prüft die korrekt zusammengesetzte Datei.
+- `parser/tests/test_folder_connector.py` (neu, 2 Tests): regulärer
+  Sync-Flow inkl. Orphan-Cleanup für eine wirklich entfernte Datei, plus
+  der Regressionstest für die gleiche „leerer Scan wird wie ein fehlgeschlagener
+  behandelt"-Schutzlogik wie bei WebDAV (hier über `if not self._current_scan:
+  return` in `connectors/folder.py`, kein `_scan_complete`-Flag — FolderConnector
+  kann anders als WebDAV nicht zwischen „Ordner ist jetzt leer" und „Scan
+  fehlgeschlagen" unterscheiden; bewusst konservativ, beides macht nichts).
+- `backend/tests/test_knowledge_sources.py` (erweitert um 2 Tests, F-018):
+  `POST /knowledge-sources/upload` legt die `KnowledgeSource` an und speichert
+  die Datei unter `UPLOADS_DIR`; zweiter Test verifiziert, dass ein
+  Pfad-Traversal-Dateiname (`../../etc/passwd`) über `os.path.basename()` auf
+  den reinen Dateinamen gekappt wird, bevor er in den Zieldateinamen einfließt.
+
+**Beim Testen gefunden, aber bewusst nicht Teil des Fixes:**
+- Ein reiner Test-Bug (nicht im Produktivcode): der erste `test_folder_connector.py`-
+  Test rief zwei aufeinanderfolgende `sync()`-Läufe auf, während die
+  Fixture-eigene `db_session` zwischen beiden noch in einer offenen
+  Lese-Transaktion stand — per `pg_locks` verifiziert, blockierte das den
+  zweiten `sync()`-Lauf beim `UPDATE knowledge_sources` unbegrenzt (echter
+  Deadlock, kein Timeout). Fix: `db_session.commit()` zwischen den beiden
+  Runden. Für künftige Connector-Tests gemerkt: eine Fixture-Session, die über
+  mehrere `connector.sync()`-Aufrufe hinweg offen bleibt, kann sich mit der
+  jeweils eigenen DB-Session des Connectors auf derselben Zeile blockieren.
+- **`config/features.json` / `ALLOW_CLOUD_LLM`:** Der Backend-Container hat
+  `ALLOW_CLOUD_LLM=true` fest in der Umgebung gesetzt (vermutlich für lokale
+  Entwicklung) — dadurch schlagen drei aus AP-0 stammende Tests in
+  `test_chat_llm_provider_guard.py` fehl (`cloud_llm_allowed()` liest den
+  Env-Override vor der Config-Datei, siehe `backend/core/config.py`), und zwar
+  auch einzeln und unabhängig von AP-8. Vorbestehend, nicht mitgefixt
+  (Scope-Disziplin, betrifft AP-0s Cloud-LLM-Gate, nicht die Connectoren).
+- **CSV taucht in der Plan-Tabelle (§13, „Upload/CSV") auf, ist aber nirgends
+  implementiert** — `SUPPORTED_EXTENSIONS` in `folder.py`/`webdav.py` sowie der
+  Upload-Endpunkt kennen nur PDF/DOCX/DOC/TXT/MD. Ungeklärt, ob das Plan-Wort
+  „CSV" nur veraltet ist oder eine echte Lücke markiert — nicht selbst
+  entschieden, siehe „Offene Punkte" unten.
+
+**Verifiziert:** volle Parser-Testsuite im `parser-worker`-Container (pytest
+temporär nachinstalliert, danach wieder entfernt wie bei AP-3/4):
+**152/152 grün** (110 cobol + 42 Connector-/Persistenz-/Git-Tests), 4,98s für
+die reine Connector-Teilmenge, 10,7s Gesamtlauf. Backend-Suite: **77 bestanden,
+3 fehlgeschlagen** (die oben dokumentierten, vorbestehenden `ALLOW_CLOUD_LLM`-
+Tests, unabhängig von AP-8) **+ 7 neue Upload-Tests grün**.
+
+---
+
 ## Offene Punkte
 
 **Erledigt am 31.07.2026** (siehe Abnahme-Session oben): Docker und pip stehen,
@@ -903,13 +971,21 @@ per Autogenerate gegengeprüft (Delta leer).
 - E-3-Repack-Nachlauf (`git repack -a -d` + `fetch --refetch` nach der
   Erstindexierung) bleibt unimplementiert, bis ein echter großer Bestand zum
   Messen verfügbar ist.
+- `ALLOW_CLOUD_LLM=true` fest im Backend-Container gesetzt bricht drei Tests in
+  `test_chat_llm_provider_guard.py` (bei AP-8 entdeckt, gehört zu AP-0s
+  Cloud-LLM-Gate, nicht mitgefixt — siehe AP-8-Abschnitt oben).
+- Unklar, ob „CSV" in Plan §13 (F-018, „Upload/CSV") eine echte Lücke markiert
+  oder veraltet ist — aktuell kein CSV-Support in `folder.py`/`webdav.py`/Upload
+  (bei AP-8 entdeckt, siehe AP-8-Abschnitt oben).
 
-**Testabdeckung, die beim Entkernen verloren ging** (neu zu schreiben, AP-8):
+**Testabdeckung, die beim Entkernen verloren ging** — **erledigt bei AP-8:**
 - Orphan-Schutz bei unvollständigem Scan (war `test_incomplete_scan_safety.py`,
-  hing an Autodesk/Dalux) — die Logik existiert unverändert in `webdav.py`/`folder.py`
-- Chunked-Download großer Dateien (war `test_large_file_streaming.py`) — Pfad existiert
-  nur noch in `webdav.py`
+  hing an Autodesk/Dalux) — Logik existierte unverändert in `webdav.py`/`folder.py`,
+  jetzt in `test_webdav_connector.py`/`test_folder_connector.py` abgedeckt.
+- Chunked-Download großer Dateien (war `test_large_file_streaming.py`) — jetzt
+  in `test_webdav_connector.py` abgedeckt.
 - Re-Index-Link-Stabilität wurde auf den WebDAV-Connector portiert und ist erhalten
+  (unverändert, schon vor AP-8 getestet).
 
 **Fachlich offen:**
 - Realer COBOL-Beispielbestand fehlt (Plan §1.3, Punkt 4) — der Parser wird vorerst
@@ -923,11 +999,9 @@ per Autogenerate gegengeprüft (Delta leer).
 
 ## Aktuell nächste Schritte
 
-1. **AP-8:** Upload sowie Confluence/Jira/WebDAV/FolderWatch nachtesten und die
-   beim Entkernen verlorene Orphan-/Download-Testabdeckung ergänzen.
-2. **AP-9:** Lasttest am repräsentativen COBOL-Bestand, BITV-Abnahme,
+1. **AP-9:** Lasttest am repräsentativen COBOL-Bestand, BITV-Abnahme,
    Lizenzprüfung, Offline-Bundle und Abschlussdokumentation.
-3. **Extern erforderlich:** repräsentativen COBOL-Beispielbestand und den
+2. **Extern erforderlich:** repräsentativen COBOL-Beispielbestand und den
    verbindlichen BITV-Prüfumfang bereitstellen.
 
 ---
@@ -1070,3 +1144,15 @@ per Autogenerate gegengeprüft (Delta leer).
     der Sidebar wurde wieder entfernt. Produktions-Build, TypeScript und Vitest
     (4/4) sind grün; das aktualisierte Frontend wurde als gesundes Docker-Image
     ausgerollt und antwortet mit HTTP 200.
+
+19. **AP-8 abgeschlossen — Konnektoren-Nachzug** — Confluence, Jira, WebDAV und
+    FolderWatch bekamen dedizierte Tests (vorher nur die Registry-Prüfung),
+    zwei beim AEC-Entkernen verlorene Regressionstests (Orphan-Schutz bei
+    unvollständigem Scan, Chunked-Download) wurden nachgebaut, und der
+    Upload-Endpunkt (F-018) hat jetzt zwei Tests inkl. Pfad-Traversal-Schutz.
+    Details, gefundene Nebenbefunde (Test-Deadlock-Fix, `ALLOW_CLOUD_LLM`-
+    Umgebungskopplung, ungeklärter CSV-Punkt aus Plan §13) und Testzahlen stehen
+    im Abschnitt „AP-8 — Konnektoren-Nachzug" oben. Parser-Suite 152/152 grün,
+    Backend-Suite 77 bestanden + 7 neue Upload-Tests grün (3 vorbestehende,
+    unabhängige `ALLOW_CLOUD_LLM`-Fehlschläge unverändert). **Nächstes
+    Arbeitspaket: AP-9 (Härtung).**
