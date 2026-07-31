@@ -1,0 +1,129 @@
+"""
+Nutzerverwaltung (F-004) und das, was sie für die Anmeldung bedeutet (F-005).
+
+Läuft wie die übrigen Backend-Tests gegen die konfigurierte DB. Alle angelegten
+Konten werden am Ende wieder entfernt.
+"""
+
+import pytest
+
+from models.database import User
+
+NEW_USERNAME = "test-managed-user"
+
+
+@pytest.fixture
+def cleanup_user(db_session):
+    def _delete():
+        db_session.query(User).filter(User.username == NEW_USERNAME).delete()
+        db_session.commit()
+
+    _delete()
+    yield
+    _delete()
+
+
+def _create(client, **overrides):
+    payload = {"username": NEW_USERNAME, "name": "Verwalteter Nutzer", "role": "user"}
+    payload.update(overrides)
+    return client.post("/users", json=payload)
+
+
+def test_create_user_returns_the_initial_password_exactly_once(client, cleanup_user):
+    res = _create(client)
+    assert res.status_code == 201
+    body = res.json()
+
+    assert body["username"] == NEW_USERNAME
+    assert body["is_active"] is True
+    # Ein fremdgesetztes Passwort gilt nur bis zum ersten Login.
+    assert body["must_change_password"] is True
+    assert len(body["initial_password"]) >= 12
+    assert "password_hash" not in body
+
+    # Die Liste zeigt das Passwort nicht mehr — es existiert nur noch als Hash.
+    listed = next(u for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+    assert "initial_password" not in listed
+    assert "password_hash" not in listed
+
+
+def test_duplicate_username_is_rejected(client, cleanup_user):
+    assert _create(client).status_code == 201
+    assert _create(client).status_code == 409
+
+
+def test_new_user_can_log_in_and_deactivation_stops_that(client, unauthenticated_client, cleanup_user):
+    password = _create(client).json()["initial_password"]
+    user_id = next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+
+    res = unauthenticated_client.post("/auth/login", json={"username": NEW_USERNAME, "password": password})
+    assert res.status_code == 200
+    assert res.json()["must_change_password"] is True
+    unauthenticated_client.cookies.clear()
+
+    assert client.patch(f"/users/{user_id}", json={"is_active": False}).json()["is_active"] is False
+
+    res = unauthenticated_client.post("/auth/login", json={"username": NEW_USERNAME, "password": password})
+    # 401 und nicht 403: ob ein Konto deaktiviert ist oder das Passwort falsch war,
+    # darf von außen nicht unterscheidbar sein.
+    assert res.status_code == 401
+
+
+def test_reset_password_replaces_the_old_one(client, unauthenticated_client, cleanup_user):
+    old_password = _create(client).json()["initial_password"]
+    user_id = next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+
+    new_password = client.post(f"/users/{user_id}/reset-password", json={}).json()["initial_password"]
+    assert new_password != old_password
+
+    res = unauthenticated_client.post("/auth/login", json={"username": NEW_USERNAME, "password": new_password})
+    assert res.status_code == 200
+    unauthenticated_client.cookies.clear()
+
+
+def test_reset_password_lifts_an_existing_lock(client, db_session, cleanup_user):
+    from datetime import datetime, timedelta, timezone
+
+    _create(client)
+    user = db_session.query(User).filter(User.username == NEW_USERNAME).first()
+    user.locked_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    user.failed_login_count = 9
+    db_session.commit()
+
+    body = client.post(f"/users/{user.id}/reset-password", json={}).json()
+    assert body["is_locked"] is False
+    assert body["failed_login_count"] == 0
+
+
+def test_unlock_clears_the_lock(client, db_session, cleanup_user):
+    from datetime import datetime, timedelta, timezone
+
+    _create(client)
+    user = db_session.query(User).filter(User.username == NEW_USERNAME).first()
+    user.locked_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    db_session.commit()
+
+    body = client.post(f"/users/{user.id}/unlock").json()
+    assert body["is_locked"] is False
+
+
+def test_admin_cannot_lock_itself_out(client, cleanup_user):
+    me = client.get("/auth/me").json()
+    assert client.patch(f"/users/{me['id']}", json={"is_active": False}).status_code == 400
+    assert client.patch(f"/users/{me['id']}", json={"role": "user"}).status_code == 400
+
+
+def test_users_endpoints_require_admin(client, unauthenticated_client, cleanup_user):
+    """Ein normaler Nutzer mit gültiger Session darf die Verwaltung nicht sehen."""
+    from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
+
+    _create(client)
+    user_id = next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+
+    unauthenticated_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(user_id))
+    try:
+        assert unauthenticated_client.get("/users").status_code == 403
+        assert unauthenticated_client.post("/users", json={"username": "x-nope"}).status_code == 403
+        assert unauthenticated_client.post(f"/users/{user_id}/unlock").status_code == 403
+    finally:
+        unauthenticated_client.cookies.clear()

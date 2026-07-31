@@ -102,6 +102,15 @@ export const api = {
     addTeamMember: (teamId: number, userId: number) => axios.post(`${API_URL}/teams/${teamId}/members`, null, { params: { user_id: userId } }),
     removeTeamMember: (teamId: number, userId: number) => axios.delete(`${API_URL}/teams/${teamId}/members/${userId}`),
     getUsers: () => axios.get(`${API_URL}/users`),
+    // Nutzerverwaltung (F-004, superuser-only). createUser/resetUserPassword liefern
+    // initial_password genau einmal zurück — es wird nirgends gespeichert.
+    createUser: (data: { username: string; name?: string; email?: string; role: 'superuser' | 'user'; password?: string }) =>
+        axios.post(`${API_URL}/users`, data),
+    updateUser: (id: number, data: { name?: string; email?: string; role?: 'superuser' | 'user'; is_active?: boolean }) =>
+        axios.patch(`${API_URL}/users/${id}`, data),
+    resetUserPassword: (id: number, password?: string) =>
+        axios.post(`${API_URL}/users/${id}/reset-password`, { password: password || null }),
+    unlockUser: (id: number) => axios.post(`${API_URL}/users/${id}/unlock`),
     getDiscoverableProjects: () => axios.get(`${API_URL}/projects/discoverable`),
     requestProjectAccess: (projectId: number) => axios.post(`${API_URL}/projects/${projectId}/request-access`),
     getProjectAccessRequests: (projectId: number) => axios.get(`${API_URL}/projects/${projectId}/access-requests`),

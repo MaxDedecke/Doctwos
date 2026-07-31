@@ -109,7 +109,8 @@
       "ai": "AI-Parameter",
       "logs": "Logs & Status",
       "editor": "Editor",
-      "layout": "Layout & Design"
+      "layout": "Layout & Design",
+      "users": "Nutzer"
     },
     "header": {
       "projectSetup": "Neues Projekt",
@@ -182,13 +183,26 @@
       "accessRequestFailed": "Zugriffsanfrage fehlgeschlagen",
       "accessRequestApproved": "Zugriffsanfrage genehmigt",
       "accessRequestRejected": "Zugriffsanfrage abgelehnt",
-      "accessRequestResolveFailed": "Anfrage konnte nicht aufgelöst werden"
+      "accessRequestResolveFailed": "Anfrage konnte nicht aufgelöst werden",
+      "userCreated": "Nutzer angelegt",
+      "userCreateFailed": "Nutzer konnte nicht angelegt werden",
+      "userUpdateFailed": "Änderung fehlgeschlagen",
+      "userDeactivated": "Nutzer deaktiviert",
+      "userActivated": "Nutzer aktiviert",
+      "userUnlocked": "Sperre aufgehoben",
+      "userRoleChanged": "Rolle geändert",
+      "passwordReset": "Passwort zurückgesetzt",
+      "passwordResetFailed": "Passwort konnte nicht zurückgesetzt werden",
+      "passwordCopied": "Passwort kopiert",
+      "passwordCopyFailed": "Kopieren fehlgeschlagen"
     },
     "confirm": {
       "deleteProject": "Möchtest du das Projekt \"{{name}}\" wirklich löschen? Das gesamte Projekt wird gelöscht — inklusive aller Wissensquellen, des Chat-Verlaufs und der Git-Anbindung (falls vorhanden).",
       "detachRepository": "Möchtest du das Git-Repository von \"{{name}}\" trennen? Nur die Git-Anbindung und die daraus geparsten Code-Objekte werden entfernt — Wissensquellen und Chat-Verlauf bleiben erhalten.",
       "deleteSource": "Möchtest du diese Wissensquelle wirklich entfernen?",
-      "deleteTeam": "Möchtest du das Team \"{{name}}\" wirklich löschen? Das ist nur möglich, wenn ihm keine Projekte oder Wissensquellen zugeordnet sind."
+      "deleteTeam": "Möchtest du das Team \"{{name}}\" wirklich löschen? Das ist nur möglich, wenn ihm keine Projekte oder Wissensquellen zugeordnet sind.",
+      "resetPassword": "Passwort von \"{{name}}\" zurücksetzen? Das bisherige Passwort wird sofort ungültig.",
+      "deactivateUser": "Nutzer \"{{name}}\" deaktivieren? Die Anmeldung ist danach gesperrt; Chatverlauf und Mitgliedschaften bleiben erhalten."
     },
     "teams": {
       "newTeamLabel": "Neues Team",
@@ -573,6 +587,27 @@
       "graphExportLabel": "Neo4j Cypher-Export",
       "graphExportDesc": "Exportiere den gesamten Wissensgraphen als Neo4j Cypher-Skript.",
       "exportError": "Cypher-Export fehlgeschlagen"
+    },
+    "users": {
+      "usernameLabel": "Benutzername",
+      "usernamePlaceholder": "z.B. m.mustermann",
+      "nameLabel": "Name (optional)",
+      "namePlaceholder": "z.B. Max Mustermann",
+      "roleLabel": "Rolle",
+      "roleUser": "Nutzer",
+      "roleSuperuser": "Administrator",
+      "createButton": "Anlegen",
+      "createHint": "Das Startpasswort wird automatisch erzeugt, hier einmalig angezeigt und muss beim ersten Login geändert werden.",
+      "passwordTitle": "Startpasswort für \"{{name}}\"",
+      "passwordHint": "Wird nur jetzt angezeigt. Nach dem Schließen ist es nicht mehr abrufbar — dann hilft nur ein neues Zurücksetzen.",
+      "statusLocked": "gesperrt",
+      "statusInactive": "deaktiviert",
+      "lastLogin": "zuletzt angemeldet {{date}}",
+      "neverLoggedIn": "noch nie angemeldet",
+      "resetPasswordTitle": "Passwort zurücksetzen",
+      "unlockTitle": "Sperre aufheben",
+      "deactivateTitle": "Nutzer deaktivieren",
+      "activateTitle": "Nutzer aktivieren"
     }
   },
   "sidebar": {
@@ -662,6 +697,7 @@
     "submitting": "Wird angemeldet …",
     "invalidCredentials": "Benutzername oder Passwort ist falsch.",
     "locked": "Konto ist vorübergehend gesperrt. Bitte später erneut versuchen.",
+    "lockedFor": "Zu viele Fehlversuche. Bitte in {{minutes}} Minute(n) erneut versuchen.",
     "genericError": "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.",
     "changeTitle": "Passwort ändern",
     "changeHint": "Das Passwort muss beim ersten Anmelden geändert werden.",

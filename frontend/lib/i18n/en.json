@@ -109,7 +109,8 @@
       "ai": "AI Parameters",
       "logs": "Logs & Status",
       "editor": "Editor",
-      "layout": "Layout & Design"
+      "layout": "Layout & Design",
+      "users": "Users"
     },
     "header": {
       "projectSetup": "New Project",
@@ -182,13 +183,26 @@
       "accessRequestFailed": "Failed to send access request",
       "accessRequestApproved": "Access request approved",
       "accessRequestRejected": "Access request rejected",
-      "accessRequestResolveFailed": "Failed to resolve access request"
+      "accessRequestResolveFailed": "Failed to resolve access request",
+      "userCreated": "User created",
+      "userCreateFailed": "Could not create user",
+      "userUpdateFailed": "Update failed",
+      "userDeactivated": "User deactivated",
+      "userActivated": "User activated",
+      "userUnlocked": "Account unlocked",
+      "userRoleChanged": "Role changed",
+      "passwordReset": "Password reset",
+      "passwordResetFailed": "Could not reset password",
+      "passwordCopied": "Password copied",
+      "passwordCopyFailed": "Copy failed"
     },
     "confirm": {
       "deleteProject": "Do you really want to delete the project \"{{name}}\"? The whole project will be deleted — including all knowledge sources, chat history, and the Git connection (if any).",
       "detachRepository": "Do you want to detach the Git repository from \"{{name}}\"? Only the Git connection and the code objects parsed from it will be removed — knowledge sources and chat history are kept.",
       "deleteSource": "Do you really want to remove this knowledge source?",
-      "deleteTeam": "Do you really want to delete the team \"{{name}}\"? This is only possible if no projects or knowledge sources are assigned to it."
+      "deleteTeam": "Do you really want to delete the team \"{{name}}\"? This is only possible if no projects or knowledge sources are assigned to it.",
+      "resetPassword": "Reset the password of \"{{name}}\"? The current password stops working immediately.",
+      "deactivateUser": "Deactivate user \"{{name}}\"? Login is blocked afterwards; chat history and memberships are kept."
     },
     "teams": {
       "newTeamLabel": "New team",
@@ -573,6 +587,27 @@
       "graphExportLabel": "Neo4j Cypher Export",
       "graphExportDesc": "Export the entire knowledge graph as a Neo4j Cypher script.",
       "exportError": "Cypher export failed"
+    },
+    "users": {
+      "usernameLabel": "Username",
+      "usernamePlaceholder": "e.g. j.doe",
+      "nameLabel": "Name (optional)",
+      "namePlaceholder": "e.g. Jane Doe",
+      "roleLabel": "Role",
+      "roleUser": "User",
+      "roleSuperuser": "Administrator",
+      "createButton": "Create",
+      "createHint": "The initial password is generated automatically, shown here once, and must be changed at first login.",
+      "passwordTitle": "Initial password for \"{{name}}\"",
+      "passwordHint": "Shown only now. Once dismissed it cannot be retrieved — only reset again.",
+      "statusLocked": "locked",
+      "statusInactive": "deactivated",
+      "lastLogin": "last login {{date}}",
+      "neverLoggedIn": "never logged in",
+      "resetPasswordTitle": "Reset password",
+      "unlockTitle": "Unlock account",
+      "deactivateTitle": "Deactivate user",
+      "activateTitle": "Activate user"
     }
   },
   "sidebar": {
@@ -662,6 +697,7 @@
     "submitting": "Signing in …",
     "invalidCredentials": "Wrong username or password.",
     "locked": "Account is temporarily locked. Please try again later.",
+    "lockedFor": "Too many failed attempts. Please try again in {{minutes}} minute(s).",
     "genericError": "Sign-in failed. Please try again later.",
     "changeTitle": "Change password",
     "changeHint": "The password must be changed on first sign-in.",

@@ -1,6 +1,5 @@
 import logging
 import os
-import secrets
 
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
@@ -32,7 +31,7 @@ def bootstrap_superuser() -> None:
     Idempotent: existiert bereits irgendein Nutzer, passiert nichts.
     """
     from core import config as cfg
-    from core.passwords import hash_password
+    from core.users import create_local_user
     from models.database import User
 
     # Vor der ersten Migration existiert die Tabelle noch nicht — dann still zurück,
@@ -46,19 +45,15 @@ def bootstrap_superuser() -> None:
         if db.query(User).first() is not None:
             return
 
-        password = cfg.BOOTSTRAP_SUPERUSER_PASSWORD or secrets.token_urlsafe(18)
         generated = not cfg.BOOTSTRAP_SUPERUSER_PASSWORD
-
-        db.add(User(
+        _, password = create_local_user(
+            db,
             username=cfg.BOOTSTRAP_SUPERUSER,
-            email=cfg.BOOTSTRAP_SUPERUSER_EMAIL or None,
+            password=cfg.BOOTSTRAP_SUPERUSER_PASSWORD or None,
             name="Administrator",
-            password_hash=hash_password(password),
+            email=cfg.BOOTSTRAP_SUPERUSER_EMAIL or None,
             role="superuser",
-            is_active=True,
-            must_change_password=True,
-        ))
-        db.commit()
+        )
 
         if generated:
             logger.warning(

@@ -10,6 +10,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-2 | XREF über Copybook-Grenzen | quellenweiter Feldindex, REPLACING wird mitgeführt | entschieden, offen in AP-2 |
 | E-3 | Partial Clone vs. Offline | `--filter=blob:none` nur bei erreichbarem Remote | entschieden, offen in AP-3 |
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
+| E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 
 ---
 
@@ -98,3 +99,32 @@ fokussierbar im Sinne von F-067 (kein eigenes Fokus-Objekt im Editor), existiert
 aber als Kantenendpunkt und als Kontext-Träger für F-027.
 
 **Fundstelle.** Typ-Kommentar an `CodeEntity.type`.
+
+---
+
+## E-5 — Die Login-Sperre darf nicht an Redis hängen
+
+**Problem.** §11 des Plans schreibt für das Rate-Limit einen „Redis-Zähler pro
+(username, IP)" vor. Redis ist in dieser Architektur aber ein Cache-artiger Dienst:
+er wird neu gestartet, geflusht, läuft in kleinen Deployments auch mal gar nicht.
+Hängt die Sperre allein daran, ist sie mit einem Neustart des Containers aufgehoben —
+und wer Passwörter durchprobiert, muss nur warten, bis jemand deployt.
+
+**Entscheidung.** Zwei Zähler, deren höherer Wert gilt:
+
+- **Redis, pro (Benutzername, IP)**, Zeitfenster 15 Minuten. Greift auch für
+  *unbekannte* Benutzernamen — sonst bliebe das Durchprobieren von Namen ungebremst,
+  und am unterschiedlichen Sperrverhalten wäre ablesbar, welche Konten existieren.
+- **DB, pro Nutzer** (`users.failed_login_count` / `users.locked_until`). Dauerhaft,
+  überlebt jeden Redis-Neustart, ist die Sperre, die ein Administrator im Users-Tab
+  sieht und über `POST /users/{id}/unlock` aufheben kann.
+
+Backoff: 5 Fehlversuche frei, ab dem 6. Sperre von 60 s mit Verdopplung je weiterem
+Fehlversuch, **gedeckelt bei 1 h**. Der Deckel ist kein Komfort, sondern eine
+Sicherheitsentscheidung: ohne ihn wäre ein Konto nach ~20 Versuchen praktisch
+dauerhaft gesperrt — ein Denial-of-Service gegen jeden, dessen Benutzernamen man kennt.
+
+Fällt Redis aus, bleibt die DB-Sperre allein wirksam: die Anmeldung wird dadurch nie
+unmöglich, aber auch nie ungebremst.
+
+**Fundstelle.** `backend/core/login_throttle.py`, Verwendung in `backend/api/auth.py::login`.

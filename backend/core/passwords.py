@@ -10,10 +10,16 @@ EncryptedString: Verschlüsselung wäre reversibel, gefordert ist ein gesalzener
 nicht umkehrbarer Hash.
 """
 
+import secrets
+
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError, VerificationError
 
 _hasher = PasswordHasher()
+
+# Mindestlänge für jedes selbst gesetzte Passwort. Eine Zahl, nicht mehrere:
+# /auth/change-password und die Nutzerverwaltung müssen dieselbe Grenze ziehen.
+MIN_PASSWORD_LENGTH = 12
 
 
 def hash_password(plain: str) -> str:
@@ -34,3 +40,10 @@ def needs_rehash(stored_hash: str) -> bool:
         return _hasher.check_needs_rehash(stored_hash)
     except InvalidHashError:
         return True
+
+
+def generate_password() -> str:
+    """Startpasswort für neu angelegte oder zurückgesetzte Konten. Wird dem
+    Administrator genau einmal angezeigt und nirgends gespeichert; der Nutzer muss
+    es beim ersten Login wechseln (must_change_password)."""
+    return secrets.token_urlsafe(18)

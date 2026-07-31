@@ -7,7 +7,7 @@ ChatMessage.content). Deckt alle über die Connectoren eingelesenen Inhalte ab:
 Git, Confluence, Jira, WebDAV, FolderWatch und hochgeladene Dokumente laufen
 alle durch DocumentChunk.content.
 
-NICHT für Passwörter: User.password_hash ist bewusst ein gesalzener Argon2id-Hash
+NICHT für Passwörter: Das Passwortfeld der users-Tabelle ist ein gesalzener Argon2id-Hash
 (core/passwords.py), keine reversible Verschlüsselung (F-005).
 
 EncryptedString verschlüsselt beim Schreiben und entschlüsselt beim Lesen über

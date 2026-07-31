@@ -45,7 +45,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 401) setError(t('loginView.invalidCredentials'));
-      else if (status === 423) setError(t('loginView.locked'));
+      else if (status === 423) {
+        // Restzeit steht im Retry-After-Header (Sekunden). Sie kommt bewusst von
+        // dort und nicht aus dem detail-Text: der ist serverseitig deutsch, die
+        // Oberfläche kann englisch sein.
+        const retryAfter = Number(err?.response?.headers?.['retry-after']);
+        setError(retryAfter > 0
+          ? t('loginView.lockedFor', { minutes: String(Math.max(1, Math.ceil(retryAfter / 60))) })
+          : t('loginView.locked'));
+      }
       else setError(t('loginView.genericError'));
     } finally {
       setIsSubmitting(false);
