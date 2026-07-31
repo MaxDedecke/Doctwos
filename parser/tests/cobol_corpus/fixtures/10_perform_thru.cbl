@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PERFTHRU.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM INIT-PARA THRU CLEANUP-PARA.
+           PERFORM UNKNOWN-PARA.
+           STOP RUN.
+       INIT-PARA.
+           DISPLAY 'INIT'.
+       MIDDLE-PARA.
+           DISPLAY 'MIDDLE'.
+       CLEANUP-PARA.
+           DISPLAY 'DONE'.

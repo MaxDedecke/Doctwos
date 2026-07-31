@@ -1,0 +1,11 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. DYNCALL.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-PGM              PIC X(8) VALUE 'SUBPROG'.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           MOVE 'SUBPROG' TO WS-PGM.
+           CALL WS-PGM.
+           CALL 'FIXEDPGM'.
+           STOP RUN.
