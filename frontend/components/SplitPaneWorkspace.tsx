@@ -154,6 +154,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [focusedRefNode, setFocusedRefNode] = useState<any | null>(null);
   const [focusedRefReferences, setFocusedRefReferences] = useState<any[]>([]);
   const [isLoadingFocusedRefRefs, setIsLoadingFocusedRefRefs] = useState<boolean>(false);
+  const [entityNeighborGroups, setEntityNeighborGroups] = useState<Record<string, any[]>>({});
+  const [isLoadingEntityNeighbors, setIsLoadingEntityNeighbors] = useState(false);
 
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
@@ -166,6 +168,41 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
   const referencesToUse = fileReferences !== undefined ? fileReferences : localFileReferences;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : localIsLoadingReferences;
+
+  useEffect(() => {
+    if (!selectedEntity?.id || activeRightTab !== 'code') {
+      setEntityNeighborGroups({});
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingEntityNeighbors(true);
+    api.getEntityNeighbors(selectedEntity.id)
+      .then((response) => {
+        if (!cancelled) setEntityNeighborGroups(response.data?.groups || {});
+      })
+      .catch((error) => {
+        console.error('Failed to load entity neighbors:', error);
+        if (!cancelled) setEntityNeighborGroups({});
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingEntityNeighbors(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedEntity?.id, activeRightTab]);
+
+  const neighborGroupLabels: Record<string, string> = {
+    'CALL:in': 'Aufrufer',
+    'CALL:out': 'Ruft auf',
+    'COPY:out': 'Verwendet Copybook',
+    'COPY:in': 'Verwendet von',
+    'READS:out': 'Liest Tabelle',
+    'WRITES:out': 'Schreibt Tabelle',
+    'PERFORM:out': 'Führt aus',
+    'PERFORM:in': 'Ausgeführt von',
+    'GOTO:out': 'Springt zu',
+    'USES:out': 'Verwendet',
+    'USES:in': 'Verwendet von',
+  };
 
   const localEditorRef = useRef<any>(null);
   const activeEditorRef = editorRef || localEditorRef;
@@ -757,7 +794,67 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       "flex-1 overflow-y-auto",
                       isReferencesModalMode ? "sm:max-h-[70vh]" : "max-h-[350px]"
                     )}>
-                      {isLoadingRefsToUse ? (
+                      {activeRightTab === 'code' && !selectedEntity ? (
+                        <div className="p-8 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
+                          <Layers className="w-8 h-8 text-zinc-650 opacity-50" />
+                          <span>Für diese Datei ist kein geparstes Fokusobjekt verfügbar.</span>
+                        </div>
+                      ) : activeRightTab === 'code' && isLoadingEntityNeighbors ? (
+                        <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-zinc-500">
+                          <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                          <span>Lade Referenzen …</span>
+                        </div>
+                      ) : activeRightTab === 'code' ? (
+                        Object.keys(entityNeighborGroups).length === 0 ? (
+                          <div className="p-8 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
+                            <Layers className="w-8 h-8 text-zinc-650 opacity-50" />
+                            <span>Keine direkten Referenzen für {selectedEntity.name}.</span>
+                          </div>
+                        ) : (
+                          <div className="py-2">
+                            {Object.entries(entityNeighborGroups).map(([group, neighbors]) => (
+                              <section key={group} aria-labelledby={`neighbor-group-${group}`}>
+                                <h3
+                                  id={`neighbor-group-${group}`}
+                                  className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500"
+                                >
+                                  {neighborGroupLabels[group] || group.replace(':', ' · ')}
+                                </h3>
+                                {neighbors.map((neighbor: any) => {
+                                  const entity = neighbor.entity;
+                                  return (
+                                    <button
+                                      key={neighbor.edge_id}
+                                      className={cn(
+                                        "w-full px-4 py-2.5 text-left flex items-center gap-2 transition-colors",
+                                        theme === 'dark' ? "hover:bg-zinc-900/60" : "hover:bg-zinc-50"
+                                      )}
+                                      disabled={!entity}
+                                      onClick={() => {
+                                        if (entity) handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                        setIsReferencesDropdownOpen(false);
+                                      }}
+                                    >
+                                      <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-xs font-semibold font-mono">
+                                          {entity?.name || neighbor.dst_name}
+                                        </span>
+                                        <span className="block truncate text-[10px] text-zinc-500 font-mono">
+                                          {entity?.file_path || 'Nicht aufgelöst'}
+                                        </span>
+                                      </span>
+                                      {entity?.start_line && (
+                                        <span className="text-[9px] text-zinc-500 font-mono">L{entity.start_line}</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </section>
+                            ))}
+                          </div>
+                        )
+                      ) : isLoadingRefsToUse ? (
                         <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-zinc-500">
                           <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
                           <span>{t('splitPane.searchingCodeReferences') || "Suche Referenzen..."}</span>

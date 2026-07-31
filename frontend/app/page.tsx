@@ -456,11 +456,26 @@ function AppContent() {
 
   const handlePanelFileSelect = async (index: number, path: string | null, line: number | null = null, sourceId: number | string | null = null, openIfMissing: boolean = true) => {
     pinFileFocus(path, line);
-    const { isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
-    const targetDoc = resolvedSourceId
+    const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
+    const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
       ? { id: resolvedSourceId, name: path, ...(isWebOrigin ? { isWebOrigin: true, url: path } : {}) }
       : null;
     const targetType = getSelectionViewType(path, targetDoc);
+    let focusedEntity = path && !targetDoc
+      ? projectEntities.find((ent: any) =>
+          ent.file_path === path &&
+          (!resolvedSourceId || Number(ent.source_id) === Number(resolvedSourceId)) &&
+          (ent.type === 'program' || ent.type === 'copybook')) || null
+      : null;
+    if (path && resolvedSourceId && !isWebOrigin) {
+      try {
+        focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path)).data;
+      } catch (error: any) {
+        // A plain text file legitimately has no COBOL entity. Authentication and
+        // server errors still surface in the console/global 401 handler.
+        if (error?.response?.status !== 404) console.error('Failed to resolve code focus:', error);
+      }
+    }
 
     // A reference can point at a different kind of view than the panel it was
     // clicked from (e.g. a doc source cited from a chat panel) — route it to
@@ -490,7 +505,7 @@ function AppContent() {
         next[targetIndex] = {
           selectedFile: path,
           selectedDoc: targetDoc,
-          selectedEntity: null,
+          selectedEntity: focusedEntity,
           selectedLine: line
         };
         return next;
@@ -498,11 +513,13 @@ function AppContent() {
     } else {
       setSelectedDoc(targetDoc);
       setSelectedFile(targetDoc ? null : path);
+      setSelectedEntity(focusedEntity);
       setSelectedLine(targetDoc ? null : line);
       setPanelSelections(prev => {
         const next = [...prev];
         next[targetIndex] = {
           ...next[targetIndex],
+          selectedEntity: focusedEntity,
           selectedLine: line
         };
         return next;
@@ -537,32 +554,13 @@ function AppContent() {
 
   const handlePanelEntitySelect = async (index: number, ent: any) => {
     pinEntityFocus(ent);
-    if (panelFrozen[index]) {
-      setPanelSelections(prev => {
-        const next = [...prev];
-        next[index] = {
-          selectedFile: ent.file_path,
-          selectedDoc: null,
-          selectedEntity: ent,
-          selectedLine: ent.start_line
-        };
-        return next;
-      });
-    } else {
+    setPanelSelections(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], selectedEntity: ent };
+      return next;
+    });
+    if (!panelFrozen[index]) {
       setSelectedEntity(ent);
-      setSelectedFile(ent.file_path);
-      setSelectedDoc(null);
-      setSelectedLine(ent.start_line);
-      setPanelSelections(prev => {
-        const next = [...prev];
-        next[index] = {
-          selectedFile: ent.file_path,
-          selectedDoc: null,
-          selectedEntity: ent,
-          selectedLine: ent.start_line
-        };
-        return next;
-      });
     }
   };
 

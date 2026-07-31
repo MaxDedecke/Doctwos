@@ -73,6 +73,16 @@ export const api = {
     createGitSource: (data: { name: string; url: string; branch: string; username?: string; token?: string; project_id?: number | null; sparse_paths?: string[] | null }) =>
         axios.post(`${API_URL}/knowledge-sources/git`, data),
     getProjectEntities: (id: number) => axios.get(`${API_URL}/projects/${id}/entities`),
+    resolveEntity: (sourceId: number, path: string) =>
+        axios.get(`${API_URL}/entities/resolve`, { params: { source_id: sourceId, path } }),
+    getEntity: (id: number) => axios.get(`${API_URL}/entities/${id}`),
+    getEntityNeighbors: (id: number, options?: { types?: string[]; direction?: 'in' | 'out' | 'both' }) =>
+        axios.get(`${API_URL}/entities/${id}/neighbors`, {
+            params: {
+                types: options?.types?.join(','),
+                direction: options?.direction || 'both',
+            },
+        }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),
     syncKnowledgeSource: (id: number) => axios.post(`${API_URL}/knowledge-sources/${id}/sync`),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
@@ -126,4 +136,3 @@ export const api = {
     generateDiagnosticsBundle: () => axios.post(`${API_URL}/diagnostics/generate`),
     getDiagnosticsRuns: () => axios.get(`${API_URL}/diagnostics/runs`),
 };
-
