@@ -101,7 +101,7 @@ export const LogsSettingsTab: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* System status */}
       <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>{t('settings.logsTab.systemEnvTitle')}</h4>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.systemEnvTitle')}</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           {[
             { label: 'FastAPI Backend-API', value: 'http://82.165.216.180:8000', status: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusError') },
@@ -111,18 +111,18 @@ export const LogsSettingsTab: React.FC = () => {
           ].map((item, idx) => (
             <div key={idx} className={cn(
               "p-3 border rounded-lg space-y-1 transition-colors",
-              theme === 'dark' ? "bg-zinc-950/20 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
             )}>
               <div className="flex items-center justify-between text-[9px]">
-                <span className="text-zinc-500 font-bold uppercase">{item.label}</span>
+                <span className="text-ds-zinc-500 font-bold uppercase">{item.label}</span>
                 <span className={cn(
                   "font-bold uppercase tracking-wider text-[8px] px-1 rounded-sm",
                   item.status === t('settings.logsTab.statusOnline') || item.status === t('settings.logsTab.statusReady') || item.status === t('settings.logsTab.statusConnected')
-                    ? "bg-emerald-500/10 text-emerald-505"
-                    : "bg-amber-500/10 text-amber-505"
+                    ? "bg-ds-emerald-500/10 text-ds-emerald-505"
+                    : "bg-ds-amber-500/10 text-ds-amber-505"
                 )}>{item.status}</span>
               </div>
-              <p className={cn("font-mono text-[10px] truncate", theme === 'dark' ? "text-zinc-400" : "text-zinc-600")}>{item.value}</p>
+              <p className={cn("font-mono text-[10px] truncate", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{item.value}</p>
             </div>
           ))}
         </div>
@@ -132,13 +132,13 @@ export const LogsSettingsTab: React.FC = () => {
       {currentUser?.is_admin && (
         <div className={cn(
           "p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors",
-          theme === 'dark' ? "bg-zinc-950/20 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+          theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
         )}>
           <div className="space-y-0.5">
-            <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+            <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.logsTab.diagnosticsTitle')}
             </h4>
-            <p className={cn("text-[10px]", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+            <p className={cn("text-[10px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
               {t('settings.logsTab.diagnosticsDescription')}
             </p>
           </div>
@@ -149,7 +149,7 @@ export const LogsSettingsTab: React.FC = () => {
                 download
                 className={cn(
                   "h-7 text-[10px] px-2.5 flex items-center gap-1.5 rounded-md border font-medium",
-                  theme === 'dark' ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
                 )}
               >
                 <Download className="w-3 h-3" />
@@ -164,7 +164,7 @@ export const LogsSettingsTab: React.FC = () => {
               onClick={handleGenerateDiagnostics}
               className={cn(
                 "h-7 text-[10px] px-2.5 flex items-center gap-1.5 focus:ring-0",
-                theme === 'dark' ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
               )}
             >
               {diagnosticsGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
@@ -177,10 +177,10 @@ export const LogsSettingsTab: React.FC = () => {
       {/* Knowledge source log statuses */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>{t('settings.logsTab.indexingLogsTitle')}</h4>
+          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.indexingLogsTitle')}</h4>
           {refreshingLogs && (
-            <span className="text-[10px] text-zinc-500 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> {t('settings.logsTab.refreshing')}
+            <span className="text-[10px] text-ds-zinc-500 flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> {t('settings.logsTab.refreshing')}
             </span>
           )}
         </div>
@@ -188,7 +188,7 @@ export const LogsSettingsTab: React.FC = () => {
           {connectedSources.length === 0 ? (
             <p className={cn(
               "text-xs italic p-4 border rounded-lg border-dashed text-center",
-              theme === 'dark' ? "text-zinc-500 border-zinc-800" : "text-zinc-400 border-zinc-200"
+              theme === 'dark' ? "text-ds-zinc-500 border-ds-zinc-800" : "text-ds-zinc-400 border-ds-zinc-200"
             )}>
               {t('settings.logsTab.noSourcesConfigured')}
             </p>
@@ -197,27 +197,27 @@ export const LogsSettingsTab: React.FC = () => {
               const status = src.sync_status || 'pending';
               let statusLabel = t('settings.logsTab.statusPending');
               let statusColorClass = theme === 'dark'
-                ? 'bg-zinc-800 text-zinc-400 border-zinc-700/50'
-                : 'bg-zinc-100 text-zinc-500 border-zinc-200';
+                ? 'bg-ds-zinc-800 text-ds-zinc-400 border-ds-zinc-700/50'
+                : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-200';
               let statusIcon = <Activity className="w-3 h-3 shrink-0" />;
 
               if (status === 'syncing') {
                 statusLabel = src.progress_message || t('settings.logsTab.statusSyncingDefault');
-                statusColorClass = 'bg-blue-500/10 text-blue-450 border-blue-500/20';
+                statusColorClass = 'bg-ds-blue-500/10 text-ds-blue-450 border-ds-blue-500/20';
                 statusIcon = (
                   <div className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin shrink-0 text-blue-500" />
+                    <Loader2 className="w-3 h-3 animate-spin shrink-0 text-ds-blue-500" />
                     {src.progress > 0 && <span className="font-bold text-[9px]">{src.progress}%</span>}
                   </div>
                 );
               } else if (status === 'completed') {
                 statusLabel = t('settings.logsTab.statusSuccess');
-                statusColorClass = 'bg-emerald-500/10 text-emerald-455 border-emerald-500/20';
-                statusIcon = <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />;
+                statusColorClass = 'bg-ds-emerald-500/10 text-ds-emerald-455 border-ds-emerald-500/20';
+                statusIcon = <CheckCircle2 className="w-3 h-3 shrink-0 text-ds-emerald-400" />;
               } else if (status === 'error') {
                 statusLabel = t('settings.logsTab.statusErrorLabel');
-                statusColorClass = 'bg-rose-500/10 text-rose-455 border-rose-500/20';
-                statusIcon = <AlertTriangle className="w-3 h-3 shrink-0 text-rose-400" />;
+                statusColorClass = 'bg-ds-rose-500/10 text-ds-rose-455 border-ds-rose-500/20';
+                statusIcon = <AlertTriangle className="w-3 h-3 shrink-0 text-ds-rose-400" />;
               }
 
               const formattedTime = src.last_synced_at
@@ -229,20 +229,20 @@ export const LogsSettingsTab: React.FC = () => {
                   key={src.id}
                   className={cn(
                     "p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors",
-                    theme === 'dark' ? "bg-zinc-950/20 border-zinc-800" : "bg-zinc-50 border-zinc-200",
-                    activeLogSource?.id === src.id && (theme === 'dark' ? "border-indigo-500/40 bg-indigo-500/5" : "border-indigo-400 bg-indigo-50/20")
+                    theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200",
+                    activeLogSource?.id === src.id && (theme === 'dark' ? "border-ds-indigo-500/40 bg-ds-indigo-500/5" : "border-ds-indigo-400 bg-ds-indigo-50/20")
                   )}
                 >
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className={cn("font-bold text-xs", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>{src.name}</span>
+                      <span className={cn("font-bold text-xs", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{src.name}</span>
                       <span className={cn("text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
-                        theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-150 border-zinc-200 text-zinc-500"
+                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-150 border-ds-zinc-200 text-ds-zinc-500"
                       )}>
                         {src.type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                    <div className="flex items-center gap-1.5 text-[10px] text-ds-zinc-500">
                       <span>{t('settings.logsTab.lastSyncLabel', { time: formattedTime })}</span>
                     </div>
                   </div>
@@ -260,7 +260,7 @@ export const LogsSettingsTab: React.FC = () => {
                       onClick={() => setActiveLogSource(activeLogSource?.id === src.id ? null : src)}
                       className={cn(
                         "h-7 text-[10px] px-2.5 flex items-center gap-1.5 focus:ring-0",
-                        theme === 'dark' ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
                       )}
                     >
                       <ClipboardList className="w-3 h-3" />
@@ -283,7 +283,7 @@ export const LogsSettingsTab: React.FC = () => {
                       }}
                       className={cn(
                         "h-7 w-7 p-0 flex items-center justify-center focus:ring-0",
-                        theme === 'dark' ? "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-300" : "bg-white border-zinc-200 hover:bg-zinc-100 text-zinc-700"
+                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
                       )}
                       title={t('settings.logsTab.syncNowTitle')}
                     >
@@ -301,12 +301,12 @@ export const LogsSettingsTab: React.FC = () => {
       {activeLogSource && (
         <div className={cn(
           "space-y-3 pt-4 border-t animate-in slide-in-from-bottom duration-250",
-          theme === 'dark' ? "border-zinc-800/80" : "border-zinc-200"
+          theme === 'dark' ? "border-ds-zinc-800/80" : "border-ds-zinc-200"
         )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5 text-indigo-500" />
-              <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-200" : "text-zinc-700")}>
+              <Terminal className="w-3.5 h-3.5 text-ds-indigo-500" />
+              <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-700")}>
                 {t('settings.logsTab.logTitle', { name: activeLogSource.name })}
               </h4>
             </div>
@@ -322,7 +322,7 @@ export const LogsSettingsTab: React.FC = () => {
                 }}
                 className={cn(
                   "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200" : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
                 {t('common.copy')}
@@ -335,10 +335,10 @@ export const LogsSettingsTab: React.FC = () => {
                 disabled={refreshingLogs}
                 className={cn(
                   "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200" : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
-                {refreshingLogs ? <Loader2 className="w-3 h-3 animate-spin text-indigo-500" /> : <RefreshCw className="w-3 h-3" />}
+                {refreshingLogs ? <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> : <RefreshCw className="w-3 h-3" />}
                 {t('common.refresh')}
               </Button>
               <Button
@@ -348,7 +348,7 @@ export const LogsSettingsTab: React.FC = () => {
                 onClick={() => setActiveLogSource(null)}
                 className={cn(
                   "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200" : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
                 {t('common.close')}
@@ -357,16 +357,16 @@ export const LogsSettingsTab: React.FC = () => {
           </div>
 
           {activeLogSource.last_error && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-xs flex gap-2.5">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+            <div className="p-3.5 bg-ds-rose-500/10 border border-ds-rose-500/20 text-ds-rose-500 rounded-lg text-xs flex gap-2.5">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-ds-rose-500 mt-0.5" />
               <div className="min-w-0">
-                <p className="font-bold uppercase tracking-wide text-[9px] text-rose-455">{t('settings.logsTab.lastErrorLabel')}</p>
+                <p className="font-bold uppercase tracking-wide text-[9px] text-ds-rose-455">{t('settings.logsTab.lastErrorLabel')}</p>
                 <p className="font-mono text-[10px] mt-0.5 leading-relaxed break-all">{activeLogSource.last_error}</p>
               </div>
             </div>
           )}
 
-          <div className="p-4 rounded-lg border font-mono text-[10px] leading-relaxed overflow-hidden whitespace-pre-wrap bg-zinc-950 text-zinc-300 border-zinc-800">
+          <div className="p-4 rounded-lg border font-mono text-[10px] leading-relaxed overflow-hidden whitespace-pre-wrap bg-ds-zinc-950 text-ds-zinc-300 border-ds-zinc-800">
             {activeLogSource.sync_log
               ? activeLogSource.sync_log.split('\n').filter(Boolean).slice(-28).join('\n')
               : t('settings.logsTab.noLogsPlaceholder')}

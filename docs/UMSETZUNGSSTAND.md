@@ -1,6 +1,6 @@
 # Doctus — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-7 begonnen — Job-Center umgesetzt)
+**Zuletzt aktualisiert:** 31.07.2026 (AP-7 abgeschlossen — Design-Tokens und Job-Center umgesetzt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -19,7 +19,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | **fertig** — Pass 0-2, quellenweite XREF-Vererbung, budgetiertes 1-Hop-Graph-Retrieval sowie `/entities`- und `/callgraph`-Router stehen und sind getestet |
 | **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
-| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **in Arbeit** — Job-Center + de/en umgesetzt, Design-Tokens offen |
+| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — zentrale Light/Dark-Tokens, Fujitsu-Akzent, CI-Gate sowie Job-Center + de/en umgesetzt |
 | **AP-8** | Konnektoren-Nachzug | offen |
 | **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
 
@@ -1038,3 +1038,15 @@ per Autogenerate gegengeprüft (Delta leer).
     sind grün. Der Produktions-Build scheitert in der abgeschotteten Umgebung nur
     am bestehenden Online-Abruf der drei Google-Fonts. In AP-7 verbleibt die
     Design-Token-Migration samt CI-Verbot harter Farbwerte.
+
+17. **AP-7 abgeschlossen — Design-Tokens (NF-006)** — `globals.css` ist die
+    zentrale Quelle für die Light-/Dark-Palette mit `--ds-*`-Variablen. Die
+    Tailwind-Konfiguration enthält keine zweite feste Farbpalette mehr; alle
+    Komponentenklassen nutzen den `ds`-Namespace. Fujitsu-Rot ist auf Akzent,
+    aktive Zustände und Fokusführung begrenzt, Status- und Graphfarben stammen
+    aus eigenen semantischen Tokenfamilien. Canvas-/Graph-Laufzeitfarben werden
+    aus denselben CSS-Variablen aufgelöst. Der CI-Job `design-tokens` blockiert
+    neue Hex-Literale und Tailwind-Standardfarben unter `components/`.
+    Design-Token-Check, TypeScript, Vitest (4/4), Tailwind-Kompilierung und
+    `git diff --check` sind grün. ESLint meldet weiterhin fünf bereits vor AP-7
+    vorhandene React-Hook-Befunde; die Token-Migration hat keine neuen erzeugt.

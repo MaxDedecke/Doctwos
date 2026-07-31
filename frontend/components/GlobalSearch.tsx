@@ -267,7 +267,7 @@ export function GlobalSearch({
       ref={containerRef}
       className={cn(
         "h-12 shrink-0 w-full flex items-center gap-3 px-3 border-b relative z-40 transition-all duration-300",
-        theme === 'dark' ? "bg-zinc-950/90 border-zinc-800" : "bg-white/90 border-zinc-200"
+        theme === 'dark' ? "bg-ds-zinc-950/90 border-ds-zinc-800" : "bg-ds-white/90 border-ds-zinc-200"
       )}
     >
       <Button
@@ -277,8 +277,8 @@ export function GlobalSearch({
         className={cn(
           "h-8 w-8 rounded-lg border transition-all duration-200 shrink-0 group",
           theme === 'dark'
-            ? "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-            : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+            ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+            : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
         )}
       >
         <DoctusIcon className="h-5 w-5 block group-hover:hidden filter drop-shadow-[0_0_8px_rgba(77,127,255,0.15)]" />
@@ -300,11 +300,11 @@ export function GlobalSearch({
         >
           <SelectTrigger id="project-selector" className={cn(
             "h-8 text-xs border rounded-lg w-auto min-w-[155px] max-w-[220px] font-semibold px-2.5 gap-2",
-            theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-200 text-zinc-800"
+            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
           )}>
             <SelectValue placeholder={t('page.generalContext') || "Allgemein"} />
           </SelectTrigger>
-          <SelectContent className={theme === 'dark' ? "bg-zinc-950 border-zinc-900 text-zinc-200" : "bg-white border-zinc-200 text-zinc-850"}>
+          <SelectContent className={theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-850"}>
             <SelectItem value="general" className="text-xs">
               {t('page.generalContext') || "Allgemein (nicht projektspezifisch)"}
             </SelectItem>
@@ -319,7 +319,7 @@ export function GlobalSearch({
       {features.views.globalSearch ? (
       <>
       <div className="relative flex-1 max-w-xl">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500" />
         <input
           ref={inputRef}
           type="text"
@@ -331,16 +331,16 @@ export function GlobalSearch({
           className={cn(
             "w-full border rounded-lg pl-8 pr-8 py-1.5 text-xs focus:outline-none transition-all font-sans",
             theme === 'dark'
-              ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-600 focus:border-indigo-700"
-              : "bg-zinc-50 border-zinc-200 text-zinc-800 placeholder-zinc-400 focus:border-indigo-300"
+              ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-600 focus:border-ds-indigo-700"
+              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-800 placeholder-zinc-400 focus:border-ds-indigo-300"
           )}
         />
         {isLoading ? (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 animate-spin" />
+          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500 animate-spin" />
         ) : query && (
           <button
             onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ds-zinc-500 hover:text-ds-zinc-300"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -349,14 +349,14 @@ export function GlobalSearch({
         {isOpen && query.trim() && (
           <div className={cn(
             "absolute left-0 right-0 top-full mt-1.5 rounded-lg border shadow-2xl overflow-hidden",
-            theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"
+            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
           )}>
-            <div 
+            <div
               className="max-h-96 overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent"
               onScroll={handleScroll}
             >
               {grouped.length === 0 && !isLoading && (
-                <div className="px-3 py-4 text-xs text-zinc-500 text-center">{t('globalSearch.noResultsFor', { query })}</div>
+                <div className="px-3 py-4 text-xs text-ds-zinc-500 text-center">{t('globalSearch.noResultsFor', { query })}</div>
               )}
               {grouped.map(group => {
                 const Icon = GROUP_ICONS[group.type];
@@ -364,7 +364,7 @@ export function GlobalSearch({
                   <div key={group.type} className="py-1">
                     <div className={cn(
                       "px-3 py-1 text-[9px] font-bold uppercase tracking-wider",
-                      theme === 'dark' ? "text-zinc-500" : "text-zinc-400"
+                      theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
                     )}>
                       {t(`globalSearch.groups.${group.type}`)}
                     </div>
@@ -379,22 +379,22 @@ export function GlobalSearch({
                           className={cn(
                             "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
                             active
-                              ? (theme === 'dark' ? "bg-indigo-500/15 text-indigo-300" : "bg-indigo-50 text-indigo-700")
-                              : (theme === 'dark' ? "text-zinc-300 hover:bg-zinc-800/60" : "text-zinc-700 hover:bg-zinc-50")
+                              ? (theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-50 text-ds-indigo-700")
+                              : (theme === 'dark' ? "text-ds-zinc-300 hover:bg-ds-zinc-800/60" : "text-ds-zinc-700 hover:bg-ds-zinc-50")
                           )}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-ds-zinc-500" />
                           <span className="flex flex-col min-w-0 flex-1">
                             <span className="truncate">{item.node_label}</span>
                             {item.node_type === 'entity' && item.node_meta?.file_path && (
-                              <span className="text-[10px] text-zinc-500 truncate">{item.node_meta.file_path}</span>
+                              <span className="text-[10px] text-ds-zinc-500 truncate">{item.node_meta.file_path}</span>
                             )}
                           </span>
                         </button>
                       );
                     })}
                     {(counts[group.type] || 0) > group.items.length && (
-                      <div className="px-3 py-1 text-[10px] text-zinc-500">
+                      <div className="px-3 py-1 text-[10px] text-ds-zinc-500">
                         {t('globalSearch.moreResults', { count: counts[group.type] - group.items.length })}
                       </div>
                     )}
@@ -402,8 +402,8 @@ export function GlobalSearch({
                 );
               })}
               {isLoading && limit > 6 && (
-                <div className="flex justify-center items-center py-2.5 text-zinc-500 gap-1.5 text-[10px] border-t dark:border-zinc-800/60 border-zinc-100">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />
+                <div className="flex justify-center items-center py-2.5 text-ds-zinc-500 gap-1.5 text-[10px] border-t dark:border-ds-zinc-800/60 border-ds-zinc-100">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-ds-zinc-400" />
                   <span>{t('common.loading')}</span>
                 </div>
               )}
@@ -415,18 +415,18 @@ export function GlobalSearch({
       <Select value={scope} onValueChange={setScope}>
         <SelectTrigger className={cn(
           "h-8 w-8 p-0 flex items-center justify-center border rounded-lg shrink-0 [&>svg:last-child]:hidden",
-          theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-300" : "bg-white border-zinc-200 text-zinc-700"
+          theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700"
         )} title={t('globalSearch.filterTitle') || 'Suchbereich filtern'}>
           <Filter className="h-3.5 w-3.5" />
         </SelectTrigger>
-        <SelectContent className={theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-200 text-zinc-800"}>
+        <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
           {selectedProject && (
             <SelectItem value="current" className="text-xs">{t('globalSearch.currentProjectScope')}</SelectItem>
           )}
           <SelectItem value="all" className="text-xs">{t('globalSearch.allScope')}</SelectItem>
           {filteredSources.length > 0 && (
             <>
-              <div className="text-[9px] font-bold px-2 py-1 uppercase tracking-wider text-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
+              <div className="text-[9px] font-bold px-2 py-1 uppercase tracking-wider text-ds-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
               {filteredSources.map(s => (
                 <SelectItem key={`source-${s.id}`} value={`source:${s.id}`} className="text-xs">{s.name}</SelectItem>
               ))}
@@ -453,10 +453,10 @@ export function GlobalSearch({
             className={cn(
               "text-[10px] h-8 px-3 rounded-lg font-bold gap-1.5 transition-all cursor-pointer border",
               panelConfigs.length >= 4
-                ? "bg-zinc-900 border-zinc-850 text-zinc-600"
+                ? "bg-ds-zinc-900 border-ds-zinc-850 text-ds-zinc-600"
                 : (theme === 'dark'
-                    ? "bg-zinc-900 border-zinc-800 text-zinc-100 hover:bg-zinc-800 hover:text-white"
-                    : "bg-white border-zinc-200 text-zinc-950 hover:bg-zinc-50 hover:text-black")
+                    ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100 hover:bg-ds-zinc-800 hover:text-ds-white"
+                    : "bg-ds-white border-ds-zinc-200 text-ds-zinc-950 hover:bg-ds-zinc-50 hover:text-ds-black")
             )}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -469,11 +469,11 @@ export function GlobalSearch({
               <div className="fixed inset-0 z-[90]" onClick={() => setIsAddViewOpen(false)} />
               <div className={cn(
                 "absolute right-0 mt-2 w-52 z-[100] rounded-lg border shadow-2xl overflow-hidden py-1.5",
-                theme === 'dark' ? "bg-zinc-950 border-zinc-800 shadow-black/60" : "bg-white border-zinc-200 shadow-zinc-200"
+                theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800 shadow-ds-black/60" : "bg-ds-white border-ds-zinc-200 shadow-ds-zinc-200"
               )}>
                 <div className={cn(
                   "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider",
-                  theme === 'dark' ? "text-zinc-500" : "text-zinc-400"
+                  theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
                 )}>
                   {t('page.workspace.addViewMenuTitle')}
                 </div>
@@ -487,7 +487,7 @@ export function GlobalSearch({
                     onClick={() => { onAddPanel(type); setIsAddViewOpen(false); }}
                     className={cn(
                       "w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer",
-                      theme === 'dark' ? "text-zinc-200 hover:bg-zinc-900" : "text-zinc-800 hover:bg-zinc-50"
+                      theme === 'dark' ? "text-ds-zinc-200 hover:bg-ds-zinc-900" : "text-ds-zinc-800 hover:bg-ds-zinc-50"
                     )}
                   >
                     {t(`page.viewTypes.${type}`)}
@@ -506,8 +506,8 @@ export function GlobalSearch({
             className={cn(
               "h-8 w-8 rounded-lg border transition-all duration-200",
               theme === 'dark'
-                ? "text-zinc-400 border-zinc-800 hover:text-zinc-100 hover:bg-zinc-900"
-                : "text-zinc-800 border-zinc-200 hover:text-zinc-950 hover:bg-zinc-100"
+                ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
+                : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
             )}
             title={t('sidebar.knowledgeGraphTitle')}
           >
@@ -523,8 +523,8 @@ export function GlobalSearch({
             className={cn(
               "h-8 w-8 rounded-lg border transition-all duration-200",
               theme === 'dark'
-                ? "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-                : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+                ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
             )}
             title={t('sidebar.linkManagerTitle')}
           >
@@ -539,8 +539,8 @@ export function GlobalSearch({
           className={cn(
             "h-8 w-8 rounded-lg border transition-all duration-200",
             theme === 'dark'
-              ? "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-              : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+              ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
           )}
           title={theme === 'dark' ? t('globalSearch.toLightModeTitle') : t('globalSearch.toDarkModeTitle')}
         >
@@ -555,8 +555,8 @@ export function GlobalSearch({
           className={cn(
             "h-8 w-8 rounded-lg border transition-all duration-200",
             theme === 'dark'
-              ? "bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-              : "bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
+              ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
           )}
           title={t('sidebar.settingsTitle')}
         >

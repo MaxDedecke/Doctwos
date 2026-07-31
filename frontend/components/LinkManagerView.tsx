@@ -104,9 +104,9 @@ const parseEntityId = (id: string | number): number => parseInt(String(id).repla
 function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }) {
   const { t } = useLanguage();
   if (score === null)
-    return <span className={cn('text-xs', isDark ? 'text-zinc-500' : 'text-zinc-400')}>{t('graphLabels.linkTypes.manual')}</span>;
+    return <span className={cn('text-xs', isDark ? 'text-ds-zinc-500' : 'text-ds-zinc-400')}>{t('graphLabels.linkTypes.manual')}</span>;
   const pct = Math.round(score * 100);
-  const color = pct >= 80 ? 'text-emerald-500' : pct >= 60 ? 'text-yellow-500' : 'text-orange-500';
+  const color = pct >= 80 ? 'text-ds-emerald-500' : pct >= 60 ? 'text-ds-yellow-500' : 'text-ds-orange-500';
   return <span className={`text-xs font-mono font-semibold ${color}`}>{pct}%</span>;
 }
 
@@ -167,65 +167,65 @@ export function LinkManagerView({
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
 
-  const overlay      = isDark ? 'bg-black/60'                : 'bg-black/30';
-  const modalBg      = isDark ? 'bg-zinc-900 border-zinc-700': 'bg-white border-zinc-200';
-  const divider      = isDark ? 'border-zinc-800'            : 'border-zinc-200';
-  const titleText    = isDark ? 'text-zinc-100'              : 'text-zinc-900';
-  const subText      = isDark ? 'text-zinc-500'              : 'text-zinc-500';
-  const iconColor    = isDark ? 'text-indigo-400'            : 'text-indigo-600';
+  const overlay      = isDark ? 'bg-ds-black/60'                : 'bg-ds-black/30';
+  const modalBg      = isDark ? 'bg-ds-zinc-900 border-ds-zinc-700': 'bg-ds-white border-ds-zinc-200';
+  const divider      = isDark ? 'border-ds-zinc-800'            : 'border-ds-zinc-200';
+  const titleText    = isDark ? 'text-ds-zinc-100'              : 'text-ds-zinc-900';
+  const subText      = isDark ? 'text-ds-zinc-500'              : 'text-ds-zinc-500';
+  const iconColor    = isDark ? 'text-ds-indigo-400'            : 'text-ds-indigo-600';
   const ghostBtn     = isDark
-    ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors'
-    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors';
+    ? 'text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800 rounded-md transition-colors'
+    : 'text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100 rounded-md transition-colors';
   const accentBtn    = isDark
-    ? 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30 border border-indigo-700/50 rounded-md transition-colors'
-    : 'text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border border-indigo-300 rounded-md transition-colors';
-  const tabActive    = isDark ? 'bg-zinc-700 text-zinc-100'  : 'bg-zinc-200 text-zinc-900';
-  const tabInact     = isDark ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100';
-  const tabBadgeA    = isDark ? 'bg-zinc-600 text-zinc-200'  : 'bg-zinc-300 text-zinc-700';
-  const tabBadgeI    = isDark ? 'bg-zinc-800 text-zinc-500'  : 'bg-zinc-100 text-zinc-500';
+    ? 'text-ds-indigo-400 hover:text-ds-indigo-300 hover:bg-ds-indigo-900/30 border border-ds-indigo-700/50 rounded-md transition-colors'
+    : 'text-ds-indigo-600 hover:text-ds-indigo-700 hover:bg-ds-indigo-50 border border-ds-indigo-300 rounded-md transition-colors';
+  const tabActive    = isDark ? 'bg-ds-zinc-700 text-ds-zinc-100'  : 'bg-ds-zinc-200 text-ds-zinc-900';
+  const tabInact     = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800' : 'text-ds-zinc-500 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
+  const tabBadgeA    = isDark ? 'bg-ds-zinc-600 text-ds-zinc-200'  : 'bg-ds-zinc-300 text-ds-zinc-700';
+  const tabBadgeI    = isDark ? 'bg-ds-zinc-800 text-ds-zinc-500'  : 'bg-ds-zinc-100 text-ds-zinc-500';
   const inputCls     = isDark
-    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500'
-    : 'bg-zinc-100 border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400';
+    ? 'bg-ds-zinc-800 border-ds-zinc-700 text-ds-zinc-200 placeholder:text-ds-zinc-600 focus:border-ds-zinc-500'
+    : 'bg-ds-zinc-100 border-ds-zinc-300 text-ds-zinc-900 placeholder:text-ds-zinc-400 focus:border-ds-zinc-400';
   const cardCls      = isDark
-    ? 'bg-zinc-800/60 border-zinc-700/60 hover:border-zinc-600'
-    : 'bg-zinc-50 border-zinc-200 hover:border-zinc-300';
-  const cardLabel    = isDark ? 'text-zinc-200'              : 'text-zinc-800';
-  const cardMuted    = isDark ? 'text-zinc-500'              : 'text-zinc-400';
-  const typeTag      = isDark ? 'bg-zinc-700 text-zinc-400'  : 'bg-zinc-200 text-zinc-500';
-  const arrowColor   = isDark ? 'text-zinc-600'              : 'text-zinc-300';
-  const emptyText    = isDark ? 'text-zinc-600'              : 'text-zinc-400';
-  const manualBg     = isDark ? 'bg-indigo-950/30 border-indigo-900/50' : 'bg-indigo-50/60 border-indigo-200';
-  const manualTitle  = isDark ? 'text-indigo-300'            : 'text-indigo-700';
-  const manualDesc   = isDark ? 'text-indigo-400/70'         : 'text-indigo-500';
+    ? 'bg-ds-zinc-800/60 border-ds-zinc-700/60 hover:border-ds-zinc-600'
+    : 'bg-ds-zinc-50 border-ds-zinc-200 hover:border-ds-zinc-300';
+  const cardLabel    = isDark ? 'text-ds-zinc-200'              : 'text-ds-zinc-800';
+  const cardMuted    = isDark ? 'text-ds-zinc-500'              : 'text-ds-zinc-400';
+  const typeTag      = isDark ? 'bg-ds-zinc-700 text-ds-zinc-400'  : 'bg-ds-zinc-200 text-ds-zinc-500';
+  const arrowColor   = isDark ? 'text-ds-zinc-600'              : 'text-ds-zinc-300';
+  const emptyText    = isDark ? 'text-ds-zinc-600'              : 'text-ds-zinc-400';
+  const manualBg     = isDark ? 'bg-ds-indigo-950/30 border-ds-indigo-900/50' : 'bg-ds-indigo-50/60 border-ds-indigo-200';
+  const manualTitle  = isDark ? 'text-ds-indigo-300'            : 'text-ds-indigo-700';
+  const manualDesc   = isDark ? 'text-ds-indigo-400/70'         : 'text-ds-indigo-500';
   const selectCls    = isDark
-    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 focus:border-indigo-500'
-    : 'bg-white border-zinc-300 text-zinc-900 focus:border-indigo-400';
-  const dropdownBg   = isDark ? 'bg-zinc-800 border-zinc-700 shadow-black/40' : 'bg-white border-zinc-200 shadow-zinc-200/60';
-  const dropItem     = isDark ? 'text-zinc-300 hover:bg-zinc-700' : 'text-zinc-700 hover:bg-zinc-100';
+    ? 'bg-ds-zinc-800 border-ds-zinc-700 text-ds-zinc-200 focus:border-ds-indigo-500'
+    : 'bg-ds-white border-ds-zinc-300 text-ds-zinc-900 focus:border-ds-indigo-400';
+  const dropdownBg   = isDark ? 'bg-ds-zinc-800 border-ds-zinc-700 shadow-ds-black/40' : 'bg-ds-white border-ds-zinc-200 shadow-ds-zinc-200/60';
+  const dropItem     = isDark ? 'text-ds-zinc-300 hover:bg-ds-zinc-700' : 'text-ds-zinc-700 hover:bg-ds-zinc-100';
   const actionApprove = isDark
-    ? 'text-zinc-500 hover:text-emerald-400 hover:bg-emerald-900/30'
-    : 'text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50';
+    ? 'text-ds-zinc-500 hover:text-ds-emerald-400 hover:bg-ds-emerald-900/30'
+    : 'text-ds-zinc-400 hover:text-ds-emerald-600 hover:bg-ds-emerald-50';
   const actionReject = isDark
-    ? 'text-zinc-500 hover:text-red-400 hover:bg-red-900/30'
-    : 'text-zinc-400 hover:text-red-500 hover:bg-red-50';
+    ? 'text-ds-zinc-500 hover:text-ds-red-400 hover:bg-ds-red-900/30'
+    : 'text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-red-50';
   const actionDel    = isDark
-    ? 'text-zinc-600 hover:text-red-400 hover:bg-red-900/30'
-    : 'text-zinc-400 hover:text-red-500 hover:bg-red-50';
-  const kindChipActive = isDark ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-indigo-100 text-indigo-700 border-indigo-300';
-  const kindChipInact  = isDark ? 'text-zinc-500 border-zinc-700 hover:text-zinc-300' : 'text-zinc-500 border-zinc-300 hover:text-zinc-700';
+    ? 'text-ds-zinc-600 hover:text-ds-red-400 hover:bg-ds-red-900/30'
+    : 'text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-red-50';
+  const kindChipActive = isDark ? 'bg-ds-indigo-900/50 text-ds-indigo-300 border-ds-indigo-700' : 'bg-ds-indigo-100 text-ds-indigo-700 border-ds-indigo-300';
+  const kindChipInact  = isDark ? 'text-ds-zinc-500 border-ds-zinc-700 hover:text-ds-zinc-300' : 'text-ds-zinc-500 border-ds-zinc-300 hover:text-ds-zinc-700';
 
   const sourceColors: Record<string, string> = isDark
-    ? { Confluence: 'bg-blue-900/50 text-blue-300 border-blue-700', Jira: 'bg-sky-900/50 text-sky-300 border-sky-700', Local: 'bg-zinc-800 text-zinc-300 border-zinc-600', Git: 'bg-emerald-900/50 text-emerald-300 border-emerald-700' }
-    : { Confluence: 'bg-blue-100 text-blue-700 border-blue-300', Jira: 'bg-sky-100 text-sky-700 border-sky-300', Local: 'bg-zinc-100 text-zinc-600 border-zinc-300', Git: 'bg-emerald-100 text-emerald-700 border-emerald-300' };
+    ? { Confluence: 'bg-ds-blue-900/50 text-ds-blue-300 border-ds-blue-700', Jira: 'bg-ds-sky-900/50 text-ds-sky-300 border-ds-sky-700', Local: 'bg-ds-zinc-800 text-ds-zinc-300 border-ds-zinc-600', Git: 'bg-ds-emerald-900/50 text-ds-emerald-300 border-ds-emerald-700' }
+    : { Confluence: 'bg-ds-blue-100 text-ds-blue-700 border-ds-blue-300', Jira: 'bg-ds-sky-100 text-ds-sky-700 border-ds-sky-300', Local: 'bg-ds-zinc-100 text-ds-zinc-600 border-ds-zinc-300', Git: 'bg-ds-emerald-100 text-ds-emerald-700 border-ds-emerald-300' };
 
-  const segmentActive = isDark ? 'bg-zinc-700 text-zinc-100' : 'bg-zinc-200 text-zinc-900';
-  const segmentInact  = isDark ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800' : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100';
+  const segmentActive = isDark ? 'bg-ds-zinc-700 text-ds-zinc-100' : 'bg-ds-zinc-200 text-ds-zinc-900';
+  const segmentInact  = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800' : 'text-ds-zinc-500 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
 
   const computeBanner = (msg: { type: string; text: string } | null, isDark: boolean) => {
     if (!msg) return '';
-    if (msg.type === 'success') return isDark ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700';
-    if (msg.type === 'empty')   return isDark ? 'bg-amber-950/30 border-amber-900/40 text-amber-300'   : 'bg-amber-50 border-amber-200 text-amber-700';
-    return isDark ? 'bg-indigo-950/30 border-indigo-900/40 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-700';
+    if (msg.type === 'success') return isDark ? 'bg-ds-emerald-950/40 border-ds-emerald-900/50 text-ds-emerald-300' : 'bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700';
+    if (msg.type === 'empty')   return isDark ? 'bg-ds-amber-950/30 border-ds-amber-900/40 text-ds-amber-300'   : 'bg-ds-amber-50 border-ds-amber-200 text-ds-amber-700';
+    return isDark ? 'bg-ds-indigo-950/30 border-ds-indigo-900/40 text-ds-indigo-300' : 'bg-ds-indigo-50 border-ds-indigo-200 text-ds-indigo-700';
   };
 
   // ── Data fetching ─────────────────────────────────────────────────────────
@@ -495,16 +495,16 @@ export function LinkManagerView({
 
   const renderDocPicker = (query: string, setQuery: (v: string) => void, results: any[], selected: any | null, setSelected: (v: any | null) => void) => (
     selected ? (
-      <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-zinc-800 border-zinc-600' : 'bg-white border-zinc-300')}>
+      <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-white border-ds-zinc-300')}>
         {selected.source_type && (
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
-            sourceColors[selected.source_type] ?? (isDark ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-zinc-100 text-zinc-500 border-zinc-300'))}>
+            sourceColors[selected.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
             {selected.source_type}
           </span>
         )}
         <p className={cn('text-xs font-medium flex-1 truncate', cardLabel)}>{selected.title}</p>
         <button onClick={() => { setSelected(null); setQuery(''); }}
-          className={cn('shrink-0 p-0.5', isDark ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}>
+          className={cn('shrink-0 p-0.5', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
           <X className="w-3 h-3" />
         </button>
       </div>
@@ -521,7 +521,7 @@ export function LinkManagerView({
                 className={cn('w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b last:border-0', dropItem, divider)}>
                 {doc.source_type && (
                   <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
-                    sourceColors[doc.source_type] ?? (isDark ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-zinc-100 text-zinc-500 border-zinc-300'))}>
+                    sourceColors[doc.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
                     {doc.source_type}
                   </span>
                 )}
@@ -540,14 +540,14 @@ export function LinkManagerView({
         {side.icon === 'code' && <FileCode className={cn('w-3.5 h-3.5 shrink-0', subText)} />}
         {side.sourceType && (
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
-            sourceColors[side.sourceType] ?? (isDark ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-zinc-100 text-zinc-500 border-zinc-300'))}>
+            sourceColors[side.sourceType] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
             {side.sourceType}
           </span>
         )}
         <span className={cn('text-xs font-medium truncate', cardLabel)}>{side.label}</span>
         {side.url && (
           <a href={side.url} target="_blank" rel="noopener noreferrer"
-            className={cn('shrink-0', isDark ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}>
+            className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
             <ExternalLink className="w-3 h-3" />
           </a>
         )}
@@ -585,12 +585,12 @@ export function LinkManagerView({
               >
                 <SelectTrigger className={cn(
                   'h-7 max-w-[160px] text-[11px] sm:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
-                  isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200/60'
+                  isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
                 )}>
                   <FolderKanban className="w-3.5 h-3.5 shrink-0 opacity-70" />
                   <SelectValue placeholder={t('linkManagerView.selectProjectPlaceholder')} />
                 </SelectTrigger>
-                <SelectContent className={isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'}>
+                <SelectContent className={isDark ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-800'}>
                   <SelectItem value="__none__" className="text-xs">{t('linkManagerView.generalContextOption')}</SelectItem>
                   {projects.map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.name}</SelectItem>
@@ -616,12 +616,12 @@ export function LinkManagerView({
               >
                 <SelectTrigger className={cn(
                   'h-7 max-w-[150px] text-[11px] sm:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
-                  isDark ? 'bg-zinc-800/80 border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'bg-zinc-100 border-zinc-200 text-zinc-700 hover:bg-zinc-200/60'
+                  isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
                 )}>
-                  <Cpu className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+                  <Cpu className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
                   <SelectValue placeholder={t('chatView.selectModel')} />
                 </SelectTrigger>
-                <SelectContent className={isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-800'}>
+                <SelectContent className={isDark ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-800'}>
                   {llmProfiles.map((prof: any) => (
                     <SelectItem key={prof.id} value={prof.id} className="text-xs">{prof.name} ({prof.model})</SelectItem>
                   ))}
@@ -630,7 +630,7 @@ export function LinkManagerView({
             )}
 
             {/* Segment switcher */}
-            <div className={cn('flex rounded-md border p-0.5 gap-0.5', isDark ? 'border-zinc-700 bg-zinc-800/50' : 'border-zinc-200 bg-zinc-100')}>
+            <div className={cn('flex rounded-md border p-0.5 gap-0.5', isDark ? 'border-ds-zinc-700 bg-ds-zinc-800/50' : 'border-ds-zinc-200 bg-ds-zinc-100')}>
               <button
                 onClick={() => setSegment('links')}
                 className={cn('flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded transition-colors', segment === 'links' ? segmentActive : segmentInact)}
@@ -677,7 +677,7 @@ export function LinkManagerView({
 
             <div className={cn('hidden sm:block w-px h-4 mx-1', divider)} />
             <button onClick={onClose}
-              className={cn('ml-auto p-1.5 rounded-md transition-colors', isDark ? 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100')}>
+              className={cn('ml-auto p-1.5 rounded-md transition-colors', isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-200 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-700 hover:bg-ds-zinc-100')}>
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -759,7 +759,7 @@ export function LinkManagerView({
                           )}
                           {t('linkManagerView.manualForm.title')}
                         </p>
-                        <button onClick={resetManualForm} className={cn('p-0.5 rounded transition-colors', isDark ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}>
+                        <button onClick={resetManualForm} className={cn('p-0.5 rounded transition-colors', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -769,11 +769,11 @@ export function LinkManagerView({
                           <p className={cn('text-[11px] mb-3', manualDesc)}>{t('linkManagerView.manualForm.kindQuestion')}</p>
                           <div className="flex gap-2">
                             <button onClick={() => setManualKind('entity')} disabled={!projectId}
-                              className={cn('flex-1 text-xs px-3 py-2.5 rounded-md border transition-colors disabled:opacity-40 flex items-center gap-2 justify-center', isDark ? 'bg-zinc-800 border-zinc-600 text-zinc-200 hover:border-indigo-600' : 'bg-white border-zinc-300 text-zinc-800 hover:border-indigo-400')}>
+                              className={cn('flex-1 text-xs px-3 py-2.5 rounded-md border transition-colors disabled:opacity-40 flex items-center gap-2 justify-center', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600 text-ds-zinc-200 hover:border-ds-indigo-600' : 'bg-ds-white border-ds-zinc-300 text-ds-zinc-800 hover:border-ds-indigo-400')}>
                               <FileCode className="w-3.5 h-3.5" />{t('linkManagerView.manualForm.kindEntityOption')}
                             </button>
                             <button onClick={() => setManualKind('knowledge')} disabled={!projectId}
-                              className={cn('flex-1 text-xs px-3 py-2.5 rounded-md border transition-colors disabled:opacity-40 flex items-center gap-2 justify-center', isDark ? 'bg-zinc-800 border-zinc-600 text-zinc-200 hover:border-indigo-600' : 'bg-white border-zinc-300 text-zinc-800 hover:border-indigo-400')}>
+                              className={cn('flex-1 text-xs px-3 py-2.5 rounded-md border transition-colors disabled:opacity-40 flex items-center gap-2 justify-center', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600 text-ds-zinc-200 hover:border-ds-indigo-600' : 'bg-ds-white border-ds-zinc-300 text-ds-zinc-800 hover:border-ds-indigo-400')}>
                               <BookOpen className="w-3.5 h-3.5" />{t('linkManagerView.manualForm.kindKnowledgeOption')}
                             </button>
                           </div>
@@ -786,14 +786,14 @@ export function LinkManagerView({
                             <div className="flex-1 min-w-0">
                               <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step1Label')}</label>
                               {selectedEntityObj ? (
-                                <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-zinc-800 border-zinc-600' : 'bg-white border-zinc-300')}>
+                                <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-white border-ds-zinc-300')}>
                                   <FileCode className={cn('w-3.5 h-3.5 shrink-0', subText)} />
                                   <div className="flex-1 min-w-0">
                                     <p className={cn('text-xs font-medium truncate', cardLabel)}>{selectedEntityObj.name}</p>
                                     <p className={cn('text-[10px] truncate', subText)}>{selectedEntityObj.file_path}</p>
                                   </div>
                                   <button onClick={() => { setSelectedEntityId(null); setSelectedEntityObj(null); setEntitySearchInput(''); }}
-                                    className={cn('shrink-0 p-0.5', isDark ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}>
+                                    className={cn('shrink-0 p-0.5', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
                                     <X className="w-3 h-3" />
                                   </button>
                                 </div>
@@ -844,7 +844,7 @@ export function LinkManagerView({
                       )}
 
                       {manualError && (
-                        <p className="text-xs text-red-500 mt-3 flex items-center gap-1">
+                        <p className="text-xs text-ds-red-500 mt-3 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />{manualError}
                         </p>
                       )}
@@ -852,7 +852,7 @@ export function LinkManagerView({
                         <div className="flex gap-2 mt-4">
                           <button onClick={submitManualLink}
                             disabled={(manualKind === 'entity' ? (!selectedEntityId || !selectedDoc) : (!selectedDocA || !selectedDocB)) || isSubmittingManual}
-                            className={cn('text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors disabled:opacity-40', 'bg-indigo-600 text-white hover:bg-indigo-500')}>
+                            className={cn('text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors disabled:opacity-40', 'bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500')}>
                             {isSubmittingManual ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                             {t('linkManagerView.manualForm.saveButton')}
                           </button>
@@ -878,7 +878,7 @@ export function LinkManagerView({
                     <Link2 className="w-8 h-8 mb-3 opacity-40" />
                     <p className="text-sm">{t(`linkManagerView.emptyLinks.${tab}`)}</p>
                     {tab === 'pending' && (
-                      <p className={cn('text-xs mt-1', isDark ? 'text-zinc-700' : 'text-zinc-300')}>
+                      <p className={cn('text-xs mt-1', isDark ? 'text-ds-zinc-700' : 'text-ds-zinc-300')}>
                         {t('linkManagerView.noResultsAutoLinkHint', { action: t('linkManagerView.autoLinkLabel') })}
                       </p>
                     )}

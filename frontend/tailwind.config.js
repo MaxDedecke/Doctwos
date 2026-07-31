@@ -1,3 +1,11 @@
+const ds = (name) => `rgb(var(--ds-${name}) / <alpha-value>)`;
+const tonalScale = (shades, family) => Object.fromEntries(
+  shades.map((shade) => [shade, ds(`${family}-${shade <= 300 ? "soft" : shade >= 700 ? "strong" : "base"}`)]),
+);
+const neutralScale = (shades) => Object.fromEntries(
+  shades.map((shade) => [shade, ds(`neutral-${Math.min(950, Math.max(50, Math.round(shade / 50) * 50))}`)]),
+);
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
@@ -16,103 +24,66 @@ module.exports = {
         "2xl": "1400px",
       },
     },
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        // Doctus brand accent (from the Doctus Design blueprint mock) — blue and
-        // indigo are unified onto the same scale since the mock uses a single
-        // accent blue (#4D7FFF) wherever the app previously mixed the two.
-        blue: {
-          50: "#EEF3FF",
-          100: "#E0E9FF",
-          200: "#C2D3FF",
-          300: "#9BB4FF",
-          400: "#7396FF",
-          500: "#4D7FFF",
-          600: "#3D66E6",
-          700: "#2F52C2",
-          800: "#24409C",
-          900: "#1D3480",
-          950: "#14235B",
-        },
-        indigo: {
-          50: "#EEF3FF",
-          100: "#E0E9FF",
-          200: "#C2D3FF",
-          300: "#9BB4FF",
-          350: "#87A5FF",
-          400: "#7396FF",
-          405: "#7094FF",
-          500: "#4D7FFF",
-          550: "#4576F5",
-          600: "#3D66E6",
-          650: "#3D66E6",
-          655: "#2F52C2",
-          700: "#2F52C2",
-          750: "#2A4AB0",
-          800: "#24409C",
-          850: "#20398C",
-          900: "#1D3480",
-          950: "#14235B",
-        },
-        // Neutral scale re-hued to the mock's blue-gray blueprint palette,
-        // anchored at bg #0B0D10 (950), surface #101319 (900), text3 #5C6675
-        // (500), text2 #98A2B3 (300) and text #E9EDF4 (100).
-        zinc: {
-          50: "#F5F7FA",
-          100: "#E9EDF4",
-          150: "#DEE3EC",
-          200: "#C3CAD6",
-          250: "#B6BFCC",
-          300: "#A9B2C0",
-          350: "#8F98A8",
-          400: "#7C8798",
-          450: "#6C7686",
-          500: "#5C6675",
-          550: "#4E5765",
-          600: "#3B4250",
-          650: "#313847",
-          700: "#262B35",
-          705: "#222732",
-          750: "#1E232C",
-          800: "#1B1F27",
-          850: "#161A21",
-          900: "#101319",
-          950: "#0B0D10",
-        },
+    colors: {
+      transparent: "transparent",
+      current: "currentColor",
+      inherit: "inherit",
+      border: "rgb(var(--ds-border) / <alpha-value>)",
+      input: "rgb(var(--ds-input) / <alpha-value>)",
+      ring: "rgb(var(--ds-focus) / <alpha-value>)",
+      background: "rgb(var(--ds-background) / <alpha-value>)",
+      foreground: "rgb(var(--ds-foreground) / <alpha-value>)",
+      primary: {
+        DEFAULT: "rgb(var(--ds-accent) / <alpha-value>)",
+        foreground: "rgb(var(--ds-on-accent) / <alpha-value>)",
       },
+      secondary: {
+        DEFAULT: "rgb(var(--ds-surface-muted) / <alpha-value>)",
+        foreground: "rgb(var(--ds-foreground) / <alpha-value>)",
+      },
+      destructive: {
+        DEFAULT: "rgb(var(--ds-danger) / <alpha-value>)",
+        foreground: "rgb(var(--ds-on-danger) / <alpha-value>)",
+      },
+      muted: {
+        DEFAULT: "rgb(var(--ds-surface-muted) / <alpha-value>)",
+        foreground: "rgb(var(--ds-foreground-muted) / <alpha-value>)",
+      },
+      accent: {
+        DEFAULT: "rgb(var(--ds-surface-muted) / <alpha-value>)",
+        foreground: "rgb(var(--ds-foreground) / <alpha-value>)",
+      },
+      popover: {
+        DEFAULT: "rgb(var(--ds-surface) / <alpha-value>)",
+        foreground: "rgb(var(--ds-foreground) / <alpha-value>)",
+      },
+      card: {
+        DEFAULT: "rgb(var(--ds-surface) / <alpha-value>)",
+        foreground: "rgb(var(--ds-foreground) / <alpha-value>)",
+      },
+      ds: {
+        white: "rgb(var(--ds-white) / <alpha-value>)",
+        black: "rgb(var(--ds-black) / <alpha-value>)",
+        zinc: neutralScale([50, 100, 150, 200, 250, 300, 350, 355, 400, 405, 450, 455, 500, 550, 555, 600, 605, 650, 655, 700, 750, 800, 805, 850, 855, 900, 925, 950, 955]),
+        indigo: tonalScale([50, 55, 100, 200, 300, 350, 400, 405, 500, 550, 600, 650, 655, 700, 750, 800, 850, 900, 950], "accent"),
+        blue: tonalScale([50, 100, 200, 300, 400, 450, 500, 600, 700, 850, 900, 950], "info"),
+        emerald: tonalScale([50, 100, 200, 300, 400, 455, 500, 505, 600, 650, 700, 800, 850, 900, 950], "success"),
+        green: tonalScale([500, 600, 650], "success"),
+        amber: tonalScale([50, 100, 200, 300, 400, 500, 505, 600, 700, 900, 950], "warning"),
+        yellow: tonalScale([500], "warning"),
+        orange: tonalScale([100, 300, 400, 500, 600, 700, 900], "warning"),
+        red: tonalScale([50, 200, 300, 400, 500, 600, 650, 800, 900, 950], "danger"),
+        rose: tonalScale([100, 300, 400, 455, 500, 600, 700, 900, 950], "danger"),
+        purple: tonalScale([50, 200, 400, 500, 600, 950], "graph-a"),
+        violet: tonalScale([100, 300, 400, 500, 600, 700, 900], "graph-a"),
+        pink: tonalScale([400, 650], "graph-b"),
+        fuchsia: tonalScale([500], "graph-b"),
+        sky: tonalScale([100, 300, 500, 700, 900], "info"),
+        teal: tonalScale([500], "success"),
+      },
+    },
+    extend: {
+      /* All colors live above and resolve exclusively through --ds-* tokens. */
       fontFamily: {
         sans: ["var(--font-archivo)", "system-ui", "sans-serif"],
         heading: ["var(--font-space-grotesk)", "var(--font-archivo)", "system-ui", "sans-serif"],

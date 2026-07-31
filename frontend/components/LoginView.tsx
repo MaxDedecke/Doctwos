@@ -84,14 +84,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
     }
   };
 
-  const inputClass = "w-full h-10 bg-zinc-950/60 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-blue-500/40";
+  const inputClass = "w-full h-10 bg-ds-zinc-950/60 border-ds-zinc-800 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-ds-blue-500/40";
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-zinc-950 text-zinc-200 font-sans relative overflow-hidden">
+    <div className="h-screen w-screen flex items-center justify-center bg-ds-zinc-950 text-ds-zinc-200 font-sans relative overflow-hidden">
       {/* Premium glowing background mesh gradients */}
-      <div className="absolute top-[-20%] left-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-blue-600/10 pointer-events-none z-0 animate-pulse [animation-duration:8000ms]" />
-      <div className="absolute bottom-[-20%] right-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-indigo-600/10 pointer-events-none z-0 animate-pulse [animation-duration:10000ms]" />
-      <div className="absolute top-[40%] left-[35%] w-[30%] h-[30%] rounded-full blur-[160px] bg-violet-600/5 pointer-events-none z-0" />
+      <div className="absolute top-[-20%] left-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-ds-blue-600/10 pointer-events-none z-0 animate-pulse [animation-duration:8000ms]" />
+      <div className="absolute bottom-[-20%] right-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-ds-indigo-600/10 pointer-events-none z-0 animate-pulse [animation-duration:10000ms]" />
+      <div className="absolute top-[40%] left-[35%] w-[30%] h-[30%] rounded-full blur-[160px] bg-ds-violet-600/5 pointer-events-none z-0" />
 
       {/* Animated subtle grid background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
@@ -105,25 +105,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-          className="relative group border border-zinc-800/80 rounded-lg bg-zinc-900/40 backdrop-blur-2xl shadow-2xl p-7 space-y-6 overflow-hidden"
+          className="relative group border border-ds-zinc-800/80 rounded-lg bg-ds-zinc-900/40 backdrop-blur-2xl shadow-2xl p-7 space-y-6 overflow-hidden"
         >
           {/* Top border ambient light beam effect */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent group-hover:via-blue-500/30 transition-all duration-500" />
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-ds-zinc-700/50 to-transparent group-hover:via-ds-blue-500/30 transition-all duration-500" />
 
           <div className="flex flex-col items-center mb-2 select-none">
             <div className="relative flex items-center gap-3.5 justify-center">
               {/* Soft glowing aura behind the logo */}
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl scale-150 animate-pulse pointer-events-none" />
+              <div className="absolute inset-0 bg-ds-blue-500/20 rounded-full blur-xl scale-150 animate-pulse pointer-events-none" />
               <DoctusIcon className="h-10 w-10 relative z-10 filter drop-shadow-[0_0_15px_rgba(77,127,255,0.3)] hover:scale-105 transition-transform duration-300" />
               <DoctusWordmark className="h-8 w-24 relative z-10" theme="dark" />
             </div>
           </div>
 
           <div className="space-y-1 text-center">
-            <h2 className="text-base font-heading font-semibold text-zinc-100 tracking-tight">
+            <h2 className="text-base font-heading font-semibold text-ds-zinc-100 tracking-tight">
               {mustChangePassword ? t('loginView.changeTitle') : t('loginView.title')}
             </h2>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-[11px] text-ds-zinc-500">
               {mustChangePassword ? t('loginView.changeHint') : t('loginView.description')}
             </p>
           </div>
@@ -131,7 +131,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           {mustChangePassword ? (
             <form className="space-y-3" onSubmit={handleChangePassword}>
               <div className="space-y-1.5">
-                <label htmlFor="new-password" className="text-[11px] text-zinc-400">{t('loginView.newPasswordLabel')}</label>
+                <label htmlFor="new-password" className="text-[11px] text-ds-zinc-400">{t('loginView.newPasswordLabel')}</label>
                 <Input
                   id="new-password"
                   type="password"
@@ -142,7 +142,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="new-password-repeat" className="text-[11px] text-zinc-400">{t('loginView.newPasswordRepeatLabel')}</label>
+                <label htmlFor="new-password-repeat" className="text-[11px] text-ds-zinc-400">{t('loginView.newPasswordRepeatLabel')}</label>
                 <Input
                   id="new-password-repeat"
                   type="password"
@@ -153,13 +153,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
 
-              {error && <p role="alert" className="text-[11px] text-red-400">{error}</p>}
+              {error && <p role="alert" className="text-[11px] text-ds-red-400">{error}</p>}
 
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-lg bg-gradient-to-r from-ds-blue-600 to-ds-indigo-600 hover:from-ds-blue-500 hover:to-ds-indigo-500 text-ds-white font-semibold shadow-lg shadow-ds-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -170,7 +170,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           ) : (
             <form className="space-y-3" onSubmit={handleLogin}>
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-[11px] text-zinc-400">{t('loginView.usernameLabel')}</label>
+                <label htmlFor="username" className="text-[11px] text-ds-zinc-400">{t('loginView.usernameLabel')}</label>
                 <Input
                   id="username"
                   type="text"
@@ -182,7 +182,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-[11px] text-zinc-400">{t('loginView.passwordLabel')}</label>
+                <label htmlFor="password" className="text-[11px] text-ds-zinc-400">{t('loginView.passwordLabel')}</label>
                 <Input
                   id="password"
                   type="password"
@@ -193,13 +193,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
 
-              {error && <p role="alert" className="text-[11px] text-red-400">{error}</p>}
+              {error && <p role="alert" className="text-[11px] text-ds-red-400">{error}</p>}
 
               <Button
                 type="submit"
                 disabled={isSubmitting || !username || !password}
                 className={cn(
-                  "w-full h-11 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-lg bg-gradient-to-r from-ds-blue-600 to-ds-indigo-600 hover:from-ds-blue-500 hover:to-ds-indigo-500 text-ds-white font-semibold shadow-lg shadow-ds-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -216,7 +216,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center text-[10px] text-zinc-600 mt-6 select-none"
+          className="text-center text-[10px] text-ds-zinc-600 mt-6 select-none"
         >
           {t('loginView.footer')}
         </motion.p>

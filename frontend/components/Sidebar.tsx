@@ -87,7 +87,7 @@ export function Sidebar({
   const renderSourceTreeNode = (node: any, sourceId: number, depth = 0): React.ReactNode => {
     const isFolder = node.type === 'folder';
     const isCollapsed = !!collapsedFolders[node.path];
-    
+
     if (isFolder) {
       const childrenKeys = Object.keys(node.children).sort((a, b) => {
         const typeA = node.children[a].type;
@@ -95,7 +95,7 @@ export function Sidebar({
         if (typeA === typeB) return a.localeCompare(b);
         return typeA === 'folder' ? -1 : 1;
       });
-      
+
       return (
         <div key={node.path} className="space-y-0.5">
           <button
@@ -103,18 +103,18 @@ export function Sidebar({
             onClick={() => toggleFolder(node.path)}
             className={cn(
               "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold transition-all text-left",
-              theme === 'dark' ? "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200" : "text-zinc-650 hover:bg-zinc-200/55 hover:text-zinc-850"
+              theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-200" : "text-ds-zinc-650 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-850"
             )}
             style={{ paddingLeft: `${Math.max(8, depth * 12)}px` }}
           >
             <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
               {isCollapsed ? (
-                <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                <ChevronRight className="w-3.5 h-3.5 text-ds-zinc-500" />
               ) : (
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-ds-zinc-500" />
               )}
             </span>
-            <Folder className="w-3.5 h-3.5 shrink-0 opacity-70 text-indigo-500" />
+            <Folder className="w-3.5 h-3.5 shrink-0 opacity-70 text-ds-indigo-500" />
             <span className="truncate flex-1 min-w-0 font-sans">{node.name}</span>
           </button>
 
@@ -139,9 +139,9 @@ export function Sidebar({
           }}
           className={cn(
             "w-full flex items-center gap-2 py-1 rounded text-[11px] transition-all text-left",
-            isFileSelected 
-              ? (theme === 'dark' ? "bg-indigo-500/10 text-indigo-400 font-semibold" : "bg-indigo-55 text-indigo-750 font-semibold") 
-              : (theme === 'dark' ? "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300" : "text-zinc-550 hover:bg-zinc-200/55 hover:text-zinc-800")
+            isFileSelected
+              ? (theme === 'dark' ? "bg-ds-indigo-500/10 text-ds-indigo-400 font-semibold" : "bg-ds-indigo-55 text-ds-indigo-750 font-semibold")
+              : (theme === 'dark' ? "text-ds-zinc-500 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-300" : "text-ds-zinc-550 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-800")
           )}
           style={{ paddingLeft: `${Math.max(8, depth * 12 + 14)}px` }}
           title={node.path}
@@ -213,19 +213,19 @@ export function Sidebar({
   };
 
   return (
-    <motion.aside 
+    <motion.aside
       animate={{ width: isSidebarOpen ? sidebarWidth : 0 }}
       transition={isResizingSidebar ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
           "h-full backdrop-blur-xl border-r flex flex-col transition-all duration-200 overflow-hidden",
           "fixed md:relative top-0 left-0 md:top-auto md:left-auto z-50 md:z-30",
-          theme === 'dark' ? "bg-zinc-900/95 md:bg-zinc-900/60 border-zinc-800/80" : "bg-white md:bg-zinc-100/90 border-zinc-200",
+          theme === 'dark' ? "bg-ds-zinc-900/95 md:bg-ds-zinc-900/60 border-ds-zinc-800/80" : "bg-ds-white md:bg-ds-zinc-100/90 border-ds-zinc-200",
           !isSidebarOpen ? "pointer-events-none border-none" : "pointer-events-auto"
       )}
     >
       <AnimatePresence>
         {isSidebarOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -242,8 +242,8 @@ export function Sidebar({
                 className={cn(
                   "h-7 w-7 rounded-lg border transition-all flex items-center justify-center",
                   theme === 'dark'
-                    ? "text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:bg-zinc-800"
-                    : "text-zinc-500 border-zinc-200 hover:text-zinc-900 hover:bg-zinc-100"
+                    ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-200 hover:bg-ds-zinc-800"
+                    : "text-ds-zinc-500 border-ds-zinc-200 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
                 )}
                 title={t('sidebar.closeMenuTitle')}
               >
@@ -253,7 +253,7 @@ export function Sidebar({
 
             {/* Action Buttons (New Chat) */}
             <div className="p-4 space-y-2">
-              <Button 
+              <Button
                 onClick={() => {
                   startNewChat();
                   if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -271,16 +271,16 @@ export function Sidebar({
             {/* History & Active Project Files */}
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               {/* Verlauf Section */}
-              <div className={cn("flex flex-col overflow-hidden transition-all duration-300 min-h-0", 
+              <div className={cn("flex flex-col overflow-hidden transition-all duration-300 min-h-0",
                 isHistoryExpanded ? "flex-1 max-h-[75%]" : "h-auto shrink-0"
               )}>
-                <div 
+                <div
                   onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
                   className={cn(
                     "flex items-center justify-between px-4 py-2.5 select-none cursor-pointer transition-colors shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
-                    theme === 'dark' 
-                      ? "text-zinc-400 hover:bg-zinc-900/60 bg-zinc-900/10" 
-                      : "text-zinc-500 hover:bg-zinc-200/45 bg-zinc-50/20"
+                    theme === 'dark'
+                      ? "text-ds-zinc-400 hover:bg-ds-zinc-900/60 bg-ds-zinc-900/10"
+                      : "text-ds-zinc-500 hover:bg-ds-zinc-200/45 bg-ds-zinc-50/20"
                   )}
                 >
                   <span className="flex items-center gap-2">
@@ -289,7 +289,7 @@ export function Sidebar({
                   </span>
                   <span className={cn(
                     "text-[9px] font-mono px-1.5 py-0.5 rounded-sm",
-                    theme === 'dark' ? "bg-zinc-800/80 text-zinc-400" : "bg-zinc-200/70 text-zinc-600"
+                    theme === 'dark' ? "bg-ds-zinc-800/80 text-ds-zinc-400" : "bg-ds-zinc-200/70 text-ds-zinc-600"
                   )}>
                     {sessions.filter(session => {
                       if (selectedProject) {
@@ -300,7 +300,7 @@ export function Sidebar({
                     }).length}
                   </span>
                 </div>
-                
+
                 {isHistoryExpanded && (
                   <ScrollArea className="flex-1 px-3 py-1.5">
                     <div className="space-y-0.5">
@@ -311,7 +311,7 @@ export function Sidebar({
                            return !session.project_id;
                          }
                        }).map(session => (
-                        <div 
+                        <div
                           key={session.id}
                           id={`sidebar-session-item-${session.id}`}
                           onClick={() => {
@@ -322,12 +322,12 @@ export function Sidebar({
                           }}
                           className={cn(
                             "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-all group relative font-medium cursor-pointer",
-                            activeSessionId === session.id 
-                              ? (theme === 'dark' ? "bg-zinc-855 text-zinc-150" : "bg-zinc-200/75 text-zinc-950")
-                              : (theme === 'dark' ? "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200" : "text-zinc-600 hover:bg-zinc-200/50 hover:text-zinc-900")
+                            activeSessionId === session.id
+                              ? (theme === 'dark' ? "bg-ds-zinc-855 text-ds-zinc-150" : "bg-ds-zinc-200/75 text-ds-zinc-950")
+                              : (theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "text-ds-zinc-600 hover:bg-ds-zinc-200/50 hover:text-ds-zinc-900")
                           )}
                         >
-                          <MessageSquare className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+                          <MessageSquare className="w-3.5 h-3.5 text-ds-zinc-500 shrink-0" />
                           <span className="truncate text-left flex-1">{session.title}</span>
                           <button
                             type="button"
@@ -335,7 +335,7 @@ export function Sidebar({
                             id={`sidebar-remove-session-${session.id}`}
                             className={cn(
                               "absolute right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-all",
-                              theme === 'dark' ? "hover:bg-zinc-700 text-zinc-600 hover:text-zinc-400" : "hover:bg-zinc-200 text-zinc-400 hover:text-zinc-600"
+                              theme === 'dark' ? "hover:bg-ds-zinc-700 text-ds-zinc-600 hover:text-ds-zinc-400" : "hover:bg-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-600"
                             )}
                             title={t('sidebar.deleteSessionTitle')}
                           >
@@ -364,21 +364,21 @@ export function Sidebar({
                   .slice(0, 4);
 
                 return (
-                  <div 
+                  <div
                     className={cn(
                       "flex flex-col border-t transition-all duration-300 min-h-0 mt-auto shrink-0",
                       expandedFolderId !== null ? "max-h-[50%]" : "max-h-[33%]"
                     )}
-                    style={{ borderColor: theme === 'dark' ? '#27272a' : '#e4e4e7' }}
+                    style={{ borderColor: theme === 'dark' ? 'rgb(var(--ds-neutral-700))' : 'rgb(var(--ds-neutral-200))' }}
                   >
                     <div className={cn(
                       "flex items-center justify-between px-4 py-2.5 select-none border-b shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
-                      theme === 'dark' ? "text-zinc-400 bg-zinc-900/10 border-zinc-800/60" : "text-zinc-500 bg-zinc-50/20 border-zinc-200"
+                      theme === 'dark' ? "text-ds-zinc-400 bg-ds-zinc-900/10 border-ds-zinc-800/60" : "text-ds-zinc-500 bg-ds-zinc-50/20 border-ds-zinc-200"
                     )}>
                       <span>{t('sidebar.knowledgeSources')}</span>
                       <span className={cn(
                         "text-[9px] font-mono px-1.5 py-0.5 rounded-sm",
-                        theme === 'dark' ? "bg-zinc-850 text-zinc-450" : "bg-zinc-200 text-zinc-500"
+                        theme === 'dark' ? "bg-ds-zinc-850 text-ds-zinc-450" : "bg-ds-zinc-200 text-ds-zinc-500"
                       )}>
                         {pinnedSources.length}
                       </span>
@@ -387,7 +387,7 @@ export function Sidebar({
                     <ScrollArea className="flex-1 px-3 py-2">
                       <div className="space-y-1.5">
                         {pinnedSources.length === 0 ? (
-                          <div className="text-[10px] text-zinc-500 italic py-3 text-center">
+                          <div className="text-[10px] text-ds-zinc-500 italic py-3 text-center">
                             {t('sidebar.noPinnedSources')}
                           </div>
                         ) : (
@@ -400,13 +400,13 @@ export function Sidebar({
 
                             if (isLocal) {
                               return (
-                                <div 
-                                  key={source.id} 
+                                <div
+                                  key={source.id}
                                   className={cn(
                                     "rounded-lg border transition-all overflow-hidden",
-                                    theme === 'dark' 
-                                      ? (isSelected ? "bg-zinc-900 border-zinc-800" : "bg-zinc-950 border-zinc-800 hover:bg-zinc-900" )
-                                      : (isSelected ? "bg-zinc-50 border-zinc-200" : "bg-white border-zinc-200 hover:bg-zinc-50")
+                                    theme === 'dark'
+                                      ? (isSelected ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-950 border-ds-zinc-800 hover:bg-ds-zinc-900" )
+                                      : (isSelected ? "bg-ds-zinc-50 border-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50")
                                   )}
                                 >
                                   <button
@@ -420,14 +420,14 @@ export function Sidebar({
                                     className="w-full flex items-center px-3 py-2 text-xs font-semibold text-left select-none cursor-pointer"
                                   >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                      <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                      <span className={cn("truncate", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}>
+                                      <FileText className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
+                                      <span className={cn("truncate", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
                                         {source.name}
                                       </span>
                                       {selectedProject && !source.project_id && (
                                         <span className={cn(
                                           "shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
-                                          theme === 'dark' ? "bg-indigo-500/15 text-indigo-300" : "bg-indigo-100 text-indigo-600"
+                                          theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-600"
                                         )}>
                                           {t('sidebar.globalSourceBadge') || 'Global'}
                                         </span>
@@ -439,13 +439,13 @@ export function Sidebar({
                             }
 
                             return (
-                              <div 
-                                key={source.id} 
+                              <div
+                                key={source.id}
                                 className={cn(
                                   "rounded-lg border transition-all overflow-hidden",
-                                  theme === 'dark' 
-                                    ? (isExpanded ? "bg-zinc-900 border-zinc-800" : "bg-zinc-950 border-zinc-800 hover:bg-zinc-900" )
-                                    : (isExpanded ? "bg-zinc-50 border-zinc-200" : "bg-white border-zinc-200 hover:bg-zinc-50")
+                                  theme === 'dark'
+                                    ? (isExpanded ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-950 border-ds-zinc-800 hover:bg-ds-zinc-900" )
+                                    : (isExpanded ? "bg-ds-zinc-50 border-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50")
                                 )}
                               >
                                 <button
@@ -463,14 +463,14 @@ export function Sidebar({
                                   className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-left select-none cursor-pointer"
                                 >
                                   <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <Folder className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                    <span className={cn("truncate", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}>
+                                    <Folder className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
+                                    <span className={cn("truncate", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
                                       {source.name}
                                     </span>
                                     {selectedProject && !source.project_id && (
                                       <span className={cn(
                                         "shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
-                                        theme === 'dark' ? "bg-indigo-500/15 text-indigo-300" : "bg-indigo-100 text-indigo-600"
+                                        theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-600"
                                       )}>
                                         {t('sidebar.globalSourceBadge') || 'Global'}
                                       </span>
@@ -478,9 +478,9 @@ export function Sidebar({
                                   </div>
                                   <span className="shrink-0 ml-1">
                                     {isExpanded ? (
-                                      <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
+                                      <ChevronDown className="w-3.5 h-3.5 text-ds-zinc-500" />
                                     ) : (
-                                      <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                                      <ChevronRight className="w-3.5 h-3.5 text-ds-zinc-500" />
                                     )}
                                   </span>
                                 </button>
@@ -488,12 +488,12 @@ export function Sidebar({
                                 {isExpanded && (
                                   <div className="px-2 pb-2 border-t pt-1.5 space-y-1" style={{ borderColor: theme === 'dark' ? 'rgba(63, 63, 70, 0.4)' : 'rgba(228, 228, 231, 0.6)' }}>
                                     {isLoadingFiles ? (
-                                      <div className="flex items-center gap-1.5 px-2 py-3 text-[10px] text-zinc-500 font-medium">
+                                      <div className="flex items-center gap-1.5 px-2 py-3 text-[10px] text-ds-zinc-500 font-medium">
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                         <span>{t('sidebar.loadingFiles')}</span>
                                       </div>
                                     ) : filesList.length === 0 ? (
-                                      <div className="text-[10px] text-zinc-500 italic px-2 py-3 text-center">
+                                      <div className="text-[10px] text-ds-zinc-500 italic px-2 py-3 text-center">
                                         {t('sidebar.noFiles')}
                                       </div>
                                     ) : (
@@ -526,34 +526,34 @@ export function Sidebar({
             {/* Sidebar Footer Controls */}
             <div className={cn(
               "p-4 border-t space-y-3.5 z-20 transition-colors duration-200",
-              theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-zinc-100 border-zinc-200"
+              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-100 border-ds-zinc-200"
             )}>
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-indigo-600/10 shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-ds-blue-600 to-ds-indigo-600 flex items-center justify-center text-ds-white font-bold text-xs shadow-md shadow-ds-indigo-600/10 shrink-0">
                     JD
                   </div>
                   {/* User info */}
                   <div className="min-w-0">
-                    <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>
+                    <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                       John Doe
                     </p>
-                    <p className="text-[9px] font-medium text-zinc-500 leading-none truncate">
+                    <p className="text-[9px] font-medium text-ds-zinc-500 leading-none truncate">
                       developer@doctus.ai
                     </p>
                   </div>
                 </div>
 
                 {/* Log Out button */}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  id="logout-btn" 
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  id="logout-btn"
                   onClick={handleLogout}
                   className={cn(
                     "h-7 w-7 rounded-lg transition-all",
-                    theme === 'dark' ? "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50"
+                    theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-200/50"
                   )}
                   title={t('sidebar.logoutTitle')}
                 >
@@ -569,8 +569,8 @@ export function Sidebar({
         <div
           onMouseDown={startResizingSidebar}
           className={cn(
-            "absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-50 transition-colors duration-150 hover:bg-indigo-500/20 active:bg-indigo-500/40",
-            isResizingSidebar && "bg-indigo-500/30 w-1"
+            "absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-50 transition-colors duration-150 hover:bg-ds-indigo-500/20 active:bg-ds-indigo-500/40",
+            isResizingSidebar && "bg-ds-indigo-500/30 w-1"
           )}
         />
       )}

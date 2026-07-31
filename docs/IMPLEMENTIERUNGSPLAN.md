@@ -3,8 +3,8 @@
 > **Umsetzungsstand (31.07.2026):** AP-0 bis AP-4 abgeschlossen und verifiziert.
 > AP-5 abgeschlossen: Panel-Typen, Fokusobjekt je Code-Panel, gruppiertes
 > Entity-Referenzen-Menü und F-069 (persistierte Zeilen-Referenz im Chat) sind
-> umgesetzt. AP-5 und AP-6 sind abgeschlossen; AP-7 ist in Arbeit. Job-Center
-> und dessen de/en-i18n sind umgesetzt, als Nächstes folgt die Design-Token-Migration.
+> umgesetzt. AP-5 bis AP-7 sind abgeschlossen: Job-Center, de/en-i18n und die
+> Design-Token-Migration samt CI-Gate stehen. Als Nächstes folgt AP-8.
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
@@ -589,6 +589,13 @@ Monaco `glyphMarginClickHandler` → `{file, line, program, section, paragraph}`
 Eigenständige Komponente, aber **Layout-/Zoom-/Fokus-Bausteine aus `KnowledgeGraphView.tsx` extrahiert** statt neu geschrieben (der Katalog erlaubt das ausdrücklich). Inkrementelles Hop-Laden (NF-011), Kantentyp-Filter, dynamische/unaufgelöste Kanten visuell abgesetzt (gestrichelt + Warnfarbe), Export GraphML/CSV/JSON.
 
 ### 10.5 Design-Token-System (NF-006)
+
+> **Stand 31.07.2026: umgesetzt.** Light/Dark-Farben liegen zentral als
+> `--ds-*`-Tokens in `globals.css`; Tailwind löst UI-Farben ausschließlich über
+> diese Variablen auf. Komponenten verwenden den `ds`-Namespace, Graph-/Canvas-
+> Farben werden zur Laufzeit aus denselben Tokens aufgelöst. Fujitsu-Rot ist der
+> Interaktionsakzent. Der blockierende CI-Job `design-tokens` weist harte Hexwerte
+> und Tailwind-Standardfarben im Komponentenbaum zurück.
 
 ```
 frontend/app/globals.css     :root { --ds-* } Light-first + Dark-Variante

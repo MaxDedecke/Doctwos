@@ -78,10 +78,10 @@ interface SplitPaneWorkspaceProps {
   fileContentFormat?: string;
   handleFileSelect: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void>;
   isLoadingFile?: boolean;
-  
+
   // Monaco ref passed from parent to allow scrolling & decorations from page.tsx
   editorRef?: React.MutableRefObject<any>;
-  
+
   // References Tab Props
   fileReferences?: any[];
   isLoadingReferences?: boolean;
@@ -318,7 +318,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 range: range,
                 options: {
                   isWholeLine: true,
-                  className: 'bg-indigo-500/20 border-y border-indigo-500/30'
+                  className: 'bg-ds-indigo-500/20 border-y border-ds-indigo-500/30'
                 }
               }
             ]);
@@ -389,7 +389,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
       const lineContent = model.getLineContent(lineNum);
       const nameIndex = lineContent.toLowerCase().indexOf(ent.name.toLowerCase());
-      
+
       let startCol = 1;
       let endCol = lineContent.length + 1;
 
@@ -639,9 +639,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     <AnimatePresence>
       {(selectedFile || selectedDoc || activeRightTab === 'graph') && (
         <div className={cn(
-          "h-full border-l flex flex-col transition-all duration-300 ease-in-out bg-zinc-950",
+          "h-full border-l flex flex-col transition-all duration-300 ease-in-out bg-ds-zinc-950",
           splitClasses.editor,
-          theme === 'dark' ? "border-zinc-800/80 bg-zinc-950" : "border-zinc-200 bg-white"
+          theme === 'dark' ? "border-ds-zinc-800/80 bg-ds-zinc-950" : "border-ds-zinc-200 bg-ds-white"
         )}>
           {/* Graph View — full pane when activeRightTab === 'graph' */}
           {activeRightTab === 'graph' && (
@@ -664,10 +664,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           {/* Header Editor Pane — only when NOT in graph mode */}
           {activeRightTab !== 'graph' && <div className={cn(
             "px-5 py-3 flex items-center justify-between transition-colors",
-            theme === 'dark' ? "bg-zinc-900/30" : "bg-zinc-50/80"
+            theme === 'dark' ? "bg-ds-zinc-900/30" : "bg-ds-zinc-50/80"
           )}>
             <div className={cn(
-              "flex items-center gap-1.5 text-xs font-mono text-zinc-500 min-w-0 overflow-hidden transition-all duration-350",
+              "flex items-center gap-1.5 text-xs font-mono text-ds-zinc-500 min-w-0 overflow-hidden transition-all duration-350",
               isEditorMaximized ? "pl-14" : "pl-0"
             )}>
               {/* Back button + breadcrumb when navigating through history */}
@@ -678,8 +678,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     className={cn(
                       "flex items-center gap-0.5 h-6 px-1.5 rounded-md border text-[10px] font-semibold shrink-0 transition-colors",
                       theme === 'dark'
-                        ? "border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-                        : "border-zinc-300 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
+                        ? "border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                        : "border-ds-zinc-300 text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
                     )}
                     title={t('splitPane.backToPreviousFileTitle')}
                   >
@@ -694,12 +694,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       return (
                         <React.Fragment key={i}>
                           <span
-                            className="text-zinc-600 shrink-0 max-w-[70px] truncate"
+                            className="text-ds-zinc-600 shrink-0 max-w-[70px] truncate"
                             title={entry.file || entry.doc?.name}
                           >
                             {name}
                           </span>
-                          <ChevronRight className="w-3 h-3 text-zinc-700 shrink-0" />
+                          <ChevronRight className="w-3 h-3 text-ds-zinc-700 shrink-0" />
                         </React.Fragment>
                       );
                     })}
@@ -707,14 +707,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 </>
               )}
               {activeRightTab === 'code' ? (
-                <Terminal className="w-4 h-4 text-blue-500 shrink-0" />
+                <Terminal className="w-4 h-4 text-ds-blue-500 shrink-0" />
               ) : activeRightTab === 'weborigin' ? (
-                <Globe className="w-4 h-4 text-emerald-500 shrink-0" />
+                <Globe className="w-4 h-4 text-ds-emerald-500 shrink-0" />
               ) : (
-                <BookOpen className="w-4 h-4 text-orange-500 shrink-0" />
+                <BookOpen className="w-4 h-4 text-ds-orange-500 shrink-0" />
               )}
               <span
-                className={cn("truncate font-semibold", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}
+                className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
                 title={activeRightTab === 'code' ? selectedFile || '' : (selectedDoc?.name || '')}
               >
                 {activeRightTab === 'code'
@@ -724,11 +724,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {activeRightTab === 'weborigin' && selectedDoc?.url && (
-                <a 
+                <a
                   href={selectedDoc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-semibold text-xs mr-2 transition-colors"
+                  className="flex items-center gap-1 text-ds-indigo-400 hover:text-ds-indigo-300 font-semibold text-xs mr-2 transition-colors"
                 >
                   <span>{t('splitPane.openInBrowser')}</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -741,9 +741,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 {isReferencesDropdownOpen && (
                   <>
                     {/* Mobile Backdrop/Overlay & Desktop Modal Backdrop */}
-                    <div 
+                    <div
                       className={cn(
-                        "fixed inset-0 bg-black/60 backdrop-blur-sm z-[999]",
+                        "fixed inset-0 bg-ds-black/60 backdrop-blur-sm z-[999]",
                         !isReferencesModalMode && "sm:hidden"
                       )}
                       onClick={() => {
@@ -751,26 +751,26 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         setIsReferencesModalMode(false);
                       }}
                     />
-                    
+
                     <div className={cn(
                       // Mobile: Centered Modal
                       "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-h-[80vh] z-[1000] sm:z-[1000]",
                       // Desktop: Dropdown or Modal
-                      isReferencesModalMode 
-                        ? "sm:w-[70vw] sm:max-h-[85vh] sm:fixed sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2" 
+                      isReferencesModalMode
+                        ? "sm:w-[70vw] sm:max-h-[85vh] sm:fixed sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
                         : "sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 sm:translate-y-0 sm:mt-2 sm:w-96 sm:max-h-[450px]",
                       "overflow-y-auto rounded-lg border shadow-2xl flex flex-col transition-all duration-300",
                       theme === 'dark'
-                        ? "bg-zinc-950 border-zinc-800 text-zinc-300 shadow-black/80"
-                        : "bg-white border-zinc-200 text-zinc-800 shadow-zinc-200"
+                        ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-300 shadow-ds-black/80"
+                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 shadow-ds-zinc-200"
                     )}>
                     {/* Header */}
                     <div className={cn(
                       "px-4 py-3 border-b text-[10px] font-bold uppercase tracking-wider shrink-0 flex items-center justify-between",
-                      theme === 'dark' ? "border-zinc-800 text-zinc-400" : "border-zinc-200 text-zinc-550"
+                      theme === 'dark' ? "border-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-200 text-ds-zinc-550"
                     )}>
                       <div className="flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                        <Layers className="w-3.5 h-3.5 text-ds-indigo-500" />
                         <span>{t('splitPane.docCodeReferencesHeading')}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -780,18 +780,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               e.stopPropagation();
                               setIsReferencesModalMode(true);
                             }}
-                            className="hover:text-indigo-400 transition-colors hidden sm:block"
+                            className="hover:text-ds-indigo-400 transition-colors hidden sm:block"
                             title={t('splitPane.openAsDialogTitle')}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button 
+                        <button
                           onClick={() => {
                             setIsReferencesDropdownOpen(false);
                             setIsReferencesModalMode(false);
                           }}
-                          className="hover:text-red-400 transition-colors"
+                          className="hover:text-ds-red-400 transition-colors"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -804,19 +804,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       isReferencesModalMode ? "sm:max-h-[70vh]" : "max-h-[350px]"
                     )}>
                       {activeRightTab === 'code' && !selectedEntity ? (
-                        <div className="p-8 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
-                          <Layers className="w-8 h-8 text-zinc-650 opacity-50" />
+                        <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
+                          <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
                           <span>Für diese Datei ist kein geparstes Fokusobjekt verfügbar.</span>
                         </div>
                       ) : activeRightTab === 'code' && isLoadingEntityNeighbors ? (
-                        <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-zinc-500">
-                          <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                        <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-ds-zinc-500">
+                          <Loader2 className="w-5 h-5 animate-spin text-ds-indigo-500" />
                           <span>Lade Referenzen …</span>
                         </div>
                       ) : activeRightTab === 'code' ? (
                         Object.keys(entityNeighborGroups).length === 0 ? (
-                          <div className="p-8 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
-                            <Layers className="w-8 h-8 text-zinc-650 opacity-50" />
+                          <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
+                            <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
                             <span>Keine direkten Referenzen für {selectedEntity.name}.</span>
                           </div>
                         ) : (
@@ -825,7 +825,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               <section key={group} aria-labelledby={`neighbor-group-${group}`}>
                                 <h3
                                   id={`neighbor-group-${group}`}
-                                  className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500"
+                                  className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500"
                                 >
                                   {neighborGroupLabels[group] || group.replace(':', ' · ')}
                                 </h3>
@@ -836,7 +836,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       key={neighbor.edge_id}
                                       className={cn(
                                         "w-full px-4 py-2.5 text-left flex items-center gap-2 transition-colors",
-                                        theme === 'dark' ? "hover:bg-zinc-900/60" : "hover:bg-zinc-50"
+                                        theme === 'dark' ? "hover:bg-ds-zinc-900/60" : "hover:bg-ds-zinc-50"
                                       )}
                                       disabled={!entity}
                                       onClick={() => {
@@ -844,17 +844,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         setIsReferencesDropdownOpen(false);
                                       }}
                                     >
-                                      <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />
+                                      <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate text-xs font-semibold font-mono">
                                           {entity?.name || neighbor.dst_name}
                                         </span>
-                                        <span className="block truncate text-[10px] text-zinc-500 font-mono">
+                                        <span className="block truncate text-[10px] text-ds-zinc-500 font-mono">
                                           {entity?.file_path || 'Nicht aufgelöst'}
                                         </span>
                                       </span>
                                       {entity?.start_line && (
-                                        <span className="text-[9px] text-zinc-500 font-mono">L{entity.start_line}</span>
+                                        <span className="text-[9px] text-ds-zinc-500 font-mono">L{entity.start_line}</span>
                                       )}
                                     </button>
                                   );
@@ -864,23 +864,23 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                           </div>
                         )
                       ) : isLoadingRefsToUse ? (
-                        <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-zinc-500">
-                          <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                        <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-ds-zinc-500">
+                          <Loader2 className="w-5 h-5 animate-spin text-ds-indigo-500" />
                           <span>{t('splitPane.searchingCodeReferences') || "Suche Referenzen..."}</span>
                         </div>
                       ) : referencesToUse.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
-                          <Layers className="w-8 h-8 text-zinc-650 opacity-50" />
+                        <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
+                          <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
                           <span>{t('splitPane.noCodeReferences') || "Keine Referenzen vorhanden"}</span>
                         </div>
                       ) : (
-                        <div className={cn("divide-y", theme === 'dark' ? "divide-zinc-900 border-zinc-900" : "divide-zinc-200")}>
+                        <div className={cn("divide-y", theme === 'dark' ? "divide-zinc-900 border-ds-zinc-900" : "divide-zinc-200")}>
                           {referencesToUse.map((ref, idx) => {
                             const isEntity = ref.node_type === 'entity';
                             const parts = (ref.file_path || "").split('/');
                             const filename = parts.pop();
                             const folderPath = parts.join('/');
-                            
+
                             return (
                               <button
                                 key={idx}
@@ -888,27 +888,27 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                 className={cn(
                                   "w-full text-left px-4 py-3 text-xs flex flex-col gap-2 transition-colors cursor-pointer block",
                                   theme === 'dark'
-                                    ? "hover:bg-zinc-900/50 text-zinc-300"
-                                    : "hover:bg-zinc-50 text-zinc-800"
+                                    ? "hover:bg-ds-zinc-900/50 text-ds-zinc-300"
+                                    : "hover:bg-ds-zinc-50 text-ds-zinc-800"
                                 )}
                                 onClick={() => handleReferenceItemClick(ref)}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 overflow-hidden">
                                     {isEntity ? (
-                                      <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />
+                                      <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
                                     ) : (
-                                      <BookOpen className="w-4 h-4 text-emerald-400 shrink-0" />
+                                      <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
                                     )}
                                     <div className="flex flex-col truncate">
                                       <span className={cn(
                                         "font-semibold font-mono",
-                                        theme === 'dark' ? "text-zinc-200" : "text-zinc-800"
+                                        theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"
                                       )}>
                                         {ref.name || ref.title}
                                       </span>
                                       {folderPath && (
-                                        <span className="text-[10px] text-zinc-500 font-mono truncate">
+                                        <span className="text-[10px] text-ds-zinc-500 font-mono truncate">
                                           {folderPath}/
                                         </span>
                                       )}
@@ -917,19 +917,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                   <span className={cn(
                                     "px-2 py-0.5 text-[9px] font-bold rounded font-mono shrink-0 border uppercase tracking-wider",
                                     ref.line
-                                      ? (theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-605")
-                                      : (theme === 'dark' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-emerald-50 border-emerald-200 text-emerald-700")
+                                      ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-605")
+                                      : (theme === 'dark' ? "bg-ds-emerald-500/10 border-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700")
                                   )}>
                                     {ref.line ? t('splitPane.lineLabel', { line: ref.line }) : (ref.source || "Document")}
                                   </span>
                                 </div>
-                                
+
                                 {ref.preview && (
                                   <div className={cn(
                                     "p-2 rounded-lg font-mono text-[10px] border-l-2 transition-colors overflow-x-auto w-full",
                                     theme === 'dark'
-                                      ? "bg-zinc-900/80 border-indigo-500 text-zinc-350"
-                                      : "bg-zinc-50 border-indigo-600 text-zinc-600"
+                                      ? "bg-ds-zinc-900/80 border-ds-indigo-500 text-ds-zinc-350"
+                                      : "bg-ds-zinc-50 border-ds-indigo-600 text-ds-zinc-600"
                                   )}>
                                     <pre className="whitespace-pre overflow-x-auto select-none">
                                       {ref.preview}
@@ -945,45 +945,45 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
                     {/* Detailed Drilldown Dialog for Clicked Reference Item */}
                     {focusedRefNode && (
-                      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                      <div className="fixed inset-0 bg-ds-black/70 backdrop-blur-sm z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-200">
                         <div className={cn(
                           "w-full max-w-3xl max-h-[80vh] rounded-lg border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200",
-                          theme === 'dark' ? "bg-zinc-950 border-zinc-800 text-zinc-300 shadow-black" : "bg-white border-zinc-200 text-zinc-800 shadow-zinc-300"
+                          theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-300 shadow-ds-black" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 shadow-ds-zinc-300"
                         )}>
                           {/* Header */}
                           <div className={cn(
                             "px-4 py-3 border-b flex items-center justify-between font-semibold shrink-0 text-sm",
-                            theme === 'dark' ? "border-zinc-800" : "border-zinc-200"
+                            theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200"
                           )}>
                             <div className="flex items-center gap-2">
-                              <Layers className="w-4 h-4 text-indigo-500 animate-pulse" />
-                              <span>Referenzen für: <strong className="font-mono text-indigo-400">{focusedRefNode.name || focusedRefNode.title}</strong></span>
+                              <Layers className="w-4 h-4 text-ds-indigo-500 animate-pulse" />
+                              <span>Referenzen für: <strong className="font-mono text-ds-indigo-400">{focusedRefNode.name || focusedRefNode.title}</strong></span>
                             </div>
                             <button
                               onClick={() => setFocusedRefNode(null)}
-                              className="p-1 rounded-lg hover:bg-zinc-800/20 text-zinc-550 hover:text-zinc-300 transition-colors"
+                              className="p-1 rounded-lg hover:bg-ds-zinc-800/20 text-ds-zinc-550 hover:text-ds-zinc-300 transition-colors"
                             >
                               <X className="w-4.5 h-4.5" />
                             </button>
                           </div>
-                          
+
                           {/* Body */}
                           <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             {isLoadingFocusedRefRefs ? (
-                              <div className="p-12 flex flex-col items-center justify-center gap-3 text-xs text-zinc-500">
-                                <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                              <div className="p-12 flex flex-col items-center justify-center gap-3 text-xs text-ds-zinc-500">
+                                <Loader2 className="w-6 h-6 animate-spin text-ds-indigo-500" />
                                 <span>Lade verknüpfte Referenzen...</span>
                               </div>
                             ) : focusedRefReferences.length === 0 ? (
-                              <div className="p-12 text-center text-xs text-zinc-500 italic flex flex-col items-center gap-2">
-                                <Layers className="w-8 h-8 text-zinc-650 opacity-40" />
+                              <div className="p-12 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
+                                <Layers className="w-8 h-8 text-ds-zinc-650 opacity-40" />
                                 <span>Keine direkten Verknüpfungen für dieses Element im Graph vorhanden.</span>
                               </div>
                             ) : (
                               <div className="space-y-3">
                                 {focusedRefReferences.map((ref, idx) => {
                                   const isEntity = ref.node_type === 'entity';
-                                  
+
                                   return (
                                     <div
                                       key={idx}
@@ -1000,57 +1000,57 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       className={cn(
                                         "p-4 rounded-lg border text-xs flex flex-col gap-2 transition-all cursor-pointer hover:scale-[1.01] duration-150",
                                         theme === 'dark'
-                                          ? "bg-zinc-900/60 border-zinc-805 hover:bg-zinc-900 hover:border-indigo-500/40"
-                                          : "bg-zinc-50 border-zinc-200 hover:bg-zinc-100 hover:border-indigo-650/40"
+                                          ? "bg-ds-zinc-900/60 border-ds-zinc-805 hover:bg-ds-zinc-900 hover:border-ds-indigo-500/40"
+                                          : "bg-ds-zinc-50 border-ds-zinc-200 hover:bg-ds-zinc-100 hover:border-ds-indigo-650/40"
                                       )}
                                     >
                                       <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                           {isEntity ? (
-                                            <FileCode className="w-4 h-4 text-indigo-400 shrink-0" />
+                                            <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
                                           ) : (
-                                            <BookOpen className="w-4 h-4 text-emerald-400 shrink-0" />
+                                            <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
                                           )}
                                           <div className="flex flex-col truncate">
                                             <span className={cn(
                                               "font-semibold font-mono",
-                                              theme === 'dark' ? "text-zinc-200" : "text-zinc-805"
+                                              theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-805"
                                             )}>
                                               {ref.name || ref.title}
                                             </span>
                                             {ref.file_path && (
-                                              <span className="text-[10px] text-zinc-500 font-mono truncate">
+                                              <span className="text-[10px] text-ds-zinc-500 font-mono truncate">
                                                 {ref.file_path}
                                               </span>
                                             )}
                                           </div>
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-1.5 shrink-0">
                                           {ref.line ? (
                                             <span className={cn(
                                               "px-2 py-0.5 text-[9px] font-bold rounded font-mono border uppercase tracking-wider",
-                                              theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-600"
+                                              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-600"
                                             )}>
                                               Zeile {ref.line}
                                             </span>
                                           ) : (
                                             <span className={cn(
                                               "px-2 py-0.5 text-[9px] font-bold rounded border uppercase tracking-wider",
-                                              theme === 'dark' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-emerald-50 border-emerald-200 text-emerald-700"
+                                              theme === 'dark' ? "bg-ds-emerald-500/10 border-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700"
                                             )}>
                                               {ref.source || "Local"}
                                             </span>
                                           )}
                                         </div>
                                       </div>
-                                      
+
                                       {ref.preview && (
                                         <div className={cn(
                                           "p-3 rounded-lg font-mono text-[10px] border-l-2 overflow-x-auto w-full",
                                           theme === 'dark'
-                                            ? "bg-zinc-950/80 border-indigo-500 text-zinc-350"
-                                            : "bg-white border-indigo-650 text-zinc-600"
+                                            ? "bg-ds-zinc-950/80 border-ds-indigo-500 text-ds-zinc-350"
+                                            : "bg-ds-white border-ds-indigo-650 text-ds-zinc-600"
                                         )}>
                                           {ref.preview}
                                         </div>
@@ -1071,11 +1071,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
               {/* Maximize Toggle */}
               {activeRightTab !== 'doc' && activeRightTab !== 'weborigin' && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   id="editor-maximize-btn"
-                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900" : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100")}
+                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-900" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
                   onClick={() => setIsEditorMaximized(!isEditorMaximized)}
                   title={isEditorMaximized ? t('splitPane.showSplitScreenTitle') : t('splitPane.fullscreenModeTitle')}
                 >
@@ -1084,11 +1084,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               )}
               {/* Close Editor */}
               {activeRightTab !== 'doc' && activeRightTab !== 'weborigin' && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   id="editor-close-btn"
-                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-zinc-500 hover:text-red-400 hover:bg-zinc-900" : "text-zinc-400 hover:text-red-500 hover:bg-zinc-100")}
+                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-red-400 hover:bg-ds-zinc-900" : "text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-zinc-100")}
                   onClick={() => {
                     setSelectedFile(null);
                     setSelectedDoc(null);
@@ -1107,21 +1107,21 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             {isLoadingToUse ? (
               <div className={cn(
                 "flex-1 flex flex-col items-center justify-center gap-3",
-                theme === 'dark' ? "bg-zinc-950 text-zinc-400" : "bg-zinc-50 text-zinc-655"
+                theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-400" : "bg-ds-zinc-50 text-ds-zinc-655"
               )}>
                 <div className="relative">
                   <div className={cn(
                     "w-12 h-12 rounded-full border-2 animate-spin",
-                    activeRightTab === 'code' ? (theme === 'dark' ? "border-blue-500/20 border-t-blue-500" : "border-blue-600/20 border-t-blue-600") :
-                    activeRightTab === 'weborigin' ? (theme === 'dark' ? "border-emerald-500/20 border-t-emerald-500" : "border-emerald-600/20 border-t-emerald-600") :
-                    (theme === 'dark' ? "border-orange-500/20 border-t-orange-500" : "border-orange-600/20 border-t-orange-600")
+                    activeRightTab === 'code' ? (theme === 'dark' ? "border-ds-blue-500/20 border-t-blue-500" : "border-ds-blue-600/20 border-t-blue-600") :
+                    activeRightTab === 'weborigin' ? (theme === 'dark' ? "border-ds-emerald-500/20 border-t-emerald-500" : "border-ds-emerald-600/20 border-t-emerald-600") :
+                    (theme === 'dark' ? "border-ds-orange-500/20 border-t-orange-500" : "border-ds-orange-600/20 border-t-orange-600")
                   )} />
                   {activeRightTab === 'code' ? (
-                    <Terminal className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-blue-500" : "text-blue-600")} />
+                    <Terminal className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-ds-blue-500" : "text-ds-blue-600")} />
                   ) : activeRightTab === 'weborigin' ? (
-                    <Globe className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-emerald-500" : "text-emerald-600")} />
+                    <Globe className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-ds-emerald-500" : "text-ds-emerald-600")} />
                   ) : (
-                    <BookOpen className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-orange-500" : "text-orange-600")} />
+                    <BookOpen className={cn("w-5 h-5 absolute inset-0 m-auto animate-pulse", theme === 'dark' ? "text-ds-orange-500" : "text-ds-orange-600")} />
                   )}
                 </div>
                 <div className="flex flex-col items-center gap-1">
@@ -1132,33 +1132,33 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   </span>
                   <span className={cn(
                     "text-xs font-mono max-w-md truncate px-4",
-                    theme === 'dark' ? "text-zinc-550" : "text-zinc-400"
+                    theme === 'dark' ? "text-ds-zinc-550" : "text-ds-zinc-400"
                   )}>
                     {selectedDoc?.name || selectedFile}
                   </span>
                 </div>
               </div>
             ) : activeRightTab === 'weborigin' && selectedDoc ? (
-              <div className={cn("flex-1 overflow-hidden flex flex-col", theme === 'dark' ? "bg-zinc-950" : "bg-white")}>
+              <div className={cn("flex-1 overflow-hidden flex flex-col", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}>
                 <div className="flex-1 overflow-hidden">
                   <iframe
                     srcDoc={contentToUse}
-                    className={cn("w-full h-full border-none", theme === 'dark' ? "bg-zinc-950" : "bg-white")}
+                    className={cn("w-full h-full border-none", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}
                     title={selectedDoc.name || 'Web Preview'}
                     sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts"
                   />
                 </div>
               </div>
             ) : activeRightTab === 'doc' && selectedDoc ? (
-              <div className="flex-1 overflow-hidden flex flex-col bg-zinc-955">
+              <div className="flex-1 overflow-hidden flex flex-col bg-ds-zinc-955">
                 {selectedDoc.name.toLowerCase().endsWith('.pdf') ? (
                   <iframe
                     src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name)}&theme=${theme}`}
-                    className="w-full h-full border-none bg-zinc-900"
+                    className="w-full h-full border-none bg-ds-zinc-900"
                     title={selectedDoc.name}
                   />
                 ) : formatToUse === 'image' ? (
-                  <div className="flex-1 overflow-auto flex items-center justify-center p-6 bg-zinc-925">
+                  <div className="flex-1 overflow-auto flex items-center justify-center p-6 bg-ds-zinc-925">
                     {/* next/image needs a build-time-known remote host, but API_URL is a
                         runtime env var so the same image works for every self-hosted
                         customer (see CLAUDE.md) — a static remotePatterns allowlist isn't
@@ -1173,13 +1173,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 ) : (
                   <div className={cn(
                     "flex-1 overflow-y-auto p-6 md:p-8 space-y-6 prose prose-invert max-w-none",
-                    theme === 'dark' ? "text-zinc-350" : "text-zinc-800 bg-white"
+                    theme === 'dark' ? "text-ds-zinc-350" : "text-ds-zinc-800 bg-ds-white"
                   )}>
-                    <div className={cn("border-b pb-4 mb-6 max-w-3xl mx-auto", theme === 'dark' ? "border-zinc-800/80" : "border-zinc-200")}>
+                    <div className={cn("border-b pb-4 mb-6 max-w-3xl mx-auto", theme === 'dark' ? "border-ds-zinc-800/80" : "border-ds-zinc-200")}>
                       <h1 className="text-2xl font-bold tracking-tight mb-2">
                         {selectedDoc.name}
                       </h1>
-                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                      <div className="flex items-center gap-2 text-xs text-ds-zinc-500">
                         <span>{t('splitPane.knowledgeSourceLabel')}</span>
                         <span>•</span>
                         <span>{t('splitPane.documentViewerLabel')}</span>
@@ -1206,28 +1206,28 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               <>
                 <div className={cn(
                   "flex items-center py-1.5 border-b select-none z-10 transition-colors duration-200 shrink-0",
-                  theme === 'dark' ? "bg-zinc-950 border-zinc-900 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-650"
+                  theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-650"
                 )}>
                   {/* Left spacer showing current column (C:XX) */}
-                  <div 
-                    style={{ width: `${editorContentLeft}px` }} 
+                  <div
+                    style={{ width: `${editorContentLeft}px` }}
                     className={cn(
-                      "shrink-0 text-right pr-2 text-indigo-500 font-bold border-r mr-2 text-[10px] select-none flex items-center justify-end font-mono",
-                      theme === 'dark' ? "border-zinc-800 text-indigo-400" : "border-zinc-300 text-indigo-650"
+                      "shrink-0 text-right pr-2 text-ds-indigo-500 font-bold border-r mr-2 text-[10px] select-none flex items-center justify-end font-mono",
+                      theme === 'dark' ? "border-ds-zinc-800 text-ds-indigo-400" : "border-ds-zinc-300 text-ds-indigo-650"
                     )}
                   >
                     C:{cursorColumn}
                   </div>
-                  
+
                   {/* Scrollable Ruler Container */}
                   <div className="flex-1 overflow-hidden">
-                    <div 
+                    <div
                       ref={rulerRef}
                       className="flex flex-col whitespace-nowrap"
                       style={{ transform: 'translateX(0px)', transition: 'none' }}
                     >
-                      <div 
-                        className="flex leading-none font-mono tracking-normal py-0.5" 
+                      <div
+                        className="flex leading-none font-mono tracking-normal py-0.5"
                         style={{ fontSize: editorFontSize, fontFamily: editorFontFamily }}
                       >
                         {RULER_COLUMNS.map(c => {
@@ -1236,44 +1236,44 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                           const cursorStart = cursorColumn;
                           const cursorEnd = cursorColumn + numStr.length - 1;
                           const isCurrent = c >= cursorStart && c <= cursorEnd;
-                          
+
                           // Determine the character to display
                           const val = isCurrent ? numStr[c - cursorStart] : "*";
-                          
+
                           // Determine COBOL zone colors if isCobol
                           let zoneBg = "";
                           let zoneText = "";
                           if (isCobol) {
                             if (c >= 1 && c <= 6) {
-                              zoneBg = theme === 'dark' ? "bg-zinc-900/40" : "bg-zinc-200/60";
-                              zoneText = "text-zinc-500";
+                              zoneBg = theme === 'dark' ? "bg-ds-zinc-900/40" : "bg-ds-zinc-200/60";
+                              zoneText = "text-ds-zinc-500";
                             } else if (c === 7) {
-                              zoneBg = theme === 'dark' ? "bg-amber-500/20" : "bg-amber-500/30";
-                              zoneText = "text-amber-500 font-bold dark:text-amber-400";
+                              zoneBg = theme === 'dark' ? "bg-ds-amber-500/20" : "bg-ds-amber-500/30";
+                              zoneText = "text-ds-amber-500 font-bold dark:text-ds-amber-400";
                             } else if (c >= 8 && c <= 11) {
-                              zoneBg = theme === 'dark' ? "bg-blue-500/15" : "bg-blue-500/25";
-                              zoneText = "text-blue-500 font-semibold dark:text-blue-400";
+                              zoneBg = theme === 'dark' ? "bg-ds-blue-500/15" : "bg-ds-blue-500/25";
+                              zoneText = "text-ds-blue-500 font-semibold dark:text-ds-blue-400";
                             } else if (c >= 12 && c <= 72) {
-                              zoneBg = theme === 'dark' ? "bg-emerald-500/10" : "bg-emerald-500/15";
-                              zoneText = "text-emerald-650 dark:text-emerald-400";
+                              zoneBg = theme === 'dark' ? "bg-ds-emerald-500/10" : "bg-ds-emerald-500/15";
+                              zoneText = "text-ds-emerald-650 dark:text-ds-emerald-400";
                             } else if (c >= 73 && c <= 80) {
-                              zoneBg = theme === 'dark' ? "bg-zinc-900/40" : "bg-zinc-200/60";
-                              zoneText = "text-zinc-500";
+                              zoneBg = theme === 'dark' ? "bg-ds-zinc-900/40" : "bg-ds-zinc-200/60";
+                              zoneText = "text-ds-zinc-500";
                             } else {
-                              zoneText = theme === 'dark' ? "text-zinc-650" : "text-zinc-400";
+                              zoneText = theme === 'dark' ? "text-ds-zinc-650" : "text-ds-zinc-400";
                             }
                           } else {
-                            zoneText = theme === 'dark' ? "text-zinc-550" : "text-zinc-450";
+                            zoneText = theme === 'dark' ? "text-ds-zinc-550" : "text-ds-zinc-450";
                           }
 
                           return (
-                            <span 
-                              key={`ruler-${c}`} 
+                            <span
+                              key={`ruler-${c}`}
                               className={cn(
                                 "inline-block text-center select-none transition-colors",
                                 zoneBg,
                                 zoneText,
-                                isCurrent && "bg-indigo-600 text-white font-bold rounded-sm scale-110 shadow-sm z-10"
+                                isCurrent && "bg-ds-indigo-600 text-ds-white font-bold rounded-sm scale-110 shadow-sm z-10"
                               )}
                               style={{ width: '1ch' }}
                             >
@@ -1288,19 +1288,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   {/* Zone Badge */}
                   <div className={cn(
                     "shrink-0 flex items-center px-3 border-l ml-2",
-                    theme === 'dark' ? "border-zinc-800" : "border-zinc-300"
+                    theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
                   )}>
                     <span className={cn(
                       "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
-                      detectLanguage(selectedFile) === 'cobol' 
+                      detectLanguage(selectedFile) === 'cobol'
                         ? (
-                            cursorColumn >= 1 && cursorColumn <= 6 ? (theme === 'dark' ? "bg-zinc-800 text-zinc-300" : "bg-zinc-700 text-white") :
-                            cursorColumn === 7 ? (theme === 'dark' ? "bg-amber-500/20 text-amber-400" : "bg-amber-500 text-white shadow-sm") :
-                            cursorColumn >= 8 && cursorColumn <= 11 ? (theme === 'dark' ? "bg-blue-500/20 text-blue-400" : "bg-blue-600 text-white shadow-sm") :
-                            cursorColumn >= 12 && cursorColumn <= 72 ? (theme === 'dark' ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-600 text-white shadow-sm") :
-                            (theme === 'dark' ? "bg-zinc-800 text-zinc-300" : "bg-zinc-700 text-white")
+                            cursorColumn >= 1 && cursorColumn <= 6 ? (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-zinc-700 text-ds-white") :
+                            cursorColumn === 7 ? (theme === 'dark' ? "bg-ds-amber-500/20 text-ds-amber-400" : "bg-ds-amber-500 text-ds-white shadow-sm") :
+                            cursorColumn >= 8 && cursorColumn <= 11 ? (theme === 'dark' ? "bg-ds-blue-500/20 text-ds-blue-400" : "bg-ds-blue-600 text-ds-white shadow-sm") :
+                            cursorColumn >= 12 && cursorColumn <= 72 ? (theme === 'dark' ? "bg-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-600 text-ds-white shadow-sm") :
+                            (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-zinc-700 text-ds-white")
                           )
-                        : (theme === 'dark' ? "bg-zinc-800 text-zinc-300" : "bg-zinc-700 text-white")
+                        : (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-zinc-700 text-ds-white")
                     )}>
                       {detectLanguage(selectedFile) === 'cobol' ? (
                         cursorColumn >= 1 && cursorColumn <= 6 ? "Sequence (1-6)" :
@@ -1318,8 +1318,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   theme={theme === 'dark' ? "vs-dark" : "light"}
                   onMount={handleEditorDidMountLocal}
                   loading={
-                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-950 text-zinc-500 text-xs gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-ds-zinc-950 text-ds-zinc-500 text-xs gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-ds-indigo-500" />
                       {t('splitPane.editorLoading')}
                     </div>
                   }

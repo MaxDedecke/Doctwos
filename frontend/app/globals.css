@@ -2,74 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Doctus brand palette — from the Doctus Design blueprint mock (architectural/
-   CAD aesthetic, sharp corners, single electric-blue accent). The mock ships
-   two palettes: a near-black cool dark mode (#0B0D10) and a warm "drafting
-   paper" light mode (#F4F3EF, not pure white) with a darker, more saturated
-   accent (#1E4FD8) for contrast on the light background. Doctus toggles
-   `.dark` on <html> (see app/page.tsx) per Tailwind's `darkMode: ["class"]",
-   so light lives in the bare :root and dark overrides it in `.dark`. */
+/* AP-7 design tokens. RGB channels keep Tailwind opacity modifiers working.
+   Fujitsu red is reserved for interactive emphasis; status and graph colors
+   are separate semantic tokens derived from this single palette. */
 @layer base {
   :root {
-    --background: 48 19% 95%;
-    --foreground: 220 13% 9%;
+    --ds-white: 255 255 255;
+    --ds-black: 0 0 0;
+    --ds-background: 244 243 239;
+    --ds-surface: 250 249 246;
+    --ds-surface-muted: 235 233 227;
+    --ds-foreground: 27 31 39;
+    --ds-foreground-muted: 92 102 117;
+    --ds-border: 195 202 214;
+    --ds-input: 195 202 214;
+    --ds-accent: 228 0 43;
+    --ds-on-accent: 255 255 255;
+    --ds-focus: 228 0 43;
+    --ds-danger: 190 18 60;
+    --ds-on-danger: 255 255 255;
 
-    --card: 44 25% 98%;
-    --card-foreground: 220 13% 9%;
+    --ds-neutral-50: 245 247 250;
+    --ds-neutral-100: 233 237 244;
+    --ds-neutral-150: 222 227 236;
+    --ds-neutral-200: 195 202 214;
+    --ds-neutral-250: 182 191 204;
+    --ds-neutral-300: 169 178 192;
+    --ds-neutral-350: 143 152 168;
+    --ds-neutral-400: 124 135 152;
+    --ds-neutral-450: 108 118 134;
+    --ds-neutral-500: 92 102 117;
+    --ds-neutral-550: 78 87 101;
+    --ds-neutral-600: 59 66 80;
+    --ds-neutral-650: 49 56 71;
+    --ds-neutral-700: 38 43 53;
+    --ds-neutral-750: 30 35 44;
+    --ds-neutral-800: 27 31 39;
+    --ds-neutral-850: 22 26 33;
+    --ds-neutral-900: 16 19 25;
+    --ds-neutral-950: 11 13 16;
 
-    --popover: 44 25% 98%;
-    --popover-foreground: 220 13% 9%;
-
-    --primary: 224 76% 48%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 44 18% 92%;
-    --secondary-foreground: 220 13% 9%;
-
-    --muted: 44 18% 92%;
-    --muted-foreground: 218 13% 35%;
-
-    --accent: 44 18% 92%;
-    --accent-foreground: 220 13% 9%;
-
-    --destructive: 0 70% 42%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 6% 80%;
-    --input: 220 6% 80%;
-    --ring: 224 76% 48%;
+    --ds-accent-soft: 255 229 234;
+    --ds-accent-base: 228 0 43;
+    --ds-accent-strong: 166 0 31;
+    --ds-info-soft: 219 234 254;
+    --ds-info-base: 37 99 235;
+    --ds-info-strong: 30 64 175;
+    --ds-success-soft: 209 250 229;
+    --ds-success-base: 5 150 105;
+    --ds-success-strong: 6 95 70;
+    --ds-warning-soft: 254 243 199;
+    --ds-warning-base: 217 119 6;
+    --ds-warning-strong: 146 64 14;
+    --ds-danger-soft: 254 226 226;
+    --ds-danger-base: 220 38 38;
+    --ds-danger-strong: 153 27 27;
+    --ds-graph-a-soft: 237 233 254;
+    --ds-graph-a-base: 124 58 237;
+    --ds-graph-a-strong: 91 33 182;
+    --ds-graph-b-soft: 252 231 243;
+    --ds-graph-b-base: 219 39 119;
+    --ds-graph-b-strong: 157 23 77;
 
     --radius: 0.125rem;
   }
 
   .dark {
-    --background: 216 18% 5%;
-    --foreground: 219 33% 94%;
-
-    --card: 220 22% 8%;
-    --card-foreground: 219 33% 94%;
-
-    --popover: 220 22% 8%;
-    --popover-foreground: 219 33% 94%;
-
-    --primary: 223 100% 65%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 218 18% 14%;
-    --secondary-foreground: 219 33% 94%;
-
-    --muted: 218 18% 14%;
-    --muted-foreground: 218 15% 65%;
-
-    --accent: 218 18% 14%;
-    --accent-foreground: 219 33% 94%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217 15% 18%;
-    --input: 217 15% 18%;
-    --ring: 223 100% 65%;
+    --ds-background: 11 13 16;
+    --ds-surface: 16 19 25;
+    --ds-surface-muted: 27 31 39;
+    --ds-foreground: 233 237 244;
+    --ds-foreground-muted: 169 178 192;
+    --ds-border: 38 43 53;
+    --ds-input: 38 43 53;
+    --ds-accent: 255 51 85;
+    --ds-focus: 255 51 85;
+    --ds-danger: 248 113 113;
   }
 }
 
@@ -82,13 +90,13 @@
   }
 }
 
-/* Slim, minimal scrollbars matching Doctus's blue-gray palette, theme-aware via .dark */
+/* Slim, theme-aware scrollbars. */
 html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(152, 162, 179, 0.4) transparent;
+  scrollbar-color: rgb(var(--ds-neutral-300) / 0.4) transparent;
 }
 .dark {
-  scrollbar-color: rgba(92, 102, 117, 0.5) transparent;
+  scrollbar-color: rgb(var(--ds-neutral-500) / 0.5) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -99,24 +107,24 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(152, 162, 179, 0.4);
+  background-color: rgb(var(--ds-neutral-300) / 0.4);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: padding-box;
   transition: background-color 0.15s;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(92, 102, 117, 0.65);
+  background-color: rgb(var(--ds-neutral-500) / 0.65);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background-color: rgba(92, 102, 117, 0.5);
+  background-color: rgb(var(--ds-neutral-500) / 0.5);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(92, 102, 117, 0.75);
+  background-color: rgb(var(--ds-neutral-500) / 0.75);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -153,19 +161,19 @@ html {
 .doctus-clickable-entity {
   text-decoration: underline;
   text-decoration-style: dashed;
-  text-decoration-color: #4d7fff;
-  color: #7396ff !important;
+  text-decoration-color: rgb(var(--ds-accent));
+  color: rgb(var(--ds-accent)) !important;
   font-weight: 600;
   cursor: pointer;
   border-radius: 2px;
-  background-color: rgba(77, 127, 255, 0.08);
+  background-color: rgb(var(--ds-accent) / 0.08);
   transition: all 0.2s;
 }
 
 .doctus-clickable-entity:hover {
   text-decoration-style: solid;
-  background-color: rgba(77, 127, 255, 0.18);
-  color: #9bb4ff !important;
+  background-color: rgb(var(--ds-accent) / 0.18);
+  color: rgb(var(--ds-accent)) !important;
 }
 
 .doctus-entity-glyph-margin {

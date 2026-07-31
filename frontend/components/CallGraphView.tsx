@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Download, FileCode, Loader2, Maximize2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { API_URL } from '@/app/services/api';
 import { cn } from '@/lib/utils';
+import { resolveDsColor } from '@/lib/designTokens';
 
 type CallNode = {
   id: string;
@@ -27,10 +28,10 @@ type CallEdge = {
 };
 
 const EDGE_COLORS: Record<string, string> = {
-  CALL: '#ef4444',
-  PERFORM: '#22c55e',
-  GOTO: '#eab308',
-  COPY: '#8b5cf6',
+  CALL: 'rgb(var(--ds-danger-base))',
+  PERFORM: 'rgb(var(--ds-success-base))',
+  GOTO: 'rgb(var(--ds-warning-base))',
+  COPY: 'rgb(var(--ds-graph-a-base))',
 };
 
 interface Props {
@@ -137,38 +138,38 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
   };
 
   if (!focusedEntity?.id) {
-    return <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">Bitte zuerst ein COBOL-Objekt fokussieren.</p></div>;
+    return <div className="h-full flex flex-col items-center justify-center gap-2 text-ds-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">Bitte zuerst ein COBOL-Objekt fokussieren.</p></div>;
   }
 
   return (
-    <div className={cn('h-full flex flex-col', isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-white text-zinc-800')}>
-      <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-zinc-800' : 'border-zinc-200')}>
-        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-zinc-500">Call-Graph · {hops} Hop{hops !== 1 ? 's' : ''}</div></div>
-        {[1, 2, 3].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-indigo-500 bg-indigo-500/15 text-indigo-400' : 'border-zinc-700 text-zinc-500')}>{value} Hop</button>)}
-        <button onClick={loadGraph} title="Neu laden" className="p-1.5 text-zinc-500 hover:text-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title="Vergrößern" className="p-1.5 text-zinc-500 hover:text-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title="Verkleinern" className="p-1.5 text-zinc-500 hover:text-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title="Alles einpassen" className="p-1.5 text-zinc-500 hover:text-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
+    <div className={cn('h-full flex flex-col', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
+      <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">Call-Graph · {hops} Hop{hops !== 1 ? 's' : ''}</div></div>
+        {[1, 2, 3].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} Hop</button>)}
+        <button onClick={loadGraph} title="Neu laden" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title="Vergrößern" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title="Verkleinern" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title="Alles einpassen" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
       </div>
-      <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-zinc-900' : 'border-zinc-100')}>
+      <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         {Object.entries(EDGE_COLORS).map(([type, color]) => <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>)}
-        <div className="ml-auto flex items-center gap-1">{(['json', 'csv', 'graphml'] as const).map(format => <button key={format} onClick={() => exportGraph(format)} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase font-bold text-zinc-500 hover:text-indigo-400"><Download className="w-3 h-3" />{format}</button>)}</div>
+        <div className="ml-auto flex items-center gap-1">{(['json', 'csv', 'graphml'] as const).map(format => <button key={format} onClick={() => exportGraph(format)} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase font-bold text-ds-zinc-500 hover:text-ds-indigo-400"><Download className="w-3 h-3" />{format}</button>)}</div>
       </div>
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
-        {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>}
-        {error && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-2 rounded border border-red-500/30 bg-red-500/10 text-xs text-red-400">{error}</div>}
-        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />Auf 500 Knoten begrenzt</div>}
-        {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">Keine Call-Graph-Verbindungen für diesen Fokus.</div>}
+        {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-ds-black/10"><Loader2 className="w-6 h-6 animate-spin text-ds-indigo-500" /></div>}
+        {error && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-2 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-xs text-ds-red-400">{error}</div>}
+        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400"><AlertTriangle className="w-3 h-3" />Auf 500 Knoten begrenzt</div>}
+        {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-ds-zinc-500">Keine Call-Graph-Verbindungen für diesen Fokus.</div>}
         {ForceGraph && dimensions.width > 0 && filtered.nodes.length > 0 && <ForceGraph
           ref={graphRef}
           graphData={filtered}
           width={dimensions.width}
           height={dimensions.height}
-          backgroundColor={isDark ? '#09090b' : '#ffffff'}
+          backgroundColor={resolveDsColor(isDark ? 'rgb(var(--ds-neutral-950))' : 'rgb(var(--ds-white))')}
           nodeLabel={(node: any) => `${node.name} (${node.type})`}
-          nodeColor={(node: any) => node.unresolved ? '#f59e0b' : node.entityId === focusedEntity.id ? '#6366f1' : '#3b82f6'}
+          nodeColor={(node: any) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
           nodeVal={(node: any) => node.entityId === focusedEntity.id ? 7 : 4}
-          linkColor={(edge: any) => edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : '#f59e0b'}
+          linkColor={(edge: any) => resolveDsColor(edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : 'rgb(var(--ds-warning-base))')}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}

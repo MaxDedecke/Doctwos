@@ -86,20 +86,20 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
-  const chatBg      = isDark ? 'bg-zinc-900/50'               : 'bg-zinc-50/50';
-  const msgUserBg   = isDark ? 'bg-indigo-900/30 border-indigo-800/40' : 'bg-indigo-50 border-indigo-200';
-  const msgBotBg    = isDark ? 'bg-zinc-800/60 border-zinc-700/50'     : 'bg-white border-zinc-200';
-  const inputBg     = isDark ? 'bg-zinc-800 border-zinc-700'           : 'bg-white border-zinc-300';
-  const inputText   = isDark ? 'text-zinc-200 placeholder:text-zinc-600' : 'text-zinc-900 placeholder:text-zinc-400';
-  const titleText   = isDark ? 'text-zinc-100' : 'text-zinc-900';
-  const subText     = isDark ? 'text-zinc-500' : 'text-zinc-500';
-  const cardBg      = isDark ? 'bg-zinc-800/80 border-zinc-700/60 hover:border-zinc-600' : 'bg-zinc-50 border-zinc-200 hover:border-zinc-300';
-  const cardLabel   = isDark ? 'text-zinc-200' : 'text-zinc-800';
-  const cardMuted   = isDark ? 'text-zinc-500' : 'text-zinc-400';
+  const chatBg      = isDark ? 'bg-ds-zinc-900/50'               : 'bg-ds-zinc-50/50';
+  const msgUserBg   = isDark ? 'bg-ds-indigo-900/30 border-ds-indigo-800/40' : 'bg-ds-indigo-50 border-ds-indigo-200';
+  const msgBotBg    = isDark ? 'bg-ds-zinc-800/60 border-ds-zinc-700/50'     : 'bg-ds-white border-ds-zinc-200';
+  const inputBg     = isDark ? 'bg-ds-zinc-800 border-ds-zinc-700'           : 'bg-ds-white border-ds-zinc-300';
+  const inputText   = isDark ? 'text-ds-zinc-200 placeholder:text-ds-zinc-600' : 'text-ds-zinc-900 placeholder:text-ds-zinc-400';
+  const titleText   = isDark ? 'text-ds-zinc-100' : 'text-ds-zinc-900';
+  const subText     = isDark ? 'text-ds-zinc-500' : 'text-ds-zinc-500';
+  const cardBg      = isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700/60 hover:border-ds-zinc-600' : 'bg-ds-zinc-50 border-ds-zinc-200 hover:border-ds-zinc-300';
+  const cardLabel   = isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800';
+  const cardMuted   = isDark ? 'text-ds-zinc-500' : 'text-ds-zinc-400';
   const sourceTag: Record<string, string> = isDark
-    ? { Confluence: 'bg-blue-900/50 text-blue-300 border-blue-700', Jira: 'bg-sky-900/50 text-sky-300 border-sky-700', Local: 'bg-zinc-700 text-zinc-300 border-zinc-600', Git: 'bg-emerald-900/50 text-emerald-300 border-emerald-700' }
-    : { Confluence: 'bg-blue-100 text-blue-700 border-blue-300', Jira: 'bg-sky-100 text-sky-700 border-sky-300', Local: 'bg-zinc-100 text-zinc-600 border-zinc-300', Git: 'bg-emerald-100 text-emerald-700 border-emerald-300' };
-  const defaultTag = isDark ? 'bg-zinc-700 text-zinc-400 border-zinc-600' : 'bg-zinc-100 text-zinc-500 border-zinc-300';
+    ? { Confluence: 'bg-ds-blue-900/50 text-ds-blue-300 border-ds-blue-700', Jira: 'bg-ds-sky-900/50 text-ds-sky-300 border-ds-sky-700', Local: 'bg-ds-zinc-700 text-ds-zinc-300 border-ds-zinc-600', Git: 'bg-ds-emerald-900/50 text-ds-emerald-300 border-ds-emerald-700' }
+    : { Confluence: 'bg-ds-blue-100 text-ds-blue-700 border-ds-blue-300', Jira: 'bg-ds-sky-100 text-ds-sky-700 border-ds-sky-300', Local: 'bg-ds-zinc-100 text-ds-zinc-600 border-ds-zinc-300', Git: 'bg-ds-emerald-100 text-ds-emerald-700 border-ds-emerald-300' };
+  const defaultTag = isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300';
 
   // ── Auto-scroll to bottom ─────────────────────────────────────────────────
   useEffect(() => {
@@ -270,7 +270,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
       let rendered = sanitizeHtml(escapeHtml(line)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 rounded text-[11px] ' + (isDark ? 'bg-zinc-700' : 'bg-zinc-200') + '">$1</code>'));
+        .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 rounded text-[11px] ' + (isDark ? 'bg-ds-zinc-700' : 'bg-ds-zinc-200') + '">$1</code>'));
       return (
         <span key={i}>
           <span dangerouslySetInnerHTML={{ __html: rendered }} />
@@ -295,7 +295,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
         className={cn(
           'border rounded-lg p-3 mt-2 transition-all',
           isConfirmed
-            ? isDark ? 'bg-emerald-950/30 border-emerald-800/50' : 'bg-emerald-50 border-emerald-200'
+            ? isDark ? 'bg-ds-emerald-950/30 border-ds-emerald-800/50' : 'bg-ds-emerald-50 border-ds-emerald-200'
             : cardBg
         )}
       >
@@ -330,12 +330,12 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
           <div className="flex items-center justify-end gap-2 shrink-0">
             {scorePercent !== null && (
               <span className={cn('text-[10px] sm:text-[11px] font-mono font-semibold',
-                scorePercent >= 80 ? 'text-emerald-500' : scorePercent >= 60 ? 'text-yellow-500' : 'text-orange-500'
+                scorePercent >= 80 ? 'text-ds-emerald-500' : scorePercent >= 60 ? 'text-ds-yellow-500' : 'text-ds-orange-500'
               )}>{scorePercent}%</span>
             )}
             {isConfirmed ? (
               <span className={cn('text-[10px] sm:text-[11px] flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md',
-                isDark ? 'text-emerald-400 bg-emerald-900/30' : 'text-emerald-600 bg-emerald-50')}>
+                isDark ? 'text-ds-emerald-400 bg-ds-emerald-900/30' : 'text-ds-emerald-600 bg-ds-emerald-50')}>
                 <Check className="w-3 h-3" /> <span className="hidden xs:inline">{t('linkChatView.linked')}</span>
               </span>
             ) : (
@@ -344,8 +344,8 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
                 className={cn(
                   'text-[10px] sm:text-[11px] flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md transition-colors font-medium',
                   isDark
-                    ? 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30 border border-indigo-700/50'
-                    : 'text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 border border-indigo-300'
+                    ? 'text-ds-indigo-400 hover:text-ds-indigo-300 hover:bg-ds-indigo-900/30 border border-ds-indigo-700/50'
+                    : 'text-ds-indigo-600 hover:text-ds-indigo-500 hover:bg-ds-indigo-50 border border-ds-indigo-300'
                 )}>
                 <Link2 className="w-3 h-3" /> {t('linkChatView.linkAction')}
               </button>
@@ -374,7 +374,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
             <span className={cn('truncate', cardLabel)}>{r.title}</span>
             {r.url && (
               <a href={r.url} target="_blank" rel="noopener noreferrer"
-                className={cn('shrink-0', isDark ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}>
+                className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
@@ -389,7 +389,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
       {/* Sources bar */}
       {sources.length > 0 && (
         <div className={cn('flex items-center gap-2 px-4 py-2.5 border-b shrink-0 overflow-x-auto',
-          isDark ? 'border-zinc-800 bg-zinc-900/30' : 'border-zinc-200 bg-zinc-50/50')}>
+          isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/30' : 'border-ds-zinc-200 bg-ds-zinc-50/50')}>
           <span className={cn('text-[10px] font-medium shrink-0 uppercase tracking-wider', cardMuted)}>{t('linkChatView.sourcesLabel')}</span>
           {sources.map(s => (
             <span key={s.id}
@@ -422,14 +422,14 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               {/* Role indicator */}
               <div className="flex items-center gap-1.5 mb-1.5">
                 {msg.role === 'assistant' ? (
-                  <Bot className={cn('w-3.5 h-3.5', isDark ? 'text-indigo-400' : 'text-indigo-600')} />
+                  <Bot className={cn('w-3.5 h-3.5', isDark ? 'text-ds-indigo-400' : 'text-ds-indigo-600')} />
                 ) : (
-                  <User className={cn('w-3.5 h-3.5', isDark ? 'text-zinc-400' : 'text-zinc-600')} />
+                  <User className={cn('w-3.5 h-3.5', isDark ? 'text-ds-zinc-400' : 'text-ds-zinc-600')} />
                 )}
                 <span className={cn('text-[10px] font-medium uppercase tracking-wider',
                   msg.role === 'assistant'
-                    ? isDark ? 'text-indigo-400' : 'text-indigo-600'
-                    : isDark ? 'text-zinc-500' : 'text-zinc-500'
+                    ? isDark ? 'text-ds-indigo-400' : 'text-ds-indigo-600'
+                    : isDark ? 'text-ds-zinc-500' : 'text-ds-zinc-500'
                 )}>
                   {msg.role === 'assistant' ? t('linkChatView.assistantName') : t('linkChatView.userName')}
                 </span>
@@ -447,8 +447,8 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               {msg.metadata_json?.suggestions && msg.metadata_json.suggestions.length > 0 && (
                 <div className="mt-3">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Sparkles className={cn('w-3 h-3', isDark ? 'text-amber-400' : 'text-amber-500')} />
-                    <span className={cn('text-[11px] font-medium', isDark ? 'text-amber-400' : 'text-amber-600')}>
+                    <Sparkles className={cn('w-3 h-3', isDark ? 'text-ds-amber-400' : 'text-ds-amber-500')} />
+                    <span className={cn('text-[11px] font-medium', isDark ? 'text-ds-amber-400' : 'text-ds-amber-600')}>
                       {t('linkChatView.linkSuggestions')}
                     </span>
                   </div>
@@ -466,11 +466,11 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
             animate={{ opacity: 1, y: 0 }}
             className={cn('rounded-lg px-4 py-3 border mr-auto flex items-center gap-2', msgBotBg)}
           >
-            <Bot className={cn('w-3.5 h-3.5', isDark ? 'text-indigo-400' : 'text-indigo-600')} />
+            <Bot className={cn('w-3.5 h-3.5', isDark ? 'text-ds-indigo-400' : 'text-ds-indigo-600')} />
             <div className="flex gap-1">
-              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-zinc-500' : 'bg-zinc-400')} style={{ animationDelay: '0ms' }} />
-              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-zinc-500' : 'bg-zinc-400')} style={{ animationDelay: '150ms' }} />
-              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-zinc-500' : 'bg-zinc-400')} style={{ animationDelay: '300ms' }} />
+              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-ds-zinc-500' : 'bg-ds-zinc-400')} style={{ animationDelay: '0ms' }} />
+              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-ds-zinc-500' : 'bg-ds-zinc-400')} style={{ animationDelay: '150ms' }} />
+              <span className={cn('w-1.5 h-1.5 rounded-full animate-bounce', isDark ? 'bg-ds-zinc-500' : 'bg-ds-zinc-400')} style={{ animationDelay: '300ms' }} />
             </div>
             <span className={cn('text-[11px]', cardMuted)}>{t('linkChatView.searchingAndAnalyzing')}</span>
           </motion.div>
@@ -478,7 +478,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
       </div>
 
       {/* Input area */}
-      <div className={cn('border-t px-4 py-3 shrink-0', isDark ? 'border-zinc-800' : 'border-zinc-200')}>
+      <div className={cn('border-t px-4 py-3 shrink-0', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
         {/* Quick action chips */}
         <div className="flex items-center gap-1.5 mb-2 overflow-x-auto">
           {[
@@ -492,8 +492,8 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               className={cn(
                 'text-[10px] px-2 py-1 rounded-sm border shrink-0 transition-colors whitespace-nowrap',
                 isDark
-                  ? 'text-zinc-500 border-zinc-700 hover:text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800'
-                  : 'text-zinc-400 border-zinc-200 hover:text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
+                  ? 'text-ds-zinc-500 border-ds-zinc-700 hover:text-ds-zinc-300 hover:border-ds-zinc-600 hover:bg-ds-zinc-800'
+                  : 'text-ds-zinc-400 border-ds-zinc-200 hover:text-ds-zinc-600 hover:border-ds-zinc-300 hover:bg-ds-zinc-50'
               )}
             >
               {chip}
@@ -513,7 +513,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               className={cn(
                 'w-full text-xs rounded-lg px-3 py-2.5 border resize-none focus:outline-none focus:ring-1',
                 inputBg, inputText,
-                isDark ? 'focus:ring-indigo-500/50 focus:border-indigo-500' : 'focus:ring-indigo-400/50 focus:border-indigo-400'
+                isDark ? 'focus:ring-ds-indigo-500/50 focus:border-ds-indigo-500' : 'focus:ring-ds-indigo-400/50 focus:border-ds-indigo-400'
               )}
               style={{ minHeight: '38px', maxHeight: '120px' }}
             />
@@ -524,7 +524,7 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               title={t('linkChatView.newChatTitle')}
               className={cn(
                 'p-2 rounded-lg transition-colors',
-                isDark ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'
+                isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-600 hover:bg-ds-zinc-100'
               )}
             >
               <RotateCcw className="w-4 h-4" />
@@ -535,8 +535,8 @@ export function LinkChatView({ theme, selectedProject, activeProfile }: LinkChat
               className={cn(
                 'p-2 rounded-lg transition-colors disabled:opacity-40',
                 isDark
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-500'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-500'
+                  ? 'bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500'
+                  : 'bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500'
               )}
             >
               {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

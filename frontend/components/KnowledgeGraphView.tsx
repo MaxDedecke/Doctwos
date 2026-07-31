@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Loader2, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink, BookOpen, LayoutGrid, Info, Workflow, Link2, Search, Check, PanelRightClose, PanelRightOpen, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveDsColor } from '@/lib/designTokens';
 import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -11,33 +12,33 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 /* ── Color maps ──────────────────────────────────────────────────────────────── */
 
 export const UNIFIED_NODE_TYPES: Record<string, { labelDe: string; labelEn: string; color: string }> = {
-  cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: '#3b82f6' }, // Blue
-  pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: '#ef4444' }, // Red
-  jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: '#f97316' }, // Orange
-  confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: '#06b6d4' }, // Cyan
-  jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: '#6366f1' }, // Indigo
-  git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: '#10b981' }, // Green
-  txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: '#64748b' }, // Slate
-  md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: '#4b5563' }, // Gray
-  copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: '#8b5cf6' }, // Violet
-  external:   { labelDe: 'Externe Referenzen', labelEn: 'External References', color: '#71717a' }, // Gray
-  document:   { labelDe: 'Sonstige Dokumente', labelEn: 'Other Documents', color: '#94a3b8' }, // Light Gray
+  cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))' }, // Blue
+  pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))' }, // Red
+  jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))' }, // Orange
+  confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))' }, // Cyan
+  jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))' }, // Indigo
+  git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))' }, // Green
+  txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))' }, // Slate
+  md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: 'rgb(var(--ds-neutral-500))' }, // Gray
+  copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: 'rgb(var(--ds-graph-a-base))' }, // Violet
+  external:   { labelDe: 'Externe Referenzen', labelEn: 'External References', color: 'rgb(var(--ds-neutral-500))' }, // Gray
+  document:   { labelDe: 'Sonstige Dokumente', labelEn: 'Other Documents', color: 'rgb(var(--ds-neutral-300))' }, // Light Gray
 };
 
 export function getNodeType(node: any): string {
   if (!node) return 'document';
-  
+
   // 1. Code entities
   if (node.type === 'entity') return 'git';
   if (node.type === 'copybook') return 'copybook';
   if (node.type === 'external') return 'external';
-  
+
   // 2. For document nodes, check source type first
   const source = node.source_type || '';
   if (source === 'Confluence') return 'confluence';
   if (source === 'Jira') return 'jira';
   if (source === 'Git') return 'git';
-  
+
   // 4. File extension checks on label/url/file_path
   const path = (node.file_path || node.url || node.label || '').toLowerCase();
   if (path.endsWith('.cbl') || path.endsWith('.cob') || path.endsWith('.cobol')) return 'cobol';
@@ -46,13 +47,13 @@ export function getNodeType(node: any): string {
   if (path.endsWith('.pdf')) return 'pdf';
   if (path.endsWith('.txt')) return 'txt';
   if (path.endsWith('.md')) return 'md';
-  
+
   return 'document';
 }
 
 export function nodeColor(node: any): string {
   const type = getNodeType(node);
-  return UNIFIED_NODE_TYPES[type]?.color ?? '#94a3b8';
+  return UNIFIED_NODE_TYPES[type]?.color ?? 'rgb(var(--ds-neutral-300))';
 }
 
 function nodeTypeKey(node: any): string {
@@ -60,17 +61,17 @@ function nodeTypeKey(node: any): string {
 }
 
 export const LINK_COLORS: Record<string, string> = {
-  semantic:  '#6366f1',
-  keyword:   '#f59e0b',
-  syntactic: '#10b981',
-  coref:     '#ec4899',
-  manual:    '#f97316',
-  chat:      '#06b6d4',
-  call:      '#ef4444',
-  perform:   '#22c55e',
-  goto:      '#eab308',
-  copy:      '#8b5cf6',
-  use:       '#0ea5e9',
+  semantic:  'rgb(var(--ds-accent))',
+  keyword:   'rgb(var(--ds-warning-base))',
+  syntactic: 'rgb(var(--ds-success-base))',
+  coref:     'rgb(var(--ds-graph-b-base))',
+  manual:    'rgb(var(--ds-warning-base))',
+  chat:      'rgb(var(--ds-info-base))',
+  call:      'rgb(var(--ds-danger-base))',
+  perform:   'rgb(var(--ds-success-base))',
+  goto:      'rgb(var(--ds-warning-base))',
+  copy:      'rgb(var(--ds-graph-a-base))',
+  use:       'rgb(var(--ds-info-base))',
 };
 
 const LINK_LABEL_KEYS: Record<string, string> = {
@@ -153,8 +154,8 @@ interface Props {
 
 /* ── Component ───────────────────────────────────────────────────────────────── */
 
-export function KnowledgeGraphView({ 
-  theme, 
+export function KnowledgeGraphView({
+  theme,
   selectedProject,
   selectedEntity,
   selectedFile,
@@ -400,7 +401,7 @@ export function KnowledgeGraphView({
   // Camera centering on node/edge selection
   useEffect(() => {
     if (!graphRef.current) return;
-    
+
     if (selectedNodeId) {
       const node = rawNodes.find(n => n.id === selectedNodeId);
       if (node && node.x !== undefined && node.y !== undefined) {
@@ -423,10 +424,10 @@ export function KnowledgeGraphView({
       if (edge) {
         const srcId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
         const tgtId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
-        
+
         const srcNode = rawNodes.find(n => n.id === srcId);
         const tgtNode = rawNodes.find(n => n.id === tgtId);
-        
+
         if (srcNode && tgtNode && srcNode.x !== undefined && srcNode.y !== undefined && tgtNode.x !== undefined && tgtNode.y !== undefined) {
           const centerX = (srcNode.x + tgtNode.x) / 2;
           const centerY = (srcNode.y + tgtNode.y) / 2;
@@ -541,7 +542,7 @@ export function KnowledgeGraphView({
     const r = node.type === 'entity' ? 7 : 6;
     const isSelected = node.id === selectedNodeId;
     const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
-    const color = nodeColor(node);
+    const color = resolveDsColor(nodeColor(node));
 
     ctx.save();
     ctx.globalAlpha = isDimmed ? 0.15 : 1;
@@ -549,8 +550,11 @@ export function KnowledgeGraphView({
     if (isSelected) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, r + 4, 0, 2 * Math.PI);
-      ctx.fillStyle = color + '33';
+      ctx.save();
+      ctx.globalAlpha *= 0.2;
+      ctx.fillStyle = color;
       ctx.fill();
+      ctx.restore();
     }
 
     ctx.beginPath();
@@ -559,7 +563,7 @@ export function KnowledgeGraphView({
     ctx.fill();
 
     if (isSelected) {
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = resolveDsColor('rgb(var(--ds-white))');
       ctx.lineWidth = 1.5 / globalScale;
       ctx.stroke();
     }
@@ -572,7 +576,7 @@ export function KnowledgeGraphView({
       ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isDark ? '#d4d4d8' : '#3f3f46';
+      ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
       ctx.fillText(truncated, node.x, node.y + r + 2 / globalScale);
     }
     ctx.restore();
@@ -619,15 +623,15 @@ export function KnowledgeGraphView({
   const showBottomDrawer = panelOpen && isCompactLayout;
 
   /* ── Theme tokens ───────────────────────────────────────────────────────────── */
-  const border     = isDark ? 'border-zinc-800'             : 'border-zinc-200';
-  const textMain   = isDark ? 'text-zinc-100'               : 'text-zinc-900';
-  const textMuted  = isDark ? 'text-zinc-500'               : 'text-zinc-400';
-  const panelBg    = isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200';
-  const chipBase   = isDark ? 'border-zinc-700 hover:border-zinc-500' : 'border-zinc-300 hover:border-zinc-400';
-  const iconBtn    = isDark ? 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100';
-  const badge      = isDark ? 'bg-zinc-800 text-zinc-400'  : 'bg-zinc-100 text-zinc-500';
-  const connRow    = isDark ? 'hover:bg-zinc-800/60'        : 'hover:bg-zinc-50';
-  const graphBg    = isDark ? '#18181b'                     : '#f4f4f5';
+  const border     = isDark ? 'border-ds-zinc-800'             : 'border-ds-zinc-200';
+  const textMain   = isDark ? 'text-ds-zinc-100'               : 'text-ds-zinc-900';
+  const textMuted  = isDark ? 'text-ds-zinc-500'               : 'text-ds-zinc-400';
+  const panelBg    = isDark ? 'bg-ds-zinc-900 border-ds-zinc-800' : 'bg-ds-white border-ds-zinc-200';
+  const chipBase   = isDark ? 'border-ds-zinc-700 hover:border-ds-zinc-500' : 'border-ds-zinc-300 hover:border-ds-zinc-400';
+  const iconBtn    = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-200 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
+  const badge      = isDark ? 'bg-ds-zinc-800 text-ds-zinc-400'  : 'bg-ds-zinc-100 text-ds-zinc-500';
+  const connRow    = isDark ? 'hover:bg-ds-zinc-800/60'        : 'hover:bg-ds-zinc-50';
+  const graphBg    = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-800))' : 'rgb(var(--ds-neutral-100))');
 
   /* ── Helpers for detail panel ───────────────────────────────────────────────── */
   function resolveNode(ref: string | GraphNode | null | undefined): GraphNode | undefined {
@@ -687,7 +691,7 @@ export function KnowledgeGraphView({
             {selectedNode.type === 'external' && (
               <div className="flex items-baseline gap-2">
                 <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.statusLabel')}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-500/15 text-zinc-400 border border-zinc-500/25">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-ds-zinc-500/15 text-ds-zinc-400 border border-ds-zinc-500/25">
                   {t('knowledgeGraphView.notFoundInProject')}
                 </span>
               </div>
@@ -714,7 +718,7 @@ export function KnowledgeGraphView({
                     <button key={i}
                       onClick={() => { setSelectedNodeId(other.id); setSelectedEdgeId(null); }}
                       className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors', connRow)}>
-                      <span className="w-3 shrink-0" style={{ height: 2, background: LINK_COLORS[l.link_type] ?? '#94a3b8', display: 'inline-block', borderRadius: 1 }} />
+                      <span className="w-3 shrink-0" style={{ height: 2, background: LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
                       <span className={cn('truncate', textMain)}>{other.label}</span>
                     </button>
                   );
@@ -735,7 +739,7 @@ export function KnowledgeGraphView({
                     start_line: selectedNode.start_line,
                   });
                 }}
-                className="flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openInView')}
               </button>
@@ -748,7 +752,7 @@ export function KnowledgeGraphView({
                   onFileSelect(pathVal, null, sourceIdVal);
                   onDocFocus?.(pathVal, sourceIdVal, true);
                 }}
-                className="flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openInView')}
               </button>
@@ -757,7 +761,7 @@ export function KnowledgeGraphView({
             {selectedNode.id !== focusNodeId && (
               <button
                 onClick={() => setFocusNodeId(selectedNode.id)}
-                className="flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <Workflow className="w-3 h-3" />
                 {t('knowledgeGraphView.focusOnNode')}
               </button>
@@ -765,15 +769,15 @@ export function KnowledgeGraphView({
 
             <button
               onClick={() => { setIsLinkPickerOpen(o => !o); setLinkCreateError(null); }}
-              className="flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
               <Link2 className="w-3 h-3" />
               {t('knowledgeGraphView.createLink')}
             </button>
 
             {isLinkPickerOpen && (
-              <div className={cn('p-2 rounded border space-y-2', border, isDark ? 'bg-zinc-800/60' : 'bg-zinc-50')}>
+              <div className={cn('p-2 rounded border space-y-2', border, isDark ? 'bg-ds-zinc-800/60' : 'bg-ds-zinc-50')}>
                 <div className="flex items-center gap-1.5">
-                  <Search className="w-3 h-3 shrink-0 text-zinc-500" />
+                  <Search className="w-3 h-3 shrink-0 text-ds-zinc-500" />
                   <input
                     autoFocus
                     value={linkPickerQuery}
@@ -787,20 +791,20 @@ export function KnowledgeGraphView({
                     <button key={n.id}
                       onClick={() => setLinkPickerTargetId(n.id)}
                       className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors',
-                        linkPickerTargetId === n.id ? (isDark ? 'bg-indigo-500/20' : 'bg-indigo-100') : connRow)}>
+                        linkPickerTargetId === n.id ? (isDark ? 'bg-ds-indigo-500/20' : 'bg-ds-indigo-100') : connRow)}>
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: nodeColor(n) }} />
                       <span className={cn('truncate', textMain)}>{n.label}</span>
-                      {linkPickerTargetId === n.id && <Check className="w-3 h-3 shrink-0 text-indigo-400 ml-auto" />}
+                      {linkPickerTargetId === n.id && <Check className="w-3 h-3 shrink-0 text-ds-indigo-400 ml-auto" />}
                     </button>
                   ))}
                   {linkPickerCandidates.length === 0 && (
                     <p className={cn('text-[10px] px-1.5 py-1', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
                   )}
                 </div>
-                {linkCreateError && <p className="text-[10px] text-red-400">{linkCreateError}</p>}
+                {linkCreateError && <p className="text-[10px] text-ds-red-400">{linkCreateError}</p>}
                 <div className="flex items-center gap-2 justify-end">
                   <button onClick={() => { setIsLinkPickerOpen(false); setLinkPickerTargetId(null); setLinkCreateError(null); }}
-                    className={cn('text-[10px] px-2 py-1 rounded transition-colors', textMuted, 'hover:text-zinc-200')}>
+                    className={cn('text-[10px] px-2 py-1 rounded transition-colors', textMuted, 'hover:text-ds-zinc-200')}>
                     {t('knowledgeGraphView.createLinkCancel')}
                   </button>
                   <button
@@ -810,7 +814,7 @@ export function KnowledgeGraphView({
                       if (target) createManualLink(selectedNode, target);
                     }}
                     className={cn('text-[10px] px-2 py-1 rounded font-medium transition-colors',
-                      !linkPickerTargetId || isCreatingLink ? 'opacity-40 cursor-not-allowed bg-indigo-500/40 text-white' : 'bg-indigo-500 hover:bg-indigo-400 text-white')}>
+                      !linkPickerTargetId || isCreatingLink ? 'opacity-40 cursor-not-allowed bg-ds-indigo-500/40 text-ds-white' : 'bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-white')}>
                     {isCreatingLink ? t('knowledgeGraphView.createLinkSaving') : t('knowledgeGraphView.createLinkConfirm')}
                   </button>
                 </div>
@@ -819,7 +823,7 @@ export function KnowledgeGraphView({
 
             {selectedNode.url && (
               <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openOriginal')}
               </a>
@@ -832,12 +836,12 @@ export function KnowledgeGraphView({
       {selectedEdge && !selectedNode && (
         <div className="px-3 py-3 space-y-4 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-5 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? '#94a3b8', display: 'inline-block', borderRadius: 1 }} />
+            <span className="w-5 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
             <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
               {getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type}
             </span>
             {selectedEdge.score !== null && (
-              <span className="text-[10px] font-mono text-emerald-500">
+              <span className="text-[10px] font-mono text-ds-emerald-500">
                 {Math.round((selectedEdge.score ?? 0) * 100)}%
               </span>
             )}
@@ -866,7 +870,7 @@ export function KnowledgeGraphView({
           )}
 
           {selectedEdge.context && (
-            <div className={cn('p-2 rounded text-[10px] leading-relaxed', isDark ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-50 text-zinc-600')}>
+            <div className={cn('p-2 rounded text-[10px] leading-relaxed', isDark ? 'bg-ds-zinc-800 text-ds-zinc-300' : 'bg-ds-zinc-50 text-ds-zinc-600')}>
               {selectedEdge.context}
             </div>
           )}
@@ -915,7 +919,7 @@ export function KnowledgeGraphView({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.linksLabel')}</span>
             {linkTypes.map(type => {
-              const color = LINK_COLORS[type] ?? '#94a3b8';
+              const color = LINK_COLORS[type] ?? 'rgb(var(--ds-neutral-300))';
               const hidden = hiddenLinkTypes.has(type);
               return (
                 <button key={type} onClick={() => toggleLinkType(type)}
@@ -1013,7 +1017,7 @@ export function KnowledgeGraphView({
               }}
               linkColor={(l: any) => {
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
-                return LINK_COLORS[l.link_type] ?? '#71717a';
+                return resolveDsColor(LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-500))');
               }}
               linkWidth={(l: any) => l.id === selectedEdgeId ? 2.5 : Math.max(0.5, (l.score ?? 0.5) * 2)}
               linkDirectionalArrowLength={(l: any) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
@@ -1083,25 +1087,25 @@ export function KnowledgeGraphView({
           {filteredData.nodes.length > 0 && (
             <div className={cn(
               "absolute bottom-4 left-4 z-20 rounded-lg border p-3 shadow-lg transition-all backdrop-blur-md max-w-[220px] select-none",
-              isDark ? "bg-zinc-900/85 border-zinc-800 text-zinc-200" : "bg-white/85 border-zinc-200 text-zinc-800"
+              isDark ? "bg-ds-zinc-900/85 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white/85 border-ds-zinc-200 text-ds-zinc-800"
             )}>
               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsLegendOpen(o => !o)}>
                 <div className="flex items-center gap-1.5">
-                  <Workflow className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                  <Workflow className="w-3.5 h-3.5 text-ds-indigo-500 animate-pulse" />
                   <span className="text-xs font-bold uppercase tracking-wide">
                     {language === 'de' ? 'Legende' : 'Legend'}
                   </span>
                 </div>
-                <span className="text-[10px] text-zinc-550 hover:text-zinc-300">
+                <span className="text-[10px] text-ds-zinc-550 hover:text-ds-zinc-300">
                   {isLegendOpen ? '▲' : '▼'}
                 </span>
               </div>
-              
+
               {isLegendOpen && (
                 <div className="mt-2.5 space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                   {/* List visible node types */}
                   <div className="space-y-1.5">
-                    <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">
+                    <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
                       {language === 'de' ? 'Knoten' : 'Nodes'}
                     </p>
                     {nodeTypes.map(type => {
@@ -1119,12 +1123,12 @@ export function KnowledgeGraphView({
 
                   {/* List visible link types */}
                   {linkTypes.length > 0 && (
-                    <div className={cn("space-y-1.5 pt-2 border-t", isDark ? "border-zinc-800/60" : "border-zinc-200")}>
-                      <p className="text-[9px] uppercase tracking-wider text-zinc-500 font-semibold">
+                    <div className={cn("space-y-1.5 pt-2 border-t", isDark ? "border-ds-zinc-800/60" : "border-ds-zinc-200")}>
+                      <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
                         {language === 'de' ? 'Verbindungen' : 'Links'}
                       </p>
                       {linkTypes.map(type => {
-                        const color = LINK_COLORS[type] ?? '#94a3b8';
+                        const color = LINK_COLORS[type] ?? 'rgb(var(--ds-neutral-300))';
                         const label = getLinkLabel(t, type) ?? type;
                         return (
                           <div key={type} className="flex items-center gap-2 text-[10px]">
@@ -1143,7 +1147,7 @@ export function KnowledgeGraphView({
 
         {/* ── Detail sidebar (spacious layouts: 1 or 2 panels open) ── */}
         {showSidebar && (
-          <div className={cn('absolute right-0 top-0 bottom-0 border-l overflow-y-auto z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-zinc-900/95 border-zinc-800' : 'bg-white/95 border-zinc-200')}
+          <div className={cn('absolute right-0 top-0 bottom-0 border-l overflow-y-auto z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-ds-zinc-900/95 border-ds-zinc-800' : 'bg-ds-white/95 border-ds-zinc-200')}
             style={{ width: PANEL_W }}>
 
             <div className={cn('flex items-center justify-between px-3 py-2 border-b shrink-0', border)}>
@@ -1166,7 +1170,7 @@ export function KnowledgeGraphView({
             by default on every new selection, must be expanded to see details, so
             the graph keeps the full pane height in cramped grids. ── */}
         {showBottomDrawer && (
-          <div className={cn('absolute left-0 right-0 bottom-0 border-t z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-zinc-900/95 border-zinc-800' : 'bg-white/95 border-zinc-200')}
+          <div className={cn('absolute left-0 right-0 bottom-0 border-t z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-ds-zinc-900/95 border-ds-zinc-800' : 'bg-ds-white/95 border-ds-zinc-200')}
             style={{ maxHeight: isBottomDrawerExpanded ? '60%' : undefined }}>
 
             <div className={cn('flex items-center gap-2 px-3 py-2 shrink-0 cursor-pointer', isBottomDrawerExpanded && 'border-b', border)}
@@ -1175,7 +1179,7 @@ export function KnowledgeGraphView({
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: nodeColor(selectedNode) }} />
               )}
               {selectedEdge && !selectedNode && (
-                <span className="w-4 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? '#94a3b8', display: 'inline-block', borderRadius: 1 }} />
+                <span className="w-4 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
               )}
               <span className={cn('text-xs font-semibold truncate flex-1', textMain)}>
                 {selectedNode ? selectedNode.label : (selectedEdge ? (getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type) : '')}

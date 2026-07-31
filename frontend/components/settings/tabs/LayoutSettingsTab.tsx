@@ -51,15 +51,15 @@ export const LayoutSettingsTab: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Whitemode / Theme Switcher */}
       <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>{t('settings.layoutTab.colorThemeTitle')}</h4>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.layoutTab.colorThemeTitle')}</h4>
         <div className={cn(
           "border rounded-lg p-4 transition-colors",
-          theme === 'dark' ? "bg-zinc-950/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+          theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
         )}>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-zinc-200" : "text-zinc-850")}>{t('settings.layoutTab.lightModeLabel')}</span>
-              <span className="block text-[10px] text-zinc-500">{t('settings.layoutTab.lightModeDesc')}</span>
+              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.layoutTab.lightModeLabel')}</span>
+              <span className="block text-[10px] text-ds-zinc-500">{t('settings.layoutTab.lightModeDesc')}</span>
             </div>
             <button
               type="button"
@@ -67,11 +67,11 @@ export const LayoutSettingsTab: React.FC = () => {
               onClick={() => handleThemeToggle(theme === 'dark' ? 'light' : 'dark')}
               className={cn(
                 "w-9 h-5 rounded-full p-0.5 transition-colors duration-250 focus:outline-none relative",
-                theme === 'light' ? "bg-indigo-650" : "bg-zinc-850"
+                theme === 'light' ? "bg-ds-indigo-650" : "bg-ds-zinc-850"
               )}
             >
               <div className={cn(
-                "w-4 h-4 rounded-full bg-white transition-transform duration-250 shadow-md",
+                "w-4 h-4 rounded-full bg-ds-white transition-transform duration-250 shadow-md",
                 theme === 'light' ? "translate-x-4" : "translate-x-0"
               )} />
             </button>
@@ -81,19 +81,19 @@ export const LayoutSettingsTab: React.FC = () => {
 
       {/* Language Switcher */}
       <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>{t('settings.layoutTab.languageTitle')}</h4>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.layoutTab.languageTitle')}</h4>
         <div className={cn(
           "border rounded-lg p-4 transition-colors",
-          theme === 'dark' ? "bg-zinc-950/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+          theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
         )}>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-zinc-200" : "text-zinc-850")}>{t('settings.layoutTab.languageTitle')}</span>
-              <span className="block text-[10px] text-zinc-500">{t('settings.layoutTab.languageDesc')}</span>
+              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.layoutTab.languageTitle')}</span>
+              <span className="block text-[10px] text-ds-zinc-500">{t('settings.layoutTab.languageDesc')}</span>
             </div>
             <div className={cn(
               "flex items-center rounded-lg border p-0.5 text-[10px] font-semibold",
-              theme === 'dark' ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"
+              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
             )}>
               <button
                 type="button"
@@ -102,8 +102,8 @@ export const LayoutSettingsTab: React.FC = () => {
                 className={cn(
                   "px-3 h-7 rounded-md transition-colors",
                   language === 'de'
-                    ? "bg-indigo-650 text-white"
-                    : (theme === 'dark' ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-800")
+                    ? "bg-ds-indigo-650 text-ds-white"
+                    : (theme === 'dark' ? "text-ds-zinc-400 hover:text-ds-zinc-200" : "text-ds-zinc-500 hover:text-ds-zinc-800")
                 )}
               >
                 {t('settings.layoutTab.languageGerman')}
@@ -115,8 +115,8 @@ export const LayoutSettingsTab: React.FC = () => {
                 className={cn(
                   "px-3 h-7 rounded-md transition-colors",
                   language === 'en'
-                    ? "bg-indigo-650 text-white"
-                    : (theme === 'dark' ? "text-zinc-400 hover:text-zinc-200" : "text-zinc-500 hover:text-zinc-800")
+                    ? "bg-ds-indigo-650 text-ds-white"
+                    : (theme === 'dark' ? "text-ds-zinc-400 hover:text-ds-zinc-200" : "text-ds-zinc-500 hover:text-ds-zinc-800")
                 )}
               >
                 {t('settings.layoutTab.languageEnglish')}
@@ -127,7 +127,7 @@ export const LayoutSettingsTab: React.FC = () => {
       </div>
 
       <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>{t('settings.layoutTab.workspaceSplitTitle')}</h4>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.layoutTab.workspaceSplitTitle')}</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
           {[
             { id: '40/60', label: t('settings.layoutTab.splits.narrowChat.label'), desc: t('settings.layoutTab.splits.narrowChat.desc') },
@@ -142,12 +142,12 @@ export const LayoutSettingsTab: React.FC = () => {
               className={cn(
                 "p-3 rounded-lg border text-left space-y-1 transition-all",
                 workspaceSplit === layout.id
-                  ? (theme === 'dark' ? "border-indigo-500/40 bg-indigo-500/5" : "border-indigo-400 bg-indigo-50/40")
-                  : (theme === 'dark' ? "border-zinc-800/85 bg-zinc-950/20 hover:border-zinc-700/80" : "border-zinc-200 bg-zinc-50 hover:border-zinc-300")
+                  ? (theme === 'dark' ? "border-ds-indigo-500/40 bg-ds-indigo-500/5" : "border-ds-indigo-400 bg-ds-indigo-50/40")
+                  : (theme === 'dark' ? "border-ds-zinc-800/85 bg-ds-zinc-950/20 hover:border-ds-zinc-700/80" : "border-ds-zinc-200 bg-ds-zinc-50 hover:border-ds-zinc-300")
               )}
             >
-              <span className={cn("block text-[11px] font-bold", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>{layout.label}</span>
-              <span className="block text-[9px] text-zinc-500 leading-normal">{layout.desc}</span>
+              <span className={cn("block text-[11px] font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{layout.label}</span>
+              <span className="block text-[9px] text-ds-zinc-500 leading-normal">{layout.desc}</span>
             </button>
           ))}
         </div>
@@ -155,19 +155,19 @@ export const LayoutSettingsTab: React.FC = () => {
 
       {/* Wissensgraph Export */}
       <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
           {t('settings.layoutTab.graphExportTitle')}
         </h4>
         <div className={cn(
           "border rounded-lg p-4 transition-colors",
-          theme === 'dark' ? "bg-zinc-950/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+          theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
         )}>
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-zinc-200" : "text-zinc-850")}>
+              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>
                 {t('settings.layoutTab.graphExportLabel')}
               </span>
-              <span className="block text-[10px] text-zinc-500 leading-normal">
+              <span className="block text-[10px] text-ds-zinc-500 leading-normal">
                 {t('settings.layoutTab.graphExportDesc')}
               </span>
             </div>
@@ -177,8 +177,8 @@ export const LayoutSettingsTab: React.FC = () => {
               className={cn(
                 "flex items-center gap-1.5 h-8 px-4 rounded-lg border text-xs font-semibold transition-colors shrink-0",
                 theme === 'dark'
-                  ? "border-zinc-700 bg-zinc-900 text-zinc-200 hover:text-zinc-100 hover:bg-zinc-800"
-                  : "border-zinc-300 bg-white text-zinc-700 hover:text-zinc-900 hover:bg-zinc-100"
+                  ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                  : "border-ds-zinc-300 bg-ds-white text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
               )}
             >
               <Download className="w-3.5 h-3.5" />

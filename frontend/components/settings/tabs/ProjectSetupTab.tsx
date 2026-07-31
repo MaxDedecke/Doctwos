@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
 import {
   Select,
   SelectContent,
@@ -38,7 +39,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const [newProjectTeamId, setNewProjectTeamId] = useState<string>("");
-  const [newProjectColor, setNewProjectColor] = useState("#4d7fff");
+  const [newProjectColor, setNewProjectColor] = useState(DEFAULT_PROJECT_COLOR);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -59,7 +60,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
       setNewProjectName("");
       setNewProjectDescription("");
       setNewProjectTeamId("");
-      setNewProjectColor("#4d7fff");
+      setNewProjectColor(DEFAULT_PROJECT_COLOR);
       showToast(t('settings.toast.projectCreated'), "success");
       onDone();
     } catch (err) {
@@ -77,7 +78,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
         variant="ghost"
         size="sm"
         onClick={onDone}
-        className="h-7 px-2 text-xs font-semibold flex items-center gap-1 text-zinc-500 hover:text-zinc-300"
+        className="h-7 px-2 text-xs font-semibold flex items-center gap-1 text-ds-zinc-500 hover:text-ds-zinc-300"
       >
         <ChevronLeft className="w-3.5 h-3.5" />
         <span>{t('settings.projects.backToList')}</span>
@@ -85,7 +86,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
 
       <form onSubmit={handleCreateProject} className="space-y-4">
         <div className="space-y-1.5">
-          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
             {t('settings.projects.nameLabel')}
           </label>
           <input
@@ -97,14 +98,14 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
             className={cn(
               "w-full h-9 rounded-lg text-xs font-semibold px-3 border transition-colors outline-none",
               theme === 'dark'
-                ? "bg-zinc-950 border-zinc-800 text-zinc-100 focus:border-zinc-700"
-                : "bg-white border-zinc-200 text-zinc-800 focus:border-zinc-300"
+                ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-zinc-700"
+                : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 focus:border-ds-zinc-300"
             )}
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
             {t('settings.projects.descriptionLabel')}
           </label>
           <Textarea
@@ -114,14 +115,14 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
             className={cn(
               "w-full text-xs font-medium px-3 py-2 border transition-colors outline-none min-h-[80px]",
               theme === 'dark'
-                ? "bg-zinc-950 border-zinc-800 text-zinc-100 focus:border-zinc-700"
-                : "bg-white border-zinc-200 text-zinc-800 focus:border-zinc-300"
+                ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-zinc-700"
+                : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 focus:border-ds-zinc-300"
             )}
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
             Projekt-Farbe
           </label>
           <div className="flex items-center gap-3">
@@ -129,15 +130,15 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
               type="color"
               value={newProjectColor}
               onChange={(e) => setNewProjectColor(e.target.value)}
-              className="w-10 h-9 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent cursor-pointer"
+              className="w-10 h-9 p-0.5 rounded-lg border border-ds-zinc-200 dark:border-ds-zinc-800 bg-transparent cursor-pointer"
             />
-            <span className="text-xs font-semibold text-zinc-500">{newProjectColor}</span>
+            <span className="text-xs font-semibold text-ds-zinc-500">{newProjectColor}</span>
           </div>
         </div>
 
         {(currentUser?.teams?.length ?? 0) > 1 && (
           <div className="space-y-1.5">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.projects.teamLabel')}
             </label>
             <Select value={newProjectTeamId} onValueChange={setNewProjectTeamId}>
@@ -156,7 +157,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
         <Button
           type="submit"
           disabled={isCreatingProject || !newProjectName.trim()}
-          className="bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg px-4 h-9 text-xs font-bold shadow-md shadow-indigo-600/15 flex items-center gap-1.5 transition-all"
+          className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-4 h-9 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all"
         >
           {isCreatingProject ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

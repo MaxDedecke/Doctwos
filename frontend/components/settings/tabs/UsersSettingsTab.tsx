@@ -159,8 +159,8 @@ export const UsersSettingsTab: React.FC = () => {
   const inputClass = cn(
     "w-full h-9 rounded-lg text-xs font-semibold px-3 border transition-colors outline-none",
     theme === 'dark'
-      ? "bg-zinc-950 border-zinc-800 text-zinc-100 focus:border-zinc-700"
-      : "bg-white border-zinc-200 text-zinc-800 focus:border-zinc-300"
+      ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-zinc-700"
+      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 focus:border-ds-zinc-300"
   );
 
   return (
@@ -168,7 +168,7 @@ export const UsersSettingsTab: React.FC = () => {
       <form onSubmit={handleCreate} className="space-y-2">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
           <div className="space-y-1.5 flex-1 min-w-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.users.usernameLabel')}
             </label>
             <input
@@ -182,7 +182,7 @@ export const UsersSettingsTab: React.FC = () => {
             />
           </div>
           <div className="space-y-1.5 flex-1 min-w-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.users.nameLabel')}
             </label>
             <input
@@ -195,7 +195,7 @@ export const UsersSettingsTab: React.FC = () => {
             />
           </div>
           <div className="space-y-1.5 w-full sm:w-40 shrink-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.users.roleLabel')}
             </label>
             <Select value={newRole} onValueChange={(v) => setNewRole(v as 'superuser' | 'user')}>
@@ -211,13 +211,13 @@ export const UsersSettingsTab: React.FC = () => {
           <Button
             type="submit"
             disabled={isCreating || !newUsername.trim()}
-            className="bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg px-3.5 h-9 text-xs font-bold shadow-md shadow-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
+            className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-9 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
           >
             {isCreating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             <span>{t('settings.users.createButton')}</span>
           </Button>
         </div>
-        <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+        <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
           {t('settings.users.createHint')}
         </p>
       </form>
@@ -225,15 +225,15 @@ export const UsersSettingsTab: React.FC = () => {
       {issuedPassword && (
         <div className={cn(
           "rounded-lg border p-3.5 space-y-2",
-          theme === 'dark' ? "bg-amber-500/5 border-amber-500/30" : "bg-amber-50 border-amber-200"
+          theme === 'dark' ? "bg-ds-amber-500/5 border-ds-amber-500/30" : "bg-ds-amber-50 border-ds-amber-200"
         )}>
-          <div className={cn("text-xs font-bold", theme === 'dark' ? "text-amber-400" : "text-amber-700")}>
+          <div className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-amber-400" : "text-ds-amber-700")}>
             {t('settings.users.passwordTitle', { name: issuedPassword.username })}
           </div>
           <div className="flex items-center gap-2">
             <code className={cn(
               "flex-1 min-w-0 px-2.5 py-1.5 rounded-lg text-xs font-mono break-all",
-              theme === 'dark' ? "bg-zinc-950 text-zinc-100" : "bg-white text-zinc-800 border border-zinc-200"
+              theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-white text-ds-zinc-800 border border-ds-zinc-200"
             )}>
               {issuedPassword.password}
             </code>
@@ -242,7 +242,7 @@ export const UsersSettingsTab: React.FC = () => {
             </Button>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-[11px]", theme === 'dark' ? "text-amber-400/80" : "text-amber-700/90")}>
+            <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-amber-400/80" : "text-ds-amber-700/90")}>
               {t('settings.users.passwordHint')}
             </p>
             <Button type="button" variant="ghost" size="sm" onClick={() => setIssuedPassword(null)} className="h-7 text-[11px] font-bold shrink-0">
@@ -255,7 +255,7 @@ export const UsersSettingsTab: React.FC = () => {
       <div className="space-y-2">
         {isLoading ? (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+            <Loader2 className="w-4 h-4 animate-spin text-ds-zinc-500" />
           </div>
         ) : (
           users.map((user) => {
@@ -266,29 +266,29 @@ export const UsersSettingsTab: React.FC = () => {
                 key={user.id}
                 className={cn(
                   "rounded-lg border p-3.5 flex flex-col sm:flex-row sm:items-center gap-3 w-full min-w-0 transition-all",
-                  theme === 'dark' ? "bg-zinc-950/20 border-zinc-800/80" : "bg-zinc-50 border-zinc-200",
+                  theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/80" : "bg-ds-zinc-50 border-ds-zinc-200",
                   !user.is_active && "opacity-60"
                 )}
               >
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-zinc-100" : "text-zinc-800")}>
+                    <span className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
                       {user.username}
                     </span>
                     {user.role === 'superuser' && (
-                      <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-indigo-500" aria-label={t('settings.users.roleSuperuser')} />
+                      <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" aria-label={t('settings.users.roleSuperuser')} />
                     )}
                     {user.is_locked && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 shrink-0">
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-ds-red-500 shrink-0">
                         <Lock className="w-3 h-3" />
                         {t('settings.users.statusLocked')}
                       </span>
                     )}
                     {!user.is_active && (
-                      <span className="text-[10px] font-bold text-zinc-500 shrink-0">{t('settings.users.statusInactive')}</span>
+                      <span className="text-[10px] font-bold text-ds-zinc-500 shrink-0">{t('settings.users.statusInactive')}</span>
                     )}
                   </div>
-                  <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+                  <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                     {user.name || user.email || '—'}
                     {user.last_login_at
                       ? ` · ${t('settings.users.lastLogin', { date: new Date(user.last_login_at).toLocaleString() })}`
@@ -319,7 +319,7 @@ export const UsersSettingsTab: React.FC = () => {
                       disabled={isBusy}
                       onClick={() => handleUnlock(user)}
                       title={t('settings.users.unlockTitle')}
-                      className="h-8 w-8 rounded-lg text-amber-500 hover:bg-amber-500/10"
+                      className="h-8 w-8 rounded-lg text-ds-amber-500 hover:bg-ds-amber-500/10"
                     >
                       <Unlock className="w-3.5 h-3.5" />
                     </Button>
@@ -332,7 +332,7 @@ export const UsersSettingsTab: React.FC = () => {
                     disabled={isBusy}
                     onClick={() => handleResetPassword(user)}
                     title={t('settings.users.resetPasswordTitle')}
-                    className="h-8 w-8 rounded-lg text-zinc-500 hover:bg-zinc-500/10"
+                    className="h-8 w-8 rounded-lg text-ds-zinc-500 hover:bg-ds-zinc-500/10"
                   >
                     {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
                   </Button>
@@ -347,8 +347,8 @@ export const UsersSettingsTab: React.FC = () => {
                     className={cn(
                       "h-8 w-8 rounded-lg",
                       user.is_active
-                        ? "text-red-500 border border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10"
-                        : "text-emerald-500 hover:bg-emerald-500/10"
+                        ? "text-ds-red-500 border border-ds-red-500/20 hover:border-ds-red-500/40 hover:bg-ds-red-500/10"
+                        : "text-ds-emerald-500 hover:bg-ds-emerald-500/10"
                     )}
                   >
                     {user.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}

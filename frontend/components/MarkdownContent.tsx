@@ -28,28 +28,28 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) =
   return (
     <div className={cn(
       "rounded-lg border overflow-hidden my-4 shadow-xl transition-colors duration-200",
-      theme === 'dark' ? "border-zinc-800 bg-zinc-950/80" : "border-zinc-200 bg-zinc-50/90"
+      theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-950/80" : "border-ds-zinc-200 bg-ds-zinc-50/90"
     )}>
       <div className={cn(
         "flex items-center justify-between px-4 py-2 border-b text-[11px] font-mono transition-colors duration-200",
-        theme === 'dark' ? "border-zinc-800 bg-zinc-900/40 text-zinc-400" : "border-zinc-200 bg-zinc-200/50 text-zinc-650"
+        theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/40 text-ds-zinc-400" : "border-ds-zinc-200 bg-ds-zinc-200/50 text-ds-zinc-650"
       )}>
         <span className="capitalize font-semibold">{language || 'code'}</span>
-        <button 
+        <button
           type="button"
           onClick={handleCopy}
           id="copy-code-btn"
           className={cn(
             "flex items-center gap-1.5 px-2.5 py-1 rounded border transition-all text-xs font-medium",
-            theme === 'dark' 
-              ? "bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800 hover:border-zinc-750" 
-              : "bg-white hover:bg-zinc-100 text-zinc-750 border-zinc-200 hover:border-zinc-300"
+            theme === 'dark'
+              ? "bg-ds-zinc-900 hover:bg-ds-zinc-800 text-ds-zinc-300 border-ds-zinc-800 hover:border-ds-zinc-750"
+              : "bg-ds-white hover:bg-ds-zinc-100 text-ds-zinc-750 border-ds-zinc-200 hover:border-ds-zinc-300"
           )}
         >
           {copied ? (
             <>
-              <Check className="w-3 h-3 text-emerald-500" />
-              <span className="text-emerald-500 font-semibold">{t('common.copied')}</span>
+              <Check className="w-3 h-3 text-ds-emerald-500" />
+              <span className="text-ds-emerald-500 font-semibold">{t('common.copied')}</span>
             </>
           ) : (
             <>
@@ -61,7 +61,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) =
       </div>
       <pre className={cn(
         "p-4 overflow-x-auto max-w-full text-sm font-mono leading-relaxed no-scrollbar",
-        theme === 'dark' ? "text-zinc-300 bg-black/20" : "text-zinc-800 bg-black/5"
+        theme === 'dark' ? "text-ds-zinc-300 bg-ds-black/20" : "text-ds-zinc-800 bg-ds-black/5"
       )}>
         <code>{code}</code>
       </pre>
@@ -118,11 +118,11 @@ const renderPlainKnownSources = (
         className={cn(
           "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
           theme === 'dark'
-            ? "bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border-indigo-500/20"
-            : "bg-indigo-50 text-indigo-650 hover:bg-indigo-100 border-indigo-200"
+            ? "bg-ds-indigo-500/10 text-ds-indigo-400 hover:bg-ds-indigo-500/20 border-ds-indigo-500/20"
+            : "bg-ds-indigo-50 text-ds-indigo-650 hover:bg-ds-indigo-100 border-ds-indigo-200"
         )}
       >
-        <BookOpen className="w-3 h-3 text-emerald-400 shrink-0" />
+        <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" />
         <span className="truncate">{match[0]}</span>
       </button>
     );
@@ -190,11 +190,11 @@ const parseTextSegment = (
             className={cn(
               "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
               theme === 'dark'
-                ? "bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border-indigo-500/20"
-                : "bg-indigo-50 text-indigo-650 hover:bg-indigo-100 border-indigo-200"
+                ? "bg-ds-indigo-500/10 text-ds-indigo-400 hover:bg-ds-indigo-500/20 border-ds-indigo-500/20"
+                : "bg-ds-indigo-50 text-ds-indigo-650 hover:bg-ds-indigo-100 border-ds-indigo-200"
             )}
           >
-            {isDoc ? <BookOpen className="w-3 h-3 text-emerald-400 shrink-0" /> : <Code className="w-3 h-3 shrink-0" />}
+            {isDoc ? <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" /> : <Code className="w-3 h-3 shrink-0" />}
             <span className="truncate">{codeVal}</span>
           </button>
         );
@@ -203,8 +203,8 @@ const parseTextSegment = (
         <code key={`${keyPrefix}-${i}`} className={cn(
           "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs border transition-colors duration-200 break-words",
           theme === 'dark'
-            ? "bg-zinc-900 text-pink-400 border-zinc-800/80"
-            : "bg-zinc-100 text-pink-650 border-zinc-200"
+            ? "bg-ds-zinc-900 text-ds-pink-400 border-ds-zinc-800/80"
+            : "bg-ds-zinc-100 text-ds-pink-650 border-ds-zinc-200"
         )}>
           {codeVal}
         </code>
@@ -216,7 +216,7 @@ const parseTextSegment = (
       const partKey = `${keyPrefix}-${i}-${j}`;
       if (bp2.startsWith('**') && bp2.endsWith('**')) {
         return (
-          <strong key={partKey} className={cn("font-bold transition-colors duration-200", theme === 'dark' ? "text-white" : "text-zinc-950")}>
+          <strong key={partKey} className={cn("font-bold transition-colors duration-200", theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}>
             {bp2.slice(2, -2)}
           </strong>
         );
@@ -337,18 +337,18 @@ interface MarkdownTableProps {
 const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, theme, onFileClick, knownSources }) => (
   <div className={cn(
     "overflow-x-auto rounded-lg border my-4 no-scrollbar",
-    theme === 'dark' ? "border-zinc-800" : "border-zinc-200"
+    theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200"
   )}>
     <table className="w-full text-sm border-collapse">
       <thead>
-        <tr className={theme === 'dark' ? "bg-zinc-900/60" : "bg-zinc-100/80"}>
+        <tr className={theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-zinc-100/80"}>
           {header.map((cell, i) => (
             <th
               key={i}
               style={{ textAlign: align[i] || 'left' }}
               className={cn(
                 "px-3 py-2 font-semibold border-b whitespace-normal",
-                theme === 'dark' ? "text-white border-zinc-800" : "text-zinc-950 border-zinc-200"
+                theme === 'dark' ? "text-ds-white border-ds-zinc-800" : "text-ds-zinc-950 border-ds-zinc-200"
               )}
             >
               {parseText(cell, onFileClick, theme, knownSources)}
@@ -362,7 +362,7 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, them
             key={ri}
             className={cn(
               "border-b last:border-b-0",
-              theme === 'dark' ? "border-zinc-800/60" : "border-zinc-200/80"
+              theme === 'dark' ? "border-ds-zinc-800/60" : "border-ds-zinc-200/80"
             )}
           >
             {header.map((_, ci) => (
@@ -420,7 +420,7 @@ const renderTextBlock = (
       elements.push(
         <HeadingTag
           key={`${blockKey}-h-${i}`}
-          className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-white" : "text-zinc-950")}
+          className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}
         >
           {parseText(headingMatch[2], onFileClick, theme, knownSources)}
         </HeadingTag>
@@ -434,7 +434,7 @@ const renderTextBlock = (
       elements.push(
         <hr
           key={`${blockKey}-hr-${i}`}
-          className={cn("my-4 border-t", theme === 'dark' ? "border-zinc-800" : "border-zinc-200")}
+          className={cn("my-4 border-t", theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200")}
         />
       );
       i++;
@@ -457,7 +457,7 @@ const renderTextBlock = (
           key={`${blockKey}-bq-${i}`}
           className={cn(
             "border-l-4 pl-3 py-1 my-3 rounded-r leading-relaxed whitespace-pre-wrap text-[15px]",
-            theme === 'dark' ? "border-zinc-700 bg-zinc-900/30 text-zinc-400" : "border-zinc-300 bg-zinc-100/60 text-zinc-600"
+            theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900/30 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-100/60 text-ds-zinc-600"
           )}
         >
           {parseText(quoteLines.join('\n'), onFileClick, theme, knownSources)}
@@ -509,7 +509,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
   return (
-    <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>
+    <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
       {parts.map((part, index) => {
         if (part.startsWith('```') && part.endsWith('```')) {
           const match = part.match(/```(\w*)\n([\s\S]*?)```/);

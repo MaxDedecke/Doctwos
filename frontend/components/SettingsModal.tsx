@@ -92,24 +92,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
-          <motion.div 
+        <div className="fixed inset-0 bg-ds-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 md:p-4">
+          <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             className={cn(
               "border rounded-lg w-[95vw] md:w-[80vw] h-[90vh] md:h-[80vh] overflow-hidden shadow-2xl flex flex-col md:flex-row transition-all duration-200",
-              theme === 'dark' ? "bg-zinc-900 border-zinc-800/80 shadow-black/80" : "bg-white border-zinc-200 shadow-zinc-300/80"
+              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800/80 shadow-ds-black/80" : "bg-ds-white border-ds-zinc-200 shadow-ds-zinc-300/80"
             )}
           >
             {/* Left tab selectors list */}
             <div className={cn(
               "w-full md:w-[210px] border-b md:border-b-0 md:border-r p-3 md:p-4 flex flex-row md:flex-col justify-between transition-colors duration-200 shrink-0",
-              theme === 'dark' ? "bg-zinc-950/40 border-zinc-800/60" : "bg-zinc-50 border-zinc-200"
+              theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800/60" : "bg-ds-zinc-50 border-ds-zinc-200"
             )}>
               <div className="space-y-0 md:space-y-5 flex flex-col md:block w-full">
                 <div className="px-3 hidden md:block">
-                  <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                  <h3 className="text-[10px] font-bold text-ds-zinc-500 uppercase tracking-widest">
                     {t('settings.nav.config')}
                   </h3>
                 </div>
@@ -132,13 +132,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setSettingsTab(tab.id as any)}
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left whitespace-nowrap shrink-0",
-                        settingsTab === tab.id 
-                          ? (theme === 'dark' 
-                              ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-sm" 
-                              : "bg-indigo-50 text-indigo-700 border border-indigo-200/50 shadow-sm")
+                        settingsTab === tab.id
+                          ? (theme === 'dark'
+                              ? "bg-ds-indigo-500/10 text-ds-indigo-400 border border-ds-indigo-500/20 shadow-sm"
+                              : "bg-ds-indigo-50 text-ds-indigo-700 border border-ds-indigo-200/50 shadow-sm")
                           : (theme === 'dark'
-                              ? "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
-                              : "text-zinc-650 hover:bg-zinc-200/55 hover:text-zinc-900")
+                              ? "text-ds-zinc-400 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-200"
+                              : "text-ds-zinc-650 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-900")
                       )}
                     >
                       {tab.icon}
@@ -147,17 +147,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ))}
                 </nav>
               </div>
-              
-              <div className="hidden md:block px-3 py-2 border-t border-zinc-800/50 text-[9px] text-zinc-500 font-medium">
+
+              <div className="hidden md:block px-3 py-2 border-t border-ds-zinc-800/50 text-[9px] text-ds-zinc-500 font-medium">
                 IP Context: 82.165.216.180
               </div>
             </div>
 
             {/* Right tab contents panel */}
-            <div className={cn("flex-1 flex flex-col h-full overflow-hidden transition-colors duration-200", theme === 'dark' ? "bg-zinc-900" : "bg-white")}>
+            <div className={cn("flex-1 flex flex-col h-full overflow-hidden transition-colors duration-200", theme === 'dark' ? "bg-ds-zinc-900" : "bg-ds-white")}>
               {/* Header */}
-              <div className={cn("px-6 py-4 border-b flex items-center justify-between transition-colors", theme === 'dark' ? "border-zinc-800/60" : "border-zinc-200")}>
-                <h3 className={cn("font-extrabold text-xs uppercase tracking-wider", theme === 'dark' ? "text-zinc-100" : "text-zinc-800")}>
+              <div className={cn("px-6 py-4 border-b flex items-center justify-between transition-colors", theme === 'dark' ? "border-ds-zinc-800/60" : "border-ds-zinc-200")}>
+                <h3 className={cn("font-extrabold text-xs uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
                   {settingsTab === 'projects' ? t('settings.nav.projects') :
                    settingsTab === 'project-setup' ? t('settings.header.projectSetup') :
                    settingsTab === 'git-setup' ? t('settings.header.gitSetupWizard') :
@@ -171,7 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    t('settings.nav.layout')}
                 </h3>
               </div>
-              
+
               {/* Scrollable Contents */}
               <ScrollArea className="flex-1 w-full min-w-0 p-4 sm:p-6">
                 <div className="space-y-6">
@@ -223,15 +223,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {settingsTab === 'layout' && <LayoutSettingsTab />}
                 </div>
               </ScrollArea>
-              
+
               {/* Footer */}
-              <div className={cn("px-6 py-4 border-t flex justify-end", theme === 'dark' ? "bg-zinc-950/20 border-zinc-800/60" : "bg-zinc-50 border-zinc-200")}>
-                <Button 
+              <div className={cn("px-6 py-4 border-t flex justify-end", theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/60" : "bg-ds-zinc-50 border-ds-zinc-200")}>
+                <Button
                   type="button"
                   onClick={onClose}
                   className={cn(
                     "rounded-lg px-4 text-xs font-semibold h-8 transition-colors duration-200",
-                    theme === 'dark' ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200" : "bg-zinc-100 hover:bg-zinc-200 text-zinc-800"
+                    theme === 'dark' ? "bg-ds-zinc-800 hover:bg-ds-zinc-700 text-ds-zinc-200" : "bg-ds-zinc-100 hover:bg-ds-zinc-200 text-ds-zinc-800"
                   )}
                 >
                   {t('common.close')}

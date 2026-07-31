@@ -196,7 +196,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-between">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
           {activeSourceType === t('settings.sourcesTab.types.local.name')
             ? t('settings.sourcesSetup.uploadDocsTitle')
             : activeSourceType === t('settings.sourcesTab.types.folderwatch.name')
@@ -208,7 +208,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
           variant="ghost"
           size="sm"
           onClick={onDone}
-          className={cn("h-7 text-xs font-semibold px-2.5 rounded-lg transition-all", theme === 'dark' ? "text-zinc-500 hover:text-zinc-350 hover:bg-zinc-800" : "text-zinc-450 hover:text-zinc-800 hover:bg-zinc-100")}
+          className={cn("h-7 text-xs font-semibold px-2.5 rounded-lg transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-350 hover:bg-ds-zinc-800" : "text-ds-zinc-450 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
         >
           {t('common.cancel')}
         </Button>
@@ -216,19 +216,19 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
 
       <div className={cn(
         "border rounded-lg p-4 sm:p-5 transition-all space-y-5",
-        theme === 'dark' ? "bg-zinc-950/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+        theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
       )}>
         {activeSourceType === t('settings.sourcesTab.types.folderwatch.name') ? (
           <div className="space-y-5 animate-in fade-in duration-250">
             <div className="space-y-1.5">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>{t('settings.sourcesSetup.folderWatchTitle')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-500" : "text-zinc-555")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.sourcesSetup.folderWatchTitle')}</h5>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
                 {t('settings.sourcesSetup.folderWatchDesc')}
               </p>
             </div>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderNameLabel')}</label>
+                <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderNameLabel')}</label>
                 <input
                   type="text"
                   placeholder={t('settings.sourcesSetup.folderNamePlaceholder')}
@@ -237,13 +237,13 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                   className={cn(
                     "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                     theme === 'dark'
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                      : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                   )}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderPathLabel')}</label>
+                <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderPathLabel')}</label>
                 <input
                   type="text"
                   placeholder={t('settings.sourcesSetup.folderPathPlaceholder')}
@@ -252,13 +252,13 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                   className={cn(
                     "w-full border rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none transition-all",
                     theme === 'dark'
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                      : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                   )}
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-2 border-t border-zinc-800/10">
+            <div className="flex justify-end pt-2 border-t border-ds-zinc-800/10">
               <Button
                 type="button"
                 disabled={isConnectingFolder || !folderName.trim() || !folderPath.trim()}
@@ -266,8 +266,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 className={cn(
                   "h-8 text-xs font-semibold px-4 rounded-lg flex items-center gap-1.5 transition-all",
                   theme === 'dark'
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-40"
+                    ? "bg-ds-emerald-600 hover:bg-ds-emerald-500 text-ds-white disabled:opacity-40"
+                    : "bg-ds-emerald-600 hover:bg-ds-emerald-700 text-ds-white disabled:opacity-40"
                 )}
               >
                 {isConnectingFolder ? (
@@ -281,8 +281,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         ) : activeSourceType === t('settings.sourcesTab.types.local.name') ? (
           <div className="space-y-5 animate-in fade-in duration-250">
             <div className="space-y-1.5">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>{t('settings.sourcesSetup.selectFileTitle')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-500" : "text-zinc-555")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.sourcesSetup.selectFileTitle')}</h5>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
                 {t('settings.sourcesSetup.selectFileDesc', { project: selectedSourceRepoId === 'all' ? t('settings.sourcesTab.global') : (projects.find((p: any) => p.id.toString() === selectedSourceRepoId)?.name || '') })}
               </p>
             </div>
@@ -291,22 +291,22 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
               className={cn(
                 "border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center gap-3 transition-all relative",
                 theme === 'dark'
-                  ? "bg-zinc-900/40 border-zinc-800 hover:border-indigo-500/50 hover:bg-zinc-900/60"
-                  : "bg-white border-zinc-200 hover:border-indigo-400 hover:bg-zinc-50/50"
+                  ? "bg-ds-zinc-900/40 border-ds-zinc-800 hover:border-ds-indigo-500/50 hover:bg-ds-zinc-900/60"
+                  : "bg-ds-white border-ds-zinc-200 hover:border-ds-indigo-400 hover:bg-ds-zinc-50/50"
               )}
             >
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center",
-                theme === 'dark' ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-50 text-indigo-600"
+                theme === 'dark' ? "bg-ds-indigo-500/10 text-ds-indigo-400" : "bg-ds-indigo-50 text-ds-indigo-600"
               )}>
                 <Plus className="w-6 h-6" />
               </div>
 
               <div className="space-y-1">
-                <p className={cn("text-xs font-bold", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>
+                <p className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                   {selectedUploadFile ? selectedUploadFile.name : t('settings.sourcesSetup.dropzoneText')}
                 </p>
-                <p className="text-[10px] text-zinc-500">{t('settings.sourcesSetup.dropzoneHint')}</p>
+                <p className="text-[10px] text-ds-zinc-500">{t('settings.sourcesSetup.dropzoneHint')}</p>
               </div>
 
               <input
@@ -329,7 +329,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                   setSelectedUploadFile(null);
                   onDone();
                 }}
-                className={cn("h-9 text-xs font-semibold px-4 rounded-lg", theme === 'dark' ? "text-zinc-400 hover:bg-zinc-800" : "text-zinc-550 hover:bg-zinc-100")}
+                className={cn("h-9 text-xs font-semibold px-4 rounded-lg", theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800" : "text-ds-zinc-550 hover:bg-ds-zinc-100")}
               >
                 {t('common.cancel')}
               </Button>
@@ -337,7 +337,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 type="button"
                 disabled={!selectedUploadFile || isUploading}
                 onClick={handleFileUpload}
-                className="bg-indigo-650 hover:bg-indigo-600 text-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
               >
                 {isUploading ? (
                   <>
@@ -357,12 +357,12 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
           <>
             {/* Functional Integration connection forms */}
             <div className="space-y-4 animate-in fade-in duration-200">
-              <p className={cn("text-xs", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+              <p className={cn("text-xs", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
                 {t('settings.sourcesSetup.integrationSetupDesc', { type: activeSourceType })}
               </p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.integrationNameLabel')}</label>
+                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.integrationNameLabel')}</label>
                   <input
                     type="text"
                     placeholder={t('settings.sourcesSetup.integrationNamePlaceholder', { type: activeSourceType })}
@@ -371,8 +371,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     className={cn(
                       "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                       theme === 'dark'
-                        ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                        : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                        ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                     )}
                   />
                 </div>
@@ -380,7 +380,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 {(
                   <>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.serverUrlLabel')}</label>
+                      <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.serverUrlLabel')}</label>
                       <input
                         type="text"
                         placeholder={activeSourceType === "Jira Software" ? "https://jira.company.com" : "https://company.atlassian.net"}
@@ -389,13 +389,13 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                         className={cn(
                           "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                           theme === 'dark'
-                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                            : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                            ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                            : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                         )}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.emailUsernameLabel')}</label>
+                      <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.emailUsernameLabel')}</label>
                       <input
                         type="text"
                         placeholder="user@company.com"
@@ -404,8 +404,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                         className={cn(
                           "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                           theme === 'dark'
-                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                            : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                            ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                            : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                         )}
                       />
                     </div>
@@ -413,7 +413,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">
+                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {t('settings.sourcesSetup.apiTokenPasswordLabel')}
                   </label>
                   <input
@@ -424,14 +424,14 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     className={cn(
                       "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                       theme === 'dark'
-                        ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                        : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                        ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                     )}
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase px-0.5">
+                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {t('settings.sourcesSetup.spacesProjectKeysLabel')}
                   </label>
                   <input
@@ -442,20 +442,20 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     className={cn(
                       "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                       theme === 'dark'
-                        ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                        : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                        ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                     )}
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800/10 w-full">
+              <div className="flex flex-col gap-2 pt-2 border-t border-ds-zinc-800/10 w-full">
                 <div className="flex justify-end gap-2 w-full">
                   <Button
                     type="button"
                     variant="ghost"
                     disabled={isConnectingSource}
                     onClick={onDone}
-                    className={cn("h-9 text-xs font-semibold px-4 rounded-lg", theme === 'dark' ? "text-zinc-400 hover:bg-zinc-800" : "text-zinc-550 hover:bg-zinc-100")}
+                    className={cn("h-9 text-xs font-semibold px-4 rounded-lg", theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800" : "text-ds-zinc-550 hover:bg-ds-zinc-100")}
                   >
                     {t('common.cancel')}
                   </Button>
@@ -466,10 +466,10 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     className={cn(
                       "h-9 text-xs font-semibold px-4 rounded-lg flex items-center gap-1.5 transition-all shadow-md border",
                       sourceConnStatus === 'success'
-                        ? "bg-green-600 hover:bg-green-500 text-white border-green-600 shadow-green-650/10"
+                        ? "bg-ds-green-600 hover:bg-ds-green-500 text-ds-white border-ds-green-600 shadow-ds-green-650/10"
                         : theme === 'dark'
-                          ? "bg-zinc-900 border-zinc-800 text-indigo-400 hover:bg-zinc-800 hover:text-indigo-350"
-                          : "bg-white border-zinc-200 text-indigo-600 hover:bg-zinc-50 hover:text-indigo-700"
+                          ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-indigo-400 hover:bg-ds-zinc-800 hover:text-ds-indigo-350"
+                          : "bg-ds-white border-ds-zinc-200 text-ds-indigo-600 hover:bg-ds-zinc-50 hover:text-ds-indigo-700"
                     )}
                   >
                     {isTestingSourceConn ? (
@@ -487,7 +487,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     type="button"
                     disabled={isConnectingSource}
                     onClick={handleConnectSource}
-                    className="bg-indigo-650 hover:bg-indigo-600 text-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
+                    className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
                   >
                     {isConnectingSource ? (
                       <>
@@ -500,7 +500,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                   </Button>
                 </div>
                 {sourceConnStatus === 'error' && sourceConnError && (
-                  <div className="text-[10px] text-red-500 text-right w-full mt-1 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="text-[10px] text-ds-red-500 text-right w-full mt-1 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
                     {sourceConnError}
                   </div>
                 )}

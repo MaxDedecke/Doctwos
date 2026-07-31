@@ -143,6 +143,19 @@ jobs:
         working-directory: frontend
         run: npm run test
 
+  # NF-006: Komponenten dürfen weder feste Farbwerte noch Tailwind-Standardfarben
+  # verwenden. Alle UI-Farben laufen über die zentralen --ds-* Design-Tokens.
+  design-tokens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - name: Reject hard-coded component colors
+        working-directory: frontend
+        run: node scripts/check-design-tokens.mjs
+
   # Full-stack Smoke-Test: lokale Anmeldung -> authentifizierte Oberfläche ->
   # COBOL-Wissensquelle anlegen/sehen. Backend/Frontend laufen direkt auf dem
   # Runner (nicht über docker-compose — Ollama wird für diesen Ablauf nicht

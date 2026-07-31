@@ -270,7 +270,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-between">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-550")}>
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
           {t('settings.header.gitSetupWizard')}
         </h4>
         <Button
@@ -278,7 +278,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           variant="ghost"
           size="sm"
           onClick={onDone}
-          className={cn("h-7 text-xs font-semibold px-2.5 rounded-lg transition-all", theme === 'dark' ? "text-zinc-500 hover:text-zinc-350 hover:bg-zinc-800" : "text-zinc-450 hover:text-zinc-800 hover:bg-zinc-100")}
+          className={cn("h-7 text-xs font-semibold px-2.5 rounded-lg transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-350 hover:bg-ds-zinc-800" : "text-ds-zinc-450 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
         >
           {t('common.cancel')}
         </Button>
@@ -286,14 +286,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
       <div className={cn(
         "border rounded-lg p-4 sm:p-5 transition-all space-y-5",
-        theme === 'dark' ? "bg-zinc-950/40 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+        theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
       )}>
         {/* Wizard Step Progress Indicator */}
         {wizardStep <= 4 && (
           <div className="relative flex items-center justify-between w-full max-w-md mx-auto mb-6 px-4">
-            <div className={cn("absolute left-0 right-0 h-0.5 top-1/2 -translate-y-1/2 z-0", theme === 'dark' ? "bg-zinc-800" : "bg-zinc-200")} />
+            <div className={cn("absolute left-0 right-0 h-0.5 top-1/2 -translate-y-1/2 z-0", theme === 'dark' ? "bg-ds-zinc-800" : "bg-ds-zinc-200")} />
             <div
-              className="absolute left-0 h-0.5 top-1/2 -translate-y-1/2 bg-indigo-500 transition-all duration-300 z-0"
+              className="absolute left-0 h-0.5 top-1/2 -translate-y-1/2 bg-ds-indigo-500 transition-all duration-300 z-0"
               style={{ width: `${((wizardStep - 1) / 3) * 100}%` }}
             />
 
@@ -310,10 +310,10 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   <div className={cn(
                     "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 border shadow-sm",
                     isCompleted
-                      ? "bg-indigo-500 border-indigo-500 text-white"
+                      ? "bg-ds-indigo-500 border-ds-indigo-500 text-ds-white"
                       : isActive
-                        ? (theme === 'dark' ? "bg-zinc-900 border-indigo-500 text-indigo-400 scale-110 shadow-indigo-500/10" : "bg-white border-indigo-600 text-indigo-650 scale-110 shadow-indigo-650/10")
-                        : (theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-500" : "bg-white border-zinc-200 text-zinc-400")
+                        ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-indigo-500 text-ds-indigo-400 scale-110 shadow-ds-indigo-500/10" : "bg-ds-white border-ds-indigo-600 text-ds-indigo-650 scale-110 shadow-ds-indigo-650/10")
+                        : (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-500" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-400")
                   )}>
                     {isCompleted ? (
                       <Check className="w-4 h-4 stroke-[3px]" />
@@ -324,8 +324,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   <span className={cn(
                     "text-[10px] font-semibold mt-1.5 transition-colors duration-300",
                     isActive
-                      ? "text-indigo-500 font-bold"
-                      : (theme === 'dark' ? "text-zinc-500" : "text-zinc-400")
+                      ? "text-ds-indigo-500 font-bold"
+                      : (theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400")
                   )}>
                     {item.label}
                   </span>
@@ -339,8 +339,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         {wizardStep === 1 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-100" : "text-zinc-850")}>{t('settings.gitSetup.step1.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-450" : "text-zinc-500")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step1.title')}</h5>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step1.description')}
               </p>
             </div>
@@ -366,28 +366,28 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-lg border text-center transition-all group",
                       isSel
-                        ? (theme === 'dark' ? "border-indigo-500 bg-indigo-500/5 text-indigo-400" : "border-indigo-600 bg-indigo-50/50 text-indigo-650 shadow-md shadow-indigo-600/5")
-                        : (theme === 'dark' ? "bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:border-zinc-700/80 hover:bg-zinc-900" : "bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50")
+                        ? (theme === 'dark' ? "border-ds-indigo-500 bg-ds-indigo-500/5 text-ds-indigo-400" : "border-ds-indigo-600 bg-ds-indigo-50/50 text-ds-indigo-650 shadow-md shadow-ds-indigo-600/5")
+                        : (theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800/80 text-ds-zinc-400 hover:border-ds-zinc-700/80 hover:bg-ds-zinc-900" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:border-ds-zinc-300 hover:bg-ds-zinc-50")
                     )}
                   >
                     <ProviderIcon className={cn(
                       "w-6 h-6 transition-transform group-hover:scale-105",
-                      isSel ? "text-indigo-500" : "text-zinc-500"
+                      isSel ? "text-ds-indigo-500" : "text-ds-zinc-500"
                     )} />
                     <div className="space-y-0.5">
-                      <p className={cn("text-xs font-bold", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>{provider.name}</p>
-                      <p className="text-[9px] text-zinc-500">{provider.desc}</p>
+                      <p className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{provider.name}</p>
+                      <p className="text-[9px] text-ds-zinc-500">{provider.desc}</p>
                     </div>
                   </button>
                 );
               })}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-zinc-800/20">
+            <div className="flex justify-end pt-3 border-t border-ds-zinc-800/20">
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="bg-indigo-650 hover:bg-indigo-600 text-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-indigo-600/10"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
               >
                 <span>{t('common.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -400,10 +400,10 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         {wizardStep === 2 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-100" : "text-zinc-850")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>
                 {repoType === 'public' ? t('settings.gitSetup.step2.titleCloneUrl') : t('settings.gitSetup.step2.titleConnectTo', { provider: repoType === 'github' ? 'GitHub' : repoType === 'gitlab' ? 'GitLab' : 'Bitbucket' })}
               </h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-450" : "text-zinc-500")}>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {repoType === 'public'
                   ? t('settings.gitSetup.step2.descPublic')
                   : t('settings.gitSetup.step2.descPrivate')}
@@ -412,7 +412,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
             {repoType === 'public' ? (
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.cloneUrlLabel')}</label>
+                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.cloneUrlLabel')}</label>
                 <input
                   type="text"
                   placeholder="https://github.com/facebook/react.git"
@@ -424,8 +424,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   className={cn(
                     "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all font-mono",
                     theme === 'dark'
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                      : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                   )}
                 />
               </div>
@@ -434,7 +434,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 {repoType === 'bitbucket' && (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.serverUrlLabel')} <span className="normal-case font-normal">{t('settings.gitSetup.step2.serverUrlHint')}</span></label>
+                      <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.serverUrlLabel')} <span className="normal-case font-normal">{t('settings.gitSetup.step2.serverUrlHint')}</span></label>
                       <input
                         type="text"
                         placeholder="https://bitbucket.example.com"
@@ -443,13 +443,13 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                         className={cn(
                           "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                           theme === 'dark'
-                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                            : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                            ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                            : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                         )}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">
+                      <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
                         {bitbucketServerUrl ? t('settings.gitSetup.step2.usernameLabelPatOnly') : t('settings.gitSetup.step2.usernameLabelBitbucket')}
                       </label>
                       <input
@@ -460,8 +460,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                         className={cn(
                           "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                           theme === 'dark'
-                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                            : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                            ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                            : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                         )}
                       />
                     </div>
@@ -470,7 +470,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
                 {repoType === 'github' && (
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.usernameOrgLabel')}</label>
+                    <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.usernameOrgLabel')}</label>
                     <input
                       type="text"
                       placeholder={t('settings.gitSetup.step2.usernamePlaceholderGithub')}
@@ -482,15 +482,15 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                       className={cn(
                         "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all",
                         theme === 'dark'
-                          ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                          : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                          ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                          : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                       )}
                     />
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">
+                  <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {repoType === 'github'
                       ? t('settings.gitSetup.step2.tokenLabelPat')
                       : repoType === 'gitlab'
@@ -510,8 +510,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     className={cn(
                       "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all font-mono",
                       theme === 'dark'
-                        ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                        : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                        ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                     )}
                   />
                 </div>
@@ -520,14 +520,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
             {/* Connection feedback */}
             {connectionStatus === 'success' && (
-              <div className="flex items-center gap-2 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 text-xs font-semibold animate-in fade-in duration-200">
-                <Check className="w-4.5 h-4.5 stroke-[3px] text-emerald-500 border border-emerald-500 rounded-full p-0.5 shrink-0" />
+              <div className="flex items-center gap-2 p-3 rounded-lg border border-ds-emerald-500/20 bg-ds-emerald-500/5 text-ds-emerald-500 text-xs font-semibold animate-in fade-in duration-200">
+                <Check className="w-4.5 h-4.5 stroke-[3px] text-ds-emerald-500 border border-ds-emerald-500 rounded-full p-0.5 shrink-0" />
                 <span>{t('settings.gitSetup.step2.connectionSuccessHint')}</span>
               </div>
             )}
 
             {connectionStatus === 'error' && (
-              <div className="flex items-start gap-2 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-red-650 dark:text-red-400 text-xs font-medium animate-in fade-in duration-200">
+              <div className="flex items-start gap-2 p-3 rounded-lg border border-ds-red-500/20 bg-ds-red-500/5 text-ds-red-650 dark:text-ds-red-400 text-xs font-medium animate-in fade-in duration-200">
                 <X className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-bold">{t('settings.gitSetup.step2.connectionErrorTitle')}</p>
@@ -536,11 +536,11 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               </div>
             )}
 
-            <div className="flex justify-between items-center pt-3 border-t border-zinc-800/20">
+            <div className="flex justify-between items-center pt-3 border-t border-ds-zinc-800/20">
               <Button
                 type="button"
                 onClick={() => setWizardStep(1)}
-                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-black text-white hover:bg-zinc-800 border-0"
+                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-ds-black text-ds-white hover:bg-ds-zinc-800 border-0"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>{t('common.back')}</span>
@@ -554,8 +554,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   className={cn(
                     "h-8 text-xs font-bold px-3.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md",
                     connectionStatus === 'success'
-                      ? "bg-zinc-800/20 text-zinc-500 border border-zinc-700/30 hover:bg-zinc-850 cursor-default"
-                      : "bg-indigo-650 hover:bg-indigo-600 text-white shadow-indigo-650/10"
+                      ? "bg-ds-zinc-800/20 text-ds-zinc-500 border border-ds-zinc-700/30 hover:bg-ds-zinc-850 cursor-default"
+                      : "bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white shadow-ds-indigo-650/10"
                   )}
                 >
                   {isTestingConnection ? (
@@ -572,7 +572,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   type="button"
                   disabled={connectionStatus !== 'success'}
                   onClick={handleNextStep}
-                  className="bg-indigo-650 hover:bg-indigo-600 disabled:opacity-40 text-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-indigo-600/10"
+                  className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
                 >
                   <span>{t('common.next')}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -586,14 +586,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         {wizardStep === 3 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-100" : "text-zinc-850")}>{t('settings.gitSetup.step3.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-450" : "text-zinc-500")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step3.title')}</h5>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step3.description')}
               </p>
             </div>
 
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-ds-zinc-500" />
               <input
                 type="text"
                 placeholder={t('settings.gitSetup.step3.filterPlaceholder')}
@@ -602,20 +602,20 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 className={cn(
                   "w-full border rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none transition-all",
                   theme === 'dark'
-                    ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                    : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                    ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                    : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                 )}
               />
             </div>
 
             <ScrollArea className="h-44 border rounded-lg overflow-hidden p-1.5 transition-colors">
               {isLoadingRepos ? (
-                <div className="h-32 flex flex-col items-center justify-center gap-2 text-xs text-zinc-500">
-                  <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                <div className="h-32 flex flex-col items-center justify-center gap-2 text-xs text-ds-zinc-500">
+                  <Loader2 className="w-5 h-5 animate-spin text-ds-indigo-500" />
                   <span>{t('settings.gitSetup.step3.fetchingList')}</span>
                 </div>
               ) : fetchedRepos.length === 0 ? (
-                <div className="h-32 flex items-center justify-center text-xs italic text-zinc-500">
+                <div className="h-32 flex items-center justify-center text-xs italic text-ds-zinc-500">
                   {t('settings.gitSetup.step3.noReposFound')}
                 </div>
               ) : (
@@ -635,15 +635,15 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                           className={cn(
                             "w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between border",
                             isSelected
-                              ? (theme === 'dark' ? "bg-indigo-500/10 border-indigo-500 text-indigo-400 font-semibold" : "bg-indigo-50/50 border-indigo-600 text-indigo-650 font-semibold")
-                              : (theme === 'dark' ? "bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200" : "bg-transparent border-transparent text-zinc-700 hover:bg-zinc-100/80 hover:text-zinc-900")
+                              ? (theme === 'dark' ? "bg-ds-indigo-500/10 border-ds-indigo-500 text-ds-indigo-400 font-semibold" : "bg-ds-indigo-50/50 border-ds-indigo-600 text-ds-indigo-650 font-semibold")
+                              : (theme === 'dark' ? "bg-transparent border-transparent text-ds-zinc-400 hover:bg-ds-zinc-900/60 hover:text-ds-zinc-200" : "bg-transparent border-transparent text-ds-zinc-700 hover:bg-ds-zinc-100/80 hover:text-ds-zinc-900")
                           )}
                         >
                           <div className="min-w-0 flex-1 pr-2">
-                            <p className={theme === 'dark' ? "text-zinc-200" : "text-zinc-800"}>{r.name}</p>
-                            <p className="text-[10px] text-zinc-500 font-mono truncate">{r.full_name}</p>
+                            <p className={theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"}>{r.name}</p>
+                            <p className="text-[10px] text-ds-zinc-500 font-mono truncate">{r.full_name}</p>
                           </div>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0 stroke-[3px]" />}
+                          {isSelected && <Check className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0 stroke-[3px]" />}
                         </button>
                       );
                     })}
@@ -651,11 +651,11 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               )}
             </ScrollArea>
 
-            <div className="flex justify-between items-center pt-3 border-t border-zinc-800/20">
+            <div className="flex justify-between items-center pt-3 border-t border-ds-zinc-800/20">
               <Button
                 type="button"
                 onClick={() => setWizardStep(2)}
-                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-black text-white hover:bg-zinc-800 border-0"
+                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-ds-black text-ds-white hover:bg-ds-zinc-800 border-0"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>{t('common.back')}</span>
@@ -665,7 +665,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 type="button"
                 disabled={!selectedRepoFullName}
                 onClick={handleNextStep}
-                className="bg-indigo-650 hover:bg-indigo-600 disabled:opacity-40 text-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-indigo-600/10"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
               >
                 <span>{t('common.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -678,38 +678,38 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         {wizardStep === 4 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
-              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-zinc-100" : "text-zinc-850")}>{t('settings.gitSetup.step4.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-450" : "text-zinc-500")}>
+              <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step4.title')}</h5>
+              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step4.description')}
               </p>
             </div>
 
-            <div className="space-y-3 p-3 rounded-lg border transition-all bg-indigo-500/[0.02] border-indigo-500/10">
+            <div className="space-y-3 p-3 rounded-lg border transition-all bg-ds-indigo-500/[0.02] border-ds-indigo-500/10">
               <div className="flex items-center gap-2 text-xs font-semibold">
-                <GitBranch className="w-4 h-4 text-indigo-500 shrink-0" />
-                <span className={theme === 'dark' ? "text-zinc-200" : "text-zinc-800"}>{t('settings.gitSetup.step4.repositoryLabel')}</span>
-                <span className="font-mono text-zinc-500 truncate max-w-[200px]">
+                <GitBranch className="w-4 h-4 text-ds-indigo-500 shrink-0" />
+                <span className={theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"}>{t('settings.gitSetup.step4.repositoryLabel')}</span>
+                <span className="font-mono text-ds-zinc-500 truncate max-w-[200px]">
                   {repoType === 'public' ? (newRepoUrl.split('/').pop()?.replace(/\.git$/, "") || newRepoUrl) : selectedRepoFullName}
                 </span>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.targetBranchLabel')}</label>
+                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.targetBranchLabel')}</label>
 
                 {isLoadingBranches ? (
-                  <div className="h-10 flex items-center gap-2 text-xs text-zinc-500 pl-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                  <div className="h-10 flex items-center gap-2 text-xs text-ds-zinc-500 pl-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-ds-indigo-500" />
                     <span>{t('settings.gitSetup.step4.fetchingBranches')}</span>
                   </div>
                 ) : fetchedBranches.length > 0 ? (
                   <Select value={selectedBranchName} onValueChange={setSelectedBranchName}>
                     <SelectTrigger className={cn(
                       "w-full h-8 text-xs focus:ring-0 font-mono",
-                      theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-350" : "bg-white border-zinc-200 text-zinc-750"
+                      theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-350" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-750"
                     )}>
                       <SelectValue placeholder={t('settings.gitSetup.step4.selectBranchPlaceholder')} />
                     </SelectTrigger>
-                    <SelectContent className={theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-white border-zinc-200 text-zinc-850"}>
+                    <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-850"}>
                       {fetchedBranches.map((br) => (
                         <SelectItem key={br} value={br} className="font-mono text-xs">{br}</SelectItem>
                       ))}
@@ -725,11 +725,11 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                       className={cn(
                         "w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none transition-all font-mono",
                         theme === 'dark'
-                          ? "bg-zinc-900 border-zinc-800 text-zinc-200 placeholder-zinc-700 focus:border-zinc-700"
-                          : "bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-300"
+                          ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-700 focus:border-ds-zinc-700"
+                          : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                       )}
                     />
-                    <p className="text-[9px] text-zinc-500 pl-0.5">
+                    <p className="text-[9px] text-ds-zinc-500 pl-0.5">
                       {t('settings.gitSetup.step4.manualBranchHint')}
                     </p>
                   </div>
@@ -737,7 +737,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-3 border-t border-zinc-800/20">
+            <div className="flex justify-between items-center pt-3 border-t border-ds-zinc-800/20">
               <Button
                 type="button"
                 onClick={() => {
@@ -747,7 +747,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     setWizardStep(3);
                   }
                 }}
-                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-black text-white hover:bg-zinc-800 border-0"
+                className="h-8 text-xs font-semibold px-3 rounded-lg flex items-center gap-1 bg-ds-black text-ds-white hover:bg-ds-zinc-800 border-0"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 <span>{t('common.back')}</span>
@@ -756,7 +756,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               <Button
                 type="button"
                 onClick={handleWizardSubmit}
-                className="bg-indigo-650 hover:bg-indigo-600 text-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-indigo-600/10"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-ds-indigo-600/10"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{t('settings.gitSetup.step4.addAndIndex')}</span>
@@ -769,41 +769,41 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         {wizardStep === 5 && (
           <div className="space-y-6 text-center animate-in fade-in duration-300 py-4 max-w-md mx-auto">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500 flex items-center justify-center text-emerald-500 shadow-lg shadow-emerald-500/10 animate-bounce">
+              <div className="w-14 h-14 rounded-full bg-ds-emerald-500/10 border border-ds-emerald-500 flex items-center justify-center text-ds-emerald-500 shadow-lg shadow-ds-emerald-500/10 animate-bounce">
                 <Check className="w-8 h-8 stroke-[3.5px]" />
               </div>
-              <h5 className={cn("text-base font-extrabold tracking-tight", theme === 'dark' ? "text-zinc-100" : "text-zinc-900")}>
+              <h5 className={cn("text-base font-extrabold tracking-tight", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-900")}>
                 {t('settings.gitSetup.step5.title')}
               </h5>
-              <p className={cn("text-xs leading-relaxed max-w-sm", theme === 'dark' ? "text-zinc-400" : "text-zinc-650")}>
+              <p className={cn("text-xs leading-relaxed max-w-sm", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-650")}>
                 {t('settings.gitSetup.step5.description')}
               </p>
             </div>
 
             <div className={cn(
               "p-4 rounded-lg border text-left space-y-2 text-xs transition-all",
-              theme === 'dark' ? "bg-zinc-900/40 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"
+              theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200 shadow-sm"
             )}>
-              <div className="flex items-center justify-between border-b pb-2 border-zinc-800/20">
-                <span className="text-zinc-500 font-bold uppercase text-[9px]">{t('settings.gitSetup.step5.statusLabel')}</span>
-                <span className="bg-emerald-500/15 text-emerald-505 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+              <div className="flex items-center justify-between border-b pb-2 border-ds-zinc-800/20">
+                <span className="text-ds-zinc-500 font-bold uppercase text-[9px]">{t('settings.gitSetup.step5.statusLabel')}</span>
+                <span className="bg-ds-emerald-500/15 text-ds-emerald-505 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
                   {t('settings.gitSetup.step5.parsingStarted')}
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-1 pt-1">
-                <span className="text-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.repositoryLabel')}</span>
-                <span className={cn("col-span-2 font-semibold truncate", theme === 'dark' ? "text-zinc-200" : "text-zinc-800")}>
+                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.repositoryLabel')}</span>
+                <span className={cn("col-span-2 font-semibold truncate", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                   {newRepoName}
                 </span>
 
-                <span className="text-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.gitSourceLabel')}</span>
-                <span className={cn("col-span-2 capitalize font-semibold", theme === 'dark' ? "text-zinc-355" : "text-zinc-700")}>
+                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.gitSourceLabel')}</span>
+                <span className={cn("col-span-2 capitalize font-semibold", theme === 'dark' ? "text-ds-zinc-355" : "text-ds-zinc-700")}>
                   {repoType === 'public' ? t('settings.gitSetup.step5.public') : repoType}
                 </span>
 
-                <span className="text-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.targetBranchLabel')}</span>
-                <span className="col-span-2 font-mono text-[10px] text-indigo-500 bg-indigo-500/5 border border-indigo-500/10 px-1 rounded w-fit">
+                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.targetBranchLabel')}</span>
+                <span className="col-span-2 font-mono text-[10px] text-ds-indigo-500 bg-ds-indigo-500/5 border border-ds-indigo-500/10 px-1 rounded w-fit">
                   {selectedBranchName}
                 </span>
               </div>
@@ -813,7 +813,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               <Button
                 type="button"
                 onClick={onDone}
-                className="bg-indigo-650 hover:bg-indigo-600 text-white rounded-lg px-6 h-9 text-xs font-semibold shadow-lg shadow-indigo-655/15 transition-all"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-lg shadow-ds-indigo-655/15 transition-all"
               >
                 {t('settings.gitSetup.step5.finishAndClose')}
               </Button>

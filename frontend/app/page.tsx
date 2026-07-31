@@ -48,12 +48,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { api, API_URL } from './services/api';
@@ -230,7 +230,7 @@ function AppContent() {
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLinkManagerOpen, setIsLinkManagerOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState('repos'); 
+  const [settingsTab, setSettingsTab] = useState('repos');
   const [theme, setTheme] = useState('dark');
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -246,7 +246,7 @@ function AppContent() {
   // Only the chat opens on load — every other view opens on demand, triggered
   // by an explicit action (selecting a file/doc, clicking the graph icon, ...).
   const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
-  const layoutMode = 
+  const layoutMode =
     panelConfigs.length === 1 ? '1-pane' :
     panelConfigs.length === 2 ? 'split' :
     panelConfigs.length === 3 ? '3-col' :
@@ -354,7 +354,7 @@ function AppContent() {
     setPanelFrozen(prev => {
       const next = [...prev];
       next[index] = !next[index];
-      
+
       // Catch up on unfreeze
       if (!next[index]) {
         setPanelSelections(prevSels => {
@@ -707,7 +707,7 @@ function AppContent() {
         console.error(e);
       }
     }
-    
+
     if (profilesList.length === 0) {
       const legacyProvider = localStorage.getItem('doctus-llm-provider') || 'ollama';
       const legacyModel = localStorage.getItem('doctus-llm-model') || "qwen2.5:1.5b";
@@ -735,13 +735,13 @@ function AppContent() {
       }
       localStorage.setItem('doctus-llm-profiles', JSON.stringify(profilesList));
     }
-    
+
     setLlmProfiles(profilesList);
-    
+
     const savedActiveId = localStorage.getItem('doctus-active-profile-id');
     if (savedActiveId && profilesList.some(p => p.id === savedActiveId)) {
       setActiveProfileId(savedActiveId);
-      
+
       // Restore AI Parameters from active profile
       const activeProfile = profilesList.find(p => p.id === savedActiveId);
       if (activeProfile) {
@@ -752,7 +752,7 @@ function AppContent() {
       const initialId = profilesList[0]?.id || "ollama-default";
       setActiveProfileId(initialId);
       localStorage.setItem('doctus-active-profile-id', initialId);
-      
+
       // Restore from the first profile if no active one was saved
       const firstProfile = profilesList[0];
       if (firstProfile) {
@@ -1071,7 +1071,7 @@ function AppContent() {
       setSelectedProject(null);
       setFiles([]);
       setProjectEntities([]);
-      
+
       const activeSession = sessions.find(s => s.id === activeSessionId);
       if (activeSessionId && activeSession && activeSession.project_id !== null) {
         resetChatSession();
@@ -1087,7 +1087,7 @@ function AppContent() {
     }
     setSelectedProject(project);
     setBranch(project.branch || "main");
-    
+
     const activeSession = sessions.find(s => s.id === activeSessionId);
     if (activeSessionId && activeSession && activeSession.project_id !== project.id) {
       resetChatSession();
@@ -1140,7 +1140,7 @@ function AppContent() {
     if (activeSessionId && activeSession && project && activeSession.project_id !== project.id) {
       resetChatSession();
     }
-    
+
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(cleanPath, sourceId, connectedSources);
 
     if (resolvedSourceId && (isWebOrigin || isDoc)) {
@@ -1213,7 +1213,7 @@ function AppContent() {
                   range: range,
                   options: {
                     isWholeLine: true,
-                    className: 'bg-indigo-500/20 border-y border-indigo-500/30'
+                    className: 'bg-ds-indigo-500/20 border-y border-ds-indigo-500/30'
                   }
                 }
               ]);
@@ -1830,10 +1830,10 @@ function AppContent() {
   }): { Icon: any; label: string; kind: string; colorClass: string } | null => {
     const focusObject = panelFocusObject[index];
     if (focusObject) {
-      return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: "text-purple-400" };
+      return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: "text-ds-purple-400" };
     }
     if (sel.selectedEntity) {
-      return { Icon: Braces, label: sel.selectedEntity.name, kind: sel.selectedEntity.type || t('page.focusBar.entity'), colorClass: "text-indigo-400" };
+      return { Icon: Braces, label: sel.selectedEntity.name, kind: sel.selectedEntity.type || t('page.focusBar.entity'), colorClass: "text-ds-indigo-400" };
     }
     if (sel.selectedDoc) {
       const isWeb = sel.selectedDoc.isWebOrigin ||
@@ -1845,11 +1845,11 @@ function AppContent() {
         Icon: isWeb ? Globe : BookOpen,
         label: isWeb ? sel.selectedDoc.name : (sel.selectedDoc.name?.split('/').pop() || sel.selectedDoc.name),
         kind: isWeb ? t('page.focusBar.webOrigin') : t('page.focusBar.document'),
-        colorClass: isWeb ? "text-emerald-400" : "text-orange-400"
+        colorClass: isWeb ? "text-ds-emerald-400" : "text-ds-orange-400"
       };
     }
     if (sel.selectedFile) {
-      return { Icon: Terminal, label: sel.selectedFile, kind: t('page.focusBar.file'), colorClass: "text-blue-400" };
+      return { Icon: Terminal, label: sel.selectedFile, kind: t('page.focusBar.file'), colorClass: "text-ds-blue-400" };
     }
     return null;
   };
@@ -1885,17 +1885,17 @@ function AppContent() {
           className={cn(
             "h-full w-full flex flex-col items-center gap-3 py-3 border rounded-lg transition-colors cursor-pointer group",
             theme === 'dark'
-              ? "bg-zinc-950/40 border-zinc-900 text-zinc-400 hover:text-indigo-400 hover:border-zinc-800"
-              : "bg-white/40 border-zinc-200 text-zinc-500 hover:text-indigo-600 hover:border-zinc-300"
+              ? "bg-ds-zinc-950/40 border-ds-zinc-900 text-ds-zinc-400 hover:text-ds-indigo-400 hover:border-ds-zinc-800"
+              : "bg-ds-white/40 border-ds-zinc-200 text-ds-zinc-500 hover:text-ds-indigo-600 hover:border-ds-zinc-300"
           )}
         >
           <span className={cn(
             "p-1.5 rounded-lg border",
-            theme === 'dark' ? "border-zinc-800 bg-zinc-900/60" : "border-zinc-200 bg-zinc-50"
+            theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/60" : "border-ds-zinc-200 bg-ds-zinc-50"
           )}>
             <ChevronRight className="w-3.5 h-3.5" />
           </span>
-          <MessageSquare className="w-4 h-4 text-indigo-500 shrink-0" />
+          <MessageSquare className="w-4 h-4 text-ds-indigo-500 shrink-0" />
           <span
             className="text-[10px] font-bold uppercase tracking-widest"
             style={{ writingMode: 'vertical-rl' }}
@@ -1907,13 +1907,13 @@ function AppContent() {
     }
 
     return (
-      <div 
+      <div
         className={cn(
           "h-full flex flex-col min-w-0 rounded-lg overflow-hidden relative group transition-all duration-300",
-          panelFrozen[index] ? "border-2 border-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.55)]" : "border",
+          panelFrozen[index] ? "border-2 border-ds-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.55)]" : "border",
           theme === 'dark'
-            ? (panelFrozen[index] ? "bg-zinc-955" : "bg-zinc-950/40 border-zinc-900")
-            : (panelFrozen[index] ? "bg-amber-50/5" : "bg-white/40 border-zinc-200")
+            ? (panelFrozen[index] ? "bg-ds-zinc-955" : "bg-ds-zinc-950/40 border-ds-zinc-900")
+            : (panelFrozen[index] ? "bg-ds-amber-50/5" : "bg-ds-white/40 border-ds-zinc-200")
         )}
         style={(!panelFrozen[index] && selectedProject?.color) ? {
           boxShadow: `0 4px 20px rgba(0, 0, 0, 0.05), 0 0 15px ${selectedProject.color}${theme === 'dark' ? '12' : '08'}`,
@@ -1923,21 +1923,21 @@ function AppContent() {
         {/* Panel Header Selector */}
         <div className={cn(
           "px-3 py-1.5 border-b flex items-center justify-between shrink-0 z-20 backdrop-blur-md select-none transition-colors duration-300",
-          theme === 'dark' 
-            ? (panelFrozen[index] ? "border-amber-500/20 bg-zinc-950/60" : "border-zinc-900 bg-zinc-950/60") 
-            : (panelFrozen[index] ? "border-amber-500/20 bg-zinc-50/60" : "border-zinc-200 bg-zinc-50/60")
+          theme === 'dark'
+            ? (panelFrozen[index] ? "border-ds-amber-500/20 bg-ds-zinc-950/60" : "border-ds-zinc-900 bg-ds-zinc-950/60")
+            : (panelFrozen[index] ? "border-ds-amber-500/20 bg-ds-zinc-50/60" : "border-ds-zinc-200 bg-ds-zinc-50/60")
         )}>
           <div className="flex items-center gap-1.5">
             <Select value={contentType} onValueChange={setContentType}>
               <SelectTrigger className={cn(
                 "h-6 text-[10px] bg-transparent border-0 font-bold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 px-1 py-0 gap-1.5 w-auto transition-colors duration-200",
-                panelFrozen[index] 
-                  ? "text-amber-500 hover:text-amber-400" 
-                  : "text-indigo-400 hover:text-indigo-350"
+                panelFrozen[index]
+                  ? "text-ds-amber-500 hover:text-ds-amber-400"
+                  : "text-ds-indigo-400 hover:text-ds-indigo-350"
               )}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className={theme === 'dark' ? "bg-zinc-950 border-zinc-900 text-zinc-100" : "bg-white border-zinc-200 text-zinc-900"}>
+              <SelectContent className={theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-100" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900"}>
                 <SelectItem value="chat" className="text-xs">{t('page.viewTypes.chat')}</SelectItem>
                 <SelectItem value="code" className="text-xs">{t('page.viewTypes.code')}</SelectItem>
                 <SelectItem value="doc" className="text-xs">{t('page.viewTypes.doc')}</SelectItem>
@@ -1953,22 +1953,22 @@ function AppContent() {
               className={cn(
                 "p-1 rounded border transition-all duration-150 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer",
                 panelFrozen[index]
-                  ? "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                  ? "bg-ds-amber-500/10 border-ds-amber-500/30 text-ds-amber-500 hover:bg-ds-amber-500/20"
                   : (theme === 'dark'
-                      ? "bg-transparent border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
-                      : "bg-transparent border-zinc-200 text-zinc-400 hover:text-zinc-700 hover:border-zinc-300")
+                      ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
+                      : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
               )}
               title={panelFrozen[index] ? "Auto-Refresh pausiert (Klicken zum Aktivieren)" : "Auto-Refresh aktiv (Klicken zum Pausieren)"}
             >
               {panelFrozen[index] ? (
                 <>
-                  <Lock className="w-3 h-3 text-amber-500" />
-                  <span className="text-[9px] text-amber-500 hidden sm:inline">Fixiert</span>
+                  <Lock className="w-3 h-3 text-ds-amber-500" />
+                  <span className="text-[9px] text-ds-amber-500 hidden sm:inline">Fixiert</span>
                 </>
               ) : (
                 <>
-                  <RefreshCw className="w-3 h-3 text-emerald-500 animate-[spin_8s_linear_infinite]" />
-                  <span className="text-[9px] text-zinc-500 hidden sm:inline">Live</span>
+                  <RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" />
+                  <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">Live</span>
                 </>
               )}
             </button>
@@ -1978,19 +1978,19 @@ function AppContent() {
                 className={cn(
                   "p-1 rounded border transition-all duration-155 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer",
                   isReferencesDropdownOpen
-                    ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20"
+                    ? "bg-ds-indigo-500/10 border-ds-indigo-500/30 text-ds-indigo-400 hover:bg-ds-indigo-500/20"
                     : (theme === 'dark'
-                        ? "bg-transparent border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
-                        : "bg-transparent border-zinc-200 text-zinc-405 hover:text-zinc-700 hover:border-zinc-300")
+                        ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
+                        : "bg-transparent border-ds-zinc-200 text-ds-zinc-405 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
                 )}
                 title="Referenzen & Verknüpfte Dokumente"
               >
-                <Link2 className="w-3 h-3 text-indigo-400" />
-                <span className="text-[9px] text-zinc-500 hidden sm:inline">Referenzen</span>
+                <Link2 className="w-3 h-3 text-ds-indigo-400" />
+                <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">Referenzen</span>
                 {fileReferences.length > 0 && (
                   <span className={cn(
                     "px-1 py-0.2 text-[8px] font-bold rounded-sm leading-none",
-                    theme === 'dark' ? "bg-indigo-500/20 text-indigo-300" : "bg-indigo-100 text-indigo-700"
+                    theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
                   )}>
                     {fileReferences.length}
                   </span>
@@ -2004,8 +2004,8 @@ function AppContent() {
                 className={cn(
                   "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer",
                   theme === 'dark'
-                    ? "bg-transparent border-zinc-800 text-zinc-550 hover:text-indigo-400 hover:border-indigo-900/40 hover:bg-indigo-950/20"
-                    : "bg-transparent border-zinc-200 text-zinc-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50"
+                    ? "bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-indigo-400 hover:border-ds-indigo-900/40 hover:bg-ds-indigo-950/20"
+                    : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-indigo-600 hover:border-ds-indigo-200 hover:bg-ds-indigo-50"
                 )}
                 title={t('page.workspace.collapseChat')}
               >
@@ -2023,8 +2023,8 @@ function AppContent() {
                 className={cn(
                   "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer",
                   theme === 'dark'
-                    ? "bg-transparent border-zinc-800 text-zinc-550 hover:text-red-400 hover:border-red-900/40 hover:bg-red-950/20"
-                    : "bg-transparent border-zinc-200 text-zinc-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50"
+                    ? "bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-red-400 hover:border-ds-red-900/40 hover:bg-ds-red-950/20"
+                    : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-red-500 hover:border-ds-red-200 hover:bg-ds-red-50"
                 )}
                 title={t('page.workspace.closeView')}
               >
@@ -2040,7 +2040,7 @@ function AppContent() {
         {contentType !== 'doc' && contentType !== 'webview' && (
           <div className={cn(
             "px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0",
-            theme === 'dark' ? "border-zinc-900 bg-zinc-950/40" : "border-zinc-200 bg-zinc-50/40"
+            theme === 'dark' ? "border-ds-zinc-900 bg-ds-zinc-950/40" : "border-ds-zinc-200 bg-ds-zinc-50/40"
           )}>
             {focusInfo ? (
               <>
@@ -2048,18 +2048,18 @@ function AppContent() {
                 {contentType !== 'webview' && (
                   <>
                     <span
-                      className={cn("truncate font-medium", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}
+                      className={cn("truncate font-medium", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
                       title={focusInfo.label}
                     >
                       {focusInfo.label}
                     </span>
-                    <span className="text-zinc-600 shrink-0">·</span>
+                    <span className="text-ds-zinc-600 shrink-0">·</span>
                   </>
                 )}
-                <span className="text-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
+                <span className="text-ds-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
               </>
             ) : (
-              <span className="text-zinc-600 italic">{t('page.focusBar.none')}</span>
+              <span className="text-ds-zinc-600 italic">{t('page.focusBar.none')}</span>
             )}
           </div>
         )}
@@ -2247,8 +2247,8 @@ function AppContent() {
 
   if (!isLoginInitialized) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-zinc-950 text-zinc-500 text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+      <div className="h-screen w-screen flex items-center justify-center bg-ds-zinc-950 text-ds-zinc-500 text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-ds-indigo-500" />
         {t('page.loading')}
       </div>
     );
@@ -2269,17 +2269,17 @@ function AppContent() {
   return (
     <div className={cn(
       "h-screen w-screen flex flex-col overflow-hidden font-sans relative transition-colors duration-250",
-      theme === 'dark' ? "bg-zinc-950 text-zinc-100" : "bg-zinc-50 text-zinc-900"
+      theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-zinc-50 text-ds-zinc-900"
     )}>
-      
+
       {/* Decorative ambient glowing blur effects */}
       <div className={cn(
         "absolute top-0 right-1/4 w-[600px] h-[300px] rounded-full blur-[150px] pointer-events-none z-0 transition-opacity duration-500",
-        theme === 'dark' ? "bg-indigo-500/5 opacity-100" : "bg-indigo-500/10 opacity-60"
+        theme === 'dark' ? "bg-ds-indigo-500/5 opacity-100" : "bg-ds-indigo-500/10 opacity-60"
       )} />
       <div className={cn(
         "absolute bottom-0 left-1/4 w-[600px] h-[300px] rounded-full blur-[150px] pointer-events-none z-0 transition-opacity duration-500",
-        theme === 'dark' ? "bg-blue-500/5 opacity-100" : "bg-blue-500/10 opacity-60"
+        theme === 'dark' ? "bg-ds-blue-500/5 opacity-100" : "bg-ds-blue-500/10 opacity-60"
       )} />
 
       {/* Custom Toast Notifications */}
@@ -2291,12 +2291,12 @@ function AppContent() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={cn(
               "fixed bottom-4 right-4 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-lg border shadow-2xl backdrop-blur-md text-xs font-semibold tracking-wide transition-colors duration-200",
-              toast.type === 'success' 
-                ? (theme === 'dark' ? "bg-emerald-950/90 border-emerald-800/40 text-emerald-300" : "bg-emerald-50/95 border-emerald-200 text-emerald-800") 
-                : (theme === 'dark' ? "bg-red-950/90 border-red-800/40 text-red-300" : "bg-red-50/95 border-red-200 text-red-800")
+              toast.type === 'success'
+                ? (theme === 'dark' ? "bg-ds-emerald-950/90 border-ds-emerald-800/40 text-ds-emerald-300" : "bg-ds-emerald-50/95 border-ds-emerald-200 text-ds-emerald-800")
+                : (theme === 'dark' ? "bg-ds-red-950/90 border-ds-red-800/40 text-ds-red-300" : "bg-ds-red-50/95 border-ds-red-200 text-ds-red-800")
             )}
           >
-            {toast.type === 'success' ? <Check className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+            {toast.type === 'success' ? <Check className="w-4 h-4 text-ds-emerald-500" /> : <X className="w-4 h-4 text-ds-red-500" />}
             <span>{toast.message}</span>
           </motion.div>
         )}
@@ -2390,8 +2390,8 @@ function AppContent() {
 
       {/* LEFT SIDEBAR PANEL MOBILE OVERLAY */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-40 md:hidden animate-in fade-in duration-200"
+        <div
+          className="fixed inset-0 bg-ds-black/60 z-40 md:hidden animate-in fade-in duration-200"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -2421,7 +2421,7 @@ function AppContent() {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative min-w-0 z-10">
-        
+
         {/* Technical grid overlay */}
         <div className={cn(
           "absolute inset-0 bg-[linear-gradient(to_right,#80808007_1px,transparent_1px),linear-gradient(to_bottom,#80808007_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0 transition-opacity duration-200",
@@ -2430,7 +2430,7 @@ function AppContent() {
 
         {/* Project-specific ambient background glow */}
         {selectedProject?.color && (
-          <div 
+          <div
             className="absolute inset-0 pointer-events-none z-0 opacity-40 blur-[90px] transition-all duration-500"
             style={{
               background: `radial-gradient(circle at 50% 50%, ${selectedProject.color} 0%, transparent 65%)`
@@ -2442,14 +2442,14 @@ function AppContent() {
         {(selectedFile || selectedDoc || activeRightTab === 'graph') && (
           <div className={cn(
             "flex md:hidden border-b p-2 gap-2 justify-center shrink-0 z-20",
-            theme === 'dark' ? "border-zinc-800 bg-zinc-900/40" : "border-zinc-200 bg-zinc-100/50"
+            theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/40" : "border-ds-zinc-200 bg-ds-zinc-100/50"
           )}>
             <Button
               variant={activeMobileTab === 'chat' ? 'default' : 'ghost'}
               onClick={() => setActiveMobileTab('chat')}
               className={cn(
                 "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'chat' && "bg-indigo-600 text-white hover:bg-indigo-550"
+                activeMobileTab === 'chat' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
               )}
             >
               <MessageSquare className="w-3.5 h-3.5" />
@@ -2466,7 +2466,7 @@ function AppContent() {
               }}
               className={cn(
                 "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'editor' && "bg-indigo-600 text-white hover:bg-indigo-550"
+                activeMobileTab === 'editor' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
               )}
             >
               <Code className="w-3.5 h-3.5" />
@@ -2480,7 +2480,7 @@ function AppContent() {
               }}
               className={cn(
                 "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'graph' && "bg-indigo-600 text-white hover:bg-indigo-550"
+                activeMobileTab === 'graph' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
               )}
             >
               <Network className="w-3.5 h-3.5" />
@@ -2523,11 +2523,11 @@ function AppContent() {
                     >
                       <div className={cn(
                         "absolute inset-y-0 -left-1 -right-1",
-                        isDragging ? "bg-indigo-500/20" : "group-hover:bg-indigo-500/10"
+                        isDragging ? "bg-ds-indigo-500/20" : "group-hover:bg-ds-indigo-500/10"
                       )} />
                       <div className={cn(
                         "w-0.5 h-10 rounded-full transition-colors relative z-10",
-                        isDragging ? "bg-indigo-500" : "bg-zinc-700 group-hover:bg-indigo-400"
+                        isDragging ? "bg-ds-indigo-500" : "bg-ds-zinc-700 group-hover:bg-ds-indigo-400"
                       )} />
                     </div>
                   )}

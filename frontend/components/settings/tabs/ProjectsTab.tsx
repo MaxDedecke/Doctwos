@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
 import {
   Select,
   SelectContent,
@@ -287,14 +288,14 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                     <div className="space-y-6 w-full min-w-0">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+                          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
                             {t('settings.projects.activeTitle')}
                           </h4>
                           <Button
                             type="button"
                             size="sm"
                             onClick={() => onNewProject()}
-                            className="bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg px-3.5 h-8 text-xs font-bold shadow-md shadow-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
+                            className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-8 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>{t('settings.projects.newProject')}</span>
@@ -304,7 +305,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                           {projects.length === 0 ? (
                             <div className={cn(
                               "text-xs italic p-3.5 border rounded-lg transition-colors",
-                              theme === 'dark' ? "text-zinc-500 bg-zinc-950/40 border-zinc-800/60" : "text-zinc-500 bg-zinc-50 border-zinc-200"
+                              theme === 'dark' ? "text-ds-zinc-500 bg-ds-zinc-950/40 border-ds-zinc-800/60" : "text-ds-zinc-500 bg-ds-zinc-50 border-ds-zinc-200"
                             )}>
                               {t('settings.projects.empty')}
                             </div>
@@ -318,15 +319,15 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                     key={project.id}
                                     className={cn(
                                       "p-4 rounded-lg border space-y-4 w-full min-w-0 overflow-hidden",
-                                      theme === 'dark' ? "bg-zinc-950 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                                      theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
                                     )}
                                   >
-                                    <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                                    <div className="text-xs font-bold uppercase tracking-wider text-ds-zinc-500">
                                       Projekt bearbeiten
                                     </div>
                                     <div className="space-y-3">
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-450">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-450">
                                           Name
                                         </label>
                                         <input
@@ -335,12 +336,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           onChange={(e) => setEditProjectName(e.target.value)}
                                           className={cn(
                                             "w-full h-8 rounded-lg text-xs font-semibold px-2.5 border outline-none",
-                                            theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-100" : "bg-white border-zinc-200 text-zinc-800"
+                                            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
                                           )}
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-450">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-450">
                                           Beschreibung
                                         </label>
                                         <Textarea
@@ -348,12 +349,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           onChange={(e) => setEditProjectDescription(e.target.value)}
                                           className={cn(
                                             "w-full text-xs font-medium px-2.5 py-1.5 border outline-none min-h-[60px]",
-                                            theme === 'dark' ? "bg-zinc-900 border-zinc-800 text-zinc-100" : "bg-white border-zinc-200 text-zinc-800"
+                                            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
                                           )}
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-455">
+                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-455">
                                           Projekt-Farbe
                                         </label>
                                         <div className="flex items-center gap-3">
@@ -361,9 +362,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             type="color"
                                             value={editProjectColor}
                                             onChange={(e) => setEditProjectColor(e.target.value)}
-                                            className="w-10 h-8 p-0.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-transparent cursor-pointer"
+                                            className="w-10 h-8 p-0.5 rounded-lg border border-ds-zinc-200 dark:border-ds-zinc-800 bg-transparent cursor-pointer"
                                           />
-                                          <span className="text-xs font-semibold text-zinc-500">{editProjectColor}</span>
+                                          <span className="text-xs font-semibold text-ds-zinc-500">{editProjectColor}</span>
                                         </div>
                                       </div>
                                     </div>
@@ -402,7 +403,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             setIsSavingProject(false);
                                           }
                                         }}
-                                        className="bg-indigo-650 hover:bg-indigo-700 text-white rounded-lg px-3.5 h-8 text-xs font-bold"
+                                        className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-8 text-xs font-bold"
                                       >
                                         {isSavingProject ? <Loader2 className="w-3 h-3 animate-spin" /> : "Speichern"}
                                       </Button>
@@ -416,25 +417,25 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   className={cn(
                                     "p-4 rounded-lg border transition-all flex flex-col gap-3.5 w-full min-w-0 overflow-hidden",
                                     isActive
-                                      ? (theme === 'dark' ? "border-indigo-500/40 bg-indigo-500/5" : "border-indigo-400 bg-indigo-50/40")
-                                      : (theme === 'dark' ? "bg-zinc-950/20 border-zinc-800/80 hover:border-zinc-700/80" : "bg-zinc-50 border-zinc-200 hover:border-zinc-300")
+                                      ? (theme === 'dark' ? "border-ds-indigo-500/40 bg-ds-indigo-500/5" : "border-ds-indigo-400 bg-ds-indigo-50/40")
+                                      : (theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/80 hover:border-ds-zinc-700/80" : "bg-ds-zinc-50 border-ds-zinc-200 hover:border-ds-zinc-300")
                                   )}
                                 >
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
                                     <div className="space-y-1 min-w-0 flex-1 sm:pr-4">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <div 
-                                          className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10 dark:border-white/10"
-                                          style={{ backgroundColor: project.color || '#4d7fff' }}
+                                        <div
+                                          className="w-2.5 h-2.5 rounded-full shrink-0 border border-ds-black/10 dark:border-ds-white/10"
+                                          style={{ backgroundColor: project.color || DEFAULT_PROJECT_COLOR }}
                                         />
-                                        <span className={cn("font-semibold text-xs truncate max-w-[150px] sm:max-w-none", theme === 'dark' ? "text-zinc-100" : "text-zinc-800")}>{project.name}</span>
+                                        <span className={cn("font-semibold text-xs truncate max-w-[150px] sm:max-w-none", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{project.name}</span>
                                         {isActive && (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-ds-emerald-500/10 text-ds-emerald-500 border border-ds-emerald-500/20">
                                             {t('settings.projects.activeFocus')}
                                           </span>
                                         )}
                                         {project.is_archived && (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-ds-zinc-500/10 text-ds-zinc-500 border border-ds-zinc-500/20">
                                             {t('settings.projects.completedBadge')}
                                           </span>
                                         )}
@@ -451,15 +452,15 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           "h-8 text-xs font-bold px-3.5 rounded-lg transition-all border shadow-sm",
                                           isActive
                                             ? (theme === 'dark'
-                                                ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/25"
-                                                : "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100")
+                                                ? "bg-ds-indigo-500/10 border-ds-indigo-500/20 text-ds-indigo-400 hover:bg-ds-indigo-500/25"
+                                                : "bg-ds-indigo-50 border-ds-indigo-200 text-ds-indigo-700 hover:bg-ds-indigo-100")
                                             : (project.url && project.status !== 'completed'
                                                 ? (theme === 'dark'
-                                                    ? "bg-zinc-800 border-zinc-700/50 text-zinc-500 cursor-not-allowed"
-                                                    : "bg-zinc-100 border-zinc-200 text-zinc-400 cursor-not-allowed")
+                                                    ? "bg-ds-zinc-800 border-ds-zinc-700/50 text-ds-zinc-500 cursor-not-allowed"
+                                                    : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-400 cursor-not-allowed")
                                                 : (theme === 'dark'
-                                                    ? "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-500 hover:border-indigo-500"
-                                                    : "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700"))
+                                                    ? "bg-ds-indigo-600 border-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 hover:border-ds-indigo-500"
+                                                    : "bg-ds-indigo-600 border-ds-indigo-600 text-ds-white hover:bg-ds-indigo-700 hover:border-ds-indigo-700"))
                                         )}
                                       >
                                         {project.url && project.status === 'parsing'
@@ -479,7 +480,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         title={t('settings.projects.deleteTitle')}
                                         className={cn(
                                           "h-8 w-8 rounded-lg border flex items-center justify-center transition-all",
-                                          "text-red-500 border-red-500/20 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-650 dark:hover:text-red-400"
+                                          "text-ds-red-500 border-ds-red-500/20 hover:border-ds-red-500/40 hover:bg-ds-red-500/10 hover:text-ds-red-650 dark:hover:text-ds-red-400"
                                         )}
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -492,8 +493,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         onClick={() => handleToggleProjectMembersExpand(project)}
                                         title={t('settings.projects.members.toggleTitle')}
                                         className={cn(
-                                          "h-8 w-8 rounded-lg border flex items-center justify-center transition-all text-zinc-500",
-                                          theme === 'dark' ? "border-zinc-700/60 hover:bg-zinc-800/60" : "border-zinc-200 hover:bg-zinc-100"
+                                          "h-8 w-8 rounded-lg border flex items-center justify-center transition-all text-ds-zinc-500",
+                                          theme === 'dark' ? "border-ds-zinc-700/60 hover:bg-ds-zinc-800/60" : "border-ds-zinc-200 hover:bg-ds-zinc-100"
                                         )}
                                       >
                                         <Users className="w-4 h-4" />
@@ -508,12 +509,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             setEditingProjectId(project.id);
                                             setEditProjectName(project.name);
                                             setEditProjectDescription(project.description || "");
-                                            setEditProjectColor(project.color || "#4d7fff");
+                                            setEditProjectColor(project.color || DEFAULT_PROJECT_COLOR);
                                           }}
                                           title={t('settings.projects.editTitle') || "Projekt bearbeiten"}
                                           className={cn(
-                                            "h-8 w-8 rounded-lg border flex items-center justify-center transition-all text-zinc-500",
-                                            theme === 'dark' ? "border-zinc-700/60 hover:bg-zinc-800/60" : "border-zinc-200 hover:bg-zinc-100"
+                                            "h-8 w-8 rounded-lg border flex items-center justify-center transition-all text-ds-zinc-500",
+                                            theme === 'dark' ? "border-ds-zinc-700/60 hover:bg-ds-zinc-800/60" : "border-ds-zinc-200 hover:bg-ds-zinc-100"
                                           )}
                                         >
                                           <Edit className="w-4 h-4" />
@@ -530,8 +531,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           className={cn(
                                             "h-8 w-8 rounded-lg border flex items-center justify-center transition-all",
                                             completingProjectId === project.id
-                                              ? "text-emerald-500 border-emerald-500/40 bg-emerald-500/10"
-                                              : "text-zinc-500 " + (theme === 'dark' ? "border-zinc-700/60 hover:bg-zinc-800/60" : "border-zinc-200 hover:bg-zinc-100")
+                                              ? "text-ds-emerald-500 border-ds-emerald-500/40 bg-ds-emerald-500/10"
+                                              : "text-ds-zinc-500 " + (theme === 'dark' ? "border-ds-zinc-700/60 hover:bg-ds-zinc-800/60" : "border-ds-zinc-200 hover:bg-ds-zinc-100")
                                           )}
                                         >
                                           <CheckCircle2 className="w-4 h-4" />
@@ -544,16 +545,16 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   {completingProjectId === project.id && (
                                     <div className={cn(
                                       "pt-3 border-t space-y-2.5",
-                                      theme === 'dark' ? "border-zinc-800/40" : "border-zinc-200/60"
+                                      theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
                                     )}>
-                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-zinc-400" : "text-zinc-550")}>
+                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                         {t('settings.projects.complete.title')}
                                       </div>
-                                      <p className={cn("text-[11px]", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+                                      <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                         {t('settings.projects.complete.description')}
                                       </p>
                                       {connectedSources.filter(src => src.project_id === project.id).length === 0 ? (
-                                        <p className={cn("text-[11px] italic", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+                                        <p className={cn("text-[11px] italic", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                           {t('settings.projects.complete.noSources')}
                                         </p>
                                       ) : (
@@ -563,7 +564,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               key={src.id}
                                               className={cn(
                                                 "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] cursor-pointer transition-colors",
-                                                theme === 'dark' ? "border-zinc-800 hover:bg-zinc-900" : "border-zinc-200 hover:bg-zinc-50"
+                                                theme === 'dark' ? "border-ds-zinc-800 hover:bg-ds-zinc-900" : "border-ds-zinc-200 hover:bg-ds-zinc-50"
                                               )}
                                             >
                                               <input
@@ -572,7 +573,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                 onChange={() => togglePromoteSource(src.id)}
                                                 className="accent-indigo-600"
                                               />
-                                              <Database className="w-3 h-3 text-indigo-500 shrink-0" />
+                                              <Database className="w-3 h-3 text-ds-indigo-500 shrink-0" />
                                               <span className="truncate">{src.name} ({src.type})</span>
                                             </label>
                                           ))}
@@ -584,7 +585,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           size="sm"
                                           disabled={isCompletingProject}
                                           onClick={() => handleConfirmCompleteProject(project)}
-                                          className="h-7 text-[11px] font-bold px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                                          className="h-7 text-[11px] font-bold px-3 rounded-lg bg-ds-emerald-600 hover:bg-ds-emerald-700 text-ds-white"
                                         >
                                           {isCompletingProject ? (
                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -598,7 +599,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           variant="ghost"
                                           disabled={isCompletingProject}
                                           onClick={() => setCompletingProjectId(null)}
-                                          className="h-7 text-[11px] font-semibold px-3 rounded-lg text-zinc-500"
+                                          className="h-7 text-[11px] font-semibold px-3 rounded-lg text-ds-zinc-500"
                                         >
                                           {t('settings.projects.complete.cancel')}
                                         </Button>
@@ -610,11 +611,11 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   {expandedProjectMembersId === project.id && (
                                     <div className={cn(
                                       "pt-3 border-t space-y-3",
-                                      theme === 'dark' ? "border-zinc-800/40" : "border-zinc-200/60"
+                                      theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
                                     )}>
                                       <div className="space-y-1.5">
                                         {(projectMembers[project.id] || []).length === 0 ? (
-                                          <div className={cn("text-[11px] italic py-1", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>
+                                          <div className={cn("text-[11px] italic py-1", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                             {t('settings.projects.members.empty')}
                                           </div>
                                         ) : (
@@ -623,15 +624,15 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               key={member.id}
                                               className={cn(
                                                 "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs",
-                                                theme === 'dark' ? "bg-zinc-900/60" : "bg-white border border-zinc-200"
+                                                theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-white border border-ds-zinc-200"
                                               )}
                                             >
-                                              <span className={cn("truncate font-medium", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}>
+                                              <span className={cn("truncate font-medium", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
                                                 {member.user_name || member.user_email}
                                               </span>
                                               <div className="flex items-center gap-1.5 shrink-0">
                                                 {member.role === 'admin' ? (
-                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-zinc-500" : "text-zinc-450")}>
+                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
                                                     {t('settings.projects.members.roleAdmin')}
                                                   </span>
                                                 ) : isProjectAdmin(project) && project.creator_id !== member.user_id ? (
@@ -648,7 +649,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                     </SelectContent>
                                                   </Select>
                                                 ) : (
-                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-zinc-500" : "text-zinc-450")}>
+                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
                                                     {member.role === 'admin' ? t('settings.projects.members.roleAdmin') : t('settings.projects.members.roleMember')}
                                                   </span>
                                                 )}
@@ -659,7 +660,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                     size="icon"
                                                     onClick={() => handleRemoveProjectMember(project.id, member.user_id)}
                                                     title={t('settings.projects.members.removeMemberTitle')}
-                                                    className="h-6 w-6 rounded text-red-500 hover:bg-red-500/10 shrink-0"
+                                                    className="h-6 w-6 rounded text-ds-red-500 hover:bg-ds-red-500/10 shrink-0"
                                                   >
                                                     <X className="w-3 h-3" />
                                                   </Button>
@@ -699,7 +700,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               size="sm"
                                               disabled={!addProjectMemberUserId}
                                               onClick={() => handleAddProjectMember(project.id)}
-                                              className="h-8 px-2.5 rounded-lg bg-indigo-650 hover:bg-indigo-700 text-white shrink-0"
+                                              className="h-8 px-2.5 rounded-lg bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white shrink-0"
                                             >
                                               <UserPlus className="w-3.5 h-3.5" />
                                             </Button>
@@ -709,7 +710,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
                                       {isProjectAdmin(project) && (projectAccessRequests[project.id] || []).length > 0 && (
                                         <div className="space-y-1.5">
-                                          <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-zinc-400" : "text-zinc-550")}>
+                                          <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                             {t('settings.projects.members.pendingRequests')}
                                           </div>
                                           {(projectAccessRequests[project.id] || []).map((req: any) => (
@@ -717,10 +718,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               key={req.id}
                                               className={cn(
                                                 "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs",
-                                                theme === 'dark' ? "bg-zinc-900/60" : "bg-white border border-zinc-200"
+                                                theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-white border border-ds-zinc-200"
                                               )}
                                             >
-                                              <span className={cn("truncate font-medium", theme === 'dark' ? "text-zinc-300" : "text-zinc-700")}>
+                                              <span className={cn("truncate font-medium", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
                                                 {req.user_name || req.user_email}
                                               </span>
                                               <div className="flex items-center gap-1 shrink-0">
@@ -730,7 +731,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                   size="icon"
                                                   onClick={() => handleResolveAccessRequest(project.id, req.id, 'approved')}
                                                   title={t('settings.projects.members.approveTitle')}
-                                                  className="h-6 w-6 rounded text-emerald-500 hover:bg-emerald-500/10"
+                                                  className="h-6 w-6 rounded text-ds-emerald-500 hover:bg-ds-emerald-500/10"
                                                 >
                                                   <Check className="w-3.5 h-3.5" />
                                                 </Button>
@@ -740,7 +741,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                   size="icon"
                                                   onClick={() => handleResolveAccessRequest(project.id, req.id, 'rejected')}
                                                   title={t('settings.projects.members.rejectTitle')}
-                                                  className="h-6 w-6 rounded text-red-500 hover:bg-red-500/10"
+                                                  className="h-6 w-6 rounded text-ds-red-500 hover:bg-ds-red-500/10"
                                                 >
                                                   <X className="w-3.5 h-3.5" />
                                                 </Button>
@@ -756,9 +757,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   {connectedSources.filter(src => src.project_id === project.id).length > 0 && (
                                     <div className={cn(
                                       "pt-3 border-t text-[11px] space-y-2",
-                                      theme === 'dark' ? "border-zinc-800/40" : "border-zinc-200/60"
+                                      theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
                                     )}>
-                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-zinc-400" : "text-zinc-550")}>
+                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                         {t('settings.projects.linkedSources')}
                                       </div>
                                       <div className="flex flex-wrap gap-1.5">
@@ -773,7 +774,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               key={src.id}
                                               className={cn(
                                                 "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border shadow-sm",
-                                                theme === 'dark' ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" : "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                                theme === 'dark' ? "bg-ds-indigo-500/10 border-ds-indigo-500/20 text-ds-indigo-400" : "bg-ds-indigo-50 border-ds-indigo-200 text-ds-indigo-700"
                                               )}
                                               title={`${t('settings.projects.linkedWithBranch', { name: src.name })}${spacesText ? t('settings.projects.areasSuffix', { spaces: spacesText }) : ''}`}
                                             >
@@ -794,13 +795,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
                       {(isLoadingDiscoverable || discoverableProjects.length > 0) && (
                         <div className="space-y-3">
-                          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-zinc-400" : "text-zinc-500")}>
+                          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
                             {t('settings.projects.discoverable.title')}
                           </h4>
                           <div className="space-y-2">
                             {isLoadingDiscoverable ? (
                               <div className="flex items-center justify-center py-4">
-                                <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
+                                <Loader2 className="w-4 h-4 animate-spin text-ds-zinc-500" />
                               </div>
                             ) : (
                               discoverableProjects.map((project: any) => (
@@ -808,13 +809,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   key={project.id}
                                   className={cn(
                                     "p-3.5 rounded-lg border flex items-center justify-between gap-3 w-full min-w-0",
-                                    theme === 'dark' ? "bg-zinc-950/20 border-zinc-800/80" : "bg-zinc-50 border-zinc-200"
+                                    theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/80" : "bg-ds-zinc-50 border-ds-zinc-200"
                                   )}
                                 >
                                   <div className="min-w-0 flex-1">
-                                    <div className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-zinc-100" : "text-zinc-800")}>{project.name}</div>
+                                    <div className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{project.name}</div>
                                     {project.description && (
-                                      <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-zinc-500" : "text-zinc-500")}>{project.description}</div>
+                                      <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>{project.description}</div>
                                     )}
                                   </div>
                                   <Button
@@ -825,8 +826,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                     className={cn(
                                       "h-8 text-xs font-bold px-3 rounded-lg shrink-0",
                                       pendingAccessProjectIds.has(project.id)
-                                        ? (theme === 'dark' ? "bg-zinc-800 text-zinc-500" : "bg-zinc-100 text-zinc-450")
-                                        : "bg-indigo-650 hover:bg-indigo-700 text-white"
+                                        ? (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-500" : "bg-ds-zinc-100 text-ds-zinc-450")
+                                        : "bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white"
                                     )}
                                   >
                                     {requestingAccessProjectId === project.id ? (

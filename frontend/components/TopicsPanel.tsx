@@ -52,13 +52,13 @@ const COLORS = ['indigo', 'emerald', 'amber', 'rose', 'violet', 'sky', 'orange']
 type Color = typeof COLORS[number];
 
 const COLOR_MAP: Record<Color, { dot: string; lightBg: string; darkBg: string }> = {
-  indigo:  { dot: 'bg-indigo-500',  lightBg: 'bg-indigo-100 text-indigo-700',  darkBg: 'bg-indigo-900/40 text-indigo-300'  },
-  emerald: { dot: 'bg-emerald-500', lightBg: 'bg-emerald-100 text-emerald-700', darkBg: 'bg-emerald-900/40 text-emerald-300' },
-  amber:   { dot: 'bg-amber-500',   lightBg: 'bg-amber-100 text-amber-700',    darkBg: 'bg-amber-900/40 text-amber-300'    },
-  rose:    { dot: 'bg-rose-500',    lightBg: 'bg-rose-100 text-rose-700',      darkBg: 'bg-rose-900/40 text-rose-300'      },
-  violet:  { dot: 'bg-violet-500',  lightBg: 'bg-violet-100 text-violet-700',  darkBg: 'bg-violet-900/40 text-violet-300'  },
-  sky:     { dot: 'bg-sky-500',     lightBg: 'bg-sky-100 text-sky-700',        darkBg: 'bg-sky-900/40 text-sky-300'        },
-  orange:  { dot: 'bg-orange-500',  lightBg: 'bg-orange-100 text-orange-700',  darkBg: 'bg-orange-900/40 text-orange-300'  },
+  indigo:  { dot: 'bg-ds-indigo-500',  lightBg: 'bg-ds-indigo-100 text-ds-indigo-700',  darkBg: 'bg-ds-indigo-900/40 text-ds-indigo-300'  },
+  emerald: { dot: 'bg-ds-emerald-500', lightBg: 'bg-ds-emerald-100 text-ds-emerald-700', darkBg: 'bg-ds-emerald-900/40 text-ds-emerald-300' },
+  amber:   { dot: 'bg-ds-amber-500',   lightBg: 'bg-ds-amber-100 text-ds-amber-700',    darkBg: 'bg-ds-amber-900/40 text-ds-amber-300'    },
+  rose:    { dot: 'bg-ds-rose-500',    lightBg: 'bg-ds-rose-100 text-ds-rose-700',      darkBg: 'bg-ds-rose-900/40 text-ds-rose-300'      },
+  violet:  { dot: 'bg-ds-violet-500',  lightBg: 'bg-ds-violet-100 text-ds-violet-700',  darkBg: 'bg-ds-violet-900/40 text-ds-violet-300'  },
+  sky:     { dot: 'bg-ds-sky-500',     lightBg: 'bg-ds-sky-100 text-ds-sky-700',        darkBg: 'bg-ds-sky-900/40 text-ds-sky-300'        },
+  orange:  { dot: 'bg-ds-orange-500',  lightBg: 'bg-ds-orange-100 text-ds-orange-700',  darkBg: 'bg-ds-orange-900/40 text-ds-orange-300'  },
 };
 
 function getColor(color: string, isDark: boolean) {
@@ -69,10 +69,10 @@ function getColor(color: string, isDark: boolean) {
 // ── Node type config ──────────────────────────────────────────────────────────
 
 const NODE_TYPES = [
-  { key: 'project',          labelKey: 'topicsPanel.nodeTypes.project',       Icon: GitBranch, iconCls: 'text-sky-500'    },
-  { key: 'entity',           labelKey: 'topicsPanel.nodeTypes.entity',           Icon: FileCode,  iconCls: 'text-indigo-400' },
-  { key: 'document',         labelKey: 'topicsPanel.nodeTypes.document',         Icon: FileText,  iconCls: 'text-emerald-500' },
-  { key: 'knowledge_source', labelKey: 'topicsPanel.nodeTypes.knowledgeSource',  Icon: Database,  iconCls: 'text-amber-500'  },
+  { key: 'project',          labelKey: 'topicsPanel.nodeTypes.project',       Icon: GitBranch, iconCls: 'text-ds-sky-500'    },
+  { key: 'entity',           labelKey: 'topicsPanel.nodeTypes.entity',           Icon: FileCode,  iconCls: 'text-ds-indigo-400' },
+  { key: 'document',         labelKey: 'topicsPanel.nodeTypes.document',         Icon: FileText,  iconCls: 'text-ds-emerald-500' },
+  { key: 'knowledge_source', labelKey: 'topicsPanel.nodeTypes.knowledgeSource',  Icon: Database,  iconCls: 'text-ds-amber-500'  },
 ] as const;
 
 type NodeTypeKey = typeof NODE_TYPES[number]['key'];
@@ -118,31 +118,31 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
 
-  const panelBg      = isDark ? 'bg-zinc-900'       : 'bg-white';
-  const sidebarBg    = isDark ? 'bg-zinc-900'       : 'bg-zinc-50';
-  const divider      = isDark ? 'border-zinc-800'   : 'border-zinc-200';
-  const titleText    = isDark ? 'text-zinc-100'     : 'text-zinc-900';
-  const subText      = isDark ? 'text-zinc-500'     : 'text-zinc-500';
+  const panelBg      = isDark ? 'bg-ds-zinc-900'       : 'bg-ds-white';
+  const sidebarBg    = isDark ? 'bg-ds-zinc-900'       : 'bg-ds-zinc-50';
+  const divider      = isDark ? 'border-ds-zinc-800'   : 'border-ds-zinc-200';
+  const titleText    = isDark ? 'text-ds-zinc-100'     : 'text-ds-zinc-900';
+  const subText      = isDark ? 'text-ds-zinc-500'     : 'text-ds-zinc-500';
   const cardCls      = isDark
-    ? 'bg-zinc-800/50 border-zinc-700/60 hover:border-zinc-500'
-    : 'bg-white border-zinc-200 hover:border-zinc-300';
+    ? 'bg-ds-zinc-800/50 border-ds-zinc-700/60 hover:border-ds-zinc-500'
+    : 'bg-ds-white border-ds-zinc-200 hover:border-ds-zinc-300';
   const inputCls     = isDark
-    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500'
-    : 'bg-white border-zinc-300 text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400';
+    ? 'bg-ds-zinc-800 border-ds-zinc-700 text-ds-zinc-200 placeholder:text-ds-zinc-600 focus:border-ds-zinc-500'
+    : 'bg-ds-white border-ds-zinc-300 text-ds-zinc-900 placeholder:text-ds-zinc-400 focus:border-ds-zinc-400';
   const ghostBtn     = isDark
-    ? 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors'
-    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors';
-  const activeItem   = isDark ? 'bg-zinc-800 border-zinc-600' : 'bg-zinc-100 border-zinc-300';
+    ? 'text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800 rounded-md transition-colors'
+    : 'text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100 rounded-md transition-colors';
+  const activeItem   = isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-zinc-100 border-ds-zinc-300';
   const inactItem    = isDark
-    ? 'border-transparent hover:bg-zinc-800/60'
-    : 'border-transparent hover:bg-zinc-100';
-  const dropdownBg   = isDark ? 'bg-zinc-800 border-zinc-700 shadow-black/40' : 'bg-white border-zinc-200 shadow-zinc-200/60';
-  const dropItem     = isDark ? 'text-zinc-300 hover:bg-zinc-700' : 'text-zinc-700 hover:bg-zinc-100';
-  const emptyText    = isDark ? 'text-zinc-600' : 'text-zinc-400';
-  const sectionLabel = isDark ? 'text-zinc-500' : 'text-zinc-400';
+    ? 'border-transparent hover:bg-ds-zinc-800/60'
+    : 'border-transparent hover:bg-ds-zinc-100';
+  const dropdownBg   = isDark ? 'bg-ds-zinc-800 border-ds-zinc-700 shadow-ds-black/40' : 'bg-ds-white border-ds-zinc-200 shadow-ds-zinc-200/60';
+  const dropItem     = isDark ? 'text-ds-zinc-300 hover:bg-ds-zinc-700' : 'text-ds-zinc-700 hover:bg-ds-zinc-100';
+  const emptyText    = isDark ? 'text-ds-zinc-600' : 'text-ds-zinc-400';
+  const sectionLabel = isDark ? 'text-ds-zinc-500' : 'text-ds-zinc-400';
   const chipCls      = isDark
-    ? 'bg-zinc-800 border-zinc-700 text-zinc-200 hover:border-zinc-500'
-    : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:border-zinc-300';
+    ? 'bg-ds-zinc-800 border-ds-zinc-700 text-ds-zinc-200 hover:border-ds-zinc-500'
+    : 'bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-700 hover:border-ds-zinc-300';
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -402,13 +402,13 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                         className={cn(
                           'w-4 h-4 rounded-full transition-all',
                           COLOR_MAP[c].dot,
-                          newColor === c ? 'ring-2 ring-offset-1 ring-zinc-400 scale-125' : 'opacity-60 hover:opacity-100',
+                          newColor === c ? 'ring-2 ring-offset-1 ring-ds-zinc-400 scale-125' : 'opacity-60 hover:opacity-100',
                         )}
                       />
                     ))}
                   </div>
                   {createError && (
-                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+                    <p className="text-[10px] text-ds-red-500 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />{createError}
                     </p>
                   )}
@@ -416,7 +416,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     <button
                       onClick={createTopic}
                       disabled={isCreating}
-                      className="flex-1 text-[11px] flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                      className="flex-1 text-[11px] flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
                     >
                       {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       {t('topicsPanel.createButton')}
@@ -473,7 +473,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                         className={cn(
                           'w-4 h-4 rounded-full transition-all',
                           COLOR_MAP[c].dot,
-                          editColor === c ? 'ring-2 ring-offset-1 ring-zinc-400 scale-125' : 'opacity-60 hover:opacity-100',
+                          editColor === c ? 'ring-2 ring-offset-1 ring-ds-zinc-400 scale-125' : 'opacity-60 hover:opacity-100',
                         )}
                       />
                     ))}
@@ -482,7 +482,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     <button
                       onClick={saveEdit}
                       disabled={isSavingEdit}
-                      className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50"
+                      className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
                     >
                       {isSavingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       {t('topicsPanel.saveButton')}
@@ -518,8 +518,8 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     className={cn(
                       'p-1.5 rounded-md transition-colors',
                       isDark
-                        ? 'text-zinc-600 hover:text-red-400 hover:bg-red-900/30'
-                        : 'text-zinc-400 hover:text-red-500 hover:bg-red-50',
+                        ? 'text-ds-zinc-600 hover:text-ds-red-400 hover:bg-ds-red-900/30'
+                        : 'text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-red-50',
                     )}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -539,7 +539,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
               <div className={cn('flex flex-col items-center justify-center py-16', emptyText)}>
                 <Tag className="w-8 h-8 mb-3 opacity-30" />
                 <p className="text-sm">{t('topicsPanel.noNodesYet')}</p>
-                <p className={cn('text-xs mt-1', isDark ? 'text-zinc-700' : 'text-zinc-300')}>
+                <p className={cn('text-xs mt-1', isDark ? 'text-ds-zinc-700' : 'text-ds-zinc-300')}>
                   {t('topicsPanel.noNodesHint')}
                 </p>
               </div>
@@ -575,7 +575,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                             onClick={() => detachNode(node.id)}
                             className={cn(
                               'shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity',
-                              isDark ? 'text-zinc-600 hover:text-red-400' : 'text-zinc-400 hover:text-red-500',
+                              isDark ? 'text-ds-zinc-600 hover:text-ds-red-400' : 'text-ds-zinc-400 hover:text-ds-red-500',
                             )}
                           >
                             <X className="w-3 h-3" />
@@ -609,8 +609,8 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                           className={cn(
                             'flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border transition-colors',
                             addNodeType === key
-                              ? isDark ? 'bg-zinc-700 border-zinc-500 text-zinc-100' : 'bg-zinc-200 border-zinc-400 text-zinc-900'
-                              : isDark ? 'border-zinc-700 text-zinc-500 hover:bg-zinc-800' : 'border-zinc-200 text-zinc-500 hover:bg-zinc-100',
+                              ? isDark ? 'bg-ds-zinc-700 border-ds-zinc-500 text-ds-zinc-100' : 'bg-ds-zinc-200 border-ds-zinc-400 text-ds-zinc-900'
+                              : isDark ? 'border-ds-zinc-700 text-ds-zinc-500 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 text-ds-zinc-500 hover:bg-ds-zinc-100',
                           )}
                         >
                           <Icon className={cn('w-3 h-3', addNodeType === key ? iconCls : '')} />
@@ -646,7 +646,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                           {searchResults.map((r, i) => {
                             const nt = NODE_TYPES.find(n => n.key === r.node_type);
                             const Icon = nt?.Icon ?? Tag;
-                            const iconCls = nt?.iconCls ?? 'text-zinc-400';
+                            const iconCls = nt?.iconCls ?? 'text-ds-zinc-400';
                             return (
                               <button
                                 key={i}
@@ -654,7 +654,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                                 className={cn(
                                   'w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b last:border-0',
                                   dropItem,
-                                  isDark ? 'border-zinc-700' : 'border-zinc-100',
+                                  isDark ? 'border-ds-zinc-700' : 'border-ds-zinc-100',
                                 )}
                               >
                                 <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
@@ -675,7 +675,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     </div>
 
                     {addNodeError && (
-                      <p className="text-[10px] text-red-500 flex items-center gap-1">
+                      <p className="text-[10px] text-ds-red-500 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />{addNodeError}
                       </p>
                     )}
@@ -698,7 +698,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
         <div className={cn('flex-1 flex flex-col items-center justify-center', emptyText)}>
           <Tag className="w-10 h-10 mb-3 opacity-20" />
           <p className="text-sm">{t('topicsPanel.selectTopic')}</p>
-          <p className={cn('text-xs mt-1', isDark ? 'text-zinc-700' : 'text-zinc-300')}>
+          <p className={cn('text-xs mt-1', isDark ? 'text-ds-zinc-700' : 'text-ds-zinc-300')}>
             {t('topicsPanel.selectTopicHint')}
           </p>
         </div>
