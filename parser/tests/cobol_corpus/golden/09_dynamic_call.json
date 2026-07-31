@@ -1,0 +1,108 @@
+{
+  "program_name": "DYNCALL",
+  "path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "DYNCALL",
+      "start_line": 1,
+      "end_line": 11,
+      "parent_name": null,
+      "qualified_name": "DYNCALL",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 5,
+      "parent_name": "DYNCALL",
+      "qualified_name": "DYNCALL.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 7,
+      "end_line": 11,
+      "parent_name": "DYNCALL",
+      "qualified_name": "DYNCALL.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "WS-PGM",
+      "start_line": 5,
+      "end_line": 5,
+      "parent_name": "DYNCALL",
+      "qualified_name": "DYNCALL.WS-PGM",
+      "meta": {
+        "level": 1,
+        "picture": "X(8)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "SUBPROG"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "CALL",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-PGM",
+      "resolution": "dynamic",
+      "src_start_line": 9,
+      "src_end_line": 9,
+      "scope": null,
+      "meta": {}
+    },
+    {
+      "type": "CALL",
+      "src_name": "MAIN-PARA",
+      "dst_name": "FIXEDPGM",
+      "resolution": "unresolved",
+      "src_start_line": 10,
+      "src_end_line": 10,
+      "scope": null,
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-PGM",
+      "resolution": "resolved",
+      "src_start_line": 8,
+      "src_end_line": 8,
+      "scope": "DYNCALL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-PGM",
+      "resolution": "resolved",
+      "src_start_line": 9,
+      "src_end_line": 9,
+      "scope": "DYNCALL",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           MOVE 'SUBPROG' TO WS-PGM.\n           CALL WS-PGM.\n           CALL 'FIXEDPGM'.\n           STOP RUN.",
+      "start_line": 7,
+      "end_line": 11,
+      "meta": {
+        "program": "DYNCALL",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 7,
+        "end_line": 11,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

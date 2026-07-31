@@ -1,0 +1,44 @@
+{
+  "program_name": "EXECDEMO",
+  "path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "EXECDEMO",
+      "start_line": 1,
+      "end_line": 9,
+      "parent_name": null,
+      "qualified_name": "EXECDEMO",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 4,
+      "end_line": 9,
+      "parent_name": "EXECDEMO",
+      "qualified_name": "EXECDEMO.MAIN-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           EXEC CICS\n               SEND TEXT FROM('HELLO. WORLD.')\n               LENGTH(13)\n           END-EXEC.\n           STOP RUN.",
+      "start_line": 4,
+      "end_line": 9,
+      "meta": {
+        "program": "EXECDEMO",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 4,
+        "end_line": 9,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+  ]
+}

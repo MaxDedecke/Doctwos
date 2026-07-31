@@ -1,0 +1,62 @@
+{
+  "program_name": "COPYMISS",
+  "path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "COPYMISS",
+      "start_line": 1,
+      "end_line": 9,
+      "parent_name": null,
+      "qualified_name": "COPYMISS",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 5,
+      "parent_name": "COPYMISS",
+      "qualified_name": "COPYMISS.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 7,
+      "end_line": 9,
+      "parent_name": "COPYMISS",
+      "qualified_name": "COPYMISS.MAIN-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [
+    {
+      "type": "COPY",
+      "src_name": "COPYMISS",
+      "dst_name": "NOSUCHBOOK",
+      "resolution": "unresolved",
+      "src_start_line": 5,
+      "src_end_line": 5,
+      "scope": null,
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           DISPLAY 'HELLO'.\n           STOP RUN.",
+      "start_line": 7,
+      "end_line": 9,
+      "meta": {
+        "program": "COPYMISS",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 7,
+        "end_line": 9,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

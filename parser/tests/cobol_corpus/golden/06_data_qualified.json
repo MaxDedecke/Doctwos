@@ -1,0 +1,348 @@
+{
+  "program_name": "DATAQUAL",
+  "path": "cobol_corpus/fixtures/06_data_qualified.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "DATAQUAL",
+      "start_line": 1,
+      "end_line": 29,
+      "parent_name": null,
+      "qualified_name": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "FILE",
+      "start_line": 4,
+      "end_line": 8,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.FILE",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 9,
+      "end_line": 21,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 23,
+      "end_line": 29,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "file_fd",
+      "name": "EMPLOYEE-FILE",
+      "start_line": 5,
+      "end_line": 5,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.EMPLOYEE-FILE",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "EMPLOYEE-RECORD",
+      "start_line": 6,
+      "end_line": 6,
+      "parent_name": "EMPLOYEE-FILE",
+      "qualified_name": "DATAQUAL.EMPLOYEE-FILE.EMPLOYEE-RECORD",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "EMP-ID",
+      "start_line": 7,
+      "end_line": 7,
+      "parent_name": "EMPLOYEE-RECORD",
+      "qualified_name": "DATAQUAL.EMPLOYEE-FILE.EMPLOYEE-RECORD.EMP-ID",
+      "meta": {
+        "level": 5,
+        "picture": "9(6)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "EMP-NAME",
+      "start_line": 8,
+      "end_line": 8,
+      "parent_name": "EMPLOYEE-RECORD",
+      "qualified_name": "DATAQUAL.EMPLOYEE-FILE.EMPLOYEE-RECORD.EMP-NAME",
+      "meta": {
+        "level": 5,
+        "picture": "X(30)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "GROUP-A",
+      "start_line": 10,
+      "end_line": 10,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.GROUP-A",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-CODE",
+      "start_line": 11,
+      "end_line": 11,
+      "parent_name": "GROUP-A",
+      "qualified_name": "DATAQUAL.GROUP-A.WS-CODE",
+      "meta": {
+        "level": 5,
+        "picture": "X(2)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "GROUP-B",
+      "start_line": 12,
+      "end_line": 12,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.GROUP-B",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-CODE",
+      "start_line": 13,
+      "end_line": 13,
+      "parent_name": "GROUP-B",
+      "qualified_name": "DATAQUAL.GROUP-B.WS-CODE",
+      "meta": {
+        "level": 5,
+        "picture": "X(4)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-COUNT",
+      "start_line": 14,
+      "end_line": 14,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.WS-COUNT",
+      "meta": {
+        "level": 1,
+        "picture": "9(3)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "0"
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-TABLE",
+      "start_line": 15,
+      "end_line": 15,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.WS-TABLE",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-ENTRY",
+      "start_line": 16,
+      "end_line": 18,
+      "parent_name": "WS-TABLE",
+      "qualified_name": "DATAQUAL.WS-TABLE.WS-ENTRY",
+      "meta": {
+        "level": 5,
+        "picture": "X(10)",
+        "redefines": null,
+        "occurs": 1,
+        "occurs_depending_on": "WS-COUNT",
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-ALT",
+      "start_line": 19,
+      "end_line": 19,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.WS-ALT",
+      "meta": {
+        "level": 1,
+        "picture": "X(500)",
+        "redefines": "WS-TABLE",
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-EOF-FLAG",
+      "start_line": 20,
+      "end_line": 20,
+      "parent_name": "DATAQUAL",
+      "qualified_name": "DATAQUAL.WS-EOF-FLAG",
+      "meta": {
+        "level": 1,
+        "picture": "X",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "N"
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-EOF",
+      "start_line": 21,
+      "end_line": 21,
+      "parent_name": "WS-EOF-FLAG",
+      "qualified_name": "DATAQUAL.WS-EOF-FLAG.WS-EOF",
+      "meta": {
+        "level": 88,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "Y"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-CODE",
+      "resolution": "resolved",
+      "src_start_line": 24,
+      "src_end_line": 24,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "GROUP-A",
+      "resolution": "resolved",
+      "src_start_line": 24,
+      "src_end_line": 24,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-CODE",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "GROUP-B",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-CODE",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "GROUP-A",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "DATAQUAL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-EOF",
+      "resolution": "resolved",
+      "src_start_line": 26,
+      "src_end_line": 26,
+      "scope": "DATAQUAL",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           MOVE 'AB' TO WS-CODE OF GROUP-A.\n           MOVE WS-CODE OF GROUP-B TO WS-CODE OF GROUP-A.\n           IF WS-EOF\n               DISPLAY 'DONE'\n           END-IF.\n           STOP RUN.",
+      "start_line": 23,
+      "end_line": 29,
+      "meta": {
+        "program": "DATAQUAL",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 23,
+        "end_line": 29,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

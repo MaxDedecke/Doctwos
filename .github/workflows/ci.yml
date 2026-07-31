@@ -102,6 +102,25 @@ jobs:
         working-directory: parser
         run: python -m pytest tests/ -v
 
+  # F-033: Regression im COBOL-Parser ist blockierend. Läuft ohne DB/Redis -
+  # `parse.parse_program()` ist bewusst komplett in-memory (E-6), die
+  # Golden-File-Tests unter tests/test_cobol_*.py brauchen keinen Service.
+  parser-golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: parser
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Run COBOL parser tests (golden files + unit tests)
+        working-directory: parser
+        run: python -m pytest tests/ -k cobol -v
+
   frontend:
     runs-on: ubuntu-latest
     steps:

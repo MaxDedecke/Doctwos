@@ -1,0 +1,193 @@
+{
+  "program_name": "EXECSQL",
+  "path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "EXECSQL",
+      "start_line": 1,
+      "end_line": 26,
+      "parent_name": null,
+      "qualified_name": "EXECSQL",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 7,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 9,
+      "end_line": 26,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "WS-DEPT-ID",
+      "start_line": 5,
+      "end_line": 5,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.WS-DEPT-ID",
+      "meta": {
+        "level": 1,
+        "picture": "X(4)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-EMP-ID",
+      "start_line": 6,
+      "end_line": 6,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.WS-EMP-ID",
+      "meta": {
+        "level": 1,
+        "picture": "9(6)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-EMP-NAME",
+      "start_line": 7,
+      "end_line": 7,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.WS-EMP-NAME",
+      "meta": {
+        "level": 1,
+        "picture": "X(30)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "sql_block",
+      "name": "SQL-BLOCK@10",
+      "start_line": 10,
+      "end_line": 15,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.SQL-BLOCK@10",
+      "meta": {
+        "statement_type": "DECLARE_CURSOR",
+        "tables": [
+          "EMPLOYEE"
+        ],
+        "host_variables": [
+          "WS-DEPT-ID"
+        ],
+        "cursor_name": "EMP-CURSOR"
+      }
+    },
+    {
+      "type": "sql_block",
+      "name": "SQL-BLOCK@16",
+      "start_line": 16,
+      "end_line": 18,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.SQL-BLOCK@16",
+      "meta": {
+        "statement_type": "OPEN",
+        "tables": [],
+        "host_variables": [],
+        "cursor_name": "EMP-CURSOR"
+      }
+    },
+    {
+      "type": "sql_block",
+      "name": "SQL-BLOCK@19",
+      "start_line": 19,
+      "end_line": 22,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.SQL-BLOCK@19",
+      "meta": {
+        "statement_type": "FETCH",
+        "tables": [],
+        "host_variables": [
+          "WS-EMP-ID",
+          "WS-EMP-NAME"
+        ],
+        "cursor_name": "EMP-CURSOR"
+      }
+    },
+    {
+      "type": "sql_block",
+      "name": "SQL-BLOCK@23",
+      "start_line": 23,
+      "end_line": 25,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.SQL-BLOCK@23",
+      "meta": {
+        "statement_type": "CLOSE",
+        "tables": [],
+        "host_variables": [],
+        "cursor_name": "EMP-CURSOR"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "SQL-BLOCK@10",
+      "dst_name": "WS-DEPT-ID",
+      "resolution": "resolved",
+      "src_start_line": 10,
+      "src_end_line": 15,
+      "scope": "EXECSQL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "SQL-BLOCK@19",
+      "dst_name": "WS-EMP-ID",
+      "resolution": "resolved",
+      "src_start_line": 19,
+      "src_end_line": 22,
+      "scope": "EXECSQL",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "SQL-BLOCK@19",
+      "dst_name": "WS-EMP-NAME",
+      "resolution": "resolved",
+      "src_start_line": 19,
+      "src_end_line": 22,
+      "scope": "EXECSQL",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           EXEC SQL\n               DECLARE EMP-CURSOR CURSOR FOR\n               SELECT EMP-ID, EMP-NAME\n                 FROM EMPLOYEE\n                WHERE DEPT-ID = :WS-DEPT-ID\n           END-EXEC.\n           EXEC SQL\n               OPEN EMP-CURSOR\n           END-EXEC.\n           EXEC SQL\n               FETCH EMP-CURSOR\n                 INTO :WS-EMP-ID, :WS-EMP-NAME\n           END-EXEC.\n           EXEC SQL\n               CLOSE EMP-CURSOR\n           END-EXEC.\n           STOP RUN.",
+      "start_line": 9,
+      "end_line": 26,
+      "meta": {
+        "program": "EXECSQL",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 9,
+        "end_line": 26,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

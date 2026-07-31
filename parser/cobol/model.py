@@ -7,7 +7,7 @@ Divisions/Data-Division/Procedure/SQL ergänzen ihre eigenen Strukturen, sobald
 sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kamen
 `CobolProgram`, `Division`, `Section`, `Paragraph` und `ParsedEdge` dazu, mit
 data_division.py `DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`, mit
-chunking.py jetzt `Chunk`. ParseResult folgt mit parse.py.
+chunking.py `Chunk`, mit parse.py jetzt `Entity` und `ParseResult`.
 
 `EntityType`/`EdgeType`/`Resolution` spiegeln bewusst die String-Werte aus
 `backend/models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
@@ -225,6 +225,30 @@ class Chunk:
 
 
 @dataclass
+class Entity:
+    """Eine geparste Entity, wie sie später 1:1 in `code_entities` landet
+    (F-030) — bis auf die DB-Zuweisungen selbst (`id`/`project_id`/
+    `source_id`/`parent_id`/`content_hash`), die erst beim Persistieren in
+    AP-4 entstehen (docs/ENTSCHEIDUNGEN.md E-6). `parent_name` trägt
+    stattdessen den Namen der Eltern-Entity **derselben Datei** — AP-4 löst
+    daraus beim Schreiben die echte `parent_id` auf.
+
+    `qualified_name` wird schon hier gebaut (z.B. "XAAOA.MAIN-SECTION.
+    INIT-PARA") — alle dafür nötigen Vorfahren sind beim Parsen einer
+    einzelnen Datei bereits vollständig bekannt, kein Grund, das auf
+    AP-4/die DB-Schicht zu verschieben.
+    """
+
+    type: EntityType
+    name: str
+    start_line: int
+    end_line: int
+    parent_name: str | None = None
+    qualified_name: str | None = None
+    meta: dict = field(default_factory=dict)
+
+
+@dataclass
 class ParsedEdge:
     """Eine Kante, wie sie später 1:1 in `code_edges` landet (F-032).
 
@@ -243,3 +267,19 @@ class ParsedEdge:
     src_end_line: int
     scope: str | None = None
     meta: dict = field(default_factory=dict)
+
+
+@dataclass
+class ParseResult:
+    """Ergebnis von `parse.parse_program()` für **eine** Datei (Plan §6.3),
+    komplett in-memory — kein DB-Zugriff (docs/ENTSCHEIDUNGEN.md E-6). Das
+    ist die Struktur, gegen die die Golden Files aus F-033 vergleichen.
+    """
+
+    program_name: str
+    path: str
+    source_format: SourceFormat
+    entities: list[Entity] = field(default_factory=list)
+    edges: list[ParsedEdge] = field(default_factory=list)
+    chunks: list[Chunk] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)

@@ -1,0 +1,44 @@
+{
+  "program_name": "freeformat",
+  "path": "cobol_corpus/fixtures/03_free_format.cbl",
+  "source_format": "free",
+  "entities": [
+    {
+      "type": "program",
+      "name": "freeformat",
+      "start_line": 1,
+      "end_line": 6,
+      "parent_name": null,
+      "qualified_name": "freeformat",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "main-para",
+      "start_line": 4,
+      "end_line": 6,
+      "parent_name": "freeformat",
+      "qualified_name": "freeformat.main-para",
+      "meta": {}
+    }
+  ],
+  "edges": [],
+  "chunks": [
+    {
+      "content": "main-para.\n    display 'hello' *> Begruessung, Rest der Zeile ist Kommentar\n    stop run.",
+      "start_line": 4,
+      "end_line": 6,
+      "meta": {
+        "program": "freeformat",
+        "section": null,
+        "paragraph": "main-para",
+        "start_line": 4,
+        "end_line": 6,
+        "format": "free"
+      }
+    }
+  ],
+  "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+  ]
+}

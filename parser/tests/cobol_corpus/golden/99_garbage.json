@@ -1,0 +1,65 @@
+{
+  "program_name": "",
+  "path": "cobol_corpus/fixtures/99_garbage.cbl",
+  "source_format": "free",
+  "entities": [
+    {
+      "type": "program",
+      "name": "",
+      "start_line": 1,
+      "end_line": 6,
+      "parent_name": null,
+      "qualified_name": "",
+      "meta": {}
+    },
+    {
+      "type": "sql_block",
+      "name": "SQL-BLOCK@3",
+      "start_line": 3,
+      "end_line": 5,
+      "parent_name": "",
+      "qualified_name": "SQL-BLOCK@3",
+      "meta": {
+        "statement_type": "SELECT",
+        "tables": [
+          "NOWHERE"
+        ],
+        "host_variables": [
+          "UNDEFINED-FIELD"
+        ],
+        "cursor_name": null
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "SQL-BLOCK@3",
+      "dst_name": "UNDEFINED-FIELD",
+      "resolution": "unresolved",
+      "src_start_line": 3,
+      "src_end_line": 5,
+      "scope": "",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "THIS IS NOT COBOL AT ALL\nJUST GARBAGE TEXT WITHOUT ANY DIVISION HEADER OR PROGRAM-ID\nEXEC SQL\n    SELECT * FROM NOWHERE WHERE X = :UNDEFINED-FIELD\nMORE GARBAGE AFTER AN UNCLOSED EMBEDDED BLOCK - NO END-EXEC HERE\n### BINARY-ISH NOISE @@@ %%% !!! ???",
+      "start_line": 1,
+      "end_line": 6,
+      "meta": {
+        "program": "",
+        "format": "free",
+        "fallback": true
+      }
+    }
+  ],
+  "errors": [
+    "Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden).",
+    "PROGRAM-ID nicht gefunden.",
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.",
+    "Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.",
+    "Keine PROCEDURE DIVISION gefunden - USES-Kanten nicht durchsucht."
+  ]
+}

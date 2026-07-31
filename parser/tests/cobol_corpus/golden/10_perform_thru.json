@@ -1,0 +1,111 @@
+{
+  "program_name": "PERFTHRU",
+  "path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "PERFTHRU",
+      "start_line": 1,
+      "end_line": 13,
+      "parent_name": null,
+      "qualified_name": "PERFTHRU",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 4,
+      "end_line": 7,
+      "parent_name": "PERFTHRU",
+      "qualified_name": "PERFTHRU.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "INIT-PARA",
+      "start_line": 8,
+      "end_line": 9,
+      "parent_name": "PERFTHRU",
+      "qualified_name": "PERFTHRU.INIT-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MIDDLE-PARA",
+      "start_line": 10,
+      "end_line": 11,
+      "parent_name": "PERFTHRU",
+      "qualified_name": "PERFTHRU.MIDDLE-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "CLEANUP-PARA",
+      "start_line": 12,
+      "end_line": 13,
+      "parent_name": "PERFTHRU",
+      "qualified_name": "PERFTHRU.CLEANUP-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [
+    {
+      "type": "PERFORM",
+      "src_name": "MAIN-PARA",
+      "dst_name": "INIT-PARA",
+      "resolution": "resolved",
+      "src_start_line": 5,
+      "src_end_line": 5,
+      "scope": "PERFTHRU",
+      "meta": {
+        "thru": "CLEANUP-PARA"
+      }
+    },
+    {
+      "type": "PERFORM",
+      "src_name": "MAIN-PARA",
+      "dst_name": "UNKNOWN-PARA",
+      "resolution": "unresolved",
+      "src_start_line": 6,
+      "src_end_line": 6,
+      "scope": "PERFTHRU",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           PERFORM INIT-PARA THRU CLEANUP-PARA.\n           PERFORM UNKNOWN-PARA.\n           STOP RUN.\n       INIT-PARA.\n           DISPLAY 'INIT'.\n       MIDDLE-PARA.\n           DISPLAY 'MIDDLE'.",
+      "start_line": 4,
+      "end_line": 11,
+      "meta": {
+        "program": "PERFTHRU",
+        "section": null,
+        "paragraphs": [
+          "MAIN-PARA",
+          "INIT-PARA",
+          "MIDDLE-PARA"
+        ],
+        "start_line": 4,
+        "end_line": 11,
+        "format": "fixed"
+      }
+    },
+    {
+      "content": "       CLEANUP-PARA.\n           DISPLAY 'DONE'.",
+      "start_line": 12,
+      "end_line": 13,
+      "meta": {
+        "program": "PERFTHRU",
+        "section": null,
+        "paragraph": "CLEANUP-PARA",
+        "start_line": 12,
+        "end_line": 13,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+  ]
+}

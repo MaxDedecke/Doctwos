@@ -1,0 +1,69 @@
+{
+  "program_name": "COPYREPL",
+  "path": "cobol_corpus/fixtures/04_copy_replacing.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "COPYREPL",
+      "start_line": 1,
+      "end_line": 9,
+      "parent_name": null,
+      "qualified_name": "COPYREPL",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 5,
+      "parent_name": "COPYREPL",
+      "qualified_name": "COPYREPL.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 7,
+      "end_line": 9,
+      "parent_name": "COPYREPL",
+      "qualified_name": "COPYREPL.MAIN-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [
+    {
+      "type": "COPY",
+      "src_name": "COPYREPL",
+      "dst_name": "WSFIELDS",
+      "resolution": "unresolved",
+      "src_start_line": 5,
+      "src_end_line": 5,
+      "scope": null,
+      "meta": {
+        "replacing": [
+          {
+            "from": ":TAG:",
+            "to": "WS-FIELD"
+          }
+        ]
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           DISPLAY 'HELLO'.\n           STOP RUN.",
+      "start_line": 7,
+      "end_line": 9,
+      "meta": {
+        "program": "COPYREPL",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 7,
+        "end_line": 9,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}
