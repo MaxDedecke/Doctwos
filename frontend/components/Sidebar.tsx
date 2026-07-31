@@ -23,7 +23,6 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { api } from '@/app/services/api';
-import { DoctusLogo } from './Logo';
 
 interface SidebarProps {
   theme: string;
@@ -233,13 +232,6 @@ export function Sidebar({
             className="flex flex-col h-full overflow-hidden"
             style={{ width: `${sidebarWidth}px` }}
           >
-            <div className={cn(
-              "hidden md:flex h-16 px-4 items-center justify-between border-b shrink-0",
-              theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
-            )}>
-              <DoctusLogo theme={theme} />
-              <span className="doctus-kicker text-ds-zinc-500">Workspace</span>
-            </div>
             {/* Sidebar Header */}
             <div className="px-4 pt-4 pb-2 flex md:hidden items-center justify-end shrink-0">
               {/* Mobile Close Button */}
@@ -269,7 +261,7 @@ export function Sidebar({
                   }
                 }}
                 id="sidebar-new-chat-btn"
-                className="w-full justify-between gap-3 h-11 rounded-md bg-primary hover:brightness-105 text-primary-foreground border-0 transition-all duration-150"
+                className="w-full justify-start gap-2.5 h-11 rounded-md doctus-brand-gradient hover:brightness-105 text-ds-white border-0 transition-all duration-150"
               >
                 <Plus className="w-4 h-4" />
                   <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.14em]">{t('sidebar.newChat')}</span>

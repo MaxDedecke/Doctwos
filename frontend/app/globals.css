@@ -15,9 +15,9 @@
     --ds-foreground-muted: 78 96 91;
     --ds-border: 174 187 179;
     --ds-input: 159 176 166;
-    --ds-accent: 0 122 94;
+    --ds-accent: 228 0 43;
     --ds-on-accent: 245 255 251;
-    --ds-focus: 0 122 94;
+    --ds-focus: 228 0 43;
     --ds-danger: 190 18 60;
     --ds-on-danger: 255 255 255;
 
@@ -41,12 +41,12 @@
     --ds-neutral-900: 16 19 25;
     --ds-neutral-950: 11 13 16;
 
-    --ds-accent-soft: 207 250 235;
-    --ds-accent-base: 0 122 94;
-    --ds-accent-strong: 0 82 64;
-    --ds-info-soft: 207 245 249;
-    --ds-info-base: 8 145 178;
-    --ds-info-strong: 14 94 116;
+    --ds-accent-soft: 255 228 234;
+    --ds-accent-base: 228 0 43;
+    --ds-accent-strong: 166 0 31;
+    --ds-info-soft: 219 234 254;
+    --ds-info-base: 0 100 210;
+    --ds-info-strong: 0 55 128;
     --ds-success-soft: 209 250 229;
     --ds-success-base: 5 150 105;
     --ds-success-strong: 6 95 70;
@@ -74,9 +74,9 @@
     --ds-foreground-muted: 147 174 164;
     --ds-border: 38 67 62;
     --ds-input: 49 82 75;
-    --ds-accent: 53 242 181;
-    --ds-on-accent: 3 30 24;
-    --ds-focus: 53 242 181;
+    --ds-accent: 255 48 84;
+    --ds-on-accent: 255 255 255;
+    --ds-focus: 255 48 84;
     --ds-danger: 248 113 113;
   }
 }
@@ -109,6 +109,15 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+}
+
+.doctus-brand-gradient {
+  background-color: rgb(var(--ds-accent));
+  background-image: linear-gradient(112deg, #e4002b 0%, #d60055 38%, #7047eb 68%, #0064d2 100%);
+}
+
+.doctus-brand-gradient:hover {
+  background-image: linear-gradient(112deg, #ff174d 0%, #e50063 38%, #8058f2 68%, #1677df 100%);
 }
 
 /* Slim, theme-aware scrollbars. */

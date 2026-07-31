@@ -89,7 +89,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
   return (
     <div className="min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] bg-ds-zinc-950 text-ds-zinc-200 font-sans overflow-hidden">
       <section className="hidden lg:flex relative flex-col justify-between border-r border-ds-zinc-800 p-12 doctus-canvas overflow-hidden">
-        <div className="absolute left-0 top-0 h-full w-2 bg-ds-indigo-500" />
+        <div className="absolute left-0 top-0 h-full w-2 doctus-brand-gradient" />
         <div className="flex items-center gap-3">
           <DoctusIcon className="h-10 w-10" />
           <DoctusWordmark className="h-9 w-32" theme="dark" />
@@ -109,7 +109,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
       </section>
 
       <section className="relative flex items-center justify-center p-6 sm:p-12 bg-ds-zinc-900">
-      <div className="absolute inset-x-0 top-0 h-1 bg-ds-indigo-500 lg:hidden" />
+      <div className="absolute inset-x-0 top-0 h-1 doctus-brand-gradient lg:hidden" />
       <div className="w-full max-w-[420px] z-10">
 
         {/* Login Card */}
@@ -167,7 +167,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 type="submit"
                 disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 rounded-md bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-black font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md doctus-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -207,7 +207,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 type="submit"
                 disabled={isSubmitting || !username || !password}
                 className={cn(
-                  "w-full h-11 rounded-md bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-black font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md doctus-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >

@@ -2272,7 +2272,7 @@ function AppContent() {
       theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-zinc-50 text-ds-zinc-900"
     )}>
 
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-ds-indigo-500 pointer-events-none z-50" />
+      <div className="absolute left-0 top-0 bottom-0 w-1 doctus-brand-gradient pointer-events-none z-50" />
 
       {/* Custom Toast Notifications */}
       <AnimatePresence>
