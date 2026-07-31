@@ -1,0 +1,9 @@
+MIT
+MIT*
+ISC
+Apache-2.0
+BSD-3-Clause
+BSD-2-Clause
+0BSD
+Unlicense
+(MPL-2.0 OR Apache-2.0)

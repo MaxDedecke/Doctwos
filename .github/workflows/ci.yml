@@ -143,6 +143,35 @@ jobs:
         working-directory: frontend
         run: npm run test
 
+  # NF-003 OSS-Clearing: nur MIT/BSD/Apache-2.0 (siehe CLAUDE.md), abweichende
+  # Lizenzen nur als benannte, begründete Ausnahme in scripts/license_exceptions_*.
+  # Details und der volle Bericht stehen in docs/OSS-CLEARING.md.
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - name: Backend-Abhängigkeiten prüfen
+        run: |
+          python -m venv /tmp/lic-backend
+          /tmp/lic-backend/bin/pip install -q -r backend/requirements.txt pip-licenses
+          /tmp/lic-backend/bin/python scripts/check_licenses_python.py
+      - name: Parser-Abhängigkeiten prüfen
+        run: |
+          python -m venv /tmp/lic-parser
+          /tmp/lic-parser/bin/pip install -q -r parser/requirements.txt pip-licenses
+          /tmp/lic-parser/bin/python scripts/check_licenses_python.py
+      - name: Frontend-Abhängigkeiten prüfen
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend-Lizenzen prüfen
+        run: node scripts/check_licenses_node.mjs
+
   # NF-006: Komponenten dürfen weder feste Farbwerte noch Tailwind-Standardfarben
   # verwenden. Alle UI-Farben laufen über die zentralen --ds-* Design-Tokens.
   design-tokens:

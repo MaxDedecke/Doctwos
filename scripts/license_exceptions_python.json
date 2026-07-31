@@ -1,0 +1,22 @@
+{
+  "psycopg2-binary": {
+    "blocking": false,
+    "license": "LGPL-3.0-or-later (reported as \"GNU Library or Lesser General Public License (LGPL)\")",
+    "rationale": "Nur als unveraendertes, dynamisch verlinktes Paket eingebunden (reiner DB-Treiber, kein Vendoring, kein Patch). Unter LGPL entsteht dadurch keine Copyleft-Pflicht fuer Doctus selbst. Seit AP-0 gesetzte Abhaengigkeit, siehe docs/OSS-CLEARING.md."
+  },
+  "certifi": {
+    "blocking": false,
+    "license": "MPL-2.0",
+    "rationale": "Transitive Abhaengigkeit von httpx/requests (CA-Zertifikatsbuendel). Datei-basierte Weak-Copyleft-Lizenz, Paket wird unveraendert eingebunden. Quasi-Standardabhaengigkeit im Python-Oekosystem, kein Vendoring/Patch von Doctus."
+  },
+  "mcp-atlassian": {
+    "blocking": false,
+    "license": "MIT (PyPI-Metadaten unvollstaendig, verifiziert gegen https://github.com/sooperset/mcp-atlassian/blob/main/LICENSE)",
+    "rationale": "pip-licenses meldet \"UNKNOWN\", weil das Paket keinen License-Classifier in den PyPI-Metadaten traegt. Die tatsaechliche LICENSE-Datei im Quell-Repo ist MIT. Kein Policy-Verstoss, nur eine Metadatenluecke beim Upstream-Projekt."
+  },
+  "Unidecode": {
+    "blocking": true,
+    "license": "GPL-2.0-or-later",
+    "rationale": "OFFEN — verstoesst gegen die Vorgabe 'nur MIT/BSD/Apache-2.0' (CLAUDE.md). Transitive Pflichtabhaengigkeit von mcp-atlassian (Confluence-/Jira-Konnektor, AP-3/AP-8), nicht direkt von Doctus verwendet und nicht ohne Fork/Patch von mcp-atlassian austauschbar. Entscheidung steht aus, siehe docs/ENTSCHEIDUNGEN.md E-7. Bis zur Entscheidung NICHT freigegeben — Release-Blocker."
+  }
+}

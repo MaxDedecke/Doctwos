@@ -1,0 +1,22 @@
+{
+  "@img/sharp-libvips-linux-x64": {
+    "blocking": false,
+    "license": "LGPL-3.0-or-later",
+    "rationale": "Natives Binaerpaket von sharp (Bildverarbeitung, Next.js-Image-Optimierung). Unveraendert, dynamisch als separater Prozess eingebunden, kein Vendoring/Patch durch Doctus. Analog zu psycopg2-binary in docs/OSS-CLEARING.md."
+  },
+  "@img/sharp-libvips-linuxmusl-x64": {
+    "blocking": false,
+    "license": "LGPL-3.0-or-later",
+    "rationale": "Wie @img/sharp-libvips-linux-x64, nur die musl-libc-Variante desselben Binaerpakets."
+  },
+  "caniuse-lite": {
+    "blocking": false,
+    "license": "CC-BY-4.0",
+    "rationale": "Reine Browser-Kompatibilitaetsdaten (Build-Zeit-Abhaengigkeit von browserslist/postcss/autoprefixer), kein Code. Attribution-Pflicht ist mit Nennung in diesem Bericht erfuellt."
+  },
+  "doctus-frontend": {
+    "blocking": false,
+    "license": "UNLICENSED",
+    "rationale": "Das eigene Doctus-Paket selbst (private, nicht veroeffentlicht) - keine Fremdabhaengigkeit."
+  }
+}

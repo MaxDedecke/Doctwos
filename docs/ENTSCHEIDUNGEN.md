@@ -12,6 +12,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 | E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
+| E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | Optionen dokumentiert, Freigabe/Entfernung steht beim Auftraggeber aus | **offen, Release-Blocker** |
 
 ---
 
@@ -195,3 +196,49 @@ CI-Job `parser-golden`) — nicht erst mit Pass 0-2/DB-Anbindung.
 
 **Fundstelle.** `docs/UMSETZUNGSSTAND.md`, Abschnitte „AP-4 (vorgezogen) —
 Chunking (chunking)" und „Nächste Schritte" tragen einen Verweis hierher.
+
+---
+
+## E-7 — `Unidecode` ist GPL, verstößt gegen die „nur MIT/BSD/Apache-2.0"-Regel
+
+**Problem.** Der AP-9-Lizenzbericht (`docs/OSS-CLEARING.md`) hat gezeigt: das
+Paket `mcp-atlassian` (Confluence-/Jira-Konnektor, AP-3/AP-8) zieht
+`Unidecode>=1.3.0` als Pflichtabhängigkeit nach — nicht Doctus-eigener Code,
+aber jedes `pip install -r backend/requirements.txt` installiert es
+automatisch mit. Das PyPI-Paket `Unidecode` steht unter GPL-2.0-or-later
+(bestätigt über `Unidecode-1.4.0.dist-info/METADATA`, `License: GPL`). Das
+ist Copyleft und verstößt gegen CLAUDE.md Architekturprinzip 2 („strikt Open
+Source. Nur MIT/BSD/Apache-2.0"). `mcp-atlassian` selbst ist MIT-lizenziert
+und unproblematisch — nur diese eine Transitivabhängigkeit ist es nicht.
+
+**Was `Unidecode` innerhalb von `mcp-atlassian` tut:** Transliteration von
+Nicht-ASCII-Zeichen (z.B. für Dateinamen/Slugs beim Export von
+Confluence-/Jira-Inhalten) — keine Kernfunktion, aber ohne Fork/Patch von
+`mcp-atlassian` nicht entfernbar, weil pip die Abhängigkeit erzwingt.
+
+**Optionen (keine davon bisher umgesetzt):**
+
+1. **Bei `mcp-atlassian` bleiben, GPL-Ausnahme akzeptieren.** Rechtlich wäre
+   das für ein On-Premise-Produkt, das nicht selbst als abgeleitetes Werk von
+   `Unidecode` weitergegeben wird, vermutlich vertretbar (reine
+   Laufzeit-Abhängigkeit, kein verlinkter/kompilierter Code) — aber das ist
+   eine Rechtsfrage, keine technische, und widerspricht der expliziten
+   Auftraggeber-Vorgabe „nur MIT/BSD/Apache-2.0" wörtlich. Braucht Fujitsu/DRV-Freigabe.
+2. **`mcp-atlassian` durch eine eigene, schlankere Confluence-/Jira-Anbindung
+   ersetzen** (nur die tatsächlich genutzten REST-Endpunkte, `httpx` statt
+   der fertigen Bibliothek) — vermeidet die Transitivabhängigkeit komplett,
+   kostet aber Implementierungs- und Testaufwand (AP-3/AP-8 müssten die
+   Confluence-/Jira-Konnektor-Tests neu gegen die eigene Anbindung fahren).
+3. **Confluence-/Jira-Konnektor vorerst deaktivieren/als experimentell
+   markieren**, bis Option 1 oder 2 entschieden ist — vermeidet den
+   Lizenzverstoß im Auslieferungsumfang, nimmt aber F-011/F-012 aus dem
+   Release.
+
+**Entscheidung.** Noch offen — braucht eine Rückmeldung des Auftraggebers
+(Fujitsu/DRV), da es eine Compliance-/Rechtsfrage ist, keine technische. Der
+CI-Job `licenses` (`scripts/check_licenses_python.py`,
+`scripts/license_exceptions_python.json`) markiert `Unidecode` deshalb bereits
+jetzt als `"blocking": true` und lässt den Job bewusst rot, bis hier
+entschieden ist — **Release-Blocker**.
+
+**Fundstelle.** `docs/OSS-CLEARING.md` Abschnitt 1, `scripts/license_exceptions_python.json`.
