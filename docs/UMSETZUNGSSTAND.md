@@ -1,6 +1,6 @@
 # Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-8 abgeschlossen; Konnektoren nachgetestet, verlorene Testabdeckung ergänzt)
+**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-9 begonnen: OSS-Clearing fertig, POST/DELETE /projects-Absturz behoben)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -21,7 +21,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — Light/Dark-Tokens, Fujitsu-Rot-Blau-Markenverlauf, eigenständige Workspace-Optik, CI-Gate sowie Job-Center + de/en umgesetzt |
 | **AP-8** | Konnektoren-Nachzug (Upload/Confluence/Jira/WebDAV/FolderWatch nachtesten) | **fertig** — dedizierte Tests für alle vier Connectoren + Upload-Endpunkt ergänzt, zwei verlorene Regressionstests (Orphan-Schutz, Chunked-Download) nachgebaut |
-| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
+| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | **läuft** — OSS-Clearing fertig (GPL-Fund offen, E-7), zwei Produktionsabstürze in `/projects` gefunden+behoben; Lasttest/BITV/Offline-Bundle noch offen |
 
 ---
 
@@ -700,6 +700,9 @@ Bug, unabhängig vom AP-3-Layoutwechsel (der Pfad, den der Code danach bauen
 würde, wäre ohnehin falsch — kein `ks_`-Präfix). Nicht mitgefixt, um AP-3 auf
 den Git-Konnektor beschränkt zu halten; separat nachziehen.
 
+**Bei AP-9 behoben** (siehe AP-9-Abschnitt unten) — nutzt jetzt den
+`wt/ks_<source_id>`-Pfad.
+
 **Verifiziert:** `parser/tests/test_git_utils.py` (11 Tests, kein DB-Zugriff,
 echte lokale Git-Repos über `tmp_path` — Fingerprint-Normalisierung,
 geteilter Bare-Mirror über zwei Branches *und* über zwei Quellen auf
@@ -955,6 +958,127 @@ Tests, unabhängig von AP-8) **+ 7 neue Upload-Tests grün**.
 
 ---
 
+## AP-9 — Härtung (läuft)
+
+**OSS-Clearing (NF-003) — fertig.** Lizenz-/Provenienzbericht unter
+`docs/OSS-CLEARING.md`: Backend-, Parser-, Frontend-Abhängigkeiten,
+Basisimages (`ankane/pgvector`, `valkey/valkey`, `ollama/ollama`) und die
+beiden Modelle (`mistral-nemo` Apache-2.0, `bge-m3` MIT). Neuer CI-Job
+`licenses` (`scripts/check_licenses_python.py` + `check_licenses_node.mjs`)
+prüft gegen eine Allowlist mit benannten Ausnahmen (`license_exceptions_*`).
+**Echter Fund:** `Unidecode` (transitiv über `mcp-atlassian`, Confluence-/
+Jira-Konnektor) ist GPL-2.0-or-later — verstößt gegen „nur MIT/BSD/
+Apache-2.0" (CLAUDE.md). Als `docs/ENTSCHEIDUNGEN.md` E-7 dokumentiert, drei
+Optionen skizziert (Ausnahme beantragen / eigene schlanke Confluence-Jira-
+Anbindung / Konnektor vorerst deaktivieren). CI-Job `licenses` bleibt
+absichtlich rot, bis der Auftraggeber entscheidet — **Release-Blocker**.
+Akzeptierte Nebenfunde (LGPL `psycopg2-binary`/`@img/sharp-libvips`, MPL
+`certifi`, CC-BY-4.0 `caniuse-lite`) sind dort mit Begründung dokumentiert.
+
+**E2E-Smoke-Test repariert + zwei echte Absturzbugs gefunden und behoben.**
+`frontend/e2e/login.spec.ts` testete noch den mit AP-0 entfernten Keycloak-
+SSO-Login (`getByText("Mit SSO anmelden")`) — der CI-Job `e2e` lief seit
+AP-0 faktisch gegen eine Oberfläche, die es nicht mehr gibt, und hat das nie
+bemerkt (Playwright wirft die Exception direkt in den Test, kein "grüner"
+Fehlschlag, der auffällt). Beim Neuschreiben gegen die tatsächliche lokale
+Anmeldung (lokal gegen den laufenden Stack verifiziert) fielen zwei
+bisher ungetestete Produktionsabstürze auf, beide AEC-Altlasten:
+
+1. `serialize_project()` (`backend/api/serializers.py`) las `jurisdiction`/
+   `regulation_date`/`regulation_snapshot_id` — Felder, die mit der
+   AEC-Entkernung vom `Project`-Modell entfernt wurden. **Jede** Projekt-
+   erstellung (`POST /projects`) crashte mit 500. Nirgends sonst referenziert,
+   ersatzlos entfernt.
+2. `delete_project()` (`backend/api/projects.py`) las `proj.repository` —
+   dieselbe Fehlerklasse, war bereits als bekannter Bug dokumentiert (siehe
+   „Bewusst offen gelassene Bugs" unten, jetzt behoben statt nur notiert).
+   Fix nutzt denselben Worktree-Pfad wie `list_project_files()`/
+   `get_project_repository_stats()` (`wt/ks_<source_id>`, AP-3-Layout) und
+   behandelt alle Git-Quellen eines Projekts (nicht nur eine angenommene
+   1:1-„repository"-Relation, die es nie gab).
+
+Beim Testen von (2) fiel ein dritter, subtilerer Bug auf: `KnowledgeSource.
+project`/`.team` und `DocumentChunk.project`/`.knowledge_source`
+(`models/database.py`, beide Kopien) hatten kein `passive_deletes=True`,
+obwohl die FKs bereits `ondelete="CASCADE"` tragen. SQLAlchemy hat beim
+ORM-`delete()` eines Projekts die abhängigen Zeilen deshalb nicht der
+DB-Cascade überlassen, sondern selbst geladen und `project_id`/`source_id`
+auf NULL gesetzt (nullable, das UPDATE gelingt lautlos) — verwaiste,
+weiterhin team-gebundene Wissensquellen und Embedding-Chunks blieben in der
+DB liegen, unsichtbar für jedes Projekt, aber nie aufgeräumt. Mit
+`docker compose exec backend-api` direkt reproduziert (Projekt+Quelle
+anlegen, `db.delete(proj); db.commit()`, Quelle blieb mit `project_id=NULL`
+bestehen) und nach dem Fix erneut verifiziert (Quelle ist danach weg). Beide
+Relationen tragen jetzt `passive_deletes=True`. **Nicht mitgezogen:** dieselbe
+Lücke besteht vermutlich bei weiteren `backref`-Relationen im Modell (z. B.
+`EntityDocLink.project`) — nicht auditiert, da nicht durch einen konkret
+reproduzierten Absturz belegt; `Team.projects`/`Team.knowledge_sources` sind
+über die 409-Vorprüfung in `delete_team()` bereits praktisch ungefährlich.
+
+Regressionstests ergänzt (`backend/tests/test_project_membership.py`:
+`test_create_project_returns_serialized_project`,
+`test_delete_project_with_git_source_does_not_crash`). Backend-Suite lokal
+gegen echte Postgres: 76 grün (5 bekannte, vorbestehende Env-Ausfälle
+unverändert: 3× `ALLOW_CLOUD_LLM`, 2× Redis-Hostname nur im Docker-Netz
+auflösbar). Parser-Suite im Docker-Netz (`docker compose exec parser-worker`):
+**152/152 grün**. `npx tsc --noEmit` fehlerfrei. Backend- und Parser-Images
+neu gebaut und deployed, alle sieben Services healthy.
+
+**Barrierefreiheit (NF-012) — automatisierter Basis-Check.** Da der
+verbindliche BITV-Prüfumfang mit dem Auftraggeber noch nicht geklärt ist
+(Plan-Risiko R6), ersetzt das keine formale Abnahme, deckt aber
+automatisiert prüfbare WCAG2A/AA-Regeln ab. Neu: `frontend/e2e/
+accessibility.spec.ts` (axe-core, `@axe-core/playwright`), scannt Login und
+authentifizierte Workspace-Shell, in CI-Job `e2e` verdrahtet.
+
+Echte Funde, behoben:
+- `app/layout.tsx`: Viewport-Meta hatte `maximumScale: 1` gesetzt — verbietet
+  Pinch-Zoom, WCAG-1.4.4-Verstoß. Entfernt.
+- Fünf interaktive Elemente ohne zugänglichen Namen (`button-name`, kritisch):
+  Sidebar-Toggle-Button (`GlobalSearch.tsx`, nur SVG-Icons), Projekt-Select
+  (`GlobalSearch.tsx`, `#project-selector`), LLM-Modell-Select (`ChatView.tsx`,
+  Text war per `hidden @sm/chat:inline` bei kleiner Breite unsichtbar — genau
+  die Breite, in der der Test lief), Panel-Typ-Select (`app/page.tsx`, Radix
+  `role="combobox"` braucht ein explizites `aria-label`, reiner Text im
+  Options-`<span>` genügt der Regel nicht), Senden-Button (`ChatView.tsx`,
+  nur ein `Send`-Icon). Alle fünf mit `aria-label` + neuen i18n-Schlüsseln
+  (`page.toggleSidebarLabel`, `page.projectSelectorLabel`,
+  `page.panelTypeSelectorLabel`, `chatView.selectModel` wiederverwendet,
+  `chatView.sendMessageLabel`) in de/en behoben.
+
+**Bewusst nicht mitgefixt — Farbkontrast (`color-contrast`, WCAG 1.4.3).**
+Mehrere Fundstellen unterschreiten 4,5:1 auf dunklem Grund, u. a.
+`text-ds-zinc-400`/`text-ds-zinc-500`-Kombinationen (Sidebar-Labels "Verlauf"/
+"Wissensquellen", "Lokale Sitzung"-Zeile, leerer Wissensquellen-Hinweis),
+`text-ds-indigo-400` auf `bg-ds-zinc-950` (Login-Kicker "Secure access / 01"),
+Formular-Label-Grau auf den Login-Inputs. Das sind Design-Token-Werte der
+Fujitsu-Markenpalette (AP-7) — welcher Ton wie weit verschoben wird, ohne den
+Markenlook zu brechen, ist eine Design-Entscheidung, keine, die sich aus dem
+Code ableiten lässt. Die `color-contrast`-Regel ist im Test deshalb bewusst
+deaktiviert (mit Begründung im Testfile) statt einen dauerhaft roten Job zu
+erzeugen — dieselbe Logik wie bei `@requires_ollama` in AP-1: „ein dauerhaft
+roter Job wird nicht mehr gelesen". **Für die spätere BITV-Abnahme/Design-
+Runde vormerken.**
+
+`npx tsc --noEmit` und `npm run test` (4/4) nach den Fixes weiterhin grün,
+Frontend-Image neu gebaut und deployed.
+
+**Noch offen in AP-9:** Lasttest am repräsentativen COBOL-Bestand (braucht
+externen Beispielbestand), BITV-Abnahme (braucht verbindlichen Prüfumfang
+vom Auftraggeber), Farbkontrast-Nachbesserung (Design-Entscheidung, siehe
+oben), Offline-Bundle-Verifikation, Abschlussdokumentation.
+
+**Nebenbefund, nicht mitgefixt:** `npm audit` (Frontend) meldet drei High-
+Severity-CVEs — `next` (16.2.10, mehrere Advisories: Middleware-/Server-
+Actions-Bypass, DoS, SSRF-Fälle) und `sharp`/`@img/sharp-libvips` (CVE-2026-
+33327/33328/35590/35591, transitiv über `next`). Fix verfügbar
+(`next@16.2.12`), aber `npm audit fix --force` würde außerhalb der im
+`package.json` gepinnten Version installieren — braucht einen eigenen
+Build-/Test-/Regressionslauf, nicht nebenbei im Zuge der Barrierefreiheits-
+Prüfung. Separat nachziehen.
+
+---
+
 ## Offene Punkte
 
 **Erledigt am 31.07.2026** (siehe Abnahme-Session oben): Docker und pip stehen,
@@ -965,9 +1089,6 @@ per Autogenerate gegengeprüft (Delta leer).
 - Ollama in der CI (siehe `@requires_ollama` oben) — Entscheidung steht aus.
 - Der Erststart wurde auf dieser Maschine geprüft, nicht auf Kundenhardware; die
   Lasttests aus NF-010/AP-9 sind davon unberührt.
-- `backend/api/projects.py::delete_project` liest das nicht existierende
-  `Project.repository`-Attribut (`AttributeError` bei `DELETE /projects/{id}`) —
-  vorbestehender Bug, bei AP-3 entdeckt, nicht mitgefixt (siehe AP-3-Abschnitt oben).
 - E-3-Repack-Nachlauf (`git repack -a -d` + `fetch --refetch` nach der
   Erstindexierung) bleibt unimplementiert, bis ein echter großer Bestand zum
   Messen verfügbar ist.
