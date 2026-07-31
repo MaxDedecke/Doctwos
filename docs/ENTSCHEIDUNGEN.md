@@ -11,6 +11,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-3 | Partial Clone vs. Offline | `--filter=blob:none` nur bei erreichbarem Remote | entschieden, offen in AP-3 |
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
+| E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
 
 ---
 
@@ -133,3 +134,58 @@ Fällt Redis aus, bleibt die DB-Sperre allein wirksam: die Anmeldung wird dadurc
 unmöglich, aber auch nie ungebremst.
 
 **Fundstelle.** `backend/core/login_throttle.py`, Verwendung in `backend/api/auth.py::login`.
+
+---
+
+## E-6 — Wo AP-2 endet und AP-4 beginnt
+
+**Problem.** Der Plan widerspricht sich an zwei Stellen darüber, was noch zu
+AP-2 gehört und was schon AP-4 ist:
+
+1. **`chunking.py` (F-041).** §6.2 (Package-Layout von `parser/cobol/`)
+   zeichnet `chunking.py` als eines von elf Modulen direkt neben `sql.py`/
+   `xref.py` — liest sich wie Teil des Parsers. §6.6 (Aufwandsschätzung AP-2,
+   7,5 PW) listet die AP-2-Teilstücke einzeln auf (`source_format+lexer+
+   embedded`, `divisions+procedure`, `data_division+xref`, `copybook`, `sql`,
+   `Testkorpus+Golden Files+CI`) — `chunking` fehlt darin. §13 (Arbeitspakete-
+   Tabelle) ordnet F-041 explizit **AP-4** zu („Entity-/Kanten-Persistenz +
+   Nachauflösung + Retrieval", F-030…032/F-041/F-043), während AP-2 („COBOL-
+   Parser + Testkorpus") nur F-020…034 exklusive F-041 trägt.
+2. **`parse.py` / Pass 0-2.** §6.4 beschreibt Pass 1 als „pro Datei: parse →
+   Entities/Kanten/Chunks **persistieren**" und Pass 2 als DB-`UPDATE` zur
+   Kanten-Nachauflösung — beides deckungsgleich mit dem AP-4-Titel „Entity-/
+   Kanten-Persistenz + Nachauflösung". §6.3 zeigt dagegen die Parser-Pipeline
+   als reine In-Memory-Kette bis `ParseResult { entities[], edges[], chunks[],
+   errors[] }` — kein DB-Zugriff im Diagramm. Auch die Signatur
+   `parse_program(text, path, copybook_index) -> ParseResult` (§6.2-Kommentar)
+   nimmt den Copybook-Index als fertigen Parameter entgegen, baut ihn also
+   nicht selbst — Pass 0 (der Repo-weite `*.cpy`-Scan, der diesen Index
+   erzeugt) ist damit schon durch die Signatur von `parse_program()`
+   entkoppelt.
+
+Punkt 1 fiel erst auf, nachdem `chunking.py` schon gebaut, getestet und
+committet war (`fcaaba2`) — der Code selbst ist davon nicht betroffen, aber
+„ist AP-2 abgeschlossen?" ließ sich ohne diese Klärung nicht sauber
+beantworten.
+
+**Entscheidung.** §6.6/§13 sind die verbindliche Quelle für AP-Grenzen (sie
+sind die Aufwands-/Abhängigkeitsplanung; §6.2/§6.4 sind Architektur-Skizzen,
+keine Scope-Definition). Damit gilt:
+
+- `chunking.py` zählt zu **AP-4**, wurde aber vorgezogen gebaut, weil es
+  ausschließlich von `CobolProgram`/`Paragraph`/`Section` aus `model.py`
+  abhängt (keine DB-Anbindung nötig) — reine Reihenfolge-Optimierung, keine
+  Scope-Änderung.
+- `parse.py` gehört für AP-2 nur mit seiner **In-Memory-Funktion**
+  `parse_program(text, path, copybook_index) -> ParseResult` dazu (eine
+  Datei, kein DB-Zugriff) — testbar 1:1 gegen die Golden Files aus §6.6.
+  Pass 0 (Repo-Scan für den Copybook-Index), Pass 1 (Persistieren) und
+  Pass 2 (Nachauflösungs-`UPDATE`) sind **AP-4**-Orchestrierung, die
+  `parse_program()` als Baustein aufruft, nicht umgekehrt.
+
+AP-2 ist damit abgeschlossen, sobald `parse_program()` existiert **und** das
+Testkorpus-Teilstück aus §6.6 steht (`99_garbage.cbl`, `golden/*.json`,
+CI-Job `parser-golden`) — nicht erst mit Pass 0-2/DB-Anbindung.
+
+**Fundstelle.** `docs/UMSETZUNGSSTAND.md`, Abschnitte „AP-4 (vorgezogen) —
+Chunking (chunking)" und „Nächste Schritte" tragen einen Verweis hierher.
