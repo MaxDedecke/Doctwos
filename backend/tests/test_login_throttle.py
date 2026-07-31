@@ -62,6 +62,10 @@ class _FakeRedis:
             self.values.pop(key, None)
             self.ttls.pop(key, None)
 
+    def scan_iter(self, match=None, count=None):
+        prefix = match.rstrip("*") if match else ""
+        return [k for k in list(self.values) if k.startswith(prefix)]
+
 
 @pytest.fixture
 def fake_redis(monkeypatch):
@@ -127,6 +131,24 @@ def test_successful_login_clears_counter_and_lock(fake_redis):
     lt.clear_failures("alice", "10.0.0.1")
     assert lt.current_failures("alice", "10.0.0.1") == 0
     assert lt.remaining_lock_seconds("alice", "10.0.0.1") == 0
+
+
+def test_clear_user_lifts_the_lock_on_every_ip(fake_redis):
+    """Das ist der Weg, den `POST /users/{id}/unlock` nimmt. Bliebe eine der
+    IP-Sperren stehen, hätte der Administrator entsperrt und der Nutzer käme
+    trotzdem nicht herein — ohne dass irgendwo ein Fehler sichtbar wird."""
+    for ip in ("10.0.0.1", "10.0.0.2"):
+        lt.register_failure("alice", ip)
+        lt.set_lock("alice", ip, 600)
+    lt.register_failure("bob", "10.0.0.1")
+
+    lt.clear_user("alice")
+
+    for ip in ("10.0.0.1", "10.0.0.2"):
+        assert lt.remaining_lock_seconds("alice", ip) == 0
+        assert lt.current_failures("alice", ip) == 0
+    # Fremde Konten bleiben unberührt.
+    assert lt.current_failures("bob", "10.0.0.1") == 1
 
 
 def test_username_case_does_not_open_a_second_bucket(fake_redis):

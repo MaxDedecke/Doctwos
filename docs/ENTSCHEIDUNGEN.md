@@ -117,7 +117,12 @@ und wer Passwörter durchprobiert, muss nur warten, bis jemand deployt.
   und am unterschiedlichen Sperrverhalten wäre ablesbar, welche Konten existieren.
 - **DB, pro Nutzer** (`users.failed_login_count` / `users.locked_until`). Dauerhaft,
   überlebt jeden Redis-Neustart, ist die Sperre, die ein Administrator im Users-Tab
-  sieht und über `POST /users/{id}/unlock` aufheben kann.
+  sieht.
+
+Das Entsperren räumt **beide** Seiten ab (`login_throttle.clear_user()`, SCAN über alle
+IP-Buckets dieses Namens). Nur die DB-Spalten zu leeren genügt nicht: die Redis-Sperre
+liefe unabhängig weiter, der Nutzer bekäme bis zum Ablauf der TTL weiter 423 — und die
+Verwaltung meldete „entsperrt". Genau so gefunden bei der Erststart-Abnahme.
 
 Backoff: 5 Fehlversuche frei, ab dem 6. Sperre von 60 s mit Verdopplung je weiterem
 Fehlversuch, **gedeckelt bei 1 h**. Der Deckel ist kein Komfort, sondern eine

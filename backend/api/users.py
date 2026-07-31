@@ -148,8 +148,7 @@ def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(
         # Reaktivieren hebt eine noch laufende Sperre mit auf — sonst wäre der
         # Nutzer formal aktiv und käme trotzdem nicht herein.
         if payload.is_active:
-            user.failed_login_count = 0
-            user.locked_until = None
+            unlock(db, user, commit=False)
 
     db.commit()
     db.refresh(user)

@@ -25,6 +25,8 @@ from db import SessionLocal
 from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 from tasks.document import process_local_document_async
 
+from conftest import requires_ollama
+
 
 @pytest.fixture
 def db_session():
@@ -85,6 +87,7 @@ def _write_temp_txt(content: str) -> str:
 
 
 @pytest.mark.anyio
+@requires_ollama
 async def test_reindex_rewires_approved_link_when_content_unchanged(db_session, test_source):
     source, project_id, entity = test_source
     file_path = _write_temp_txt("Dies ist ein stabiler Testabsatz fuer Brandschutz.")
@@ -120,6 +123,7 @@ async def test_reindex_rewires_approved_link_when_content_unchanged(db_session, 
 
 
 @pytest.mark.anyio
+@requires_ollama
 async def test_reindex_resets_approved_link_to_pending_when_content_changes(db_session, test_source):
     source, project_id, entity = test_source
     file_path = _write_temp_txt("Brandschutznachweis Abschnitt 4.2: Feuerwiderstand EI 90.")

@@ -5,6 +5,8 @@ import contextlib
 import httpx
 from models.database import DocumentChunk, KnowledgeSource
 
+from conftest import requires_ollama
+
 @pytest.fixture
 def mock_httpx_stream(monkeypatch):
     captured_payloads = []
@@ -28,6 +30,7 @@ def mock_httpx_stream(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "stream", _mock_stream)
     return captured_payloads
 
+@requires_ollama
 def test_prompt_injection_xml_framing_and_security_instructions(
     client, db_session, test_project, test_team, mock_httpx_stream
 ):

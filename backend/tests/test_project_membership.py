@@ -112,10 +112,13 @@ def test_non_admin_member_cannot_change_role(unauthenticated_client, test_projec
     assert res.status_code == 403
 
 
-def test_request_access_rejects_project_from_foreign_team(client, db_session):
+def test_request_access_rejects_project_from_foreign_team(member_client, db_session):
     """Regression test: request-access must not leak/accept requests for a
     project whose team the user isn't a member of (team membership is the
-    only access primitive, per docs/TEAM_ACCESS_CONTROL.md)."""
+    only access primitive, per docs/TEAM_ACCESS_CONTROL.md).
+
+    Läuft bewusst als gewöhnlicher Nutzer (member_client): ein Superuser sieht
+    laut is_admin() team-übergreifend alles, der Test wäre dann gegenstandslos."""
     foreign_team = Team(name="TestForeignTeamX")
     db_session.add(foreign_team)
     db_session.commit()
@@ -127,7 +130,7 @@ def test_request_access_rejects_project_from_foreign_team(client, db_session):
     db_session.refresh(foreign_project)
 
     try:
-        res = client.post(f"/projects/{foreign_project.id}/request-access")
+        res = member_client.post(f"/projects/{foreign_project.id}/request-access")
         assert res.status_code == 404
 
         pending = db_session.query(ProjectAccessRequest).filter(
@@ -143,13 +146,16 @@ def test_request_access_rejects_project_from_foreign_team(client, db_session):
         db_session.commit()
 
 
-def test_discoverable_lists_own_team_projects_without_membership(client, db_session):
+def test_discoverable_lists_own_team_projects_without_membership(member_client, db_session):
     """GET /projects/discoverable should surface same-team projects the user
     hasn't joined, and must not leak project ids as a route match before the
-    literal /{id} handler (the classic FastAPI int-converter ordering bug)."""
+    literal /{id} handler (the classic FastAPI int-converter ordering bug).
+
+    Wie oben als gewöhnlicher Nutzer: für einen Superuser gibt es keine fremden
+    Teams, und "foreign_project taucht nicht auf" wäre nicht mehr prüfbar."""
     from models.database import User
 
-    user = db_session.query(User).filter(User.email == "fixture-user@example.com").first()
+    user = db_session.query(User).filter(User.email == "fixture-member@example.com").first()
     default_team = db_session.query(TeamMembership).filter(TeamMembership.user_id == user.id).first()
     own_team_id = default_team.team_id
 
@@ -172,7 +178,7 @@ def test_discoverable_lists_own_team_projects_without_membership(client, db_sess
     db_session.refresh(foreign_project)
 
     try:
-        res = client.get("/projects/discoverable")
+        res = member_client.get("/projects/discoverable")
         assert res.status_code == 200
         ids = {p["id"] for p in res.json()}
         assert discoverable_project.id in ids
@@ -180,7 +186,7 @@ def test_discoverable_lists_own_team_projects_without_membership(client, db_sess
         assert foreign_project.id not in ids
 
         # the literal /{id} route must still work normally
-        res = client.get(f"/projects/{discoverable_project.id}")
+        res = member_client.get(f"/projects/{discoverable_project.id}")
         assert res.status_code in (403, 404, 200)
     finally:
         db_session.query(ProjectMembership).filter(

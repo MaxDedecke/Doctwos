@@ -63,6 +63,10 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("team_id", sa.Integer(), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        # Ohne diese Constraint legt jeder wiederholte "Mitglied hinzufügen"-Klick
+        # eine zweite Zeile an; das ORM deklariert sie, die Baseline hatte sie
+        # vergessen (gefunden beim Autogenerate-Abgleich gegen eine leere DB).
+        sa.UniqueConstraint("user_id", "team_id", name="uq_team_memberships_user_team"),
     )
     op.create_index("ix_team_memberships_id", "team_memberships", ["id"])
 

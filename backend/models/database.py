@@ -156,6 +156,21 @@ class DocumentChunk(Base):
     project = relationship("Project", backref="document_chunks")
     knowledge_source = relationship("KnowledgeSource", backref="document_chunks")
 
+    # Beide Indizes stehen so schon in der Baseline-Migration. Sie gehören
+    # trotzdem hierher: was das ORM nicht kennt, will `alembic revision
+    # --autogenerate` beim nächsten Mal löschen — und ein stillschweigend
+    # entfernter HNSW-Index degradiert die Suche zum Full Scan, ohne Fehler.
+    __table_args__ = (
+        Index("ix_document_chunks_project_file", "project_id", "file_path"),
+        Index(
+            "idx_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
     id = Column(Integer, primary_key=True, index=True)

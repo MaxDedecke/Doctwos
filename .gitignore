@@ -9,6 +9,9 @@ parser/languages/grammars/*.so
 frontend/test-results/
 frontend/playwright-report/
 frontend/tsconfig.tsbuildinfo
+# Lokale Testumgebungen (backend/parser haben getrennte Abhängigkeiten)
+.venv/
+.venv-parser/
 
 # Interne Planungsdokumente (nicht ins Repo)
 docs/IMPLEMENTIERUNGSPLAN.md

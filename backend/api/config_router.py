@@ -18,13 +18,21 @@ from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/config", tags=["config"])
 
-FEATURES_PATH = os.environ.get("FEATURES_CONFIG_PATH", "/config/features.json")
+DEFAULT_FEATURES_PATH = "/config/features.json"
+
+
+def _features_path() -> str:
+    """Pro Request auflösen, nicht beim Import einfrieren. Ein Modul-Konstante
+    hätte den Pfad an den Zeitpunkt des ersten Imports gebunden — genau das, was
+    der Docstring oben ausschließt, und der Grund, warum FEATURES_CONFIG_PATH in
+    Tests wirkungslos blieb."""
+    return os.environ.get("FEATURES_CONFIG_PATH", DEFAULT_FEATURES_PATH)
 
 
 @router.get("/features")
 def get_features():
     try:
-        with open(FEATURES_PATH, "r") as f:
+        with open(_features_path(), "r") as f:
             data = json.load(f)
         
         env_allow = os.environ.get("ALLOW_CLOUD_LLM", "").lower()

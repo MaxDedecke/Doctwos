@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -8,6 +10,8 @@ from models.database import Team, TeamMembership, User, Project, ProjectMembersh
 
 TEST_USERNAME = "test-fixture-user"
 TEST_USER_EMAIL = "fixture-user@example.com"
+TEST_MEMBER_USERNAME = "test-fixture-member"
+TEST_MEMBER_EMAIL = "fixture-member@example.com"
 # Kein echtes Passwort nötig: die Fixture setzt die Session-Cookie direkt.
 TEST_USER_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$unused-fixture-hash"
 
@@ -89,6 +93,57 @@ def client(unauthenticated_client, db_session):
 
 
 @pytest.fixture
+def member_client(unauthenticated_client, db_session):
+    """
+    Authenticated TestClient für einen *gewöhnlichen* Nutzer (role="user") im
+    Default Team.
+
+    Der `client`-Nutzer ist superuser, und `core/teams.py::is_admin` hebt für
+    Superuser jede Team-Filterung auf. Wer prüfen will, dass die Sichtbarkeit
+    über Teamgrenzen tatsächlich greift, braucht deshalb ein Konto ohne diese
+    Ausnahme — sonst prüft der Test nur noch, dass Admins alles sehen.
+
+    Beide Fixtures schreiben ihre Cookie auf dieselbe TestClient-Instanz: in
+    einem Test entweder das eine oder das andere verwenden, nicht beides.
+    """
+    user = db_session.query(User).filter(User.username == TEST_MEMBER_USERNAME).first()
+    if not user:
+        user = User(
+            username=TEST_MEMBER_USERNAME,
+            email=TEST_MEMBER_EMAIL,
+            name="Fixture Member",
+            password_hash=TEST_USER_PASSWORD_HASH,
+            role="user",
+        )
+        db_session.add(user)
+        db_session.commit()
+        db_session.refresh(user)
+
+    default_team = db_session.query(Team).filter(Team.name == "Default Team").first()
+    if not default_team:
+        default_team = Team(name="Default Team")
+        db_session.add(default_team)
+        db_session.commit()
+        db_session.refresh(default_team)
+
+    membership = db_session.query(TeamMembership).filter(
+        TeamMembership.user_id == user.id,
+        TeamMembership.team_id == default_team.id,
+    ).first()
+    if not membership:
+        db_session.add(TeamMembership(user_id=user.id, team_id=default_team.id))
+        db_session.commit()
+
+    unauthenticated_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(user.id))
+    yield unauthenticated_client
+    unauthenticated_client.cookies.clear()
+
+    db_session.query(TeamMembership).filter(TeamMembership.user_id == user.id).delete()
+    db_session.query(User).filter(User.id == user.id).delete()
+    db_session.commit()
+
+
+@pytest.fixture
 def test_team(client, db_session):
     """
     A team the `client` fixture's user is a member of. team_id is a required column
@@ -128,3 +183,28 @@ def test_project(test_team, db_session):
     db_session.query(ProjectMembership).filter(ProjectMembership.project_id == proj.id).delete()
     db_session.query(Project).filter(Project.id == proj.id).delete()
     db_session.commit()
+
+
+def _ollama_reachable() -> bool:
+    """Ollama erreichbar? Die Antwort entscheidet über skip, nicht über fail.
+
+    Ein paar Tests hier prüfen den Retrieval-/Embedding-Pfad und brauchen dafür
+    einen echten Ollama mit bge-m3. Lokal steht der nach `docker compose up -d`;
+    die CI-Jobs haben ihn nicht (weder backend noch parser deklarieren einen
+    ollama-Service). Ohne diese Weiche wären die Tests in der CI dauerhaft rot —
+    und ein dauerhaft roter Job wird nicht mehr gelesen.
+    """
+    import httpx
+
+    base = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    try:
+        httpx.get(f"{base}/api/tags", timeout=2.0).raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
+requires_ollama = pytest.mark.skipif(
+    not _ollama_reachable(),
+    reason="Braucht einen erreichbaren Ollama mit bge-m3 (docker compose up -d).",
+)

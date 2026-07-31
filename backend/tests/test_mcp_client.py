@@ -1,9 +1,12 @@
 """
 Tests for mcp_client.py's subprocess spawn (real MCP handshake against a fake
 stdio server) and for init_mcp_clients_for_sources' per-source-type env/command
-construction (jira/confluence via mcp-atlassian, notion via the globally
-installed binary) — see docs/TECH_DEBT_CLEANUP_PLAN.md §2 for why the previous
-npm package names were wrong and non-functional.
+construction (jira/confluence via mcp-atlassian) — see
+docs/TECH_DEBT_CLEANUP_PLAN.md §2 for why the previous npm package names were
+wrong and non-functional.
+
+Der Notion-Fall ist mit AP-0 entfallen: mit ihm verschwand der einzige Grund für
+eine Node.js-Runtime im Backend-Image (F-049).
 """
 import sys
 import textwrap
@@ -96,18 +99,6 @@ async def test_confluence_source_does_not_double_append_wiki_suffix():
         await init_mcp_clients_for_sources([src])
         _, kwargs = MockClient.call_args
         assert kwargs["env"]["CONFLUENCE_URL"] == "https://example.atlassian.net/wiki"
-
-
-@pytest.mark.asyncio
-async def test_notion_source_spawns_the_globally_installed_binary():
-    src = SimpleNamespace(id=4, type="notion", url=None, username=None, token="tok")
-    with patch("mcp_client.MCPClient") as MockClient:
-        MockClient.return_value.start = AsyncMock(return_value=True)
-        await init_mcp_clients_for_sources([src])
-        _, kwargs = MockClient.call_args
-        assert kwargs["command"] == "notion-mcp-server"
-        assert kwargs["args"] == []
-        assert kwargs["env"] == {"NOTION_TOKEN": "tok", "NOTION_API_KEY": "tok"}
 
 
 @pytest.mark.asyncio

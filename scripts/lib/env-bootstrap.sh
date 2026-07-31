@@ -24,40 +24,33 @@ bootstrap_env() {
     mv "$repo_root/.env.tmp" "$repo_root/.env"
 
     echo "Generated MASTER_ENCRYPTION_KEY and SESSION_SECRET_KEY in .env."
-    echo "Review .env now and fill in API_URL, FRONTEND_URL, and the OIDC_* vars before continuing."
+    echo "Review .env now and set API_URL/FRONTEND_URL before continuing."
 }
 
 # Called after bootstrap_env, right before/after bringing the stack up. Prints
-# a loud, hard-to-miss warning for the two ways login silently ends up broken
-# (blank OIDC_* vars, or URLs left on localhost when the browser isn't on this
-# same machine) — both reach "Done, open the URL" with no error of their own,
-# so the only thing standing between a working login and a broken one is
-# whether someone actually reads this. See docs/DEPLOYMENT.md#troubleshooting.
+# a loud, hard-to-miss warning for the way login silently ends up unreachable:
+# URLs left on localhost when the browser isn't on this same machine. Das
+# erreicht "Done, open the URL" ohne eigene Fehlermeldung — das Einzige zwischen
+# erreichbarer und unerreichbarer Oberfläche ist, ob jemand das hier liest.
+# Siehe docs/DEPLOYMENT.md#troubleshooting.
+#
+# Die frühere OIDC-Prüfung ist mit AP-0 entfallen: Doctus meldet lokal an und
+# legt den ersten Superuser beim Start selbst an (BOOTSTRAP_SUPERUSER*).
 check_env_ready() {
     repo_root="$1"
     env_file="$repo_root/.env"
     [ -f "$env_file" ] || return 0
 
-    issuer=$(grep -E "^OIDC_ISSUER_URL=" "$env_file" | cut -d= -f2-)
-    client_id=$(grep -E "^OIDC_CLIENT_ID=" "$env_file" | cut -d= -f2-)
-    client_secret=$(grep -E "^OIDC_CLIENT_SECRET=" "$env_file" | cut -d= -f2-)
     frontend_url=$(grep -E "^FRONTEND_URL=" "$env_file" | cut -d= -f2-)
     api_url=$(grep -E "^API_URL=" "$env_file" | cut -d= -f2-)
-    redirect_uri=$(grep -E "^OIDC_REDIRECT_URI=" "$env_file" | cut -d= -f2-)
 
     warned=0
-    if [ -z "$issuer" ] || [ -z "$client_id" ] || [ -z "$client_secret" ]; then
-        echo
-        echo "!! Login will NOT work yet: OIDC_ISSUER_URL/OIDC_CLIENT_ID/OIDC_CLIENT_SECRET in .env are still blank."
-        echo "!! Fill in your IdP's details, then: docker compose up -d   (restart alone won't pick up the change)"
-        warned=1
-    fi
-    case "$frontend_url$api_url$redirect_uri" in
+    case "$frontend_url$api_url" in
         *localhost*|*127.0.0.1*)
             echo
-            echo "!! FRONTEND_URL/API_URL/OIDC_REDIRECT_URI still reference localhost/127.0.0.1."
+            echo "!! FRONTEND_URL/API_URL still reference localhost/127.0.0.1."
             echo "!! That only works if the browser opening Doctus runs on THIS machine. If you're deploying"
-            echo "!! to a server you'll reach from another machine, replace localhost in all three with this"
+            echo "!! to a server you'll reach from another machine, replace localhost in both with this"
             echo "!! host's actual reachable address (e.g. its IP or hostname), then: docker compose up -d"
             warned=1
             ;;

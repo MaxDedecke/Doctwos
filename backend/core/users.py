@@ -17,6 +17,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from core.login_throttle import clear_user
 from core.passwords import generate_password, hash_password
 from models.database import User
 
@@ -65,6 +66,7 @@ def set_password(db: Session, user: User, password: Optional[str] = None, commit
     user.must_change_password = True
     user.failed_login_count = 0
     user.locked_until = None
+    clear_user(user.username)
     if commit:
         db.commit()
         db.refresh(user)
@@ -72,10 +74,15 @@ def set_password(db: Session, user: User, password: Optional[str] = None, commit
 
 
 def unlock(db: Session, user: User, commit: bool = True) -> None:
-    """Hebt die dauerhafte Sperre auf (DB-Seite). Der flüchtige Redis-Zähler pro
-    (Benutzername, IP) läuft davon unberührt ab — er kennt keine Nutzer-ID."""
+    """Hebt die Sperre auf — beide Seiten.
+
+    Nur die DB-Spalten zu leeren genügt nicht: die Redis-Sperre läuft pro
+    (Benutzername, IP) unabhängig weiter, der Nutzer bekäme bis zum Ablauf der TTL
+    weiter 423. Das Entsperren sähe erfolgreich aus und wäre es nicht.
+    """
     user.failed_login_count = 0
     user.locked_until = None
+    clear_user(user.username)
     if commit:
         db.commit()
         db.refresh(user)

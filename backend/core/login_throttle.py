@@ -158,6 +158,28 @@ def clear_failures(username: str, client_ip: str) -> None:
         logger.warning("[login-throttle] Redis-Löschfehler: %s", e)
 
 
+def clear_user(username: str) -> None:
+    """Löscht Zähler und Sperre dieses Benutzernamens über **alle** IPs.
+
+    Das ist der administrative Weg (Entsperren, Passwort zurücksetzen), nicht der
+    Weg nach einem erfolgreichen Login: dort wird nur das eigene IP-Bucket
+    geleert. Ohne diese Funktion räumt das Entsperren nur die DB-Sperre ab und der
+    Nutzer läuft bis zum Ablauf der Redis-TTL weiter in 423 — die Aktion sähe für
+    den Administrator erfolgreich aus und wäre es nicht.
+
+    SCAN statt KEYS: KEYS blockiert den Redis-Server über den gesamten Keyspace.
+    """
+    client = _redis()
+    if client is None:
+        return
+    try:
+        for prefix in (_KEY_PREFIX, _LOCK_PREFIX):
+            for key in client.scan_iter(match=f"{prefix}:{username.lower()}:*", count=100):
+                client.delete(key)
+    except Exception as e:
+        logger.warning("[login-throttle] Entsperren in Redis fehlgeschlagen: %s", e)
+
+
 def client_ip_of(request) -> str:
     """Client-IP aus dem Request. Hinter dem Reverse-Proxy steht die echte Adresse
     im ersten Eintrag von X-Forwarded-For; ohne Proxy ist der Header nicht gesetzt.
