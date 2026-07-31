@@ -20,12 +20,11 @@ import {
 } from "@/components/ui/select";
 
 // Aus SettingsModal herausgelöster 'git-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2). Der 5-schrittige Git-Anbindungs-Wizard ist attach-only: sein
-// einziger Einstieg ist der "Git-Repository anbinden"-Button auf einer Projektkarte
-// (projects-Tab), der targetProjectId setzt und hierher navigiert. Alle Wizard-
-// States/Handler sind lokal; targetProjectId kommt als Prop, die Navigation zurück
-// über onDone. Der lokale State wird beim Verlassen (Unmount) ohnehin zurückgesetzt,
-// daher navigiert "Abbrechen"/"Fertig" schlicht via onDone.
+// §5, Schritt 2). Der 5-schrittige Git-Anbindungs-Wizard kann eine Quelle entweder
+// an ein konkretes Projekt hängen oder sie mit project_id=null als allgemeine
+// Wissensquelle anlegen. Alle Wizard-States/Handler sind lokal; targetProjectId
+// kommt als Prop, die Navigation zurück über onDone. Der lokale State wird beim
+// Verlassen (Unmount) ohnehin zurückgesetzt.
 interface GitSetupTabProps {
   targetProjectId: number | null;
   onDone: () => void;
@@ -244,14 +243,6 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
     if (!repoName || !cloneUrl) {
       showToast(t('settings.toast.repoNameAndUrlRequired'), "error");
-      return;
-    }
-
-    if (!targetProjectId) {
-      // The wizard is attach-only — its single entry point (the "Git-Repository
-      // anbinden" button on a project card) always sets this first.
-      console.error("Git-setup wizard submitted without a target project");
-      showToast(t('settings.toast.repoAddFailed'), "error");
       return;
     }
 
