@@ -561,6 +561,11 @@ Neuer Zustand pro Code-Panel: `focusedEntity: {id, type, name, qualified_name}`.
 
 Die Dekorations-Infrastruktur (Underlines/Glyphs/Hover) und die Sprung-Breadcrumb existieren bereits und werden übernommen.
 
+> **UI-Nachzug 31.07.2026:** Die COBOL-Zonengrenzen werden nur im Lineal oberhalb
+> des Editors dargestellt. Monaco-Ruler innerhalb der Codefläche entfallen, damit
+> keine vertikalen Linien durch den Quelltext laufen. Referenzsprünge führen die
+> `source_id` bis zum Worktree-Content-Abruf mit.
+
 ### 10.3 Zeilen-Referenz in den Chat (F-069)
 
 > **Stand 31.07.2026: umgesetzt.** Der Gutter-Klick erzeugt eine strukturierte

@@ -252,6 +252,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             setLocalFileContent(res.data.content);
             setLocalFileContentFormat(res.data.format || "text");
           }
+        } else if (path && selectedEntity?.source_id) {
+          // Code aus einer eigenständigen Git-Wissensquelle liegt im
+          // source-spezifischen Worktree. Referenzsprünge tragen die Ziel-
+          // Entity (und damit source_id), aber nicht zwingend ein klassisches
+          // Project.repo_id. Ohne diesen Zweig blieb der Editor nach einem
+          // Sprung aus dem Referenzen-Menü leer.
+          const res = await api.getKnowledgeSourceContent(selectedEntity.source_id, path);
+          setLocalFileContent(res.data.content);
+          setLocalFileContentFormat(res.data.format || "text");
         } else if (path && selectedProject?.repo_id) {
           const res = await api.getFileContent(selectedProject.repo_id, path);
           setLocalFileContent(res.data.content);
@@ -265,7 +274,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     };
 
     loadContent();
-  }, [selectedFile, selectedDoc, selectedProject, activeRightTab, theme]);
+  }, [selectedFile, selectedDoc, selectedEntity, selectedProject, activeRightTab, theme]);
 
   // Local references loading effect — the "Referenzen" dropdown that consumes this
   // only exists on code/doc panels, so don't fetch it for graph/webview panels.
@@ -982,7 +991,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         if (ref.url && ref.url !== "#") {
                                           window.open(ref.url, '_blank', 'noopener,noreferrer');
                                         } else {
-                                          handleFileSelect(ref.file_path, ref.line);
+                                          handleFileSelect(ref.file_path, ref.line, ref.source_id);
                                         }
                                         setFocusedRefNode(null);
                                         setIsReferencesDropdownOpen(false);
@@ -1329,7 +1338,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     cursorBlinking: 'smooth',
                     cursorSmoothCaretAnimation: 'on',
                     renderLineHighlight: 'all',
-                    rulers: detectLanguage(selectedFile) === 'cobol' ? [6, 7, 11, 72, 80] : [],
+                    // Keine vertikalen Spaltenlinien im Code: Das kompakte
+                    // COBOL-Lineal oberhalb des Editors zeigt die Zonen bereits,
+                    // fünf zusätzliche Monaco-Ruler liefen durch den Quelltext.
+                    rulers: [],
                     scrollbar: {
                       vertical: 'visible',
                       horizontal: 'auto',

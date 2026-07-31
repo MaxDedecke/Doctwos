@@ -1017,3 +1017,12 @@ per Autogenerate gegengeprüft (Delta leer).
     `/knowledge-sources/{id}/content` durch. Der alte `repo_id`-Pfad bleibt als
     Fallback für klassische Projekt-Repositories erhalten. Der Backend-Test prüft
     Dateipfad und Quellen-ID im Suchtreffer; TypeScript und Vitest sind grün.
+
+15. **Editor-Ruler und Referenzsprung korrigiert** — die fünf Monaco-Ruler an
+    den COBOL-Grenzen 6/7/11/72/80 liefen als vertikale Linien durch den Code
+    und sind entfernt; die COBOL-Zonen bleiben im kompakten Lineal oberhalb des
+    Editors sichtbar. Beim Sprung aus dem Referenzen-Menü verwendet der lokale
+    Code-Panel-Lader nun die `source_id` der Ziel-Entity und liest CBL-Dateien
+    aus dem richtigen Git-Worktree. Auch die ältere Projekt-Referenzantwort
+    liefert und übergibt die Quellen-ID für Entity- und Dokumentziele.
+    TypeScript und Vitest sind grün.
