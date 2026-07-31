@@ -25,6 +25,9 @@
     "loading": "Loading Doctus...",
     "fallbackContent": "Content",
     "generalContext": "General (not project-specific)",
+    "projectSelectorLabel": "Select project",
+    "toggleSidebarLabel": "Toggle sidebar",
+    "panelTypeSelectorLabel": "Select panel view",
     "defaultLlmProfiles": {
       "localOllama": "Local Ollama (Default)",
       "companyGpt": "Company GPT",
@@ -677,6 +680,7 @@
     "sourcesForProject": "Knowledge sources for {{name}}",
     "globalSources": "Global knowledge sources",
     "selectModel": "Select model",
+    "sendMessageLabel": "Send message",
     "moreOptionsTitle": "Project & source focus",
     "shareChatTitle": "Share chat (copy link)",
     "copyMessageTitle": "Copy message",

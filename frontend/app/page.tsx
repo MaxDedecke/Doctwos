@@ -1929,7 +1929,7 @@ function AppContent() {
         )}>
           <div className="flex items-center gap-1.5">
             <Select value={contentType} onValueChange={setContentType}>
-              <SelectTrigger className={cn(
+              <SelectTrigger aria-label={t('page.panelTypeSelectorLabel')} className={cn(
                 "h-6 text-[10px] bg-transparent border-0 font-bold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 px-1 py-0 gap-1.5 w-auto transition-colors duration-200",
                 panelFrozen[index]
                   ? "text-ds-amber-500 hover:text-ds-amber-400"

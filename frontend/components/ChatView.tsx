@@ -742,7 +742,7 @@ export function ChatView({
                       }
                     }}
                   >
-                    <SelectTrigger className={cn(
+                    <SelectTrigger aria-label={t('chatView.selectModel')} className={cn(
                       "h-7 w-7 @sm/chat:w-auto @sm/chat:max-w-[160px] @sm/chat:min-w-[110px] text-xs border focus:ring-0 shrink-0 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center @sm/chat:justify-between gap-1 px-0 @sm/chat:px-2.5",
                       theme === 'dark' ? "bg-ds-zinc-900/80 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800/40" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-50"
                     )}>
@@ -788,6 +788,7 @@ export function ChatView({
                <Button
                   size="icon"
                   id="send-chat-message-btn"
+                  aria-label={t('chatView.sendMessageLabel')}
                   disabled={isLoading || !currentMessage.trim()}
                   onClick={() => handleSendChat()}
                   className={cn(

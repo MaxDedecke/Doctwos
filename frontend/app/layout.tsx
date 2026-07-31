@@ -21,10 +21,11 @@ export const metadata: Metadata = {
   description: "Enterprise Knowledge for Legacy Codebases",
 };
 
+// maximumScale/userScalable bewusst NICHT gesetzt: sie unterbinden Pinch-Zoom
+// und verstoßen gegen WCAG 1.4.4 (NF-012) — bei AP-9 per axe-core gefunden.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 async function fetchFeatures(): Promise<object | null> {

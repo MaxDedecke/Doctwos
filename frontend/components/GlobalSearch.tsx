@@ -273,6 +273,7 @@ export function GlobalSearch({
       <Button
         variant="ghost"
         size="icon"
+        aria-label={t('page.toggleSidebarLabel')}
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         className={cn(
           "h-9 w-9 rounded-md border transition-all duration-150 shrink-0 group",
@@ -298,7 +299,7 @@ export function GlobalSearch({
             }
           }}
         >
-          <SelectTrigger id="project-selector" className={cn(
+          <SelectTrigger id="project-selector" aria-label={t('page.projectSelectorLabel') || "Projekt auswählen"} className={cn(
             "h-9 text-[11px] border rounded-md w-auto min-w-[155px] max-w-[220px] font-mono font-semibold uppercase tracking-wide px-2.5 gap-2",
             theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
           )}>

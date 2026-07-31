@@ -276,7 +276,7 @@ jobs:
 
       - name: Run e2e smoke test
         working-directory: frontend
-        run: npx playwright test e2e/login.spec.ts
+        run: npx playwright test e2e/login.spec.ts e2e/accessibility.spec.ts
 
       - name: Upload logs on failure
         if: failure()

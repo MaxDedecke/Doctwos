@@ -25,6 +25,9 @@
     "loading": "Doctus wird geladen...",
     "fallbackContent": "Inhalt",
     "generalContext": "Allgemein (nicht projektspezifisch)",
+    "projectSelectorLabel": "Projekt auswählen",
+    "toggleSidebarLabel": "Seitenleiste ein-/ausblenden",
+    "panelTypeSelectorLabel": "Panel-Ansicht wählen",
     "defaultLlmProfiles": {
       "localOllama": "Lokales Ollama (Default)",
       "companyGpt": "Firmen-GPT",
@@ -677,6 +680,7 @@
     "sourcesForProject": "Wissensquellen für {{name}}",
     "globalSources": "Globale Wissensquellen",
     "selectModel": "Modell wählen",
+    "sendMessageLabel": "Nachricht senden",
     "moreOptionsTitle": "Projekt- und Quellenfokus",
     "shareChatTitle": "Chat teilen (Link kopieren)",
     "copyMessageTitle": "Nachricht kopieren",
