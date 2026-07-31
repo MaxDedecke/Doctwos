@@ -40,6 +40,7 @@ from core.db_setup import get_db
 from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, Team, User
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
 from core.projects import assert_project_visible, resolve_repository_id, get_visible_project_ids
+from services.graph_retrieval import expand_chunks_with_graph
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -386,6 +387,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             DocumentChunk.source_id == request.source_id
                         )
                         results = _hybrid_chunk_search(base_query, query_embedding, query_text, 4)
+                        results = expand_chunks_with_graph(db, results)
                         context = "\n\n".join([
                             f"<untrusted_source path=\"{r.file_path}\">\nFile: {_chunk_header(r)}\n{r.content}\n</untrusted_source>"
                             for r in results
@@ -411,6 +413,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             DocumentChunk.source_id == None
                         )
                         repo_results = _hybrid_chunk_search(repo_base_query, query_embedding, query_text, 4)
+                        repo_results = expand_chunks_with_graph(db, repo_results)
 
                         project_source_results = []
                         if project_source_ids:
@@ -418,6 +421,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                                 DocumentChunk.source_id.in_(project_source_ids)
                             )
                             project_source_results = _hybrid_chunk_search(project_source_base_query, query_embedding, query_text, 4)
+                            project_source_results = expand_chunks_with_graph(db, project_source_results)
 
                         global_results = []
                         if global_ids:
@@ -425,6 +429,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                                 DocumentChunk.source_id.in_(global_ids)
                             )
                             global_results = _hybrid_chunk_search(global_base_query, query_embedding, query_text, 2)
+                            global_results = expand_chunks_with_graph(db, global_results)
 
                         results = repo_results + project_source_results + global_results
 
@@ -471,6 +476,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         if visible_project_ids is None:
                             base_query = db.query(DocumentChunk)
                             results = _hybrid_chunk_search(base_query, query_embedding, query_text, 6)
+                            results = expand_chunks_with_graph(db, results)
                         else:
                             scope_filters = []
                             if visible_project_ids:
@@ -480,6 +486,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             if scope_filters:
                                 base_query = db.query(DocumentChunk).filter(or_(*scope_filters))
                                 results = _hybrid_chunk_search(base_query, query_embedding, query_text, 6)
+                                results = expand_chunks_with_graph(db, results)
 
                         result_project_ids = sorted({r.project_id for r in results if r.project_id is not None})
                         projects_by_id = {}

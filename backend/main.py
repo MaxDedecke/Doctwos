@@ -63,7 +63,7 @@ for _handler in logging.getLogger().handlers:
 from api import (
     auth, chat, knowledge_sources, connectors, entity_links,
     system, knowledge_links, link_chat, topics, graph, search, teams, users,
-    projects, diagnostics,
+    projects, diagnostics, entities, callgraph,
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user
@@ -111,5 +111,7 @@ app.include_router(diagnostics.router, dependencies=[Depends(require_admin)])
 app.include_router(diagnostics.public_router)
 app.include_router(graph.router, dependencies=_authenticated)
 app.include_router(search.router, dependencies=_authenticated)
+app.include_router(entities.router, dependencies=_authenticated)
+app.include_router(callgraph.router, dependencies=_authenticated)
 app.include_router(teams.router)
 app.include_router(users.router)
