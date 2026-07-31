@@ -3,7 +3,8 @@
 > **Umsetzungsstand (31.07.2026):** AP-0 bis AP-4 abgeschlossen und verifiziert.
 > AP-5 abgeschlossen: Panel-Typen, Fokusobjekt je Code-Panel, gruppiertes
 > Entity-Referenzen-Menü und F-069 (persistierte Zeilen-Referenz im Chat) sind
-> umgesetzt. AP-5 ist abgeschlossen; als Nächstes folgt AP-6 (Call-Graph-View).
+> umgesetzt. AP-5 und AP-6 sind abgeschlossen; als Nächstes folgt AP-7
+> (Design-Tokens, Job-Center und i18n-Nachzug).
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
@@ -563,6 +564,13 @@ Monaco `glyphMarginClickHandler` → `{file, line, program, section, paragraph}`
 
 ### 10.4 Call-Graph-View (F-066)
 
+> **Stand 31.07.2026: umgesetzt.** Die eigenständige `CallGraphView` lädt den
+> Fokusgraphen über `/callgraph/focus` mit 1–3 Hops, bietet Kantentyp-Filter und
+> Zoom/Fit-Steuerung und öffnet Codeknoten in der zugehörigen Datei. Dynamische
+> und unaufgelöste Ziele erscheinen als gestrichelte Warnkanten mit eigenem
+> Zielknoten. JSON, CSV und GraphML werden über `/callgraph/export` heruntergeladen;
+> die serverseitige 500-Knoten-Grenze wird im UI sichtbar gemacht.
+
 Eigenständige Komponente, aber **Layout-/Zoom-/Fokus-Bausteine aus `KnowledgeGraphView.tsx` extrahiert** statt neu geschrieben (der Katalog erlaubt das ausdrücklich). Inkrementelles Hop-Laden (NF-011), Kantentyp-Filter, dynamische/unaufgelöste Kanten visuell abgesetzt (gestrichelt + Warnfarbe), Export GraphML/CSV/JSON.
 
 ### 10.5 Design-Token-System (NF-006)
@@ -651,8 +659,8 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | **AP-2** | **COBOL-Parser + Testkorpus** | AP-0 | 7,5 | F-020…034 |
 | ~~**AP-3**~~ | ~~Monorepo-Git-Konnektor, Multi-Branch, resumable Sync~~ **erledigt** | AP-0 | 2,0 | F-010, F-016, F-019, NF-004 |
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | AP-2, AP-3 | 2,0 | F-030…032, F-041, F-043 |
-| **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | AP-4 | 2,5 | F-061, F-064…069 |
-| **AP-6** | Call-Graph-View + Export | AP-4 | 1,5 | F-066 |
+| ~~**AP-5**~~ | ~~Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip~~ **erledigt** | AP-4 | 2,5 | F-061, F-064…069 |
+| ~~**AP-6**~~ | ~~Call-Graph-View + Export~~ **erledigt** | AP-4 | 1,5 | F-066 |
 | **AP-7** | Design-Token-System (Fujitsu), Job-Center, i18n-Nachzug | AP-5 | 1,5 | NF-006, NF-014 |
 | **AP-8** | Konnektoren-Nachzug (Upload/CSV, Confluence/Jira/WebDAV-Retest) | AP-3 | 1,0 | F-011, F-012, F-017, F-018 |
 | **AP-9** | Härtung: Lasttest, Barrierefreiheit, OSS-Clearing, Offline-Bundle, Doku | alle | 2,0 | NF-002/003/010/011/012 |

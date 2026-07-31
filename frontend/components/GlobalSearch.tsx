@@ -36,7 +36,7 @@ interface GlobalSearchProps {
   onProjectSelect: (project: any) => void;
 }
 
-const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'webview'] as const;
+const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview'] as const;
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
 const GROUP_ICONS: Record<string, any> = {

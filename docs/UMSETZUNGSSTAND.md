@@ -1,6 +1,6 @@
 # Doctus — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-5 abgeschlossen — F-069 Zeilenreferenz umgesetzt)
+**Zuletzt aktualisiert:** 31.07.2026 (AP-6 abgeschlossen — Call-Graph-View und Export umgesetzt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -18,7 +18,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-3** | Monorepo-Git-Konnektor, Multi-Branch, resumable Sync | **fertig** — Bare-Mirror + Worktree (`parser/git_utils.py`), resumable über `SourceScanFile` (NF-004), F-016-Dateiklassifikation |
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | **fertig** — Pass 0-2, quellenweite XREF-Vererbung, budgetiertes 1-Hop-Graph-Retrieval sowie `/entities`- und `/callgraph`-Router stehen und sind getestet |
 | **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
-| **AP-6** | Call-Graph-View + Export | offen |
+| **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | offen |
 | **AP-8** | Konnektoren-Nachzug | offen |
 | **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
@@ -978,10 +978,21 @@ per Autogenerate gegengeprüft (Delta leer).
     erzeugt außerdem eine strukturierte Zeilenreferenz (Datei, Zeile, Quelle,
     Programm/Section/Paragraph), übernimmt den Zeilentext in den RAG-Kontext und
     persistiert sie beim Senden in `metadata_json.refs[]`. Der Chip in der
-    Chat-Historie öffnet Datei und Zeile wieder. TypeScript und Vitest grün.
-    Als Nächstes: **AP-6 Call-Graph-View + Export**.
+    Chat-Historie öffnet Datei und Zeile wieder. TypeScript und Vitest grün;
+    AP-5 ist damit abgeschlossen.
 
     **Deployment-Verifikation:** Images für Backend, Parser und Frontend wurden
     nach dem AP-5-Schnitt mit `docker compose up -d --build` neu gebaut. Alle
     sieben Services waren anschließend healthy; `/health` meldete DB, Redis und
     Ollama `ok`, das Frontend antwortete mit HTTP 200.
+
+12. **AP-6 abgeschlossen** — `frontend/components/CallGraphView.tsx` ist als
+    eigener Workspace-Paneltyp angebunden. Die Ansicht lädt den vorhandenen,
+    sichtbarkeitsgeschützten Backend-Fokusgraphen inkrementell mit 1–3 Hops,
+    filtert CALL/PERFORM/GOTO/COPY, markiert unaufgelöste und dynamische Kanten
+    gestrichelt und navigiert von Knoten zurück in den Code. JSON-, CSV- und
+    GraphML-Export verwenden `/callgraph/export`; die 500-Knoten-Grenze wird
+    angezeigt. `npx tsc --noEmit`, Vitest und der produktive Next-Build sind grün;
+    der gezielte Backend-Test `test_ap4_graph_api.py` für Fokus und alle drei
+    Exportformate ist ebenfalls grün. Als Nächstes: **AP-7 Design-Tokens,
+    Job-Center und i18n-Nachzug**.

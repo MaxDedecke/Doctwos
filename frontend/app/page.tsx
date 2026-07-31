@@ -65,6 +65,7 @@ import { LoginView } from "@/components/LoginView";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { CallGraphView } from "@/components/CallGraphView";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -1940,6 +1941,7 @@ function AppContent() {
                 <SelectItem value="code" className="text-xs">{t('page.viewTypes.code')}</SelectItem>
                 <SelectItem value="doc" className="text-xs">{t('page.viewTypes.doc')}</SelectItem>
                 <SelectItem value="graph" className="text-xs">{t('page.viewTypes.graph')}</SelectItem>
+                <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
                 <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
               </SelectContent>
             </Select>
@@ -2193,6 +2195,14 @@ function AppContent() {
               onNavigateBack={handleNavigateBack}
               onDocFocus={handleDocFocusRequest}
               layoutMode={layoutMode}
+            />
+          )}
+
+          {contentType === 'callgraph' && (
+            <CallGraphView
+              theme={theme}
+              focusedEntity={sel.selectedEntity}
+              onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
             />
           )}
 

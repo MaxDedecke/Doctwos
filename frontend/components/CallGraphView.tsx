@@ -1,0 +1,182 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Download, FileCode, Loader2, Maximize2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { API_URL } from '@/app/services/api';
+import { cn } from '@/lib/utils';
+
+type CallNode = {
+  id: string;
+  entityId?: number;
+  name: string;
+  type: string;
+  file_path?: string;
+  start_line?: number;
+  source_id?: number | null;
+  unresolved?: boolean;
+  x?: number;
+  y?: number;
+};
+
+type CallEdge = {
+  id: string;
+  source: string | CallNode;
+  target: string | CallNode;
+  type: 'CALL' | 'PERFORM' | 'GOTO' | 'COPY';
+  resolution: string;
+};
+
+const EDGE_COLORS: Record<string, string> = {
+  CALL: '#ef4444',
+  PERFORM: '#22c55e',
+  GOTO: '#eab308',
+  COPY: '#8b5cf6',
+};
+
+interface Props {
+  theme: string;
+  focusedEntity: any | null;
+  onFileSelect: (path: string, line?: number | null, sourceId?: number | string | null) => void;
+}
+
+export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
+  const isDark = theme === 'dark';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const graphRef = useRef<any>(null);
+  const [ForceGraph, setForceGraph] = useState<any>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [hops, setHops] = useState(1);
+  const [graph, setGraph] = useState<{ nodes: CallNode[]; edges: CallEdge[] }>({ nodes: [], edges: [] });
+  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(new Set(Object.keys(EDGE_COLORS)));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+
+  useEffect(() => {
+    import('react-force-graph-2d').then(mod => setForceGraph(() => mod.default));
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+      setDimensions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const loadGraph = useCallback(async () => {
+    if (!focusedEntity?.id) {
+      setGraph({ nodes: [], edges: [] });
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}`, { credentials: 'include' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const nodes: CallNode[] = (data.nodes || []).map((node: any) => ({
+        id: `entity:${node.id}`,
+        entityId: node.id,
+        name: node.name,
+        type: node.type,
+        file_path: node.file_path,
+        start_line: node.start_line,
+        source_id: node.source_id,
+      }));
+      const known = new Set(nodes.map(node => node.id));
+      const edges: CallEdge[] = (data.edges || []).map((edge: any) => {
+        let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
+        if (!known.has(target)) {
+          nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
+          known.add(target);
+        }
+        return {
+          id: `edge:${edge.id}`,
+          source: `entity:${edge.source}`,
+          target,
+          type: edge.type,
+          resolution: edge.resolution,
+        };
+      });
+      setGraph({ nodes, edges });
+      setTruncated(Boolean(data.truncated));
+      setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
+    } catch (err: any) {
+      setError(err?.message || 'Call-Graph konnte nicht geladen werden');
+    } finally {
+      setLoading(false);
+    }
+  }, [focusedEntity?.id, hops]);
+
+  useEffect(() => { loadGraph(); }, [loadGraph]);
+
+  const filtered = useMemo(() => {
+    const links = graph.edges.filter(edge => enabledTypes.has(edge.type));
+    const usedIds = new Set<string>([`entity:${focusedEntity?.id}`]);
+    links.forEach(edge => {
+      usedIds.add(typeof edge.source === 'string' ? edge.source : edge.source.id);
+      usedIds.add(typeof edge.target === 'string' ? edge.target : edge.target.id);
+    });
+    return { nodes: graph.nodes.filter(node => usedIds.has(node.id)), links };
+  }, [graph, enabledTypes, focusedEntity?.id]);
+
+  const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
+    if (!focusedEntity?.id) return;
+    const response = await fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}`, { credentials: 'include' });
+    if (!response.ok) return setError(`Export fehlgeschlagen (HTTP ${response.status})`);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `callgraph-${focusedEntity.name || focusedEntity.id}.${format === 'graphml' ? 'graphml' : format}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!focusedEntity?.id) {
+    return <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">Bitte zuerst ein COBOL-Objekt fokussieren.</p></div>;
+  }
+
+  return (
+    <div className={cn('h-full flex flex-col', isDark ? 'bg-zinc-950 text-zinc-200' : 'bg-white text-zinc-800')}>
+      <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-zinc-800' : 'border-zinc-200')}>
+        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-zinc-500">Call-Graph · {hops} Hop{hops !== 1 ? 's' : ''}</div></div>
+        {[1, 2, 3].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-indigo-500 bg-indigo-500/15 text-indigo-400' : 'border-zinc-700 text-zinc-500')}>{value} Hop</button>)}
+        <button onClick={loadGraph} title="Neu laden" className="p-1.5 text-zinc-500 hover:text-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title="Vergrößern" className="p-1.5 text-zinc-500 hover:text-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title="Verkleinern" className="p-1.5 text-zinc-500 hover:text-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title="Alles einpassen" className="p-1.5 text-zinc-500 hover:text-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
+      </div>
+      <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-zinc-900' : 'border-zinc-100')}>
+        {Object.entries(EDGE_COLORS).map(([type, color]) => <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>)}
+        <div className="ml-auto flex items-center gap-1">{(['json', 'csv', 'graphml'] as const).map(format => <button key={format} onClick={() => exportGraph(format)} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase font-bold text-zinc-500 hover:text-indigo-400"><Download className="w-3 h-3" />{format}</button>)}</div>
+      </div>
+      <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
+        {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>}
+        {error && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-2 rounded border border-red-500/30 bg-red-500/10 text-xs text-red-400">{error}</div>}
+        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-[10px] text-amber-400"><AlertTriangle className="w-3 h-3" />Auf 500 Knoten begrenzt</div>}
+        {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">Keine Call-Graph-Verbindungen für diesen Fokus.</div>}
+        {ForceGraph && dimensions.width > 0 && filtered.nodes.length > 0 && <ForceGraph
+          ref={graphRef}
+          graphData={filtered}
+          width={dimensions.width}
+          height={dimensions.height}
+          backgroundColor={isDark ? '#09090b' : '#ffffff'}
+          nodeLabel={(node: any) => `${node.name} (${node.type})`}
+          nodeColor={(node: any) => node.unresolved ? '#f59e0b' : node.entityId === focusedEntity.id ? '#6366f1' : '#3b82f6'}
+          nodeVal={(node: any) => node.entityId === focusedEntity.id ? 7 : 4}
+          linkColor={(edge: any) => edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : '#f59e0b'}
+          linkWidth={1.5}
+          linkDirectionalArrowLength={4}
+          linkDirectionalArrowRelPos={1}
+          linkLineDash={(edge: any) => edge.resolution === 'resolved' ? null : [4, 3]}
+          linkLabel={(edge: any) => `${edge.type} · ${edge.resolution}`}
+          onNodeClick={(node: any) => { if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id); }}
+        />}
+      </div>
+    </div>
+  );
+}

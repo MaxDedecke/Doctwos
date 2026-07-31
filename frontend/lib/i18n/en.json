@@ -87,6 +87,7 @@
       "code": "💻 Code editor",
       "doc": "📖 Documentation",
       "graph": "🕸️ Knowledge graph",
+      "callgraph": "🔀 Call graph",
       "webview": "🌐 Web preview"
     },
     "focusBar": {
