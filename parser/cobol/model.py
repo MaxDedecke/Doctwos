@@ -216,6 +216,11 @@ class Chunk:
       (< min_chunk_size): `"paragraph"` (singular) entfällt zugunsten von
       `"paragraphs"` (`list[str]`) — ein Chunk deckt dann mehr als einen
       Paragraphen ab, das Singular-Feld wäre irreführend.
+
+    Zwei Sonderfälle aus parse.py chunken die gesamte Datei statt einzelner
+    Paragraphen (kein `"section"`/`"paragraph"`): F-029-Fallback (kein
+    PROCEDURE-DIVISION-Paragraph gefunden) → `"program"` + `"fallback": True`;
+    Copybooks (keine PROCEDURE DIVISION, parse_copybook()) → `"copybook"`.
     """
 
     content: str

@@ -1,5 +1,6 @@
 import os
 
+from cobol.copybook import CopybookIndex
 from cobol.parse import parse_program
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
@@ -63,6 +64,61 @@ def test_copybook_index_flips_copy_edge_resolution():
 
     assert result.edges[0].resolution == "resolved"
     assert result.edges[0].meta["replacing"] == [{"from": ":TAG:", "to": "WS-FIELD"}]
+
+
+def test_xref_inherits_copybook_field_without_expanding_source_lines():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. COPYXREF.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       COPY FIELDS.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           DISPLAY SHARED-FIELD.\n"
+    )
+    index = CopybookIndex(
+        {"FIELDS": ["copy/FIELDS.CPY"]},
+        fields_by_path={"copy/FIELDS.CPY": [{
+            "name": "SHARED-FIELD", "parent": "SHARED-RECORD",
+            "qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
+            "path": "copy/FIELDS.CPY",
+        }]},
+    )
+
+    result = parse_program(text, "MAIN.CBL", index)
+    edge = next(e for e in result.edges if e.type == "USES")
+
+    assert edge.resolution == "resolved"
+    assert edge.src_start_line == 8
+    assert edge.meta == {
+        "copybook_path": "copy/FIELDS.CPY",
+        "target_qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
+    }
+
+
+def test_xref_applies_copy_replacing_to_inherited_field_name():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. COPYREPL.\n"
+        "       DATA DIVISION.\n"
+        "       COPY FIELDS REPLACING ==:TAG:== BY ==CUSTOMER==.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           DISPLAY CUSTOMER-ID.\n"
+    )
+    index = CopybookIndex(
+        {"FIELDS": ["FIELDS.CPY"]},
+        fields_by_path={"FIELDS.CPY": [{
+            "name": ":TAG:-ID", "parent": ":TAG:-RECORD",
+            "qualified_name": "FIELDS.:TAG:-RECORD.:TAG:-ID", "path": "FIELDS.CPY",
+        }]},
+    )
+
+    result = parse_program(text, "MAIN.CBL", index)
+    edge = next(e for e in result.edges if e.type == "USES")
+    assert edge.dst_name == ":TAG:-ID"
+    assert edge.resolution == "resolved"
 
 
 def test_sql_block_becomes_entity_with_extraction_meta():

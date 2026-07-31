@@ -253,7 +253,7 @@ class CodeEdge(Base):
     src_entity_id = Column(Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=False, index=True)
     dst_entity_id = Column(Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True)
     dst_name = Column(String, nullable=False, index=True)
-    # v1: CALL | PERFORM | COPY | DEFINES | USES | READS | WRITES — v2: EXECUTES
+    # v1: CALL | PERFORM | GOTO | COPY | DEFINES | USES | READS | WRITES — v2: EXECUTES
     type = Column(String, nullable=False, index=True)
     # 'resolved' | 'unresolved' | 'dynamic'
     resolution = Column(String, nullable=False, server_default="unresolved")

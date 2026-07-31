@@ -32,6 +32,8 @@ gesamte Datei statt über einen Paragraphen.
 
 from __future__ import annotations
 
+import os
+
 from . import copybook as copybook_mod
 from . import data_division as data_division_mod
 from . import divisions as divisions_mod
@@ -48,6 +50,7 @@ from .model import (
     Chunk,
     CobolProgram,
     DataItem,
+    Division,
     Entity,
     FileDescriptor,
     ParseResult,
@@ -79,7 +82,8 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
     sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items)
     errors.extend(sql_errors)
 
-    xref_edges, xref_errors = xref_mod.scan(program, tokens, items)
+    inherited_fields = _inherited_copybook_fields(copy_edges, copybook_index)
+    xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
     errors.extend(xref_errors)
 
     edges = [*proc_edges, *copy_edges, *sql_edges, *xref_edges]
@@ -99,6 +103,38 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
         chunks=chunks,
         errors=errors,
     )
+
+
+def _inherited_copybook_fields(copy_edges, copybook_index: CopybookIndex | None) -> list[dict]:
+    """E-2: Felder eindeutig aufgelöster COPYs mit REPLACING-Namen erben."""
+    if copybook_index is None or not hasattr(copybook_index, "fields_by_path"):
+        return []
+    inherited: list[dict] = []
+    for edge in copy_edges:
+        path = copybook_mod.resolve_path(edge.dst_name, (edge.meta or {}).get("library"), copybook_index)
+        if path is None:
+            continue
+        replacing = (edge.meta or {}).get("replacing", [])
+        for field in copybook_index.fields_by_path.get(path, []):
+            effective_name = _apply_replacing(field["name"], replacing)
+            effective_parent = _apply_replacing(field.get("parent") or "", replacing) or None
+            inherited.append({**field, "effective_name": effective_name, "effective_parent": effective_parent})
+    return inherited
+
+
+def _apply_replacing(value: str, replacing: list[dict]) -> str:
+    result = value
+    for pair in replacing:
+        old = pair.get("from", "")
+        if old:
+            # COBOL-Namen sind case-insensitiv; die Länge bleibt bei der
+            # Slice-Ersetzung nicht vorausgesetzt.
+            upper = result.upper()
+            old_upper = old.upper()
+            pos = upper.find(old_upper)
+            if pos >= 0:
+                result = result[:pos] + pair.get("to", "") + result[pos + len(old):]
+    return result
 
 
 def _build_entities(
@@ -148,46 +184,7 @@ def _build_entities(
             )
         )
 
-    # field_qnames deckt sowohl FD/SD-Namen als auch DataItem-Namen ab -
-    # DataItem.parent (data_division.py) referenziert wahlweise eines von
-    # beiden, ohne dass am Namen selbst zu erkennen ist, welches gemeint war.
-    field_qnames: dict[str, str] = {}
-    for fd in file_descriptors:
-        qname = _qualify(program.name, fd.name)
-        field_qnames[fd.name] = qname
-        entities.append(
-            Entity(
-                type="file_fd",
-                name=fd.name,
-                start_line=fd.start_line,
-                end_line=fd.end_line,
-                parent_name=program.name,
-                qualified_name=qname,
-            )
-        )
-
-    for item in items:
-        parent_qname = field_qnames.get(item.parent, program.name) if item.parent else program.name
-        qname = _qualify(parent_qname, item.name)
-        field_qnames[item.name] = qname
-        entities.append(
-            Entity(
-                type="data_item",
-                name=item.name,
-                start_line=item.start_line,
-                end_line=item.end_line,
-                parent_name=item.parent or program.name,
-                qualified_name=qname,
-                meta={
-                    "level": item.level,
-                    "picture": item.picture,
-                    "redefines": item.redefines,
-                    "occurs": item.occurs,
-                    "occurs_depending_on": item.occurs_depending_on,
-                    "value": item.value,
-                },
-            )
-        )
+    entities.extend(_build_field_entities(program.name, items, file_descriptors))
 
     for block in sql_blocks:
         entities.append(
@@ -210,14 +207,75 @@ def _build_entities(
     return entities
 
 
+def _build_field_entities(
+    root_name: str, items: list[DataItem], file_descriptors: list[FileDescriptor]
+) -> list[Entity]:
+    """FD/SD- und DataItem-Entities unter einer Wurzel (Programm- oder
+    Copybook-Name) - gemeinsam genutzt von _build_entities() und
+    parse_copybook(), weil beide dieselbe Gruppenhierarchie in
+    qualified_names auflösen müssen (E-2: Copybook-Felder brauchen exakt
+    dieselbe Qualified-Name-Form wie Programm-Felder, sonst funktioniert die
+    XREF-Vererbung über COPY-Grenzen hinweg nicht).
+
+    field_qnames deckt sowohl FD/SD-Namen als auch DataItem-Namen ab -
+    DataItem.parent (data_division.py) referenziert wahlweise eines von
+    beiden, ohne dass am Namen selbst zu erkennen ist, welches gemeint war.
+    """
+    entities: list[Entity] = []
+    field_qnames: dict[str, str] = {}
+
+    for fd in file_descriptors:
+        qname = _qualify(root_name, fd.name)
+        field_qnames[fd.name] = qname
+        entities.append(
+            Entity(
+                type="file_fd",
+                name=fd.name,
+                start_line=fd.start_line,
+                end_line=fd.end_line,
+                parent_name=root_name,
+                qualified_name=qname,
+            )
+        )
+
+    for item in items:
+        parent_qname = field_qnames.get(item.parent, root_name) if item.parent else root_name
+        qname = _qualify(parent_qname, item.name)
+        field_qnames[item.name] = qname
+        entities.append(
+            Entity(
+                type="data_item",
+                name=item.name,
+                start_line=item.start_line,
+                end_line=item.end_line,
+                parent_name=item.parent or root_name,
+                qualified_name=qname,
+                meta={
+                    "level": item.level,
+                    "picture": item.picture,
+                    "redefines": item.redefines,
+                    "occurs": item.occurs,
+                    "occurs_depending_on": item.occurs_depending_on,
+                    "value": item.value,
+                },
+            )
+        )
+
+    return entities
+
+
 def _qualify(parent_qname: str | None, name: str) -> str:
     return f"{parent_qname}.{name}" if parent_qname else name
 
 
-def _fallback_chunks(
-    program: CobolProgram, source_lines: list[str], source_format: SourceFormat, chunk_size: int = DEFAULT_CHUNK_SIZE
-) -> list[Chunk]:
-    chunks: list[Chunk] = []
+def _pack_whole_file(source_lines: list[str], chunk_size: int) -> list[tuple[str, int, int]]:
+    """Zeilenweises, nicht-überlappendes Packen der gesamten Datei in
+    (content, start_line, end_line)-Tripel - dieselbe Strategie wie
+    chunking._split_paragraph(), nur ohne Paragraphengrenzen. Gemeinsam
+    genutzt von _fallback_chunks() (F-029) und parse_copybook() (Copybooks
+    haben keine PROCEDURE-DIVISION-Paragraphen, an denen chunking.chunk()
+    entlang chunken könnte)."""
+    packed: list[tuple[str, int, int]] = []
     n = len(source_lines)
     i = 0
     while i < n:
@@ -234,13 +292,85 @@ def _fallback_chunks(
         if j == i:
             current.append(source_lines[j])
             j += 1
-        chunks.append(
-            Chunk(
-                content="\n".join(current),
-                start_line=i + 1,
-                end_line=j,
-                meta={"program": program.name, "format": source_format, "fallback": True},
-            )
-        )
+        packed.append(("\n".join(current), i + 1, j))
         i = j
-    return chunks
+    return packed
+
+
+def _fallback_chunks(
+    program: CobolProgram, source_lines: list[str], source_format: SourceFormat, chunk_size: int = DEFAULT_CHUNK_SIZE
+) -> list[Chunk]:
+    return [
+        Chunk(
+            content=content,
+            start_line=start_line,
+            end_line=end_line,
+            meta={"program": program.name, "format": source_format, "fallback": True},
+        )
+        for content, start_line, end_line in _pack_whole_file(source_lines, chunk_size)
+    ]
+
+
+def parse_copybook(text: str, path: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> ParseResult:
+    """F-022/E-2: eine Copybook-Datei als eigenständige Entity mit eigenen
+    data_item-Kindern parsen - eigene Zeilennummern, NIE in den Programmtext
+    expandiert (CLAUDE.md „Zeilennummern sind heilig"). Analog zu
+    parse_program(), aber ohne IDENTIFICATION/PROCEDURE DIVISION: ein
+    Copybook ist laut COBOL-Grammatik reine Datenbeschreibung, meist ohne
+    jeden DIVISION-Header. data_division.parse() braucht dennoch ein
+    CobolProgram mit einer DATA-Division, um deren Zeilenbereich zu kennen -
+    hier synthetisch über die gesamte Datei aufgespannt.
+
+    name (= Entity-Typ "copybook") ist der Dateiname ohne Endung, uppercased
+    - das ist der Bezeichner, über den COPY-Statements ihn referenzieren
+    (copybook.py löst genauso auf, siehe CopybookIndex)."""
+    errors: list[str] = []
+
+    source_format = source_format_mod.detect_format(text)
+    logical_lines = source_format_mod.split_logical_lines(text, source_format)
+    masked_lines, _ = embedded_mod.mask(logical_lines)
+    tokens = lexer_mod.tokenize(masked_lines)
+
+    name = _copybook_name(path)
+    source_lines = text.splitlines()
+
+    if not tokens:
+        errors.append("Keine Tokens gefunden - leere oder nicht lesbare Copybook-Datei.")
+        return ParseResult(program_name=name, path=path, source_format=source_format, errors=errors)
+
+    start_line = tokens[0].phys_line
+    end_line = tokens[-1].phys_line
+    synthetic = CobolProgram(
+        name=name,
+        start_line=start_line,
+        end_line=end_line,
+        divisions=[Division("DATA", start_line, end_line)],
+    )
+
+    items, file_descriptors, dd_errors = data_division_mod.parse(synthetic, tokens)
+    errors.extend(dd_errors)
+
+    entities = [
+        Entity(type="copybook", name=name, start_line=start_line, end_line=end_line, qualified_name=name)
+    ]
+    entities.extend(_build_field_entities(name, items, file_descriptors))
+
+    chunks = [
+        Chunk(content=content, start_line=s, end_line=e, meta={"copybook": name, "format": source_format})
+        for content, s, e in _pack_whole_file(source_lines, chunk_size)
+    ]
+
+    return ParseResult(
+        program_name=name,
+        path=path,
+        source_format=source_format,
+        entities=entities,
+        edges=[],
+        chunks=chunks,
+        errors=errors,
+    )
+
+
+def _copybook_name(path: str) -> str:
+    stem = os.path.basename(path).partition(".")[0]
+    return stem.upper()

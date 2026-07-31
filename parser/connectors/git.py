@@ -33,12 +33,17 @@ from typing import AsyncIterator
 import redis
 
 import git_utils
+from cobol.model import ParseResult
+from cobol.copybook import CopybookIndex
+from cobol.parse import parse_copybook, parse_program
+from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import SessionLocal, REPOS_ROOT
-from models.database import DocumentChunk, KnowledgeSource, SourceScanFile
+from models.database import CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
 from ollama_client import ensure_model_pulled, get_embeddings_batch, get_embedding
 from code_parser import CodeParser
 from chunk_reindex import reindex_chunks_preserving_links
+from tasks.edge_resolver import resolve_global_edges
 from tasks.shared import get_authenticated_url
 from core import config
 
@@ -56,6 +61,51 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
 }
 
 MAX_READ_BYTES = 2 * 1024 * 1024
+
+# AP-4: diese beiden Klassifikationen bekommen eine echte Strukturanalyse
+# (parser/cobol/) statt des generischen CodeParser-Zeilenchunkings.
+_COBOL_LANGS = {"cobol", "copybook"}
+
+
+def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookIndex:
+    """Pass 0 (Plan §6.4/E-2): quellenweiter Copybook-Index, Name -> Liste
+    von Pfaden, ergänzt um die Felddefinitionen jedes lesbaren Copybooks.
+    Die Dateinamenauflösung bleibt billig; für E-2 werden Copybook-Inhalte
+    zusätzlich einmal in-memory geparst, ohne DB-Schreibzugriff. Läuft bei
+    JEDEM Sync über den GESAMTEN Baum, nicht nur über geänderte Dateien: ein
+    in diesem Sync geändertes Programm kann ein Copybook COPYen, das selbst
+    unverändert (und damit gar nicht Teil des Deltas) ist."""
+    copybook_exts = extensions.get("copybook", set())
+    if not copybook_exts:
+        return CopybookIndex()
+    tracked = git_utils.list_tracked_files(wt)
+    index = CopybookIndex()
+    for path in tracked:
+        if os.path.splitext(path)[1].lower() not in copybook_exts:
+            continue
+        name = os.path.splitext(os.path.basename(path))[0].upper()
+        index.setdefault(name, []).append(path)
+        full_path = os.path.join(wt, path)
+        try:
+            if os.path.getsize(full_path) > MAX_READ_BYTES:
+                continue
+            with open(full_path, "r", errors="ignore") as f:
+                parsed = parse_copybook(f.read(MAX_READ_BYTES), path)
+            index.fields_by_path[path] = [
+                {
+                    "name": entity.name,
+                    "parent": entity.parent_name,
+                    "qualified_name": entity.qualified_name,
+                    "path": path,
+                }
+                for entity in parsed.entities
+                if entity.type == "data_item"
+            ]
+        except OSError:
+            # Der Namensindex bleibt nutzbar; die XREF-Vererbung für diese
+            # einzelne, nicht lesbare Datei entfällt fehlertolerant (F-029).
+            continue
+    return index
 
 # Nur der Fetch/Worktree-Schritt läuft unter diesem Lock, nicht das komplette
 # Einbetten — sonst blockiert ein langer Embed-Lauf jeden anderen Sync
@@ -127,12 +177,36 @@ class GitConnector(BaseConnector):
     def __init__(self, source_id: int) -> None:
         super().__init__(source_id)
         self._new_commit: str | None = None
+        # Pass 0 (AP-4): Name -> Pfade, gefüllt in fetch_documents(), bevor
+        # die erste .cbl-Datei geparst wird - copybook.scan() braucht ihn zur
+        # COPY-Auflösung.
+        self._copybook_index: CopybookIndex = CopybookIndex()
+
+    def _parse_cobol(self, doc: Document, lang: str) -> ParseResult:
+        path = doc["storage_key"]
+        if lang == "copybook":
+            return parse_copybook(doc["content"], path)
+        return parse_program(doc["content"], path, self._copybook_index)
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
             lang = doc.get("extra_meta", {}).get("language", "text")
-            parser = CodeParser(lang)
-            chunks = await asyncio.to_thread(parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE)
+
+            parse_result: ParseResult | None = None
+            if lang in _COBOL_LANGS and not doc["extra_meta"].get("deleted"):
+                # F-020…034: COBOL-bewusste Struktur statt generischem
+                # Zeilenchunking - parse_program()/parse_copybook() sind rein
+                # in-memory (E-6), deshalb in einen Thread ausgelagert wie
+                # das generische Chunking auch (CPU-gebunden, würde sonst den
+                # Event-Loop blockieren).
+                parse_result = await asyncio.to_thread(self._parse_cobol, doc, lang)
+                chunks = [
+                    {"content": c.content, "start_line": c.start_line, "end_line": c.end_line, "meta": c.meta}
+                    for c in parse_result.chunks
+                ]
+            else:
+                parser = CodeParser(lang)
+                chunks = await asyncio.to_thread(parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE)
 
             chunk_texts = [c["content"] for c in chunks]
             embeddings = []
@@ -145,9 +219,11 @@ class GitConnector(BaseConnector):
             for chunk, embedding in zip(chunks, embeddings):
                 chunk["embedding"] = embedding
 
-            return doc, chunks
+            return doc, chunks, parse_result
 
-    async def _save_document_chunks(self, doc: Document, chunks: list[dict]) -> int:
+    async def _save_document_chunks(
+        self, doc: Document, chunks: list[dict], parse_result: ParseResult | None = None
+    ) -> int:
         def build_chunk(chunk, embedding):
             return DocumentChunk(
                 project_id=self.source.project_id,
@@ -162,6 +238,7 @@ class GitConnector(BaseConnector):
                     "title": doc["title"],
                     "source_type": doc["source_type"],
                     **doc["extra_meta"],
+                    **(chunk.get("meta") or {}),
                 }
             )
 
@@ -186,17 +263,48 @@ class GitConnector(BaseConnector):
                 SourceScanFile.source_id == self.source_id,
                 SourceScanFile.file_path == path,
             ).delete()
+            # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
+            # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
+            # korrekt, anders als beim Reparse-Fall in cobol_persist.py.
+            self.db.query(CodeEntity).filter(
+                CodeEntity.source_id == self.source_id,
+                CodeEntity.file_path == path,
+            ).delete(synchronize_session=False)
         else:
             content_hash = doc["extra_meta"]["content_hash"]
+
+            parse_status = None
+            parse_error = None
+            if parse_result is not None:
+                # F-029: errors != leer heißt nicht zwangsläufig "gar nicht
+                # geparst" (z.B. eine fehlende DATA DIVISION lässt Programm-/
+                # Paragraph-Entities trotzdem stehen) - aber es signalisiert
+                # dem Users-Tab/Diagnostics, dass diese Datei einen genaueren
+                # Blick verdient.
+                parse_status = "ok" if not parse_result.errors else "fallback_text"
+                parse_error = "; ".join(parse_result.errors) or None
+                persist_parse_result(
+                    self.db,
+                    project_id=self.source.project_id,
+                    source_id=self.source_id,
+                    file_path=path,
+                    content_hash=content_hash,
+                    result=parse_result,
+                )
+
             existing = self.db.query(SourceScanFile).filter(
                 SourceScanFile.source_id == self.source_id,
                 SourceScanFile.file_path == path,
             ).first()
             if existing:
                 existing.content_hash = content_hash
+                if parse_result is not None:
+                    existing.parse_status = parse_status
+                    existing.parse_error = parse_error
             else:
                 self.db.add(SourceScanFile(
                     source_id=self.source_id, file_path=path, content_hash=content_hash,
+                    parse_status=parse_status, parse_error=parse_error,
                 ))
 
         self.db.commit()
@@ -232,6 +340,10 @@ class GitConnector(BaseConnector):
                 await asyncio.to_thread(git_utils.ensure_worktree, bare, wt, branch, sparse_paths, self._log)
             else:
                 await asyncio.to_thread(git_utils.reset_worktree_to_branch, wt, branch)
+
+        # Pass 0 (Plan §6.4/E-2): Namen + Copybook-Felddefinitionen, bei
+        # jedem Sync über den vollen Baum - siehe _build_copybook_index().
+        self._copybook_index = await asyncio.to_thread(_build_copybook_index, wt, extensions)
 
         new_commit = await asyncio.to_thread(git_utils.current_commit, wt)
         self._new_commit = new_commit
@@ -385,8 +497,8 @@ class GitConnector(BaseConnector):
                 if len(pending_tasks) >= 50:
                     done, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
                     for t in done:
-                        doc, chunks = await t
-                        chunk_count = await self._save_document_chunks(doc, chunks)
+                        doc, chunks, parse_result = await t
+                        chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
                         total_chunks += chunk_count
                         processed += 1
                         self.has_changes = True
@@ -395,12 +507,19 @@ class GitConnector(BaseConnector):
             if pending_tasks:
                 done, _ = await asyncio.wait(pending_tasks)
                 for t in done:
-                    doc, chunks = await t
-                    chunk_count = await self._save_document_chunks(doc, chunks)
+                    doc, chunks, parse_result = await t
+                    chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
                     total_chunks += chunk_count
                     processed += 1
                     self.has_changes = True
                     self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+
+            # Pass 2 (Plan §6.4, E-1): globale Kanten (CALL/COPY) über den
+            # gesamten Sync-Lauf hinweg nachauflösen - erst jetzt sind alle in
+            # diesem Lauf geparsten Programme/Copybooks als Entities da.
+            resolved = await asyncio.to_thread(resolve_global_edges, self.db, self.source_id)
+            if resolved:
+                self._log(f"Kanten-Nachauflösung: {resolved} CALL/COPY-Kante(n) aufgelöst.")
 
             # sync_cursor erst nach erfolgreichem Durchlauf vorrücken, damit ein
             # Abbruch den nächsten Sync exakt denselben Diff neu berechnen lässt

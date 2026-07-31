@@ -35,7 +35,18 @@ import os
 from .lexer import Token
 from .model import CobolProgram, ParsedEdge
 
-CopybookIndex = dict[str, list[str]]
+class CopybookIndex(dict[str, list[str]]):
+    """Namensindex plus die bereits in Pass 0 gelesenen Felddefinitionen.
+
+    Ein normales ``dict`` bleibt als Eingabe erlaubt (Parser-API/Tests). Der
+    Connector benutzt diese Unterklasse, damit parse_program() die Felder des
+    eindeutig ausgewählten Copybooks erben kann, ohne dessen Text in das
+    Programm zu expandieren.
+    """
+
+    def __init__(self, *args, fields_by_path: dict[str, list[dict]] | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields_by_path = fields_by_path or {}
 
 _OPERAND_KINDS = ("PSEUDO_TEXT", "LITERAL", "WORD")
 
@@ -101,16 +112,21 @@ def scan(
 
 
 def _resolve(name: str, library: str | None, index: CopybookIndex) -> str:
+    return "resolved" if resolve_path(name, library, index) is not None else "unresolved"
+
+
+def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | None:
+    """Liefert nur bei eindeutiger COPY-Auflösung den konkreten Pfad."""
     paths = index.get(name.upper(), [])
     if not paths:
-        return "unresolved"
+        return None
     if len(paths) == 1:
-        return "resolved"
+        return paths[0]
     if library is not None:
         matches = [p for p in paths if os.path.basename(os.path.dirname(p)).upper() == library.upper()]
         if len(matches) == 1:
-            return "resolved"
-    return "unresolved"
+            return matches[0]
+    return None
 
 
 def _replacing_pair(tokens: list[Token], j: int) -> tuple[dict | None, int]:

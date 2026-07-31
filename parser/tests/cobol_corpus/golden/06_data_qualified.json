@@ -266,7 +266,9 @@
       "src_start_line": 24,
       "src_end_line": 24,
       "scope": "DATAQUAL",
-      "meta": {}
+      "meta": {
+        "parent": "GROUP-A"
+      }
     },
     {
       "type": "USES",
@@ -286,7 +288,9 @@
       "src_start_line": 25,
       "src_end_line": 25,
       "scope": "DATAQUAL",
-      "meta": {}
+      "meta": {
+        "parent": "GROUP-B"
+      }
     },
     {
       "type": "USES",
@@ -306,7 +310,9 @@
       "src_start_line": 25,
       "src_end_line": 25,
       "scope": "DATAQUAL",
-      "meta": {}
+      "meta": {
+        "parent": "GROUP-A"
+      }
     },
     {
       "type": "USES",
@@ -326,7 +332,9 @@
       "src_start_line": 26,
       "src_end_line": 26,
       "scope": "DATAQUAL",
-      "meta": {}
+      "meta": {
+        "parent": "WS-EOF-FLAG"
+      }
     }
   ],
   "chunks": [

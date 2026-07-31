@@ -8,10 +8,10 @@ reservierte Wörter nie gleichzeitig gültige Datennamen sein können: trifft ei
 WORD-Token einen Item-Namen, ist es per Sprachdefinition eine echte
 Feld-Referenz, keine Anweisung.
 
-Diese erste Fassung indiziert nur die `DataItem`s **dieses Programms** —
-docs/ENTSCHEIDUNGEN.md E-2 verlangt einen quellenweiten Index über
-Copybook-Grenzen hinweg, der erst mit copybook.py/parse.py entsteht (offen
-bis dahin, kein Blocker für dieses Teilstück).
+Zusätzlich zu den lokalen `DataItem`s kann der Scan die Felder der durch COPY
+eindeutig ausgewählten Copybooks übernehmen (E-2). Das Ziel wird dabei mit
+Copybook-Pfad und qualified_name festgehalten, damit die DB-Nachauflösung nie
+allein über einen quellenweit häufigen Feldnamen raten muss.
 
 Auflösung: genau ein Treffer im Index → resolved. Mehrere Treffer (derselbe
 Feldname in unterschiedlichen Gruppen, s. 06_data_qualified.cbl) werden über
@@ -38,7 +38,12 @@ def build_index(items: list[DataItem]) -> dict[str, list[DataItem]]:
     return index
 
 
-def scan(program: CobolProgram, tokens: list[Token], items: list[DataItem]) -> tuple[list[ParsedEdge], list[str]]:
+def scan(
+    program: CobolProgram,
+    tokens: list[Token],
+    items: list[DataItem],
+    inherited_fields: list[dict] | None = None,
+) -> tuple[list[ParsedEdge], list[str]]:
     errors: list[str] = []
     edges: list[ParsedEdge] = []
 
@@ -46,10 +51,13 @@ def scan(program: CobolProgram, tokens: list[Token], items: list[DataItem]) -> t
     if procedure_division is None:
         errors.append("Keine PROCEDURE DIVISION gefunden - USES-Kanten nicht durchsucht.")
         return edges, errors
-    if not items:
+    if not items and not inherited_fields:
         return edges, errors
 
     index = build_index(items)
+    for field in inherited_fields or []:
+        if field["name"].upper() != "FILLER":
+            index.setdefault(field["effective_name"].upper(), []).append(field)
     local_names = {p.name.upper() for p in program.paragraphs} | {s.name.upper() for s in program.sections}
 
     proc_tokens = [
@@ -67,30 +75,47 @@ def scan(program: CobolProgram, tokens: list[Token], items: list[DataItem]) -> t
         candidates = index[key]
         target, resolution = _resolve(candidates, proc_tokens, i, n)
 
+        meta = {}
+        if target is not None:
+            if isinstance(target, dict):
+                meta = {
+                    "copybook_path": target["path"],
+                    "target_qualified_name": target["qualified_name"],
+                }
+            elif target.parent:
+                meta = {"parent": target.parent}
+
         edges.append(
             ParsedEdge(
                 type="USES",
                 src_name=_enclosing_paragraph(program, tok.phys_line),
-                dst_name=target.name if target is not None else tok.value,
+                dst_name=(target["name"] if isinstance(target, dict) else target.name) if target is not None else tok.value,
                 resolution=resolution,
                 src_start_line=tok.phys_line,
                 src_end_line=tok.phys_line,
                 scope=program.name,
+                # target.parent überträgt die zur Parse-Zeit getroffene Disambiguierung
+                # (z.B. per OF/IN) an die Persistenz weiter - ohne das könnte persist.py
+                # bei mehreren gleichnamigen Datenfeldern im selben Programm nicht mehr
+                # rekonstruieren, welches der xref-Resolver tatsächlich gemeint hat
+                # (siehe 06_data_qualified.cbl).
+                meta=meta,
             )
         )
 
     return edges, errors
 
 
-def _resolve(
-    candidates: list[DataItem], proc_tokens: list[Token], idx: int, n: int
-) -> tuple[DataItem | None, str]:
+def _resolve(candidates: list, proc_tokens: list[Token], idx: int, n: int) -> tuple[object | None, str]:
     if len(candidates) == 1:
         return candidates[0], "resolved"
 
     qualifier = _qualifier_after(proc_tokens, idx, n)
     if qualifier is not None:
-        matches = [c for c in candidates if c.parent is not None and c.parent.upper() == qualifier]
+        matches = [
+            c for c in candidates
+            if ((c.get("effective_parent") if isinstance(c, dict) else c.parent) or "").upper() == qualifier
+        ]
         if len(matches) == 1:
             return matches[0], "resolved"
 
