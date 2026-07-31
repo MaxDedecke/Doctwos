@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { api } from '@/app/services/api';
+import { DoctusLogo } from './Logo';
 
 interface SidebarProps {
   theme: string;
@@ -217,9 +218,9 @@ export function Sidebar({
       animate={{ width: isSidebarOpen ? sidebarWidth : 0 }}
       transition={isResizingSidebar ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-          "h-full backdrop-blur-xl border-r flex flex-col transition-all duration-200 overflow-hidden",
+          "h-full border-r flex flex-col transition-all duration-150 overflow-hidden",
           "fixed md:relative top-0 left-0 md:top-auto md:left-auto z-50 md:z-30",
-          theme === 'dark' ? "bg-ds-zinc-900/95 md:bg-ds-zinc-900/60 border-ds-zinc-800/80" : "bg-ds-white md:bg-ds-zinc-100/90 border-ds-zinc-200",
+          theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-700" : "bg-ds-zinc-100 border-ds-zinc-300",
           !isSidebarOpen ? "pointer-events-none border-none" : "pointer-events-auto"
       )}
     >
@@ -232,6 +233,13 @@ export function Sidebar({
             className="flex flex-col h-full overflow-hidden"
             style={{ width: `${sidebarWidth}px` }}
           >
+            <div className={cn(
+              "hidden md:flex h-16 px-4 items-center justify-between border-b shrink-0",
+              theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
+            )}>
+              <DoctusLogo theme={theme} />
+              <span className="doctus-kicker text-ds-zinc-500">Workspace</span>
+            </div>
             {/* Sidebar Header */}
             <div className="px-4 pt-4 pb-2 flex md:hidden items-center justify-end shrink-0">
               {/* Mobile Close Button */}
@@ -252,7 +260,7 @@ export function Sidebar({
             </div>
 
             {/* Action Buttons (New Chat) */}
-            <div className="p-4 space-y-2">
+            <div className="p-4 space-y-2 border-b border-ds-zinc-800">
               <Button
                 onClick={() => {
                   startNewChat();
@@ -261,10 +269,10 @@ export function Sidebar({
                   }
                 }}
                 id="sidebar-new-chat-btn"
-                className="w-full justify-start gap-3 h-11 rounded-md bg-primary hover:brightness-110 text-primary-foreground border-0 transition-all duration-200"
+                className="w-full justify-between gap-3 h-11 rounded-md bg-primary hover:brightness-105 text-primary-foreground border-0 transition-all duration-150"
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-[11px] font-mono font-semibold uppercase tracking-[0.08em]">{t('sidebar.newChat')}</span>
+                  <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.14em]">{t('sidebar.newChat')}</span>
               </Button>
             </div>
 
@@ -531,16 +539,16 @@ export function Sidebar({
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-ds-blue-600 to-ds-indigo-600 flex items-center justify-center text-ds-white font-bold text-xs shadow-md shadow-ds-indigo-600/10 shrink-0">
-                    JD
+                  <div className="h-8 w-8 rounded-md border border-ds-indigo-500 bg-ds-indigo-500/10 flex items-center justify-center text-ds-indigo-400 font-mono font-bold text-[10px] shrink-0">
+                    ID
                   </div>
                   {/* User info */}
                   <div className="min-w-0">
                     <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
-                      John Doe
+                      Doctwos Nutzer
                     </p>
                     <p className="text-[9px] font-medium text-ds-zinc-500 leading-none truncate">
-                      developer@doctus.ai
+                      Lokale Sitzung
                     </p>
                   </div>
                 </div>

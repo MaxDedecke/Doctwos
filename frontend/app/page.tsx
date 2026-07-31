@@ -2268,19 +2268,11 @@ function AppContent() {
 
   return (
     <div className={cn(
-      "h-screen w-screen flex flex-col overflow-hidden font-sans relative transition-colors duration-250",
+      "h-screen w-screen flex flex-col overflow-hidden font-sans relative transition-colors duration-150 doctus-canvas",
       theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-zinc-50 text-ds-zinc-900"
     )}>
 
-      {/* Decorative ambient glowing blur effects */}
-      <div className={cn(
-        "absolute top-0 right-1/4 w-[600px] h-[300px] rounded-full blur-[150px] pointer-events-none z-0 transition-opacity duration-500",
-        theme === 'dark' ? "bg-ds-indigo-500/5 opacity-100" : "bg-ds-indigo-500/10 opacity-60"
-      )} />
-      <div className={cn(
-        "absolute bottom-0 left-1/4 w-[600px] h-[300px] rounded-full blur-[150px] pointer-events-none z-0 transition-opacity duration-500",
-        theme === 'dark' ? "bg-ds-blue-500/5 opacity-100" : "bg-ds-blue-500/10 opacity-60"
-      )} />
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-ds-indigo-500 pointer-events-none z-50" />
 
       {/* Custom Toast Notifications */}
       <AnimatePresence>
@@ -2422,16 +2414,10 @@ function AppContent() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative min-w-0 z-10">
 
-        {/* Technical grid overlay */}
-        <div className={cn(
-          "absolute inset-0 bg-[linear-gradient(to_right,#80808007_1px,transparent_1px),linear-gradient(to_bottom,#80808007_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none z-0 transition-opacity duration-200",
-          theme === 'dark' ? "opacity-100" : "opacity-40"
-        )} />
-
-        {/* Project-specific ambient background glow */}
+        {/* Project identity is a precise edge marker, not an ambient glow. */}
         {selectedProject?.color && (
           <div
-            className="absolute inset-0 pointer-events-none z-0 opacity-40 blur-[90px] transition-all duration-500"
+            className="absolute left-0 right-0 top-0 h-[2px] pointer-events-none z-20 transition-colors duration-300"
             style={{
               background: `radial-gradient(circle at 50% 50%, ${selectedProject.color} 0%, transparent 65%)`
             }}

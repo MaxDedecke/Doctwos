@@ -2,23 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AP-7 design tokens. RGB channels keep Tailwind opacity modifiers working.
-   Fujitsu red is reserved for interactive emphasis; status and graph colors
-   are separate semantic tokens derived from this single palette. */
+/* Doctwos "Structured Intelligence" design system. RGB channels keep
+   Tailwind opacity modifiers working. */
 @layer base {
   :root {
     --ds-white: 255 255 255;
     --ds-black: 0 0 0;
-    --ds-background: 244 243 239;
-    --ds-surface: 250 249 246;
-    --ds-surface-muted: 235 233 227;
-    --ds-foreground: 27 31 39;
-    --ds-foreground-muted: 92 102 117;
-    --ds-border: 195 202 214;
-    --ds-input: 195 202 214;
-    --ds-accent: 228 0 43;
-    --ds-on-accent: 255 255 255;
-    --ds-focus: 228 0 43;
+    --ds-background: 239 241 234;
+    --ds-surface: 250 251 247;
+    --ds-surface-muted: 225 230 221;
+    --ds-foreground: 16 34 32;
+    --ds-foreground-muted: 78 96 91;
+    --ds-border: 174 187 179;
+    --ds-input: 159 176 166;
+    --ds-accent: 0 122 94;
+    --ds-on-accent: 245 255 251;
+    --ds-focus: 0 122 94;
     --ds-danger: 190 18 60;
     --ds-on-danger: 255 255 255;
 
@@ -42,12 +41,12 @@
     --ds-neutral-900: 16 19 25;
     --ds-neutral-950: 11 13 16;
 
-    --ds-accent-soft: 255 229 234;
-    --ds-accent-base: 228 0 43;
-    --ds-accent-strong: 166 0 31;
-    --ds-info-soft: 219 234 254;
-    --ds-info-base: 37 99 235;
-    --ds-info-strong: 30 64 175;
+    --ds-accent-soft: 207 250 235;
+    --ds-accent-base: 0 122 94;
+    --ds-accent-strong: 0 82 64;
+    --ds-info-soft: 207 245 249;
+    --ds-info-base: 8 145 178;
+    --ds-info-strong: 14 94 116;
     --ds-success-soft: 209 250 229;
     --ds-success-base: 5 150 105;
     --ds-success-strong: 6 95 70;
@@ -64,19 +63,20 @@
     --ds-graph-b-base: 219 39 119;
     --ds-graph-b-strong: 157 23 77;
 
-    --radius: 0.125rem;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --ds-background: 11 13 16;
-    --ds-surface: 16 19 25;
-    --ds-surface-muted: 27 31 39;
-    --ds-foreground: 233 237 244;
-    --ds-foreground-muted: 169 178 192;
-    --ds-border: 38 43 53;
-    --ds-input: 38 43 53;
-    --ds-accent: 255 51 85;
-    --ds-focus: 255 51 85;
+    --ds-background: 6 18 18;
+    --ds-surface: 11 27 26;
+    --ds-surface-muted: 18 43 40;
+    --ds-foreground: 231 244 238;
+    --ds-foreground-muted: 147 174 164;
+    --ds-border: 38 67 62;
+    --ds-input: 49 82 75;
+    --ds-accent: 53 242 181;
+    --ds-on-accent: 3 30 24;
+    --ds-focus: 53 242 181;
     --ds-danger: 248 113 113;
   }
 }
@@ -87,7 +87,28 @@
   }
   body {
     @apply bg-background text-foreground;
+    letter-spacing: -0.01em;
   }
+}
+
+::selection {
+  background: rgb(var(--ds-accent) / 0.28);
+  color: rgb(var(--ds-foreground));
+}
+
+.doctus-canvas {
+  background-image:
+    linear-gradient(rgb(var(--ds-border) / 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--ds-border) / 0.12) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.doctus-kicker {
+  font-family: var(--font-ibm-plex-mono), monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 /* Slim, theme-aware scrollbars. */

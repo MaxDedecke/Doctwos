@@ -84,46 +84,54 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
     }
   };
 
-  const inputClass = "w-full h-10 bg-ds-zinc-950/60 border-ds-zinc-800 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-ds-blue-500/40";
+  const inputClass = "w-full h-11 rounded-md bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-2 focus-visible:ring-ds-indigo-500 focus-visible:border-ds-indigo-500";
 
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-ds-zinc-950 text-ds-zinc-200 font-sans relative overflow-hidden">
-      {/* Premium glowing background mesh gradients */}
-      <div className="absolute top-[-20%] left-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-ds-blue-600/10 pointer-events-none z-0 animate-pulse [animation-duration:8000ms]" />
-      <div className="absolute bottom-[-20%] right-[-15%] w-[60%] h-[60%] rounded-full blur-[140px] bg-ds-indigo-600/10 pointer-events-none z-0 animate-pulse [animation-duration:10000ms]" />
-      <div className="absolute top-[40%] left-[35%] w-[30%] h-[30%] rounded-full blur-[160px] bg-ds-violet-600/5 pointer-events-none z-0" />
+    <div className="min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] bg-ds-zinc-950 text-ds-zinc-200 font-sans overflow-hidden">
+      <section className="hidden lg:flex relative flex-col justify-between border-r border-ds-zinc-800 p-12 doctus-canvas overflow-hidden">
+        <div className="absolute left-0 top-0 h-full w-2 bg-ds-indigo-500" />
+        <div className="flex items-center gap-3">
+          <DoctusIcon className="h-10 w-10" />
+          <DoctusWordmark className="h-9 w-32" theme="dark" />
+        </div>
+        <div className="max-w-2xl">
+          <p className="doctus-kicker text-ds-indigo-400 mb-5">Legacy intelligence workspace</p>
+          <h1 className="font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em] text-ds-zinc-100">
+            Understand the systems that run everything.
+          </h1>
+          <div className="mt-10 grid grid-cols-3 border-y border-ds-zinc-800 py-5 text-ds-zinc-400">
+            <span className="doctus-kicker">Trace</span>
+            <span className="doctus-kicker">Explain</span>
+            <span className="doctus-kicker">Modernize</span>
+          </div>
+        </div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ds-zinc-600">Private · Local · Auditable</p>
+      </section>
 
-      {/* Animated subtle grid background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-0" />
-      {/* Extra dot matrix pattern overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(#ffffff03_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none z-0" />
-
-      <div className="w-full max-w-[420px] z-10 px-6">
+      <section className="relative flex items-center justify-center p-6 sm:p-12 bg-ds-zinc-900">
+      <div className="absolute inset-x-0 top-0 h-1 bg-ds-indigo-500 lg:hidden" />
+      <div className="w-full max-w-[420px] z-10">
 
         {/* Login Card */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
-          className="relative group border border-ds-zinc-800/80 rounded-lg bg-ds-zinc-900/40 backdrop-blur-2xl shadow-2xl p-7 space-y-6 overflow-hidden"
+          transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
+          className="relative border-t-2 border-ds-indigo-500 bg-ds-zinc-950 p-7 sm:p-9 space-y-7 shadow-[10px_10px_0_rgb(var(--ds-neutral-800))]"
         >
-          {/* Top border ambient light beam effect */}
-          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-ds-zinc-700/50 to-transparent group-hover:via-ds-blue-500/30 transition-all duration-500" />
-
-          <div className="flex flex-col items-center mb-2 select-none">
-            <div className="relative flex items-center gap-3.5 justify-center">
-              {/* Soft glowing aura behind the logo */}
-              <div className="absolute inset-0 bg-ds-blue-500/20 rounded-full blur-xl scale-150 animate-pulse pointer-events-none" />
-              <DoctusIcon className="h-10 w-10 relative z-10 filter drop-shadow-[0_0_15px_rgba(77,127,255,0.3)] hover:scale-105 transition-transform duration-300" />
-              <DoctusWordmark className="h-8 w-24 relative z-10" theme="dark" />
+          <div className="flex items-center justify-between lg:hidden select-none">
+            <div className="flex items-center gap-3">
+              <DoctusIcon className="h-9 w-9" />
+              <DoctusWordmark className="h-8 w-28" theme="dark" />
             </div>
           </div>
 
-          <div className="space-y-1 text-center">
-            <h2 className="text-base font-heading font-semibold text-ds-zinc-100 tracking-tight">
+          <div className="space-y-2 border-b border-ds-zinc-800 pb-6">
+            <p className="doctus-kicker text-ds-indigo-400">Secure access / 01</p>
+            <h2 className="text-3xl font-heading font-semibold text-ds-zinc-100 tracking-[-0.035em]">
               {mustChangePassword ? t('loginView.changeTitle') : t('loginView.title')}
             </h2>
-            <p className="text-[11px] text-ds-zinc-500">
+            <p className="text-sm text-ds-zinc-500">
               {mustChangePassword ? t('loginView.changeHint') : t('loginView.description')}
             </p>
           </div>
@@ -159,7 +167,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 type="submit"
                 disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 rounded-lg bg-gradient-to-r from-ds-blue-600 to-ds-indigo-600 hover:from-ds-blue-500 hover:to-ds-indigo-500 text-ds-white font-semibold shadow-lg shadow-ds-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-black font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -199,7 +207,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 type="submit"
                 disabled={isSubmitting || !username || !password}
                 className={cn(
-                  "w-full h-11 rounded-lg bg-gradient-to-r from-ds-blue-600 to-ds-indigo-600 hover:from-ds-blue-500 hover:to-ds-indigo-500 text-ds-white font-semibold shadow-lg shadow-ds-indigo-600/10 border-0 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-black font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -216,12 +224,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-center text-[10px] text-ds-zinc-600 mt-6 select-none"
+          className="text-left font-mono uppercase tracking-[0.14em] text-[9px] text-ds-zinc-600 mt-7 select-none"
         >
           {t('loginView.footer')}
         </motion.p>
 
       </div>
+      </section>
     </div>
   );
 };

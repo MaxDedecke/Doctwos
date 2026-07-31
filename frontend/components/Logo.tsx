@@ -7,7 +7,7 @@ interface LogoProps extends React.SVGProps<SVGSVGElement> {
 }
 
 /**
- * DoctusIcon - Renders just the stylized "C" knowledge network icon.
+ * DoctusIcon - A structural D assembled from a frame and a forward trace.
  */
 export const DoctusIcon: React.FC<LogoProps> = ({ className, ...props }) => {
   return (
@@ -18,24 +18,10 @@ export const DoctusIcon: React.FC<LogoProps> = ({ className, ...props }) => {
       className={cn("w-full h-full", className)}
       {...props}
     >
-      {/* Outer ring (the "C" shape, open) */}
-      <path
-        d="M 60 20 A 30 30 0 1 0 60 80"
-        stroke="rgb(var(--ds-accent))"
-        strokeWidth="10"
-        strokeLinecap="round"
-        fill="none"
-      />
-      {/* Center node */}
-      <circle cx="50" cy="50" r="9" fill="rgb(var(--ds-accent))" />
-      {/* Connecting nodes */}
-      <circle cx="60" cy="20" r="6" fill="rgb(var(--ds-accent-base))" />
-      <circle cx="60" cy="80" r="6" fill="rgb(var(--ds-accent-base))" />
-      <circle cx="32" cy="50" r="6" fill="rgb(var(--ds-accent-base))" />
-      {/* Connection lines */}
-      <line x1="50" y1="50" x2="60" y2="20" stroke="rgb(var(--ds-accent-base))" strokeWidth="3" />
-      <line x1="50" y1="50" x2="60" y2="80" stroke="rgb(var(--ds-accent-base))" strokeWidth="3" />
-      <line x1="50" y1="50" x2="32" y2="50" stroke="rgb(var(--ds-accent-base))" strokeWidth="3" />
+      <path d="M18 14H48C72 14 86 28 86 50C86 72 72 86 48 86H18V14Z" fill="rgb(var(--ds-accent))" />
+      <path d="M35 30H48C61 30 69 37 69 50C69 63 61 70 48 70H35V30Z" fill="rgb(var(--ds-background))" />
+      <path d="M8 50H50" stroke="rgb(var(--ds-on-accent))" strokeWidth="8" />
+      <path d="M43 40L55 50L43 60" stroke="rgb(var(--ds-on-accent))" strokeWidth="6" strokeLinecap="square" strokeLinejoin="miter" />
     </svg>
   );
 };
@@ -47,7 +33,7 @@ export const DoctusWordmark: React.FC<LogoProps> = ({ className, theme, ...props
   const isDark = theme === 'dark';
   return (
     <svg
-      viewBox="0 0 160 100"
+      viewBox="0 0 220 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("w-full h-full", className)}
@@ -57,13 +43,13 @@ export const DoctusWordmark: React.FC<LogoProps> = ({ className, theme, ...props
         x="5"
         y="65"
         fontFamily="'Space Grotesk', Helvetica, Arial, sans-serif"
-        fontSize="40"
-        fontWeight="700"
-        letterSpacing="2"
+        fontSize="42"
+        fontWeight="600"
+        letterSpacing="-1"
         fill={isDark ? "rgb(var(--ds-neutral-100))" : "rgb(var(--ds-neutral-800))"}
         className="transition-colors duration-200"
       >
-        doctus
+        doctwos
       </text>
     </svg>
   );
@@ -88,7 +74,7 @@ export const DoctusLogo: React.FC<DoctusLogoProps> = ({
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <DoctusIcon className={cn("h-8 w-8 shrink-0", iconClassName)} />
-      <DoctusWordmark className={cn("h-8 w-20 shrink-0", wordmarkClassName)} theme={theme} />
+      <DoctusWordmark className={cn("h-8 w-24 shrink-0", wordmarkClassName)} theme={theme} />
     </div>
   );
 };

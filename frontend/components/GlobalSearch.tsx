@@ -266,8 +266,8 @@ export function GlobalSearch({
     <div
       ref={containerRef}
       className={cn(
-        "h-12 shrink-0 w-full flex items-center gap-3 px-3 border-b relative z-40 transition-all duration-300",
-        theme === 'dark' ? "bg-ds-zinc-950/90 border-ds-zinc-800" : "bg-ds-white/90 border-ds-zinc-200"
+        "h-14 shrink-0 w-full flex items-center gap-3 px-4 border-b relative z-40 transition-colors duration-150",
+        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-700" : "bg-ds-white border-ds-zinc-300"
       )}
     >
       <Button
@@ -275,13 +275,13 @@ export function GlobalSearch({
         size="icon"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
         className={cn(
-          "h-8 w-8 rounded-lg border transition-all duration-200 shrink-0 group",
+          "h-9 w-9 rounded-md border transition-all duration-150 shrink-0 group",
           theme === 'dark'
-            ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-            : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+            ? "bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-300 hover:text-ds-indigo-400 hover:border-ds-indigo-500"
+            : "bg-ds-zinc-50 border-ds-zinc-300 text-ds-zinc-700 hover:text-ds-indigo-700 hover:border-ds-indigo-500"
         )}
       >
-        <DoctusIcon className="h-5 w-5 block group-hover:hidden filter drop-shadow-[0_0_8px_rgba(77,127,255,0.15)]" />
+        <DoctusIcon className="h-5 w-5 block group-hover:hidden" />
         <Menu className="w-4 h-4 hidden group-hover:block" />
       </Button>
 
@@ -299,7 +299,7 @@ export function GlobalSearch({
           }}
         >
           <SelectTrigger id="project-selector" className={cn(
-            "h-8 text-xs border rounded-lg w-auto min-w-[155px] max-w-[220px] font-semibold px-2.5 gap-2",
+            "h-9 text-[11px] border rounded-md w-auto min-w-[155px] max-w-[220px] font-mono font-semibold uppercase tracking-wide px-2.5 gap-2",
             theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
           )}>
             <SelectValue placeholder={t('page.generalContext') || "Allgemein"} />
@@ -329,7 +329,7 @@ export function GlobalSearch({
           onKeyDown={handleKeyDown}
           placeholder={t('globalSearch.placeholder')}
           className={cn(
-            "w-full border rounded-lg pl-8 pr-8 py-1.5 text-xs focus:outline-none transition-all font-sans",
+            "w-full h-9 border rounded-md pl-8 pr-8 text-xs focus:outline-none transition-all font-sans",
             theme === 'dark'
               ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-600 focus:border-ds-indigo-700"
               : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-800 placeholder-zinc-400 focus:border-ds-indigo-300"
