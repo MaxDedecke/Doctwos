@@ -14,6 +14,13 @@ Spaltenposition jedes Tokens exakt bleibt. Bekannte Grenze: ein normales Wort
 zerfällt in zwei Tokens — dieser Fall ist in der Praxis selten (Continuation
 dient primär langen Literalen/PICTURE-Klauseln) und im Testkorpus nicht
 abgedeckt.
+
+SYMBOL deckt bewusst nur `(`/`)` ab — die einzigen PICTURE-Klausel-Zeichen,
+die sonst stillschweigend aus dem Tokenstrom fallen würden (`_TOKEN_RE`
+matcht nur, was ein `finditer` trifft; unbekannte Zeichen werden sonst
+übersprungen). `data_division.py` rekonstruiert eine PIC-Klausel wie
+`X(10)V99` durch lückenloses Aneinanderhängen der Token-Werte anhand ihrer
+Spaltenposition — dafür müssen die Klammern als eigene Tokens auftauchen.
 """
 
 from __future__ import annotations
@@ -31,6 +38,7 @@ _TOKEN_RE = re.compile(
     | (?P<NUMBER>\d+(?:\.\d+)?(?![A-Za-z\-]))
     | (?P<WORD>[A-Za-z0-9][A-Za-z0-9\-]*)
     | (?P<PERIOD>\.)
+    | (?P<SYMBOL>[()])
     """,
     re.VERBOSE,
 )
