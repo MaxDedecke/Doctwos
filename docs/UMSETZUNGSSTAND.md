@@ -1,6 +1,6 @@
-# Doctus — Umsetzungsstand
+# Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-7 abgeschlossen — Design-Tokens und Job-Center umgesetzt)
+**Zuletzt aktualisiert:** 31.07.2026 (AP-7 abgeschlossen; eigenständiges Doctwos-Redesign und Fujitsu-Farbwelt ausgerollt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -19,7 +19,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | **fertig** — Pass 0-2, quellenweite XREF-Vererbung, budgetiertes 1-Hop-Graph-Retrieval sowie `/entities`- und `/callgraph`-Router stehen und sind getestet |
 | **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
-| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — zentrale Light/Dark-Tokens, Fujitsu-Akzent, CI-Gate sowie Job-Center + de/en umgesetzt |
+| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — Light/Dark-Tokens, Fujitsu-Rot-Blau-Markenverlauf, eigenständige Workspace-Optik, CI-Gate sowie Job-Center + de/en umgesetzt |
 | **AP-8** | Konnektoren-Nachzug | offen |
 | **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
 
@@ -917,12 +917,22 @@ per Autogenerate gegengeprüft (Delta leer).
   bleibt bis dahin unbekannt
 - Früherer COBOL-Parser-Ansatz ist nicht verfügbar → AP-2 rechnet mit dem oberen Ende
   der Schätzung
-- Fujitsu-CI-Werte fehlen (NF-006) → Design-Tokens werden mit Platzhaltern gebaut
 - BITV-Umfang nicht verbindlich (NF-012)
 
 ---
 
-## Nächste Schritte
+## Aktuell nächste Schritte
+
+1. **AP-8:** Upload sowie Confluence/Jira/WebDAV/FolderWatch nachtesten und die
+   beim Entkernen verlorene Orphan-/Download-Testabdeckung ergänzen.
+2. **AP-9:** Lasttest am repräsentativen COBOL-Bestand, BITV-Abnahme,
+   Lizenzprüfung, Offline-Bundle und Abschlussdokumentation.
+3. **Extern erforderlich:** repräsentativen COBOL-Beispielbestand und den
+   verbindlichen BITV-Prüfumfang bereitstellen.
+
+---
+
+## Umsetzungschronik
 
 1. ~~**AP-2 starten**~~ — Fundament erledigt am 31.07.2026: `source_format.py` +
    `embedded.py` + `lexer.py`, siehe Abschnitt „AP-2 — Fundament" oben.
@@ -1050,3 +1060,13 @@ per Autogenerate gegengeprüft (Delta leer).
     Design-Token-Check, TypeScript, Vitest (4/4), Tailwind-Kompilierung und
     `git diff --check` sind grün. ESLint meldet weiterhin fünf bereits vor AP-7
     vorhandene React-Hook-Befunde; die Token-Migration hat keine neuen erzeugt.
+
+18. **Doctwos-Redesign und Fujitsu-Farbwelt** — die visuelle Sprache wurde vom
+    übernommenen Beispielprojekt gelöst: neues geometrisches Doctwos-Zeichen,
+    asymmetrischer Login, klare Workspace-/Sidebar-Flächen ohne Glassmorphism und
+    eine dokumentierte „Structured Intelligence“-Designsprache. Fujitsu-Rot führt
+    Fokus und Auswahl; ein kontrollierter Rot-Violett-Blau-Verlauf markiert
+    Primäraktionen und Identitätsflächen. Die redundante Logo-/Workspace-Zeile in
+    der Sidebar wurde wieder entfernt. Produktions-Build, TypeScript und Vitest
+    (4/4) sind grün; das aktualisierte Frontend wurde als gesundes Docker-Image
+    ausgerollt und antwortet mit HTTP 200.

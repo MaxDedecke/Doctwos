@@ -1,16 +1,16 @@
-# Doctus — Technischer Implementierungsplan v1.0
+# Doctwos — Technischer Implementierungsplan v1.0
 
-> **Umsetzungsstand (31.07.2026):** AP-0 bis AP-4 abgeschlossen und verifiziert.
-> AP-5 abgeschlossen: Panel-Typen, Fokusobjekt je Code-Panel, gruppiertes
-> Entity-Referenzen-Menü und F-069 (persistierte Zeilen-Referenz im Chat) sind
-> umgesetzt. AP-5 bis AP-7 sind abgeschlossen: Job-Center, de/en-i18n und die
-> Design-Token-Migration samt CI-Gate stehen. Als Nächstes folgt AP-8.
+> **Umsetzungsstand (31.07.2026):** AP-0 bis AP-7 sind abgeschlossen und
+> verifiziert. Dazu gehören der COBOL-Parser, resumable Multi-Branch-Git-Sync,
+> Entity-/Kantenpersistenz, Fokus- und Zeilenreferenzen, Call-Graph, Job-Center,
+> de/en-i18n sowie das eigenständige Doctwos-Redesign mit Fujitsu-Farbwelt.
+> Als Nächstes folgt AP-8.
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
 **Basis:** Anforderungskatalog v1.2 (Stand 31.07.2026) · Condo-Template (`develop`, Commit 27789d4)
 **Zielrepo:** `MaxDedecke/Doctwos`
-**Leitprinzip dieses Plans:** *Maximale Übernahme, minimaler Neubau.* Doctus ist kein Greenfield-Projekt, sondern ein **Fork des Condo-Templates mit ausgetauschter Fachlogik**. Alles, was nicht COBOL-spezifisch ist, wird 1:1 übernommen — inklusive Bugs, Kommentaren und Betriebs-Härtungen, die dort bereits erkämpft wurden.
+**Leitprinzip dieses Plans:** *Maximale Übernahme, minimaler Neubau.* Doctwos ist kein Greenfield-Projekt, sondern ein **Fork des Condo-Templates mit ausgetauschter Fachlogik**. Alles, was nicht COBOL-spezifisch ist, wird 1:1 übernommen — inklusive Bugs, Kommentaren und Betriebs-Härtungen, die dort bereits erkämpft wurden.
 
 ---
 
@@ -42,7 +42,7 @@ Condo-develop/                 43.937 LOC (Python + TS/TSX, ohne node_modules)
 ├── parser/      Celery-Worker, 12 Konnektoren, BaseConnector-ABC + Registry
 ├── frontend/    Next.js, Monaco, SplitPaneWorkspace, KnowledgeGraphView, Settings-Wizard
 ├── docker-compose{,.dev,.offline}.yml, install.sh, scripts/build-offline-bundle.sh
-└── docs/        24 Dokumente, u.a. OPEN_SOURCE_CLEARING.md
+└── docs/        Architektur-, Betriebs- und Sicherheitsdokumentation
 ```
 
 ### 1.2 Wichtige Befunde aus der Code-Analyse
@@ -63,7 +63,10 @@ Condo-develop/                 43.937 LOC (Python + TS/TSX, ohne node_modules)
 ### 1.3 Offene Eingaben (blockieren nichts, aber früh klären)
 
 1. **Der „bestehende frühere COBOL-Parser-Ansatz"** (Entscheidungspunkt 2) liegt nicht auf dieser Maschine. → Bitte bereitstellen; er bestimmt, ob AP-2 bei 6 oder 8 Wochen landet.
-2. **Fujitsu-CI-Werte** (Hex-Farben, Logo-Assets, Hausschrift-Lizenz) aus dem internen Brand-Portal (NF-006).
+2. **Fujitsu-Originalassets optional nachziehen:** Die produktive Farbwelt und der
+   Rot-Blau-Markenverlauf sind umgesetzt. Falls später ein freigegebenes Logo oder
+   die lizenzierte Hausschrift bereitgestellt wird, werden diese zentral in das
+   bestehende Token-/Typografiesystem aufgenommen (NF-006 ist nicht blockiert).
 3. **Reale Bestandszahlen** der DRV (Anzahl Programme/Copybooks/Dateien, Repo-Größe) für die Lasttest-Abnahme (NF-010).
 4. **Repräsentativer COBOL-Beispielbestand** für den Testkorpus (F-033) — ohne den ist der Parser nicht abnehmbar.
 
@@ -132,7 +135,7 @@ Legende: **Ü** = 1:1 übernehmen · **U** = umbenennen/anpassen · **N** = Neub
 | `db.py`, `utils.py`, `ollama_client.py`, `core/config.py`, `core/tracing.py` | **Ü** | inkl. OCR-Fallback |
 | `chunk_reindex.py` | **Ü** | `reindex_chunks_preserving_links` ist kritisch — Links überleben Re-Sync |
 | `connectors/base.py` (287 LOC) | **Ü** | Sync-Lock, Progress, Logging — das Fundament von F-013/F-014 |
-| `connectors/registry.py` | U | Registry-Einträge auf Doctus-Typen reduzieren |
+| `connectors/registry.py` | U | Registry-Einträge auf Doctwos-Typen reduzieren |
 | `connectors/git.py` (348 LOC) | **U (groß)** | → `CobolGitConnector`, Abschnitt 7 |
 | `connectors/confluence.py`, `jira.py`, `webdav.py`, `folder.py`, `http_retry.py`, `extract.py` | **Ü** | F-011/F-012/F-017 damit erledigt |
 | `connectors/ifc.py`, `dwg.py`, `gaeb.py`, `dalux.py`, `autodesk.py`, `notion.py` | X | |
@@ -168,7 +171,7 @@ Legende: **Ü** = 1:1 übernehmen · **U** = umbenennen/anpassen · **N** = Neub
 | `install.sh`, `scripts/build-offline-bundle.sh`, `scripts/install-offline.sh` | **Ü** |
 | `.github/workflows/ci.yml` | U — + Parser-Golden-File-Job (F-033) |
 | `.github/keycloak/` | X |
-| `docs/OPEN_SOURCE_CLEARING.md` | **Ü** als Vorlage (NF-003 Pflichtartefakt) |
+| Lizenz-/Provenienzbericht | N — in AP-9 aus den tatsächlichen Lockfiles und Modellmanifesten erzeugen |
 | `docs/DEPLOYMENT.md`, `FOLDER_WATCH.md`, `PROMPT_INJECTION.md`, `DIAGNOSTICS_HARDENING.md`, `PROJECT_ACCESS_CONTROL.md`, `TEAM_ACCESS_CONTROL.md` | U |
 | `AEC_FEATURES.md`, `COMPLIANCE_EVAL*.md`, `IFC_*`, `Businessplan*`, `ROADMAP_PILOTKUNDE.md`, `watched/` | X |
 
@@ -196,7 +199,7 @@ git rm backend/alembic/versions/*.py     # alle 33
 #   → eine einzige neue Baseline-Migration (Abschnitt 5)
 
 # AP-0.4 — Rename condo→doctus (Bezeichner, Container, Cookie, DB, Images)
-grep -rl 'condo\|Condo\|CONDO' --exclude-dir=.git . | xargs sed -i 's/condo/doctus/g; s/Condo/Doctus/g; s/CONDO/DOCTUS/g'
+grep -rl 'condo\|Condo\|CONDO' --exclude-dir=.git . | xargs sed -i 's/condo/doctus/g; s/Condo/Doctwos/g; s/CONDO/DOCTUS/g'
 #   Achtung: danach `docker-compose*.yml`, `.env.example`, `install.sh` manuell durchsehen
 #   (Volume-Pfade ./data/postgres bleiben, Image-Digests bleiben).
 
@@ -594,8 +597,11 @@ Eigenständige Komponente, aber **Layout-/Zoom-/Fokus-Bausteine aus `KnowledgeGr
 > `--ds-*`-Tokens in `globals.css`; Tailwind löst UI-Farben ausschließlich über
 > diese Variablen auf. Komponenten verwenden den `ds`-Namespace, Graph-/Canvas-
 > Farben werden zur Laufzeit aus denselben Tokens aufgelöst. Fujitsu-Rot ist der
-> Interaktionsakzent. Der blockierende CI-Job `design-tokens` weist harte Hexwerte
-> und Tailwind-Standardfarben im Komponentenbaum zurück.
+> Interaktionsakzent; der definierte Rot-Violett-Blau-Markenverlauf ist auf
+> Primäraktionen und Identitätsflächen beschränkt. Der blockierende CI-Job
+> `design-tokens` weist harte Hexwerte und Tailwind-Standardfarben im
+> Komponentenbaum zurück. Die verbindlichen Gestaltungsregeln stehen in
+> `docs/DESIGN_GUIDELINES.md`.
 
 ```
 frontend/app/globals.css     :root { --ds-* } Light-first + Dark-Variante
@@ -603,7 +609,7 @@ frontend/tailwind.config.js  theme.extend.colors → ausschließlich var(--ds-*)
 ```
 Regeln:
 - **Eine** Quelle für Farbe. Ein ESLint-/CI-Check verbietet Hex-Literale und `text-blue-500`-artige Tailwind-Farbklassen in `components/`.
-- Fujitsu-Rot nur als `--ds-accent` für CTAs, aktive Zustände, Fokusringe, Logo — **nie** als Fließtextfarbe (Kontrast, NF-012).
+- Fujitsu-Rot als `--ds-accent` für aktive Zustände, Fokusringe und Logo — **nie** als Fließtextfarbe; der Markenverlauf nur für primäre CTAs und Brand-Flächen (Kontrast, NF-012).
 - Kantentyp-Farben der Graph-Views werden aus der Token-Palette abgeleitet, nicht einzeln gesetzt.
 - Monaco behält ein eigenes Entwickler-Farbschema (explizit erlaubt).
 - Die bestehende Condo-Palette in `tailwind.config.js` wird **ersetzt**, nicht ergänzt — sonst bleiben zwei Systeme nebeneinander bestehen.
@@ -671,7 +677,11 @@ Bestehende Jobs übernehmen + ergänzen:
 > Lauf —, ist offen.
 
 ### 12.4 NF-003 OSS-Clearing
-`docs/OPEN_SOURCE_CLEARING.md` aus dem Template übernehmen und neu befüllen. Zu prüfende Änderungen gegenüber Condo: **entfernt** ifcopenshell/ezdxf/authlib/`@notionhq/notion-mcp-server`; **neu** argon2-cffi (MIT); **weiterhin zu bestätigen** Mistral NeMo (Apache 2.0), bge-m3 (MIT), Valkey (BSD-3), pgvector (PostgreSQL License). Ein CI-Job (`pip-licenses`/`license-checker`) hält die Liste aktuell. **Release-Voraussetzung.**
+In AP-9 wird der Lizenz-/Provenienzbericht neu aus den tatsächlich ausgelieferten
+Python-/Node-Lockfiles, Container-Images und Modellmanifesten erzeugt. Zu prüfen
+sind insbesondere argon2-cffi, Mistral NeMo, bge-m3, Valkey und pgvector. Ein
+CI-Job (`pip-licenses`/`license-checker`) hält die Freigabeliste anschließend
+aktuell. **Release-Voraussetzung.**
 
 ### 12.5 NF-012 Barrierefreiheit
 Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Typen, sichtbare Fokusringe (Token `--ds-focus`), Kontrastprüfung im Design-Token-Check, `aria-live` für Job-Center und Streaming-Antworten, semantische Baumnavigation in Sidebar/Referenzen-Menü. Verbindlichen BITV-Umfang früh mit dem Auftraggeber klären.
@@ -684,12 +694,12 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 |----|--------|--------------|-----|---------------|
 | ~~**AP-0**~~ | ~~Fork, Entkernung, Rename, Alembic-Baseline, Erststart grün~~ **erledigt** | — | 1,0 | Kat. 2.1/2.2 |
 | ~~**AP-1**~~ | ~~Lokale Auth, Bootstrap-Superuser, User-Verwaltung, Rate-Limit~~ **erledigt** | AP-0 | 1,5 | F-001…006 |
-| **AP-2** | **COBOL-Parser + Testkorpus** | AP-0 | 7,5 | F-020…034 |
+| ~~**AP-2**~~ | ~~COBOL-Parser + Testkorpus~~ **erledigt** | AP-0 | 7,5 | F-020…034 |
 | ~~**AP-3**~~ | ~~Monorepo-Git-Konnektor, Multi-Branch, resumable Sync~~ **erledigt** | AP-0 | 2,0 | F-010, F-016, F-019, NF-004 |
-| **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | AP-2, AP-3 | 2,0 | F-030…032, F-041, F-043 |
+| ~~**AP-4**~~ | ~~Entity-/Kanten-Persistenz + Nachauflösung + Retrieval~~ **erledigt** | AP-2, AP-3 | 2,0 | F-030…032, F-041, F-043 |
 | ~~**AP-5**~~ | ~~Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip~~ **erledigt** | AP-4 | 2,5 | F-061, F-064…069 |
 | ~~**AP-6**~~ | ~~Call-Graph-View + Export~~ **erledigt** | AP-4 | 1,5 | F-066 |
-| **AP-7** | Design-Token-System (Fujitsu), Job-Center, i18n-Nachzug | AP-5 | 1,5 | NF-006, NF-014 |
+| ~~**AP-7**~~ | ~~Design-Token-System (Fujitsu), Job-Center, i18n-Nachzug~~ **erledigt** | AP-5 | 1,5 | NF-006, NF-014 |
 | **AP-8** | Konnektoren-Nachzug (Upload/CSV, Confluence/Jira/WebDAV-Retest) | AP-3 | 1,0 | F-011, F-012, F-017, F-018 |
 | **AP-9** | Härtung: Lasttest, Barrierefreiheit, OSS-Clearing, Offline-Bundle, Doku | alle | 2,0 | NF-002/003/010/011/012 |
 | | **Summe** | | **22,5 PW** | |
@@ -707,7 +717,7 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | R1 | **Realer COBOL-Bestand weicht von Annahmen ab** (Dialekt-Eigenheiten, Präprozessor-Direktiven, Sonderformate) | Parser-Erkennungsquote bricht ein — trifft den größten AP | Testkorpus **vor** dem Parserbau aus realem Bestand ziehen (siehe offene Eingabe 4). F-029-Fallback macht auch 60 % Erkennung noch produktiv nutzbar. |
 | R2 | Erstindexierung eines 100-GB-Monorepos dauert Tage | Akzeptanz | NF-004 (resumable) + NF-014 (Transparenz) sind genau dafür MUSS. Zusätzlich: Priorisierung nach Pfad-Whitelist (Sparse-Checkout) für den Showcase. |
 | R3 | Ollama-Durchsatz limitiert das Embedding | Ingestion-Dauer | Backpressure per Env-Semaphore; Embedding-Batchgröße messbar machen; ggf. zweite Ollama-Instanz (reine Compose-Änderung). |
-| R4 | Fujitsu-CI-Vorgaben kommen spät | Rework im Frontend | Token-System **jetzt** bauen, mit Platzhalterwerten. Der Farbwechsel ist dann ein Ein-Datei-Commit. |
+| R4 | Fujitsu-CI-Vorgaben ändern sich | Rework im Frontend | Zentrales Token-System und dokumentierter Markenverlauf halten Farbänderungen lokal; keine Farben in Komponenten duplizieren. |
 | R5 | Kantenmodell wächst unerwartet stark (XREF Datenfeld↔Paragraph ist die volumenstärkste Kantenart) | DB-Größe, Query-Latenz | XREF-Kanten in eigener Partition/Index-Strategie; Menge früh am realen Bestand messen; notfalls XREF auf 01-Level-Gruppen aggregieren. |
 | R6 | BITV-Umfang wird spät verbindlich | teures Nachrüsten | NF-012 sagt es selbst: „nachträglich teuer". Von Beginn an mitbauen (AP-5/AP-7), nicht in AP-9 schieben. |
 
@@ -725,7 +735,7 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | Workspace & Views | F-060…069 | AP-5, AP-6 | Basis ✅, Fokus/Callgraph ➕ |
 | Sessions | F-070…073 | AP-0 | ✅ vollständig |
 | Links & Graph | F-080…083 | AP-0 | ✅ vollständig |
-| Nicht-funktional | NF-001…014 | AP-9 (+ laufend) | ✅ bis auf NF-006/NF-014 |
+| Nicht-funktional | NF-001…014 | AP-9 (+ laufend) | NF-006/NF-014 ✅; Lasttest/BITV/Release-Härtung offen |
 
 Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
@@ -735,9 +745,9 @@ Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
 > Laufend gepflegt in `docs/UMSETZUNGSSTAND.md` — die Liste hier hält nur den groben Kurs fest.
 
-1. ~~**AP-0 ausführen**~~ — erledigt am 31.07.2026, Erststart-Abnahme am selben Tag nachgeholt (Docker steht seitdem auf der Entwicklungsmaschine). Ergebnis: lauffähiges, AEC-freies Doctus-Gerüst mit lokaler Anmeldung und einer Alembic-Baseline, die per Autogenerate gegen eine echte DB gegengeprüft ist.
-2. ~~**AP-1 fertigstellen**~~ — erledigt am 31.07.2026: Rate-Limit/Kontosperre beim Login (F-005), Nutzerverwaltung inkl. Users-Tab (F-004).
-3. ~~**AP-2 starten**~~ — Fundament erledigt am 31.07.2026: `parser/cobol/source_format.py`,
-   `embedded.py`, `lexer.py` + 26 Unit-Tests. Als Nächstes: `divisions.py` + `procedure.py`.
-4. **Parallel:** die offenen Eingaben aus Abschnitt 1.3 einholen. Stand 31.07.2026: der frühere Parser-Ansatz ist **nicht verfügbar** (AP-2 rechnet mit dem oberen Ende der Schätzung), ein realer COBOL-Beispielbestand kommt **später** — bis dahin wird gegen selbst gebaute Fixtures entwickelt.
-5. ~~**D-1 entscheiden**~~ — entschieden: `sql_block` ist ein Entity-Typ (siehe `docs/ENTSCHEIDUNGEN.md`, E-4).
+1. **AP-8 umsetzen:** Upload sowie Confluence/Jira/WebDAV/FolderWatch nachtesten
+   und fehlende Orphan-/Chunked-Download-Regressionstests ergänzen.
+2. **AP-9 umsetzen:** Lasttests, BITV-Abnahme, Lizenzprüfung, Offline-Bundle und
+   Abschlussdokumentation.
+3. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen und
+   Erstindexierungsdauer an repräsentativen Kundendaten messen.

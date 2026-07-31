@@ -239,7 +239,8 @@ Use this when the customer's server has **no internet/registry egress at all** �
 - `images.tar.gz` — `docker save` of all 6 images: the 3 custom-built ones (`doctus-backend-api`, `doctus-parser-worker`, `doctus-frontend`) plus the pinned-by-digest base images (`ankane/pgvector`, `valkey/valkey:8-alpine`, `ollama/ollama`) — Redis was replaced by its permissively-licensed fork Valkey, see `docker-compose.yml`. Pinning by digest means a bundle rebuilt later reproduces the exact same base images rather than silently drifting with upstream `:latest`.
 - `ollama-models.tar.gz` — a **clean** pull of `bge-m3` plus the explicitly configured `LLM_MODEL`, if enabled (not a copy of any existing `./data/ollama`, which may carry stale/unused models from prior local testing).
 - `docker-compose.offline.yml`, `.env.example` (pre-filled with the matching `DOCTUS_VERSION`), `install-offline.sh`, this doc.
-- `OPEN_SOURCE_CLEARING.md` — the license/provenance report (see "AI Model Licenses" section for the LLM/embedding model licenses and quantization provenance), shipped with the bundle so it travels with the software on an air-gapped machine instead of only living in the source repo.
+- the AP-9 license/provenance artifact generated from the shipped lockfiles,
+  images, and model manifest; it must travel with the air-gapped bundle.
 - `MODEL_MANIFEST.txt` — the actual pulled model names/digests/sizes for this specific build (captured via `ollama list` at build time), plus the quantization-provenance note for the LLM tag. Lets a customer verify exactly which model artifact they received against the upstream Hugging Face repo, independent of `SHA256SUMS` (which only proves the bundle's own internal integrity, not where the weights originally came from).
 - `SHA256SUMS` — covers every file in the bundle, checked by `install-offline.sh` before anything is loaded.
 

@@ -18,7 +18,8 @@ als Nächstes dran) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
    sind ein ausdrückliches Opt-in pro Kunde, gated über `cloud_llm_allowed()` in
    `backend/core/config.py` — nie Default.
 2. **Strikt Open Source.** Nur MIT/BSD/Apache-2.0. Jede neue Abhängigkeit muss in
-   `docs/OPEN_SOURCE_CLEARING.md` nachgetragen werden (Release-Voraussetzung).
+   im für AP-9 vorgesehenen Lizenz-/Provenienzartefakt nachgetragen werden
+   (Release-Voraussetzung).
 3. **Keine zusätzlichen Services.** Kein Neo4j, kein ElasticSearch, keine
    ANTLR-/tree-sitter-Runtime. Jede Komponente kostet OSS-Clearing,
    Offline-Bundle-Aufwand und Betriebsrisiko.

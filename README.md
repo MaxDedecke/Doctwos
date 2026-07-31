@@ -1,211 +1,178 @@
-# Doctus — Local AI Knowledge System for AEC
+# Doctwos — Legacy Code Intelligence Workspace
 
-> **Proprietary — restricted use.** Doctus is private, closed-source software. No permission is granted to use, copy, modify, deploy, or redistribute this repository or its source code without prior written consent from the project owner. Third-party components and AI models keep their respective licenses; see [Open-source clearing](docs/OPEN_SOURCE_CLEARING.md).
+> **Proprietary — restricted use.** Doctwos is private, closed-source software.
+> No permission is granted to use, copy, modify, deploy, or redistribute this
+> repository without prior written consent from the project owner.
 
-Doctus is a local-first knowledge and review assistant for the Architecture, Engineering, and Construction (AEC) industry. It connects BIM/CAD models, project documents, technical rules, HOAI context, repositories, and collaboration systems through one searchable workspace.
+Doctwos is a self-hosted workspace for understanding large legacy codebases. Its
+current product focus is COBOL: repositories are indexed, parsed into structural
+entities and relationships, and made explorable through code views, contextual
+chat, references, knowledge graphs, and call graphs.
 
-The default deployment runs on the customer's own infrastructure with Ollama. Optional cloud LLM profiles can be enabled explicitly, but are disabled by default. Compliance results are **decision-support signals**: a qualified professional must review and confirm every finding before it is used.
+## Current implementation status
 
-## Current product scope
+Work packages **AP-0 through AP-7 are complete**. The remaining planned work is:
 
-### AEC knowledge and review
+- **AP-8:** connector follow-up and regression coverage for upload, Confluence,
+  Jira, WebDAV, and FolderWatch.
+- **AP-9:** load testing, accessibility/BITV, release hardening, offline bundle,
+  and final documentation.
 
-- **Project-aware RAG:** Search and chat across PDFs, DOCX files, email exports, logs, repositories, and indexed project documents with clickable source references.
-- **BIM/CAD understanding:** Parse IFC entities and property sets, render IFC models in 3D, and convert DXF drawings for 2D viewing.
-- **Compliance checker:** Compare IFC properties with retrieved project requirements. The current registry includes fire-safety and acoustic checks.
-- **Auditable findings:** Compliance runs and alerts retain the cited document, verbatim source passage, extracted required class, and run history; CSV export is available.
-- **HOAI copilot:** Surface phase-aware checklists and relevant project context for LPH 1–9.
-- **Knowledge links and topics:** Connect documents, design entities, code objects, and related project knowledge with a review workflow.
-- **OCR and AEC formats:** OCR fallback for scanned PDFs, GAEB XML import, IFC parsing through IfcOpenShell, and DXF parsing through ezdxf.
+See [implementation status](docs/UMSETZUNGSSTAND.md),
+[technical plan](docs/IMPLEMENTIERUNGSPLAN.md), and
+[design guidelines](docs/DESIGN_GUIDELINES.md).
 
-### Enterprise operation
+## Product capabilities
 
-- **Local-first / air-gapped deployment:** Online installer and reproducible offline bundle for isolated customer environments.
-- **Team and project access control:** OIDC authentication, admin bootstrap, team membership, and project-scoped visibility.
-- **Knowledge connectors:** Scheduled delta sync for network folders, Confluence, Jira, and Notion (with optional recursive subpage crawling), including supported attachments.
-- **Optional MCP tools:** Live connector access during agentic chat when the optional Node.js runtime is included.
-- **LLM profiles:** Local Ollama profiles plus explicitly enabled OpenAI, Anthropic, and Gemini profiles.
-- **Operational tooling:** Health checks for all services, bounded container logs, version reporting, backup guidance, and a sanitized diagnostics bundle.
+### COBOL intelligence
+
+- Fixed- and free-format COBOL parsing, including continuations and embedded SQL
+- Programs, copybooks, sections, paragraphs, data items, file descriptions, and
+  SQL blocks as navigable entities
+- CALL, PERFORM, GOTO, COPY, READS, WRITES, and USES relationships
+- Cross-copybook reference resolution and explicit unresolved/dynamic edges
+- Golden-file parser corpus and fallback indexing for malformed source files
+
+### Repository and knowledge ingestion
+
+- GitHub, GitLab, Bitbucket, and generic Git repositories
+- Branch-isolated bare mirrors and worktrees for monorepos
+- Resumable file-level synchronization
+- Confluence, Jira, WebDAV, FolderWatch, and local upload sources
+- OCR fallback for scanned documents
 
 ### Workspace
 
-The frontend provides a modular multi-panel workspace with:
+- Configurable one- to four-panel workspace
+- Monaco code inspection with persistent line references in chat
+- Focus objects and grouped inbound/outbound references
+- Call graph with one to three hops, edge filters, and JSON/CSV/GraphML export
+- Global search, knowledge graph, link manager, topics, and job center
+- German and English UI, light/dark themes, and responsive navigation
 
-- conversational search and source navigation,
-- Monaco-based document/code inspection,
-- 3D BIM and 2D CAD viewers,
-- knowledge graph and topic views,
-- repository browser and Git setup wizard,
-- shareable chat-session URLs,
-- configurable 1-, 2-, 3-, and 4-panel layouts.
+### Security and operation
 
-See [Feature reference](docs/FEATURES.md) for the detailed implementation status.
-
-## AI stack and model decision
-
-The current CPU-only pilot defaults to embedding-only mode; the validated delivery LLM remains opt-in:
-
-| Role | Model | Notes |
-|---|---|---|
-| Chat and structured extraction | Disabled by default; optional `hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q4_K_M` | Validated 12B delivery model, approximately 7.5 GB, for suitably sized hardware |
-| Embeddings | `bge-m3` | 1024-dimensional multilingual embeddings, MIT license |
-| Runtime | Ollama | Local inference through the native chat and embedding APIs |
-
-When enabled, use the exact evaluated Q4_K_M tag above rather than Ollama's generic `mistral-nemo` tag. See [Deployment](docs/DEPLOYMENT.md) for the `LLM_MODEL=disabled` pilot default and delivery sizing.
-
-### Evaluation status
-
-The compliance pipeline uses LLM-based requirement extraction followed by deterministic code comparison. Current demo-data evaluations are documented in [Compliance evaluation](docs/COMPLIANCE_EVAL.md):
-
-- the tuned 17-case GFZ set reached 94% overall accuracy with 0% false positives before the final ground-truth correction;
-- an independent 15-case Lindenhof holdout reached 91% overall accuracy, 19% false-negative rate, and 0% false-positive rate;
-- the expanded 23-case nomenclature set reached 84% overall accuracy with Q4_K_M and 90% with Q8_0;
-- Magistral Small 24B Q4_K_M with reasoning disabled showed a worse false-negative rate than both NeMo variants in the same 23-case comparison.
-
-These are small, partly synthetic evaluation sets used for engineering decisions—not customer-facing accuracy guarantees. Validation on a real customer IFC model and its actual compliance documents remains required before making external performance claims.
-
-> **Safety position:** Doctus assists a qualified reviewer; it does not replace a fire-protection engineer, acoustic consultant, architect, or other responsible professional. A missing alert does not prove compliance.
+- Local username/password authentication with Argon2id hashes
+- Bootstrap superuser and administrative user management
+- Mandatory password change for newly provisioned accounts
+- Login throttling, temporary account locks, reset, and unlock flows
+- Team- and project-scoped authorization
+- Local Ollama inference by default; cloud providers fail closed unless enabled
+- Sanitized diagnostics, bounded logs, health checks, and encrypted connector secrets
 
 ## Architecture
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14, React 18, Tailwind CSS, Monaco Editor, Three.js, Framer Motion |
-| Backend API | FastAPI, SQLAlchemy, Alembic |
-| Background processing | Celery |
-| Queue/cache | Valkey 8, Redis wire-compatible |
+| Frontend | Next.js 16, React 18, Tailwind CSS, Monaco Editor |
+| Backend | FastAPI, SQLAlchemy, Alembic |
+| Workers | Celery |
+| Queue/cache | Valkey 8, Redis-compatible |
 | Database | PostgreSQL with pgvector |
-| Local AI | Ollama, BGE-M3; optional Mistral NeMo Q4_K_M on delivery hardware |
-| AEC/document parsing | IfcOpenShell, ezdxf, pypdf, Tesseract OCR |
-| Authentication | OIDC-compatible identity providers |
+| Local AI | Ollama and BGE-M3; optional configured chat model |
+| Authentication | Local signed HTTP-only session cookies |
 
-The default Compose stack contains:
-
-- `db` — PostgreSQL/pgvector,
-- `redis` — Valkey,
-- `ollama` — local model runtime,
-- `backend-api` — FastAPI application,
-- `parser-worker` — Celery ingestion and analysis worker,
-- `parser-beat` — scheduled connector sync,
-- `frontend` — Next.js application.
+The Compose stack contains seven services: `frontend`, `backend-api`,
+`parser-worker`, `parser-beat`, `db`, `redis`, and `ollama`.
 
 ## Getting started
 
 ### Requirements
 
-- Linux host (Ubuntu/Debian recommended)
-- Docker Engine with Docker Compose V2
-- sufficient disk space for images, model weights, indexed documents, and repositories
-- an OIDC provider for real deployments
+- Linux host
+- Docker Engine and Docker Compose
+- sufficient storage for images, models, mirrors, worktrees, and indexed content
 
-GPU acceleration is optional and used automatically by Ollama when available. Hardware sizing depends on model, context length, concurrency, and project size; consult [Deployment](docs/DEPLOYMENT.md) before customer installation.
-
-### Online installation
+### Installation
 
 ```bash
-git clone --branch main --single-branch https://github.com/MaxDedecke/Doctus.git
-cd Doctus
+git clone https://github.com/MaxDedecke/Doctwos.git
+cd Doctwos
+cp .env.example .env
+```
+
+Set secure values in `.env`, especially:
+
+```dotenv
+POSTGRES_PASSWORD=<secure-password>
+MASTER_ENCRYPTION_KEY=<fernet-key>
+SESSION_SECRET_KEY=<random-secret>
+BOOTSTRAP_SUPERUSER=admin
+BOOTSTRAP_SUPERUSER_PASSWORD=<optional-start-password>
+API_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:3000
+```
+
+If `BOOTSTRAP_SUPERUSER_PASSWORD` is empty on a fresh database, the generated
+password is printed once in the backend startup log.
+
+Start the application with:
+
+```bash
 ./install.sh
 ```
 
-The installer:
-
-1. checks Docker and Compose,
-2. creates missing secrets and `.env` values,
-3. builds and starts the stack,
-4. runs Alembic migrations,
-5. pulls BGE-M3; an explicit non-`disabled` `LLM_MODEL` additionally pulls the validated delivery LLM.
-
-Configure the OIDC and externally reachable URLs in `.env`, then apply them with:
-
-```bash
-docker compose up -d
-```
-
-Do not use `docker compose restart` after changing `.env`; Compose injects environment variables when containers are created.
-
-Default local endpoints:
+Default endpoints:
 
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:8000`
-- Ollama: `http://localhost:11434`
+- Ollama: `http://localhost:11434` (loopback only)
 
-A real deployment must terminate TLS in a trusted reverse proxy. See [Deployment](docs/DEPLOYMENT.md) for URL, OIDC, TLS, backup, update, and troubleshooting guidance.
+Production deployments must place a trusted TLS reverse proxy in front of the
+frontend and backend.
 
-### Air-gapped installation
+## Development
 
-Build the offline bundle on a connected x86_64 machine:
-
-```bash
-./scripts/build-offline-bundle.sh [version]
-```
-
-Transfer the resulting `dist/doctus-offline-bundle-<version>/` directory through a customer-approved secure channel and run:
+Frontend:
 
 ```bash
-./install-offline.sh
+cd frontend
+npm ci
+npm run build
+npm test
 ```
 
-The installer verifies `SHA256SUMS` before loading images and models. Detailed instructions are in [Deployment](docs/DEPLOYMENT.md) and [Customer deployment](docs/deployment-customer.md).
+Backend and parser tests:
+
+```bash
+cd backend && python -m pytest tests/
+cd ../parser && python -m pytest tests/
+```
+
+The Python test suites use separate dependency environments. Three embedding
+tests require a running Ollama instance with `bge-m3`; they are skipped when it
+is unavailable.
 
 ## Repository structure
 
 ```text
-frontend/        Next.js workspace and UI components
-backend/         FastAPI API, authentication, RAG, agents, and database migrations
-parser/          Celery workers, connectors, parsers, embeddings, and compliance tasks
-config/          Runtime feature configuration
-scripts/         Installers, offline bundle tooling, diagnostics, seed and eval scripts
-docs/            Architecture, security, compliance, deployment, and product documentation
-data/            Local persistent PostgreSQL, Ollama, and log data (runtime)
-repos/           Indexed checkouts and uploaded project files (runtime)
+frontend/   Next.js workspace and UI components
+backend/    FastAPI APIs, auth, RAG, graph retrieval, and migrations
+parser/     Celery workers, connectors, COBOL parser, and persistence
+config/     Runtime feature configuration
+scripts/    Installation, diagnostics, and delivery tooling
+docs/       Plan, status, decisions, operations, and security documentation
 ```
 
 Important entry points:
 
-- [frontend/app/page.tsx](frontend/app/page.tsx) — workspace orchestration
-- [frontend/components/ChatView.tsx](frontend/components/ChatView.tsx) — chat and model profile UI
-- [frontend/components/BimCadViewer.tsx](frontend/components/BimCadViewer.tsx) — BIM/CAD and compliance UI
-- [backend/api/chat.py](backend/api/chat.py) — chat/RAG API
-- [backend/core/config.py](backend/core/config.py) — backend model and provider configuration
-- [parser/tasks/compliance.py](parser/tasks/compliance.py) — compliance retrieval, extraction, and comparison
-- [parser/core/config.py](parser/core/config.py) — worker model configuration
-- [docker-compose.yml](docker-compose.yml) — online deployment stack
+- `parser/cobol/parse.py` — COBOL parser orchestration
+- `parser/connectors/git.py` — resumable Git ingestion
+- `parser/cobol_persist.py` — entity and edge persistence
+- `backend/api/auth.py` — local authentication
+- `backend/api/entities.py` and `backend/api/callgraph.py` — graph APIs
+- `frontend/app/page.tsx` — workspace orchestration
+- `frontend/components/CallGraphView.tsx` — call graph UI
+- `frontend/components/LoginView.tsx` — local login and password change
 
-## Security and data handling
+## Branding
 
-Doctus is designed for single-tenant, self-hosted environments:
-
-- cloud LLM providers are opt-in and fail closed when disabled,
-- tokens and stored content use application-level encryption,
-- OIDC provides authentication,
-- access is restricted by team and project,
-- customer documents are excluded from the diagnostics bundle,
-- offline bundles include integrity checks,
-- service images are pinned by digest where applicable.
-
-Local deployment reduces external data transfer but does not by itself establish GDPR, NDA, or regulatory compliance. Operators remain responsible for configuration, lawful processing, retention, access policies, backups, TLS, identity-provider security, and customer-specific agreements. See:
-
-- [Diagnostics hardening](docs/DIAGNOSTICS_HARDENING.md)
-- [Prompt injection from external sources](docs/PROMPT_INJECTION.md)
-- [AVV template](docs/AVV_VORLAGE.md)
-- [Data-flow overview](docs/DATENFLUSS_UEBERSICHT.md)
-- [Open-source clearing](docs/OPEN_SOURCE_CLEARING.md)
-
-## Development and pilot status
-
-The technical core is implemented and the repository is being prepared for its first controlled customer pilot. Remaining release gates include:
-
-- confidence/uncertainty labeling for compliance alerts,
-- evaluation against real customer data,
-- final customer-facing IFC export requirements,
-- final advisory-only language and contractual review,
-- customer-specific AVV/data-flow documentation.
-
-See [Pilot roadmap](ROADMAP_PILOTKUNDE.md) for the current work plan.
+Doctwos uses the “Structured Intelligence” design system: restrained technical
+surfaces, editorial hierarchy, Fujitsu red for focus, and a controlled red-to-blue
+brand gradient for primary actions and identity surfaces. The binding rules are in
+[DESIGN_GUIDELINES.md](docs/DESIGN_GUIDELINES.md).
 
 ## License
 
-Doctus's source code is proprietary and not open source. All rights are reserved.
-
-The product includes third-party software under permissive and copyleft licenses and local AI models under their respective model licenses. Distribution obligations and the current dependency/model audit are documented in [Open-source clearing](docs/OPEN_SOURCE_CLEARING.md).
+All rights reserved. Third-party components and model weights retain their
+respective licenses and distribution obligations.

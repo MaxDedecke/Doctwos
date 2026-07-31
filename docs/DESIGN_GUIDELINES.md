@@ -1,5 +1,7 @@
 # Doctwos Design Guidelines
 
+**Stand:** 31.07.2026 — im Frontend umgesetzt
+
 ## Leitidee: Structured Intelligence
 
 Doctwos ist kein Chatbot mit Code-Anhang, sondern ein Arbeitsinstrument zur
