@@ -77,6 +77,7 @@ def serialize_source(s: KnowledgeSource) -> dict:
         "token": "***" if s.token else None,
         "project_id": s.project_id,
         "repo_id": s.project_id,
+        "branch": s.branch,
         "spaces": s.spaces,
         "last_synced_at": s.last_synced_at.isoformat() if s.last_synced_at else None,
         "sync_status": s.sync_status,

@@ -289,7 +289,9 @@ def list_project_files(
     if not git_source:
         return []
 
-    repo_path = os.path.join(REPOS_ROOT, f"ks_{git_source.id}")
+    # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id> (Bare-Mirror +
+    # Worktree, siehe parser/git_utils.py), nicht mehr flach unter REPOS_ROOT.
+    repo_path = os.path.join(REPOS_ROOT, "wt", f"ks_{git_source.id}")
     if not os.path.exists(repo_path):
         return []
     return [
@@ -355,7 +357,8 @@ def get_project_repository_stats(
     if not git_source:
         return {"total_files": 0, "total_lines": 0, "languages": []}
         
-    repo_path = os.path.join(REPOS_ROOT, f"ks_{git_source.id}")
+    # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id>, siehe list_project_files() oben.
+    repo_path = os.path.join(REPOS_ROOT, "wt", f"ks_{git_source.id}")
     if not os.path.exists(repo_path):
         return {"total_files": 0, "total_lines": 0, "languages": []}
 

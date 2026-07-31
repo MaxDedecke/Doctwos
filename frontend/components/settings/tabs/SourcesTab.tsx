@@ -335,11 +335,11 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <span className={cn("font-bold", theme === 'dark' ? "text-zinc-300" : "text-zinc-800")}>{project.name}</span>
                         </div>
                       )}
-                      {inst.type?.toLowerCase() === 'git' && inst.spaces?.branch && (
+                      {inst.type?.toLowerCase() === 'git' && (inst.branch || inst.spaces?.branch) && (
                         <div className="flex items-center gap-1.5">
                           <GitBranch className="w-2.5 h-2.5 opacity-60" />
                           <span className="opacity-50">Branch:</span>
-                          <span className="font-mono text-[8px] font-bold">{inst.spaces.branch}</span>
+                          <span className="font-mono text-[8px] font-bold">{inst.branch || inst.spaces.branch}</span>
                         </div>
                       )}
                       

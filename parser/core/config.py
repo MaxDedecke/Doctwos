@@ -45,3 +45,8 @@ REPOS_ROOT: str = "/repos"
 # Maximale Zeichenanzahl pro Dokument-Chunk vor dem Einbetten.
 # Größere Chunks = mehr Kontext pro Suchtreffer, aber langsameres Embedding.
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
+
+# Anzahl paralleler Chunk+Embed-Tasks im Git-Konnektor (Producer/Consumer-Loop,
+# Plan §7.3/NF-004). Env-steuerbar, damit eine schwächere Ollama-Instanz
+# gedrosselt werden kann, ohne Code zu ändern.
+EMBED_CONCURRENCY: int = int(os.getenv("EMBED_CONCURRENCY", "20"))

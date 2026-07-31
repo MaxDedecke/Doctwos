@@ -302,7 +302,9 @@ def get_knowledge_source_content(
 
     path_name = (db_source.spaces or {}).get("path")
     if db_source.type == "Git" and path:
-        file_path = os.path.join(REPOS_ROOT, f"ks_{source_id}", path)
+        # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id>, nicht mehr
+        # flach unter REPOS_ROOT (Bare-Mirror + Worktree, siehe parser/git_utils.py).
+        file_path = os.path.join(REPOS_ROOT, "wt", f"ks_{source_id}", path)
     elif path_name:
         # "local"-Quelle: einzelne Datei liegt unter dem in den Metadaten
         # hinterlegten Pfad, unabhängig vom angeklickten Dateibaum-Eintrag
@@ -567,7 +569,12 @@ def create_git_source(
         username=source.username,
         token=source.token,
         project_id=source.project_id,
-        spaces={"branch": source.branch, "sparse_paths": source.sparse_paths},
+        # F-019: branch ist eine eigene Spalte (nicht mehr in spaces versteckt),
+        # damit zwei Quellen auf dasselbe Repo mit verschiedenen Branches über
+        # UNIQUE(project_id, url, branch) unterscheidbar bleiben. repo_fingerprint
+        # setzt der Git-Konnektor beim ersten Sync (parser/connectors/git.py).
+        branch=source.branch,
+        spaces={"sparse_paths": source.sparse_paths},
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
         team_id=_resolve_team_id(source.project_id, db, user, source.team_id),
     )
