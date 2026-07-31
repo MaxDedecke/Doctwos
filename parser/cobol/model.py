@@ -6,8 +6,8 @@ Gemeinsame Datenstrukturen der COBOL-Parser-Pipeline (Plan §6.2).
 Divisions/Data-Division/Procedure/SQL ergänzen ihre eigenen Strukturen, sobald
 sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kamen
 `CobolProgram`, `Division`, `Section`, `Paragraph` und `ParsedEdge` dazu, mit
-data_division.py `DataItem` und `FileDescriptor`, mit sql.py jetzt `SqlBlock`.
-ParseResult folgt mit parse.py.
+data_division.py `DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`, mit
+chunking.py jetzt `Chunk`. ParseResult folgt mit parse.py.
 
 `EntityType`/`EdgeType`/`Resolution` spiegeln bewusst die String-Werte aus
 `backend/models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
@@ -199,6 +199,29 @@ class SqlBlock:
     tables: list[str] = field(default_factory=list)
     host_variables: list[str] = field(default_factory=list)
     cursor_name: str | None = None
+
+
+@dataclass
+class Chunk:
+    """Ein Embedding-Chunk (F-041) — `content` plus `meta`, das 1:1 in
+    `DocumentChunk.metadata_json` landet (parser/models/database.py).
+
+    meta enthält immer `"program"`/`"format"`. Für den Normalfall (ein Chunk
+    = ein Paragraph) zusätzlich `"section"`/`"paragraph"` (je `str`). Zwei
+    Ausnahmen ändern die Form:
+
+    - Split eines zu großen Paragraphen (> chunk_size): `"paragraph"` bleibt
+      derselbe Name, dazu `"part"`/`"parts"` (1-basiert).
+    - Merge mehrerer zu kleiner Nachbarparagraphen derselben Section
+      (< min_chunk_size): `"paragraph"` (singular) entfällt zugunsten von
+      `"paragraphs"` (`list[str]`) — ein Chunk deckt dann mehr als einen
+      Paragraphen ab, das Singular-Feld wäre irreführend.
+    """
+
+    content: str
+    start_line: int
+    end_line: int
+    meta: dict
 
 
 @dataclass
