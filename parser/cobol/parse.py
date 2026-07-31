@@ -223,6 +223,7 @@ def _build_field_entities(
     """
     entities: list[Entity] = []
     field_qnames: dict[str, str] = {}
+    qname_occurrences: dict[str, int] = {}
 
     for fd in file_descriptors:
         qname = _qualify(root_name, fd.name)
@@ -241,6 +242,20 @@ def _build_field_entities(
     for item in items:
         parent_qname = field_qnames.get(item.parent, root_name) if item.parent else root_name
         qname = _qualify(parent_qname, item.name)
+        # FILLER ist in COBOL absichtlich namenlos und darf beliebig oft als
+        # Geschwister unter derselben Gruppe vorkommen. Der Klartextname allein
+        # ist deshalb kein stabiler Entity-Schlüssel. Ohne Disambiguierung
+        # kollidieren zwei FILLER beim Persistieren mit
+        # uq_code_entities_source_qname und vergiften anschließend die gesamte
+        # SQLAlchemy-Transaktion. Die physische Startzeile ist bereits Teil der
+        # Parser-Invariante und macht den internen Schlüssel eindeutig, während
+        # der sichtbare Entity-Name weiterhin exakt "FILLER" bleibt. Ein Zähler
+        # deckt auch mehrere Beschreibungen auf derselben physischen Zeile ab.
+        if item.name.upper() == "FILLER":
+            base_qname = f"{qname}@{item.start_line}"
+            occurrence = qname_occurrences.get(base_qname, 0) + 1
+            qname_occurrences[base_qname] = occurrence
+            qname = base_qname if occurrence == 1 else f"{base_qname}#{occurrence}"
         field_qnames[item.name] = qname
         entities.append(
             Entity(

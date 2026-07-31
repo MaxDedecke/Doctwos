@@ -996,3 +996,14 @@ per Autogenerate gegengeprüft (Delta leer).
     der gezielte Backend-Test `test_ap4_graph_api.py` für Fokus und alle drei
     Exportformate ist ebenfalls grün. Als Nächstes: **AP-7 Design-Tokens,
     Job-Center und i18n-Nachzug**.
+
+13. **Parser-Bugfix für wiederholte COBOL-FILLER** — mehrere `FILLER` unter
+    derselben Gruppe erzeugten denselben `qualified_name` und brachen den
+    Repository-Erstsync an `uq_code_entities_source_qname`; der danach gemeldete
+    Pending-Rollback war nur der Folgefehler des fehlgeschlagenen Flushs.
+    `_build_field_entities()` vergibt nun einen internen, zeilenstabilen Schlüssel
+    (`…FILLER@<start_line>`, bei mehreren Einträgen derselben Zeile zusätzlich
+    `#<n>`), während der sichtbare Name `FILLER` bleibt. XREF ignoriert FILLER
+    weiterhin fachlich. Ein Regressionstest bildet zwei FILLER in
+    `WS-REPORT-HEADER` nach; die COBOL-Suite bleibt mit 110/110 ausgewählten Tests
+    grün.

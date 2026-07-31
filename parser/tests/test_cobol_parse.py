@@ -54,6 +54,30 @@ def test_data_item_hierarchy_produces_dotted_qualified_names():
     assert fd_entity.qualified_name == "DATAQUAL.EMPLOYEE-FILE"
 
 
+def test_repeated_fillers_under_same_group_have_unique_internal_qualified_names():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. REPORTPROG.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-REPORT-HEADER.\n"
+        "          05 FILLER PIC X(05) VALUE SPACE.\n"
+        "          05 FILLER PIC X(03) VALUE '---'.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "src/REPORTPROG.cbl")
+    fillers = [entity for entity in result.entities if entity.name.upper() == "FILLER"]
+
+    assert [entity.qualified_name for entity in fillers] == [
+        "REPORTPROG.WS-REPORT-HEADER.FILLER@6",
+        "REPORTPROG.WS-REPORT-HEADER.FILLER@7",
+    ]
+    assert len({entity.qualified_name for entity in result.entities}) == len(result.entities)
+
+
 def test_copybook_index_flips_copy_edge_resolution():
     without_index = _parse_fixture("04_copy_replacing.cbl")
     assert without_index.edges[0].resolution == "unresolved"

@@ -247,6 +247,11 @@ class User(Base):
 
 ### 5.3 `code_entities` — erweitert (F-030)
 
+> **Praxisnachzug 31.07.2026:** COBOL erlaubt mehrere namenlose `FILLER` als
+> Geschwister. Ihr sichtbarer Name bleibt `FILLER`, der persistierte
+> `qualified_name` wird zur Vermeidung von Unique-Kollisionen intern mit der
+> physischen Startzeile (und nötigenfalls einem Gleichzeilen-Zähler) ergänzt.
+
 ```python
 type            # 'program'|'copybook'|'section'|'paragraph'|'data_item'|'file_fd'|'sql_table'|'sql_block'
                 # v2: 'jcl_job'|'jcl_step'
