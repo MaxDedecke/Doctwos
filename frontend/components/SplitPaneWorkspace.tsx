@@ -98,7 +98,7 @@ interface SplitPaneWorkspaceProps {
   editorMinimap: boolean;
   projectEntities?: any[];
   handleEntitySelect?: (ent: any) => Promise<void> | void;
-  onGutterClick?: (lineNumber: number) => void;
+  onGutterClick?: (lineNumber: number, lineContent: string) => void;
   fileNavStack?: Array<{file: string|null, doc: any|null, tab: string}>;
   onNavigateBack?: () => void;
   selectedLine?: number | null;
@@ -573,7 +573,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       // Gutter click detection: type 2 (glyph margin), type 3 (line numbers), type 4 (line decorations)
       const isGutterClick = e.target.type === 2 || e.target.type === 3 || e.target.type === 4;
       if (isGutterClick && onGutterClickRef.current) {
-        onGutterClickRef.current(lineNumber);
+        onGutterClickRef.current(lineNumber, editor.getModel()?.getLineContent(lineNumber) || '');
       }
 
       if (projectEntitiesRef.current && selectedFileRef.current) {

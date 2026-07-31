@@ -1,6 +1,6 @@
 # Doctus — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-5 läuft — Fokusobjekt und Referenzen-Menü umgesetzt)
+**Zuletzt aktualisiert:** 31.07.2026 (AP-5 abgeschlossen — F-069 Zeilenreferenz umgesetzt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -17,7 +17,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-2** | COBOL-Parser + Testkorpus | **fertig** — alle zehn Module inkl. `parse.py` (`parse_program()`, In-Memory), Golden-File-Testkorpus (99_garbage.cbl, golden/*.json) + CI-Job `parser-golden` stehen (E-6 zur AP-2/AP-4-Grenze weiterhin gültig) |
 | **AP-3** | Monorepo-Git-Konnektor, Multi-Branch, resumable Sync | **fertig** — Bare-Mirror + Worktree (`parser/git_utils.py`), resumable über `SourceScanFile` (NF-004), F-016-Dateiklassifikation |
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | **fertig** — Pass 0-2, quellenweite XREF-Vererbung, budgetiertes 1-Hop-Graph-Retrieval sowie `/entities`- und `/callgraph`-Router stehen und sind getestet |
-| **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **läuft** — Panel-Typen, Fokusobjekt und Entity-Nachbarschaft umgesetzt; Zeilen-Chip offen |
+| **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
 | **AP-6** | Call-Graph-View + Export | offen |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | offen |
 | **AP-8** | Konnektoren-Nachzug | offen |
@@ -969,14 +969,17 @@ per Autogenerate gegengeprüft (Delta leer).
 10. ~~**AP-4 abschließen**~~ — erledigt am 31.07.2026: quellenweite
     XREF-Vererbung über COPY-Grenzen, F-043 (graph-erweitertes Retrieval)
     und die Backend-Router `/entities`, `/callgraph`.
-11. **AP-5 begonnen** — Code-Dateien werden über `/entities/resolve` einem
+11. **AP-5 abgeschlossen** — Code-Dateien werden über `/entities/resolve` einem
     Fokusobjekt (`program`/`copybook`) zugeordnet; der Fokus liegt getrennt je
     Panel. Ein Klick auf eine Monaco-Entity wechselt nur den Fokus und springt
     nicht mehr zur Definitionszeile. Das Referenzen-Menü liest
     `/entities/{id}/neighbors`, gruppiert CALL/COPY/READS/WRITES/PERFORM/GOTO/USES
-    semantisch und zeigt bei ungeparsten Dateien einen Hinweis. TypeScript und
-    Vitest grün. Als Nächstes: **F-069 Zeilen-Referenz-Chip samt Persistenz und
-    klickbarem Rücksprung in der Chat-Historie**.
+    semantisch und zeigt bei ungeparsten Dateien einen Hinweis. Der Gutter-Klick
+    erzeugt außerdem eine strukturierte Zeilenreferenz (Datei, Zeile, Quelle,
+    Programm/Section/Paragraph), übernimmt den Zeilentext in den RAG-Kontext und
+    persistiert sie beim Senden in `metadata_json.refs[]`. Der Chip in der
+    Chat-Historie öffnet Datei und Zeile wieder. TypeScript und Vitest grün.
+    Als Nächstes: **AP-6 Call-Graph-View + Export**.
 
     **Deployment-Verifikation:** Images für Backend, Parser und Frontend wurden
     nach dem AP-5-Schnitt mit `docker compose up -d --build` neu gebaut. Alle

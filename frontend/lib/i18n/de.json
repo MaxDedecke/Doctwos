@@ -665,6 +665,7 @@
     "clearSourceFocusTitle": "Quellen-Fokus aufheben",
     "pinLabel": "Pin: {{path}}",
     "clearPinTitle": "Pin aufheben",
+    "openPinnedLineTitle": "{{path}} in Zeile {{line}} öffnen",
     "inputPlaceholder": "Frag Doctus AI...",
     "noProjectFocus": "Kein Projekt-Fokus",
     "activeProjects": "Aktive Projekte",

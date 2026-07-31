@@ -1,9 +1,9 @@
 # Doctus — Technischer Implementierungsplan v1.0
 
 > **Umsetzungsstand (31.07.2026):** AP-0 bis AP-4 abgeschlossen und verifiziert.
-> AP-5 läuft: Panel-Typen, Fokusobjekt je Code-Panel und gruppiertes
-> Entity-Referenzen-Menü sind umgesetzt; F-069 (Zeilen-Referenz im Chat) ist der
-> nächste offene Schritt.
+> AP-5 abgeschlossen: Panel-Typen, Fokusobjekt je Code-Panel, gruppiertes
+> Entity-Referenzen-Menü und F-069 (persistierte Zeilen-Referenz im Chat) sind
+> umgesetzt. AP-5 ist abgeschlossen; als Nächstes folgt AP-6 (Call-Graph-View).
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
@@ -552,9 +552,12 @@ Die Dekorations-Infrastruktur (Underlines/Glyphs/Hover) und die Sprung-Breadcrum
 
 ### 10.3 Zeilen-Referenz in den Chat (F-069)
 
-> **Stand 31.07.2026: offen — nächster AP-5-Schritt.** Der bisherige Gutter-Klick
-> fokussiert lediglich das Chat-Eingabefeld; strukturierter Chip, Persistenz in
-> `metadata_json.refs[]`, Rücksprung und RAG-Kontext fehlen noch.
+> **Stand 31.07.2026: umgesetzt.** Der Gutter-Klick erzeugt eine strukturierte
+> Referenz mit Datei, Zeile, Quelle sowie umschließendem Programm/Section/Paragraph,
+> öffnet bei Bedarf ein Chat-Panel und übernimmt die konkrete Quellzeile in den
+> RAG-Kontext. Beim Senden wird die Referenz in `metadata_json.refs[]` persistiert;
+> der Chip bleibt nach dem Laden einer Sitzung anklickbar und springt zurück in die
+> referenzierte Codezeile.
 
 Monaco `glyphMarginClickHandler` → `{file, line, program, section, paragraph}` → aktives Chat-Panel (oder eines öffnen) → Chip im Eingabefeld → beim Senden in `ChatMessage.metadata_json.refs[]` persistiert → Chip in der Historie klickbar (Rücksprung) → Codeausschnitt geht in den RAG-Kontext.
 

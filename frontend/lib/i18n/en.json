@@ -665,6 +665,7 @@
     "clearSourceFocusTitle": "Clear source focus",
     "pinLabel": "Pin: {{path}}",
     "clearPinTitle": "Clear pin",
+    "openPinnedLineTitle": "Open {{path}} at line {{line}}",
     "inputPlaceholder": "Ask Doctus AI...",
     "noProjectFocus": "No project focus",
     "activeProjects": "Active projects",

@@ -276,7 +276,16 @@ function AppContent() {
   const isRestoringSnapshotRef = useRef(false);
   const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [pinnedCode, setPinnedCode] = useState<{ filepath: string; line: number; label?: string; context?: string } | null>(null);
+  const [pinnedCode, setPinnedCode] = useState<{
+    filepath: string;
+    line: number;
+    label?: string;
+    context?: string;
+    sourceId?: number | string | null;
+    program?: string | null;
+    section?: string | null;
+    paragraph?: string | null;
+  } | null>(null);
 
   const [panelFrozen, setPanelFrozen] = useState<boolean[]>([false]);
   const [collapsedPanels, setCollapsedPanels] = useState<boolean[]>([false]);
@@ -1223,7 +1232,31 @@ function AppContent() {
     }
   };
 
-  const handleGutterClick = (lineNumber: number) => {
+  const handleGutterClick = (panelIndex: number, lineNumber: number, lineContent: string) => {
+    const selection = panelSelections[panelIndex];
+    const filepath = selection?.selectedFile;
+    if (!filepath) return;
+
+    const enclosingEntities = projectEntities.filter((candidate: any) =>
+      candidate.file_path === filepath &&
+      candidate.start_line <= lineNumber &&
+      candidate.end_line >= lineNumber
+    );
+    const entity = selection?.selectedEntity || enclosingEntities[0];
+    const enclosingName = (type: string) => enclosingEntities
+      .filter((candidate: any) => candidate.type === type)
+      .sort((a: any, b: any) => (a.end_line - a.start_line) - (b.end_line - b.start_line))[0]?.name || null;
+    setPinnedCode({
+      filepath,
+      line: lineNumber,
+      label: `${filepath.split('/').pop()}:${lineNumber}`,
+      context: lineContent,
+      sourceId: entity?.source_id || selectedSource?.id || null,
+      program: enclosingName('program'),
+      section: enclosingName('section'),
+      paragraph: enclosingName('paragraph')
+    });
+    ensurePanelType('chat');
     setActiveMobileTab('chat');
     setTimeout(() => {
       const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
@@ -1509,7 +1542,20 @@ function AppContent() {
       metadata: {
         project: selectedProject ? { name: selectedProject.name, id: selectedProject.id } : null,
         source: selectedSource ? { name: selectedSource.name, id: selectedSource.id } : null,
-        pinned: pinnedCode ? { filepath: pinnedCode.filepath, line: pinnedCode.line, label: pinnedCode.label } : null,
+        pinned: pinnedCode ? {
+          filepath: pinnedCode.filepath,
+          line: pinnedCode.line,
+          label: pinnedCode.label,
+          source_id: pinnedCode.sourceId || null
+        } : null,
+        refs: pinnedCode?.line ? [{
+          file: pinnedCode.filepath,
+          line: pinnedCode.line,
+          source_id: pinnedCode.sourceId || null,
+          program: pinnedCode.program || null,
+          section: pinnedCode.section || null,
+          paragraph: pinnedCode.paragraph || null
+        }] : [],
         ...extraMetadata
       }
     };
@@ -2076,7 +2122,7 @@ function AppContent() {
               selectedProject={selectedProject}
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={handleGutterClick}
+              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />
@@ -2109,7 +2155,7 @@ function AppContent() {
               selectedProject={selectedProject}
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={handleGutterClick}
+              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />
@@ -2142,7 +2188,7 @@ function AppContent() {
               selectedProject={selectedProject}
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={handleGutterClick}
+              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
               onDocFocus={handleDocFocusRequest}
@@ -2177,7 +2223,7 @@ function AppContent() {
               selectedProject={selectedProject}
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={handleGutterClick}
+              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />

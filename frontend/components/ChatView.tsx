@@ -389,7 +389,7 @@ export function ChatView({
                     )}>
                       {isUser ? (
                         <>
-                          {m.metadata && (m.metadata.project || m.metadata.pinned) && (
+                          {m.metadata && (m.metadata.project || m.metadata.pinned || m.metadata.refs?.length) && (
                             <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-zinc-200/50 dark:border-zinc-800/50">
                               {m.metadata.project && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 font-bold uppercase tracking-tight">
@@ -397,12 +397,26 @@ export function ChatView({
                                   {m.metadata.project.name}
                                 </div>
                               )}
-                              {m.metadata.pinned && (
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-bold uppercase tracking-tight">
+                              {(m.metadata.refs?.length ? m.metadata.refs : (m.metadata.pinned ? [{
+                                file: m.metadata.pinned.filepath,
+                                line: m.metadata.pinned.line,
+                                source_id: m.metadata.pinned.source_id
+                              }] : [])).map((ref: any, refIndex: number) => (
+                                <button
+                                  type="button"
+                                  onClick={() => handleFileSelect(
+                                    ref.file,
+                                    ref.line,
+                                    ref.source_id ? String(ref.source_id) : undefined
+                                  )}
+                                  key={`${ref.file}:${ref.line}:${refIndex}`}
+                                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40 font-bold uppercase tracking-tight transition-colors cursor-pointer"
+                                  title={t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}
+                                >
                                   <Code className="w-3 h-3" />
-                                  {m.metadata.pinned.label || `${m.metadata.pinned.filepath.split('/').pop()}:${m.metadata.pinned.line}`}
-                                </div>
-                              )}
+                                  {`${ref.file.split('/').pop()}:${ref.line}`}
+                                </button>
+                              ))}
                             </div>
                           )}
                           <p className="whitespace-pre-wrap font-medium">{m.content}</p>
