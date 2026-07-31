@@ -3,8 +3,8 @@
 > **Umsetzungsstand (31.07.2026):** AP-0 bis AP-4 abgeschlossen und verifiziert.
 > AP-5 abgeschlossen: Panel-Typen, Fokusobjekt je Code-Panel, gruppiertes
 > Entity-Referenzen-Menü und F-069 (persistierte Zeilen-Referenz im Chat) sind
-> umgesetzt. AP-5 und AP-6 sind abgeschlossen; als Nächstes folgt AP-7
-> (Design-Tokens, Job-Center und i18n-Nachzug).
+> umgesetzt. AP-5 und AP-6 sind abgeschlossen; AP-7 ist in Arbeit. Job-Center
+> und dessen de/en-i18n sind umgesetzt, als Nächstes folgt die Design-Token-Migration.
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
 
@@ -602,6 +602,12 @@ Regeln:
 - Die bestehende Condo-Palette in `tailwind.config.js` wird **ersetzt**, nicht ergänzt — sonst bleiben zwei Systeme nebeneinander bestehen.
 
 ### 10.6 Job-Center (NF-014)
+
+> **Stand 31.07.2026: umgesetzt.** `/jobs` aggregiert sichtbarkeitsgeschützt
+> Quellen-Syncs, Link-Builder- und Diagnose-Läufe. Der persistente Header-Button
+> pollt alle drei Sekunden, zeigt laufende Jobs per Badge und bietet Fehlerdetails
+> sowie Wiederaufnahme; die UI ist de/en lokalisiert und hat eine `aria-live`-
+> Statusmeldung.
 
 Persistenter Header-Button mit Badge (Anzahl laufender Jobs) → Panel mit allen aktiven/fehlgeschlagenen Vorgängen: Quellen-Syncs (`knowledge_sources.sync_status/progress/progress_message/estimated_finish_at` — existiert bereits), Link-Builder-Runs, Diagnostics-Runs. Poll-Intervall 3 s, Fehlerdetail aufklappbar, „Wiederaufnehmen"-Button.
 

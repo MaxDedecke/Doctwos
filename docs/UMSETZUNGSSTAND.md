@@ -1,6 +1,6 @@
 # Doctus — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026 (AP-6 abgeschlossen — Call-Graph-View und Export umgesetzt)
+**Zuletzt aktualisiert:** 31.07.2026 (AP-7 begonnen — Job-Center umgesetzt)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -19,7 +19,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-4** | Entity-/Kanten-Persistenz + Nachauflösung + Retrieval | **fertig** — Pass 0-2, quellenweite XREF-Vererbung, budgetiertes 1-Hop-Graph-Retrieval sowie `/entities`- und `/callgraph`-Router stehen und sind getestet |
 | **AP-5** | Frontend: Panels, Fokus-Objekt, Referenzen-Menü, Zeilen-Chip | **fertig** — strukturierte Zeilenreferenz wird als Chip angezeigt, in `metadata_json.refs[]` persistiert und springt aus der Historie zurück in den Code |
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
-| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | offen |
+| **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **in Arbeit** — Job-Center + de/en umgesetzt, Design-Tokens offen |
 | **AP-8** | Konnektoren-Nachzug | offen |
 | **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | offen |
 
@@ -1026,3 +1026,15 @@ per Autogenerate gegengeprüft (Delta leer).
     aus dem richtigen Git-Worktree. Auch die ältere Projekt-Referenzantwort
     liefert und übergibt die Quellen-ID für Entity- und Dokumentziele.
     TypeScript und Vitest sind grün.
+
+16. **AP-7 begonnen — Job-Center (NF-014)** — der persistente Activity-Button
+    im Workspace-Header pollt alle drei Sekunden `/jobs`, zeigt die Zahl laufender
+    Vorgänge per Badge und bündelt sichtbare Quellen-Syncs, Link-Builder- und (nur
+    für Superuser) Diagnose-Läufe. Fehlerdetails sind aufklappbar; fehlgeschlagene
+    Vorgänge lassen sich wiederaufnehmen. Run-basierte Jobs erzeugen dabei einen
+    neuen Run, damit die Fehlerhistorie erhalten bleibt. Ausgabe und Wiederaufnahme
+    respektieren Team-/Projekt-Sichtbarkeit. Die Oberfläche ist deutsch/englisch
+    nachgezogen und meldet die aktive Anzahl per `aria-live`. TypeScript und Vitest
+    sind grün. Der Produktions-Build scheitert in der abgeschotteten Umgebung nur
+    am bestehenden Online-Abruf der drei Google-Fonts. In AP-7 verbleibt die
+    Design-Token-Migration samt CI-Verbot harter Farbwerte.

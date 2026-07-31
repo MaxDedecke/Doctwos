@@ -1006,6 +1006,18 @@
     "noModelLoadedHint": "Wähle eine IFC-Datei aus den angepinnten Wissensquellen in der Sidebar.",
     "no2dDataAvailable": "Für dieses Dateiformat ist keine 2D-Vektorzeichnung verfügbar."
   },
+  "jobCenter": {
+    "title": "Job-Center",
+    "subtitle": "Aktive und fehlgeschlagene Vorgänge",
+    "empty": "Keine aktiven oder fehlgeschlagenen Jobs.",
+    "activeCount": "{{count}} aktive Jobs",
+    "resume": "Wiederaufnehmen",
+    "status": {
+      "pending": "In Warteschlange",
+      "running": "Wird ausgeführt",
+      "failed": "Fehlgeschlagen"
+    }
+  },
   "errorBoundary": {
     "title": "Etwas ist schiefgelaufen",
     "description": "Ein unerwarteter Fehler ist aufgetreten. Du kannst es erneut versuchen oder einen anonymen Fehlerbericht senden, damit wir das Problem beheben können.",

@@ -135,4 +135,6 @@ export const api = {
         axios.delete(`${API_URL}/projects/${projectId}/members/${userId}`),
     generateDiagnosticsBundle: () => axios.post(`${API_URL}/diagnostics/generate`),
     getDiagnosticsRuns: () => axios.get(`${API_URL}/diagnostics/runs`),
+    getJobs: () => axios.get(`${API_URL}/jobs`),
+    resumeJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/resume`),
 };

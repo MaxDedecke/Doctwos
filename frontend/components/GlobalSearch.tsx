@@ -10,6 +10,7 @@ import { api } from "@/app/services/api";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { DoctusIcon } from './Logo';
+import { JobCenter } from './JobCenter';
 
 interface SearchResult {
   node_type: string;
@@ -440,6 +441,7 @@ export function GlobalSearch({
 
       {/* Global header actions — add view, knowledge graph, link manager, theme & settings */}
       <div className="flex items-center gap-1.5 shrink-0 ml-auto pl-1">
+        <JobCenter theme={theme} />
         {/* Add view dropdown — pick which view to open */}
         <div className="relative">
           <Button

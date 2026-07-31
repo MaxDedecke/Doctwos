@@ -1006,6 +1006,18 @@
     "noModelLoadedHint": "Select an IFC file from the pinned knowledge sources in the sidebar.",
     "no2dDataAvailable": "No 2D vector drawing is available for this file format."
   },
+  "jobCenter": {
+    "title": "Job center",
+    "subtitle": "Active and failed operations",
+    "empty": "No active or failed jobs.",
+    "activeCount": "{{count}} active jobs",
+    "resume": "Resume",
+    "status": {
+      "pending": "Queued",
+      "running": "Running",
+      "failed": "Failed"
+    }
+  },
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. You can try again, or send an anonymous error report to help us fix it.",
