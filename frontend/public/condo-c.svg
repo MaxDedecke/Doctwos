@@ -1,0 +1,22 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon: stylized "C" formed by overlapping nodes representing knowledge network -->
+  <g>
+    <!-- Outer ring (the "C" shape, open) -->
+    <path d="M 60 20
+             A 30 30 0 1 0 60 80"
+          fill="none" stroke="#2563EB" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Center node (the "instance") -->
+    <circle cx="50" cy="50" r="9" fill="#2563EB"/>
+
+    <!-- Small connecting nodes -->
+    <circle cx="60" cy="20" r="6" fill="#60A5FA"/>
+    <circle cx="60" cy="80" r="6" fill="#60A5FA"/>
+    <circle cx="32" cy="50" r="6" fill="#60A5FA"/>
+
+    <!-- Connection lines -->
+    <line x1="50" y1="50" x2="60" y2="20" stroke="#93C5FD" stroke-width="3"/>
+    <line x1="50" y1="50" x2="60" y2="80" stroke="#93C5FD" stroke-width="3"/>
+    <line x1="50" y1="50" x2="32" y2="50" stroke="#93C5FD" stroke-width="3"/>
+  </g>
+</svg>

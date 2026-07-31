@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.next/
+node_modules/
+data/
+repos/
+.env
+parser/languages/grammars/*.so
+frontend/test-results/
+frontend/playwright-report/
+frontend/tsconfig.tsbuildinfo
+
+# Interne Planungsdokumente (nicht ins Repo)
+docs/IMPLEMENTIERUNGSPLAN.md
+docs/UMSETZUNGSSTAND.md

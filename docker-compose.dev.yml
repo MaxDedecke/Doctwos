@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Hot-reload overlay for local dev — keeps docker-compose.yml self-host-clean
+# (no source bind-mounts, no dev-only commands). Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  backend-api:
+    environment:
+      UVICORN_RELOAD: "1"
+    volumes:
+      - ./backend:/app
+      - ./repos:/repos
+
+  parser-worker:
+    volumes:
+      - ./parser:/app
+      - ./repos:/repos
+
+  frontend:
+    build:
+      context: ./frontend
+      target: deps
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next

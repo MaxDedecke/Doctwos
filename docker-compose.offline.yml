@@ -1,0 +1,172 @@
+name: doctus
+
+# Standalone compose file for air-gapped customers: every image is pre-built
+# and `docker load`-ed by install-offline.sh, so there is no `build:` key and
+# no source on disk to bind-mount. See docs/DEPLOYMENT.md, "Air-Gapped /
+# Offline Installation", and scripts/build-offline-bundle.sh which produces
+# the bundle this file ships in.
+
+# Caps each container's own log file — Docker's json-file driver has no size
+# limit by default, and these containers run indefinitely on a customer's box.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: ankane/pgvector:latest@sha256:956744bd14e9cbdf639c61c2a2a7c7c2c48a9c8cdd42f7de4ac034f4e96b90f8
+    container_name: doctus-db
+    restart: always
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Loopback only (see docker-compose.yml for the rationale) — keep especially
+    # tight here: the offline bundle targets air-gapped, privacy-strict customers.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # Valkey, not Redis: Redis is dual-licensed (RSALv2/SSPLv1) since 7.4 and no
+    # longer OSI open source. Valkey is the Linux Foundation's BSD-3-Clause fork,
+    # wire-compatible — same REDIS_URL, same client, no code changes needed.
+    image: valkey/valkey:8-alpine@sha256:77643d152547b446fc15cbafaff22004545663fcd40c6b28038ad283837baa75
+    container_name: doctus-redis
+    restart: always
+    logging: *default-logging
+    # Loopback only — Valkey runs without auth (see docker-compose.yml).
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a
+    container_name: doctus-ollama
+    restart: always
+    logging: *default-logging
+    # Loopback only — Ollama has no auth (see docker-compose.yml).
+    ports:
+      - "127.0.0.1:11434:11434"
+    environment:
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_KEEP_ALIVE: "1m"
+    volumes:
+      - ./data/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/11434'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  backend-api:
+    image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    container_name: doctus-backend
+    restart: always
+    logging: *default-logging
+    # Wait for healthy deps, not just created — backend runs `alembic upgrade
+    # head` on startup and fails against a not-yet-ready Postgres (see main
+    # docker-compose.yml for the full rationale).
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY}
+      BOOTSTRAP_SUPERUSER: ${BOOTSTRAP_SUPERUSER:-admin}
+      BOOTSTRAP_SUPERUSER_PASSWORD: ${BOOTSTRAP_SUPERUSER_PASSWORD:-}
+      BOOTSTRAP_SUPERUSER_EMAIL: ${BOOTSTRAP_SUPERUSER_EMAIL:-}
+      FRONTEND_URL: ${FRONTEND_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      OLLAMA_LLM_MODEL: ${LLM_MODEL:-disabled}
+      LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
+    volumes:
+      - ./repos:/repos
+      - ./data/logs/backend-api:/var/log/doctus/backend-api
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  parser-worker:
+    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
+    container_name: doctus-parser
+    restart: always
+    logging: *default-logging
+    # Also waits for backend-api (owns the Alembic migrations) so tasks never
+    # hit a not-yet-migrated schema on first boot — see main docker-compose.yml.
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
+      COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
+      LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
+    volumes:
+      - ./repos:/repos
+      - ./data/logs:/var/log/doctus
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    image: doctus-frontend:${DOCTUS_VERSION:-latest}
+    container_name: doctus-frontend
+    restart: always
+    logging: *default-logging
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: ${API_URL}
+      INTERNAL_API_URL: http://backend-api:8000
+      HOSTNAME: "0.0.0.0"
+    volumes:
+      - ./data/logs/frontend:/var/log/doctus/frontend
+    command: ["sh", "-c", "npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s

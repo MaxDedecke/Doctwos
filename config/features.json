@@ -1,0 +1,33 @@
+{
+  "_showcase": "Doctus — COBOL/Git-fokussiert, kein AEC",
+  "connectors": {
+    "confluence": true,
+    "jira": true,
+    "local": true,
+    "folderwatch": true,
+    "webdav": true
+  },
+  "git": {
+    "github": true,
+    "gitlab": true,
+    "bitbucket": true,
+    "public": true
+  },
+  "views": {
+    "linkManager": true,
+    "knowledgeGraph": true,
+    "topicHub": true,
+    "globalSearch": true,
+    "codeAnalysis": true,
+    "flowchart": false
+  },
+  "settings": {
+    "ai": true,
+    "logs": true,
+    "editor": true,
+    "layout": true
+  },
+  "llm": {
+    "allowCloudProviders": false
+  }
+}

@@ -1,0 +1,249 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  # backend/ and parser/ are separate Docker build contexts (see CLAUDE.md
+  # "Models module duplication") — these files must be kept byte-identical by
+  # hand. This has silently drifted before and caused the parser Celery
+  # worker's ORM mapper to diverge from the actual DB schema.
+  model-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: backend/models and parser/models must be byte-identical
+        run: |
+          diff backend/models/database.py parser/models/database.py
+          diff backend/models/crypto_types.py parser/models/crypto_types.py
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: doctus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      REDIS_URL: redis://localhost:6379/0
+      MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
+      SESSION_SECRET_KEY: ci-only-session-secret-not-used-in-prod
+      FRONTEND_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Run Alembic migrations
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest tests/ -v
+
+  parser:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: doctus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install system build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential git
+      - name: Install dependencies
+        working-directory: parser
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install alembic
+      - name: Run Alembic migrations
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Run tests
+        working-directory: parser
+        run: python -m pytest tests/ -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Type-check
+        working-directory: frontend
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Unit tests
+        working-directory: frontend
+        run: npm run test
+
+  # Full-stack Smoke-Test: lokale Anmeldung -> authentifizierte Oberfläche ->
+  # COBOL-Wissensquelle anlegen/sehen. Backend/Frontend laufen direkt auf dem
+  # Runner (nicht über docker-compose — Ollama wird für diesen Ablauf nicht
+  # gebraucht und der Job bleibt dadurch schnell); db/redis sind Job-Services.
+  # Seit dem Wegfall von OIDC braucht dieser Job keinen IdP mehr.
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: doctus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    env:
+      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      REDIS_URL: redis://localhost:6379/0
+      MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
+      SESSION_SECRET_KEY: ci-only-session-secret-not-used-in-prod
+      FRONTEND_URL: http://localhost:3000
+      BOOTSTRAP_SUPERUSER: testuser
+      BOOTSTRAP_SUPERUSER_PASSWORD: ci-only-testpass-not-used-in-prod
+      E2E_USERNAME: testuser
+      E2E_PASSWORD: ci-only-testpass-not-used-in-prod
+      API_URL: http://localhost:8000
+      E2E_BASE_URL: http://localhost:3000
+      E2E_API_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Run Alembic migrations
+        working-directory: backend
+        run: alembic upgrade head
+      - name: Start backend
+        working-directory: backend
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/docs >/dev/null && exit 0
+            sleep 1
+          done
+          echo "Backend did not become ready in time" >&2
+          cat /tmp/backend.log
+          exit 1
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          nohup npm run start > /tmp/frontend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "Frontend did not become ready in time" >&2
+          cat /tmp/frontend.log
+          exit 1
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e smoke test
+        working-directory: frontend
+        run: npx playwright test e2e/login.spec.ts
+
+      - name: Upload logs on failure
+        if: failure()
+        run: |
+          echo "--- backend ---"; cat /tmp/backend.log || true
+          echo "--- frontend ---"; cat /tmp/frontend.log || true
+
+  # F-005: password_hash darf in keinem Serializer, keinem Log und keinem
+  # Diagnose-Bundle auftauchen. core/passwords.py und api/auth.py sind die
+  # einzigen erlaubten Fundstellen (Erzeugung/Prüfung des Hashes selbst).
+  no-password-leak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: password_hash taucht nur an den erlaubten Stellen auf
+        run: |
+          hits=$(grep -rn "password_hash" backend parser frontend \
+                   --include="*.py" --include="*.ts" --include="*.tsx" \
+                   --exclude-dir=node_modules \
+                 | grep -v "^backend/core/passwords.py:" \
+                 | grep -v "^backend/api/auth.py:" \
+                 | grep -v "^backend/core/db_setup.py:" \
+                 | grep -v "^backend/models/database.py:" \
+                 | grep -v "^parser/models/database.py:" \
+                 | grep -v "^backend/alembic/versions/" \
+                 | grep -v "^backend/tests/" || true)
+          if [ -n "$hits" ]; then
+            echo "password_hash an unerlaubter Stelle referenziert:"
+            echo "$hits"
+            exit 1
+          fi

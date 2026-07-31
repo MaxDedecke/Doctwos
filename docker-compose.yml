@@ -1,0 +1,246 @@
+name: doctus
+
+# Caps each container's own log file — Docker's json-file driver has no size
+# limit by default, and these containers run indefinitely on a customer's box.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    # Pinned by digest, not just :latest, so an offline bundle built today still
+    # resolves to the exact same image months later (see docker-compose.offline.yml).
+    image: ankane/pgvector:latest@sha256:956744bd14e9cbdf639c61c2a2a7c7c2c48a9c8cdd42f7de4ac034f4e96b90f8
+    container_name: doctus-db
+    restart: always
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Only the host loopback, never 0.0.0.0: inter-service traffic goes over the
+    # Compose network (service name `db`), so the published port is purely for
+    # local admin/debug on the box itself. Binding to all interfaces would put
+    # Postgres on the customer's LAN, undermining the on-prem data-sovereignty story.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    # Valkey, not Redis: Redis is dual-licensed (RSALv2/SSPLv1) since 7.4 and no
+    # longer OSI open source. Valkey is the Linux Foundation's BSD-3-Clause fork,
+    # wire-compatible — same REDIS_URL, same client, no code changes needed.
+    image: valkey/valkey:8-alpine@sha256:77643d152547b446fc15cbafaff22004545663fcd40c6b28038ad283837baa75
+    container_name: doctus-redis
+    restart: always
+    logging: *default-logging
+    # Loopback only — Valkey runs without auth. Containers reach it via the
+    # Compose network (`redis`); exposing it on 0.0.0.0 would hand any host on
+    # the LAN unauthenticated read/write to the Celery queue.
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a
+    container_name: doctus-ollama
+    restart: always
+    logging: *default-logging
+    # Loopback only — Ollama has no auth. The backend/parser reach it via the
+    # Compose network (`ollama`); on 0.0.0.0 anyone on the LAN could use the
+    # customer's GPU/models directly. Host-side `ollama pull` still works, it
+    # runs through `docker exec` (see install.sh), not this published port.
+    ports:
+      - "127.0.0.1:11434:11434"
+    environment:
+      # Default ist 4096 und reicht nicht fuer System-Prompt + Tool-Schemas + RAG-Kontext
+      # zusammen -> Ollama schneidet den Prompt sonst stillschweigend ab (siehe Agent-Tool-Calls).
+      OLLAMA_CONTEXT_LENGTH: "8192"
+      # 2, nicht 1: jeder /chat-Request braucht Embedding-Modell + Chat-Modell gleichzeitig warm.
+      # Verhindert nur, dass beim Modellwechsel im UI zusaetzlich ein zweites Chat-Modell parallel
+      # geladen bleibt und mit dem aktiven um die 4 CPU-Kerne konkurriert (beobachtet: 56s -> 4m16s).
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      # Entlaedt Modelle nach 1 Minute Inaktivitaet, um Systemspeicher (RAM) fuer naechtliche Backups freizugeben.
+      OLLAMA_KEEP_ALIVE: "1m"
+    volumes:
+      - ./data/ollama:/root/.ollama
+    healthcheck:
+      # No curl/wget in this image — a bare TCP connect is enough to catch
+      # "process died"/"port not listening"; /health above does the deeper
+      # model-pull-level check against this same port.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/11434'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  backend-api:
+    build:
+      context: ./backend
+      args:
+        # Unset locally, GET /version just reports "unknown" — set by
+        # scripts/build-offline-bundle.sh for shipped builds.
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TIME: ${BUILD_TIME:-}
+    # Explicit image name+tag (not Compose's auto "<project>-<service>") so a
+    # pre-built/loaded image is found regardless of what folder this is checked
+    # out into — required for the air-gapped path (docker-compose.offline.yml).
+    image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    container_name: doctus-backend
+    restart: always
+    logging: *default-logging
+    # Wait until the deps pass their healthcheck, not just until they're created:
+    # this container runs `alembic upgrade head` on startup (docker-entrypoint.sh),
+    # which fails against a Postgres that isn't accepting connections yet. Without
+    # this it self-heals via `restart: always`, but only after a noisy crash loop
+    # on the very first boot in front of the customer.
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY}
+      BOOTSTRAP_SUPERUSER: ${BOOTSTRAP_SUPERUSER:-admin}
+      BOOTSTRAP_SUPERUSER_PASSWORD: ${BOOTSTRAP_SUPERUSER_PASSWORD:-}
+      BOOTSTRAP_SUPERUSER_EMAIL: ${BOOTSTRAP_SUPERUSER_EMAIL:-}
+      FRONTEND_URL: ${FRONTEND_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
+      OLLAMA_LLM_MODEL: ${LLM_MODEL:-disabled}
+      LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
+      ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
+    volumes:
+      - ./repos:/repos
+      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      - ./config:/config:ro
+      # Own app-log file, additive to the json-file driver above — lets a
+      # diagnostics bundle collect this service's logs by reading a file, not
+      # by shelling out to `docker compose logs` (see parser-worker below).
+      - ./data/logs/backend-api:/var/log/doctus/backend-api
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  parser-worker:
+    build: ./parser
+    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
+    container_name: doctus-parser
+    restart: always
+    logging: *default-logging
+    # Also waits for backend-api to be healthy: backend-api owns the Alembic
+    # migrations (docker-entrypoint.sh), so starting the worker before they've
+    # run risks tasks hitting a schema that doesn't exist yet on first boot.
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
+      COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
+      LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
+      ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
+    volumes:
+      - ./repos:/repos
+      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Whole logs tree (not just its own subdir, unlike every other service
+      # here): the diagnostics-bundle Celery task runs in this container and
+      # reads every service's log file directly off disk, since parser-worker
+      # has no Docker socket/CLI to shell out to `docker compose logs` with.
+      - ./data/logs:/var/log/doctus
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+
+  parser-beat:
+    build: ./parser
+    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
+    container_name: doctus-beat
+    restart: always
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    command: ["celery", "-A", "worker", "beat", "--loglevel=info", "--scheduler=celery.beat:PersistentScheduler", "--schedule=/tmp/celerybeat-schedule"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
+      LOG_FILE_PATH: /var/log/doctus/parser-beat/parser-beat.log
+    volumes:
+      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      - ./data/logs/parser-beat:/var/log/doctus/parser-beat
+    healthcheck:
+      test: ["CMD", "python3", "healthcheck_beat.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    image: doctus-frontend:${DOCTUS_VERSION:-latest}
+    container_name: doctus-frontend
+    restart: always
+    logging: *default-logging
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: ${API_URL}
+      INTERNAL_API_URL: http://backend-api:8000
+      HOSTNAME: "0.0.0.0"
+    volumes:
+      - ./data/logs/frontend:/var/log/doctus/frontend
+    # `next start` has no file-logging option of its own — tee its stdout
+    # (server-side render errors, request logs) into the shared mount above
+    # instead of building a custom logger into the app.
+    command: ["sh", "-c", "npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
