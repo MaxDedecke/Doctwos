@@ -13,6 +13,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 | E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
 | E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | Optionen dokumentiert, Freigabe/Entfernung steht beim Auftraggeber aus | **offen, Release-Blocker** |
+| E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Optionen dokumentiert, noch nicht entschieden | offen |
 
 ---
 
@@ -242,3 +243,44 @@ jetzt als `"blocking": true` und lässt den Job bewusst rot, bis hier
 entschieden ist — **Release-Blocker**.
 
 **Fundstelle.** `docs/OSS-CLEARING.md` Abschnitt 1, `scripts/license_exceptions_python.json`.
+
+---
+
+## E-8 — Embedding-Batchgröße vs. CPU-only-Timeout
+
+**Problem.** Der AP-9-Lasttest mit einem synthetischen Ersatzkorpus (1200
+Programme + 250 Copybooks, `scripts/generate_synthetic_cobol_corpus.py`) hat
+gezeigt: `ollama_client.get_embeddings_batch()` schickt alle Chunks eines
+Dokuments in einem Request, mit einem fest verdrahteten 120-s-Timeout und
+3 Retries. Ein Batch von 300 Chunks lief bei CPU-only-`bge-m3` (keine GPU in
+dieser Testumgebung, aber auch bei kleineren On-Premise-Kunden ohne GPU
+realistisch) in allen drei Versuchen in den Timeout. Ein Batch von 20 Chunks
+lief durch, brauchte aber 18,34 s (≈1,1 Chunks/s) — bei einem großen
+Copybook/Programm mit entsprechend vielen Chunks reicht auch das nicht immer.
+CLAUDE.md verlangt „On-Premise per Default" und „Skalierung by Default" für
+100-GB-Bestände — ein Sync, der bei großen Dateien in Timeout-Retry-Schleifen
+hängen bleibt statt nur langsamer zu sein, verletzt beides stiller als ein
+offensichtlicher Fehler.
+
+**Optionen (keine davon bisher umgesetzt):**
+
+1. **Batchgröße dynamisch klein halten** (z. B. an Chunk-Anzahl oder
+   Zeichensumme gekoppelt, in mehrere Requests aufteilen) — löst das
+   Timeout-Problem strukturell, kostet mehr Roundtrips bei kleinen
+   Dokumenten.
+2. **Timeout großzügiger/konfigurierbar machen** (z. B. über eine
+   Umgebungsvariable, analog zu `COMPLIANCE_LLM_TIMEOUT`) — einfacher
+   Eingriff, verschiebt das Problem nur (irgendein Dokument ist immer groß
+   genug, den neuen Wert wieder zu reißen), macht aber den worst case
+   konfigurierbar statt hart zu blockieren.
+3. **Beides kombinieren** — sinnvolle Obergrenze für die Batchgröße plus ein
+   Timeout, der zur tatsächlich gemessenen CPU-Embedding-Rate passt
+   (≈1,1 Chunks/s in dieser Umgebung; variiert mit Kundenhardware).
+
+**Entscheidung.** Noch offen — braucht eine Abwägung zwischen Latenz pro
+Dokument und Durchsatz, keine reine Bugfix-Entscheidung. Bis dahin bleibt das
+Risiko dokumentiert statt stillschweigend zu bestehen: bei Kunden ohne GPU
+kann die Erstindexierung großer Dateien an dieser Stelle hängen bleiben.
+
+**Fundstelle.** `parser/ollama_client.py::get_embeddings_batch`,
+`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Härtung".

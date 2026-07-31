@@ -16,3 +16,10 @@ frontend/tsconfig.tsbuildinfo
 # Interne Planungsdokumente (nicht ins Repo)
 docs/IMPLEMENTIERUNGSPLAN.md
 docs/UMSETZUNGSSTAND.md
+
+# scripts/build-offline-bundle.sh Ausgabe (mehrere GB, nie committen)
+dist/
+
+# AP-9-Lasttest: generierter synthetischer Ersatzkorpus (Skript ist committet,
+# die erzeugten Dateien nicht)
+loadtest/

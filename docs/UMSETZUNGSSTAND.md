@@ -1,6 +1,8 @@
 # Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-9 begonnen: OSS-Clearing fertig, POST/DELETE /projects-Absturz behoben)
+**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-9: Offline-Bundle verifiziert,
+synthetischer Lasttest-Ersatzkorpus mit ersten realen Zahlen — Persistenz-
+und Embedding-Engpass gefunden)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -21,7 +23,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — Light/Dark-Tokens, Fujitsu-Rot-Blau-Markenverlauf, eigenständige Workspace-Optik, CI-Gate sowie Job-Center + de/en umgesetzt |
 | **AP-8** | Konnektoren-Nachzug (Upload/Confluence/Jira/WebDAV/FolderWatch nachtesten) | **fertig** — dedizierte Tests für alle vier Connectoren + Upload-Endpunkt ergänzt, zwei verlorene Regressionstests (Orphan-Schutz, Chunked-Download) nachgebaut |
-| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | **läuft** — OSS-Clearing fertig (GPL-Fund offen, E-7), zwei Produktionsabstürze in `/projects` gefunden+behoben; Lasttest/BITV/Offline-Bundle noch offen |
+| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | **läuft** — OSS-Clearing fertig (GPL-Fund offen, E-7), zwei Produktionsabstürze in `/projects` gefunden+behoben, Barrierefreiheits-Basis-Check fertig, Offline-Bundle end-to-end verifiziert (Doku-Referenz-Bug gefixt); Lasttest hat jetzt reale Zahlen aus synthetischem Ersatzkorpus (Persistenz+Embedding als Engpässe identifiziert), formale Abnahme am echten Bestand weiterhin offen; BITV-Abnahme/Abschlussdokumentation offen |
 
 ---
 
@@ -1063,10 +1065,101 @@ Runde vormerken.**
 `npx tsc --noEmit` und `npm run test` (4/4) nach den Fixes weiterhin grün,
 Frontend-Image neu gebaut und deployed.
 
-**Noch offen in AP-9:** Lasttest am repräsentativen COBOL-Bestand (braucht
-externen Beispielbestand), BITV-Abnahme (braucht verbindlichen Prüfumfang
-vom Auftraggeber), Farbkontrast-Nachbesserung (Design-Entscheidung, siehe
-oben), Offline-Bundle-Verifikation, Abschlussdokumentation.
+**Offline-Bundle (NF-002) — verifiziert.** `scripts/build-offline-bundle.sh`
+war bisher nie tatsächlich durchlaufen worden (nur gelesen). Echter Fund beim
+ersten Lauf: das Skript kopierte `docs/OPEN_SOURCE_CLEARING.md` in den
+Bundle — diese Datei gibt es nicht mehr, der AP-9-Lizenzbericht heißt
+`docs/OSS-CLEARING.md` (Rename fiel offenbar bei dessen Anlage aus dem
+Blick). Der Kopierbefehl steht hinter `[ -f … ] &&` und schlug deshalb
+lautlos fehl — jeder ausgelieferte Air-Gapped-Bundle wäre ohne
+Lizenz-/Provenienzbericht rausgegangen, ohne dass Build oder Install das
+gemeldet hätten. Beide Stellen (Kommentar + Kopierbefehl) in
+`scripts/build-offline-bundle.sh` korrigiert.
+
+Danach vollständig End-to-End durchgespielt (Version-Tag `ap9-verify`,
+`LLM_MODEL=disabled`, nur `bge-m3` ~1,2 GB): Images gebaut, Bundle in einem
+**vom laufenden Dev-Stack isolierten Verzeichnis** entpackt (Dev-Stack war
+dafür kurz `docker compose down`, `./data` unangetastet, danach wieder
+`docker compose up -d` — beide Compose-Dateien verwenden identische
+Containernamen/Ports/`./data`-Bind-Mounts, ein gleichzeitiger Betrieb ist
+nicht vorgesehen). `install-offline.sh`: `SHA256SUMS`-Prüfung schlägt bei
+einer unvollständigen Kopie korrekt fehl (einmal live beobachtet — eigener
+Kopierfehler, keine Datei aus dem Bundle selbst), mit vollständigem Bundle
+lädt es alle sechs Images, entpackt die Ollama-Modelle **ohne
+Registry-Zugriff**, startet den Stack — alle sechs Dienste healthy,
+`GET /health` meldet DB/Redis/Ollama `ok`, `GET /version` liefert den
+gebackenen Tag `ap9-verify`, Login mit dem einmalig geloggten
+Bootstrap-Passwort funktioniert. Testinstanz danach abgebaut
+(`docker compose -f docker-compose.offline.yml down`), Dev-Stack wieder
+hochgefahren, alle sieben Dienste healthy. **NF-002 damit erstmals real
+verifiziert, nicht nur durch Code-Lesen angenommen.**
+
+**Nebenfund beim Verifizieren:** `dist/` (die Bundle-Ausgabe, mehrere GB
+inkl. `images.tar.gz`) war nicht in `.gitignore` — ein `git add -A` hätte das
+versehentlich gestaged. Ergänzt, zusammen mit `loadtest/` (siehe unten).
+
+**Lasttest (NF-010) — synthetischer Ersatzkorpus vorbereitet, erste reale
+Zahlen.** Weiterhin kein echter DRV-Bestand verfügbar (Plan §1.3 Punkt 4).
+Neu: `scripts/generate_synthetic_cobol_corpus.py` erzeugt einen
+deterministischen (seed-basierten) synthetischen COBOL-Bestand mit
+realistischem Cross-Reference-Graphen (statische `CALL`s zwischen
+generierten Programmen, `COPY`/`COPY … REPLACING` gegen generierte
+Copybooks, `PERFORM`/`PERFORM THRU`, `EXEC SQL`, schief verteilte
+Programmgrößen 70 % klein/25 % mittel/5 % groß) — reproduzierbar, aber kein
+Ersatz für eine echte Abnahme an Kundendaten. Damit gemessen (Lauf vom
+31.07.2026, 1200 Programme + 250 Copybooks, 177.498 Zeilen/5,7 MiB):
+
+- **Reines Parsen** (`cobol.parse.parse_program/parse_copybook`, In-Memory,
+  keine DB): 1,52 s gesamt, **≈ 807 Programme/s, ≈ 116.500 Zeilen/s**, 0
+  Fehler. Hochgerechnet auf 100 GB (CLAUDE.md-Zielgröße) bei gleichbleibender
+  Zeichendichte: **grob 7,5 Stunden reine Parserzeit, einfädig.**
+- **Persistenz (Pass 1, `cobol_persist.py`, echtes Postgres im
+  `doctus-parser`-Container):** 68.047 Entities, 83.392 Kanten aus denselben
+  1200+250 Dateien in 61,76 s, davon 59,38 s reine DB-Zeit — **≈ 19,4
+  Dateien/s**. Damit ist die Persistenz (nicht das Parsen) der Flaschenhals:
+  ~27× langsamer als reines Parsen. Grund ist strukturell, nicht zufällig —
+  `cobol_persist.py` flusht laut eigenem Kommentar bewusst je Entity einzeln,
+  damit Kind-Entities in derselben Datei die Eltern-`id` sehen (siehe Kopf
+  von `cobol_persist.py`); bei 68k Entities sind das 68k Einzel-Flushes.
+  **Für einen 100-GB-Bestand nicht ohne Weiteres tragbar** — bei linearer
+  Fortschreibung wären das mehrere Tage; ob NF-004 (Resumability) das in der
+  Praxis abfedert (Sync läuft ohnehin über Tage, wiederaufsetzbar) oder ob
+  hier eine Batch-Flush-Strategie nötig wird, braucht eine Messung am realen
+  Bestand, ist aber jetzt als konkretes Risiko benannt statt nur vermutet.
+- **Pass 2 (globale CALL/COPY-Auflösung, `edge_resolver.py`):** 11.007 von
+  11.139 offenen Kanten (98,8 %) in 1,61 s aufgelöst — unproblematisch, auch
+  bei deutlich mehr Kanten kein erwarteter Engpass (ein Full-Scan gescopet
+  auf `source_id`).
+- **Embedding (Ollama `bge-m3`, CPU-only in dieser Umgebung):** ein
+  Batch-Request mit 300 Chunks in einem Aufruf **lief drei Versuche à 120 s
+  in den Timeout** (`ollama_client.get_embeddings_batch`s eigener Timeout).
+  Mit 20 Chunks lief derselbe Aufruf durch: 18,34 s → **≈ 1,1 Chunks/s**.
+  Hochgerechnet: die 13.540 Chunks aus nur diesen 1200 Programmen bräuchten
+  CPU-only **> 3 Stunden Embedding-Zeit** — bei einem echten Monorepo mit
+  weit mehr Chunks ist das der mit Abstand größte Zeittreiber, nicht Parsen
+  oder Persistieren. **Echter, bisher nicht dokumentierter Befund:** die
+  aktuelle Batch-Größe (der Connector reicht ganze Dokumente in einem
+  Request weiter, siehe `git.py`) ist für CPU-only-Betrieb an vielen Stellen
+  zu groß für den fest verdrahteten 120-s-Timeout in `ollama_client.py` —
+  bei einem Kunden ohne GPU würde ein Sync an dieser Stelle in
+  Timeout-Retry-Schleifen hängen bleiben, nicht einfach nur langsam sein.
+  **Nachzuziehen:** Batch-Größe an die tatsächliche Embedding-Rate koppeln
+  (dynamisch klein halten) oder den Timeout für den CPU-only-Fall
+  konfigurierbar/großzügiger machen — beides nicht in dieser Session
+  umgesetzt, da es eine bewusste Abwägung (Latenz pro Dokument vs.
+  Durchsatz) statt eines offensichtlichen Bugfixes ist.
+
+Alle Testdaten (`source_id=None`/`project_id=None`, `file_path` mit Präfix
+`loadtest/`) danach wieder aus der DB entfernt (`--cleanup`-Modus des
+Skripts); der generierte Korpus selbst ist nicht committet
+(`.gitignore: loadtest/`), nur der Generator.
+
+**Weiterhin offen in AP-9:** formale Lasttest-Abnahme am echten DRV-Bestand
+(dieser Lauf ersetzt sie nicht, liefert aber erstmals reale Zahlen statt
+reiner Vermutung — insbesondere den Persistenz- und Embedding-Engpass oben),
+BITV-Abnahme (braucht verbindlichen Prüfumfang vom Auftraggeber),
+Farbkontrast-Nachbesserung (Design-Entscheidung, siehe oben),
+Abschlussdokumentation.
 
 **Nebenbefund, nicht mitgefixt:** `npm audit` (Frontend) meldet drei High-
 Severity-CVEs — `next` (16.2.10, mehrere Advisories: Middleware-/Server-
@@ -1098,6 +1191,11 @@ per Autogenerate gegengeprüft (Delta leer).
 - Unklar, ob „CSV" in Plan §13 (F-018, „Upload/CSV") eine echte Lücke markiert
   oder veraltet ist — aktuell kein CSV-Support in `folder.py`/`webdav.py`/Upload
   (bei AP-8 entdeckt, siehe AP-8-Abschnitt oben).
+- `cobol_persist.py` flusht je Entity einzeln (≈19 Dateien/s statt ≈807 beim
+  reinen Parsen) und `ollama_client.py`s Batch-Embedding läuft bei CPU-only-
+  Betrieb und großen Batches in den 120-s-Timeout — beide beim
+  AP-9-Lasttest mit synthetischem Ersatzkorpus gefunden, noch nicht behoben
+  (siehe AP-9-Abschnitt oben).
 
 **Testabdeckung, die beim Entkernen verloren ging** — **erledigt bei AP-8:**
 - Orphan-Schutz bei unvollständigem Scan (war `test_incomplete_scan_safety.py`,
@@ -1120,10 +1218,13 @@ per Autogenerate gegengeprüft (Delta leer).
 
 ## Aktuell nächste Schritte
 
-1. **AP-9:** Lasttest am repräsentativen COBOL-Bestand, BITV-Abnahme,
-   Lizenzprüfung, Offline-Bundle und Abschlussdokumentation.
-2. **Extern erforderlich:** repräsentativen COBOL-Beispielbestand und den
-   verbindlichen BITV-Prüfumfang bereitstellen.
+1. **AP-9:** den gefundenen Persistenz-Engpass (`cobol_persist.py`,
+   Einzel-Flush je Entity, ≈19 Dateien/s) und Embedding-Engpass
+   (`ollama_client.py`-Timeout bei CPU-only-Batches) einordnen — Fix oder
+   bewusstes Akzeptieren, dann BITV-Abnahme und Abschlussdokumentation.
+2. **Extern erforderlich:** repräsentativen COBOL-Beispielbestand (für die
+   formale Lasttest-Abnahme, der synthetische Ersatzkorpus liefert nur ein
+   erstes Signal) und den verbindlichen BITV-Prüfumfang bereitstellen.
 
 ---
 
@@ -1277,3 +1378,27 @@ per Autogenerate gegengeprüft (Delta leer).
     Backend-Suite 77 bestanden + 7 neue Upload-Tests grün (3 vorbestehende,
     unabhängige `ALLOW_CLOUD_LLM`-Fehlschläge unverändert). **Nächstes
     Arbeitspaket: AP-9 (Härtung).**
+
+20. **AP-9 läuft — OSS-Clearing, Absturzfixes, Barrierefreiheit, dann
+    Offline-Bundle-Verifikation und Lasttest-Vorbereitung.** Erste Teilsession:
+    Lizenzbericht + CI-Gate (GPL-Fund `Unidecode`, E-7, Release-Blocker), zwei
+    gefundene und behobene 500er (`POST`/`DELETE /projects`, samt verwaister
+    Wissensquellen/Embeddings beim Projektlöschen), automatisierter
+    axe-core-Basis-Check (fünf Button-Label-Fixes, Zoom-Meta entfernt,
+    Farbkontrast bewusst offen gelassen). Details im Abschnitt „AP-9 —
+    Härtung" oben. Zweite Teilsession: `scripts/build-offline-bundle.sh`
+    erstmals tatsächlich durchlaufen lassen statt nur gelesen — dabei einen
+    stillen Fehler gefunden (Bundle kopierte einen nicht mehr existierenden
+    Lizenzbericht-Dateinamen, lieferte also nie den Lizenzbericht aus) und
+    behoben, danach den kompletten Air-Gapped-Pfad einmal real durchgespielt
+    (Build → Install in isoliertem Verzeichnis → sechs gesunde Dienste →
+    Login) und wieder abgebaut. Dazu `scripts/generate_synthetic_cobol_corpus.py`
+    (neu) als Ersatz für den weiterhin fehlenden echten DRV-Bestand: erste
+    reale Durchsatzzahlen zeigen Persistenz (≈19 Dateien/s, Einzel-Flush je
+    Entity) und CPU-only-Embedding (Timeout bei großen Batches) als die
+    beiden tatsächlichen Engpässe, nicht das Parsen selbst (≈807
+    Programme/s). Beide Funde sind vorerst nur dokumentiert, nicht behoben —
+    das ist eine bewusste Abwägungsentscheidung, kein offensichtlicher Bugfix,
+    und wird in einer künftigen Session aufgegriffen. **Noch offen in AP-9:**
+    formale Lasttest-Abnahme am echten Bestand, BITV-Abnahme,
+    Farbkontrast-Nachbesserung, Abschlussdokumentation.

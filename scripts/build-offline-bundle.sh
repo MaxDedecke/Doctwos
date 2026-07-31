@@ -51,7 +51,7 @@ if [ -n "$LLM_MODEL" ] && [ "$LLM_MODEL" != "disabled" ]; then
 fi
 docker exec doctus-bundle-ollama ollama pull bge-m3
 
-echo "==> Recording model provenance (see docs/OPEN_SOURCE_CLEARING.md for license text)"
+echo "==> Recording model provenance (see docs/OSS-CLEARING.md for license text)"
 {
     echo "Doctus offline bundle ${DOCTUS_VERSION} — model provenance manifest"
     echo "Built: ${BUILD_TIME}"
@@ -92,7 +92,7 @@ cp scripts/install-offline.sh "$bundle_dir/"
 mkdir -p "$bundle_dir/scripts/lib"
 cp scripts/lib/env-bootstrap.sh "$bundle_dir/scripts/lib/"
 [ -f docs/DEPLOYMENT.md ] && cp docs/DEPLOYMENT.md "$bundle_dir/"
-[ -f docs/OPEN_SOURCE_CLEARING.md ] && cp docs/OPEN_SOURCE_CLEARING.md "$bundle_dir/"
+[ -f docs/OSS-CLEARING.md ] && cp docs/OSS-CLEARING.md "$bundle_dir/"
 
 # Pin DOCTUS_VERSION and LLM_MODEL in the shipped .env.example to whatever was
 # actually built/pulled, so the customer's generated .env can't drift from the
