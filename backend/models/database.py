@@ -134,8 +134,14 @@ class KnowledgeSource(Base):
     # {"last_commit": "...", "last_path": "...", "phase": "parse"}
     sync_cursor = Column(JSON, nullable=True)
 
-    project = relationship("Project", backref="knowledge_sources")
-    team = relationship("Team", backref="knowledge_sources")
+    # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
+    # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen
+    # eines Project/Team stattdessen die abhaengigen KnowledgeSource-Zeilen und
+    # setzt project_id/team_id per UPDATE auf NULL statt die DB-CASCADE greifen
+    # zu lassen — project_id ist nullable, das UPDATE gelingt lautlos und
+    # hinterlaesst eine verwaiste Quelle (gefunden bei AP-9, delete_project()).
+    project = relationship("Project", backref=backref("knowledge_sources", passive_deletes=True))
+    team = relationship("Team", backref=backref("knowledge_sources", passive_deletes=True))
 
     __table_args__ = (
         UniqueConstraint("project_id", "url", "branch", name="uq_knowledge_sources_project_url_branch"),
@@ -153,8 +159,11 @@ class DocumentChunk(Base):
     metadata_json = Column(JSON) # Store symbols, language, etc.
     embedding = Column(Vector(1024)) # bge-m3
 
-    project = relationship("Project", backref="document_chunks")
-    knowledge_source = relationship("KnowledgeSource", backref="document_chunks")
+    # passive_deletes=True: siehe Begruendung bei KnowledgeSource.project oben,
+    # derselbe Mechanismus wuerde sonst beim Loeschen eines Projekts/einer
+    # Wissensquelle die Embeddings verwaist statt kaskadierend geloescht lassen.
+    project = relationship("Project", backref=backref("document_chunks", passive_deletes=True))
+    knowledge_source = relationship("KnowledgeSource", backref=backref("document_chunks", passive_deletes=True))
 
     # Beide Indizes stehen so schon in der Baseline-Migration. Sie gehören
     # trotzdem hierher: was das ORM nicht kennt, will `alembic revision

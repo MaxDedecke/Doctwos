@@ -34,9 +34,6 @@ def serialize_project(p: Project, serialize_repo_info: bool = True) -> dict:
         "creator_id": p.creator_id,
         "is_archived": p.is_archived,
         "color": p.color,
-        "jurisdiction": p.jurisdiction,
-        "regulation_date": p.regulation_date.isoformat() if p.regulation_date else None,
-        "regulation_snapshot_id": p.regulation_snapshot_id,
         "repository": None
     }
     if git_source:

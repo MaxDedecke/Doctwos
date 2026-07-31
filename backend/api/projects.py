@@ -189,21 +189,29 @@ def delete_project(
     if not _is_project_admin(id, user, db):
         raise HTTPException(status_code=403, detail="Nur Projekt-Admins dürfen Projekte löschen")
 
-    # Git-Klonverzeichnis aufräumen falls vorhanden
-    repo = proj.repository
-    repo_id = repo.id if repo else None
+    # Worktree-Verzeichnisse der Git-Quellen dieses Projekts merken, bevor die
+    # KnowledgeSource-Zeilen per ON DELETE CASCADE mitgelöscht werden (AP-3:
+    # Bare-Mirror + Worktree unter wt/ks_<source_id>, siehe list_project_files()/
+    # get_project_repository_stats() oben — `Project.repository` existiert nicht,
+    # ein Projekt kann mehrere Git-Quellen haben).
+    git_source_ids = [
+        s.id for s in db.query(KnowledgeSource).filter(
+            KnowledgeSource.project_id == id,
+            KnowledgeSource.type == "Git"
+        ).all()
+    ]
 
     # Alle Bezüge löschen
     db.delete(proj)
     db.commit()
 
-    if repo_id:
-        repo_path = os.path.join(REPOS_ROOT, str(repo_id))
+    for source_id in git_source_ids:
+        repo_path = os.path.join(REPOS_ROOT, "wt", f"ks_{source_id}")
         if os.path.exists(repo_path):
             try:
                 shutil.rmtree(repo_path)
             except Exception as e:
-                logger.error(f"Fehler beim Löschen des Git-Klonpfads {repo_path}: {e}")
+                logger.error(f"Fehler beim Löschen des Worktree-Pfads {repo_path}: {e}")
 
     return {"message": "Projekt erfolgreich gelöscht"}
 

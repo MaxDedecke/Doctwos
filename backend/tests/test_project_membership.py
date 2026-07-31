@@ -146,6 +146,45 @@ def test_request_access_rejects_project_from_foreign_team(member_client, db_sess
         db_session.commit()
 
 
+def test_delete_project_with_git_source_does_not_crash(client, db_session, test_project):
+    """Regression test: delete_project() read `proj.repository`, an attribute
+    that never existed on the current Project model (AEC-era leftover, the
+    real Git-worktree path lives on KnowledgeSource since AP-3) — every DELETE
+    /projects/{id} on a project with any data crashed with a 500 AttributeError."""
+    from models.database import KnowledgeSource
+
+    proj = db_session.query(Project).filter(Project.id == test_project).first()
+    source = KnowledgeSource(
+        name="Test Git Source", type="Git", project_id=test_project, team_id=proj.team_id, spaces={}
+    )
+    db_session.add(source)
+    db_session.commit()
+
+    res = client.delete(f"/projects/{test_project}")
+    assert res.status_code == 200
+
+    assert db_session.query(Project).filter(Project.id == test_project).first() is None
+
+
+def test_create_project_returns_serialized_project(client, db_session):
+    """Regression test: serialize_project() read AEC-era attributes
+    (`jurisdiction`, `regulation_date`, `regulation_snapshot_id`) that were
+    removed from the Project model during the AP-0 fork — every POST
+    /projects crashed with a 500 AttributeError. Nothing exercised this
+    endpoint through the API before, only via direct DB inserts in fixtures."""
+    res = client.post("/projects", json={"name": "Regression Test Project"})
+    assert res.status_code == 201
+    body = res.json()
+    assert body["name"] == "Regression Test Project"
+    assert "jurisdiction" not in body
+
+    proj = db_session.query(Project).filter(Project.id == body["id"]).first()
+    assert proj is not None
+    db_session.query(ProjectMembership).filter(ProjectMembership.project_id == proj.id).delete()
+    db_session.delete(proj)
+    db_session.commit()
+
+
 def test_discoverable_lists_own_team_projects_without_membership(member_client, db_session):
     """GET /projects/discoverable should surface same-team projects the user
     hasn't joined, and must not leak project ids as a route match before the

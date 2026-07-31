@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 const API_URL = process.env.E2E_API_URL || "http://82.165.216.180:8000";
+const USERNAME = process.env.E2E_USERNAME || "testuser";
+const PASSWORD = process.env.E2E_PASSWORD || "";
 
 test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status !== testInfo.expectedStatus) {
@@ -15,28 +17,17 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 });
 
-test("OIDC login redirect lands on the authenticated app shell and the session works for API calls", async ({ page }) => {
+test("local login lands on the authenticated app shell and the session works for API calls", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Mit SSO anmelden")).toBeVisible();
+  await expect(page.locator("#username")).toBeVisible();
 
-  await page.getByText("Mit SSO anmelden").click();
-
-  // Keycloak login form
-  await page.waitForURL(/realms\/doctus\/protocol\/openid-connect\/auth/);
-  await page.locator("#username").fill("testuser");
-  await page.locator("#password").fill("testpass");
-  await page.locator("#kc-login").click();
-
-  // Back on the frontend, authenticated app shell instead of the login screen
-  await page.waitForURL((url) => 
-    !url.toString().includes("doctus-test-keycloak") &&
-    !url.toString().includes("protocol/openid-connect") &&
-    !url.toString().includes("realms/doctus")
-  );
-  await expect(page.getByText("Mit SSO anmelden")).not.toBeVisible();
+  await page.locator("#username").fill(USERNAME);
+  await page.locator("#password").fill(PASSWORD);
+  await page.getByRole("button", { name: /Anmelden|Sign in/ }).click();
 
   // Wait for the authenticated app shell and its project selector to load completely
   await expect(page.locator("#project-selector")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator("#username")).not.toBeVisible();
 
   // The session cookie must work for actual API calls made from the browser context
   const projName = `e2e-project-${Date.now()}`;
