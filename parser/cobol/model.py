@@ -6,8 +6,8 @@ Gemeinsame Datenstrukturen der COBOL-Parser-Pipeline (Plan §6.2).
 Divisions/Data-Division/Procedure/SQL ergänzen ihre eigenen Strukturen, sobald
 sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kamen
 `CobolProgram`, `Division`, `Section`, `Paragraph` und `ParsedEdge` dazu, mit
-data_division.py jetzt `DataItem` und `FileDescriptor`. SqlBlock/ParseResult
-folgen mit sql.py/parse.py.
+data_division.py `DataItem` und `FileDescriptor`, mit sql.py jetzt `SqlBlock`.
+ParseResult folgt mit parse.py.
 
 `EntityType`/`EdgeType`/`Resolution` spiegeln bewusst die String-Werte aus
 `backend/models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
@@ -173,6 +173,32 @@ class DataItem:
     occurs: int | None = None
     occurs_depending_on: str | None = None
     value: str | None = None
+
+
+@dataclass
+class SqlBlock:
+    """Ein `EXEC SQL … END-EXEC`-Block (F-027), Entity-Typ `sql_block`
+    (docs/ENTSCHEIDUNGEN.md E-4).
+
+    name ist synthetisch (`SQL-BLOCK@<start_line>`) — anders als Paragraphen
+    oder Cursor hat ein anonymer SQL-Block kein COBOL-eigenes Bezeichnerwort;
+    die Zeilennummer ist die einzige stabile Identität (CLAUDE.md „Zeilen-
+    nummern sind heilig") und macht ihn trotzdem als Kantenendpunkt für die
+    USES-Kante SQL-Block→Datenfeld eindeutig adressierbar (E-4).
+
+    tables/host_variables sind roh aus dem SQL-Text extrahiert (kein
+    Katalogabgleich — leichtgewichtiger Klassifikator laut Plan §6.2), in
+    Fundreihenfolge dedupliziert. cursor_name ist nur bei DECLARE CURSOR /
+    OPEN / FETCH / CLOSE gesetzt.
+    """
+
+    name: str
+    statement_type: str
+    start_line: int
+    end_line: int
+    tables: list[str] = field(default_factory=list)
+    host_variables: list[str] = field(default_factory=list)
+    cursor_name: str | None = None
 
 
 @dataclass
