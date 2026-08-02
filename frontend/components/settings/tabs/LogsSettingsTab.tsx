@@ -5,7 +5,7 @@ import {
   Download, Loader2, FileText, Activity, CheckCircle2,
   AlertTriangle, ClipboardList, Terminal, RefreshCw,
 } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -316,9 +316,9 @@ export const LogsSettingsTab: React.FC = () => {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  navigator.clipboard.writeText(activeLogSource.sync_log || '');
-                  showToast(t('settings.logsTab.logCopiedToast'), "success");
+                onClick={async () => {
+                  const ok = await copyToClipboard(activeLogSource.sync_log || '');
+                  showToast(t(ok ? 'settings.logsTab.logCopiedToast' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
                 }}
                 className={cn(
                   "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",

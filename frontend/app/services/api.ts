@@ -70,7 +70,7 @@ export const api = {
     }),
     createFolderWatchSource: (data: { name: string; folder_path: string; project_id?: number | null }) =>
         axios.post(`${API_URL}/knowledge-sources/folder`, data),
-    createGitSource: (data: { name: string; url: string; branch: string; username?: string; token?: string; project_id?: number | null; sparse_paths?: string[] | null }) =>
+    createGitSource: (data: { name: string; url: string; branch: string; username?: string; token?: string; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null }) =>
         axios.post(`${API_URL}/knowledge-sources/git`, data),
     getProjectEntities: (id: number) => axios.get(`${API_URL}/projects/${id}/entities`),
     resolveEntity: (sourceId: number, path: string) =>

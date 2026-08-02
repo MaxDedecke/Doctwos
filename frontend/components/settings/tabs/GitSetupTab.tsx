@@ -32,7 +32,19 @@ interface GitSetupTabProps {
 
 export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDone }) => {
   const { t } = useLanguage();
-  const { theme, showToast, setProjects, setConnectedSources } = useSettings();
+  const { theme, showToast, setProjects, setConnectedSources, currentUser } = useSettings();
+
+  // F-041: eine Quelle ohne Projekt (targetProjectId === null) braucht ein Team, um
+  // KnowledgeSource.team_id zu füllen (siehe docs/TEAM_ACCESS_CONTROL.md, Sharp Edge 3+4).
+  // Admins und projekt-gebundene Quellen sind davon nicht betroffen — das Backend leitet
+  // team_id dort automatisch her. Nutzer mit genau einem Team brauchen ebenfalls keine
+  // UI, das Backend wählt es automatisch (core/teams.py::_resolve_team_id).
+  const userTeams: { id: number; name: string }[] = currentUser?.teams || [];
+  const needsTeamGate = targetProjectId === null && currentUser && !currentUser.is_admin;
+  const hasNoTeam = needsTeamGate && userTeams.length === 0;
+  const needsTeamPicker = needsTeamGate && userTeams.length > 1;
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
+  const teamGateBlocking = hasNoTeam || (needsTeamPicker && !selectedTeamId);
 
   const [repoType, setRepoType] = useState("public"); // 'public' | 'github' | 'bitbucket' | 'gitlab'
   const [repoUsername, setRepoUsername] = useState("");
@@ -253,7 +265,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         branch: selectedBranchName || "main",
         username: repoType === 'public' ? null : repoUsername,
         token: repoType === 'public' ? null : repoToken,
-        project_id: targetProjectId
+        project_id: targetProjectId,
+        team_id: needsTeamGate ? selectedTeamId : undefined,
       });
 
       setConnectedSources(prev => [...prev, res.data]);
@@ -261,9 +274,9 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       setProjects(projectsRes.data);
       setWizardStep(5);
       showToast(t('settings.toast.repoAdded'), "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToast(t('settings.toast.repoAddFailed'), "error");
+      showToast(err?.response?.data?.detail || t('settings.toast.repoAddFailed'), "error");
     }
   };
 
@@ -737,6 +750,35 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               </div>
             </div>
 
+            {hasNoTeam && (
+              <div className="flex items-start gap-2 p-3 rounded-lg border border-ds-red-500/20 bg-ds-red-500/5 text-ds-red-650 dark:text-ds-red-400 text-xs font-medium animate-in fade-in duration-200">
+                <X className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold">{t('settings.gitSetup.step4.noTeamTitle')}</p>
+                  <p className="text-[10px] leading-tight">{t('settings.gitSetup.step4.noTeamDesc')}</p>
+                </div>
+              </div>
+            )}
+
+            {needsTeamPicker && (
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.teamLabel')}</label>
+                <Select value={selectedTeamId?.toString() ?? ""} onValueChange={v => setSelectedTeamId(parseInt(v))}>
+                  <SelectTrigger className={cn(
+                    "w-full h-8 text-xs focus:ring-0",
+                    theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-350" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-750"
+                  )}>
+                    <SelectValue placeholder={t('settings.gitSetup.step4.teamSelectPlaceholder')} />
+                  </SelectTrigger>
+                  <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-850"}>
+                    {userTeams.map((team) => (
+                      <SelectItem key={team.id} value={team.id.toString()} className="text-xs">{team.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="flex justify-between items-center pt-3 border-t border-ds-zinc-800/20">
               <Button
                 type="button"
@@ -755,8 +797,9 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
               <Button
                 type="button"
+                disabled={teamGateBlocking}
                 onClick={handleWizardSubmit}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-ds-indigo-600/10"
+                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-ds-indigo-600/10"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{t('settings.gitSetup.step4.addAndIndex')}</span>

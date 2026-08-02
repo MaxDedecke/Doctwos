@@ -17,6 +17,11 @@ from sqlalchemy.orm import Session
 from core.auth_dependency import get_current_user
 from models.database import TeamMembership, User
 
+# Team, dem der Erststart-Superuser beitritt und auf das `_resolve_team_id`
+# (knowledge_sources.py) für Admins ohne explizite Team-Wahl zurückfällt —
+# ein Name an beiden Stellen, damit der Fallback nie ins Leere greift.
+DEFAULT_TEAM_NAME = "Default Team"
+
 
 def is_admin(user: User) -> bool:
     return (user.role or "user") == "superuser"

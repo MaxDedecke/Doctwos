@@ -345,7 +345,11 @@
         "fetchingBranches": "Fetching branches...",
         "selectBranchPlaceholder": "Select branch",
         "manualBranchHint": "Branches could not be loaded automatically — enter the name manually.",
-        "addAndIndex": "Add & Index"
+        "addAndIndex": "Add & Index",
+        "noTeamTitle": "No team assigned",
+        "noTeamDesc": "You are not yet a member of any team, so you can't create a global knowledge source. Contact an administrator or pick a specific project instead.",
+        "teamLabel": "Team",
+        "teamSelectPlaceholder": "Select team"
       },
       "step5": {
         "title": "Wizard complete!",

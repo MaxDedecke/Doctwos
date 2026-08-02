@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Loader2, Plus, KeyRound, Lock, Unlock, UserX, UserCheck, Copy, ShieldCheck } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { api } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -148,12 +148,8 @@ export const UsersSettingsTab: React.FC = () => {
 
   const copyPassword = async () => {
     if (!issuedPassword) return;
-    try {
-      await navigator.clipboard.writeText(issuedPassword.password);
-      showToast(t('settings.toast.passwordCopied'), "success");
-    } catch {
-      showToast(t('settings.toast.passwordCopyFailed'), "error");
-    }
+    const ok = await copyToClipboard(issuedPassword.password);
+    showToast(t(ok ? 'settings.toast.passwordCopied' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
   };
 
   const inputClass = cn(

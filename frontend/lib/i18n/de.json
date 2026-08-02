@@ -345,7 +345,11 @@
         "fetchingBranches": "Branches werden abgerufen...",
         "selectBranchPlaceholder": "Branch wählen",
         "manualBranchHint": "Da keine Branches automatisch geladen werden konnten, trage den Namen manuell ein.",
-        "addAndIndex": "Hinzufügen & Indexieren"
+        "addAndIndex": "Hinzufügen & Indexieren",
+        "noTeamTitle": "Kein Team zugewiesen",
+        "noTeamDesc": "Du bist noch keinem Team zugeordnet und kannst deshalb keine globale Wissensquelle anlegen. Wende dich an einen Administrator oder wähle stattdessen ein konkretes Projekt aus.",
+        "teamLabel": "Team",
+        "teamSelectPlaceholder": "Team auswählen"
       },
       "step5": {
         "title": "Assistent abgeschlossen!",

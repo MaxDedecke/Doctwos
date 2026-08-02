@@ -40,7 +40,7 @@ from core.config import celery_app, UPLOADS_DIR, REPOS_ROOT
 from core.db_setup import get_db
 from models.database import DocumentChunk, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
-from core.teams import get_visible_team_ids, assert_team_visible, is_admin
+from core.teams import get_visible_team_ids, assert_team_visible, is_admin, DEFAULT_TEAM_NAME
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])
@@ -94,7 +94,7 @@ def _resolve_team_id(
         return client_team_id
     else:
         if is_admin(user):
-            default_team = db.query(Team.id).filter(Team.name == "Default Team").scalar()
+            default_team = db.query(Team.id).filter(Team.name == DEFAULT_TEAM_NAME).scalar()
             if default_team:
                 return default_team
             raise HTTPException(status_code=403, detail="Standard-Team nicht gefunden")
