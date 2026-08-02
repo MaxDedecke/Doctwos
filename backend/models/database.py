@@ -351,7 +351,12 @@ class SourceScanFile(Base):
 
     __table_args__ = (UniqueConstraint("source_id", "file_path", name="uq_source_scan_source_path"),)
 
-    knowledge_source = relationship("KnowledgeSource", backref="scan_files")
+    # passive_deletes=True: siehe Begruendung bei KnowledgeSource.project oben.
+    # Ohne dieses Flag versucht SQLAlchemy beim Loeschen einer KnowledgeSource,
+    # source_id hier per UPDATE auf NULL zu setzen statt die DB-CASCADE greifen
+    # zu lassen — schlaegt fehl, weil source_id NOT NULL ist (IntegrityError beim
+    # Loeschen jeder Quelle mit Scan-Journal, u.a. Git).
+    knowledge_source = relationship("KnowledgeSource", backref=backref("scan_files", passive_deletes=True))
 
 
 class KnowledgeLink(Base):

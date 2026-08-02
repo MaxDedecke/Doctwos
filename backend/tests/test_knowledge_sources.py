@@ -3,7 +3,7 @@ import os
 import pytest
 
 from core.config import UPLOADS_DIR
-from models.database import KnowledgeSource, Project, ProjectMembership, User
+from models.database import KnowledgeSource, Project, ProjectMembership, SourceScanFile, User
 from conftest import TEST_USERNAME
 
 
@@ -90,6 +90,28 @@ def test_deleting_a_source(client, make_project):
     })
     assert resp.status_code == 200, resp.text
 
+
+
+def test_deleting_a_source_with_scan_file_journal_succeeds(client, make_project, db_session):
+    """Regression: eine synchronisierte Quelle (Git/Confluence/Jira/WebDAV) hinterlaesst
+    source_scan_files-Zeilen (source_id NOT NULL). Ohne passive_deletes=True auf
+    SourceScanFile.knowledge_source versucht SQLAlchemy beim Loeschen, source_id per
+    UPDATE auf NULL zu setzen statt die DB-CASCADE greifen zu lassen -> IntegrityError,
+    reproduzierbar u.a. bei jedem Git-Quellen-Delete nach abgeschlossenem Sync."""
+    project_id = make_project()
+
+    resp = client.post("/knowledge-sources", json={
+        "name": "git-source", "type": "Git", "project_id": project_id
+    })
+    source_id = resp.json()["id"]
+
+    db_session.add(SourceScanFile(
+        source_id=source_id, file_path="src/FOO.cbl", content_hash="abc123", parse_status="ok",
+    ))
+    db_session.commit()
+
+    del_resp = client.delete(f"/knowledge-sources/{source_id}")
+    assert del_resp.status_code == 200, del_resp.text
 
 
 def test_get_project_knowledge_sources_lists_only_attached(client, make_project):
