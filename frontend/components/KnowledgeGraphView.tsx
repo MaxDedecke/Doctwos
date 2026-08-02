@@ -1029,8 +1029,14 @@ export function KnowledgeGraphView({
                 if (node.type === 'entity') {
                   // Ein einfacher Klick stupst nur ein bereits offenes, nicht eingefrorenes
                   // Code-Panel an — er öffnet nie ein neues (openIfMissing=false).
+                  // source_id muss mit, sonst kann page.tsx::handlePanelFileSelect die
+                  // Entity nicht per api.resolveEntity() auflösen (Git-Quellen sind nicht
+                  // "local", die Dateiname-Heuristik in resolveReferenceTarget() greift
+                  // nicht) — der Editor bleibt dann leer, siehe SplitPaneWorkspace.tsx'
+                  // Lade-Effekt, der ohne selectedEntity.source_id keinen der drei
+                  // Content-Zweige treffen kann.
                   if (node.file_path && onFileSelect) {
-                    onFileSelect(node.file_path, node.start_line || null, null, false);
+                    onFileSelect(node.file_path, node.start_line || null, node.source_id ?? null, false);
                   }
                   if (onEntitySelect) {
                     onEntitySelect({
@@ -1056,7 +1062,7 @@ export function KnowledgeGraphView({
                 if (preferredNode) {
                   if (preferredNode.type === 'entity') {
                     if (preferredNode.file_path && onFileSelect) {
-                      onFileSelect(preferredNode.file_path, preferredNode.start_line || null);
+                      onFileSelect(preferredNode.file_path, preferredNode.start_line || null, preferredNode.source_id ?? null);
                     }
                     if (onEntitySelect) {
                       onEntitySelect({
