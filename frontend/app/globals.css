@@ -15,9 +15,13 @@
     --ds-foreground-muted: 78 96 91;
     --ds-border: 174 187 179;
     --ds-input: 159 176 166;
-    --ds-accent: 228 0 43;
+    /* Fujitsu Blue statt Fujitsu Rot als Akzent — Rot ist an hunderten Stellen
+       (ds-indigo-*) für Fokus/aktive Zustände im Einsatz und wurde dort mit
+       --ds-danger (echte Fehlerzustände) verwechselt. Gleicher Ton wie
+       --ds-info-* und der rechte Anschlag von .doctus-brand-gradient. */
+    --ds-accent: 0 100 210;
     --ds-on-accent: 245 255 251;
-    --ds-focus: 228 0 43;
+    --ds-focus: 0 100 210;
     --ds-danger: 190 18 60;
     --ds-on-danger: 255 255 255;
 
@@ -41,9 +45,9 @@
     --ds-neutral-900: 16 19 25;
     --ds-neutral-950: 11 13 16;
 
-    --ds-accent-soft: 255 228 234;
-    --ds-accent-base: 228 0 43;
-    --ds-accent-strong: 166 0 31;
+    --ds-accent-soft: 219 234 254;
+    --ds-accent-base: 0 100 210;
+    --ds-accent-strong: 0 55 128;
     --ds-info-soft: 219 234 254;
     --ds-info-base: 0 100 210;
     --ds-info-strong: 0 55 128;
@@ -74,9 +78,9 @@
     --ds-foreground-muted: 147 174 164;
     --ds-border: 38 67 62;
     --ds-input: 49 82 75;
-    --ds-accent: 255 48 84;
-    --ds-on-accent: 255 255 255;
-    --ds-focus: 255 48 84;
+    --ds-accent: 96 165 250;
+    --ds-on-accent: 8 18 33;
+    --ds-focus: 96 165 250;
     --ds-danger: 248 113 113;
   }
 }
