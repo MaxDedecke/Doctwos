@@ -13,7 +13,8 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 | E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
 | E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | Optionen dokumentiert, Freigabe/Entfernung steht beim Auftraggeber aus | **offen, Release-Blocker** |
-| E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Optionen dokumentiert, noch nicht entschieden | offen |
+| E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Option 3: Sub-Batches + konfigurierbarer Timeout | umgesetzt |
+| E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
 
 ---
 
@@ -262,7 +263,7 @@ CLAUDE.md verlangt „On-Premise per Default" und „Skalierung by Default" für
 hängen bleibt statt nur langsamer zu sein, verletzt beides stiller als ein
 offensichtlicher Fehler.
 
-**Optionen (keine davon bisher umgesetzt):**
+**Optionen:**
 
 1. **Batchgröße dynamisch klein halten** (z. B. an Chunk-Anzahl oder
    Zeichensumme gekoppelt, in mehrere Requests aufteilen) — löst das
@@ -277,10 +278,70 @@ offensichtlicher Fehler.
    Timeout, der zur tatsächlich gemessenen CPU-Embedding-Rate passt
    (≈1,1 Chunks/s in dieser Umgebung; variiert mit Kundenhardware).
 
-**Entscheidung.** Noch offen — braucht eine Abwägung zwischen Latenz pro
-Dokument und Durchsatz, keine reine Bugfix-Entscheidung. Bis dahin bleibt das
-Risiko dokumentiert statt stillschweigend zu bestehen: bei Kunden ohne GPU
-kann die Erstindexierung großer Dateien an dieser Stelle hängen bleiben.
+**Entscheidung.** Option 3 umgesetzt (AP-9-Abschluss): `get_embeddings_batch()`
+teilt Texte jetzt selbst in Sub-Batches von maximal `EMBED_BATCH_MAX_CHUNKS`
+(Default 20, orientiert an der gemessenen sicheren Größe) auf und ruft für
+jeden Sub-Batch einzeln `/api/embed` auf; der bisher fest verdrahtete
+120-s-Timeout ist über `EMBED_BATCH_TIMEOUT` konfigurierbar. Beide Werte sind
+env-steuerbar (Docker-Compose-kompatibel wie `COMPLIANCE_LLM_TIMEOUT`), damit
+sie sich ohne Codeänderung an gemessene Kundenhardware anpassen lassen. Das
+ist eine technische Entscheidung innerhalb bestehender Architekturprinzipien
+(keine neue Abhängigkeit, keine Kundendaten nötig) — anders als die formale
+Lasttest-Abnahme selbst, die einen echten Bestand braucht (siehe
+`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss").
 
 **Fundstelle.** `parser/ollama_client.py::get_embeddings_batch`,
-`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Härtung".
+`parser/tests/test_ollama_client.py`, `docs/UMSETZUNGSSTAND.md` Abschnitt
+„AP-9 — Härtung".
+
+---
+
+## E-9 — AP-9-Abschluss ohne Kundenzugang: was bleibt offen, was wird jetzt gefixt
+
+**Problem.** AP-9 (Härtung) hatte laut `docs/UMSETZUNGSSTAND.md` vier offene
+Punkte: formale Lasttest-Abnahme am echten DRV-Bestand, BITV-Abnahme,
+Farbkontrast-Nachbesserung, Abschlussdokumentation. Drei davon lassen sich in
+dieser Session nicht abschließend erledigen — nicht aus technischen Gründen,
+sondern weil die dafür nötige Autorität/Datenlage außerhalb des
+Implementierungsauftrags liegt:
+
+1. **Formale Lasttest-Abnahme am echten Bestand.** Braucht Zugriff auf
+   echte(n) DRV-COBOL-Bestand(e) — liegt nicht vor und kann nicht ad hoc
+   beschafft werden (Plan §1.3 Punkt 4, seit AP-2 offen). Der synthetische
+   Ersatzkorpus-Lauf (`scripts/generate_synthetic_cobol_corpus.py`, siehe
+   AP-9-Lasttest-Abschnitt in `docs/UMSETZUNGSSTAND.md`) bleibt der bestmögliche
+   Ersatz, ersetzt aber keine Abnahme.
+2. **BITV-Abnahme.** Der automatisierte axe-core-Basis-Check (WCAG2A/AA,
+   `frontend/e2e/accessibility.spec.ts`) ist fertig und deckt automatisiert
+   prüfbare Regeln ab — eine *formale* BITV-Abnahme braucht aber einen vom
+   Auftraggeber festgelegten, verbindlichen Prüfumfang (Plan-Risiko R6, NF-012)
+   und typischerweise eine akkreditierte Prüfstelle für den manuellen Teil.
+   Beides liegt außerhalb dessen, was in dieser Session festgelegt werden kann.
+3. **Farbkontrast-Nachbesserung.** Bereits in `docs/UMSETZUNGSSTAND.md`
+   („Bewusst nicht mitgefixt — Farbkontrast") als Design-Entscheidung
+   eingestuft: welcher Fujitsu-Markenton wie weit verschoben wird, ohne den
+   CI-Look zu brechen, braucht eine Freigabe der Markenverantwortlichen, ist
+   nicht aus dem Code oder von einem Implementierungsagenten allein
+   ableitbar.
+
+**Was stattdessen jetzt umgesetzt wurde (kein Kundenzugang nötig, rein
+technische Entscheidungen innerhalb bestehender Prinzipien):**
+- npm-CVE-Fixes im Frontend (`next` 16.2.10→16.2.12, `sharp`-Override auf
+  `^0.35.3`, `brace-expansion` über `npm audit fix`) — `npm audit` meldet
+  danach 0 Vulnerabilities; TypeScript, Vitest (4/4) und Produktions-Build
+  grün.
+- E-8 (Embedding-Batchgröße/Timeout) umgesetzt, siehe oben.
+- Abschlussdokumentation (`docs/ABSCHLUSS.md`) geschrieben.
+
+**Entscheidung.** AP-9 gilt damit als für den Implementierungsauftrag
+abgeschlossen. Die drei liegen gebliebenen Punkte sind keine Bugs und keine
+vergessene Arbeit, sondern strukturell außerhalb dessen, was ohne
+Auftraggeber-Zugriff (Kundendaten, formaler Prüfumfang, Markenfreigabe)
+erledigt werden kann — sie werden als Übergabepunkte an Fujitsu/DRV
+dokumentiert statt den Plan offen zu halten, bis sie irgendwann verfügbar
+werden. E-7 (GPL-`Unidecode`) bleibt unabhängig davon ein eigener,
+bereits dokumentierter Release-Blocker, der ebenfalls eine
+Auftraggeber-Rückmeldung braucht.
+
+**Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile),
+`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss", `docs/ABSCHLUSS.md`.

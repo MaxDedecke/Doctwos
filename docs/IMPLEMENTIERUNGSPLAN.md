@@ -1,13 +1,16 @@
 # Doctwos — Technischer Implementierungsplan v1.0
 
-> **Umsetzungsstand (31.07.2026):** AP-0 bis AP-8 sind abgeschlossen und
-> verifiziert. Dazu gehören der COBOL-Parser, resumable Multi-Branch-Git-Sync,
-> Entity-/Kantenpersistenz, Fokus- und Zeilenreferenzen, Call-Graph, Job-Center,
-> de/en-i18n, das eigenständige Doctwos-Redesign mit Fujitsu-Farbwelt sowie der
-> Konnektoren-Nachzug (Confluence/Jira/WebDAV/FolderWatch/Upload nachgetestet).
-> Als Nächstes folgt AP-9.
+> **Umsetzungsstand (02.08.2026): AP-0 bis AP-9 sind abgeschlossen.** Der
+> Implementierungsauftrag ist damit erfüllt. Drei Punkte aus AP-9 (formale
+> Lasttest-Abnahme am echten Bestand, BITV-Abnahme, Farbkontrast-Nachbesserung)
+> sind an den Auftraggeber übergeben, weil sie Kundendaten, einen verbindlichen
+> Prüfumfang bzw. eine Markenfreigabe brauchen — siehe E-9 in
+> `docs/ENTSCHEIDUNGEN.md` und `docs/ABSCHLUSS.md`. Der GPL-Fund `Unidecode`
+> (E-7) bleibt unabhängig davon ein offener Release-Blocker, der eine
+> Auftraggeber-Rückmeldung braucht.
 > Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
 > Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
+> Abschlussdokumentation: **`docs/ABSCHLUSS.md`**.
 
 **Basis:** Anforderungskatalog v1.2 (Stand 31.07.2026) · Condo-Template (`develop`, Commit 27789d4)
 **Zielrepo:** `MaxDedecke/Doctwos`
@@ -702,7 +705,7 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | ~~**AP-6**~~ | ~~Call-Graph-View + Export~~ **erledigt** | AP-4 | 1,5 | F-066 |
 | ~~**AP-7**~~ | ~~Design-Token-System (Fujitsu), Job-Center, i18n-Nachzug~~ **erledigt** | AP-5 | 1,5 | NF-006, NF-014 |
 | ~~**AP-8**~~ | ~~Konnektoren-Nachzug (Upload/CSV, Confluence/Jira/WebDAV-Retest)~~ **erledigt** | AP-3 | 1,0 | F-011, F-012, F-017, F-018 |
-| **AP-9** | Härtung: Lasttest, Barrierefreiheit, OSS-Clearing, Offline-Bundle, Doku | alle | 2,0 | NF-002/003/010/011/012 |
+| ~~**AP-9**~~ | ~~Härtung: Lasttest, Barrierefreiheit, OSS-Clearing, Offline-Bundle, Doku~~ **erledigt** (drei Teilpunkte an Auftraggeber übergeben, siehe E-9) | alle | 2,0 | NF-002/003/010/011/012 |
 | | **Summe** | | **22,5 PW** | |
 
 **Parallelisierung:** AP-2 (Parser, Python) und AP-5/AP-7 (Frontend) sind vollständig unabhängig. Bei zwei Entwickler:innen liegt der kritische Pfad bei **AP-0 → AP-2 → AP-4 → AP-6** ≈ 12–13 Wochen.
@@ -736,7 +739,7 @@ Von Anfang an, nicht nachträglich: Tastaturbedienbarkeit aller sechs Panel-Type
 | Workspace & Views | F-060…069 | AP-5, AP-6 | Basis ✅, Fokus/Callgraph ➕ |
 | Sessions | F-070…073 | AP-0 | ✅ vollständig |
 | Links & Graph | F-080…083 | AP-0 | ✅ vollständig |
-| Nicht-funktional | NF-001…014 | AP-9 (+ laufend) | NF-006/NF-014 ✅; Lasttest/BITV/Release-Härtung offen |
+| Nicht-funktional | NF-001…014 | AP-9 (+ laufend) | NF-006/NF-014 ✅; OSS-Clearing/Offline-Bundle/E-8 ✅; Lasttest-Abnahme/BITV-Abnahme/Farbkontrast an Auftraggeber übergeben (E-9), `Unidecode`-GPL-Freigabe offen (E-7) |
 
 Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
@@ -746,7 +749,17 @@ Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
 > Laufend gepflegt in `docs/UMSETZUNGSSTAND.md` — die Liste hier hält nur den groben Kurs fest.
 
-1. **AP-9 umsetzen:** Lasttests, BITV-Abnahme, Lizenzprüfung, Offline-Bundle und
-   Abschlussdokumentation.
-2. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen und
-   Erstindexierungsdauer an repräsentativen Kundendaten messen.
+**AP-0 bis AP-9 sind abgeschlossen.** Was jetzt aussteht, hängt am
+Auftraggeber, nicht mehr an der Implementierung (siehe E-9 in
+`docs/ENTSCHEIDUNGEN.md`, `docs/ABSCHLUSS.md`):
+
+1. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen,
+   Erstindexierungsdauer und die formale Lasttest-Abnahme brauchen
+   repräsentative Kundendaten (Plan §1.3 Punkt 4, seit AP-2 offen).
+2. **BITV-Prüfumfang festlegen:** verbindlich mit dem Auftraggeber klären,
+   danach formale Abnahme (ggf. mit akkreditierter Prüfstelle) durchführen.
+3. **Farbkontrast-Freigabe einholen:** Markenverantwortliche entscheiden, wie
+   weit Fujitsu-Markentöne für WCAG 1.4.3 verschoben werden dürfen.
+4. **`Unidecode`-GPL-Frage entscheiden (E-7):** Freigabe, Ersatzanbindung
+   oder Deaktivierung des Confluence-/Jira-Konnektors — aktuell
+   Release-Blocker.

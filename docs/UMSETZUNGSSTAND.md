@@ -1154,12 +1154,13 @@ Alle Testdaten (`source_id=None`/`project_id=None`, `file_path` mit Präfix
 Skripts); der generierte Korpus selbst ist nicht committet
 (`.gitignore: loadtest/`), nur der Generator.
 
-**Weiterhin offen in AP-9:** formale Lasttest-Abnahme am echten DRV-Bestand
-(dieser Lauf ersetzt sie nicht, liefert aber erstmals reale Zahlen statt
-reiner Vermutung — insbesondere den Persistenz- und Embedding-Engpass oben),
-BITV-Abnahme (braucht verbindlichen Prüfumfang vom Auftraggeber),
-Farbkontrast-Nachbesserung (Design-Entscheidung, siehe oben),
-Abschlussdokumentation.
+**Weiterhin offen in AP-9 (Stand vor dem Abschluss):** formale Lasttest-Abnahme
+am echten DRV-Bestand (dieser Lauf ersetzt sie nicht, liefert aber erstmals
+reale Zahlen statt reiner Vermutung — insbesondere den Persistenz- und
+Embedding-Engpass oben), BITV-Abnahme (braucht verbindlichen Prüfumfang vom
+Auftraggeber), Farbkontrast-Nachbesserung (Design-Entscheidung, siehe oben),
+Abschlussdokumentation. **Siehe unten, Abschnitt „AP-9 — Abschluss", wie diese
+vier Punkte aufgelöst wurden.**
 
 **Nebenbefund, nicht mitgefixt:** `npm audit` (Frontend) meldet drei High-
 Severity-CVEs — `next` (16.2.10, mehrere Advisories: Middleware-/Server-
@@ -1169,6 +1170,59 @@ Actions-Bypass, DoS, SSRF-Fälle) und `sharp`/`@img/sharp-libvips` (CVE-2026-
 `package.json` gepinnten Version installieren — braucht einen eigenen
 Build-/Test-/Regressionslauf, nicht nebenbei im Zuge der Barrierefreiheits-
 Prüfung. Separat nachziehen.
+
+---
+
+## AP-9 — Abschluss (02.08.2026)
+
+**AP-9 und damit der gesamte Implementierungsplan (AP-0…AP-9) sind
+abgeschlossen.** Von den vier oben genannten offenen Punkten wurden zwei in
+dieser Session final erledigt, zwei sind strukturell nicht ad hoc lösbar und
+wurden als Übergabepunkte an den Auftraggeber dokumentiert statt den Plan
+offen zu halten. Details der Abwägung: E-9 in `docs/ENTSCHEIDUNGEN.md`.
+Kompaktes Abschlussdokument für die Übergabe: `docs/ABSCHLUSS.md`.
+
+**Jetzt erledigt:**
+- **Der oben dokumentierte npm-Nebenbefund ist behoben.** `next` auf
+  `16.2.12` angehoben (im `package.json` gepinnte Version, kein
+  `--force`), `sharp` per `overrides` auf `^0.35.3` gezogen (next selbst
+  liefert `sharp@0.34.5` mit, das erst mit dem Override auf eine
+  gepatchte Version kommt — behebt CVE-2026-33327/33328/35590/35591),
+  `brace-expansion` über normales `npm audit fix`. `npm audit` meldet
+  danach **0 Vulnerabilities**. `npx tsc --noEmit`, `npm run test` (4/4)
+  und `npm run build` (Turbopack-Produktionsbuild) laufen anschließend
+  fehlerfrei durch.
+- **E-8 (Embedding-Batchgröße vs. CPU-only-Timeout) umgesetzt** — Option 3
+  aus dem Entscheidungslog. `ollama_client.get_embeddings_batch()` schickt
+  nicht mehr alle Chunks eines Dokuments in einem Request, sondern teilt sie
+  in Sub-Batches von maximal `EMBED_BATCH_MAX_CHUNKS` (Default 20, env-
+  steuerbar) und macht dafür je Sub-Batch einen eigenen `/api/embed`-Aufruf
+  mit eigenem Retry. Der bisher fest verdrahtete 120-s-Timeout ist über
+  `EMBED_BATCH_TIMEOUT` konfigurierbar (gleiches Muster wie
+  `COMPLIANCE_LLM_TIMEOUT`). Damit kann ein großes COBOL-Programm nicht mehr
+  in einem einzigen überlangen Request in die Timeout-Retry-Schleife laufen,
+  die der AP-9-Lasttest gezeigt hatte. Neuer Test `parser/tests/
+  test_ollama_client.py` (Sub-Batch-Aufteilung, konfigurierbarer Timeout,
+  Leerfall) — Parser-Suite läuft im `doctus-parser`-Container (DB-Tests
+  brauchen das Docker-Netz, siehe „Testumgebung" oben) mit **155/155 grün**
+  (152 vorher + 3 neue).
+
+**An den Auftraggeber übergeben, nicht Teil dieses Implementierungsauftrags:**
+- **Formale Lasttest-Abnahme am echten DRV-Bestand.** Braucht einen echten
+  oder zumindest repräsentativen COBOL-Bestand des Kunden — liegt nicht vor
+  und ist nicht ad hoc beschaffbar. Der synthetische Ersatzkorpus-Lauf oben
+  bleibt der bestmögliche Ersatz, ist aber keine Abnahme.
+- **BITV-Abnahme.** Der automatisierte axe-core-Basis-Check ist fertig
+  (siehe oben), eine *formale* Abnahme braucht aber einen vom Auftraggeber
+  festgelegten verbindlichen Prüfumfang (Plan-Risiko R6) und für den
+  manuellen Teil typischerweise eine akkreditierte Prüfstelle.
+- **Farbkontrast-Nachbesserung.** Bereits oben als Design-Entscheidung
+  eingestuft: welcher Fujitsu-Markenton wie weit verschoben wird, ohne den
+  CI-Look zu brechen, braucht eine Freigabe der Markenverantwortlichen.
+
+Unverändert und unabhängig von AP-9 weiterhin offen: **E-7**
+(`Unidecode`-GPL-Fund, Release-Blocker, Rechtsfrage — braucht
+Fujitsu/DRV-Rückmeldung).
 
 ---
 

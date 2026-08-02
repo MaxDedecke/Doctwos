@@ -10,6 +10,17 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
+# E-8: get_embeddings_batch() schickte bisher alle Chunks eines Dokuments in
+# einem einzigen Request. Ein Lasttest mit synthetischem COBOL-Korpus zeigte:
+# bei CPU-only bge-m3 (~1,1 Chunks/s) lief ein Batch von 300 Chunks in allen
+# drei Versuchen in den fest verdrahteten 120s-Timeout, waehrend 20 Chunks in
+# 18,34s zuverlaessig durchliefen. Ohne GPU haengt ein Sync grosser Dateien
+# sonst in Timeout-Retry-Schleifen statt nur langsamer zu sein. Beide Werte
+# sind env-steuerbar, damit sie sich an gemessene Kundenhardware anpassen
+# lassen, ohne Code zu aendern (docs/ENTSCHEIDUNGEN.md E-8).
+EMBED_BATCH_MAX_CHUNKS = int(os.getenv("EMBED_BATCH_MAX_CHUNKS", "20"))
+EMBED_BATCH_TIMEOUT = float(os.getenv("EMBED_BATCH_TIMEOUT", "120"))
+
 # Keep track of active clients per event loop to ensure thread-safety and loop-safety
 _loop_clients: Dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
 
@@ -53,7 +64,9 @@ async def get_embedding(text: str, model: str = "bge-m3"):
     return response.json()["embedding"]
 
 async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=3) -> list[list[float]]:
-    """Batched embeddings — ein Request für mehrere Texte mit Exponential Backoff Retry."""
+    """Batched embeddings — mehrere Requests à max. EMBED_BATCH_MAX_CHUNKS Texte
+    mit Exponential Backoff Retry je Sub-Batch (E-8: verhindert, dass ein
+    grosses Dokument in einem einzigen ueberlangen Request in den Timeout laeuft)."""
     if not texts:
         return []
 
@@ -64,16 +77,24 @@ async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=
         ]
     else:
         processed_texts = texts
-    
+
+    embeddings: list[list[float]] = []
+    for i in range(0, len(processed_texts), EMBED_BATCH_MAX_CHUNKS):
+        sub_batch = processed_texts[i:i + EMBED_BATCH_MAX_CHUNKS]
+        embeddings.extend(await _get_embeddings_sub_batch(sub_batch, model, retries))
+    return embeddings
+
+
+async def _get_embeddings_sub_batch(texts: list[str], model: str, retries: int) -> list[list[float]]:
     client = _get_client()
-    
+
     for attempt in range(retries):
         try:
             # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/embed",
-                json={"model": model, "input": processed_texts},
-                timeout=120.0  # Batch braucht mehr Zeit
+                json={"model": model, "input": texts},
+                timeout=EMBED_BATCH_TIMEOUT  # Batch braucht mehr Zeit
             )
             response.raise_for_status()
             return response.json()["embeddings"]
@@ -84,7 +105,7 @@ async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=
             wait = 2 ** attempt  # 1s, 2s, 4s
             logger.warning(f"Ollama retry {attempt+1}/{retries} nach {wait}s: {e}")
             await asyncio.sleep(wait)
-    
+
     return []
 
 _JSON_FENCE_OPEN_RE = re.compile(r"^```(?:json)?\s*", re.IGNORECASE)
