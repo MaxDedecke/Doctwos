@@ -304,11 +304,12 @@ function AppContent() {
   ]);
 
   // Synchronize unfrozen panels with global state — but only panels for which the
-  // new selection actually makes sense. Chat and the knowledge graph mirror every
-  // focus change unconditionally (chat wants the context, and every selectable
-  // object should have a graph node); code/doc/webview panels only follow
-  // selections of their own kind, otherwise e.g. clicking a document would make
-  // an open Doku panel try to load it as a document.
+  // new selection actually makes sense. Chat and the two graph views (knowledge
+  // graph, call graph) mirror every focus change unconditionally (chat wants the
+  // context, and every selectable object should have a node in both graphs);
+  // code/doc/webview panels only follow selections of their own kind, otherwise
+  // e.g. clicking a document would make an open Doku panel try to load it as a
+  // document.
   // Done during render (guarded by a combined-deps state comparison) rather
   // than in an effect.
   const [prevPanelSyncDeps, setPrevPanelSyncDeps] = useState({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs });
@@ -327,7 +328,7 @@ function AppContent() {
       const next = prev.map((sel, idx) => {
         if (panelFrozen[idx]) return sel;
         const panelType = panelConfigs[idx];
-        const shouldSync = panelType === 'chat' || panelType === 'graph'
+        const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
           || incomingType === null || incomingType === panelType;
         if (!shouldSync) return sel;
         if (
