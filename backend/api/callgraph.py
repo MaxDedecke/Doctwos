@@ -36,12 +36,37 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
                     seen.add(entity_id)
                     next_frontier.add(entity_id)
         frontier = next_frontier
-    nodes = [entity_json(e) for e in db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id)]
+
+    # CONTAINS ist keine code_edges-Zeile, sondern wird aus CodeEntity.parent_id
+    # abgeleitet (kein zusätzlicher Speicher, keine Nachauflösung nötig). Wir
+    # ziehen nur Vorfahren nach (nie Kinder) — sonst würde z.B. ein per PERFORM
+    # erreichter Paragraph sein Programm nie als Struktur-Kontext zeigen, während
+    # ein Abstieg in alle Paragraphen/Datenfelder eines Programms den 500er-
+    # Knotendeckel sprengen könnte, ohne für den Call-Graph-Fokus relevant zu sein.
+    frontier_ids = set(seen)
+    while frontier_ids and len(seen) < MAX_NODES:
+        parent_ids = {
+            pid for (pid,) in db.query(CodeEntity.parent_id)
+            .filter(CodeEntity.id.in_(frontier_ids), CodeEntity.parent_id.isnot(None))
+        }
+        new_ids = {pid for pid in parent_ids if pid not in seen}
+        if not new_ids:
+            break
+        allowed = set(list(new_ids)[: MAX_NODES - len(seen)])
+        seen.update(allowed)
+        frontier_ids = allowed
+
+    entities = db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id).all()
+    nodes = [entity_json(e) for e in entities]
     edges = [{"id": e.id, "source": e.src_entity_id, "target": e.dst_entity_id,
               "target_name": e.dst_name, "type": e.type, "resolution": e.resolution,
               "start_line": e.src_start_line, "end_line": e.src_end_line}
              for e in edge_rows.values()
              if e.src_entity_id in seen and (e.dst_entity_id is None or e.dst_entity_id in seen)]
+    edges += [{"id": f"contains:{e.id}", "source": e.parent_id, "target": e.id,
+               "target_name": e.name, "type": "CONTAINS", "resolution": "resolved",
+               "start_line": e.start_line, "end_line": e.end_line}
+              for e in entities if e.parent_id in seen]
     return {"root_id": root_id, "hops": hops, "truncated": len(seen) >= MAX_NODES, "nodes": nodes, "edges": edges}
 
 

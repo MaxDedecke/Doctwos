@@ -23,7 +23,7 @@ type CallEdge = {
   id: string;
   source: string | CallNode;
   target: string | CallNode;
-  type: 'CALL' | 'PERFORM' | 'GOTO' | 'COPY';
+  type: 'CALL' | 'PERFORM' | 'GOTO' | 'COPY' | 'CONTAINS';
   resolution: string;
 };
 
@@ -32,6 +32,7 @@ const EDGE_COLORS: Record<string, string> = {
   PERFORM: 'rgb(var(--ds-success-base))',
   GOTO: 'rgb(var(--ds-warning-base))',
   COPY: 'rgb(var(--ds-graph-a-base))',
+  CONTAINS: 'rgb(var(--ds-graph-b-base))',
 };
 
 interface Props {

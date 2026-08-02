@@ -15,6 +15,11 @@ def _fixture_graph(db, project_id, team_id):
                           name="FIELDS", qualified_name="FIELDS", type="copybook", start_line=1, end_line=10)
     db.add_all([caller, target, copybook])
     db.flush()
+    paragraph = CodeEntity(project_id=project_id, source_id=source.id, file_path="TARGET.CBL",
+                           name="TARGET.INIT-PARA", qualified_name="TARGET.INIT-PARA", type="paragraph",
+                           parent_id=target.id, start_line=5, end_line=8)
+    db.add(paragraph)
+    db.flush()
     db.add_all([
         CodeEdge(project_id=project_id, source_id=source.id, src_entity_id=caller.id,
                  dst_entity_id=target.id, dst_name="TARGET", type="CALL", resolution="resolved"),
@@ -28,11 +33,11 @@ def _fixture_graph(db, project_id, team_id):
     ]
     db.add_all(chunks)
     db.commit()
-    return source, caller, target, copybook, chunks
+    return source, caller, target, copybook, paragraph, chunks
 
 
 def test_entity_neighbors_resolve_and_callgraph_exports(client, db_session, test_project, test_team):
-    source, caller, target, copybook, _ = _fixture_graph(db_session, test_project, test_team)
+    source, caller, target, copybook, paragraph, _ = _fixture_graph(db_session, test_project, test_team)
     try:
         assert client.get(f"/entities/resolve?source_id={source.id}&path=TARGET.CBL").json()["id"] == target.id
         entity = client.get(f"/entities/{target.id}")
@@ -51,6 +56,16 @@ def test_entity_neighbors_resolve_and_callgraph_exports(client, db_session, test
         assert graphml.status_code == 200
         assert "graphml" in graphml.text
 
+        # CONTAINS (Struktur-Vorfahren über CodeEntity.parent_id) wird nur nach
+        # oben nachgezogen: Fokus auf den Paragraphen zeigt sein Programm, ohne
+        # dass ein CALL/COPY/PERFORM den Paragraphen je durchlaufen hätte.
+        para_graph = client.get(f"/callgraph/focus?entity_id={paragraph.id}&hops=0").json()
+        assert {n["id"] for n in para_graph["nodes"]} == {paragraph.id, target.id}
+        contains_edges = [e for e in para_graph["edges"] if e["type"] == "CONTAINS"]
+        assert len(contains_edges) == 1
+        assert contains_edges[0]["source"] == target.id
+        assert contains_edges[0]["target"] == paragraph.id
+
         search_result = client.get("/search", params={"q": "TARGET", "types": "entity"})
         assert search_result.status_code == 200
         target_hit = next(hit for hit in search_result.json()["results"] if hit["node_id"] == target.id)
@@ -62,7 +77,7 @@ def test_entity_neighbors_resolve_and_callgraph_exports(client, db_session, test
 
 
 def test_graph_retrieval_adds_callers_and_copy_targets_with_budget(db_session, test_project, test_team):
-    source, caller, target, copybook, chunks = _fixture_graph(db_session, test_project, test_team)
+    source, caller, target, copybook, paragraph, chunks = _fixture_graph(db_session, test_project, test_team)
     try:
         # Treffer TARGET: eingehender CALL ergänzt CALLER; ausgehender COPY ergänzt FIELDS.
         expanded = expand_chunks_with_graph(db_session, [chunks[0]], token_budget=100)

@@ -1456,3 +1456,25 @@ per Autogenerate gegengeprüft (Delta leer).
     und wird in einer künftigen Session aufgegriffen. **Noch offen in AP-9:**
     formale Lasttest-Abnahme am echten Bestand, BITV-Abnahme,
     Farbkontrast-Nachbesserung, Abschlussdokumentation.
+
+21. **CONTAINS-Kante im Call-Graph (Nachtrag nach AP-9)** — CALL/PERFORM/GOTO/
+    COPY waren als echte `code_edges`-Zeilen schon vor AP-9 fertig (F-032,
+    `/callgraph/focus`, `CallGraphView.tsx`); die COBOL-Strukturhierarchie
+    (Programm→Section→Paragraph, FD→Datenfeld) existierte dagegen nur als
+    `CodeEntity.parent_id` und tauchte im Graph nirgends als Kante auf. Neu in
+    `backend/api/callgraph.py::_focus`: eine synthetische `CONTAINS`-Kante pro
+    Entity mit `parent_id`, abgeleitet aus `parent_id` statt zusätzlich in
+    `code_edges` gespeichert (keine Nachauflösung nötig, kein Schema-Wechsel).
+    Der Fokus-BFS zieht dabei nur Vorfahren nach (nie Kinder) — ein Abstieg in
+    alle Paragraphen/Datenfelder eines Programms hätte den 500-Knoten-Deckel
+    ohne Nutzen für den Call-Graph sprengen können. `CallGraphView.tsx` hat
+    `CONTAINS` als vierten Kantentyp/Filter-Chip (`--ds-graph-b-base`) bekommen,
+    Export (JSON/CSV/GraphML) funktioniert unverändert mit, da beide über
+    dieselbe `graph["edges"]`-Liste laufen. Test in
+    `backend/tests/test_ap4_graph_api.py` ergänzt (Fokus auf einen Paragraphen
+    mit `hops=0` zeigt sein Programm über die neue CONTAINS-Kante, obwohl kein
+    CALL/PERFORM ihn je durchlaufen hätte). Backend-Suite 79 grün + 3
+    vorbestehende `ALLOW_CLOUD_LLM`-Fehlschläge unverändert, `tsc --noEmit`
+    grün. Getestet per `docker cp` in den laufenden `doctus-backend`-Container
+    (kein Image-Rebuild) — für einen echten Deploy fehlt weiterhin
+    `docker compose build backend-api`.
