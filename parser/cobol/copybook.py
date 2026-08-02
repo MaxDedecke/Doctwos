@@ -111,13 +111,29 @@ def scan(
     return edges, errors
 
 
+# Dieselben Endungen wie connectors/git.py::_build_copybook_index verwendet,
+# um den Index zu bauen (Name ohne Endung -> Pfade). Manche Bestände
+# schreiben `COPY "NAME.cpy".` mit Endung im Literal statt der reinen
+# Bibliotheksform `COPY NAME.` - ohne Normalisierung findet index.get() dann
+# nie einen Treffer und COPY-Kanten (und darüber E-2s Feldvererbung, siehe
+# auch tasks/edge_resolver.py::resolve_global_edges, das denselben Namen
+# noch einmal DB-seitig gegen die Copybook-Entity abgleicht) bleiben für den
+# gesamten Bestand unresolved.
+_COPYBOOK_EXTENSIONS = (".cpy", ".copy")
+
+
+def strip_copybook_extension(name: str) -> str:
+    stem, ext = os.path.splitext(name)
+    return stem if ext.lower() in _COPYBOOK_EXTENSIONS else name
+
+
 def _resolve(name: str, library: str | None, index: CopybookIndex) -> str:
     return "resolved" if resolve_path(name, library, index) is not None else "unresolved"
 
 
 def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | None:
     """Liefert nur bei eindeutiger COPY-Auflösung den konkreten Pfad."""
-    paths = index.get(name.upper(), [])
+    paths = index.get(strip_copybook_extension(name).upper(), [])
     if not paths:
         return None
     if len(paths) == 1:

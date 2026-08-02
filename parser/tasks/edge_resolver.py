@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from cobol.copybook import strip_copybook_extension
 from models.database import CodeEdge, CodeEntity
 
 # CALL-Ziele sind Programme, COPY-Ziele sind Copybooks — getrennt statt über
@@ -81,7 +82,8 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
                 resolved += 1
             continue
         target_type = _TARGET_TYPE_BY_EDGE_TYPE[edge.type]
-        matches = by_type_and_name[target_type].get(edge.dst_name.upper(), [])
+        dst_name = strip_copybook_extension(edge.dst_name) if edge.type == "COPY" else edge.dst_name
+        matches = by_type_and_name[target_type].get(dst_name.upper(), [])
         if len(matches) == 1:
             edge.dst_entity_id = matches[0].id
             edge.resolution = "resolved"

@@ -123,3 +123,22 @@ def test_no_copy_statement_produces_no_edges_without_crashing():
     _, edges, errors = _edges_from_fixture("01_minimal.cbl")
     assert errors == []
     assert edges == []
+
+
+def test_copy_of_quoted_literal_with_extension_still_resolves():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. QUOTEDCPY.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        '       COPY "WSFIELDS.cpy".\n'
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    _, edges, errors = _edges(text, index={"WSFIELDS": ["/repo/lib/WSFIELDS.cpy"]})
+    assert errors == []
+    # dst_name behaelt die Endung (Rohwert aus dem Quelltext, siehe
+    # copybook.py-Docstring) - nur die Indexauflösung normalisiert sie weg.
+    assert edges[0].dst_name == "WSFIELDS.cpy"
+    assert edges[0].resolution == "resolved"

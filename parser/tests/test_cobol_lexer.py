@@ -74,6 +74,24 @@ def test_tokenize_leading_digit_identifier_stays_one_word():
     assert ("WORD", "1D-ARRAY") in [(t.kind, t.value) for t in toks]
 
 
+def test_tokenize_numbered_paragraph_name_stays_one_word():
+    lines = source_format.split_logical_lines(
+        "000100  PERFORM 010-SYSTEMDATEN-LADEN.\n", "fixed"
+    )
+    toks = lexer.tokenize(lines)
+    kinds_values = [(t.kind, t.value) for t in toks]
+    assert ("WORD", "010-SYSTEMDATEN-LADEN") in kinds_values
+    assert not any(kind == "NUMBER" for kind, _ in kinds_values)
+
+
+def test_tokenize_umlaut_identifier_stays_one_word():
+    lines = source_format.split_logical_lines(
+        "000100  PERFORM 020-DATEIEN-ÖFFNEN.\n", "fixed"
+    )
+    toks = lexer.tokenize(lines)
+    assert ("WORD", "020-DATEIEN-ÖFFNEN") in [(t.kind, t.value) for t in toks]
+
+
 def test_tokenize_exec_block_becomes_single_word_token():
     from cobol import embedded
 

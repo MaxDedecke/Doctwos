@@ -31,12 +31,26 @@ from dataclasses import dataclass
 from .model import LogicalLine, Segment, SourceFormat
 from .source_format import AREA_B_START
 
+# WORD nutzt \w statt A-Za-z0-9, damit deutsche Bezeichner mit Umlauten/ß
+# (z.B. Paragraph "020-DATEIEN-ÖFFNEN") ein einziges Token bleiben statt an
+# jedem Umlaut aufzubrechen - Python-\w ist auf str-Pattern unicode-bewusst.
+# [^\W_] ist "\w ohne _", weil COBOL-Bezeichner keinen Unterstrich kennen und
+# das Verhalten sonst von A-Za-z0-9 (das _ ebenfalls ausschliesst) abweichen
+# wuerde.
+#
+# NUMBER-Lookahead muss dieselbe Zeichenklasse (plus Bindestrich)
+# ausschliessen: sonst backtrackt das gierige \d+ bei einem numerisch
+# benannten Paragraphen wie "010-SYSTEMDATEN-LADEN" auf "01", weil die
+# verbleibende "0" selbst kein Wortzeichen/- ist - der Rest
+# "0-SYSTEMDATEN-LADEN" faellt dann als zweites WORD-Token an. Numerische
+# Paragraphennamen sind COBOL-Konvention; der Bug zerriss praktisch jeden
+# PERFORM/GOTO-Verweis und liess den Call-Graph ohne Kanten dastehen.
 _TOKEN_RE = re.compile(
     r"""
       (?P<PSEUDO_TEXT>==[^=]*==)
     | (?P<LITERAL>'(?:[^']|'')*'|"(?:[^"]|"")*")
-    | (?P<NUMBER>\d+(?:\.\d+)?(?![A-Za-z\-]))
-    | (?P<WORD>[A-Za-z0-9][A-Za-z0-9\-]*)
+    | (?P<NUMBER>\d+(?:\.\d+)?(?![^\W_]|-))
+    | (?P<WORD>[^\W_](?:[^\W_]|-)*)
     | (?P<PERIOD>\.)
     | (?P<SYMBOL>[()])
     """,

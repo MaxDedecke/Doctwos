@@ -1,8 +1,8 @@
 # Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 31.07.2026, Nacht (AP-9: Offline-Bundle verifiziert,
-synthetischer Lasttest-Ersatzkorpus mit ersten realen Zahlen — Persistenz-
-und Embedding-Engpass gefunden)
+**Zuletzt aktualisiert:** 02.08.2026 (Nachtrag: Lexer-Bug behoben, der den
+Call-Graph fast kantenlos ließ — siehe Abschnitt „Nachtrag 02.08.2026:
+Call-Graph ohne Kanten" unten)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -1223,6 +1223,74 @@ Kompaktes Abschlussdokument für die Übergabe: `docs/ABSCHLUSS.md`.
 Unverändert und unabhängig von AP-9 weiterhin offen: **E-7**
 (`Unidecode`-GPL-Fund, Release-Blocker, Rechtsfrage — braucht
 Fujitsu/DRV-Rückmeldung).
+
+---
+
+## Nachtrag 02.08.2026: Call-Graph ohne Kanten (Lexer-Bug, gefixt)
+
+**Meldung:** Graph-View zeigt keine Relationen zwischen den Knoten. Ursache
+lag im Parser, nicht im Frontend/Backend-API — `CallGraphView.tsx` und
+`backend/api/callgraph.py::_focus` waren unverändert korrekt.
+
+**Root Cause 1 (dominant):** `parser/cobol/lexer.py::_TOKEN_RE` — der
+NUMBER-Lookahead `(?![A-Za-z\-])` schloss keine Ziffern aus. Bei einem
+COBOL-typischen numerisch benannten Paragraphen wie `010-SYSTEMDATEN-LADEN`
+backtrackte das gierige `\d+` auf `01`, weil die verbleibende `0` selbst kein
+Buchstabe/Bindestrich ist — der Rest `0-SYSTEMDATEN-LADEN` fiel als
+zweites WORD-Token an. Sowohl `divisions.py` (Paragraphen-Header-Erkennung,
+verlangt ein einzelnes WORD-Token je Header) als auch `procedure.py`
+(PERFORM/GOTO, verlangt WORD direkt nach dem Schlüsselwort) scheiterten
+dadurch bei praktisch **jedem** numerisch benannten Paragraphen — Standard-
+COBOL-Konvention, betraf den gesamten Testbestand. Ergebnis: 0 PERFORM/GOTO-
+Kanten in der DB trotz 18 PERFORM-Statements allein in
+`KONTOABRECHNUNG.cbl`. Fix: Lookahead auf `(?![^\W_]|-)` (Unicode-\w ohne
+Ziffern-Lücke).
+
+**Root Cause 2:** dieselbe WORD-Regel war ASCII-only (`[A-Za-z0-9]`), deutsche
+Bezeichner mit Umlauten/ß (`020-DATEIEN-ÖFFNEN`, `120-PRÜFE-...`) rissen am
+Umlaut in zwei Tokens auseinander. Fix: WORD auf `[^\W_](?:[^\W_]|-)*`
+(Unicode-Buchstaben/-Ziffern ohne Unterstrich) umgestellt — relevant, weil
+der Bestand explizit deutschsprachig ist (Fujitsu/DRV).
+
+**Root Cause 3 (unabhängig, gleicher Symptombereich):** `COPY "NAME.cpy".`
+mit Endung im Literal (Konvention im gesamten Testbestand) wurde nie
+aufgelöst — weder zur Parse-Zeit (`copybook.py::resolve_path`, Pass-0-Index
+ist nach Dateiname *ohne* Endung geschlüsselt) noch DB-seitig
+(`tasks/edge_resolver.py::resolve_global_edges`, derselbe Namensabgleich).
+Betraf zusätzlich stillschweigend E-2s Feldvererbung
+(`parse.py::_inherited_copybook_fields` nutzt denselben `resolve_path()`).
+Fix: neue `copybook.strip_copybook_extension()`, an beiden Stellen verwendet.
+
+**Verifiziert am Testbestand (`CobolTestRepository`, Source-ID 552, 26
+Dateien):** vor dem Fix 0 PERFORM/GOTO-, 0 aufgelöste COPY-Kanten von 306
+Kanten gesamt; danach 44 PERFORM (alle resolved), 27 COPY (alle resolved),
+47 CALL (alle resolved, unverändert), nur noch 24 von 473 USES unresolved
+(plausible SQL-Host-Variablen-Restfälle). Entities 344→400 (vorher an
+Umlauten/Ziffern-Bugs zerbrochene Paragraphen/Felder jetzt korrekt erkannt).
+
+**Tests:** zwei neue Lexer-Regressionstests
+(`test_tokenize_numbered_paragraph_name_stays_one_word`,
+`test_tokenize_umlaut_identifier_stays_one_word`) + ein neuer Copybook-Test
+(`test_copy_of_quoted_literal_with_extension_still_resolves`). Volle
+Parser-Suite im `doctus-parser`-Container (DB-Tests brauchen das Docker-Netz)
+**158/158 grün**, inkl. `test_ap4_persistence.py`.
+
+**Deploy:** `docker compose build parser-worker parser-beat` + `up -d`
+(Image war seit AP-9-Abschluss nicht neu gebaut, Fix hätte sonst nur bis zum
+nächsten Container-Neustart über `docker cp` gelebt). Bestehende Source 552
+per gelöschtem `sync_cursor` + geleertem `SourceScanFile`-Journal zum vollen
+Reparse gezwungen (git-Commit unverändert, `content_hash`-Resume hätte sonst
+alle Dateien übersprungen — betrifft nur diese Testquelle, kein
+allgemeiner Mechanismus für „Parser-Code geändert, Inhalt unverändert").
+
+**Bewusst nicht angefasst:** `backend/api/callgraph.py::_focus` zieht beim
+CONTAINS-Ausbau nur Vorfahren nach, nie Kinder (Kommentar dort, Design von
+der CONTAINS-Einführung). Dadurch zeigt ein Fokus auf die PROGRAM-Entity
+selbst (nicht auf einen Paragraphen darin) im Graph nur COPY-Kanten, keine
+PERFORM/CALL — die liegen an den Paragraph-Entities als Quelle, die vom
+Programmknoten aus nicht per BFS erreicht werden. Das ist bestehendes,
+dokumentiertes Design (500-Knoten-Deckel), keine Regression dieses Fixes —
+mit einem Paragraphen als Fokus zeigt derselbe Bestand 51 Knoten/86 Kanten.
 
 ---
 
