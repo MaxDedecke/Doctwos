@@ -442,7 +442,6 @@ export function GlobalSearch({
 
       {/* Global header actions — add view, knowledge graph, link manager, theme & settings */}
       <div className="flex items-center gap-1.5 shrink-0 ml-auto pl-1">
-        <JobCenter theme={theme} />
         {/* Add view dropdown — pick which view to open */}
         <div className="relative">
           <Button
@@ -498,6 +497,8 @@ export function GlobalSearch({
             </>
           )}
         </div>
+
+        <JobCenter theme={theme} />
 
         {features.views.knowledgeGraph && (
           <Button
