@@ -451,6 +451,7 @@ def get_project_knowledge_sources(
 def get_project_references(
     id: int,
     file_path: str,
+    entity_name: Optional[str] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -502,11 +503,16 @@ def get_project_references(
                 })
 
     # 2. EntityDocLink sources matching the file_path (entity -> document references)
-    ed_sources = db.query(EntityDocLink).join(CodeEntity, EntityDocLink.entity_id == CodeEntity.id).filter(
+    #    entity_name narrows this to the clicked code object — without it every
+    #    entity in the file would report the same reference set.
+    ed_sources_q = db.query(EntityDocLink).join(CodeEntity, EntityDocLink.entity_id == CodeEntity.id).filter(
         EntityDocLink.project_id == id,
         EntityDocLink.status == "approved",
         CodeEntity.file_path == file_path
-    ).all()
+    )
+    if entity_name:
+        ed_sources_q = ed_sources_q.filter(CodeEntity.name == entity_name)
+    ed_sources = ed_sources_q.all()
 
     for lnk in ed_sources:
         target_path = lnk.chunk.file_path if lnk.chunk else file_path
@@ -541,15 +547,17 @@ def get_project_references(
                 match_a = True
         elif kl.source_a_type == "entity" and kl.source_a_entity:
             if kl.source_a_entity.project_id == id and kl.source_a_entity.file_path == file_path:
-                match_a = True
-                
+                if not entity_name or kl.source_a_entity.name == entity_name:
+                    match_a = True
+
         # Check side B
         if kl.source_b_type == "document" and kl.source_b_chunk:
             if kl.source_b_chunk.project_id == id and kl.source_b_chunk.file_path == file_path:
                 match_b = True
         elif kl.source_b_type == "entity" and kl.source_b_entity:
             if kl.source_b_entity.project_id == id and kl.source_b_entity.file_path == file_path:
-                match_b = True
+                if not entity_name or kl.source_b_entity.name == entity_name:
+                    match_b = True
                 
         if match_a or match_b:
             ref_side = "b" if match_a else "a"
