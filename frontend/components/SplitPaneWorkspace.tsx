@@ -371,6 +371,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   }, [selectedFile]);
 
   const entityDecorationsRef = useRef<string[]>([]);
+  // Bumped from handleEditorDidMountLocal so the decoration effect below also
+  // re-runs once the (async-mounting) Monaco editor/ref actually becomes
+  // available — selectedFile/projectEntities alone can settle before mount
+  // finishes, in which case the effect used to bail out once and never retry.
+  const [editorMountTick, setEditorMountTick] = useState(0);
 
   useEffect(() => {
     const editor = activeEditorRef.current;
@@ -431,7 +436,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         entityDecorationsRef.current = [];
       }
     };
-  }, [selectedFile, contentToUse, projectEntities, activeEditorRef, t]);
+  }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t]);
 
   const handleEditorDidMountLocal = (editor: any, monaco: any) => {
     // Assign through the concrete ref rather than the `editorRef || localEditorRef`
@@ -443,6 +448,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       localEditorRef.current = editor;
     }
     monacoRef.current = monaco;
+    // activeEditorRef.current is a ref mutation — doesn't retrigger the entity
+    // decoration effect above by itself, hence the explicit state bump here.
+    setEditorMountTick((tick) => tick + 1);
 
     // Register COBOL language in Monaco
     if (monaco && monaco.languages && !monaco.languages.getLanguages().some(lang => lang.id === 'cobol')) {
