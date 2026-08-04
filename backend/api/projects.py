@@ -484,7 +484,7 @@ def get_project_references(
     ).all()
 
     for lnk in ed_targets + ed_targets_title:
-        if lnk.entity:
+        if lnk.entity and (not entity_name or lnk.entity.name == entity_name):
             key = ("entity", lnk.entity.id)
             if key not in seen:
                 seen.add(key)
