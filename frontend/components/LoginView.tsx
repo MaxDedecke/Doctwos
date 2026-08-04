@@ -105,6 +105,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
             <span className="doctus-kicker">Modernize</span>
           </div>
         </div>
+        <div aria-hidden="true" />
       </section>
 
       <section className="relative flex items-center justify-center p-6 sm:p-12 bg-ds-zinc-900">
