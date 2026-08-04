@@ -572,6 +572,11 @@ function AppContent() {
     });
     if (!panelFrozen[index]) {
       setSelectedEntity(ent);
+      // Hält den Referenzen-Badge (fileReferences.length) synchron mit dem im
+      // Code-Viewer angeklickten Objekt — ohne diesen Aufruf bleibt die Zahl auf
+      // dem Stand der zuletzt per handleFileSelect/handleEntitySelect geladenen
+      // Datei bzw. Entity stehen.
+      loadFileReferences(ent.file_path, ent.name);
     }
   };
 
