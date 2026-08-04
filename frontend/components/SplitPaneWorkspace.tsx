@@ -1069,36 +1069,6 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 )}
               </div>
 
-              {/* Maximize Toggle */}
-              {activeRightTab !== 'doc' && activeRightTab !== 'weborigin' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  id="editor-maximize-btn"
-                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-900" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
-                  onClick={() => setIsEditorMaximized(!isEditorMaximized)}
-                  title={isEditorMaximized ? t('splitPane.showSplitScreenTitle') : t('splitPane.fullscreenModeTitle')}
-                >
-                  <Layers className={cn("w-4 h-4 transition-transform duration-200", isEditorMaximized && "rotate-90")} />
-                </Button>
-              )}
-              {/* Close Editor */}
-              {activeRightTab !== 'doc' && activeRightTab !== 'weborigin' && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  id="editor-close-btn"
-                  className={cn("h-8 w-8 rounded-lg hover:bg-opacity-80 transition-all", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-red-400 hover:bg-ds-zinc-900" : "text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-zinc-100")}
-                  onClick={() => {
-                    setSelectedFile(null);
-                    setSelectedDoc(null);
-                    setIsEditorMaximized(false);
-                  }}
-                  title={t('splitPane.closeEditorTitle')}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           </div>}
 

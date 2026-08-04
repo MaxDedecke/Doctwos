@@ -198,7 +198,9 @@ html {
   text-decoration-color: rgb(var(--ds-accent));
   color: rgb(var(--ds-accent)) !important;
   font-weight: 600;
-  cursor: pointer;
+  /* !important needed: Monaco's own .view-lines rules set cursor:text at
+     higher specificity and would otherwise win over this decoration. */
+  cursor: pointer !important;
   border-radius: 2px;
   background-color: rgb(var(--ds-accent) / 0.08);
   transition: all 0.2s;
