@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 
@@ -18,7 +19,8 @@ import {
   Network,
   Download,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 
@@ -99,6 +101,7 @@ interface SplitPaneWorkspaceProps {
   projectEntities?: any[];
   handleEntitySelect?: (ent: any) => Promise<void> | void;
   onGutterClick?: (lineNumber: number, lineContent: string) => void;
+  onGutterAskEntity?: (entity: any) => void;
   fileNavStack?: Array<{file: string|null, doc: any|null, tab: string}>;
   onNavigateBack?: () => void;
   selectedLine?: number | null;
@@ -141,6 +144,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   projectEntities = [],
   handleEntitySelect,
   onGutterClick,
+  onGutterAskEntity,
   fileNavStack = [],
   onNavigateBack,
   selectedLine = null,
@@ -274,7 +278,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     };
 
     loadContent();
-  }, [selectedFile, selectedDoc, selectedEntity, selectedProject, activeRightTab, theme]);
+    // Only selectedEntity's source_id actually affects which content gets
+    // fetched (see the branch above) — depending on the whole entity object
+    // meant picking a *different* code object in the *same* file (a new
+    // object reference, same source_id) re-fetched the file from scratch.
+  }, [selectedFile, selectedDoc, selectedEntity?.source_id, selectedProject, activeRightTab, theme]);
 
   // Local references loading effect — the "Referenzen" dropdown that consumes this
   // only exists on code/doc panels, so don't fetch it for graph/webview panels.
@@ -351,16 +359,58 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const monacoRef = useRef<any>(null);
   const handleEntitySelectRef = useRef(handleEntitySelect);
   const onGutterClickRef = useRef(onGutterClick);
+  const onGutterAskEntityRef = useRef(onGutterAskEntity);
   const projectEntitiesRef = useRef(projectEntities);
   const selectedFileRef = useRef(selectedFile);
+
+  // Popover opened by clicking the gutter (glyph icon / line number): lets the
+  // user pick whether to pin the clicked line or the enclosing code object as
+  // chat context, instead of guessing which one they meant.
+  const [gutterMenu, setGutterMenu] = useState<{
+    x: number;
+    y: number;
+    lineNumber: number;
+    lineContent: string;
+    entity: any | null;
+  } | null>(null);
+  const gutterMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onGutterClickRef.current = onGutterClick;
   }, [onGutterClick]);
 
   useEffect(() => {
+    onGutterAskEntityRef.current = onGutterAskEntity;
+  }, [onGutterAskEntity]);
+
+  useEffect(() => {
     handleEntitySelectRef.current = handleEntitySelect;
   }, [handleEntitySelect]);
+
+  useEffect(() => {
+    if (!gutterMenu) return;
+    const handlePointerDown = (ev: MouseEvent) => {
+      if (gutterMenuRef.current && !gutterMenuRef.current.contains(ev.target as Node)) {
+        setGutterMenu(null);
+      }
+    };
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setGutterMenu(null);
+    };
+    // Attach on the next tick: the mousedown that just opened this menu is
+    // still working its way through Monaco's own event handling when this
+    // effect runs, and reaches `document` regardless — attaching synchronously
+    // here would let it immediately close the menu it just opened.
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handlePointerDown);
+      document.addEventListener('keydown', handleKeyDown);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [gutterMenu]);
 
   useEffect(() => {
     projectEntitiesRef.current = projectEntities;
@@ -568,6 +618,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       if (e.scrollLeft !== undefined && rulerRef.current) {
         rulerRef.current.style.transform = `translateX(-${e.scrollLeft}px)`;
       }
+      // Monaco fires this on any layout recompute, not just real scrolling
+      // (e.g. right after opening the gutter menu below) — only close the
+      // menu when the scroll offset actually moved, or it never gets a
+      // chance to stay open.
+      if (e.scrollTopChanged || e.scrollLeftChanged) {
+        setGutterMenu(null);
+      }
     });
 
     editor.onDidChangeCursorPosition((e: any) => {
@@ -587,18 +644,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       const lineNumber = position.lineNumber;
       const column = position.column;
 
+      const fileEntities = (projectEntitiesRef.current || []).filter(
+        (ent: any) => ent.file_path === selectedFileRef.current
+      );
+
       // Gutter click detection: type 2 (glyph margin), type 3 (line numbers), type 4 (line decorations)
       const isGutterClick = e.target.type === 2 || e.target.type === 3 || e.target.type === 4;
-      if (isGutterClick && onGutterClickRef.current) {
-        onGutterClickRef.current(lineNumber, editor.getModel()?.getLineContent(lineNumber) || '');
-      }
 
-      if (projectEntitiesRef.current && selectedFileRef.current) {
-        const fileEntities = projectEntitiesRef.current.filter(
-          (ent: any) => ent.file_path === selectedFileRef.current
-        );
-
-        // Find if there is an entity on this line & column
+      // Clicking the entity's own name text jumps straight to it — but only
+      // for genuine text/content clicks. Gutter clicks report a column too
+      // (often 1), which would otherwise spuriously "hit" any entity whose
+      // name starts at column 1 (common for un-indented COBOL paragraphs/
+      // sections) and hijack the gutter menu below.
+      if (!isGutterClick) {
         const clickedEntity = fileEntities.find((ent: any) => {
           if (ent.start_line !== lineNumber) return false;
 
@@ -616,15 +674,28 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           return column >= startCol && column <= endCol;
         });
 
-        // Did they click the glyph margin? Target type 2 is GUTTER_GLYPH_MARGIN
-        const isGlyphMargin = e.target.type === 2;
-        const targetEntity = clickedEntity || (isGlyphMargin && fileEntities.find((ent: any) => ent.start_line === lineNumber));
-
-        if (targetEntity) {
+        if (clickedEntity) {
           if (handleEntitySelectRef.current) {
-            handleEntitySelectRef.current(targetEntity);
+            handleEntitySelectRef.current(clickedEntity);
           }
+          return;
         }
+      }
+
+      if (isGutterClick) {
+        // Smallest enclosing entity (paragraph/section/program …) wins — it's
+        // the most specific "code object" for this line.
+        const enclosingEntity = fileEntities
+          .filter((ent: any) => ent.start_line <= lineNumber && ent.end_line >= lineNumber)
+          .sort((a: any, b: any) => (a.end_line - a.start_line) - (b.end_line - b.start_line))[0] || null;
+        const native = e.event?.browserEvent;
+        setGutterMenu({
+          x: native?.clientX ?? e.event?.posx ?? 0,
+          y: native?.clientY ?? e.event?.posy ?? 0,
+          lineNumber,
+          lineContent: editor.getModel()?.getLineContent(lineNumber) || '',
+          entity: enclosingEntity,
+        });
       }
     });
   };
@@ -644,6 +715,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   };
 
   return (
+    <>
     <AnimatePresence>
       {(selectedFile || selectedDoc || activeRightTab === 'graph') && (
         <div className={cn(
@@ -1335,5 +1407,37 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         </div>
       )}
     </AnimatePresence>
+    {gutterMenu && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={gutterMenuRef}
+        style={{ position: 'fixed', left: gutterMenu.x + 10, top: gutterMenu.y - 8, zIndex: 10000 }}
+        className="min-w-[220px] rounded-[3px] bg-[#252526] text-[#cccccc] text-xs shadow-[0_2px_8px_rgba(0,0,0,0.5)] border border-white/10 py-1 overflow-hidden"
+      >
+        <button
+          onClick={() => {
+            onGutterClickRef.current?.(gutterMenu.lineNumber, gutterMenu.lineContent);
+            setGutterMenu(null);
+          }}
+          className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-white/10 transition-colors"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-ds-emerald-400 shrink-0" />
+          <span className="truncate">{t('splitPane.askAboutLineMenuItem', { line: gutterMenu.lineNumber })}</span>
+        </button>
+        {gutterMenu.entity && (
+          <button
+            onClick={() => {
+              onGutterAskEntityRef.current?.(gutterMenu.entity);
+              setGutterMenu(null);
+            }}
+            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-white/10 transition-colors"
+          >
+            <Layers className="w-3.5 h-3.5 text-ds-indigo-400 shrink-0" />
+            <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: gutterMenu.entity.name })}</span>
+          </button>
+        )}
+      </div>,
+      document.body
+    )}
+    </>
   );
 };

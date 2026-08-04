@@ -1268,6 +1268,28 @@ function AppContent() {
     }, 150);
   };
 
+  // Counterpart to handleGutterClick for the gutter menu's "Etwas zu X fragen"
+  // option — pins the enclosing code object (not just the clicked line) as
+  // chat context. The entity is resolved by SplitPaneWorkspace itself (it
+  // already has the smallest enclosing entity for the clicked line at hand).
+  const handleGutterAskEntity = (panelIndex: number, entity: any) => {
+    if (!entity) return;
+    setPinnedCode({
+      filepath: entity.file_path,
+      line: entity.start_line,
+      label: entity.name,
+      sourceId: entity.source_id || selectedSource?.id || null,
+    });
+    ensurePanelType('chat');
+    setActiveMobileTab('chat');
+    setTimeout(() => {
+      const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.focus();
+      }
+    }, 150);
+  };
+
   const handleEntitySelect = async (ent: any, projectOverride: any = null) => {
     setSelectedEntity(ent);
     pinEntityFocus(ent);
@@ -2127,6 +2149,7 @@ function AppContent() {
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
               onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
+              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />
@@ -2160,6 +2183,7 @@ function AppContent() {
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
               onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
+              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />
@@ -2193,6 +2217,7 @@ function AppContent() {
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
               onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
+              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
               onDocFocus={handleDocFocusRequest}
@@ -2236,6 +2261,7 @@ function AppContent() {
               projectEntities={projectEntities}
               handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
               onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
+              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
             />

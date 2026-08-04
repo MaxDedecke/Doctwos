@@ -724,6 +724,8 @@
     "clickToSelectReferences": "Klicken zum Auswählen & Referenzen anzeigen",
     "codeObjectHover": "Code-Objekt: {{name}} ({{type}})",
     "askDoctusAi": "Doctus AI fragen",
+    "askAboutLineMenuItem": "Nach Zeile {{line}} fragen",
+    "askAboutEntityMenuItem": "Etwas zu {{name}} fragen",
     "exportCypherTitle": "Als Cypher exportieren (Neo4j)",
     "closeGraphTitle": "Graph schließen",
     "backToPreviousFileTitle": "Zurück zur vorherigen Datei",
