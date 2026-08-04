@@ -84,7 +84,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
     }
   };
 
-  const inputClass = "w-full h-11 rounded-md bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-2 focus-visible:ring-ds-indigo-500 focus-visible:border-ds-indigo-500";
+  const inputClass = "w-full h-11 rounded-md bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-2 focus-visible:ring-ds-zinc-400 focus-visible:border-ds-zinc-400";
 
   return (
     <div className="min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] bg-ds-zinc-950 text-ds-zinc-200 font-sans overflow-hidden">
@@ -95,7 +95,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           <DoctusWordmark className="h-9 w-32" theme="dark" />
         </div>
         <div className="max-w-2xl">
-          <p className="doctus-kicker text-ds-indigo-400 mb-5">Legacy intelligence workspace</p>
+          <p className="doctus-kicker text-ds-zinc-400 mb-5">Legacy intelligence workspace</p>
           <h1 className="font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em] text-ds-zinc-100">
             Understand the systems that run everything.
           </h1>
@@ -105,7 +105,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
             <span className="doctus-kicker">Modernize</span>
           </div>
         </div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ds-zinc-600">Private · Local · Auditable</p>
       </section>
 
       <section className="relative flex items-center justify-center p-6 sm:p-12 bg-ds-zinc-900">
@@ -117,7 +116,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
-          className="relative border-t-2 border-ds-indigo-500 bg-ds-zinc-950 p-7 sm:p-9 space-y-7 shadow-[10px_10px_0_rgb(var(--ds-neutral-800))]"
+          className="relative border-t-2 border-ds-zinc-700 bg-ds-zinc-950 p-7 sm:p-9 space-y-7 shadow-[10px_10px_0_rgb(var(--ds-neutral-800))]"
         >
           <div className="flex items-center justify-between lg:hidden select-none">
             <div className="flex items-center gap-3">
@@ -127,7 +126,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           </div>
 
           <div className="space-y-2 border-b border-ds-zinc-800 pb-6">
-            <p className="doctus-kicker text-ds-indigo-400">Secure access / 01</p>
             <h2 className="text-3xl font-heading font-semibold text-ds-zinc-100 tracking-[-0.035em]">
               {mustChangePassword ? t('loginView.changeTitle') : t('loginView.title')}
             </h2>
@@ -218,16 +216,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
             </form>
           )}
         </motion.div>
-
-        {/* Footer info */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-left font-mono uppercase tracking-[0.14em] text-[9px] text-ds-zinc-600 mt-7 select-none"
-        >
-          {t('loginView.footer')}
-        </motion.p>
 
       </div>
       </section>

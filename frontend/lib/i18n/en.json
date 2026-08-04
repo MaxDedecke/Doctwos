@@ -716,8 +716,7 @@
     "newPasswordRepeatLabel": "Repeat new password",
     "passwordsDoNotMatch": "The two passwords do not match.",
     "passwordTooShort": "The password must be at least 12 characters long.",
-    "changeSubmit": "Save password",
-    "footer": "Local sign-in. Passwords are only ever stored as an Argon2id hash."
+    "changeSubmit": "Save password"
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",

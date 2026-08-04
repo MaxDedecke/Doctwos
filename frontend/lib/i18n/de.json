@@ -716,8 +716,7 @@
     "newPasswordRepeatLabel": "Neues Passwort wiederholen",
     "passwordsDoNotMatch": "Die beiden Passwörter stimmen nicht überein.",
     "passwordTooShort": "Das Passwort muss mindestens 12 Zeichen lang sein.",
-    "changeSubmit": "Passwort speichern",
-    "footer": "Lokale Anmeldung. Passwörter werden ausschließlich als Argon2id-Hash gespeichert."
+    "changeSubmit": "Passwort speichern"
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",

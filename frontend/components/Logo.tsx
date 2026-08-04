@@ -49,7 +49,7 @@ export const DoctusWordmark: React.FC<LogoProps> = ({ className, theme, ...props
         fill={isDark ? "rgb(var(--ds-neutral-100))" : "rgb(var(--ds-neutral-800))"}
         className="transition-colors duration-200"
       >
-        doctwos
+        Doctus
       </text>
     </svg>
   );
