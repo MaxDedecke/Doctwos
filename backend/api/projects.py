@@ -170,7 +170,9 @@ def update_project(
         proj.is_archived = data.is_archived
     if data.color is not None:
         proj.color = data.color
-        
+    if data.expose_code_analysis_globally is not None:
+        proj.expose_code_analysis_globally = data.expose_code_analysis_globally
+
     db.commit()
     db.refresh(proj)
     return serialize_project(proj)

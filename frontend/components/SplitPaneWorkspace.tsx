@@ -184,7 +184,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     // queueMicrotask: a direct setState call here reads as synchronous
     // setState-in-effect to the compiler's analysis.
     queueMicrotask(() => { setIsLoadingEntityNeighbors(true); });
-    api.getEntityNeighbors(selectedEntity.id)
+    api.getEntityNeighbors(selectedEntity.id, { projectId: selectedProject?.id })
       .then((response) => {
         if (!cancelled) setEntityNeighborGroups(response.data?.groups || {});
       })
@@ -196,7 +196,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         if (!cancelled) setIsLoadingEntityNeighbors(false);
       });
     return () => { cancelled = true; };
-  }, [selectedEntity?.id, activeRightTab]);
+  }, [selectedEntity?.id, activeRightTab, selectedProject?.id]);
 
   const neighborGroupLabels: Record<string, string> = {
     'CALL:in': 'Aufrufer',

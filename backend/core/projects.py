@@ -34,6 +34,44 @@ def get_visible_project_ids(user: User, db: Session) -> Optional[list[int]]:
     rows = db.query(ProjectMembership.project_id).filter(ProjectMembership.user_id == user.id).all()
     return [r[0] for r in rows]
 
+def get_globally_exposed_project_ids(db: Session) -> list[int]:
+    """Projekt-IDs, deren Code-Analyse-Objekte per Opt-in (`Project.expose_code_analysis_globally`)
+    außerhalb ihres eigenen Projekt-Kontexts sichtbar sind (Allgemein-Suche/-Graph-View).
+    Default: leere Liste, kein Projekt ist opted-in."""
+    rows = db.query(Project.id).filter(Project.expose_code_analysis_globally.is_(True)).all()
+    return [r[0] for r in rows]
+
+
+def is_project_code_visible_in_context(project_id: Optional[int], requesting_project_id: Optional[int], db: Session) -> bool:
+    """Ob Code-Analyse-Objekte (CodeEntity/Callgraph) von `project_id` im aktuellen
+    Anfrage-Kontext sichtbar sein dürfen, VORAUSGESETZT die reguläre Team-/Projekt-
+    Sichtbarkeit (assert_project_visible/assert_team_visible) wurde bereits geprüft.
+
+    `project_id=None` betrifft keine Projekt-gebundene Entity (z.B. eine eigenständige
+    Git-Wissensquelle) — davon ist dieser Mechanismus nicht betroffen.
+    `requesting_project_id` ist die Projekt-ID, in deren eigenem Kontext angefragt wird
+    (Code-Editor, projektgebundene Panels schicken ihre aktuelle project_id mit) — stimmt
+    sie mit `project_id` überein, ist der Zugriff der ursprünglich vorgesehene
+    projektinterne Zugriff und immer erlaubt. Sonst (kein Kontext, z.B. "Allgemein", oder
+    ein ANDERES Projekt) braucht es das explizite Opt-in `expose_code_analysis_globally`.
+    """
+    if project_id is None or requesting_project_id == project_id:
+        return True
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    return bool(proj and proj.expose_code_analysis_globally)
+
+
+def assert_project_code_visible_in_context(
+    project_id: Optional[int], requesting_project_id: Optional[int], db: Session,
+    not_found_detail: str = "Entity nicht gefunden",
+) -> None:
+    """Wirft 404 (statt 403 — dieselbe Nicht-gefunden-Tarnung wie bei Team-Sichtbarkeit,
+    kein Hinweis, dass die Entity überhaupt existiert), wenn `project_id` im aktuellen
+    Kontext nicht sichtbar sein darf. Siehe is_project_code_visible_in_context."""
+    if not is_project_code_visible_in_context(project_id, requesting_project_id, db):
+        raise HTTPException(status_code=404, detail=not_found_detail)
+
+
 def assert_project_visible(project_id: int, user: User, db: Session, not_found_detail: str = "Projekt nicht gefunden") -> None:
     """
     Prüft, ob das Projekt für den Benutzer sichtbar ist.

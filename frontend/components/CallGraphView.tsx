@@ -39,9 +39,15 @@ interface Props {
   theme: string;
   focusedEntity: any | null;
   onFileSelect: (path: string, line?: number | null, sourceId?: number | string | null) => void;
+  // Aktuell ausgewähltes Projekt (Workspace-weit) -- als Projekt-Kontext an
+  // /callgraph/focus|export mitgeschickt, damit ein Fokus auf eine eigene
+  // Projekt-Entity innerhalb dieses Projekts unverändert funktioniert. Fehlt es
+  // (Allgemein-Modus) oder gehört die Entity zu einem ANDEREN Projekt, greift
+  // serverseitig das Default-Deny-Opt-in (Project.expose_code_analysis_globally).
+  projectId?: number | null;
 }
 
-export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
+export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }: Props) {
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
@@ -76,7 +82,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}`, { credentials: 'include' });
+      const projectParam = projectId ? `&project_id=${projectId}` : '';
+      const response = await fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}`, { credentials: 'include' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       const nodes: CallNode[] = (data.nodes || []).map((node: any) => ({
@@ -114,7 +121,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
     // focusedEntity is typed `any`, so the compiler can't narrow the
     // dependency to `.id` on its own — depend on the whole reference to
     // match what it infers.
-  }, [focusedEntity, hops]);
+  }, [focusedEntity, hops, projectId]);
 
   useEffect(() => {
     // queueMicrotask: loadGraph() sets loading/error state before its
@@ -135,7 +142,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
 
   const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
     if (!focusedEntity?.id) return;
-    const response = await fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}`, { credentials: 'include' });
+    const projectParam = projectId ? `&project_id=${projectId}` : '';
+    const response = await fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}`, { credentials: 'include' });
     if (!response.ok) return setError(`Export fehlgeschlagen (HTTP ${response.status})`);
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);

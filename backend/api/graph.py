@@ -22,7 +22,12 @@ from core.db_setup import get_db
 from models.database import CodeEntity, EntityDocLink, KnowledgeLink, Project, Team, User, KnowledgeSource, DocumentChunk
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible
-from core.projects import assert_project_visible
+from core.projects import (
+    assert_project_visible,
+    get_globally_exposed_project_ids,
+    get_visible_project_ids,
+    is_project_code_visible_in_context,
+)
 
 router = APIRouter(prefix="/graph", tags=["graph"])
 
@@ -100,14 +105,24 @@ def _side_node_id(nodes: dict, db: Session, side_type: str, entity_id: Optional[
     return nid
 
 
-def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optional[int], team_ids: Optional[list[int]], db: Session) -> bool:
+def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optional[int], team_ids: Optional[list[int]],
+                      db: Session, requesting_project_id: Optional[int] = None) -> bool:
     if team_ids is None:
         return True
     if source_type == 'entity' and entity_id is not None:
         ent = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
         if not ent:
             return False
-        return _is_project_visible(ent.project_id, team_ids, db) and _is_source_visible(ent.source_id, team_ids, db)
+        # Team-Sichtbarkeit ist die Basis; Code-Analyse-Objekte (Entities) brauchen
+        # außerhalb ihres eigenen Projekt-Kontexts zusätzlich das explizite Opt-in
+        # expose_code_analysis_globally (siehe core/projects.py) -- Dokumente (unten)
+        # sind davon bewusst nicht betroffen, die sind absichtlich projektübergreifend
+        # durchsuchbar.
+        return (
+            _is_project_visible(ent.project_id, team_ids, db)
+            and _is_source_visible(ent.source_id, team_ids, db)
+            and is_project_code_visible_in_context(ent.project_id, requesting_project_id, db)
+        )
     elif source_type == 'document' and chunk_id is not None:
         chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
         if not chunk:
@@ -145,13 +160,22 @@ def get_graph(
     entity_query = db.query(CodeEntity)
     if project_id:
         entity_query = entity_query.filter(CodeEntity.project_id == project_id)
-    elif team_ids is not None:
-        project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()]
+    else:
+        # Kein Projekt-Kontext ("Allgemein") -- Team-/Projekt-Mitgliedschaft allein reicht
+        # hier NICHT (das wäre "jedes Team-Projekt sichtbar", zu weit). Code-Analyse-
+        # Objekte sind projektspezifisch und tauchen außerhalb ihres eigenen Projekt-
+        # Kontexts nur auf, wenn das Projekt explizit dafür freigegeben ist. Default:
+        # kein Projekt freigegeben, also zeigt "Allgemein" nur projektlose Entities
+        # (z.B. eigenständige Git-Wissensquellen).
+        exposed_project_ids = get_globally_exposed_project_ids(db)
+        visible_project_ids = get_visible_project_ids(user, db)
+        if visible_project_ids is not None:
+            exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
         entity_query = entity_query.filter(or_(
-            CodeEntity.project_id.in_(project_ids),
+            CodeEntity.project_id.in_(exposed_project_ids),
             CodeEntity.project_id == None
         ))
-    
+
     for entity in entity_query.all():
         eid = f"entity:{entity.id}"
         nodes[eid] = _entity_node(entity)
@@ -179,8 +203,11 @@ def get_graph(
     eq = db.query(EntityDocLink).filter(EntityDocLink.status == status)
     if project_id:
         eq = eq.filter(EntityDocLink.project_id == project_id)
-    elif team_ids is not None:
-        eq = eq.join(Project).filter(Project.team_id.in_(team_ids))
+    else:
+        # Dieselbe Opt-in-Einschränkung wie beim Entity-Node-Fetch oben -- sonst würde
+        # dieser Zweig unfreigegebene Projekt-Entities über den Doc-Link-Pfad wieder
+        # als Node in den Graphen zurückholen.
+        eq = eq.filter(EntityDocLink.project_id.in_(exposed_project_ids))
     entity_links = eq.all()
 
     if entity_links:
@@ -217,8 +244,8 @@ def get_graph(
     # here. Manual links created from the graph UI (see /knowledge-links) can connect
     # any two nodes, so both sides are resolved generically.
     for klink in db.query(KnowledgeLink).filter(KnowledgeLink.status == status).all():
-        if not (_is_side_visible(klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, team_ids, db) and
-                _is_side_visible(klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, team_ids, db)):
+        if not (_is_side_visible(klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, team_ids, db, project_id) and
+                _is_side_visible(klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, team_ids, db, project_id)):
             continue
         src_id = _side_node_id(nodes, db, klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id,
                                 klink.source_a_title, klink.source_a_source_type, klink.source_a_url)

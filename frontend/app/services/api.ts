@@ -42,7 +42,7 @@ export const api = {
     getProjects: () => axios.get(`${API_URL}/projects`),
     getProject: (id: number) => axios.get(`${API_URL}/projects/${id}`),
     createProject: (data: { name: string; description?: string; team_id?: number; color?: string }) => axios.post(`${API_URL}/projects`, data),
-    updateProject: (id: number, data: { name?: string; description?: string; color?: string }) => axios.patch(`${API_URL}/projects/${id}`, data),
+    updateProject: (id: number, data: { name?: string; description?: string; color?: string; is_archived?: boolean; expose_code_analysis_globally?: boolean }) => axios.patch(`${API_URL}/projects/${id}`, data),
     deleteProject: (id: number) => axios.delete(`${API_URL}/projects/${id}`),
     getTypingStatement: () => axios.get(`${API_URL}/chat/typing-statement`),
     completeProject: (id: number, data: { promote_source_ids: number[] }) => axios.post(`${API_URL}/projects/${id}/complete`, data),
@@ -74,14 +74,20 @@ export const api = {
     createGitSource: (data: { name: string; url: string; branch: string; username?: string; token?: string; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null }) =>
         axios.post(`${API_URL}/knowledge-sources/git`, data),
     getProjectEntities: (id: number) => axios.get(`${API_URL}/projects/${id}/entities`),
-    resolveEntity: (sourceId: number, path: string) =>
-        axios.get(`${API_URL}/entities/resolve`, { params: { source_id: sourceId, path } }),
-    getEntity: (id: number) => axios.get(`${API_URL}/entities/${id}`),
-    getEntityNeighbors: (id: number, options?: { types?: string[]; direction?: 'in' | 'out' | 'both' }) =>
+    // projectId ist der aktuelle Projekt-Kontext des Aufrufers (Code-Editor etc.) --
+    // fehlt er (Allgemein-Modus), gilt serverseitig das Default-Deny-Opt-in für
+    // projektübergreifende Sichtbarkeit von Code-Analyse-Objekten (siehe
+    // backend/core/projects.py::assert_project_code_visible_in_context).
+    resolveEntity: (sourceId: number, path: string, projectId?: number | null) =>
+        axios.get(`${API_URL}/entities/resolve`, { params: { source_id: sourceId, path, project_id: projectId ?? undefined } }),
+    getEntity: (id: number, projectId?: number | null) =>
+        axios.get(`${API_URL}/entities/${id}`, { params: { project_id: projectId ?? undefined } }),
+    getEntityNeighbors: (id: number, options?: { types?: string[]; direction?: 'in' | 'out' | 'both'; projectId?: number | null }) =>
         axios.get(`${API_URL}/entities/${id}/neighbors`, {
             params: {
                 types: options?.types?.join(','),
                 direction: options?.direction || 'both',
+                project_id: options?.projectId ?? undefined,
             },
         }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),

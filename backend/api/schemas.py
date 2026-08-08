@@ -29,6 +29,7 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     is_archived: Optional[bool] = None
     color: Optional[str] = None
+    expose_code_analysis_globally: Optional[bool] = None
 
 class ProjectMembershipCreate(BaseModel):
     user_id: int

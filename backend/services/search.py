@@ -8,6 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
+from core.projects import get_globally_exposed_project_ids
 from models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
 
 ALL_TYPES = "project,entity,document,knowledge_source"
@@ -62,12 +63,22 @@ def search_nodes(
         ))
         if project_id:
             query = query.filter(CodeEntity.project_id == project_id)
-        if visible_project_ids is not None:
-            query = query.filter(CodeEntity.project_id.in_(visible_project_ids))
-        elif visible_team_ids is not None:
-            # Fallback to team validation if project visibility list not supplied
-            project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()]
-            query = query.filter(CodeEntity.project_id.in_(project_ids))
+        else:
+            # Kein Projekt-Kontext ("Allgemein") -- Code-Analyse-Objekte anderer Projekte
+            # tauchen hier nur auf, wenn ihr Projekt explizit dafür freigegeben ist (siehe
+            # core/projects.py::get_globally_exposed_project_ids), zusätzlich zur normalen
+            # Team-/Projekt-Sichtbarkeit. Projektlose Entities (project_id IS NULL, z.B.
+            # eigenständige Git-Wissensquellen) bleiben davon unberührt.
+            exposed_project_ids = get_globally_exposed_project_ids(db)
+            if visible_project_ids is not None:
+                exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
+            elif visible_team_ids is not None:
+                team_project_ids = {p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()}
+                exposed_project_ids = [pid for pid in exposed_project_ids if pid in team_project_ids]
+            query = query.filter(or_(
+                CodeEntity.project_id.in_(exposed_project_ids),
+                CodeEntity.project_id == None
+            ))
         counts["entity"] = query.count()
         for e in query.order_by(CodeEntity.name).limit(limit).all():
             results.append({

@@ -47,6 +47,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
   const [editProjectName, setEditProjectName] = useState("");
   const [editProjectDescription, setEditProjectDescription] = useState("");
   const [editProjectColor, setEditProjectColor] = useState("");
+  const [editProjectExposeGlobally, setEditProjectExposeGlobally] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
 
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -367,6 +368,23 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           <span className="text-xs font-semibold text-ds-zinc-500">{editProjectColor}</span>
                                         </div>
                                       </div>
+                                      <label className="flex items-start gap-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={editProjectExposeGlobally}
+                                          onChange={(e) => setEditProjectExposeGlobally(e.target.checked)}
+                                          className="mt-0.5"
+                                        />
+                                        <span className="space-y-0.5">
+                                          <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
+                                            In Allgemein-Suche &amp; -Graph-Ansicht sichtbar
+                                          </span>
+                                          <span className="block text-[10px] font-medium text-ds-zinc-450">
+                                            Standardmäßig aus: Code-Analyse-Objekte dieses Projekts (Entities, Call-Graph)
+                                            bleiben außerhalb des Projekts unsichtbar, bis dies hier aktiviert wird.
+                                          </span>
+                                        </span>
+                                      </label>
                                     </div>
                                     <div className="flex items-center gap-2 justify-end pt-1">
                                       <Button
@@ -388,7 +406,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             const updatedProj = await api.updateProject(project.id, {
                                               name: editProjectName.trim(),
                                               description: editProjectDescription.trim() || undefined,
-                                              color: editProjectColor
+                                              color: editProjectColor,
+                                              expose_code_analysis_globally: editProjectExposeGlobally
                                             });
                                             setProjects(prev => prev.map(p => p.id === project.id ? { ...p, ...updatedProj.data } : p));
                                             if (selectedProject?.id === project.id) {
@@ -510,6 +529,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             setEditProjectName(project.name);
                                             setEditProjectDescription(project.description || "");
                                             setEditProjectColor(project.color || DEFAULT_PROJECT_COLOR);
+                                            setEditProjectExposeGlobally(Boolean(project.expose_code_analysis_globally));
                                           }}
                                           title={t('settings.projects.editTitle') || "Projekt bearbeiten"}
                                           className={cn(

@@ -8,20 +8,25 @@ from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from core.projects import assert_project_visible
+from core.projects import assert_project_code_visible_in_context, assert_project_visible
 from core.teams import assert_team_visible
 from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, Project, User
 
 router = APIRouter(prefix="/entities", tags=["entities"])
 
 
-def _assert_entity_visible(entity: CodeEntity, user: User, db: Session) -> None:
+def _assert_entity_visible(entity: CodeEntity, user: User, db: Session, project_context_id: int | None = None) -> None:
     if entity.project_id is not None:
         project = db.query(Project).filter(Project.id == entity.project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Entity nicht gefunden")
         assert_team_visible(project.team_id, user, db, "Entity nicht gefunden")
         assert_project_visible(entity.project_id, user, db)
+        # Team-/Projekt-Mitgliedschaft ist die Basis-Sichtbarkeit, reicht aber allein nicht
+        # -- außerhalb des eigenen Projekt-Kontexts (kein project_context_id oder ein ANDERES
+        # Projekt, z.B. "Allgemein"-Suche/-Graph-View) braucht das Projekt zusätzlich das
+        # explizite Opt-in expose_code_analysis_globally. Siehe core/projects.py.
+        assert_project_code_visible_in_context(entity.project_id, project_context_id, db, "Entity nicht gefunden")
     if entity.source_id is not None:
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == entity.source_id).first()
         if not source:
@@ -59,6 +64,7 @@ def _definition(entity: CodeEntity, db: Session) -> dict | None:
 def resolve_entity(
     source_id: int,
     path: str,
+    project_id: int | None = Query(default=None, description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -75,16 +81,21 @@ def resolve_entity(
     ).order_by(CodeEntity.id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-    _assert_entity_visible(entity, user, db)
+    _assert_entity_visible(entity, user, db, project_id)
     return entity_json(entity)
 
 
 @router.get("/{entity_id}")
-def get_entity(entity_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def get_entity(
+    entity_id: int,
+    project_id: int | None = Query(default=None, description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-    _assert_entity_visible(entity, user, db)
+    _assert_entity_visible(entity, user, db, project_id)
     return {**entity_json(entity), "definition": _definition(entity, db)}
 
 
@@ -93,13 +104,14 @@ def get_neighbors(
     entity_id: int,
     types: list[str] | None = Query(default=None),
     direction: str = Query(default="both", pattern="^(in|out|both)$"),
+    project_id: int | None = Query(default=None, description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-    _assert_entity_visible(entity, user, db)
+    _assert_entity_visible(entity, user, db, project_id)
     requested = {item.upper() for value in (types or []) for item in value.split(",") if item}
     clauses = []
     if direction in {"out", "both"}:

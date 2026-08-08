@@ -34,6 +34,7 @@ def serialize_project(p: Project, serialize_repo_info: bool = True) -> dict:
         "creator_id": p.creator_id,
         "is_archived": p.is_archived,
         "color": p.color,
+        "expose_code_analysis_globally": p.expose_code_analysis_globally,
         "repository": None
     }
     if git_source:

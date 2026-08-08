@@ -71,22 +71,26 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
 
 
 @router.get("/focus")
-def focus(entity_id: int, hops: int = Query(1, ge=0, le=3), db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def focus(entity_id: int, hops: int = Query(1, ge=0, le=3),
+          project_id: int | None = Query(default=None, description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus"),
+          db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-    _assert_entity_visible(entity, user, db)
+    _assert_entity_visible(entity, user, db, project_id)
     return _focus(db, entity_id, hops)
 
 
 @router.get("/export")
 def export_callgraph(entity_id: int, format: str = Query("json", pattern="^(json|csv|graphml)$"),
-                     hops: int = Query(3, ge=0, le=3), db: Session = Depends(get_db),
+                     hops: int = Query(3, ge=0, le=3),
+                     project_id: int | None = Query(default=None, description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus"),
+                     db: Session = Depends(get_db),
                      user: User = Depends(get_current_user)):
     entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-    _assert_entity_visible(entity, user, db)
+    _assert_entity_visible(entity, user, db, project_id)
     graph = _focus(db, entity_id, hops)
     if format == "json":
         return Response(json.dumps(graph, ensure_ascii=False), media_type="application/json")

@@ -480,7 +480,7 @@ function AppContent() {
       : null;
     if (path && resolvedSourceId && !isWebOrigin) {
       try {
-        focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path)).data;
+        focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path, selectedProject?.id)).data;
       } catch (error: any) {
         // A plain text file legitimately has no COBOL entity. Authentication and
         // server errors still surface in the console/global 401 handler.
@@ -2234,6 +2234,7 @@ function AppContent() {
             <CallGraphView
               theme={theme}
               focusedEntity={sel.selectedEntity}
+              projectId={selectedProject?.id}
               onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
             />
           )}

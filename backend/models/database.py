@@ -60,6 +60,13 @@ class Project(Base):
     creator_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     is_archived = Column(Boolean, default=False, nullable=False)
     color = Column(String(7), nullable=True)
+    # Default-deny Opt-in: Code-Analyse-Objekte (CodeEntity/Callgraph) dieses Projekts
+    # sind außerhalb des eigenen Projekt-Kontexts (Allgemein-Suche, Allgemein-Graph-View,
+    # oder aus einem ANDEREN Projekt heraus) nur sichtbar, wenn dieses Flag gesetzt ist —
+    # siehe core/projects.py::assert_project_code_visible_in_context. Innerhalb des
+    # eigenen Projekt-Kontexts (Code-Editor, projektgebundene Panels) bleibt der Zugriff
+    # von diesem Flag unberührt.
+    expose_code_analysis_globally = Column(Boolean, default=False, nullable=False)
 
     team = relationship("Team", backref="projects")
     creator = relationship("User", backref="created_projects")
