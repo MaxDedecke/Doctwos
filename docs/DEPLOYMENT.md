@@ -48,7 +48,7 @@ The current pilot baseline is **embedding-only** (`LLM_MODEL=disabled`). It fits
 
 For a delivery that enables the validated Mistral NeMo 12B model, **16GB RAM / 8 vCPU is the minimum recommendation and a GPU is strongly preferred**. Its Q4 weights alone are ~7.5GB; CPU-only inference on the current small host would leave no safe headroom for concurrent users, parsing, Postgres vector indexing or the OS. Do not infer delivery sizing from the embedding-only idle figure above.
 
-If the customer's hardware has an NVIDIA GPU, Ollama uses it automatically (no Doctus-side config) and both load time and tokens/sec improve substantially — worth asking about during scoping, since it changes the sizing math and the "is this fast enough" first impression.
+If the customer's hardware has an NVIDIA GPU, wiring it up (see "GPU passthrough (Ollama)" below) improves both load time and tokens/sec substantially — worth asking about during scoping, since it changes the sizing math and the "is this fast enough" first impression. This is **not** automatic: Docker never hands a container a GPU unless a compose file explicitly requests one, so an unmodified `docker-compose.yml`/`docker-compose.offline.yml` runs Ollama CPU-only even on a GPU box.
 
 ### Model mode: disabled pilot vs. delivery tiers
 
@@ -60,6 +60,36 @@ On 24GB+ VRAM hardware, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-240
 
 **Enabling or changing tiers on an existing deployment:** update `LLM_MODEL` in `.env`, pull the new tag (`docker exec doctus-ollama ollama pull <new-tag>`), then `docker compose up -d` (an env var change needs container recreation, not just a restart). Remove an old tag with `docker exec doctus-ollama ollama rm <old-tag>` if you want the disk space back.
 
+### GPU passthrough (Ollama)
+
+Neither `docker-compose.yml` nor `docker-compose.offline.yml` requests a GPU device for the `ollama` service by default — that's deliberate, so a CPU-only/dev host can install without the NVIDIA Container Toolkit present at all. GPU passthrough lives in a separate overlay, `docker-compose.gpu.yml`, layered on top via `COMPOSE_FILE` in `.env`.
+
+**Host prerequisite** (once per GPU host, before installing): NVIDIA driver + the NVIDIA Container Toolkit, with its runtime registered with Docker:
+
+```sh
+sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+`install.sh` and `install-offline.sh` both detect this automatically (`nvidia-smi` present **and** `docker info` lists the `nvidia` runtime) and set `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` (or the offline equivalent) in `.env` — no manual step needed on a properly prepared GPU host, and every later `docker compose` command (including the "Enabling or changing tiers" step above and the "Updates later" step further down) then picks up the overlay automatically, no `-f` flags to remember.
+
+To add it manually to an existing install (or if the toolkit was installed *after* the installer already ran once):
+
+```sh
+echo "COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml" >> .env   # or docker-compose.offline.yml for Path B
+docker compose up -d
+```
+
+**Verify it actually took:**
+
+```sh
+docker exec doctus-ollama nvidia-smi        # lists the GPU from inside the container
+docker exec doctus-ollama ollama ps         # PROCESSOR column should show GPU, not "100% CPU", once a model is loaded
+```
+
+**No GPU on this machine, but you still want chat/compliance to work for testing?** Don't chase GPU passthrough for that — use a cloud LLM profile instead: set `ALLOW_CLOUD_LLM=true` in `.env`, then add an OpenAI/Gemini/Anthropic profile with your API key under Settings > AI in the running app (per-browser, opt-in, no local model or GPU involved — see `CLAUDE.md`'s "Cloud nur als Opt-in"). Leave `LLM_MODEL=disabled`; it isn't needed for the cloud path.
+
 ## `.env` field reference
 
 Copy `.env.example` to `.env` (both install scripts do this automatically if `.env` doesn't exist yet, generating the two secrets below).
@@ -67,7 +97,8 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | Var | Meaning |
 |---|---|
 | `DOCTUS_VERSION` | Tag used for the 3 custom-built images. Must match the version baked into an offline bundle if using Path B. |
-| `LLM_MODEL` | `disabled` for the current embedding-only pilot (default), or an explicit Ollama tag for local chat + Code Compliance Checker on a suitably sized delivery host. |
+| `COMPOSE_FILE` | Which compose files `docker compose` layers together. Empty on a CPU-only/dev host; set by the installers to include `docker-compose.gpu.yml` when a GPU is detected — see "GPU passthrough (Ollama)" above. |
+| `LLM_MODEL` | `disabled` for the current embedding-only pilot (default) or for a CPU-only/dev host using a cloud LLM profile instead (see above), or an explicit Ollama tag for local chat + Code Compliance Checker on a suitably sized GPU delivery host. |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | DB credentials, used by both the `db` service and the backend/parser's `DATABASE_URL`. |
 | `API_URL` | Public URL the **frontend container** uses to reach the backend — read server-side at request time (`frontend/app/layout.tsx`), not baked into the image at build time. Set to whatever address the browser can reach the backend on. |
 | `MASTER_ENCRYPTION_KEY` | Fernet key encrypting `KnowledgeSource.token` **and** document/chat content (`DocumentChunk.content`, `ChatMessage.content`, `ComplianceAlert.source_passage`/`discrepancy_description` — every connector's parsed content: Git, Confluence, Jira, Notion, IFC, DWG, GAEB, uploads) at rest, see `backend/models/crypto_types.py`. Generate: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Rotating this key requires re-encrypting all existing tokens and content first** — there's no automatic migration for that; treat it as fixed once you have real customer data. Losing this key makes the entire database's stored content permanently unreadable, not just connector credentials — back it up accordingly (see Backup section below). |
@@ -238,7 +269,7 @@ Use this when the customer's server has **no internet/registry egress at all** �
 
 - `images.tar.gz` — `docker save` of all 6 images: the 3 custom-built ones (`doctus-backend-api`, `doctus-parser-worker`, `doctus-frontend`) plus the pinned-by-digest base images (`ankane/pgvector`, `valkey/valkey:8-alpine`, `ollama/ollama`) — Redis was replaced by its permissively-licensed fork Valkey, see `docker-compose.yml`. Pinning by digest means a bundle rebuilt later reproduces the exact same base images rather than silently drifting with upstream `:latest`.
 - `ollama-models.tar.gz` — a **clean** pull of `bge-m3` plus the explicitly configured `LLM_MODEL`, if enabled (not a copy of any existing `./data/ollama`, which may carry stale/unused models from prior local testing).
-- `docker-compose.offline.yml`, `.env.example` (pre-filled with the matching `DOCTUS_VERSION`), `install-offline.sh`, this doc.
+- `docker-compose.offline.yml`, `docker-compose.gpu.yml` (GPU overlay, see "GPU passthrough (Ollama)" above), `.env.example` (pre-filled with the matching `DOCTUS_VERSION`), `install-offline.sh`, this doc.
 - the AP-9 license/provenance artifact generated from the shipped lockfiles,
   images, and model manifest; it must travel with the air-gapped bundle.
 - `MODEL_MANIFEST.txt` — the actual pulled model names/digests/sizes for this specific build (captured via `ollama list` at build time), plus the quantization-provenance note for the LLM tag. Lets a customer verify exactly which model artifact they received against the upstream Hugging Face repo, independent of `SHA256SUMS` (which only proves the bundle's own internal integrity, not where the weights originally came from).

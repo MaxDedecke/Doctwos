@@ -2,6 +2,46 @@
 # Shared by install.sh and install-offline.sh. Source it, then call bootstrap_env.
 set -e
 
+# nvidia-smi only proves the driver is installed, not that Docker can actually
+# hand a container a GPU — that needs the NVIDIA Container Toolkit's runtime
+# registered with Docker too (`nvidia-ctk runtime configure` adds an "nvidia"
+# entry to `docker info`'s Runtimes line). Checking both avoids wiring in
+# docker-compose.gpu.yml on a host that would then just fail to start ollama.
+gpu_ready_for_docker() {
+    command -v nvidia-smi >/dev/null 2>&1 || return 1
+    docker info 2>/dev/null | grep -qi nvidia
+}
+
+# Keeps COMPOSE_FILE in .env in sync with GPU availability, so every
+# `docker compose` call — this installer's own, and any manual command run
+# later per docs/DEPLOYMENT.md (e.g. after a `git pull` update) — picks up
+# docker-compose.gpu.yml without -f flags needing to be remembered by hand.
+# Deliberately separate from bootstrap_env (which only runs on a brand-new
+# .env): safe to call on every install(-offline).sh run, including reinstalls/
+# updates on an existing .env, since it only ever touches this one line.
+sync_compose_file() {
+    repo_root="$1"
+    base_compose_file="$2"
+    env_file="$repo_root/.env"
+    [ -f "$env_file" ] || return 0
+
+    compose_files="$base_compose_file"
+    if gpu_ready_for_docker; then
+        echo "NVIDIA GPU + Container Toolkit detected — enabling GPU passthrough for Ollama (docker-compose.gpu.yml)."
+        compose_files="$compose_files:docker-compose.gpu.yml"
+    elif command -v nvidia-smi >/dev/null 2>&1; then
+        echo "NVIDIA GPU detected, but Docker's NVIDIA Container Toolkit runtime isn't registered — Ollama will run CPU-only."
+        echo "Install it, then re-run this installer to enable GPU passthrough (see docs/DEPLOYMENT.md, \"GPU passthrough (Ollama)\")."
+    fi
+
+    if grep -q "^COMPOSE_FILE=" "$env_file"; then
+        sed -e "s|^COMPOSE_FILE=.*|COMPOSE_FILE=${compose_files}|" "$env_file" > "$env_file.tmp"
+        mv "$env_file.tmp" "$env_file"
+    else
+        echo "COMPOSE_FILE=${compose_files}" >> "$env_file"
+    fi
+}
+
 bootstrap_env() {
     repo_root="$1"
 

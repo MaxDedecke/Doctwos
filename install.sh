@@ -17,6 +17,7 @@ fi
 
 . "$repo_root/scripts/lib/env-bootstrap.sh"
 bootstrap_env "$repo_root"
+sync_compose_file "$repo_root" "docker-compose.yml"
 
 cd "$repo_root"
 echo "Building images..."

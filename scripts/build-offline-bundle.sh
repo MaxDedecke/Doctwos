@@ -88,6 +88,7 @@ rm -rf "$models_dir"
 
 echo "==> Assembling bundle"
 cp docker-compose.offline.yml "$bundle_dir/"
+cp docker-compose.gpu.yml "$bundle_dir/"
 cp scripts/install-offline.sh "$bundle_dir/"
 mkdir -p "$bundle_dir/scripts/lib"
 cp scripts/lib/env-bootstrap.sh "$bundle_dir/scripts/lib/"

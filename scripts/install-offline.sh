@@ -30,9 +30,13 @@ tar xzf ollama-models.tar.gz -C data/ollama
 
 . scripts/lib/env-bootstrap.sh
 bootstrap_env "$bundle_dir"
+sync_compose_file "$bundle_dir" "docker-compose.offline.yml"
 
 echo "==> Starting services (no build — images come from the loaded bundle)"
-docker compose -f docker-compose.offline.yml up -d
+# No -f here: sync_compose_file above set COMPOSE_FILE in .env to
+# docker-compose.offline.yml, plus docker-compose.gpu.yml when a GPU was
+# detected — docker compose picks both up from .env in this cwd.
+docker compose up -d
 
 check_env_ready "$bundle_dir"
 

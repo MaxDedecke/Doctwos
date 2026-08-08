@@ -1,0 +1,29 @@
+# GPU passthrough overlay for the `ollama` service — layers on top of
+# docker-compose.yml (Path A) or docker-compose.offline.yml (Path B) instead of
+# living in either directly, so a CPU-only/dev host's base compose file stays
+# installable without the NVIDIA Container Toolkit present. Without this
+# overlay, Ollama runs CPU-only even on a GPU host: the base compose files
+# never request a GPU device, so Docker has no reason to hand one to the
+# container — see docs/DEPLOYMENT.md, "GPU passthrough (Ollama)".
+#
+# install.sh / install-offline.sh detect a working NVIDIA GPU + Container
+# Toolkit at install time and wire this in automatically via COMPOSE_FILE in
+# .env. To add it manually on an existing install:
+#   echo "COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml" >> .env
+#   docker compose up -d
+#
+# Host prerequisite: NVIDIA driver + the NVIDIA Container Toolkit, with its
+# runtime registered with Docker:
+#   sudo apt-get install -y nvidia-container-toolkit
+#   sudo nvidia-ctk runtime configure --runtime=docker
+#   sudo systemctl restart docker
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: ["gpu"]
