@@ -83,6 +83,7 @@ def serialize_source(s: KnowledgeSource) -> dict:
         "last_error": s.last_error,
         "sync_log": s.sync_log,
         "sync_interval_minutes": s.sync_interval_minutes,
+        "context_note": s.context_note,
         "created_at": s.created_at.isoformat() if s.created_at else None,
         "team_id": s.team_id,
         "total_files": s.total_files,

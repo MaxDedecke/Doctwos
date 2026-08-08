@@ -97,6 +97,22 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     }
   };
 
+  const handleContextNoteBlur = async (sourceId: string | number, note: string) => {
+    const idVal = typeof sourceId === 'string' ? parseInt(sourceId) : sourceId;
+    if (Number.isNaN(idVal)) return;
+    const prev = connectedSources;
+    const current = prev.find(s => s.id === idVal);
+    if (current && (current.context_note || "") === note) return; // unverändert, kein Request nötig
+    setConnectedSources(prev.map(s => s.id === idVal ? { ...s, context_note: note } : s));
+    try {
+      await api.updateKnowledgeSourceContextNote(idVal, note);
+    } catch (err) {
+      console.error(err);
+      setConnectedSources(prev);
+      showToast(t('settings.toast.contextNoteUpdateFailed'), "error");
+    }
+  };
+
   // Helper mapping metadata per type for rich styling
   const getConnectorMetadata = (typeName: string) => {
     const name = typeName ? typeName.toLowerCase() : "";
@@ -384,6 +400,28 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                         </div>
                       </div>
                     )}
+
+                    {/* Kontext-Notiz: Fachwissen/Kunden-Jargon zu dieser Quelle, fließt in den System-Prompt ein */}
+                    <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
+                      <label className="text-[7.5px] uppercase tracking-wider font-extrabold opacity-45 block mb-1">
+                        {t('settings.sourcesTab.contextNoteLabel')}
+                      </label>
+                      <textarea
+                        key={inst.id}
+                        defaultValue={inst.context_note || ""}
+                        onBlur={(e) => handleContextNoteBlur(inst.id, e.target.value)}
+                        placeholder={t('settings.sourcesTab.contextNotePlaceholder')}
+                        title={t('settings.sourcesTab.contextNoteTitle')}
+                        maxLength={2000}
+                        rows={2}
+                        className={cn(
+                          "w-full text-[8px] rounded-lg border px-2 py-1.5 outline-none transition-colors resize-y",
+                          theme === 'dark'
+                            ? "bg-ds-zinc-950 border-ds-zinc-850 text-ds-zinc-300 placeholder:text-ds-zinc-700 hover:border-ds-zinc-700 focus:border-ds-blue-600"
+                            : "bg-ds-white border-ds-zinc-200 text-ds-zinc-650 placeholder:text-ds-zinc-400 hover:border-ds-zinc-300 focus:border-ds-blue-400"
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {/* Actions footer */}

@@ -633,6 +633,14 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
             else:
                 full_system_prompt_for_chat = base_sys_prompt + language_instructions
 
+            # Vom Nutzer je Wissensquelle hinterlegte Fachwissen-Notiz (Kunden-Jargon,
+            # Konventionen) — kommt vom Quellen-Anleger selbst, deshalb hier als
+            # vertrauenswürdiger Prompt-Text angehängt statt als <untrusted_...>-Block.
+            from services.source_context import build_source_context_block
+            full_system_prompt_for_chat += build_source_context_block(
+                db, project_id=request.project_id, source_id=request.source_id
+            )
+
             # Kandidaten zum Auflösen von LLM-Zitationen auf vollen Pfad/source_id —
             # die Sichtbarkeit in "Referenzierte Quellen" entscheidet erst _resolve_cited_sources
             # anhand dessen, was das LLM in der Antwort tatsächlich zitiert (siehe unten).

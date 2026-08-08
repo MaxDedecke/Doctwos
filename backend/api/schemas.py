@@ -105,6 +105,7 @@ class KnowledgeSourceCreate(BaseModel):
     spaces: Union[List[str], Dict[str, Any]] = []
     team_id: Optional[int] = None
     sync_interval_minutes: Optional[int] = None  # Auto-Sync-Intervall; None → Server-Default (60), 0 → nur manuell
+    context_note: Optional[str] = None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
 
 
 class FolderWatchCreate(BaseModel):
@@ -128,7 +129,11 @@ class GitSourceCreate(BaseModel):
 
 
 class KnowledgeSourceUpdate(BaseModel):
-    sync_interval_minutes: int  # 0 = nur manuell, sonst Auto-Sync-Intervall in Minuten
+    # Beide Felder optional: der Endpunkt aktualisiert per model_dump(exclude_unset=True)
+    # nur, was der Client tatsächlich mitschickt — sonst würde ein Speichern der
+    # Kontext-Notiz allein das Sync-Intervall unbeabsichtigt auf den Default zurücksetzen.
+    sync_interval_minutes: Optional[int] = None  # 0 = nur manuell, sonst Auto-Sync-Intervall in Minuten
+    context_note: Optional[str] = None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
 
 
 class LinkStatusUpdate(BaseModel):

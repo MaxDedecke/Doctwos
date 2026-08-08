@@ -57,6 +57,12 @@ ALLOWED_SYNC_INTERVALS = {0, 60, 360, 1440}
 # anstoßen, bevor der Nutzer das erste Ergebnis überhaupt gesehen hat.
 DEFAULT_SYNC_INTERVAL = 0
 
+# Harte Zeichengrenze pro Notiz — die Notiz landet bei jeder Chat-Anfrage
+# ungekürzt im System-Prompt (siehe services/source_context.py), muss also
+# bewusst kurz/kuratiert bleiben statt zum Ablageort für ganze Glossare zu
+# werden (dafür sind reguläre Wissensquellen mit RAG-Retrieval da).
+SOURCE_CONTEXT_NOTE_MAX_CHARS = 2000
+
 
 def _validate_sync_interval(value: Optional[int]) -> int:
     """Gibt ein gültiges Intervall zurück; None → Default. Wirft 400 bei ungültigem Wert."""
@@ -68,6 +74,21 @@ def _validate_sync_interval(value: Optional[int]) -> int:
             detail=f"Ungültiges Sync-Intervall {value}. Erlaubt: {sorted(ALLOWED_SYNC_INTERVALS)} (0 = nur manuell).",
         )
     return value
+
+
+def _validate_context_note(value: Optional[str]) -> Optional[str]:
+    """Trimmt die Notiz; eine leere Notiz wird als NULL gespeichert. Wirft 400 bei Überlänge."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if len(stripped) > SOURCE_CONTEXT_NOTE_MAX_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Kontext-Notiz zu lang ({len(stripped)} Zeichen, erlaubt: {SOURCE_CONTEXT_NOTE_MAX_CHARS}).",
+        )
+    return stripped
 
 
 def _check_knowledge_source_cap(project_id: Optional[int], db: Session):
@@ -117,6 +138,7 @@ def create_knowledge_source(
         username=source.username, token=source.token,
         project_id=source.project_id, spaces=source.spaces,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
+        context_note=_validate_context_note(source.context_note),
         team_id=_resolve_team_id(source.project_id, db, user, source.team_id)
     )
     db.add(db_source)
@@ -196,13 +218,23 @@ def update_knowledge_source(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """Aktualisiert das Auto-Sync-Intervall einer Wissensquelle (0 = nur manuell)."""
+    """Aktualisiert Auto-Sync-Intervall und/oder Kontext-Notiz einer Wissensquelle.
+
+    Nur Felder aktualisieren, die der Client tatsächlich mitgeschickt hat
+    (exclude_unset) — sonst würde z.B. ein reines Notiz-Update das nicht
+    mitgesendete sync_interval_minutes über _validate_sync_interval(None)
+    unbeabsichtigt auf den Default (nur manuell) zurücksetzen.
+    """
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
 
-    db_source.sync_interval_minutes = _validate_sync_interval(update.sync_interval_minutes)
+    fields = update.model_dump(exclude_unset=True)
+    if "sync_interval_minutes" in fields:
+        db_source.sync_interval_minutes = _validate_sync_interval(fields["sync_interval_minutes"])
+    if "context_note" in fields:
+        db_source.context_note = _validate_context_note(fields["context_note"])
     db.commit()
     db.refresh(db_source)
     return serialize_source(db_source)

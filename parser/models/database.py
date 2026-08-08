@@ -133,6 +133,12 @@ class KnowledgeSource(Base):
     # NF-004: Wiederaufsetzpunkt eines abgebrochenen Syncs
     # {"last_commit": "...", "last_path": "...", "phase": "parse"}
     sync_cursor = Column(JSON, nullable=True)
+    # Frei editierbare Fachwissen-Notiz zu dieser Quelle (z.B. Kunden-Jargon wie
+    # "diese Confluence-Seiten heißen bei uns Schlüsselbeschreibungen und
+    # bedeuten ..."). Fließt bei Chat-Anfragen in dieser Quelle/diesem Projekt
+    # als vertrauenswürdiger Text in den System-Prompt ein (siehe
+    # backend/services/source_context.py) — kein RAG-Chunk, wird nicht embeddet.
+    context_note = Column(Text, nullable=True)
 
     # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
     # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen

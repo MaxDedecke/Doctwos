@@ -59,6 +59,7 @@ export const api = {
     getProjectKnowledgeSources: (projectId: number) => axios.get(`${API_URL}/projects/${projectId}/knowledge-sources`),
     createKnowledgeSource: (data: any) => axios.post(`${API_URL}/knowledge-sources`, data),
     updateKnowledgeSourceInterval: (id: number, sync_interval_minutes: number) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { sync_interval_minutes }),
+    updateKnowledgeSourceContextNote: (id: number, context_note: string) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { context_note }),
     deleteKnowledgeSource: (id: number) => axios.delete(`${API_URL}/knowledge-sources/${id}`),
     getKnowledgeSourceContent: (id: number, path?: string) => axios.get(`${API_URL}/knowledge-sources/${id}/content`, { params: path ? { path } : {} }),
     getKnowledgeSourceFiles: (id: number) => axios.get(`${API_URL}/knowledge-sources/${id}/files`),
