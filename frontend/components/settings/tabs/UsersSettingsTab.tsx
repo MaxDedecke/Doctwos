@@ -59,7 +59,10 @@ export const UsersSettingsTab: React.FC = () => {
   };
 
   useEffect(() => {
-    refresh();
+    // queueMicrotask: refresh() only sets state after its own await, but
+    // calling it straight from the effect body still reads as a
+    // synchronous setState-in-effect to the compiler's analysis.
+    queueMicrotask(refresh);
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {

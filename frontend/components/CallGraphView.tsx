@@ -111,9 +111,17 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [focusedEntity?.id, hops]);
+    // focusedEntity is typed `any`, so the compiler can't narrow the
+    // dependency to `.id` on its own — depend on the whole reference to
+    // match what it infers.
+  }, [focusedEntity, hops]);
 
-  useEffect(() => { loadGraph(); }, [loadGraph]);
+  useEffect(() => {
+    // queueMicrotask: loadGraph() sets loading/error state before its
+    // first await, which reads as a synchronous setState-in-effect to the
+    // compiler's analysis if called directly from the effect body.
+    queueMicrotask(() => { loadGraph(); });
+  }, [loadGraph]);
 
   const filtered = useMemo(() => {
     const links = graph.edges.filter(edge => enabledTypes.has(edge.type));

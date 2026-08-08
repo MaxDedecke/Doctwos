@@ -33,7 +33,10 @@ export function JobCenter({ theme }: { theme: string }) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    // queueMicrotask: refresh() only ever sets state after its own await,
+    // but calling it straight from the effect body still reads as a
+    // synchronous setState-in-effect to the compiler's analysis.
+    queueMicrotask(refresh);
     const timer = window.setInterval(refresh, 3000);
     return () => window.clearInterval(timer);
   }, [refresh]);

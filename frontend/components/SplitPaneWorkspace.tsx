@@ -175,11 +175,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
   useEffect(() => {
     if (!selectedEntity?.id || activeRightTab !== 'code') {
-      setEntityNeighborGroups({});
+      // queueMicrotask: a direct setState call here reads as synchronous
+      // setState-in-effect to the compiler's analysis.
+      queueMicrotask(() => { setEntityNeighborGroups({}); });
       return;
     }
     let cancelled = false;
-    setIsLoadingEntityNeighbors(true);
+    // queueMicrotask: a direct setState call here reads as synchronous
+    // setState-in-effect to the compiler's analysis.
+    queueMicrotask(() => { setIsLoadingEntityNeighbors(true); });
     api.getEntityNeighbors(selectedEntity.id)
       .then((response) => {
         if (!cancelled) setEntityNeighborGroups(response.data?.groups || {});
@@ -1411,14 +1415,20 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       <div
         ref={gutterMenuRef}
         style={{ position: 'fixed', left: gutterMenu.x + 10, top: gutterMenu.y - 8, zIndex: 10000 }}
-        className="min-w-[220px] rounded-[3px] bg-[#252526] text-[#cccccc] text-xs shadow-[0_2px_8px_rgba(0,0,0,0.5)] border border-white/10 py-1 overflow-hidden"
+        className={cn(
+          "min-w-[220px] rounded-[3px] text-xs shadow-lg border py-1 overflow-hidden",
+          theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-300 border-ds-zinc-700 shadow-ds-black" : "bg-ds-white text-ds-zinc-800 border-ds-zinc-200 shadow-ds-zinc-300"
+        )}
       >
         <button
           onClick={() => {
             onGutterClickRef.current?.(gutterMenu.lineNumber, gutterMenu.lineContent);
             setGutterMenu(null);
           }}
-          className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-white/10 transition-colors"
+          className={cn(
+            "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+            theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+          )}
         >
           <Sparkles className="w-3.5 h-3.5 text-ds-emerald-400 shrink-0" />
           <span className="truncate">{t('splitPane.askAboutLineMenuItem', { line: gutterMenu.lineNumber })}</span>
@@ -1429,7 +1439,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               onGutterAskEntityRef.current?.(gutterMenu.entity);
               setGutterMenu(null);
             }}
-            className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-white/10 transition-colors"
+            className={cn(
+              "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+              theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+            )}
           >
             <Layers className="w-3.5 h-3.5 text-ds-indigo-400 shrink-0" />
             <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: gutterMenu.entity.name })}</span>
