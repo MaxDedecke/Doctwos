@@ -1,7 +1,8 @@
 # Doctwos — Umsetzungsstand
 
 **Zuletzt aktualisiert:** 08.08.2026 (Nachtrag: E-7/GPL-Fund `Unidecode` per
-MIT-Shim gelöst — siehe Punkt 22 in der Umsetzungschronik unten)
+MIT-Shim gelöst und Confluence-/Jira-MCP-Anbindung um Server/Data-Center
+erweitert — siehe Punkte 22/23 in der Umsetzungschronik unten)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -1588,9 +1589,47 @@ per Autogenerate gegengeprüft (Delta leer).
     entsprechend aktualisiert (Unidecode-Ausnahme-Eintrag entfernt statt nur
     umformuliert). **E-7 ist damit kein offener Auftraggeber-Punkt mehr** —
     die Lösung entfernt den GPL-Code, statt eine Ausnahme dafür zu erbitten.
-    **Weiterhin offen (separater Punkt, nicht Teil dieser Session):**
-    `mcp_client.py`s Confluence-/Jira-Env-Var-Aufbau (`CONFLUENCE_API_TOKEN`+
-    Username, erzwungenes `/wiki`-Suffix) ist Cloud-only — für den Piloten mit
-    on-prem Confluence fehlt noch ein Server/Data-Center-Zweig
-    (`CONFLUENCE_PERSONAL_TOKEN`, kein `/wiki`-Zwang), analog zum bereits
-    bestehenden Bitbucket-Server/Cloud-Unterschied in `backend/api/connectors.py`.
+    **Weiterhin offen nach dieser Session, direkt anschließend als Punkt 23
+    gelöst:** `mcp_client.py`s Confluence-/Jira-Env-Var-Aufbau war Cloud-only.
+
+23. **`mcp_client.py`: Confluence/Jira MCP-Anbindung um Server/Data-Center
+    (on-prem) erweitert (08.08.2026).** Bisher erzwang
+    `init_mcp_clients_for_sources` für beide Produkte Cloud-Auth
+    (`*_USERNAME`+`*_API_TOKEN`) und hängte an jede Confluence-URL
+    unbedingt `/wiki` an — Kommentar im Code sagte das explizit („Cloud auth
+    only … there's no separate PAT field for Server/Data Center instances").
+    Für den DRV-Piloten (Confluence on-prem) war das ein echter Blocker.
+    Neu: `_is_atlassian_cloud_url()` (Domain-Suffix-Heuristik — `*.atlassian.net`/
+    `*.jira.com`/`*.jira-dev.com`/`*.atlassian.com`/`api.atlassian.com` = Cloud,
+    alles andere = Server/Data Center; nicht aus `mcp_atlassian.utils.urls`
+    importiert, sondern bewusst eigenständig nachgebaut, damit ein künftiger
+    `mcp-atlassian`-Interna-Umbau das nicht stillschweigend bricht) plus
+    `_atlassian_auth_env()`, das je nach Cloud/Server-DC und danach, ob
+    `username` gesetzt ist, zwischen `*_API_TOKEN`+Username (Cloud, oder
+    Server/DC im Basic-Auth-Fallback) und `*_PERSONAL_TOKEN` (Server/DC ohne
+    Username) wählt — exakt dieselbe „kein Username → PAT"-Konvention, die
+    `backend/api/connectors.py::_bitbucket_server_auth` für Bitbucket Server
+    schon nutzt, keine Datenmodelländerung nötig (`KnowledgeSource.username`
+    war schon `nullable=True`, das Frontend-Formular verlangt es auch jetzt
+    schon nicht). Confluence hängt `/wiki` jetzt nur noch für Cloud-URLs an;
+    Server/DC-URLs bleiben unverändert (deren REST-API liegt standardmäßig
+    ohne `/wiki`-Präfix).
+    **Verifiziert gegen `mcp-atlassian`s eigene Config-Klassen, nicht nur
+    gegen eigene Mocks:** `JiraConfig.from_env()`/`ConfluenceConfig.from_env()`
+    liefern für eine `*.drv.example`-URL mit nur `*_PERSONAL_TOKEN` gesetzt
+    korrekt `is_cloud=False, auth_type="pat"`, für eine `*.atlassian.net`-URL
+    mit Username+API-Token weiterhin `is_cloud=True, auth_type="basic"` —
+    die Env-Var-Namen sind also nicht nur plausibel geraten, sondern laufen
+    tatsächlich durch die echte Bibliothek. 8 neue Tests in
+    `backend/tests/test_mcp_client.py` (Cloud/Server-DC-Erkennung
+    parametrisiert + je ein Jira-/Confluence-Fall mit und ohne Username).
+    Backend-Suite: 17/17 in `test_mcp_client.py`, Gesamtstand 96 grün + 3
+    vorbestehende unabhängige `ALLOW_CLOUD_LLM`-Fehlschläge unverändert.
+    `docker compose build backend-api` + Neustart, danach nochmal gegen den
+    laufenden Container verifiziert. **Bewusst nicht mitgemacht:** SSL-Verify
+    für selbstsignierte on-prem-Zertifikate (`CONFLUENCE_SSL_VERIFY`/
+    `JIRA_SSL_VERIFY`, von `mcp-atlassian` bereits unterstützt) — ob DRVs
+    Confluence-Instanz ein selbstsigniertes Zertifikat hat, ist unbekannt;
+    kein Datenmodellfeld dafür vorhanden, keine Auftraggeber-Bestätigung, dass
+    es gebraucht wird. Bei Bedarf als globale Backend-Env-Var (analog
+    `ALLOW_CLOUD_LLM`) statt als Feld pro Wissensquelle nachziehen.

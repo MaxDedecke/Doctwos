@@ -5,6 +5,14 @@ construction (jira/confluence via mcp-atlassian) — see
 docs/TECH_DEBT_CLEANUP_PLAN.md §2 for why the previous npm package names were
 wrong and non-functional.
 
+Cloud vs. Server/Data Center (added for the on-prem-Confluence-pilot
+preparation, see docs/UMSETZUNGSSTAND.md): Server/DC installs live under the
+customer's own domain (never *.atlassian.net etc.) and use a bare Personal
+Access Token instead of username+API token, and Confluence Server/DC has no
+"/wiki" path prefix. `_is_atlassian_cloud_url`/`_atlassian_auth_env` in
+mcp_client.py implement that distinction — tested directly below, since
+getting it wrong silently breaks every on-prem pilot connection.
+
 Der Notion-Fall ist mit AP-0 entfallen: mit ihm verschwand der einzige Grund für
 eine Node.js-Runtime im Backend-Image (F-049).
 """
@@ -15,7 +23,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from mcp_client import MCPClient, init_mcp_clients_for_sources
+from mcp_client import MCPClient, _is_atlassian_cloud_url, init_mcp_clients_for_sources
 
 # A minimal stdio JSON-RPC server standing in for a real MCP server: answers
 # "initialize" and "tools/list", ignores the "initialized" notification.
@@ -99,6 +107,63 @@ async def test_confluence_source_does_not_double_append_wiki_suffix():
         await init_mcp_clients_for_sources([src])
         _, kwargs = MockClient.call_args
         assert kwargs["env"]["CONFLUENCE_URL"] == "https://example.atlassian.net/wiki"
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        ("https://example.atlassian.net", True),
+        ("https://example.atlassian.net/wiki", True),
+        ("https://example.jira.com", True),
+        ("https://api.atlassian.com", True),
+        ("https://confluence.drv.example", False),
+        ("https://confluence.drv.example/wiki", False),  # a customer-chosen path, not the Cloud convention
+        ("http://localhost:8090", False),
+        ("http://10.0.0.5", False),
+    ],
+)
+def test_is_atlassian_cloud_url_distinguishes_cloud_from_server_dc(url, expected):
+    assert _is_atlassian_cloud_url(url) is expected
+
+
+@pytest.mark.asyncio
+async def test_jira_server_dc_source_uses_personal_token_when_no_username():
+    src = SimpleNamespace(id=6, type="jira", url="https://jira.drv.example", username=None, token="pat-123")
+    with patch("mcp_client.MCPClient") as MockClient:
+        MockClient.return_value.start = AsyncMock(return_value=True)
+        await init_mcp_clients_for_sources([src])
+        _, kwargs = MockClient.call_args
+        assert kwargs["env"] == {
+            "JIRA_URL": "https://jira.drv.example",
+            "JIRA_PERSONAL_TOKEN": "pat-123",
+        }
+
+
+@pytest.mark.asyncio
+async def test_jira_server_dc_source_with_username_falls_back_to_basic_auth():
+    src = SimpleNamespace(id=7, type="jira", url="https://jira.drv.example", username="svc-account", token="tok")
+    with patch("mcp_client.MCPClient") as MockClient:
+        MockClient.return_value.start = AsyncMock(return_value=True)
+        await init_mcp_clients_for_sources([src])
+        _, kwargs = MockClient.call_args
+        assert kwargs["env"] == {
+            "JIRA_URL": "https://jira.drv.example",
+            "JIRA_USERNAME": "svc-account",
+            "JIRA_API_TOKEN": "tok",
+        }
+
+
+@pytest.mark.asyncio
+async def test_confluence_server_dc_source_does_not_append_wiki_suffix():
+    src = SimpleNamespace(id=8, type="confluence", url="https://confluence.drv.example", username=None, token="pat-123")
+    with patch("mcp_client.MCPClient") as MockClient:
+        MockClient.return_value.start = AsyncMock(return_value=True)
+        await init_mcp_clients_for_sources([src])
+        _, kwargs = MockClient.call_args
+        assert kwargs["env"] == {
+            "CONFLUENCE_URL": "https://confluence.drv.example",
+            "CONFLUENCE_PERSONAL_TOKEN": "pat-123",
+        }
 
 
 @pytest.mark.asyncio

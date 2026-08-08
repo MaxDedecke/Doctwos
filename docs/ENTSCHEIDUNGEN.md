@@ -15,6 +15,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | MIT-Shim-Paket ersetzt die GPL-Abhängigkeit vollständig (`backend/vendor/unidecode_shim/`) | umgesetzt (08.08.2026) |
 | E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Option 3: Sub-Batches + konfigurierbarer Timeout | umgesetzt |
 | E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
+| E-10 | Confluence/Jira-MCP-Anbindung: Cloud-vs-Server/DC-Erkennung | eigene Domain-Suffix-Heuristik statt Import aus `mcp_atlassian.utils` | umgesetzt (08.08.2026) |
 
 ---
 
@@ -372,3 +373,56 @@ MIT-Shim-Paket gelöst, siehe oben, keine Auftraggeber-Rückmeldung mehr nötig.
 
 **Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile),
 `docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss", `docs/ABSCHLUSS.md`.
+
+## E-10 — Confluence/Jira-MCP-Anbindung: on-prem (Server/Data Center) nachgezogen
+
+**Anlass.** Pilot-Vorbereitung (Confluence on-prem + Bitbucket-COBOL-Repo)
+deckte auf: `backend/mcp_client.py`s `init_mcp_clients_for_sources` baute für
+Confluence/Jira ausschließlich Cloud-Env-Vars (`*_USERNAME`+`*_API_TOKEN`) und
+hängte an jede Confluence-URL bedingungslos `/wiki` an — der Code-Kommentar
+sagte das explizit ("Cloud auth only"). `parser/connectors/confluence.py`
+(REST-Indexierung) war davon nicht betroffen, war schon on-prem-tauglich.
+
+**Problem.** `mcp-atlassian` unterstützt Server/Data Center längst (eigene
+`from_env()`-Logik pro Produkt: `CONFLUENCE_PERSONAL_TOKEN`/
+`JIRA_PERSONAL_TOKEN` ohne Username, oder Username+API-Token als Fallback;
+kein `/wiki`-Zwang außerhalb von Cloud) — unser eigener Aufrufcode hat das nur
+nie genutzt.
+
+**Frage, die eine Entscheidung brauchte:** wie erkennen wir Cloud vs.
+Server/DC aus der gespeicherten `KnowledgeSource.url`? Zwei Optionen:
+
+1. `mcp_atlassian.utils.urls.is_atlassian_cloud_url` direkt importieren und
+   wiederverwenden — garantiert exakte Übereinstimmung mit dem, was
+   `mcp-atlassian` intern selbst entscheidet, aber koppelt uns an ein
+   nicht-öffentliches Utility-Modul, das bei einem künftigen Versionsbump
+   ohne Vorwarnung umgebaut/entfernt werden könnte.
+2. Eigene, kleine Domain-Suffix-Heuristik nachbauen (`*.atlassian.net`,
+   `*.jira.com`, `*.jira-dev.com`, `*.atlassian.com`, `api.atlassian.com` =
+   Cloud, alles andere = Server/DC) — minimal abweichendes Risiko (verpasst
+   z.B. `mcp-atlassian`s IP-/Localhost-Sonderfälle, die für unsere
+   Kunden-URLs ohnehin irrelevant sind), aber unabhängig von
+   `mcp-atlassian`s Interna.
+
+**Entscheidung.** Option 2. Dieselbe Vorsicht wie beim `unidecode_shim`
+(E-7): keine Abhängigkeit von undokumentierten Interna eines Fremdpakets,
+wenn eine kleine eigene Implementierung genügt. Verifiziert, dass die
+Heuristik in der Praxis mit `mcp-atlassian`s eigener Entscheidung
+übereinstimmt: `JiraConfig.from_env()`/`ConfluenceConfig.from_env()` liefern
+für dieselben Test-URLs dasselbe `is_cloud`.
+
+**Auth-Präzedenz.** "Kein `username` gesetzt → Token ist ein PAT" — dieselbe
+Konvention, die `backend/api/connectors.py::_bitbucket_server_auth` für
+Bitbucket Server schon verwendet. Keine Datenmodelländerung nötig
+(`KnowledgeSource.username` war schon `nullable=True`).
+
+**Bewusst nicht mitgemacht.** SSL-Verify-Override für selbstsignierte
+on-prem-Zertifikate (`CONFLUENCE_SSL_VERIFY`/`JIRA_SSL_VERIFY`, von
+`mcp-atlassian` unterstützt) — unbekannt, ob DRVs Confluence-Instanz das
+braucht, kein Datenmodellfeld dafür vorhanden. Bei Bedarf als globale
+Backend-Env-Var (analog `ALLOW_CLOUD_LLM`) nachziehen, nicht pro
+Wissensquelle (Backend soll zustandslos bleiben, CLAUDE.md).
+
+**Fundstelle.** `backend/mcp_client.py` (`_is_atlassian_cloud_url`,
+`_atlassian_auth_env`), `backend/tests/test_mcp_client.py`,
+`docs/UMSETZUNGSSTAND.md` Punkt 23.

@@ -3,10 +3,46 @@ import json
 import logging
 import os
 import sys
+from urllib.parse import urlparse
+
 import httpx
 from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# Domain suffixes mcp-atlassian itself treats as Atlassian Cloud
+# (mcp_atlassian.utils.urls.is_atlassian_cloud_url) — reimplemented here
+# instead of imported so a future mcp-atlassian internals refactor can't
+# silently break knowledge-source setup; this list only needs to track the
+# handful of Cloud domains Atlassian actually uses, not their SSRF/DNS checks.
+_ATLASSIAN_CLOUD_SUFFIXES = (".atlassian.net", ".jira.com", ".jira-dev.com", ".atlassian.com")
+
+
+def _is_atlassian_cloud_url(url: str) -> bool:
+    """Cloud vs. Server/Data Center — on-prem installs use the customer's own
+    domain, Cloud always lives under one of the suffixes above."""
+    host = (urlparse(url).hostname or "").lower()
+    return host == "api.atlassian.com" or host.endswith(_ATLASSIAN_CLOUD_SUFFIXES)
+
+
+def _atlassian_auth_env(prefix: str, src) -> Dict[str, str]:
+    """Auth env vars for one mcp-atlassian product ("JIRA" or "CONFLUENCE").
+
+    Mirrors mcp-atlassian's own precedence (mcp_atlassian.*.config.py's
+    from_env()): Server/Data Center accepts a bare Personal Access Token
+    (CONFLUENCE_PERSONAL_TOKEN/JIRA_PERSONAL_TOKEN, no username) or
+    username+API token; Cloud only supports username (email) + API token —
+    there's no Cloud PAT. "No username set -> treat the token as a PAT" is
+    the same convention connectors.py's _bitbucket_server_auth already uses
+    for Bitbucket Server, so this app's data model (nullable `username`)
+    needs no change to support it here too.
+    """
+    if not _is_atlassian_cloud_url(src.url) and not src.username:
+        return {f"{prefix}_PERSONAL_TOKEN": src.token}
+    return {
+        f"{prefix}_USERNAME": src.username or "",
+        f"{prefix}_API_TOKEN": src.token,
+    }
 
 class MCPClient:
     """
@@ -205,13 +241,11 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
             # mcp-atlassian (sooperset/mcp-atlassian, PyPI) — a single process
             # only gets JIRA_* env set here, so it exposes just the Jira toolset
             # (see mcp_atlassian.servers.main: each product's tools are gated on
-            # its own config being present). Cloud auth only, matching this app's
-            # data model (username=email + API token; there's no separate PAT field
-            # for Server/Data Center instances — see connectors.py's /connectors/test).
+            # its own config being present). Cloud and Server/Data Center both
+            # supported — see _atlassian_auth_env() above.
             env = {
                 "JIRA_URL": src.url,
-                "JIRA_USERNAME": src.username or "",
-                "JIRA_API_TOKEN": src.token,
+                **_atlassian_auth_env("JIRA", src),
             }
             client = MCPClient(
                 name=f"jira-{src.id}",
@@ -223,16 +257,21 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
                 clients.append(client)
 
         elif src_type == "confluence":
-            # mcp-atlassian requires the full wiki URL (docs/error message both say
-            # ".../wiki"), but db_source.url stores the bare site root (see
-            # connectors.py's /connectors/test, which appends "/wiki/rest/api/space"
-            # itself) — append it here too, unless already present.
+            # Confluence Cloud's REST API lives under a "/wiki" path prefix
+            # (mcp-atlassian's own error message uses
+            # "https://your-company.atlassian.net/wiki" as the example) — Server/
+            # Data Center installs don't have this prefix by default, so it must
+            # only be appended for Cloud URLs. db_source.url stores the bare site
+            # root (see connectors.py's /connectors/test, which appends
+            # "/wiki/rest/api/space" itself for its own Cloud probe).
             base_url = src.url.rstrip("/")
-            confluence_url = base_url if base_url.endswith("/wiki") else f"{base_url}/wiki"
+            if _is_atlassian_cloud_url(base_url):
+                confluence_url = base_url if base_url.endswith("/wiki") else f"{base_url}/wiki"
+            else:
+                confluence_url = base_url
             env = {
                 "CONFLUENCE_URL": confluence_url,
-                "CONFLUENCE_USERNAME": src.username or "",
-                "CONFLUENCE_API_TOKEN": src.token,
+                **_atlassian_auth_env("CONFLUENCE", src),
             }
             client = MCPClient(
                 name=f"confluence-{src.id}",
