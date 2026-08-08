@@ -26,6 +26,16 @@ from .model import CobolProgram, Division, Paragraph, Section
 
 _DIVISION_NAMES = {"IDENTIFICATION", "ENVIRONMENT", "DATA", "PROCEDURE"}
 
+# Reservierte, operandenlose COBOL-Verben, die als eigener Satz (WORD PERIOD)
+# auftreten können - z.B. ein alleinstehendes "GOBACK." oder "EXIT." am Ende
+# eines Paragraphen im alten GO-TO-Stil - und strukturell nicht von einem
+# Paragraphen-Kopf zu unterscheiden sind. Da keins dieser Wörter als
+# Anwenderbezeichner zulässig ist (reserviert), ist der Ausschluss ohne
+# Fehlalarm-Risiko: ohne ihn würde z.B. zweimaliges "GOBACK." im selben
+# Programm zwei Paragraph-Entities mit identischem qualified_name erzeugen
+# und beim Persistieren am Unique-Constraint scheitern.
+_RESERVED_BARE_VERBS = {"GOBACK", "EXIT", "CONTINUE", "STOP"}
+
 
 def scan(tokens: list[Token]) -> tuple[CobolProgram, list[str]]:
     errors: list[str] = []
@@ -117,6 +127,7 @@ def scan(tokens: list[Token]) -> tuple[CobolProgram, list[str]]:
             current_division_name == "PROCEDURE"
             and tok.kind == "WORD"
             and not _is_embedded_placeholder(tok.value)
+            and tok.value.upper() not in _RESERVED_BARE_VERBS
             and _is_period(tokens, i + 1)
         ):
             close_paragraph(prev_line)

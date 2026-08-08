@@ -113,6 +113,23 @@ def test_missing_program_id_is_reported_but_does_not_crash():
     assert "PROGRAM-ID nicht gefunden." in errors
 
 
+def test_bare_reserved_verbs_do_not_open_spurious_paragraphs():
+    # Bug gefunden über CobolTestRepository/LEGACYKONV.cbl: ein alleinstehendes
+    # "GOBACK." (zweimal im selben Programm) bzw. "EXIT." sieht strukturell
+    # wie ein Paragraphen-Kopf aus (WORD PERIOD) und wurde als solcher
+    # gewertet - beim zweiten "GOBACK." kollidierte der qualified_name beim
+    # Persistieren am Unique-Constraint uq_code_entities_source_qname.
+    program, errors = _program("11_bare_verb_statements.cbl")
+    assert errors == []
+    assert program.paragraphs == [
+        Paragraph("MAIN-PARA", None, 4, 6),
+        Paragraph("FIRST-EXIT-PARA", None, 7, 8),
+        Paragraph("FIRST-EXIT-PARA-ENDE", None, 9, 10),
+        Paragraph("SECOND-PARA", None, 11, 13),
+        Paragraph("THIRD-PARA", None, 14, 16),
+    ]
+
+
 def test_empty_token_stream_does_not_crash():
     program, errors = divisions.scan([])
     assert program.name == ""

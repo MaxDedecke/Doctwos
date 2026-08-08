@@ -1,0 +1,16 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BAREVERBS.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM FIRST-EXIT-PARA THRU FIRST-EXIT-PARA-ENDE.
+           GO TO SECOND-PARA.
+       FIRST-EXIT-PARA.
+           DISPLAY 'FIRST'.
+       FIRST-EXIT-PARA-ENDE.
+           EXIT.
+       SECOND-PARA.
+           DISPLAY 'SECOND'.
+           GOBACK.
+       THIRD-PARA.
+           DISPLAY 'THIRD'.
+           GOBACK.

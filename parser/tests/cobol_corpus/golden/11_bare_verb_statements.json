@@ -1,0 +1,123 @@
+{
+  "program_name": "BAREVERBS",
+  "path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "BAREVERBS",
+      "start_line": 1,
+      "end_line": 16,
+      "parent_name": null,
+      "qualified_name": "BAREVERBS",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 4,
+      "end_line": 6,
+      "parent_name": "BAREVERBS",
+      "qualified_name": "BAREVERBS.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "FIRST-EXIT-PARA",
+      "start_line": 7,
+      "end_line": 8,
+      "parent_name": "BAREVERBS",
+      "qualified_name": "BAREVERBS.FIRST-EXIT-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "FIRST-EXIT-PARA-ENDE",
+      "start_line": 9,
+      "end_line": 10,
+      "parent_name": "BAREVERBS",
+      "qualified_name": "BAREVERBS.FIRST-EXIT-PARA-ENDE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "SECOND-PARA",
+      "start_line": 11,
+      "end_line": 13,
+      "parent_name": "BAREVERBS",
+      "qualified_name": "BAREVERBS.SECOND-PARA",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "THIRD-PARA",
+      "start_line": 14,
+      "end_line": 16,
+      "parent_name": "BAREVERBS",
+      "qualified_name": "BAREVERBS.THIRD-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [
+    {
+      "type": "PERFORM",
+      "src_name": "MAIN-PARA",
+      "dst_name": "FIRST-EXIT-PARA",
+      "resolution": "resolved",
+      "src_start_line": 5,
+      "src_end_line": 5,
+      "scope": "BAREVERBS",
+      "meta": {
+        "thru": "FIRST-EXIT-PARA-ENDE"
+      }
+    },
+    {
+      "type": "GOTO",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SECOND-PARA",
+      "resolution": "resolved",
+      "src_start_line": 6,
+      "src_end_line": 6,
+      "scope": "BAREVERBS",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           PERFORM FIRST-EXIT-PARA THRU FIRST-EXIT-PARA-ENDE.\n           GO TO SECOND-PARA.\n       FIRST-EXIT-PARA.\n           DISPLAY 'FIRST'.\n       FIRST-EXIT-PARA-ENDE.\n           EXIT.",
+      "start_line": 4,
+      "end_line": 10,
+      "meta": {
+        "program": "BAREVERBS",
+        "section": null,
+        "paragraphs": [
+          "MAIN-PARA",
+          "FIRST-EXIT-PARA",
+          "FIRST-EXIT-PARA-ENDE"
+        ],
+        "start_line": 4,
+        "end_line": 10,
+        "format": "fixed"
+      }
+    },
+    {
+      "content": "       SECOND-PARA.\n           DISPLAY 'SECOND'.\n           GOBACK.\n       THIRD-PARA.\n           DISPLAY 'THIRD'.\n           GOBACK.",
+      "start_line": 11,
+      "end_line": 16,
+      "meta": {
+        "program": "BAREVERBS",
+        "section": null,
+        "paragraphs": [
+          "SECOND-PARA",
+          "THIRD-PARA"
+        ],
+        "start_line": 11,
+        "end_line": 16,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+  ]
+}

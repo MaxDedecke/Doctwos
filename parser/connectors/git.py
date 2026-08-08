@@ -245,70 +245,102 @@ class GitConnector(BaseConnector):
         async def embed_content(content):
             return await get_embedding(content, model=config.EMBED_MODEL)
 
-        count = await reindex_chunks_preserving_links(
-            self.db,
-            source_id=self.source.id,
-            file_path=doc["storage_key"],
-            chunks=chunks,
-            build_chunk=build_chunk,
-            embed_content=embed_content,
-        )
-
-        # NF-004: SourceScanFile wird im selben Commit wie die Chunks
-        # aktualisiert — bricht der Sync danach ab, überspringt der Resume-Check
-        # in fetch_documents() diese Datei beim nächsten Anlauf.
         path = doc["storage_key"]
-        if doc["extra_meta"].get("deleted"):
-            self.db.query(SourceScanFile).filter(
-                SourceScanFile.source_id == self.source_id,
-                SourceScanFile.file_path == path,
-            ).delete()
-            # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
-            # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
-            # korrekt, anders als beim Reparse-Fall in cobol_persist.py.
-            self.db.query(CodeEntity).filter(
-                CodeEntity.source_id == self.source_id,
-                CodeEntity.file_path == path,
-            ).delete(synchronize_session=False)
-        else:
-            content_hash = doc["extra_meta"]["content_hash"]
+        try:
+            count = await reindex_chunks_preserving_links(
+                self.db,
+                source_id=self.source.id,
+                file_path=path,
+                chunks=chunks,
+                build_chunk=build_chunk,
+                embed_content=embed_content,
+            )
 
-            parse_status = None
-            parse_error = None
-            if parse_result is not None:
-                # F-029: errors != leer heißt nicht zwangsläufig "gar nicht
-                # geparst" (z.B. eine fehlende DATA DIVISION lässt Programm-/
-                # Paragraph-Entities trotzdem stehen) - aber es signalisiert
-                # dem Users-Tab/Diagnostics, dass diese Datei einen genaueren
-                # Blick verdient.
-                parse_status = "ok" if not parse_result.errors else "fallback_text"
-                parse_error = "; ".join(parse_result.errors) or None
-                persist_parse_result(
-                    self.db,
-                    project_id=self.source.project_id,
-                    source_id=self.source_id,
-                    file_path=path,
-                    content_hash=content_hash,
-                    result=parse_result,
-                )
-
-            existing = self.db.query(SourceScanFile).filter(
-                SourceScanFile.source_id == self.source_id,
-                SourceScanFile.file_path == path,
-            ).first()
-            if existing:
-                existing.content_hash = content_hash
-                if parse_result is not None:
-                    existing.parse_status = parse_status
-                    existing.parse_error = parse_error
+            # NF-004: SourceScanFile wird im selben Commit wie die Chunks
+            # aktualisiert — bricht der Sync danach ab, überspringt der Resume-Check
+            # in fetch_documents() diese Datei beim nächsten Anlauf.
+            if doc["extra_meta"].get("deleted"):
+                self.db.query(SourceScanFile).filter(
+                    SourceScanFile.source_id == self.source_id,
+                    SourceScanFile.file_path == path,
+                ).delete()
+                # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
+                # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
+                # korrekt, anders als beim Reparse-Fall in cobol_persist.py.
+                self.db.query(CodeEntity).filter(
+                    CodeEntity.source_id == self.source_id,
+                    CodeEntity.file_path == path,
+                ).delete(synchronize_session=False)
             else:
-                self.db.add(SourceScanFile(
-                    source_id=self.source_id, file_path=path, content_hash=content_hash,
-                    parse_status=parse_status, parse_error=parse_error,
-                ))
+                content_hash = doc["extra_meta"]["content_hash"]
 
-        self.db.commit()
-        return count
+                parse_status = None
+                parse_error = None
+                if parse_result is not None:
+                    # F-029: errors != leer heißt nicht zwangsläufig "gar nicht
+                    # geparst" (z.B. eine fehlende DATA DIVISION lässt Programm-/
+                    # Paragraph-Entities trotzdem stehen) - aber es signalisiert
+                    # dem Users-Tab/Diagnostics, dass diese Datei einen genaueren
+                    # Blick verdient.
+                    parse_status = "ok" if not parse_result.errors else "fallback_text"
+                    parse_error = "; ".join(parse_result.errors) or None
+                    persist_parse_result(
+                        self.db,
+                        project_id=self.source.project_id,
+                        source_id=self.source_id,
+                        file_path=path,
+                        content_hash=content_hash,
+                        result=parse_result,
+                    )
+
+                existing = self.db.query(SourceScanFile).filter(
+                    SourceScanFile.source_id == self.source_id,
+                    SourceScanFile.file_path == path,
+                ).first()
+                if existing:
+                    existing.content_hash = content_hash
+                    if parse_result is not None:
+                        existing.parse_status = parse_status
+                        existing.parse_error = parse_error
+                else:
+                    self.db.add(SourceScanFile(
+                        source_id=self.source_id, file_path=path, content_hash=content_hash,
+                        parse_status=parse_status, parse_error=parse_error,
+                    ))
+
+            self.db.commit()
+            return count
+
+        except Exception as e:
+            # F-029 gilt auch für DB-seitige Persistenzfehler (z.B. ein
+            # Constraint-Verstoß durch einen Parser-Grenzfall), nicht nur für
+            # nicht-lesbare Dateien: eine einzelne Datei darf nie den
+            # gesamten Sync mitreißen. Ohne den Rollback hier bliebe die
+            # Session nach einem fehlgeschlagenen flush() "vergiftet" - jeder
+            # weitere Query/Commit in diesem Sync-Lauf würde mit derselben
+            # "transaction has been rolled back"-Meldung fehlschlagen.
+            self.db.rollback()
+            error_msg = str(e)
+            self._log(f"Fehler bei '{doc['title']}', Datei übersprungen: {error_msg}")
+
+            if not doc["extra_meta"].get("deleted"):
+                content_hash = doc["extra_meta"].get("content_hash", "")
+                existing = self.db.query(SourceScanFile).filter(
+                    SourceScanFile.source_id == self.source_id,
+                    SourceScanFile.file_path == path,
+                ).first()
+                if existing:
+                    existing.content_hash = content_hash
+                    existing.parse_status = "error"
+                    existing.parse_error = error_msg
+                else:
+                    self.db.add(SourceScanFile(
+                        source_id=self.source_id, file_path=path, content_hash=content_hash,
+                        parse_status="error", parse_error=error_msg,
+                    ))
+                self.db.commit()
+
+            return 0
 
     async def fetch_documents(self) -> AsyncIterator[Document]:
         spaces = self.source.spaces or {}
