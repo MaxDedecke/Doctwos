@@ -8,8 +8,10 @@ in denen sie Mitglied sind, es sei denn, sie sind globale Admins.
 
 from typing import Optional
 from fastapi import HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from models.database import Project, ProjectMembership, User, KnowledgeSource
+from sqlalchemy.sql.elements import ColumnElement
+from models.database import DocumentChunk, Project, ProjectMembership, User, KnowledgeSource
 from core.teams import is_admin
 
 def chunk_source_label(chunk, db: Session) -> str:
@@ -59,6 +61,42 @@ def is_project_code_visible_in_context(project_id: Optional[int], requesting_pro
         return True
     proj = db.query(Project).filter(Project.id == project_id).first()
     return bool(proj and proj.expose_code_analysis_globally)
+
+
+def build_document_chunk_code_gate(db: Session, exposed_project_ids: list[int]) -> Optional[ColumnElement]:
+    """SQL-Filterbedingung für DocumentChunk-Bulk-Queries (Allgemein-Suche/-Graph-View):
+    wendet dieselbe Opt-in-Einschränkung wie CodeEntity/Callgraph auf Chunks an, die aus
+    einer Git-Wissensquelle stammen (rohe Repo-Quelldateien -- Code-Analyse-Inhalt, keine
+    echte Dokumentation). Echte Doku-Quellen (Confluence/Jira/Upload) bleiben unberührt
+    projektübergreifend durchsuchbar/sichtbar, siehe is_document_chunk_code_visible_in_context.
+
+    `exposed_project_ids` wie von get_globally_exposed_project_ids geliefert (ggf. bereits
+    auf die Sichtbarkeit des Nutzers eingeschränkt). Gibt None zurück, wenn es keine
+    Git-Wissensquelle gibt (dann ist nichts einzuschränken -- Bedingung schlicht weglassen,
+    statt sie unnötig in die Query aufzunehmen)."""
+    git_source_ids = [s[0] for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.type == "Git").all()]
+    if not git_source_ids:
+        return None
+    return or_(
+        ~DocumentChunk.source_id.in_(git_source_ids),
+        DocumentChunk.project_id.in_(exposed_project_ids),
+        DocumentChunk.project_id == None,  # noqa: E711 (SQLAlchemy-Idiom, kein `is None`)
+    )
+
+
+def is_document_chunk_code_visible_in_context(
+    chunk: DocumentChunk, requesting_project_id: Optional[int], db: Session
+) -> bool:
+    """Einzelfall-Variante von build_document_chunk_code_gate für bereits geladene Chunks
+    (z.B. eine Seite eines generischen KnowledgeLink, siehe api/graph.py::_is_side_visible)."""
+    if chunk.source_id is None:
+        return True
+    is_git_source = db.query(KnowledgeSource.id).filter(
+        KnowledgeSource.id == chunk.source_id, KnowledgeSource.type == "Git"
+    ).first() is not None
+    if not is_git_source:
+        return True
+    return is_project_code_visible_in_context(chunk.project_id, requesting_project_id, db)
 
 
 def assert_project_code_visible_in_context(

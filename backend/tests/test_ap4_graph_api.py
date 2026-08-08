@@ -96,6 +96,12 @@ def test_entity_access_denied_outside_project_context_unless_opted_in(client, db
         assert search_result.status_code == 200
         assert all(hit["node_id"] != target.id for hit in search_result.json()["results"])
 
+        # Dieselbe Sperre gilt für Dokument-Chunks der Git-Wissensquelle (rohe
+        # Repo-Quelldateien, siehe core/projects.py::build_document_chunk_code_gate).
+        doc_search = client.get("/search", params={"q": "TARGET.CBL", "types": "document"})
+        assert doc_search.status_code == 200
+        assert all(hit["node_meta"]["source_id"] != source.id for hit in doc_search.json()["results"])
+
         # Aus einem ANDEREN Projekt-Kontext heraus gilt dieselbe Sperre.
         other_project = Project(name="Other Project", team_id=test_team, creator_id=None)
         db_session.add(other_project)
@@ -115,6 +121,8 @@ def test_entity_access_denied_outside_project_context_unless_opted_in(client, db
             assert client.get(f"/callgraph/focus?entity_id={target.id}&hops=1").status_code == 200
             search_result = client.get("/search", params={"q": "TARGET", "types": "entity"})
             assert any(hit["node_id"] == target.id for hit in search_result.json()["results"])
+            doc_search = client.get("/search", params={"q": "TARGET.CBL", "types": "document"})
+            assert any(hit["node_meta"]["source_id"] == source.id for hit in doc_search.json()["results"])
         finally:
             db_session.query(Project).filter(Project.id == test_project).update({"expose_code_analysis_globally": False})
             db_session.commit()

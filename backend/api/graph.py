@@ -24,8 +24,10 @@ from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible
 from core.projects import (
     assert_project_visible,
+    build_document_chunk_code_gate,
     get_globally_exposed_project_ids,
     get_visible_project_ids,
+    is_document_chunk_code_visible_in_context,
     is_project_code_visible_in_context,
 )
 
@@ -127,7 +129,11 @@ def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optio
         chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
         if not chunk:
             return False
-        return _is_project_visible(chunk.project_id, team_ids, db) and _is_source_visible(chunk.source_id, team_ids, db)
+        return (
+            _is_project_visible(chunk.project_id, team_ids, db)
+            and _is_source_visible(chunk.source_id, team_ids, db)
+            and is_document_chunk_code_visible_in_context(chunk, requesting_project_id, db)
+        )
     return True
 
 
@@ -184,13 +190,22 @@ def get_graph(
     doc_query = db.query(DocumentChunk)
     if project_id:
         doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
-    elif team_ids is not None:
-        project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()]
-        doc_query = doc_query.filter(or_(
-            DocumentChunk.project_id.in_(project_ids),
-            DocumentChunk.project_id == None
-        ))
-    
+    else:
+        if team_ids is not None:
+            project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()]
+            doc_query = doc_query.filter(or_(
+                DocumentChunk.project_id.in_(project_ids),
+                DocumentChunk.project_id == None
+            ))
+        # Dieselbe Opt-in-Einschränkung wie beim Entity-Node-Fetch oben, aber nur für
+        # Chunks aus einer Git-Wissensquelle (rohe Repo-Quelldateien = Code-Analyse-
+        # Inhalt) -- sonst blieben die als verwaiste Knoten übrig, sobald ihre
+        # zugehörigen Entities (oben) ausgeblendet sind. Echte Doku-Quellen
+        # (Confluence/Jira/Upload) bleiben unverändert projektübergreifend sichtbar.
+        gate = build_document_chunk_code_gate(db, exposed_project_ids)
+        if gate is not None:
+            doc_query = doc_query.filter(gate)
+
     min_ids_subquery = doc_query.with_entities(func.min(DocumentChunk.id)).group_by(DocumentChunk.file_path).subquery()
     distinct_docs = db.query(DocumentChunk).filter(DocumentChunk.id.in_(min_ids_subquery)).all()
     for chunk in distinct_docs:

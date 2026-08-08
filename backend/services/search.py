@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
-from core.projects import get_globally_exposed_project_ids
+from core.projects import build_document_chunk_code_gate, get_globally_exposed_project_ids
 from models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
 
 ALL_TYPES = "project,entity,document,knowledge_source"
@@ -132,6 +132,20 @@ def search_nodes(
         ))
         if project_id:
             chunk_filter = chunk_filter.filter(DocumentChunk.project_id == project_id)
+        else:
+            # Dieselbe Opt-in-Einschränkung wie bei CodeEntity oben, aber nur für Chunks
+            # aus einer Git-Wissensquelle (rohe Repo-Quelldateien = Code-Analyse-Inhalt).
+            # Echte Doku-Quellen (Confluence/Jira/Upload) bleiben unverändert projekt-
+            # übergreifend durchsuchbar.
+            exposed_project_ids = get_globally_exposed_project_ids(db)
+            if visible_project_ids is not None:
+                exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
+            elif visible_team_ids is not None:
+                team_project_ids = {p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()}
+                exposed_project_ids = [pid for pid in exposed_project_ids if pid in team_project_ids]
+            gate = build_document_chunk_code_gate(db, exposed_project_ids)
+            if gate is not None:
+                chunk_filter = chunk_filter.filter(gate)
         if source_id:
             chunk_filter = chunk_filter.filter(DocumentChunk.source_id == source_id)
         if visible_project_ids is not None:
