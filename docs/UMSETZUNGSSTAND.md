@@ -1,8 +1,7 @@
 # Doctwos — Umsetzungsstand
 
-**Zuletzt aktualisiert:** 02.08.2026 (Nachtrag: Lexer-Bug behoben, der den
-Call-Graph fast kantenlos ließ — siehe Abschnitt „Nachtrag 02.08.2026:
-Call-Graph ohne Kanten" unten)
+**Zuletzt aktualisiert:** 08.08.2026 (Nachtrag: E-7/GPL-Fund `Unidecode` per
+MIT-Shim gelöst — siehe Punkt 22 in der Umsetzungschronik unten)
 **Referenz:** `docs/IMPLEMENTIERUNGSPLAN.md` (Arbeitspakete AP-0…AP-9) · Entscheidungen in `docs/ENTSCHEIDUNGEN.md`
 
 Dieses Dokument ist die Einstiegsseite für jede neue Session: *Was ist fertig, was ist als
@@ -23,7 +22,7 @@ Nächstes dran, was ist bewusst offen.* Wer hier etwas erledigt, hakt es hier ab
 | **AP-6** | Call-Graph-View + Export | **fertig** — Fokusgraph mit 1–3 Hops, Kantentyp-Filtern, Warnknoten für unresolved/dynamic, Code-Navigation und JSON/CSV/GraphML-Download |
 | **AP-7** | Design-Tokens (Fujitsu), Job-Center, i18n | **fertig** — Light/Dark-Tokens, Fujitsu-Rot-Blau-Markenverlauf, eigenständige Workspace-Optik, CI-Gate sowie Job-Center + de/en umgesetzt |
 | **AP-8** | Konnektoren-Nachzug (Upload/Confluence/Jira/WebDAV/FolderWatch nachtesten) | **fertig** — dedizierte Tests für alle vier Connectoren + Upload-Endpunkt ergänzt, zwei verlorene Regressionstests (Orphan-Schutz, Chunked-Download) nachgebaut |
-| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | **läuft** — OSS-Clearing fertig (GPL-Fund offen, E-7), zwei Produktionsabstürze in `/projects` gefunden+behoben, Barrierefreiheits-Basis-Check fertig, Offline-Bundle end-to-end verifiziert (Doku-Referenz-Bug gefixt); Lasttest hat jetzt reale Zahlen aus synthetischem Ersatzkorpus (Persistenz+Embedding als Engpässe identifiziert), formale Abnahme am echten Bestand weiterhin offen; BITV-Abnahme/Abschlussdokumentation offen |
+| **AP-9** | Härtung: Lasttest, BITV, OSS-Clearing, Offline-Bundle | **fertig** (siehe „AP-9 — Abschluss" unten), drei Punkte bewusst als Übergabepunkte an Fujitsu/DRV dokumentiert (E-9: Lasttest-Abnahme am echten Bestand, BITV-Abnahme, Farbkontrast). OSS-Clearing komplett grün — GPL-Fund `Unidecode` (E-7) war zwischenzeitlich offen, am 08.08.2026 per MIT-Shim gelöst (Punkt 22 unten), kein Release-Blocker mehr. |
 
 ---
 
@@ -1546,3 +1545,52 @@ per Autogenerate gegengeprüft (Delta leer).
     grün. Getestet per `docker cp` in den laufenden `doctus-backend`-Container
     (kein Image-Rebuild) — für einen echten Deploy fehlt weiterhin
     `docker compose build backend-api`.
+
+22. **E-7 gelöst — GPL-Fund `Unidecode` per MIT-Shim entfernt (08.08.2026).**
+    Anlass war eine Pilot-Vorbereitungsfrage (Confluence on-prem + Bitbucket-
+    COBOL-Repo): dabei fiel auf, dass `backend/mcp_client.py`s
+    MCP-Tool-Calling-Anbindung (`mcp-atlassian`) bisher nur Confluence-/
+    Jira-**Cloud**-Auth kennt (siehe offener Folgepunkt unten) — und dass der
+    seit `docs/OSS-CLEARING.md`/AP-9 bekannte Release-Blocker E-7 (`Unidecode`,
+    GPL-2.0-or-later, Pflichtabhängigkeit von `mcp-atlassian`) noch offen war.
+    Recherche ergab: `Unidecode` wird in `mcp-atlassian` (geprüft gegen den
+    gepinnten Stand `0.22.1` **und** die aktuelle PyPI-Version `0.23.0`) an
+    genau einer Stelle benutzt — `mcp_atlassian/jira/users.py::normalize_text()`,
+    ASCII-Transliteration für den fuzzy Jira-Assignee-Namensabgleich, sonst
+    nirgends im Paket, auch nicht in den Confluence-Modulen. Statt (wie in
+    E-7 als Option 2 skizziert) `mcp-atlassian` komplett durch eine eigene
+    Anbindung zu ersetzen, wurde nur diese eine Funktion als eigenständiges
+    MIT-Paket nachgebaut: `backend/vendor/unidecode_shim/` (nur
+    Python-Stdlib `unicodedata`, NFKD-Zerlegung + kleine Tabelle für Buchstaben
+    ohne Kompatibilitätszerlegung wie „ł"/„ø"/„đ"), deklariert sich selbst als
+    Distribution `unidecode` Version `1.3.8+doctus.mit.shim` — pip löst
+    `mcp-atlassian`s `unidecode>=1.3.0`-Anforderung dagegen auf und lädt das
+    echte GPL-Paket nie herunter. `mcp-atlassian` selbst bleibt unverändert
+    und normal upgradebar, kein Fork/Patch nötig.
+    **Verifiziert:** isolierter venv-Test (echtes `Unidecode` wird nachweislich
+    nicht installiert, `Required-by: mcp-atlassian` zeigt auf unser Shim),
+    `mcp_atlassian.jira.users.normalize_text("Łódź")` liefert weiterhin
+    `"lodz"`, `docker compose build backend-api` + Neustart, `pip-licenses`
+    meldet `unidecode`/MIT statt `Unidecode`/GPL, `scripts/check_licenses_python.py`
+    exitet 0 (142 Pakete, nur noch drei dokumentierte Ausnahmen:
+    `psycopg2-binary`, `certifi`, `mcp-atlassian`). **CI-Job-Bug dabei
+    gefunden und mitgefixt:** der `licenses`-Workflow-Schritt installierte
+    `backend/requirements.txt` bisher vom Repo-Root aus — pip löst lokale
+    Pfad-Requirements (unser `./vendor/unidecode_shim`) relativ zum
+    Arbeitsverzeichnis auf, nicht relativ zur `requirements.txt` selbst, das
+    hätte den Job zerschossen. `.github/workflows/ci.yml` bekam dafür
+    `working-directory: backend` für den Install-Schritt (Muster wie beim
+    bestehenden Frontend-Schritt). Backend-Suite: 5 neue Tests
+    (`backend/tests/test_unidecode_shim.py`) + alle 6 `test_mcp_client.py`-Tests
+    grün, Gesamtstand 85 grün + 3 vorbestehende, unabhängige
+    `ALLOW_CLOUD_LLM`-Fehlschläge unverändert. `docs/ENTSCHEIDUNGEN.md` E-7,
+    `docs/OSS-CLEARING.md` und `scripts/license_exceptions_python.json`
+    entsprechend aktualisiert (Unidecode-Ausnahme-Eintrag entfernt statt nur
+    umformuliert). **E-7 ist damit kein offener Auftraggeber-Punkt mehr** —
+    die Lösung entfernt den GPL-Code, statt eine Ausnahme dafür zu erbitten.
+    **Weiterhin offen (separater Punkt, nicht Teil dieser Session):**
+    `mcp_client.py`s Confluence-/Jira-Env-Var-Aufbau (`CONFLUENCE_API_TOKEN`+
+    Username, erzwungenes `/wiki`-Suffix) ist Cloud-only — für den Piloten mit
+    on-prem Confluence fehlt noch ein Server/Data-Center-Zweig
+    (`CONFLUENCE_PERSONAL_TOKEN`, kein `/wiki`-Zwang), analog zum bereits
+    bestehenden Bitbucket-Server/Cloud-Unterschied in `backend/api/connectors.py`.

@@ -13,10 +13,14 @@ Abhängigkeit mit abweichender Lizenz braucht eine benannte, begründete
 Ausnahme hier **und** in `scripts/license_exceptions_python.json` /
 `scripts/license_exceptions_node.json`.
 
-**Stand 31.07.2026.** Ein Fund verstößt aktuell gegen diese Regel und ist
-**nicht freigegeben** (siehe unten, `Unidecode`) — Entscheidung mit dem
-Auftraggeber offen, siehe `docs/ENTSCHEIDUNGEN.md` E-7. Der CI-Job `licenses`
-ist deshalb bewusst rot, bis diese Entscheidung getroffen ist.
+**Stand 31.07.2026:** Ein Fund (`Unidecode`, GPL-2.0-or-later, transitiv über
+`mcp-atlassian`) verstieß gegen diese Regel und war nicht freigegeben, CI-Job
+`licenses` bewusst rot. **Update 08.08.2026: gelöst.** Ein MIT-lizenziertes
+Shim-Paket (`backend/vendor/unidecode_shim/`) ersetzt die GPL-Abhängigkeit
+vollständig — `mcp-atlassian` selbst bleibt unverändert, die eine Funktion,
+die es aus `Unidecode` nutzt, wurde unter MIT nachgebaut. `licenses` ist
+seitdem grün, kein Release-Blocker mehr. Details: `docs/ENTSCHEIDUNGEN.md`
+E-7, `backend/vendor/unidecode_shim/README.md`.
 
 ---
 
@@ -25,23 +29,32 @@ ist deshalb bewusst rot, bis diese Entscheidung getroffen ist.
 Geprüft mit `pip-licenses` gegen `scripts/license_allowlist_python.txt`
 (alle MIT-/BSD-/Apache-2.0-Varianten plus PSF-2.0 und Unlicense/Public
 Domain, wie sie pip-licenses tatsächlich meldet). 143 installierte Pakete
-(inkl. transitiver Abhängigkeiten), davon vier Ausnahmen:
+(inkl. transitiver Abhängigkeiten), davon drei Ausnahmen (Stand 08.08.2026,
+nach der E-7-Lösung — vorher vier, siehe unten):
 
 | Paket | Lizenz | Status | Begründung |
 |---|---|---|---|
 | `psycopg2-binary` | LGPL-3.0-or-later | akzeptiert | Reiner DB-Treiber, unverändert, dynamisch verlinkt — keine Copyleft-Pflicht für Doctus selbst. Seit AP-0 gesetzt. |
 | `certifi` | MPL-2.0 | akzeptiert | Transitiv über `httpx`/`requests` (CA-Bundle). Datei-basierte Weak-Copyleft-Lizenz, unverändert eingebunden, De-facto-Standardabhängigkeit im Python-Ökosystem. |
 | `mcp-atlassian` | von pip-licenses als „UNKNOWN" gemeldet | akzeptiert | PyPI-Metadaten tragen keinen License-Classifier. Tatsächliche Lizenz laut Quell-Repo (`github.com/sooperset/mcp-atlassian/blob/main/LICENSE`, geprüft 31.07.2026): **MIT**. Nur eine Metadatenlücke beim Upstream-Projekt, kein Verstoß. |
-| **`Unidecode`** | **GPL-2.0-or-later** | **NICHT freigegeben** | Transitive Pflichtabhängigkeit von `mcp-atlassian` (Confluence-/Jira-Konnektor, AP-3/AP-8) — steht nicht in `backend/requirements.txt`, wird aber automatisch mitinstalliert. Copyleft, verstößt gegen die „nur MIT/BSD/Apache-2.0"-Regel. Siehe `docs/ENTSCHEIDUNGEN.md` E-7 für Optionen und offene Entscheidung. |
 
-Alle übrigen 139 Pakete tragen eine erlaubte Lizenz (MIT/BSD/Apache-2.0 oder
+`Unidecode` (GPL-2.0-or-later, transitive Pflichtabhängigkeit von
+`mcp-atlassian`) stand bis 08.08.2026 hier als nicht freigegebener,
+blockierender Fund. Gelöst durch `backend/vendor/unidecode_shim/` — ein
+MIT-lizenziertes Paket, das sich selbst als `unidecode` deklariert, sodass
+`pip` `mcp-atlassian`s `unidecode>=1.3.0`-Anforderung dagegen auflöst statt
+das echte PyPI-Paket zu laden. `pip-licenses` meldet seitdem `unidecode`/MIT
+(Teil der normalen Allowlist, keine Ausnahme mehr nötig). Details:
+`docs/ENTSCHEIDUNGEN.md` E-7, `backend/vendor/unidecode_shim/README.md`.
+
+Alle übrigen 140 Pakete tragen eine erlaubte Lizenz (MIT/BSD/Apache-2.0 oder
 gleichwertige Varianten wie `MIT-0`, `MIT-CMU`, `PSF-2.0`, `The Unlicense`).
 
 ## 2. Python — Parser (`parser/requirements.txt`)
 
 Gleiche Prüfung, 57 installierte Pakete. Zwei Ausnahmen, beide bereits oben
 begründet und hier ebenfalls akzeptiert: `psycopg2-binary` (LGPL-3.0),
-`certifi` (MPL-2.0). `mcp-atlassian`/`Unidecode` sind hier **nicht**
+`certifi` (MPL-2.0). `mcp-atlassian`/`unidecode` sind hier **nicht**
 installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 
 ## 3. Node — Frontend (`frontend/package.json`, nur `dependencies`)

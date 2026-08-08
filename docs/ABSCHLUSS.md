@@ -1,6 +1,6 @@
 # Doctus — Abschlussdokumentation
 
-Stand: 02.08.2026. Dieses Dokument fasst zusammen, was der Implementierungsauftrag
+Stand: 02.08.2026, aktualisiert 08.08.2026 (E-7 gelöst, siehe §2/§4). Dieses Dokument fasst zusammen, was der Implementierungsauftrag
 (`docs/IMPLEMENTIERUNGSPLAN.md`, AP-0…AP-9) geliefert hat und was zur Übergabe an
 den Auftraggeber (Fujitsu/DRV) ansteht. Für laufende Detailarbeit siehe weiterhin
 `docs/UMSETZUNGSSTAND.md`; für Einzelentscheidungen `docs/ENTSCHEIDUNGEN.md`.
@@ -21,11 +21,12 @@ Traceability (Anforderung → Arbeitspaket) siehe `docs/IMPLEMENTIERUNGSPLAN.md`
 
 1. **On-Premise per Default.** Erfüllt. Ollama lokal, Cloud-LLM-Profile nur
    Opt-in über `cloud_llm_allowed()`.
-2. **Strikt Open Source (nur MIT/BSD/Apache-2.0).** Bis auf einen bekannten
-   Fund erfüllt: `Unidecode` (GPL-2.0-or-later) hängt transitiv über
-   `mcp-atlassian` (Confluence-/Jira-Konnektor) mit rein. Dokumentiert in
-   E-7 (`docs/ENTSCHEIDUNGEN.md`), CI-Job `licenses` bewusst rot als
-   **Release-Blocker**, wartet auf Auftraggeber-Rückmeldung.
+2. **Strikt Open Source (nur MIT/BSD/Apache-2.0).** Erfüllt. Ein GPL-Fund
+   (`Unidecode`, transitiv über `mcp-atlassian`/Confluence-Jira-Konnektor) war
+   zwischenzeitlich offen (E-7, Release-Blocker) — am 08.08.2026 durch ein
+   eigenes MIT-Paket ersetzt, das dieselbe Funktion ohne den GPL-Code
+   nachbildet (`backend/vendor/unidecode_shim/`). CI-Job `licenses` ist grün,
+   keine Auftraggeber-Freigabe mehr nötig. Details: `docs/ENTSCHEIDUNGEN.md` E-7.
 3. **Keine zusätzlichen Services.** Erfüllt — kein Neo4j/ElasticSearch/
    ANTLR-Runtime.
 4. **Skalierung by Default.** Weitgehend erfüllt; ein realer Engpass wurde im
@@ -64,11 +65,11 @@ dieses Implementierungsauftrags liegt (siehe E-9, `docs/ENTSCHEIDUNGEN.md`):
 | **BITV-Abnahme** | Verbindlicher Prüfumfang, ggf. akkreditierte Prüfstelle für den manuellen Teil | Automatisierter axe-core-Basis-Check (WCAG2A/AA) läuft in CI (`frontend/e2e/accessibility.spec.ts`), fünf reale Befunde bereits behoben |
 | **Farbkontrast-Nachbesserung** | Freigabe der Markenverantwortlichen für abweichende Fujitsu-Farbtöne | Betroffene Stellen sind dokumentiert (`docs/UMSETZUNGSSTAND.md`, Abschnitt „Bewusst nicht mitgefixt — Farbkontrast"), Design-Token-System (AP-7) macht die spätere Änderung an einer zentralen Stelle möglich |
 
-Zusätzlich unverändert offen, unabhängig von AP-9:
+Zusätzlich, unabhängig von AP-9:
 
-- **E-7 (GPL `Unidecode`):** Release-Blocker, Rechtsfrage — braucht
-  Fujitsu/DRV-Freigabe oder Entscheidung für Alternative (siehe
-  `docs/ENTSCHEIDUNGEN.md`).
+- **E-7 (GPL `Unidecode`):** war Release-Blocker, am 08.08.2026 durch ein
+  eigenes MIT-Paket gelöst (siehe oben und `docs/ENTSCHEIDUNGEN.md`) — kein
+  offener Punkt mehr, keine Auftraggeber-Freigabe nötig.
 - **`backend/api/projects.py`-Nachfolgearbeiten:** keine offenen Punkte mehr
   bekannt aus AP-9 (beide 500er behoben, siehe AP-9-Abschnitt in
   `docs/UMSETZUNGSSTAND.md`).
@@ -78,6 +79,6 @@ Zusätzlich unverändert offen, unabhängig von AP-9:
 Sobald ein echter (oder repräsentativer) COBOL-Bestand verfügbar ist:
 Lasttest gegen `docs/UMSETZUNGSSTAND.md`-Abschnitt „AP-9 — Härtung" fahren,
 Persistenz- und Embedding-Engpässe an realen Zahlen erneut prüfen. Sobald
-Fujitsu/DRV Prüfumfang (BITV) bzw. Freigabe (Farbkontrast, `Unidecode`)
-liefert, sind die jeweiligen Umsetzungsschritte in `docs/ENTSCHEIDUNGEN.md`
-(E-7, E-9) und `docs/UMSETZUNGSSTAND.md` vorgezeichnet.
+Fujitsu/DRV Prüfumfang (BITV) bzw. Freigabe (Farbkontrast) liefert, sind die
+jeweiligen Umsetzungsschritte in `docs/ENTSCHEIDUNGEN.md` (E-9) und
+`docs/UMSETZUNGSSTAND.md` vorgezeichnet. E-7 ist erledigt, siehe oben.

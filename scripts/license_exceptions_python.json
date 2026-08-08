@@ -13,10 +13,6 @@
     "blocking": false,
     "license": "MIT (PyPI-Metadaten unvollstaendig, verifiziert gegen https://github.com/sooperset/mcp-atlassian/blob/main/LICENSE)",
     "rationale": "pip-licenses meldet \"UNKNOWN\", weil das Paket keinen License-Classifier in den PyPI-Metadaten traegt. Die tatsaechliche LICENSE-Datei im Quell-Repo ist MIT. Kein Policy-Verstoss, nur eine Metadatenluecke beim Upstream-Projekt."
-  },
-  "Unidecode": {
-    "blocking": true,
-    "license": "GPL-2.0-or-later",
-    "rationale": "OFFEN — verstoesst gegen die Vorgabe 'nur MIT/BSD/Apache-2.0' (CLAUDE.md). Transitive Pflichtabhaengigkeit von mcp-atlassian (Confluence-/Jira-Konnektor, AP-3/AP-8), nicht direkt von Doctus verwendet und nicht ohne Fork/Patch von mcp-atlassian austauschbar. Entscheidung steht aus, siehe docs/ENTSCHEIDUNGEN.md E-7. Bis zur Entscheidung NICHT freigegeben — Release-Blocker."
   }
 }
+

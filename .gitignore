@@ -1,5 +1,9 @@
 __pycache__/
 *.pyc
+*.egg-info/
+# lokale Build-Artefakte von backend/vendor/unidecode_shim (E-7) und
+# vergleichbaren lokalen Python-Paketen
+backend/vendor/*/build/
 .next/
 node_modules/
 data/

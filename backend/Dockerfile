@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+# vendor/ vor dem pip install kopieren: requirements.txt referenziert
+# ./vendor/unidecode_shim als lokalen Ersatz fuer die GPL-Transitivabhaengigkeit
+# von mcp-atlassian (siehe docs/ENTSCHEIDUNGEN.md E-7).
+COPY vendor/ vendor/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

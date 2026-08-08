@@ -156,11 +156,18 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-      - name: Backend-Abhängigkeiten prüfen
+      - name: Backend-Abhängigkeiten installieren
+        # backend/requirements.txt referenziert den unidecode-Shim (E-7) als
+        # "./vendor/unidecode_shim" — pip loest lokale Pfad-Requirements
+        # relativ zum aktuellen Arbeitsverzeichnis auf, nicht relativ zur
+        # requirements.txt selbst. Vom Repo-Root aus wuerde das den Shim
+        # nicht finden, daher working-directory: backend.
+        working-directory: backend
         run: |
           python -m venv /tmp/lic-backend
-          /tmp/lic-backend/bin/pip install -q -r backend/requirements.txt pip-licenses
-          /tmp/lic-backend/bin/python scripts/check_licenses_python.py
+          /tmp/lic-backend/bin/pip install -q -r requirements.txt pip-licenses
+      - name: Backend-Abhängigkeiten prüfen
+        run: /tmp/lic-backend/bin/python scripts/check_licenses_python.py
       - name: Parser-Abhängigkeiten prüfen
         run: |
           python -m venv /tmp/lic-parser

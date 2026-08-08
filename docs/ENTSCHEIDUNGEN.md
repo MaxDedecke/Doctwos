@@ -12,7 +12,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 | E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
-| E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | Optionen dokumentiert, Freigabe/Entfernung steht beim Auftraggeber aus | **offen, Release-Blocker** |
+| E-7 | GPL-Transitivabhängigkeit `Unidecode` (über `mcp-atlassian`) | MIT-Shim-Paket ersetzt die GPL-Abhängigkeit vollständig (`backend/vendor/unidecode_shim/`) | umgesetzt (08.08.2026) |
 | E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Option 3: Sub-Batches + konfigurierbarer Timeout | umgesetzt |
 | E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
 
@@ -218,7 +218,7 @@ Nicht-ASCII-Zeichen (z.B. für Dateinamen/Slugs beim Export von
 Confluence-/Jira-Inhalten) — keine Kernfunktion, aber ohne Fork/Patch von
 `mcp-atlassian` nicht entfernbar, weil pip die Abhängigkeit erzwingt.
 
-**Optionen (keine davon bisher umgesetzt):**
+**Optionen (Stand vor der Lösung):**
 
 1. **Bei `mcp-atlassian` bleiben, GPL-Ausnahme akzeptieren.** Rechtlich wäre
    das für ein On-Premise-Produkt, das nicht selbst als abgeleitetes Werk von
@@ -235,15 +235,42 @@ Confluence-/Jira-Inhalten) — keine Kernfunktion, aber ohne Fork/Patch von
    markieren**, bis Option 1 oder 2 entschieden ist — vermeidet den
    Lizenzverstoß im Auslieferungsumfang, nimmt aber F-011/F-012 aus dem
    Release.
+4. **Ein eigenes MIT-Shim-Paket namens `unidecode` unterschieben, statt das
+   echte PyPI-Paket zu installieren** — siehe „Entscheidung" unten. Kleiner
+   Aufwand als Option 2 (kein Fork von `mcp-atlassian`, keine Neuimplementierung
+   des Connectors), löst den Verstoß aber tatsächlich auf statt ihn wie
+   Option 1 nur zu akzeptieren.
 
-**Entscheidung.** Noch offen — braucht eine Rückmeldung des Auftraggebers
-(Fujitsu/DRV), da es eine Compliance-/Rechtsfrage ist, keine technische. Der
-CI-Job `licenses` (`scripts/check_licenses_python.py`,
-`scripts/license_exceptions_python.json`) markiert `Unidecode` deshalb bereits
-jetzt als `"blocking": true` und lässt den Job bewusst rot, bis hier
-entschieden ist — **Release-Blocker**.
+**Entscheidung (08.08.2026): Option 4 umgesetzt.** Recherche ergab: `Unidecode`
+wird innerhalb von `mcp-atlassian` (geprüft gegen den gepinnten Stand
+`0.22.1` **und** die aktuellste PyPI-Version `0.23.0` — die Abhängigkeit
+besteht dort unverändert fort) an genau einer Stelle benutzt —
+`mcp_atlassian/jira/users.py::normalize_text()`, ASCII-Transliteration für
+den fuzzy Jira-Assignee-Namensabgleich, sonst nirgends im Paket, auch nicht
+in den Confluence-Modulen. Diese eine Funktion wurde als eigenständiges,
+MIT-lizenziertes Modul unter `backend/vendor/unidecode_shim/` nachgebaut (nur
+Python-Stdlib, `unicodedata`-NFKD-Zerlegung + kleine Tabelle für die
+Buchstaben ohne Kompatibilitätszerlegung wie „ł"/„ø"/„đ" — kein Code aus dem
+GPL-Original eingesehen oder übernommen). Das Shim-Paket heißt bewusst exakt
+`unidecode`, damit `pip` `mcp-atlassian`s `unidecode>=1.3.0`-Anforderung
+dagegen auflöst, statt das echte Paket von PyPI zu laden — verifiziert per
+isoliertem venv-Test: `pip install` von `mcp-atlassian==0.22.1` neben dem
+Shim installiert das echte `Unidecode` nachweislich nicht, `pip-licenses`
+meldet danach `unidecode`/MIT statt `Unidecode`/GPL-2.0-or-later, und
+`mcp_atlassian.jira.users.normalize_text("Łódź")` liefert weiterhin korrekt
+`"lodz"`. **Ergebnis: kein GPL-Code mehr in Abhängigkeitsbaum oder Image,
+`mcp-atlassian` selbst bleibt unverändert/upgradebar, kein Fork nötig.**
+Details, Fidelity-Trade-off (nur lateinische Diakritika abgedeckt, kein
+Kyrillisch/CJK — irrelevant für den DRV-Piloten) und Vorgehen bei künftigen
+`mcp-atlassian`-Versionsbumps: `backend/vendor/unidecode_shim/README.md`.
+Der `Unidecode`-Eintrag in `scripts/license_exceptions_python.json` wurde
+entfernt (nicht mehr nötig — das Shim-Paket erfüllt die normale Allowlist
+direkt über `MIT`), CI-Job `licenses` ist damit **grün**, kein Release-Blocker
+mehr. Diese Lösung brauchte keine Auftraggeber-Rückmeldung, weil sie den
+GPL-Code komplett entfernt statt eine Ausnahme für ihn zu erbitten.
 
-**Fundstelle.** `docs/OSS-CLEARING.md` Abschnitt 1, `scripts/license_exceptions_python.json`.
+**Fundstelle.** `docs/OSS-CLEARING.md` Abschnitt 1, `scripts/license_exceptions_python.json`,
+`backend/vendor/unidecode_shim/`.
 
 ---
 
@@ -339,9 +366,9 @@ vergessene Arbeit, sondern strukturell außerhalb dessen, was ohne
 Auftraggeber-Zugriff (Kundendaten, formaler Prüfumfang, Markenfreigabe)
 erledigt werden kann — sie werden als Übergabepunkte an Fujitsu/DRV
 dokumentiert statt den Plan offen zu halten, bis sie irgendwann verfügbar
-werden. E-7 (GPL-`Unidecode`) bleibt unabhängig davon ein eigener,
-bereits dokumentierter Release-Blocker, der ebenfalls eine
-Auftraggeber-Rückmeldung braucht.
+werden. E-7 (GPL-`Unidecode`) war unabhängig davon ein eigener,
+dokumentierter Release-Blocker — inzwischen (08.08.2026) durch das
+MIT-Shim-Paket gelöst, siehe oben, keine Auftraggeber-Rückmeldung mehr nötig.
 
 **Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile),
 `docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss", `docs/ABSCHLUSS.md`.

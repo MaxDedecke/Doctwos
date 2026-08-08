@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Deliberately named "unidecode" (not "unidecode-shim" or similar) — this is
+# the whole point. pip resolves mcp-atlassian's "unidecode>=1.3.0" dependency
+# against whichever installed distribution is named "unidecode", so shipping
+# our own under that exact name satisfies the requirement and pip never
+# reaches out to PyPI for the real (GPL-2.0-or-later) package. See
+# ../../../docs/ENTSCHEIDUNGEN.md E-7 and README.md in this directory for the
+# full rationale.
+name = "unidecode"
+# A real version number (not a bare "1.0.0") so it unambiguously satisfies
+# ">=1.3.0" constraints from any mcp-atlassian version we pin, plus a PEP 440
+# local version segment so `pip show`/`pip list` make it obvious at a glance
+# that this is not the upstream package.
+version = "1.3.8+doctus.mit.shim"
+description = "MIT-licensed drop-in replacement for the subset of Unidecode's API that mcp-atlassian uses, avoiding the GPL-2.0-or-later upstream package entirely."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+
+[tool.setuptools]
+py-modules = ["unidecode"]

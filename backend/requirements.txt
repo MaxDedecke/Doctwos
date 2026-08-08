@@ -18,6 +18,11 @@ itsdangerous==2.2.0
 argon2-cffi==25.1.0
 Pillow==12.3.0
 markdown==3.10.2
+# MIT-Shim fuer die GPL-2.0-or-later "Unidecode"-Transitivabhaengigkeit von
+# mcp-atlassian (docs/ENTSCHEIDUNGEN.md E-7, backend/vendor/unidecode_shim/README.md).
+# Deklariert sich selbst als Paket "unidecode" >=1.3.0 -> pip loest mcp-atlassians
+# Anforderung dagegen auf statt das echte PyPI-Paket zu laden.
+./vendor/unidecode_shim
 mcp-atlassian==0.22.1
 
 
