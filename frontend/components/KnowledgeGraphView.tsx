@@ -1131,7 +1131,11 @@ export function KnowledgeGraphView({
           {/* Floating Legend */}
           {filteredData.nodes.length > 0 && (
             <div className={cn(
-              "absolute bottom-4 left-4 z-20 rounded-lg border p-3 shadow-lg transition-all backdrop-blur-md max-w-[220px] select-none",
+              "absolute left-4 z-20 rounded-lg border p-3 shadow-lg transition-all backdrop-blur-md max-w-[220px] select-none",
+              // Bei kompaktem Layout (3/4 Panels) legt sich der Bottom-Drawer über den
+              // unteren Bereich der Ansicht — die Legende muss über dessen collapsed
+              // Header hinaus nach oben ausweichen, sonst überlappt er ihren unteren Rand.
+              showBottomDrawer ? "bottom-12" : "bottom-4",
               isDark ? "bg-ds-zinc-900/85 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white/85 border-ds-zinc-200 text-ds-zinc-800"
             )}>
               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsLegendOpen(o => !o)}>
