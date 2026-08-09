@@ -954,6 +954,11 @@
       "started": "Suche gestartet — Kandidaten werden im Hintergrund bewertet…",
       "newLinks": "{{count}} neue Verknüpfung(en) gefunden.",
       "noneFound": "Suche abgeschlossen. Keine neuen Verknüpfungen gefunden."
+    },
+    "toast": {
+      "approved": "Verknüpfung zu „{{title}}\" bestätigt.",
+      "reapproved": "Verknüpfung zu „{{title}}\" wieder bestätigt.",
+      "updateFailed": "Verknüpfung konnte nicht aktualisiert werden."
     }
   },
   "topicsPanel": {

@@ -378,18 +378,36 @@ export function LinkManagerView({
 
   const updateLinkStatus = async (link: UnifiedLink, status: 'approved' | 'rejected') => {
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
-    await fetch(url, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
+    let ok = false;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      ok = res.ok;
+    } catch { ok = false; }
+
+    // Bisher wurde der Eintrag unabhängig vom Request-Ergebnis aus der Liste entfernt —
+    // bei einem fehlgeschlagenen PATCH lief die UI dadurch aus dem Server-Stand. Jetzt
+    // nur bei Erfolg lokal aktualisieren, sonst Fehler-Feedback statt stiller Diskrepanz.
+    if (!ok) {
+      showToast?.(t('linkManagerView.toast.updateFailed'), 'error');
+      return;
+    }
+
     if (link.kind === 'entity') {
       setEntityLinks(prev => prev.filter(l => l.id !== link.rawId));
       setEntityCounts(prev => ({ ...prev, pending: tab === 'pending' ? Math.max(0, prev.pending - 1) : prev.pending, [status]: prev[status as keyof LinkCounts] + 1 }));
     } else {
       setKnowledgeLinks(prev => prev.filter(l => l.id !== link.rawId));
       setKnowledgeCounts(prev => ({ ...prev, pending: tab === 'pending' ? Math.max(0, prev.pending - 1) : prev.pending, [status]: prev[status as keyof LinkCounts] + 1 }));
+    }
+
+    if (status === 'approved') {
+      const messageKey = tab === 'rejected' ? 'reapproved' : 'approved';
+      showToast?.(t(`linkManagerView.toast.${messageKey}`, { title: link.right.label }), 'success');
     }
   };
 

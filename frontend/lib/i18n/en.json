@@ -954,6 +954,11 @@
       "started": "Search started — candidates are being scored in the background…",
       "newLinks": "{{count}} new link(s) found.",
       "noneFound": "Search complete. No new links found."
+    },
+    "toast": {
+      "approved": "Link to \"{{title}}\" confirmed.",
+      "reapproved": "Link to \"{{title}}\" confirmed again.",
+      "updateFailed": "Couldn't update the link."
     }
   },
   "topicsPanel": {
