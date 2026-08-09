@@ -1132,10 +1132,12 @@ export function KnowledgeGraphView({
           {filteredData.nodes.length > 0 && (
             <div className={cn(
               "absolute left-4 z-20 rounded-lg border p-3 shadow-lg transition-all backdrop-blur-md max-w-[220px] select-none",
-              // Bei kompaktem Layout (3/4 Panels) legt sich der Bottom-Drawer über den
-              // unteren Bereich der Ansicht — die Legende muss über dessen collapsed
-              // Header hinaus nach oben ausweichen, sonst überlappt er ihren unteren Rand.
-              showBottomDrawer ? "bottom-12" : "bottom-4",
+              // Bei kompaktem Layout (3/4 Panels offen) liegt der Detail-Bottom-Drawer
+              // unten im Canvas, auch expandiert bis zu 60% Höhe — eine bottom-*-Position
+              // der Legende kann ihm dann nie zuverlässig ausweichen. Deshalb bei
+              // isCompactLayout fix oben links statt unten links, unabhängig davon, ob der
+              // Drawer gerade sichtbar/expandiert ist (kein Springen beim Auswählen/Schließen).
+              isCompactLayout ? "top-4" : "bottom-4",
               isDark ? "bg-ds-zinc-900/85 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white/85 border-ds-zinc-200 text-ds-zinc-800"
             )}>
               <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsLegendOpen(o => !o)}>
