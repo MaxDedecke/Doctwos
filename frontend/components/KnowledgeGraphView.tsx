@@ -1054,30 +1054,11 @@ export function KnowledgeGraphView({
                 }
               }}
               onLinkClick={(link: any) => {
+                // Eine Kante wählt nur sich selbst aus (zeigt die Edge-Detailkarte) und
+                // öffnet KEINE Code-/Dokument-Ansicht — das war zuvor fälschlich an das
+                // bevorzugte Endpunkt-Node der Kante gekoppelt.
                 setSelectedEdgeId(prev => prev === link.id ? null : link.id);
                 setSelectedNodeId(null);
-                const srcNode = resolveNode(link.source);
-                const tgtNode = resolveNode(link.target);
-                const preferredNode = srcNode?.type === 'entity' ? srcNode : (tgtNode?.type === 'entity' ? tgtNode : srcNode);
-                if (preferredNode) {
-                  if (preferredNode.type === 'entity') {
-                    if (preferredNode.file_path && onFileSelect) {
-                      onFileSelect(preferredNode.file_path, preferredNode.start_line || null, preferredNode.source_id ?? null);
-                    }
-                    if (onEntitySelect) {
-                      onEntitySelect({
-                        name: preferredNode.label,
-                        type: preferredNode.entity_type,
-                        file_path: preferredNode.file_path,
-                        start_line: preferredNode.start_line,
-                      });
-                    }
-                  } else if (preferredNode.type === 'document' || preferredNode.type === 'external') {
-                    const { pathVal, sourceIdVal } = resolveDocSelector(preferredNode);
-                    if (onFileSelect) onFileSelect(pathVal, null, sourceIdVal);
-                    onDocFocus?.(pathVal, sourceIdVal, false);
-                  }
-                }
               }}
               onBackgroundClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
               d3AlphaDecay={0.02}
