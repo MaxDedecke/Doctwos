@@ -149,10 +149,10 @@ export function ChatView({
       } catch (err) {
         console.error("Failed to fetch typing statement", err);
         const fallbacks = [
-          "Gemeinsam Großes erschaffen",
-          "Räume zum Leben gestalten",
-          "Präzise planen, Zukunft bauen",
-          "Nachhaltig planen, intelligent bauen"
+          "COBOL-Wissen sichtbar machen",
+          "Mainframe-Code verständlich navigieren",
+          "Legacy-Systeme erschließen",
+          "Programme, Copybooks, Zusammenhänge"
         ];
         const randomPhrase = fallbacks[Math.floor(Math.random() * fallbacks.length)];
         startTyping(randomPhrase);

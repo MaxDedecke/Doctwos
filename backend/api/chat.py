@@ -987,14 +987,14 @@ async def get_typing_statement():
     import random
 
     fallback_statements = [
-        "Wie optimieren wir das Raumprogramm?",
-        "Sind alle DIN-Normen erfüllt?",
-        "Welche Brandschutzklasse gilt hier?",
-        "Wie verbessern wir die Zusammenarbeit?",
-        "Wie binden wir das BIM-Modell ein?",
-        "Gibt es offene Jour-Fixe-Punkte?",
-        "Stimmt die TGA-Fachplanung überein?",
-        "Wie senken wir die Baukosten?"
+        "Was macht dieses COBOL-Programm?",
+        "Welche Programme ruft dieser Batch-Job auf?",
+        "Wo wird dieses Feld im Copybook verwendet?",
+        "Welche JCL-Steps laufen in dieser Kette?",
+        "Was passiert in dieser CICS-Transaktion?",
+        "Wo wird auf diese DB2-Tabelle zugegriffen?",
+        "Welche Programme sind noch nicht dokumentiert?",
+        "Wie hängen diese beiden Module zusammen?"
     ]
 
     # Embedding-only pilot: do not turn a decorative start-screen prompt into
@@ -1015,7 +1015,7 @@ async def get_typing_statement():
                 },
                 {
                     "role": "user",
-                    "content": "Generiere eine berechtigte, relevante Frage mit bis zu 8 Wörtern zum Thema Bauwesen, Architektur oder Zusammenarbeit für den Chat-Startbildschirm. Antworte NUR mit der Frage, kein Begleittext, keine Anführungszeichen."
+                    "content": "Generiere eine berechtigte, relevante Frage mit bis zu 8 Wörtern zum Thema COBOL, Mainframe-Programme oder Softwarearchäologie für den Chat-Startbildschirm. Antworte NUR mit der Frage, kein Begleittext, keine Anführungszeichen."
                 }
             ],
             "temperature": 0.8,
