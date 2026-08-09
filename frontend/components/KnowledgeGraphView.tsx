@@ -523,26 +523,45 @@ export function KnowledgeGraphView({
   }, [ForceGraphComponent, filteredData]);
 
   // Nodes directly connected to focusNodeId (incl. itself) — everything else dims.
+  // Clicking an edge produces the same soft-focus effect for just its two endpoints,
+  // as long as no explicit node focus is active (that takes priority — it has its
+  // own toolbar indicator/"clear focus" affordance and shouldn't get silently
+  // swapped out by an incidental edge click). selectedEdgeId already resets to null
+  // on any node click and switches to the new id on any other edge click (see
+  // onNodeClick/onLinkClick below), so this normalizes on its own without extra state.
   const focusNeighborIds = useMemo(() => {
-    if (!focusNodeId) return null;
-    const ids = new Set<string>([focusNodeId]);
-    filteredData.links.forEach((l: any) => {
-      const src = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-      if (src === focusNodeId) ids.add(tgt);
-      if (tgt === focusNodeId) ids.add(src);
-    });
-    return ids;
-  }, [focusNodeId, filteredData.links]);
+    if (focusNodeId) {
+      const ids = new Set<string>([focusNodeId]);
+      filteredData.links.forEach((l: any) => {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        if (src === focusNodeId) ids.add(tgt);
+        if (tgt === focusNodeId) ids.add(src);
+      });
+      return ids;
+    }
+    if (selectedEdgeId) {
+      const edge = filteredData.links.find((l: any) => l.id === selectedEdgeId);
+      if (!edge) return null;
+      const src = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      const tgt = typeof edge.target === 'object' ? edge.target.id : edge.target;
+      return new Set<string>([src, tgt]);
+    }
+    return null;
+  }, [focusNodeId, selectedEdgeId, filteredData.links]);
 
   // Only links touching focusNodeId itself stay colored — a link between two of its
   // neighbors (but not the focus node) still dims, matching the dimmed-node set above.
+  // For an edge-driven soft focus, only that single edge stays colored.
   const isLinkTouchingFocus = useCallback((l: any) => {
-    if (!focusNodeId) return true;
-    const src = typeof l.source === 'object' ? l.source.id : l.source;
-    const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-    return src === focusNodeId || tgt === focusNodeId;
-  }, [focusNodeId]);
+    if (focusNodeId) {
+      const src = typeof l.source === 'object' ? l.source.id : l.source;
+      const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+      return src === focusNodeId || tgt === focusNodeId;
+    }
+    if (selectedEdgeId) return l.id === selectedEdgeId;
+    return true;
+  }, [focusNodeId, selectedEdgeId]);
 
   const selectedNode = useMemo(() => rawNodes.find(n => n.id === selectedNodeId) ?? null, [rawNodes, selectedNodeId]);
   const selectedEdge = useMemo(() => rawEdges.find(e => e.id === selectedEdgeId) ?? null, [rawEdges, selectedEdgeId]);
