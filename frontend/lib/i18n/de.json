@@ -24,7 +24,7 @@
   "page": {
     "loading": "Doctus wird geladen...",
     "fallbackContent": "Inhalt",
-    "generalContext": "Allgemein (nicht projektspezifisch)",
+    "generalContext": "Allgemein",
     "projectSelectorLabel": "Projekt auswählen",
     "toggleSidebarLabel": "Seitenleiste ein-/ausblenden",
     "panelTypeSelectorLabel": "Panel-Ansicht wählen",

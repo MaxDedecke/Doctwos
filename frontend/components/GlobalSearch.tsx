@@ -307,7 +307,7 @@ export function GlobalSearch({
           </SelectTrigger>
           <SelectContent className={theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-850"}>
             <SelectItem value="general" className="text-xs">
-              {t('page.generalContext') || "Allgemein (nicht projektspezifisch)"}
+              {t('page.generalContext') || "Allgemein"}
             </SelectItem>
             {projects.filter(p => !p.is_archived).map(p => (
               <SelectItem key={p.id} value={String(p.id)} className="text-xs">
