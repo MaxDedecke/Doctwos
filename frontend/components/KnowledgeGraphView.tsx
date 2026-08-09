@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Loader2, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink, BookOpen, LayoutGrid, Info, Workflow, Link2, Search, Check, PanelRightClose, PanelRightOpen, ChevronUp, ChevronDown } from 'lucide-react';
+import { forceCollide, forceManyBody } from 'd3-force-3d';
 import { cn } from '@/lib/utils';
 import { resolveDsColor } from '@/lib/designTokens';
 import { API_URL } from '@/app/services/api';
@@ -58,6 +59,14 @@ export function nodeColor(node: any): string {
 
 function nodeTypeKey(node: any): string {
   return getNodeType(node);
+}
+
+// Shared by the canvas drawing and the collision force below so the physics
+// always matches what's actually painted — a mismatch would leave nodes
+// either overlapping (radius too small) or spaced needlessly far apart
+// (radius too large).
+function nodeRadius(node: any): number {
+  return node?.type === 'entity' ? 7 : 6;
 }
 
 export const LINK_COLORS: Record<string, string> = {
@@ -483,6 +492,36 @@ export function KnowledgeGraphView({
     return { nodes: visibleNodes, links: visibleEdges };
   }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes]);
 
+  // Tune the force simulation whenever the visible node/link set changes. The
+  // library's defaults (charge -30, no collision force) are tuned for small
+  // demo graphs — on a real project graph they let nodes sit on top of each
+  // other and let edges cut straight through unrelated nodes. This does three
+  // things instead:
+  //  1. A collision force keeps node circles (+ a margin for their label) from
+  //     ever overlapping, however dense the graph gets.
+  //  2. Charge (repulsion) scales up with node count, so large graphs actually
+  //     spread out instead of collapsing into a dense, unreadable clump.
+  //  3. A longer link (rest) distance gives edges more room to route around
+  //     third-party nodes rather than passing straight through them.
+  // None of this is a hard geometric guarantee against an edge ever crossing a
+  // node — it's a physics simulation, not a constraint solver — but it makes
+  // both failure modes rare even on graphs with hundreds of nodes.
+  useEffect(() => {
+    if (!graphRef.current) return;
+    const nodeCount = filteredData.nodes.length;
+    if (nodeCount === 0) return;
+
+    graphRef.current.d3Force('collide', forceCollide((n: any) => nodeRadius(n) + 10).iterations(2));
+
+    const chargeStrength = -Math.min(260, 40 + nodeCount * 0.6);
+    graphRef.current.d3Force('charge', forceManyBody().strength(chargeStrength).distanceMax(600));
+
+    const linkForce = graphRef.current.d3Force('link');
+    if (linkForce) linkForce.distance(50).strength(0.25);
+
+    graphRef.current.d3ReheatSimulation();
+  }, [ForceGraphComponent, filteredData]);
+
   // Nodes directly connected to focusNodeId (incl. itself) — everything else dims.
   const focusNeighborIds = useMemo(() => {
     if (!focusNodeId) return null;
@@ -539,7 +578,7 @@ export function KnowledgeGraphView({
 
   // Canvas node drawing — Neo4j style circles with labels
   const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const r = node.type === 'entity' ? 7 : 6;
+    const r = nodeRadius(node);
     const isSelected = node.id === selectedNodeId;
     const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
     const color = resolveDsColor(nodeColor(node));
@@ -1019,7 +1058,7 @@ export function KnowledgeGraphView({
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-500))');
               }}
-              linkWidth={(l: any) => l.id === selectedEdgeId ? 2.5 : Math.max(0.5, (l.score ?? 0.5) * 2)}
+              linkWidth={(l: any) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
               linkDirectionalArrowLength={(l: any) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
               linkDirectionalArrowRelPos={1}
               linkCurvature={(l: any) => l.id.startsWith('kl:') ? 0.12 : 0}

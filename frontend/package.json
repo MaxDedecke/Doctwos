@@ -24,6 +24,7 @@
     "axios": "^1.6.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "d3-force-3d": "^3.0.6",
     "dompurify": "^3.4.12",
     "framer-motion": "^12.40.0",
     "lucide-react": "^0.378.0",
