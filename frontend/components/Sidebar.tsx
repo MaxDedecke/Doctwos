@@ -15,7 +15,8 @@ import {
   LogOut,
   Database,
   FileText,
-  Pin
+  Pin,
+  User
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -531,8 +532,8 @@ export function Sidebar({
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
-                  <div className="h-8 w-8 rounded-md border border-ds-indigo-500 bg-ds-indigo-500/10 flex items-center justify-center text-ds-indigo-400 font-mono font-bold text-[10px] shrink-0">
-                    ID
+                  <div className="h-8 w-8 rounded-md border border-ds-indigo-500 bg-ds-indigo-500/10 flex items-center justify-center text-ds-indigo-400 shrink-0">
+                    <User className="w-4 h-4" />
                   </div>
                   {/* User info */}
                   <div className="min-w-0">
