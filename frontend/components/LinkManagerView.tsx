@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Check, Ban, Link2, Plus, RefreshCw, ExternalLink,
   Search, Loader2, AlertCircle, FileCode, Info, CheckCircle2,
-  MessageSquare, LayoutList, Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban,
+  MessageSquare, LayoutList, Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -95,6 +95,20 @@ interface UnifiedLink {
   context: string | null;
 }
 
+// ── Min-confidence setting ──────────────────────────────────────────────────
+// Mirrors parser/tasks/link_builder.py + cross_link_builder.py LLM_MIN_CONFIDENCE
+// (35) — the user's last-used value is remembered per browser (same pattern as
+// the active-profile-id below), not persisted server-side, since it configures
+// the *next* search run rather than a standing project setting.
+const MIN_CONFIDENCE_STORAGE_KEY = 'doctus-link-min-confidence';
+const MIN_CONFIDENCE_DEFAULT = 35;
+
+function readStoredMinConfidence(): number {
+  if (typeof window === 'undefined') return MIN_CONFIDENCE_DEFAULT;
+  const parsed = parseInt(localStorage.getItem(MIN_CONFIDENCE_STORAGE_KEY) ?? '', 10);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : MIN_CONFIDENCE_DEFAULT;
+}
+
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
 // Backend returns prefixed string IDs ("ent_123") shared with the sidebar tree.
@@ -129,6 +143,7 @@ export function LinkManagerView({
   const [tab, setTab] = useState<TabStatus>('pending');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [minScore, setMinScore] = useState(0);
+  const [minConfidence, setMinConfidence] = useState<number>(readStoredMinConfidence);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
@@ -321,17 +336,24 @@ export function LinkManagerView({
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
+  const handleMinConfidenceChange = (value: number) => {
+    const clamped = Math.min(100, Math.max(0, Math.round(value)));
+    setMinConfidence(clamped);
+    localStorage.setItem(MIN_CONFIDENCE_STORAGE_KEY, String(clamped));
+  };
+
   const triggerAutoLink = async () => {
     if (isComputing) return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
+    const confidenceParam = `min_confidence=${minConfidence}`;
     await Promise.all([
       projectId
-        ? fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute`, { method: 'POST', credentials: 'include' }).catch(() => {})
+        ? fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}`, { method: 'POST', credentials: 'include' }).catch(() => {})
         : Promise.resolve(),
-      fetch(`${API_URL}/knowledge-links/compute`, { method: 'POST', credentials: 'include' }).catch(() => {}),
+      fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}`, { method: 'POST', credentials: 'include' }).catch(() => {}),
     ]);
 
     const poll = async (attempt: number) => {
@@ -652,6 +674,21 @@ export function LinkManagerView({
             {/* Segment-specific actions */}
             {segment === 'links' && (
               <>
+                <div
+                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] sm:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
+                  title={t('linkManagerView.minConfidenceTooltip')}
+                >
+                  <Percent className="w-3 h-3 shrink-0 opacity-70" />
+                  <input
+                    type="number" min={0} max={100} step={5}
+                    value={minConfidence}
+                    onChange={e => handleMinConfidenceChange(Number(e.target.value))}
+                    disabled={isComputing}
+                    aria-label={t('linkManagerView.minConfidenceLabel')}
+                    className={cn('w-8 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}
+                  />
+                  <span className="hidden xs:inline">%</span>
+                </div>
                 <button onClick={triggerAutoLink} disabled={isComputing}
                   className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />

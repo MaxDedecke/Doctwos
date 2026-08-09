@@ -900,6 +900,8 @@
     },
     "computingLabel": "Verknüpfe…",
     "autoLinkLabel": "Automatisch verknüpfen",
+    "minConfidenceLabel": "Mindest-Wahrscheinlichkeit",
+    "minConfidenceTooltip": "Mindest-Wahrscheinlichkeit (%): Nur Kandidaten, die das LLM mit mindestens dieser Sicherheit bewertet, werden beim nächsten Lauf als Vorschlag gespeichert.",
     "manualLabel": "Manuell",
     "chatLabel": "Chat",
     "overviewLabel": "Übersicht",

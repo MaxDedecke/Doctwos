@@ -44,7 +44,7 @@ def _chunk_source_label(chunk, db) -> str:
     return source_type or "Local"
 
 
-async def _llm_review_pair(chunk_a, source_type_a: str, chunk_b, source_type_b: str, heuristic_score: float) -> dict:
+async def _llm_review_pair(chunk_a, source_type_a: str, chunk_b, source_type_b: str, heuristic_score: float, min_confidence: int = LLM_MIN_CONFIDENCE) -> dict:
     """Judges one candidate cross-source pair. Never raises — falls back to the heuristic score/canned context on LLM failure."""
     meta_a, meta_b = chunk_a.metadata_json or {}, chunk_b.metadata_json or {}
     title_a = meta_a.get("title") or chunk_a.file_path
@@ -59,24 +59,33 @@ async def _llm_review_pair(chunk_a, source_type_a: str, chunk_b, source_type_b: 
     try:
         data = await get_chat_json(prompt, config.LLM_MODEL)
         confidence = float(data.get("confidence", 0))
-        keep = bool(data.get("keep", False)) and confidence >= LLM_MIN_CONFIDENCE
+        keep = bool(data.get("keep", False)) and confidence >= min_confidence
         return {"keep": keep, "score": confidence / 100.0, "context": data.get("reason") or None}
     except Exception as e:
         logger.warning(f"[CrossLinkBuilder] LLM-Review fehlgeschlagen, verwende Embedding-Score: {e}")
+        # Ohne LLM-Urteil ist der heuristische Score der einzige Anhaltspunkt — denselben
+        # vom Nutzer eingestellten Schwellwert anwenden statt immer zu behalten, sonst
+        # umgeht ein LLM-Ausfall den Regler stillschweigend.
         return {
-            "keep": True,
+            "keep": round(heuristic_score * 100) >= min_confidence,
             "score": heuristic_score,
             "context": f"Similarity score: {round(heuristic_score*100)}%. This content from {source_type_a} and {source_type_b} seems highly related.",
         }
 
-async def compute_knowledge_links_async(run_id: int):
+async def compute_knowledge_links_async(run_id: int, min_confidence: int | None = None):
     """
     run_id points at a LinkBuilderRun row (created by the caller as "pending",
     task_type="knowledge_links", project_id=None since this scans across all
     projects/sources) that this function updates to running/completed/failed —
     without it, a crash here previously only produced a logger.error line with
     no queryable trace.
+
+    min_confidence (0-100): user-configured minimum LLM confidence a candidate
+    pair must reach to be saved as a pending link — set by the user in the
+    Link Manager right before triggering this run. None falls back to
+    LLM_MIN_CONFIDENCE (candidate pre-selection via MIN_SCORE stays untouched).
     """
+    effective_min_confidence = LLM_MIN_CONFIDENCE if min_confidence is None else min_confidence
     db = SessionLocal()
     run = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == run_id).first()
     if not run:
@@ -139,7 +148,7 @@ async def compute_knowledge_links_async(run_id: int):
                     meta_b = target_chunk.metadata_json or {}
                     source_type_b = meta_b.get("source_type") or _chunk_source_label(target_chunk, db)
 
-                    review = await _llm_review_pair(chunk, source_type_a, target_chunk, source_type_b, score)
+                    review = await _llm_review_pair(chunk, source_type_a, target_chunk, source_type_b, score, min_confidence=effective_min_confidence)
                     if not review["keep"]:
                         continue
 

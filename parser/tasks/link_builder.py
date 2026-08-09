@@ -145,7 +145,11 @@ def _merge_passes(*passes) -> list[tuple[DocumentChunk, float, str]]:
     return sorted_pages[:TOP_PAGES]
 
 
-async def _llm_review(entity: CodeEntity, top_pages: list[tuple[DocumentChunk, float, str]]) -> list[tuple[DocumentChunk, float, str, str]]:
+async def _llm_review(
+    entity: CodeEntity,
+    top_pages: list[tuple[DocumentChunk, float, str]],
+    min_confidence: int = LLM_MIN_CONFIDENCE,
+) -> list[tuple[DocumentChunk, float, str, str]]:
     if not top_pages:
         return []
 
@@ -189,17 +193,24 @@ async def _llm_review(entity: CodeEntity, top_pages: list[tuple[DocumentChunk, f
             confidence = r.get("confidence") or 0
             if idx is None or idx < 0 or idx >= len(top_pages):
                 continue
-            if confidence < LLM_MIN_CONFIDENCE:
+            if confidence < min_confidence:
                 continue
             chunk, _, link_type = top_pages[idx]
             reviewed.append((chunk, confidence / 100.0, link_type, r.get("reason") or None))
         return reviewed
     except Exception as e:
         logger.warning(f"[LinkBuilder] LLM-Review fehlgeschlagen für {entity.name}, verwende ungeprüfte Kandidaten: {e}")
-        return [(chunk, score, link_type, None) for chunk, score, link_type in top_pages]
+        # Ohne LLM-Urteil ist der heuristische Score (0..1) der einzige Anhaltspunkt —
+        # denselben vom Nutzer eingestellten Schwellwert anwenden statt alles durchzureichen,
+        # sonst umgeht ein LLM-Ausfall den Regler stillschweigend.
+        return [
+            (chunk, score, link_type, None)
+            for chunk, score, link_type in top_pages
+            if round(score * 100) >= min_confidence
+        ]
 
 
-async def compute_entity_links_async(run_id: int, project_id: int):
+async def compute_entity_links_async(run_id: int, project_id: int, min_confidence: int | None = None):
     """
     2-pass scan for every CodeEntity in the project:
       Pass 1 — semantic:   cosine similarity via embeddings
@@ -211,7 +222,14 @@ async def compute_entity_links_async(run_id: int, project_id: int):
     run_id points at a LinkBuilderRun row (created by the caller as "pending")
     that this function updates to running/completed/failed — without it, a crash
     here previously only produced a logger.error line with no queryable trace.
+
+    min_confidence (0-100): user-configured minimum LLM confidence (Pass 3) a
+    candidate must reach to be saved as a pending recommendation at all — set
+    by the user in the Link Manager right before triggering this run. None
+    falls back to LLM_MIN_CONFIDENCE (candidate pre-selection in Pass 1+2 is
+    intentionally left untouched by this — see docstring at file top).
     """
+    effective_min_confidence = LLM_MIN_CONFIDENCE if min_confidence is None else min_confidence
     lock_key = f"lock:compute_entity_links:{project_id}"
     pending_key = f"pending:compute_entity_links:{project_id}"
 
@@ -312,7 +330,7 @@ async def compute_entity_links_async(run_id: int, project_id: int):
             # Only invoke the LLM if there are undecided candidates
             reviewed_pages = []
             if undecided_pages:
-                reviewed_pages = await _llm_review(entity, undecided_pages)
+                reviewed_pages = await _llm_review(entity, undecided_pages, min_confidence=effective_min_confidence)
 
             db.query(EntityDocLink).filter(
                 EntityDocLink.entity_id == entity.id,

@@ -16,7 +16,7 @@ Endpunkte:
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -136,6 +136,7 @@ def create_manual_link(
 @router.post("/projects/{project_id}/link-recommendations/compute")
 def trigger_link_computation(
     project_id: int,
+    min_confidence: Optional[int] = Query(None, ge=0, le=100, description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidat als Vorschlag gespeichert wird."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -159,7 +160,11 @@ def trigger_link_computation(
     db.commit()
     db.refresh(run)
 
-    celery_app.send_task("compute_entity_links", args=[run.id, project_id], kwargs={"trace_id": get_trace_id()})
+    celery_app.send_task(
+        "compute_entity_links",
+        args=[run.id, project_id],
+        kwargs={"trace_id": get_trace_id(), "min_confidence": min_confidence},
+    )
     return {"message": "Link computation started", "project_id": project_id, "run_id": run.id}
 
 

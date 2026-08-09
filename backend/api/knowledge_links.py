@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from core.db_setup import get_db
 from models.database import KnowledgeLink, CodeEntity, DocumentChunk, LinkBuilderRun, Project, KnowledgeSource, User
@@ -155,6 +155,7 @@ def delete_knowledge_link(
 
 @router.post("/compute")
 def trigger_knowledge_link_computation(
+    min_confidence: Optional[int] = Query(None, ge=0, le=100, description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidatenpaar als Vorschlag gespeichert wird."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -174,7 +175,11 @@ def trigger_knowledge_link_computation(
     db.commit()
     db.refresh(run)
 
-    celery_app.send_task("compute_knowledge_links", args=[run.id], kwargs={"trace_id": get_trace_id()})
+    celery_app.send_task(
+        "compute_knowledge_links",
+        args=[run.id],
+        kwargs={"trace_id": get_trace_id(), "min_confidence": min_confidence},
+    )
     return {"message": "Cross-Source Analyse gestartet", "run_id": run.id}
 
 

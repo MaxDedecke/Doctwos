@@ -119,27 +119,34 @@ def process_jira_source(source_id: int):
 
 
 @app.task(name="compute_entity_links")
-def compute_entity_links(run_id: int, project_id: int, trace_id: str | None = None):
+def compute_entity_links(run_id: int, project_id: int, trace_id: str | None = None, min_confidence: int | None = None):
     """
     Celery-Task: Semantische Verknüpfungen zwischen Code-Entities und Wissens-Chunks
     berechnen (3 Passes: semantisch, keyword, syntaktisch). Erzeugt pending-Empfehlungen
     für die manuelle Bestätigung im Link Manager. Fortschritt/Ergebnis werden laufend
     in LinkBuilderRun geschrieben, damit ein Absturz nicht spurlos bleibt.
+
+    min_confidence: vom Nutzer im Link Manager eingestellter Mindest-Prozentsatz
+    (0-100) für die LLM-Konfidenz, ab der ein Kandidat als Vorschlag gespeichert
+    wird. None = Default aus link_builder.LLM_MIN_CONFIDENCE.
     """
     with trace_id_scope(trace_id):
-        asyncio.run(compute_entity_links_async(run_id, project_id))
+        asyncio.run(compute_entity_links_async(run_id, project_id, min_confidence=min_confidence))
     return {"status": "finished", "run_id": run_id, "project_id": project_id}
 
 
 @app.task(name="compute_knowledge_links")
-def compute_knowledge_links(run_id: int, trace_id: str | None = None):
+def compute_knowledge_links(run_id: int, trace_id: str | None = None, min_confidence: int | None = None):
     """
     Celery-Task: Cross-Source Analyse starten. Findet semantische Verknüpfungen
     über alle Wissensquellen und Repositories hinweg. Fortschritt/Ergebnis werden
     laufend in LinkBuilderRun geschrieben, damit ein Absturz nicht spurlos bleibt.
+
+    min_confidence: siehe compute_entity_links — hier für die Cross-Source-LLM-
+    Bewertung in cross_link_builder.LLM_MIN_CONFIDENCE.
     """
     with trace_id_scope(trace_id):
-        asyncio.run(compute_knowledge_links_async(run_id))
+        asyncio.run(compute_knowledge_links_async(run_id, min_confidence=min_confidence))
     return {"status": "finished", "run_id": run_id}
 
 
