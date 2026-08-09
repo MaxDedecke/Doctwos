@@ -648,12 +648,12 @@
     "greeting": "Hello.",
     "suggestions": {
       "explainProgram": {
-        "label": "Explain program",
-        "desc": "Structure, sections/paragraphs and purpose of a COBOL program"
+        "label": "Explain COBOL program",
+        "desc": "Structure, sections/paragraphs, copybooks and purpose of a COBOL module"
       },
       "traceCall": {
         "label": "Trace call chain",
-        "desc": "Who calls this program, and what does it call?"
+        "desc": "Who calls this program (CALL, JCL step, CICS transaction), and what does it call?"
       },
       "summarizeDocs": {
         "label": "Start project onboarding",
@@ -664,7 +664,7 @@
       },
       "findField": {
         "label": "Find data field",
-        "desc": "Where is a field defined and where is it used?"
+        "desc": "Where is a field (copybook, VSAM record, DB2 table) defined and where is it used?"
       }
     },
     "generatingResponse": "Generating response...",
