@@ -532,7 +532,10 @@ export function Sidebar({
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
-                  <div className="h-8 w-8 rounded-md border border-ds-indigo-500 bg-ds-indigo-500/10 flex items-center justify-center text-ds-indigo-400 shrink-0">
+                  <div className={cn(
+                    "h-8 w-8 rounded-md border flex items-center justify-center shrink-0",
+                    theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-200 text-ds-zinc-500"
+                  )}>
                     <User className="w-4 h-4" />
                   </div>
                   {/* User info */}
