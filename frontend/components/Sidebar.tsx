@@ -541,7 +541,7 @@ export function Sidebar({
                   {/* User info */}
                   <div className="min-w-0">
                     <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
-                      Doctwos Nutzer
+                      Doctus Nutzer
                     </p>
                     <p className="text-[9px] font-medium text-ds-zinc-500 leading-none truncate">
                       Lokale Sitzung
