@@ -900,6 +900,8 @@
     },
     "computingLabel": "Linking…",
     "autoLinkLabel": "Auto-link",
+    "acceptAllLabel": "Accept all 100%",
+    "acceptAllTooltip": "Approves all pending links with a 100% match at once, so you can focus on the less obvious ones.",
     "minConfidenceLabel": "Minimum probability",
     "minConfidenceTooltip": "Minimum probability (%): only candidates the LLM rates at least this confident are saved as a suggestion on the next run.",
     "manualLabel": "Manual",
@@ -958,6 +960,8 @@
     "toast": {
       "approved": "Link to \"{{title}}\" confirmed.",
       "reapproved": "Link to \"{{title}}\" confirmed again.",
+      "acceptAllSuccess": "{{count}} link(s) with 100% match confirmed automatically.",
+      "acceptAllPartial": "{{failed}} link(s) could not be confirmed.",
       "updateFailed": "Couldn't update the link."
     }
   },

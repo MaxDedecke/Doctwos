@@ -109,6 +109,10 @@ function readStoredMinConfidence(): number {
   return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : MIN_CONFIDENCE_DEFAULT;
 }
 
+// score is stored as a 0..1 float and rounded for display (ScoreBadge: Math.round(score * 100)).
+// Guard against float noise (e.g. 0.999999...) so "100%" candidates are still caught.
+const PERFECT_SCORE_THRESHOLD = 0.995;
+
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
 // Backend returns prefixed string IDs ("ent_123") shared with the sidebar tree.
@@ -147,6 +151,7 @@ export function LinkManagerView({
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
+  const [isAcceptingAll, setIsAcceptingAll] = useState(false);
   const [message, setMessage] = useState<{ type: 'info' | 'success' | 'empty'; text: string } | null>(null);
   const [showManualForm, setShowManualForm] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -411,6 +416,47 @@ export function LinkManagerView({
     }
   };
 
+  // Bulk-approves every pending 100%-match link at once, so the user can focus
+  // review effort on the less obvious (lower-confidence) candidates instead.
+  const acceptAllPerfectMatches = async () => {
+    if (isAcceptingAll || perfectPendingLinks.length === 0) return;
+    setIsAcceptingAll(true);
+    const targets = perfectPendingLinks;
+    const results = await Promise.all(targets.map(async link => {
+      const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+      try {
+        const res = await fetch(url, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'approved' }),
+        });
+        return { link, ok: res.ok };
+      } catch { return { link, ok: false }; }
+    }));
+
+    const succeeded = results.filter(r => r.ok).map(r => r.link);
+    const failedCount = results.length - succeeded.length;
+    const approvedEntityIds = new Set(succeeded.filter(l => l.kind === 'entity').map(l => l.rawId));
+    const approvedKnowledgeIds = new Set(succeeded.filter(l => l.kind === 'knowledge').map(l => l.rawId));
+
+    if (approvedEntityIds.size > 0) {
+      setEntityLinks(prev => prev.filter(l => !approvedEntityIds.has(l.id)));
+      setEntityCounts(prev => ({ ...prev, pending: Math.max(0, prev.pending - approvedEntityIds.size), approved: prev.approved + approvedEntityIds.size }));
+    }
+    if (approvedKnowledgeIds.size > 0) {
+      setKnowledgeLinks(prev => prev.filter(l => !approvedKnowledgeIds.has(l.id)));
+      setKnowledgeCounts(prev => ({ ...prev, pending: Math.max(0, prev.pending - approvedKnowledgeIds.size), approved: prev.approved + approvedKnowledgeIds.size }));
+    }
+
+    if (failedCount > 0) {
+      showToast?.(t('linkManagerView.toast.acceptAllPartial', { failed: failedCount }), 'error');
+    } else if (succeeded.length > 0) {
+      showToast?.(t('linkManagerView.toast.acceptAllSuccess', { count: succeeded.length }), 'success');
+    }
+    setIsAcceptingAll(false);
+  };
+
   const deleteLink = async (link: UnifiedLink) => {
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
     await fetch(url, { method: 'DELETE', credentials: 'include' });
@@ -514,6 +560,11 @@ export function LinkManagerView({
     const q = search.toLowerCase();
     return l.left.label?.toLowerCase().includes(q) || l.right.label?.toLowerCase().includes(q) || (l.left.caption ?? '').toLowerCase().includes(q);
   }), [unifiedLinks, kindFilter, search]);
+
+  const perfectPendingLinks = useMemo(
+    () => (tab === 'pending' ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD) : []),
+    [filteredLinks, tab]
+  );
 
   const filteredEntityEntities = useMemo(() =>
     entities.filter(e =>
@@ -789,6 +840,15 @@ export function LinkManagerView({
                         <option value={60}>{t('linkManagerView.scoreFilter.min60')}</option>
                         <option value={80}>{t('linkManagerView.scoreFilter.min80')}</option>
                       </select>
+                    )}
+                    {tab === 'pending' && perfectPendingLinks.length > 0 && (
+                      <button onClick={acceptAllPerfectMatches} disabled={isAcceptingAll}
+                        title={t('linkManagerView.acceptAllTooltip')}
+                        className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
+                        {isAcceptingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        <span className="hidden xs:inline">{t('linkManagerView.acceptAllLabel')}</span>
+                        <span className={cn('px-1 rounded text-[9px] sm:text-[10px]', tabBadgeA)}>{perfectPendingLinks.length}</span>
+                      </button>
                     )}
                   </div>
                 </div>

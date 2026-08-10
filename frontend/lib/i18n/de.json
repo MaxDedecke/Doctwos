@@ -900,6 +900,8 @@
     },
     "computingLabel": "Verknüpfe…",
     "autoLinkLabel": "Automatisch verknüpfen",
+    "acceptAllLabel": "Alle 100 % bestätigen",
+    "acceptAllTooltip": "Bestätigt alle offenen Verknüpfungen mit 100 % Übereinstimmung auf einmal, damit du dich auf die weniger eindeutigen konzentrieren kannst.",
     "minConfidenceLabel": "Mindest-Wahrscheinlichkeit",
     "minConfidenceTooltip": "Mindest-Wahrscheinlichkeit (%): Nur Kandidaten, die das LLM mit mindestens dieser Sicherheit bewertet, werden beim nächsten Lauf als Vorschlag gespeichert.",
     "manualLabel": "Manuell",
@@ -958,6 +960,8 @@
     "toast": {
       "approved": "Verknüpfung zu „{{title}}\" bestätigt.",
       "reapproved": "Verknüpfung zu „{{title}}\" wieder bestätigt.",
+      "acceptAllSuccess": "{{count}} Verknüpfung(en) mit 100 % automatisch bestätigt.",
+      "acceptAllPartial": "{{failed}} Verknüpfung(en) konnten nicht bestätigt werden.",
       "updateFailed": "Verknüpfung konnte nicht aktualisiert werden."
     }
   },
