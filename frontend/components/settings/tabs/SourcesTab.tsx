@@ -245,7 +245,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
       {/* SECTION 1: Active Connected Sources */}
       <div className="space-y-4">
-        <h5 className={cn("text-xs font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-550")}>
+        <h5 className={cn("text-sm font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-550")}>
           Verbundene Datenquellen ({filteredSources.length})
         </h5>
 
@@ -255,13 +255,13 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
             "flex flex-col items-center justify-center p-8 text-center rounded-lg border border-dashed transition-all duration-300",
             theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50/50 border-ds-zinc-200"
           )}>
-            <div className="h-12 w-12 rounded-full bg-ds-indigo-500/10 flex items-center justify-center mb-3">
+            <div className="h-14 w-14 rounded-full bg-ds-indigo-500/10 flex items-center justify-center mb-3">
               <Info className="w-6 h-6 text-ds-indigo-400" />
             </div>
-            <p className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-800")}>
+            <p className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-800")}>
               Keine aktiven Datenquellen gefunden
             </p>
-            <p className={cn("text-[10px] mt-1 max-w-sm leading-relaxed", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
+            <p className={cn("text-sm mt-1 max-w-sm leading-relaxed", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
               {selectedSourceRepoId === "all"
                 ? "Binden Sie unten Ihre erste Datenquelle an, um Ihr Doctus AI Projekt mit Wissen zu füttern."
                 : "Für dieses Projekt wurden noch keine spezifischen Datenquellen angebunden."}
@@ -269,7 +269,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           </div>
         ) : (
           /* Premium Cards Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {sortedSources.map((inst) => {
               const meta = getConnectorMetadata(inst.type);
               const isPinned = pinnedSourceIds.includes(inst.id);
@@ -279,7 +279,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                 <div
                   key={inst.id}
                   className={cn(
-                    "group relative p-4 rounded-lg border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    "group relative p-5 rounded-lg border transition-all duration-300 flex flex-col justify-between overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5",
                     theme === 'dark'
                       ? "bg-ds-zinc-900/40 border-ds-zinc-800/80 hover:border-ds-zinc-700/50"
                       : "bg-ds-white/80 border-ds-zinc-200 hover:border-ds-zinc-300",
@@ -291,7 +291,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                 >
                   {/* Neon Glow backdrop */}
                   <div
-                    className="absolute top-0 right-0 w-24 h-24 blur-2xl rounded-full opacity-30 z-0 pointer-events-none transition-all duration-500 group-hover:scale-110"
+                    className="absolute top-0 right-0 w-28 h-28 blur-2xl rounded-full opacity-30 z-0 pointer-events-none transition-all duration-500 group-hover:scale-110"
                     style={{ backgroundColor: meta.glowColor }}
                   />
 
@@ -301,7 +301,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                       <div className="flex items-center gap-3">
                         {/* Glowing icon wrapper */}
                         <div className={cn(
-                          "h-8 w-8 rounded-lg flex items-center justify-center border shadow-inner transition-transform duration-300 group-hover:scale-105",
+                          "h-10 w-10 rounded-lg flex items-center justify-center border shadow-inner transition-transform duration-300 group-hover:scale-105",
                           theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-800"
                         )}>
                           <span className={meta.iconColor}>{meta.icon}</span>
@@ -309,10 +309,10 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                         {/* Title & Badge */}
                         <div className="flex flex-col min-w-0">
-                          <span className={cn("text-xs font-bold truncate max-w-[180px] leading-tight", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")} title={inst.name}>
+                          <span className={cn("text-sm font-bold truncate max-w-[220px] leading-tight", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")} title={inst.name}>
                             {inst.name}
                           </span>
-                          <span className={cn("inline-self-start text-[7.5px] uppercase tracking-widest font-extrabold px-1.5 py-0.5 rounded border mt-1 w-max", meta.badgeColor)}>
+                          <span className={cn("inline-self-start text-[11px] uppercase tracking-widest font-extrabold px-1.5 py-1 rounded border mt-1 w-max", meta.badgeColor)}>
                             {inst.type}
                           </span>
                         </div>
@@ -321,20 +321,20 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                       {/* Status badge */}
                       <div className="flex items-center gap-1.5 shrink-0">
                         {inst.sync_status === 'syncing' ? (
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-ds-blue-400 bg-ds-blue-500/10 border border-ds-blue-500/20 px-2 py-0.5 rounded-sm">
-                            <Loader2 className="w-2.5 h-2.5 animate-spin" /> {t('settings.logsTab.statusSyncingDefault')}
+                          <span className="flex items-center gap-1 text-sm font-bold text-ds-blue-400 bg-ds-blue-500/10 border border-ds-blue-500/20 px-2 py-1 rounded-sm">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('settings.logsTab.statusSyncingDefault')}
                           </span>
                         ) : inst.sync_status === 'error' ? (
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-ds-red-400 bg-ds-red-500/10 border border-ds-red-500/20 px-2 py-0.5 rounded-sm">
-                            <AlertCircle className="w-2.5 h-2.5" /> Error
+                          <span className="flex items-center gap-1 text-sm font-bold text-ds-red-400 bg-ds-red-500/10 border border-ds-red-500/20 px-2 py-1 rounded-sm">
+                            <AlertCircle className="w-3.5 h-3.5" /> Error
                           </span>
                         ) : inst.last_synced_at ? (
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-ds-emerald-400 bg-ds-emerald-500/10 border border-ds-emerald-500/20 px-2 py-0.5 rounded-sm">
-                            <CheckCircle2 className="w-2.5 h-2.5" /> Synced
+                          <span className="flex items-center gap-1 text-sm font-bold text-ds-emerald-400 bg-ds-emerald-500/10 border border-ds-emerald-500/20 px-2 py-1 rounded-sm">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Synced
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-[8px] font-bold text-ds-amber-400 bg-ds-amber-500/10 border border-ds-amber-500/20 px-2 py-0.5 rounded-sm">
-                            <Info className="w-2.5 h-2.5" /> Ready
+                          <span className="flex items-center gap-1 text-sm font-bold text-ds-amber-400 bg-ds-amber-500/10 border border-ds-amber-500/20 px-2 py-1 rounded-sm">
+                            <Info className="w-3.5 h-3.5" /> Ready
                           </span>
                         )}
                       </div>
@@ -342,7 +342,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                     {/* Metadata lines */}
                     <div className={cn(
-                      "text-[9px] space-y-1.5 p-2.5 rounded-lg border font-medium",
+                      "text-[11px] space-y-2 p-3 rounded-lg border font-medium",
                       theme === 'dark' ? "bg-ds-zinc-950/30 border-ds-zinc-850/60 text-ds-zinc-400" : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-650"
                     )}>
                       {project && (
@@ -353,15 +353,15 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                       )}
                       {inst.type?.toLowerCase() === 'git' && (inst.branch || inst.spaces?.branch) && (
                         <div className="flex items-center gap-1.5">
-                          <GitBranch className="w-2.5 h-2.5 opacity-60" />
+                          <GitBranch className="w-3.5 h-3.5 opacity-60" />
                           <span className="opacity-50">Branch:</span>
-                          <span className="font-mono text-[8px] font-bold">{inst.branch || inst.spaces.branch}</span>
+                          <span className="font-mono text-sm font-bold">{inst.branch || inst.spaces.branch}</span>
                         </div>
                       )}
 
                       {/* Sync details */}
                       <div className="flex items-center gap-1.5 mt-1 border-t pt-1 border-ds-zinc-800/20">
-                        <Calendar className="w-2.5 h-2.5 opacity-60" />
+                        <Calendar className="w-3.5 h-3.5 opacity-60" />
                         {inst.sync_status === 'error' ? (
                           <span className="text-ds-red-400 font-bold">{t('settings.sourcesTab.syncErrorShort')}</span>
                         ) : inst.last_synced_at ? (
@@ -380,8 +380,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                     {/* Syncing Progress Bar (if active) */}
                     {inst.sync_status === 'syncing' && (
-                      <div className="space-y-1.5 mt-2 animate-in fade-in duration-300">
-                        <div className="flex items-center justify-between text-[8px]">
+                      <div className="space-y-2 mt-2 animate-in fade-in duration-300">
+                        <div className="flex items-center justify-between text-sm">
                           <span className="text-ds-blue-400 font-bold truncate max-w-[80%]">
                             {inst.progress_message || "Verarbeitung..."}
                           </span>
@@ -403,7 +403,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                     {/* Kontext-Notiz: Fachwissen/Kunden-Jargon zu dieser Quelle, fließt in den System-Prompt ein */}
                     <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
-                      <label className="text-[7.5px] uppercase tracking-wider font-extrabold opacity-45 block mb-1">
+                      <label className="text-[11px] uppercase tracking-wider font-extrabold opacity-45 block mb-1">
                         {t('settings.sourcesTab.contextNoteLabel')}
                       </label>
                       <textarea
@@ -415,7 +415,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                         maxLength={2000}
                         rows={2}
                         className={cn(
-                          "w-full text-[8px] rounded-lg border px-2 py-1.5 outline-none transition-colors resize-y",
+                          "w-full text-sm rounded-lg border px-2 py-1.5 outline-none transition-colors resize-y",
                           theme === 'dark'
                             ? "bg-ds-zinc-950 border-ds-zinc-850 text-ds-zinc-300 placeholder:text-ds-zinc-700 hover:border-ds-zinc-700 focus:border-ds-blue-600"
                             : "bg-ds-white border-ds-zinc-200 text-ds-zinc-650 placeholder:text-ds-zinc-400 hover:border-ds-zinc-300 focus:border-ds-blue-400"
@@ -425,19 +425,19 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                   </div>
 
                   {/* Actions footer */}
-                  <div className="relative z-10 flex items-center justify-between mt-4 border-t border-ds-zinc-800/30 pt-3 w-full">
+                  <div className="relative z-10 flex items-center justify-between mt-5 border-t border-ds-zinc-800/30 pt-3 w-full">
                     {/* Interval selector */}
                     <div>
                       {inst.type?.toLowerCase() !== 'local' ? (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[7.5px] uppercase tracking-wider font-extrabold opacity-45">Intervall:</span>
+                          <span className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">Intervall:</span>
                           <select
                             value={inst.sync_interval_minutes ?? 0}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => handleIntervalChange(inst.id, parseInt(e.target.value))}
                             title={t('settings.sourcesTab.syncIntervalTitle')}
                             className={cn(
-                              "text-[8px] font-bold rounded-lg border px-2 py-0.5 cursor-pointer outline-none transition-colors",
+                              "text-sm font-bold rounded-lg border px-2 py-1 cursor-pointer outline-none transition-colors",
                               theme === 'dark'
                                 ? "bg-ds-zinc-950 border-ds-zinc-850 text-ds-zinc-300 hover:border-ds-zinc-700"
                                 : "bg-ds-white border-ds-zinc-200 text-ds-zinc-650 hover:border-ds-zinc-300"
@@ -450,7 +450,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           </select>
                         </div>
                       ) : (
-                        <div className="text-[7.5px] uppercase tracking-wider font-extrabold opacity-45">Manuelles Dokument</div>
+                        <div className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">Manuelles Dokument</div>
                       )}
                     </div>
 
@@ -464,14 +464,14 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className={cn(
-                            "h-6 w-6 rounded-lg flex items-center justify-center transition-colors border",
+                            "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
                             theme === 'dark'
                               ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-indigo-400 hover:bg-ds-indigo-500/10 hover:text-ds-indigo-300"
                               : "bg-ds-white border-ds-zinc-200 text-ds-indigo-650 hover:bg-ds-indigo-50 hover:text-ds-indigo-800"
                           )}
                           title={t('settings.sourcesTab.downloadTitle')}
                         >
-                          <Download className="w-3 h-3" />
+                          <Download className="w-3.5 h-3.5" />
                         </a>
                       )}
 
@@ -481,7 +481,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           disabled={inst.sync_status === 'syncing'}
                           onClick={(e) => handleSyncSource(inst.id, inst.name, e)}
                           className={cn(
-                            "h-6 w-6 rounded-lg flex items-center justify-center transition-colors border",
+                            "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
                             theme === 'dark'
                               ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200"
                               : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-50 hover:text-ds-zinc-800",
@@ -489,7 +489,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           )}
                           title={t('settings.sourcesTab.syncSourceTitle')}
                         >
-                          <RefreshCw className={cn("w-3 h-3", inst.sync_status === 'syncing' && "animate-spin")} />
+                          <RefreshCw className={cn("w-3.5 h-3.5", inst.sync_status === 'syncing' && "animate-spin")} />
                         </button>
                       )}
 
@@ -501,14 +501,14 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           togglePinSource(inst.id);
                         }}
                         className={cn(
-                          "h-6 w-6 rounded-lg flex items-center justify-center transition-colors border",
+                          "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
                           isPinned
                             ? (theme === 'dark' ? "bg-ds-amber-500/10 border-ds-amber-500/30 text-ds-amber-500 hover:bg-ds-amber-500/20" : "bg-ds-amber-50 border-ds-amber-300 text-ds-amber-500 hover:bg-ds-amber-100")
                             : (theme === 'dark' ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-50")
                         )}
                         title={isPinned ? t('settings.sourcesTab.unpinSource') || 'Entpinnen' : t('settings.sourcesTab.pinSource') || 'Anpinnen'}
                       >
-                        <Pin className="w-3 h-3" />
+                        <Pin className="w-3.5 h-3.5" />
                       </button>
 
                       {/* Delete button */}
@@ -519,14 +519,14 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           handleDeleteSource(inst.id);
                         }}
                         className={cn(
-                          "h-6 w-6 rounded-lg flex items-center justify-center transition-colors border",
+                          "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
                           theme === 'dark'
                             ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-red-500 hover:bg-ds-red-500/10 hover:text-ds-red-400"
                             : "bg-ds-white border-ds-zinc-200 text-ds-red-650 hover:bg-ds-red-50 hover:text-ds-red-800"
                         )}
                         title={t('settings.sourcesTab.deleteInstanceTitle')}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
