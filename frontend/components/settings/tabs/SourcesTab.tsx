@@ -11,6 +11,7 @@ import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { getConnectorMetadata } from '@/lib/sourceConnectors';
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SourceNetworkGraph } from './SourceNetworkGraph';
 
 interface SourcesTabProps {
   selectedSourceRepoId: string;
@@ -113,61 +115,6 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     }
   };
 
-  // Helper mapping metadata per type for rich styling
-  const getConnectorMetadata = (typeName: string) => {
-    const name = typeName ? typeName.toLowerCase() : "";
-    switch (name) {
-      case 'git':
-        return {
-          glowColor: "rgba(99, 102, 241, 0.15)",
-          gradientBorder: "from-ds-indigo-500/40 to-ds-purple-500/10",
-          iconColor: "text-ds-indigo-400",
-          badgeColor: "bg-ds-indigo-500/10 text-ds-indigo-400 border-ds-indigo-500/20",
-          icon: <GitBranch className="w-4 h-4" />
-        };
-      case 'confluence':
-        return {
-          glowColor: "rgba(59, 130, 246, 0.15)",
-          gradientBorder: "from-ds-blue-500/40 to-ds-indigo-500/10",
-          iconColor: "text-ds-blue-400",
-          badgeColor: "bg-ds-blue-500/10 text-ds-blue-400 border-ds-blue-500/20",
-          icon: <Database className="w-4 h-4" />
-        };
-      case 'jira':
-        return {
-          glowColor: "rgba(139, 92, 246, 0.15)",
-          gradientBorder: "from-ds-violet-500/40 to-ds-fuchsia-500/10",
-          iconColor: "text-ds-violet-400",
-          badgeColor: "bg-ds-violet-500/10 text-ds-violet-400 border-ds-violet-500/20",
-          icon: <Layers className="w-4 h-4" />
-        };
-      case 'local':
-        return {
-          glowColor: "rgba(245, 158, 11, 0.15)",
-          gradientBorder: "from-ds-amber-500/40 to-ds-yellow-500/10",
-          iconColor: "text-ds-amber-400",
-          badgeColor: "bg-ds-amber-500/10 text-ds-amber-400 border-ds-amber-500/20",
-          icon: <Code className="w-4 h-4" />
-        };
-      case 'folderwatch':
-        return {
-          glowColor: "rgba(16, 185, 129, 0.15)",
-          gradientBorder: "from-ds-emerald-500/40 to-ds-teal-500/10",
-          iconColor: "text-ds-emerald-400",
-          badgeColor: "bg-ds-emerald-500/10 text-ds-emerald-400 border-ds-emerald-500/20",
-          icon: <Folder className="w-4 h-4" />
-        };
-      default:
-        return {
-          glowColor: "rgba(107, 114, 128, 0.15)",
-          gradientBorder: "from-ds-zinc-500/40 to-ds-zinc-700/10",
-          iconColor: "text-ds-zinc-400",
-          badgeColor: "bg-ds-zinc-500/10 text-ds-zinc-400 border-ds-zinc-500/20",
-          icon: <Database className="w-4 h-4" />
-        };
-    }
-  };
-
   const availableConnectors = [
     { name: "Git", desc: t('settings.sourcesTab.types.git.desc') || "Git-Repository mit Source-Code anbinden", typeKey: "git", icon: <GitBranch className="w-5 h-5 text-ds-indigo-400" />, featureKey: 'git' as any },
     { name: t('settings.sourcesTab.types.confluence.name'), desc: t('settings.sourcesTab.types.confluence.desc'), typeKey: "confluence", icon: <Database className="w-5 h-5 text-ds-blue-400" />, featureKey: 'confluence' as const },
@@ -188,6 +135,13 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     const bPinned = pinnedSourceIds.includes(b.id) ? 1 : 0;
     return bPinned - aPinned;
   });
+
+  // Der Netzwerk-Graph folgt demselben Projekt-Filter wie die Kartenliste —
+  // "allgemein" (alle Projekte) vs. ein einzelnes Projekt ist so ohne
+  // zusätzlichen Auswahl-Kontrollpunkt bereits abgedeckt.
+  const networkScopeLabel = selectedSourceRepoId === "all"
+    ? t('settings.sourcesTab.allProjects')
+    : projects.find((p: any) => p.id.toString() === selectedSourceRepoId)?.name || t('settings.sourcesTab.selectProjectPlaceholder');
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 w-full min-w-0">
@@ -242,6 +196,9 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           </Select>
         </div>
       </div>
+
+      {/* Netzwerk-Visualisierung: zeigt den Informationsfluss aller (gefilterten) Quellen in Doctus */}
+      <SourceNetworkGraph sources={filteredSources} theme={theme} scopeLabel={networkScopeLabel} />
 
       {/* SECTION 1: Active Connected Sources */}
       <div className="space-y-4">
