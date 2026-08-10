@@ -250,7 +250,7 @@ def get_graph(
                 "target": did,
                 "link_type": lnk.link_type,
                 "score": lnk.score,
-                "context": None,
+                "context": lnk.context,
             })
 
     # ── Cross-object knowledge links (auto doc↔doc + manual entity/document pairs) ──
@@ -326,7 +326,7 @@ def get_graph_focus(
         nodes.setdefault(did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)))
         edges.append({
             "id": f"edl:{lnk.id}", "source": focus_id, "target": did,
-            "link_type": lnk.link_type, "score": lnk.score, "context": None,
+            "link_type": lnk.link_type, "score": lnk.score, "context": lnk.context,
         })
 
     # KnowledgeLinks der Entity (v.a. manuell über die Graph-UI erstellte Entity↔Entity-

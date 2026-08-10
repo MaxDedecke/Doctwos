@@ -175,8 +175,14 @@ export function LinkManagerView({
   const [docBQuery, setDocBQuery] = useState('');
   const [docBResults, setDocBResults] = useState<any[]>([]);
   const [selectedDocB, setSelectedDocB] = useState<any | null>(null);
+  const [manualDescription, setManualDescription] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
   const [manualError, setManualError] = useState('');
+
+  // Inline-Editing der Beschreibung bestehender Links (unabhängig vom Manuell-Formular
+  // oben) — welcher Link gerade bearbeitet wird plus sein Entwurfstext.
+  const [editingContextId, setEditingContextId] = useState<string | null>(null);
+  const [contextDraft, setContextDraft] = useState('');
 
   const projectId = selectedProject?.id;
 
@@ -494,6 +500,30 @@ export function LinkManagerView({
     }
   };
 
+  // Speichert die (nachträglich editierte) Beschreibung eines bestehenden Links —
+  // unabhängig vom Status, damit auch bereits bestätigte/abgelehnte Links genauer
+  // beschrieben werden können, wie das verknüpfte Wissen zusammenhängt.
+  const commitLinkContext = async (link: UnifiedLink, context: string) => {
+    setEditingContextId(null);
+    if (context === (link.context || '')) return;
+    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context }),
+      });
+      if (!res.ok) { showToast?.(t('linkManagerView.toast.updateFailed'), 'error'); return; }
+      const updated = await res.json();
+      if (link.kind === 'entity') {
+        setEntityLinks(prev => prev.map(l => l.id === link.rawId ? { ...l, context: updated.context } : l));
+      } else {
+        setKnowledgeLinks(prev => prev.map(l => l.id === link.rawId ? { ...l, context: updated.context } : l));
+      }
+    } catch { showToast?.(t('linkManagerView.toast.updateFailed'), 'error'); }
+  };
+
   const deleteLink = async (link: UnifiedLink) => {
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
     await fetch(url, { method: 'DELETE', credentials: 'include' });
@@ -517,6 +547,7 @@ export function LinkManagerView({
     setSelectedDoc(null);
     setDocAQuery(''); setDocAResults([]); setSelectedDocA(null);
     setDocBQuery(''); setDocBResults([]); setSelectedDocB(null);
+    setManualDescription('');
     setManualError('');
   };
 
@@ -530,7 +561,7 @@ export function LinkManagerView({
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entity_id: selectedEntityId, doc_title: selectedDoc.title, doc_url: selectedDoc.url || null, source_type: selectedDoc.source_type || null }),
+          body: JSON.stringify({ entity_id: selectedEntityId, doc_title: selectedDoc.title, doc_url: selectedDoc.url || null, source_type: selectedDoc.source_type || null, context: manualDescription.trim() || null }),
         });
         if (!res.ok) { const err = await res.json(); setManualError(err.detail || t('linkManagerView.manualForm.genericError')); return; }
         resetManualForm();
@@ -546,7 +577,7 @@ export function LinkManagerView({
           body: JSON.stringify({
             source_a_type: 'document', source_a_title: selectedDocA.title, source_a_url: selectedDocA.url || null, source_a_source_type: selectedDocA.source_type || null,
             source_b_type: 'document', source_b_title: selectedDocB.title, source_b_url: selectedDocB.url || null, source_b_source_type: selectedDocB.source_type || null,
-            link_type: 'manual', status: 'approved',
+            link_type: 'manual', status: 'approved', context: manualDescription.trim() || null,
           }),
         });
         if (!res.ok) { const err = await res.json(); setManualError(err.detail || t('linkManagerView.manualForm.genericError')); return; }
@@ -955,6 +986,15 @@ export function LinkManagerView({
                         </>
                       )}
 
+                      {manualKind && (
+                        <div className="mt-4">
+                          <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.descriptionLabel')}</label>
+                          <textarea rows={2} value={manualDescription} onChange={e => setManualDescription(e.target.value)}
+                            placeholder={t('linkManagerView.manualForm.descriptionPlaceholder')}
+                            className={cn('w-full text-xs rounded-md px-2.5 py-1.5 border focus:outline-none resize-none', inputCls)} />
+                        </div>
+                      )}
+
                       {manualError && (
                         <p className="text-xs text-ds-red-500 mt-3 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />{manualError}
@@ -1006,8 +1046,21 @@ export function LinkManagerView({
                           <div className="flex items-center gap-2 mt-1">
                             <ScoreBadge score={link.score} isDark={isDark} />
                             {link.linkType !== 'semantic' && <span className={cn('text-[10px] px-1 rounded', cardMuted)}>{link.linkType}</span>}
-                            {link.context && (
-                              <span className={cn('text-[10px] truncate max-w-[200px]', cardMuted)} title={link.context}>{link.context}</span>
+                            {editingContextId === link.id ? (
+                              <input autoFocus value={contextDraft} onChange={e => setContextDraft(e.target.value)}
+                                onBlur={() => commitLinkContext(link, contextDraft.trim())}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitLinkContext(link, contextDraft.trim()); }
+                                  if (e.key === 'Escape') { setEditingContextId(null); }
+                                }}
+                                placeholder={t('linkManagerView.contextPlaceholder')}
+                                className={cn('text-[10px] px-1.5 py-0.5 rounded border flex-1 min-w-0 max-w-[240px] focus:outline-none', inputCls)} />
+                            ) : (
+                              <button onClick={() => { setEditingContextId(link.id); setContextDraft(link.context || ''); }}
+                                title={link.context || t('linkManagerView.addDescriptionTitle')}
+                                className={cn('text-[10px] truncate max-w-[200px] text-left hover:underline shrink', link.context ? cardMuted : emptyText)}>
+                                {link.context || t('linkManagerView.addDescriptionLabel')}
+                              </button>
                             )}
                           </div>
                         </div>

@@ -131,8 +131,13 @@ def update_knowledge_link_status(
             is_side_visible(db_link.source_b_type, db_link.source_b_entity_id, db_link.source_b_chunk_id, user, db)):
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
 
-    db_link.status = update.status
-    db_link.reviewed_at = func.now()
+    if update.status is not None:
+        db_link.status = update.status
+        db_link.reviewed_at = func.now()
+    # Beschreibung ist unabhängig vom Status editierbar (leerer String löscht sie
+    # wieder) — Pendant zur gleichen Erweiterung bei entity_links.py::update_link_status.
+    if update.context is not None:
+        db_link.context = update.context.strip() or None
     db.commit()
     db.refresh(db_link)
     return serialize_knowledge_link(db_link)

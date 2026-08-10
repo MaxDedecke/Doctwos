@@ -934,7 +934,9 @@
       "docSearchPlaceholder": "Seitentitel suchen…",
       "saveButton": "Verknüpfung speichern",
       "genericError": "Fehler",
-      "networkError": "Netzwerkfehler"
+      "networkError": "Netzwerkfehler",
+      "descriptionLabel": "Beschreibung (optional)",
+      "descriptionPlaceholder": "Wie hängen die beiden inhaltlich zusammen?"
     },
     "noProjectSelected": "Kein Projekt ausgewählt",
     "selectProjectPlaceholder": "Projekt wählen",
@@ -946,6 +948,9 @@
       "rejected": "Keine abgelehnten Verknüpfungen"
     },
     "entityFallbackName": "Entity #{{id}}",
+    "contextPlaceholder": "Wie hängt das zusammen?",
+    "addDescriptionLabel": "+ Beschreibung",
+    "addDescriptionTitle": "Beschreibung hinzufügen",
     "actions": {
       "approve": "Bestätigen",
       "reject": "Ablehnen",

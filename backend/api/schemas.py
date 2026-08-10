@@ -138,7 +138,8 @@ class KnowledgeSourceUpdate(BaseModel):
 
 
 class LinkStatusUpdate(BaseModel):
-    status: str  # "approved" | "rejected"
+    status: Optional[str] = None    # "approved" | "rejected"
+    context: Optional[str] = None   # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt (F-032-Erweiterung)
 
 
 class LlmReviewRequest(BaseModel):
@@ -188,7 +189,8 @@ class KnowledgeLinkCreate(BaseModel):
 
 
 class KnowledgeLinkUpdate(BaseModel):
-    status: str  # "approved" | "rejected" | "pending"
+    status: Optional[str] = None    # "approved" | "rejected" | "pending"
+    context: Optional[str] = None   # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt
 
 
 class TopicCreate(BaseModel):

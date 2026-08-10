@@ -214,10 +214,17 @@ def update_link_status(
     assert_team_visible(proj.team_id, user, db, "Link nicht gefunden")
     assert_project_visible(link.project_id, user, db)
 
-    if body.status not in ("approved", "rejected"):
-        raise HTTPException(status_code=400, detail="Status must be 'approved' or 'rejected'")
-    link.status = body.status
-    link.reviewed_at = datetime.now(timezone.utc)
+    if body.status is not None:
+        if body.status not in ("approved", "rejected"):
+            raise HTTPException(status_code=400, detail="Status must be 'approved' or 'rejected'")
+        link.status = body.status
+        link.reviewed_at = datetime.now(timezone.utc)
+    # Beschreibung ist unabhängig vom Status editierbar (leerer String löscht sie
+    # wieder) — erlaubt Nutzern, präziser festzuhalten, wie Code und Dokument
+    # inhaltlich zusammenhängen, statt sich auf die automatische LLM-Begründung
+    # zu verlassen.
+    if body.context is not None:
+        link.context = body.context.strip() or None
     db.commit()
     return serialize_link(link)
 

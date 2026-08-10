@@ -934,7 +934,9 @@
       "docSearchPlaceholder": "Search page title…",
       "saveButton": "Save link",
       "genericError": "Error",
-      "networkError": "Network error"
+      "networkError": "Network error",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "How are the two related?"
     },
     "noProjectSelected": "No project selected",
     "selectProjectPlaceholder": "Select project",
@@ -946,6 +948,9 @@
       "rejected": "No rejected links"
     },
     "entityFallbackName": "Entity #{{id}}",
+    "contextPlaceholder": "How does this relate?",
+    "addDescriptionLabel": "+ Description",
+    "addDescriptionTitle": "Add description",
     "actions": {
       "approve": "Approve",
       "reject": "Reject",
