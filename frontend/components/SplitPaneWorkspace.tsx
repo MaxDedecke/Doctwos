@@ -270,7 +270,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           setLocalFileContent(res.data.content);
           setLocalFileContentFormat(res.data.format || "text");
         } else if (path && selectedProject?.repo_id) {
-          const res = await api.getFileContent(selectedProject.repo_id, path);
+          // selectedProject.repo_id ist die KnowledgeSource-id der Git-Quelle
+          // (siehe serialize_project) -- es gibt keinen eigenen
+          // "/repositories/.../file-content"-Endpunkt, siehe handleFileSelect
+          // in app/page.tsx für denselben Fix.
+          const res = await api.getKnowledgeSourceContent(selectedProject.repo_id, path);
           setLocalFileContent(res.data.content);
           setLocalFileContentFormat(res.data.format || "text");
         }

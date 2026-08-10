@@ -49,8 +49,6 @@ export const api = {
     attachRepository: (projectId: number, data: any) => axios.post(`${API_URL}/projects/${projectId}/repository`, data),
     detachRepository: (projectId: number) => axios.delete(`${API_URL}/projects/${projectId}/repository`),
     getProjectFiles: (id: number) => axios.get(`${API_URL}/projects/${id}/files`),
-    // repoId muss eine echte Repository.id sein (z.B. project.repo_id), keine Projekt-id — Route ist repo-scoped.
-    getFileContent: (repoId: number, path: string) => axios.get(`${API_URL}/repositories/${repoId}/file-content`, { params: { path } }),
     testConnector: (data: { type: string; username?: string; token: string; url?: string }) => axios.post(`${API_URL}/connectors/test`, data),
     getConnectorRepos: (data: { type: string; username?: string; token: string; url?: string }) => axios.post(`${API_URL}/connectors/repos`, data),
     getConnectorBranches: (data: { type: string; username?: string; token?: string; repo_name: string; url?: string }) => axios.post(`${API_URL}/connectors/branches`, data),

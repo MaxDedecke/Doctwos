@@ -1190,9 +1190,14 @@ function AppContent() {
           showToast(t('page.toast.documentLoaded', { name: cleanPath.split('/').pop() }), "success");
         }
       } else {
-        const res = await api.getFileContent(project.repo_id, cleanPath);
+        // project.repo_id ist die KnowledgeSource-id der Git-Quelle (siehe
+        // serialize_project in backend/api/serializers.py) -- es gibt keinen
+        // eigenen "/repositories/.../file-content"-Endpunkt, der Git-Worktree
+        // wird über den Knowledge-Source-Content-Endpunkt gelesen (siehe
+        // get_knowledge_source_content in backend/api/knowledge_sources.py).
+        const res = await api.getKnowledgeSourceContent(project.repo_id, cleanPath);
         content = res.data.content;
-        setFileContentFormat("text");
+        setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
         showToast(t('page.toast.fileLoaded', { name: cleanPath.split('/').pop() }), "success");
       }
       setFileContent(content);
