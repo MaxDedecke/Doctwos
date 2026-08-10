@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Check, Ban, Link2, Plus, RefreshCw, ExternalLink,
   Search, Loader2, AlertCircle, FileCode, Info, CheckCircle2,
-  MessageSquare, LayoutList, Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent,
+  MessageSquare, LayoutList, Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent, Sparkles,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -152,6 +152,7 @@ export function LinkManagerView({
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
   const [isAcceptingAll, setIsAcceptingAll] = useState(false);
+  const [reviewingLinkIds, setReviewingLinkIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: 'info' | 'success' | 'empty'; text: string } | null>(null);
   const [showManualForm, setShowManualForm] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -455,6 +456,36 @@ export function LinkManagerView({
       showToast?.(t('linkManagerView.toast.acceptAllSuccess', { count: succeeded.length }), 'success');
     }
     setIsAcceptingAll(false);
+  };
+
+  // Lets the user re-check a single suggestion via LLM on demand instead of waiting
+  // for the next full compute run — updates score (and reason, as `context`) to the
+  // LLM's judgement in place, leaves status untouched (user still decides approve/reject).
+  const llmReviewLink = async (link: UnifiedLink) => {
+    if (reviewingLinkIds.has(link.id)) return;
+    setReviewingLinkIds(prev => new Set(prev).add(link.id));
+    const url = link.kind === 'entity'
+      ? `${API_URL}/entity-doc-links/${link.rawId}/llm-review`
+      : `${API_URL}/knowledge-links/${link.rawId}/llm-review`;
+    try {
+      const res = await fetch(url, { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        showToast?.(err?.detail || t('linkManagerView.toast.llmReviewFailed'), 'error');
+        return;
+      }
+      const updated = await res.json();
+      if (link.kind === 'entity') {
+        setEntityLinks(prev => prev.map(l => l.id === link.rawId ? { ...l, score: updated.score, context: updated.context } : l));
+      } else {
+        setKnowledgeLinks(prev => prev.map(l => l.id === link.rawId ? { ...l, score: updated.score, context: updated.context } : l));
+      }
+      showToast?.(t('linkManagerView.toast.llmReviewDone', { pct: Math.round((updated.score ?? 0) * 100) }), 'success');
+    } catch {
+      showToast?.(t('linkManagerView.toast.llmReviewFailed'), 'error');
+    } finally {
+      setReviewingLinkIds(prev => { const next = new Set(prev); next.delete(link.id); return next; });
+    }
   };
 
   const deleteLink = async (link: UnifiedLink) => {
@@ -1017,6 +1048,10 @@ export function LinkManagerView({
                         <div className="flex items-center gap-1 shrink-0 pt-0.5">
                           {tab === 'pending' && (
                             <>
+                              <button onClick={() => llmReviewLink(link)} disabled={reviewingLinkIds.has(link.id)} title={t('linkManagerView.actions.llmReview')}
+                                className={cn('p-1.5 rounded-md transition-colors disabled:opacity-40', ghostBtn)}>
+                                {reviewingLinkIds.has(link.id) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                              </button>
                               <button onClick={() => updateLinkStatus(link, 'approved')} title={t('linkManagerView.actions.approve')}
                                 className={cn('p-1.5 rounded-md transition-colors', actionApprove)}><Check className="w-3.5 h-3.5" /></button>
                               <button onClick={() => updateLinkStatus(link, 'rejected')} title={t('linkManagerView.actions.reject')}

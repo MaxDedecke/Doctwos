@@ -951,7 +951,8 @@
       "reject": "Ablehnen",
       "remove": "Entfernen",
       "reapprove": "Doch bestätigen",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "llmReview": "Mit LLM prüfen"
     },
     "noResultsAutoLinkHint": "Klicke „{{action}}\" um automatisch nach Verknüpfungen zu suchen.",
     "computeMessages": {
@@ -964,7 +965,9 @@
       "reapproved": "Verknüpfung zu „{{title}}\" wieder bestätigt.",
       "acceptAllSuccess": "{{count}} Verknüpfung(en) mit 100 % automatisch bestätigt.",
       "acceptAllPartial": "{{failed}} Verknüpfung(en) konnten nicht bestätigt werden.",
-      "updateFailed": "Verknüpfung konnte nicht aktualisiert werden."
+      "updateFailed": "Verknüpfung konnte nicht aktualisiert werden.",
+      "llmReviewDone": "LLM-Prüfung abgeschlossen — neue Wahrscheinlichkeit: {{pct}} %.",
+      "llmReviewFailed": "LLM-Prüfung fehlgeschlagen."
     }
   },
   "topicsPanel": {

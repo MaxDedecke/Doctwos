@@ -9,6 +9,7 @@ from core.config import celery_app
 from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
+from services.ollama_client import ask_llm_json
 from sqlalchemy.sql import func
 
 router = APIRouter(prefix="/knowledge-links", tags=["knowledge-links"])
@@ -134,6 +135,61 @@ def update_knowledge_link_status(
     db.commit()
     db.refresh(db_link)
     return serialize_knowledge_link(db_link)
+
+@router.post("/{link_id}/llm-review")
+async def llm_review_knowledge_link(
+    link_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    Bewertet ein einzelnes Knowledge-Link-Paar erneut per LLM (Nutzer-Klick im
+    Link Manager, nicht Teil des Batch-Scans) — Pendant zu
+    entity_links.py::llm_review_link, Prompt-Stil analog
+    parser/tasks/cross_link_builder.py::_llm_review_pair, aber für ein
+    einzelnes Paar statt den vollen Cross-Source-Scan. Ändert bewusst nicht
+    den Status — der Nutzer entscheidet danach selbst per Bestätigen/Ablehnen.
+    """
+    db_link = db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id).first()
+    if not db_link:
+        raise HTTPException(status_code=404, detail="Link nicht gefunden")
+
+    if not (is_side_visible(db_link.source_a_type, db_link.source_a_entity_id, db_link.source_a_chunk_id, user, db) and
+            is_side_visible(db_link.source_b_type, db_link.source_b_entity_id, db_link.source_b_chunk_id, user, db)):
+        raise HTTPException(status_code=404, detail="Link nicht gefunden")
+
+    if not (db_link.source_a_chunk_id and db_link.source_b_chunk_id):
+        raise HTTPException(status_code=400, detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden")
+
+    chunk_a = db.query(DocumentChunk).filter(DocumentChunk.id == db_link.source_a_chunk_id).first()
+    chunk_b = db.query(DocumentChunk).filter(DocumentChunk.id == db_link.source_b_chunk_id).first()
+    if not chunk_a or not chunk_b:
+        raise HTTPException(status_code=404, detail="Verknüpfte Dokument-Chunks nicht mehr vorhanden")
+
+    prompt = (
+        "Du bewertest, ob zwei Dokument-Ausschnitte aus unterschiedlichen Quellen wirklich inhaltlich zusammenhängen.\n\n"
+        f"Dokument A [{db_link.source_a_source_type or '—'}] \"{db_link.source_a_title}\": {(chunk_a.content or '')[:300]}\n\n"
+        f"Dokument B [{db_link.source_b_source_type or '—'}] \"{db_link.source_b_title}\": {(chunk_b.content or '')[:300]}\n\n"
+        "Antworte NUR mit einem JSON-Objekt der Form "
+        '{"confidence": <Ganzzahl 0-100>, "reason": "<kurze Begründung auf Deutsch>"}.'
+    )
+
+    try:
+        data = await ask_llm_json(prompt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM-Prüfung fehlgeschlagen: {e}")
+
+    confidence = data.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        raise HTTPException(status_code=502, detail="LLM lieferte keine gültige Konfidenz")
+
+    db_link.score = round(max(0.0, min(100.0, float(confidence))) / 100.0, 4)
+    if data.get("reason"):
+        db_link.context = data["reason"]
+    db.commit()
+    db.refresh(db_link)
+    return serialize_knowledge_link(db_link)
+
 
 @router.delete("/{link_id}")
 def delete_knowledge_link(

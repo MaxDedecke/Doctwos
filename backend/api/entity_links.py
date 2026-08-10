@@ -8,6 +8,7 @@ Endpunkte:
     POST /projects/{project_id}/link-recommendations   — Manuellen Link anlegen (sofort "approved")
     POST /projects/{project_id}/link-recommendations/compute — Link-Berechnung starten (Celery)
     PATCH /entity-doc-links/{id}                        — Status auf "approved" / "rejected" setzen
+    POST /entity-doc-links/{id}/llm-review              — Einzelnen Link erneut vom LLM bewerten lassen
     DELETE /entity-doc-links/{id}                       — Link löschen
     GET  /projects/{project_id}/entities/{id}/links    — Alle approved Links einer Entity
     GET  /projects/{project_id}/doc-chunks/search      — Dokument-Chunks durchsuchen (für Titel-Picker)
@@ -29,6 +30,7 @@ from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeS
 from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
+from services.ollama_client import ask_llm_json
 
 
 def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
@@ -217,6 +219,63 @@ def update_link_status(
     link.reviewed_at = datetime.now(timezone.utc)
     db.commit()
     return serialize_link(link)
+
+
+@router.post("/entity-doc-links/{link_id}/llm-review")
+async def llm_review_link(
+    link_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """
+    Bewertet einen einzelnen Link erneut per LLM (auf Nutzer-Klick im Link Manager,
+    nicht Teil des Batch-Scans in parser/tasks/link_builder.py). Ersetzt score/context
+    durch das LLM-Urteil, ändert aber bewusst NICHT den Status — der Nutzer entscheidet
+    danach selbst per Bestätigen/Ablehnen.
+    """
+    link = db.query(EntityDocLink).filter(EntityDocLink.id == link_id).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="Link nicht gefunden")
+
+    proj = db.query(Project).filter(Project.id == link.project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_team_visible(proj.team_id, user, db, "Link nicht gefunden")
+    assert_project_visible(link.project_id, user, db)
+
+    entity = db.query(CodeEntity).filter(CodeEntity.id == link.entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Code-Entity nicht gefunden")
+
+    chunk = db.query(DocumentChunk).filter(DocumentChunk.id == link.chunk_id).first() if link.chunk_id else None
+    if not chunk:
+        raise HTTPException(status_code=400, detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden")
+
+    prompt = (
+        "Du bist ein Programmier- und Code-Dokumentations-Experte.\n"
+        "Bewerte, wie relevant der folgende Dokumentationsabschnitt für diese Code-Entity ist:\n"
+        f"Entity: [{entity.type}] {entity.name} in Datei '{entity.file_path}'\n\n"
+        f"Dokument [{link.source_type or '—'}] '{link.doc_title}':\n{(chunk.content or '')[:250]}...\n\n"
+        "Antworte NUR mit einem JSON-Objekt der Form "
+        '{"confidence": <Ganzzahl 0-100, wie sicher du bezüglich der Relevanz bist>, '
+        '"reason": "<kurze Begründung auf Deutsch, 1-2 Sätze>"}.'
+    )
+
+    try:
+        data = await ask_llm_json(prompt)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM-Prüfung fehlgeschlagen: {e}")
+
+    confidence = data.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        raise HTTPException(status_code=502, detail="LLM lieferte keine gültige Konfidenz")
+
+    link.score = round(max(0.0, min(100.0, float(confidence))) / 100.0, 4)
+    if data.get("reason"):
+        link.context = data["reason"]
+    db.commit()
+    db.refresh(link)
+    return serialize_link(link, entity)
 
 
 @router.delete("/entity-doc-links/{link_id}")

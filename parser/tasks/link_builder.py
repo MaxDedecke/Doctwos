@@ -11,7 +11,11 @@ Pass 2 — Keyword:    Token-Suche: Entity-Name und Dateipfad werden aufgesplitt
 
 Die beiden Ergebnisse werden gemergt (höchster Score pro Seite gewinnt). Jede
 EntityDocLink bekommt einen link_type ("semantic" | "keyword"), der im
-Link-Manager-Frontend angezeigt wird.
+Link-Manager-Frontend angezeigt wird. An das LLM (Pass 3) geht dabei jeder
+gemergte Kandidat mit heuristischem Score über MERGE_SCORE_THRESHOLD (90%) —
+kein Top-N-Deckel mehr, damit ein Entity mit vielen sehr ähnlichen Treffern
+nicht willkürlich welche davon verliert (Nutzerentscheidung 10.08.2026, löst
+den bisherigen TOP_PAGES=5-Deckel ab).
 
 Pass 3 — LLM-Review:  Ein LLM-Call pro Entity bewertet die gemergten Kandidaten,
                        verwirft schwache/falsche Treffer und schreibt eine echte
@@ -51,7 +55,12 @@ MIN_SCORE_KEYWORD = 0.30
 LOCK_LEASE_SECONDS = 120
 TOP_CHUNKS_SEMANTIC = 20
 TOP_CHUNKS_KEYWORD = 50
-TOP_PAGES = 5
+# Ersetzt den früheren TOP_PAGES=5-Deckel: statt der besten 5 Kandidaten geht
+# jeder gemergte Kandidat mit heuristischem Score über dieser Schwelle ans LLM
+# (Pass 1/2-Scores sind bereits auf 0..1 normiert, siehe MIN_SCORE_SEMANTIC/
+# MIN_SCORE_KEYWORD oben). Kandidatenzahl bleibt trotzdem natürlich begrenzt
+# durch TOP_CHUNKS_SEMANTIC/TOP_CHUNKS_KEYWORD.
+MERGE_SCORE_THRESHOLD = 0.90
 LLM_MIN_CONFIDENCE = 35
 
 
@@ -142,7 +151,7 @@ def _merge_passes(*passes) -> list[tuple[DocumentChunk, float, str]]:
                 merged[title] = (chunk, score, name)
 
     sorted_pages = sorted(merged.values(), key=lambda x: x[1], reverse=True)
-    return sorted_pages[:TOP_PAGES]
+    return [page for page in sorted_pages if page[1] > MERGE_SCORE_THRESHOLD]
 
 
 async def _llm_review(
@@ -216,8 +225,8 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
       Pass 1 — semantic:   cosine similarity via embeddings
       Pass 2 — keyword:    token match of entity name/path against chunk content
 
-    Results are merged (highest score per page wins), capped at TOP_PAGES per entity.
-    Approved/rejected links are never touched.
+    Results are merged (highest score per page wins), kept if the score is above
+    MERGE_SCORE_THRESHOLD per entity. Approved/rejected links are never touched.
 
     run_id points at a LinkBuilderRun row (created by the caller as "pending")
     that this function updates to running/completed/failed — without it, a crash

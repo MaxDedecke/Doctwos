@@ -951,7 +951,8 @@
       "reject": "Reject",
       "remove": "Remove",
       "reapprove": "Approve anyway",
-      "delete": "Delete"
+      "delete": "Delete",
+      "llmReview": "Check with LLM"
     },
     "noResultsAutoLinkHint": "Click \"{{action}}\" to automatically search for links.",
     "computeMessages": {
@@ -964,7 +965,9 @@
       "reapproved": "Link to \"{{title}}\" confirmed again.",
       "acceptAllSuccess": "{{count}} link(s) with 100% match confirmed automatically.",
       "acceptAllPartial": "{{failed}} link(s) could not be confirmed.",
-      "updateFailed": "Couldn't update the link."
+      "updateFailed": "Couldn't update the link.",
+      "llmReviewDone": "LLM review complete — new probability: {{pct}}%.",
+      "llmReviewFailed": "LLM review failed."
     }
   },
   "topicsPanel": {
