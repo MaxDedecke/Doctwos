@@ -29,7 +29,7 @@ interface GlobalSearchProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (val: boolean) => void;
   setIsSettingsOpen: (val: boolean) => void;
-  setIsLinkManagerOpen: (val: boolean) => void;
+  onOpenLinkManager: () => void;
   onOpenGraphView: () => void;
   panelConfigs: string[];
   onAddPanel: (type: string) => void;
@@ -37,7 +37,7 @@ interface GlobalSearchProps {
   onProjectSelect: (project: any) => void;
 }
 
-const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview'] as const;
+const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager'] as const;
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
 const GROUP_ICONS: Record<string, any> = {
@@ -56,7 +56,7 @@ export function GlobalSearch({
   isSidebarOpen,
   setIsSidebarOpen,
   setIsSettingsOpen,
-  setIsLinkManagerOpen,
+  onOpenLinkManager,
   onOpenGraphView,
   panelConfigs,
   onAddPanel,
@@ -481,7 +481,10 @@ export function GlobalSearch({
                     state (see page.tsx's renderPanel — chatMessages/activeSessionId
                     are global, not indexed by panel), so a second one would just
                     mirror the first and can never be closed. Hide it once one exists. */}
-                {ADD_VIEW_TYPES.filter(type => type !== 'chat' || !panelConfigs.includes('chat')).map((type) => (
+                {ADD_VIEW_TYPES.filter(type =>
+                  (type !== 'chat' || !panelConfigs.includes('chat')) &&
+                  (type !== 'linkmanager' || features.views.linkManager)
+                ).map((type) => (
                   <button
                     key={type}
                     onClick={() => { onAddPanel(type); setIsAddViewOpen(false); }}
@@ -521,7 +524,7 @@ export function GlobalSearch({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsLinkManagerOpen(true)}
+            onClick={onOpenLinkManager}
             className={cn(
               "h-8 w-8 rounded-lg border transition-all duration-200",
               theme === 'dark'

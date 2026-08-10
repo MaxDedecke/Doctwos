@@ -91,7 +91,8 @@
       "doc": "📖 Documentation",
       "graph": "🕸️ Knowledge graph",
       "callgraph": "🔀 Call graph",
-      "webview": "🌐 Web preview"
+      "webview": "🌐 Web preview",
+      "linkmanager": "🔗 Link manager"
     },
     "focusBar": {
       "none": "No object focused",

@@ -58,8 +58,6 @@ interface KnowledgeLink {
 interface LinkCounts { pending: number; approved: number; rejected: number; }
 
 interface LinkManagerViewProps {
-  isOpen: boolean;
-  onClose: () => void;
   selectedProject: { id: number; name: string } | null;
   theme: string;
   currentUser?: { is_admin?: boolean } | null;
@@ -131,7 +129,7 @@ function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function LinkManagerView({
-  isOpen, onClose, selectedProject, theme, currentUser,
+  selectedProject, theme, currentUser,
   projects = [], onSelectProject, llmProfiles = [], activeProfileId, setActiveProfileId, showToast,
 }: LinkManagerViewProps) {
   const { t } = useLanguage();
@@ -188,8 +186,6 @@ export function LinkManagerView({
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
 
-  const overlay      = isDark ? 'bg-ds-black/60'                : 'bg-ds-black/30';
-  const modalBg      = isDark ? 'bg-ds-zinc-900 border-ds-zinc-700': 'bg-ds-white border-ds-zinc-200';
   const divider      = isDark ? 'border-ds-zinc-800'            : 'border-ds-zinc-200';
   const titleText    = isDark ? 'text-ds-zinc-100'              : 'text-ds-zinc-900';
   const subText      = isDark ? 'text-ds-zinc-500'              : 'text-ds-zinc-500';
@@ -286,19 +282,19 @@ export function LinkManagerView({
   }, [tab, minScore]);
 
   useEffect(() => {
-    if (isOpen && segment === 'links') {
+    if (segment === 'links') {
       (async () => {
         await Promise.all([fetchEntityLinks(), fetchKnowledgeLinks()]);
       })();
     }
-  }, [isOpen, segment, fetchEntityLinks, fetchKnowledgeLinks]);
+  }, [segment, fetchEntityLinks, fetchKnowledgeLinks]);
 
   useEffect(() => {
-    if (isOpen && projectId && manualKind === 'entity' && entities.length === 0) {
+    if (projectId && manualKind === 'entity' && entities.length === 0) {
       fetch(`${API_URL}/projects/${projectId}/entities`, { credentials: 'include' })
         .then(r => r.json()).then(setEntities).catch(() => {});
     }
-  }, [isOpen, projectId, manualKind, entities.length]);
+  }, [projectId, manualKind, entities.length]);
 
   useEffect(() => {
     if (!projectId || !docSearchQuery.trim()) {
@@ -625,8 +621,6 @@ export function LinkManagerView({
     rejected: entityCounts.rejected + knowledgeCounts.rejected,
   };
 
-  if (!isOpen) return null;
-
   // ── Doc picker sub-render (reused for entity-doc and doc-doc forms) ────────
 
   const renderDocPicker = (query: string, setQuery: (v: string) => void, results: any[], selected: any | null, setSelected: (v: any | null) => void) => (
@@ -695,14 +689,7 @@ export function LinkManagerView({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className={cn('fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm', overlay)}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-        transition={{ duration: 0.15 }}
-        className={cn('border rounded-lg shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col mx-4', modalBg)}
-      >
+    <div className="h-full flex flex-col min-h-0">
         {/* ── Header ── */}
         <div className={cn('flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b shrink-0 gap-3', divider)}>
           <div className="flex items-center gap-3">
@@ -825,12 +812,6 @@ export function LinkManagerView({
                 </button>
               </>
             )}
-
-            <div className={cn('hidden sm:block w-px h-4 mx-1', divider)} />
-            <button onClick={onClose}
-              className={cn('ml-auto p-1.5 rounded-md transition-colors', isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-200 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-700 hover:bg-ds-zinc-100')}>
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -1093,7 +1074,6 @@ export function LinkManagerView({
             </>
           )
         )}
-      </motion.div>
     </div>
   );
 }

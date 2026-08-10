@@ -229,7 +229,6 @@ function AppContent() {
 
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isLinkManagerOpen, setIsLinkManagerOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState('repos');
   const [theme, setTheme] = useState('dark');
   useEffect(() => {
@@ -1068,7 +1067,6 @@ function AppContent() {
     setPanelFocusObject([null]);
     setSplitPercent(45);
     setWorkspaceSplit("45/55");
-    setIsLinkManagerOpen(false);
     setIsSettingsOpen(false);
   };
 
@@ -1842,6 +1840,14 @@ function AppContent() {
     }
   };
 
+  // Analog zu handleOpenGraphView, aber ohne Chat-Reset/Frozen-Sonderfall —
+  // der Link Manager hängt an keiner Datei-/Dokumentauswahl, ein einfaches
+  // "Panel öffnen falls noch nicht offen" reicht.
+  const handleOpenLinkManager = () => {
+    setActiveMobileTab('editor');
+    ensurePanelType('linkmanager');
+  };
+
   const handleDividerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
@@ -1977,6 +1983,9 @@ function AppContent() {
                 <SelectItem value="graph" className="text-xs">{t('page.viewTypes.graph')}</SelectItem>
                 <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
                 <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
+                {features.views.linkManager && (
+                  <SelectItem value="linkmanager" className="text-xs">{t('page.viewTypes.linkmanager')}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -2070,7 +2079,7 @@ function AppContent() {
         {/* Focus Bar — always shows which knowledge object (file, doc, code entity,
             graph node, fokussiertes Objekt, ...) the panel below currently relates to, so the
             user can tell context apart at a glance regardless of which view is active. */}
-        {contentType !== 'doc' && contentType !== 'webview' && (
+        {contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && (
           <div className={cn(
             "px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0",
             theme === 'dark' ? "border-ds-zinc-900 bg-ds-zinc-950/40" : "border-ds-zinc-200 bg-ds-zinc-50/40"
@@ -2278,6 +2287,20 @@ function AppContent() {
             />
           )}
 
+          {contentType === 'linkmanager' && (
+            <LinkManagerView
+              selectedProject={selectedProject}
+              theme={theme}
+              currentUser={currentUser}
+              projects={projects}
+              onSelectProject={handleProjectSelect}
+              llmProfiles={llmProfiles}
+              activeProfileId={activeProfileId}
+              setActiveProfileId={setActiveProfileId}
+              showToast={showToast}
+            />
+          )}
+
         </div>
       </div>
     );
@@ -2331,23 +2354,6 @@ function AppContent() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Link Manager */}
-      {features.views.linkManager && (
-        <LinkManagerView
-          isOpen={isLinkManagerOpen}
-          onClose={() => setIsLinkManagerOpen(false)}
-          selectedProject={selectedProject}
-          theme={theme}
-          currentUser={currentUser}
-          projects={projects}
-          onSelectProject={handleProjectSelect}
-          llmProfiles={llmProfiles}
-          activeProfileId={activeProfileId}
-          setActiveProfileId={setActiveProfileId}
-          showToast={showToast}
-        />
-      )}
 
       {/* Advanced Settings Modal Dialog */}
       <SettingsProvider
@@ -2408,7 +2414,7 @@ function AppContent() {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         setIsSettingsOpen={setIsSettingsOpen}
-        setIsLinkManagerOpen={setIsLinkManagerOpen}
+        onOpenLinkManager={handleOpenLinkManager}
         onOpenGraphView={handleOpenGraphView}
         panelConfigs={panelConfigs}
         onAddPanel={addPanel}
