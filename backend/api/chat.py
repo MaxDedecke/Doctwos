@@ -39,7 +39,11 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, Team, User
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
-from core.projects import assert_project_visible, resolve_repository_id, get_visible_project_ids
+from core.projects import (
+    assert_project_visible, resolve_repository_id, get_visible_project_ids,
+    build_document_chunk_code_gate, get_globally_exposed_project_ids,
+    is_document_chunk_code_visible_in_context,
+)
 from services.graph_retrieval import expand_chunks_with_graph
 
 logger = logging.getLogger(__name__)
@@ -153,6 +157,16 @@ def _hybrid_chunk_search(base_query, query_embedding: list, query_text: str, lim
         )
 
     return picked
+
+
+def _gate_graph_neighbors(db: Session, chunks: List[DocumentChunk], requesting_project_id: Optional[int]) -> List[DocumentChunk]:
+    """Filters graph-expanded chunks (see expand_chunks_with_graph) against the same
+    per-project code-visibility opt-in used in graph.py/search.py. CALL/COPY edges are
+    resolved globally (E-1 in docs/ENTSCHEIDUNGEN.md), so a neighbor chunk pulled in via
+    graph expansion can belong to a DIFFERENT project than the one the initial vector
+    search was scoped to -- this closes that leak regardless of which chat branch ran.
+    No-op for non-Git-sourced chunks (documentation stays cross-project as designed)."""
+    return [c for c in chunks if is_document_chunk_code_visible_in_context(c, requesting_project_id, db)]
 
 
 def _chunk_header(r: DocumentChunk) -> str:
@@ -388,6 +402,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         )
                         results = _hybrid_chunk_search(base_query, query_embedding, query_text, 4)
                         results = expand_chunks_with_graph(db, results)
+                        results = _gate_graph_neighbors(db, results, request.project_id)
                         context = "\n\n".join([
                             f"<untrusted_source path=\"{r.file_path}\">\nFile: {_chunk_header(r)}\n{r.content}\n</untrusted_source>"
                             for r in results
@@ -414,6 +429,10 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         )
                         repo_results = _hybrid_chunk_search(repo_base_query, query_embedding, query_text, 4)
                         repo_results = expand_chunks_with_graph(db, repo_results)
+                        # CALL/COPY-Nachbarn werden global aufgelöst (E-1) und können daher aus
+                        # einem ANDEREN, nicht für "Allgemein" freigegebenen Projekt stammen, auch
+                        # wenn der Ausgangs-Treffer sauber auf request.project_id gescoped war.
+                        repo_results = _gate_graph_neighbors(db, repo_results, request.project_id)
 
                         project_source_results = []
                         if project_source_ids:
@@ -422,6 +441,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             )
                             project_source_results = _hybrid_chunk_search(project_source_base_query, query_embedding, query_text, 4)
                             project_source_results = expand_chunks_with_graph(db, project_source_results)
+                            project_source_results = _gate_graph_neighbors(db, project_source_results, request.project_id)
 
                         global_results = []
                         if global_ids:
@@ -430,6 +450,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             )
                             global_results = _hybrid_chunk_search(global_base_query, query_embedding, query_text, 2)
                             global_results = expand_chunks_with_graph(db, global_results)
+                            global_results = _gate_graph_neighbors(db, global_results, request.project_id)
 
                         results = repo_results + project_source_results + global_results
 
@@ -469,12 +490,28 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         # Projekt — die Knowledge-Graph-Ansicht zeigt in diesem Modus
                         # bereits alle sichtbaren Projekte als ein Netz, das Retrieval
                         # soll dieselbe Sicht widerspiegeln, statt fast immer leer zu
-                        # bleiben.
+                        # bleiben. ABER: echte Repo-Quelldateien (Code-Analyse-Inhalt) sind
+                        # projektspezifisch und dürfen hier nur auftauchen, wenn das jeweilige
+                        # Projekt explizit dafür freigegeben ist (Project.expose_code_analysis_
+                        # globally) — dasselbe Opt-in-Gate wie in graph.py/search.py, bisher hier
+                        # fehlend. Echte Wissensquellen (Confluence/Jira/Upload) bleiben davon
+                        # unberührt projektübergreifend durchsuchbar, siehe build_document_chunk_code_gate.
                         visible_project_ids = get_visible_project_ids(user, db)
                         global_ids = [g.id for g in global_source_ids]
+
+                        exposed_project_ids = get_globally_exposed_project_ids(db)
+                        if visible_project_ids is not None:
+                            exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
+                        elif team_ids is not None:
+                            team_project_ids = {p[0] for p in db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()}
+                            exposed_project_ids = [pid for pid in exposed_project_ids if pid in team_project_ids]
+                        code_gate = build_document_chunk_code_gate(db, exposed_project_ids)
+
                         results = []
                         if visible_project_ids is None:
                             base_query = db.query(DocumentChunk)
+                            if code_gate is not None:
+                                base_query = base_query.filter(code_gate)
                             results = _hybrid_chunk_search(base_query, query_embedding, query_text, 6)
                             results = expand_chunks_with_graph(db, results)
                         else:
@@ -485,8 +522,15 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                                 scope_filters.append(DocumentChunk.source_id.in_(global_ids))
                             if scope_filters:
                                 base_query = db.query(DocumentChunk).filter(or_(*scope_filters))
+                                if code_gate is not None:
+                                    base_query = base_query.filter(code_gate)
                                 results = _hybrid_chunk_search(base_query, query_embedding, query_text, 6)
                                 results = expand_chunks_with_graph(db, results)
+
+                        # Post-Filter nach der Graph-Expansion: CALL/COPY-Nachbarn werden global
+                        # aufgelöst (E-1) und können trotz des SQL-Gates oben einen Chunk aus
+                        # einem nicht freigegebenen Projekt nachziehen.
+                        results = _gate_graph_neighbors(db, results, None)
 
                         result_project_ids = sorted({r.project_id for r in results if r.project_id is not None})
                         projects_by_id = {}
