@@ -178,6 +178,18 @@ const parseTextSegment = (
         }
       }
 
+      // A model frequently cites just the bare filename (`DISPATCHER.cbl`) instead of the
+      // full repo-relative path -- mirrors the by_basename fallback in _resolve_cited_sources
+      // (backend/api/chat.py) that already resolved this same citation to its full path in
+      // knownSources. Without this, the exact-match lookup above misses, the button falls
+      // back to the bare filename as its fetch path, and the editor opens empty (file not
+      // found at repo root) instead of the actual nested file.
+      if (!knownSource && knownSources && /\.\w+$/.test(filePath)) {
+        const baseName = filePath.toLowerCase().split('/').pop();
+        knownSource = knownSources.find(s => (s.file.split('/').pop() || '').toLowerCase() === baseName);
+        if (knownSource) filePath = knownSource.file;
+      }
+
       const isFile = knownSource !== undefined || /\b[\w\-\.\/]+\.(py|cob|cbl|cpy|java|js|ts|json|md|txt|yml|yaml|css|html|pdf|docx|doc|jcl|proc)\b/i.test(filePath);
       if (isFile) {
         const isDoc = knownSource !== undefined || /\.(pdf|docx|doc|md|txt)$/i.test(filePath);
