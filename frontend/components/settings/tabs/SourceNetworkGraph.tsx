@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { AlertCircle, Loader2, Waypoints } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Waypoints } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { DoctusIcon } from '@/components/Logo';
 import { getConnectorMetadata } from '@/lib/sourceConnectors';
@@ -68,6 +68,13 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
   const DOCTUS_Y = 50;
   const NODE_X = 88;
 
+  // Anteilige Position entlang jeder Kante, an der ein kleiner Pfeil sitzt.
+  // Gerade Linien statt Bezier-Kurven, damit die Pfeile nicht rotiert werden
+  // müssen (siehe Kommentar unten) — bei bis zu MAX_VISIBLE_NODES Kanten, die
+  // alle auf denselben Hub-Punkt zulaufen, ist ein einfacher Fächer optisch
+  // genauso klar wie eine S-Kurve.
+  const ARROW_FRACTIONS = [0.22, 0.5, 0.78];
+
   const edgeColor = (status: Node['status']) => {
     if (status === 'error') return theme === 'dark' ? '#f87171' : '#dc2626';
     if (status === 'syncing') return theme === 'dark' ? '#60a5fa' : '#2563eb';
@@ -103,54 +110,66 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
         </div>
       ) : (
         <div className="relative w-full" style={{ height: Math.max(count * 56, 140) }}>
-          {/* Kanten-Layer: reine SVG-Overlay, Knoten selbst sind normales HTML (siehe unten) */}
+          {/* Kanten-Layer: dünner statischer "Draht" als SVG-Overlay. Die eigentliche
+              Richtungsanzeige übernehmen die kleinen Pfeil-Icons weiter unten (als
+              normales HTML statt SVG-Marker, damit sie unter preserveAspectRatio="none"
+              nicht mitverzerrt werden). */}
           <svg
             className="absolute inset-0 w-full h-full overflow-visible"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
           >
-            <defs>
-              {nodes.map((node) => (
-                <marker
-                  key={`marker-${node.id}`}
-                  id={`arrow-${node.id}`}
-                  viewBox="0 0 10 10"
-                  refX="8"
-                  refY="5"
-                  markerWidth="5"
-                  markerHeight="5"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M0,0 L10,5 L0,10 z" fill={edgeColor(node.status)} />
-                </marker>
-              ))}
-            </defs>
             {nodes.map((node, i) => {
               const y = nodeY(i);
-              const x1 = NODE_X, y1 = y;
-              const x2 = DOCTUS_X + 4, y2 = DOCTUS_Y;
-              // sanfte S-Kurve statt gerader Linie, damit sich die Kanten am Hub nicht überlappen
-              const dx = (x1 - x2) * 0.5;
-              const d = `M ${x1} ${y1} C ${x1 - dx} ${y1}, ${x2 + dx} ${y2}, ${x2} ${y2}`;
-              const color = edgeColor(node.status);
               return (
-                <path
+                <line
                   key={node.id}
-                  d={d}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth={node.status === 'syncing' ? 0.6 : 0.45}
-                  strokeLinecap="round"
-                  strokeDasharray="2.2 2.2"
-                  markerEnd={`url(#arrow-${node.id})`}
-                  className={cn(
-                    node.status === 'syncing' ? "animate-ds-flow-fast" : node.status === 'error' ? "" : "animate-ds-flow"
-                  )}
-                  opacity={node.status === 'error' ? 0.7 : 0.85}
+                  x1={NODE_X}
+                  y1={y}
+                  x2={DOCTUS_X + 4}
+                  y2={DOCTUS_Y}
+                  stroke={edgeColor(node.status)}
+                  strokeWidth={0.35}
+                  opacity={node.status === 'error' ? 0.35 : 0.25}
                 />
               );
             })}
           </svg>
+
+          {/* Pfeil-Ebene: pro Kante ein paar kleine, versetzt pulsierende Pfeile statt
+              einer gestrichelten Linie — dadurch ist die Flussrichtung auf einen Blick
+              erkennbar statt nur "irgendein Strich". Aktuell immer Quelle -> Doctus
+              (node.direction === 'in'); für eine künftige Rückrichtung wählt ArrowIcon
+              bereits pro Knoten das passende Symbol. */}
+          {nodes.map((node, i) => {
+            const y1 = nodeY(i);
+            const x1 = NODE_X, x2 = DOCTUS_X + 4, y2 = DOCTUS_Y;
+            const color = edgeColor(node.status);
+            const ArrowIcon = node.direction === 'out' ? ArrowRight : ArrowLeft;
+            const speedClass = node.status === 'error'
+              ? ""
+              : node.status === 'syncing' ? "animate-ds-arrow-pulse-fast" : "animate-ds-arrow-pulse";
+            return ARROW_FRACTIONS.map((f, arrowIdx) => {
+              const x = x1 + (x2 - x1) * f;
+              const py = y1 + (y2 - y1) * f;
+              return (
+                <div
+                  key={`${node.id}-${arrowIdx}`}
+                  className={cn("absolute", speedClass)}
+                  style={{
+                    left: `${x}%`,
+                    top: `${py}%`,
+                    color,
+                    opacity: node.status === 'error' ? 0.4 : undefined,
+                    transform: node.status === 'error' ? 'translate(-50%, -50%)' : undefined,
+                    animationDelay: node.status === 'error' ? undefined : `${arrowIdx * 0.28 + i * 0.06}s`,
+                  }}
+                >
+                  <ArrowIcon className="w-3 h-3" strokeWidth={2.75} />
+                </div>
+              );
+            });
+          })}
 
           {/* Doctus-Hub */}
           <div

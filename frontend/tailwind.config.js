@@ -103,17 +103,19 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        // Bewegt das Kanten-Dash-Muster entlang des SVG-Pfads (Quelle -> Doctus),
-        // um im Quellen-Netzwerk-Graph die Informationsrichtung sichtbar zu machen.
-        "ds-flow": {
-          to: { strokeDashoffset: "-17.6" },
+        // Lässt die kleinen Richtungspfeile im Quellen-Netzwerk-Graph nacheinander
+        // aufblitzen und dabei minimal Richtung Doctus rutschen — mehrere Pfeile
+        // mit versetztem animationDelay ergeben so einen "fließenden" Eindruck.
+        "ds-arrow-pulse": {
+          "0%, 100%": { opacity: "0", transform: "translate(-50%, -50%) translateX(3px)" },
+          "50%": { opacity: "1", transform: "translate(-50%, -50%) translateX(-3px)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "ds-flow": "ds-flow 1.4s linear infinite",
-        "ds-flow-fast": "ds-flow 0.5s linear infinite",
+        "ds-arrow-pulse": "ds-arrow-pulse 1.6s ease-in-out infinite",
+        "ds-arrow-pulse-fast": "ds-arrow-pulse 0.75s ease-in-out infinite",
       },
     },
   },
