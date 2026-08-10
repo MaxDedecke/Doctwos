@@ -21,7 +21,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from api.schemas import LinkStatusUpdate, ManualLinkCreate
+import core.config as cfg
+from api.schemas import LinkStatusUpdate, LlmReviewRequest, ManualLinkCreate
 from api.serializers import serialize_link
 from core.config import celery_app
 from core.tracing import get_trace_id
@@ -30,7 +31,7 @@ from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeS
 from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
-from services.ollama_client import ask_llm_json
+from services.ollama_client import ask_llm_json_for_profile
 
 
 def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
@@ -224,6 +225,7 @@ def update_link_status(
 @router.post("/entity-doc-links/{link_id}/llm-review")
 async def llm_review_link(
     link_id: int,
+    body: LlmReviewRequest = LlmReviewRequest(),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -231,8 +233,20 @@ async def llm_review_link(
     Bewertet einen einzelnen Link erneut per LLM (auf Nutzer-Klick im Link Manager,
     nicht Teil des Batch-Scans in parser/tasks/link_builder.py). Ersetzt score/context
     durch das LLM-Urteil, ändert aber bewusst NICHT den Status — der Nutzer entscheidet
-    danach selbst per Bestätigen/Ablehnen.
+    danach selbst per Bestätigen/Ablehnen. Nutzt das im Link-Manager-Header aktive
+    LLM-Profil (body.llm_*, vom Frontend mitgeschickt) statt fix das lokale Ollama —
+    für Cloud-Provider greift dasselbe Opt-in-Gate wie beim normalen Chat (api/chat.py).
     """
+    requested_provider = (body.llm_provider or "ollama").lower()
+    if requested_provider in cfg.CLOUD_LLM_PROVIDERS and not cfg.cloud_llm_allowed():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Cloud-LLM-Provider '{requested_provider}' ist für dieses Deployment deaktiviert "
+                "(config/features.json: llm.allowCloudProviders). Bitte ein lokales Ollama-Profil verwenden."
+            ),
+        )
+
     link = db.query(EntityDocLink).filter(EntityDocLink.id == link_id).first()
     if not link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
@@ -262,7 +276,13 @@ async def llm_review_link(
     )
 
     try:
-        data = await ask_llm_json(prompt)
+        data = await ask_llm_json_for_profile(
+            prompt,
+            provider=requested_provider,
+            model=body.llm_model,
+            api_key=body.llm_api_key,
+            base_url=body.llm_base_url,
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM-Prüfung fehlgeschlagen: {e}")
 

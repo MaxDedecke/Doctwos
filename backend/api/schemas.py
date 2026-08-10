@@ -141,6 +141,19 @@ class LinkStatusUpdate(BaseModel):
     status: str  # "approved" | "rejected"
 
 
+class LlmReviewRequest(BaseModel):
+    """Body für POST .../llm-review — welches LLM-Profil (Header-Dropdown im
+    Link Manager) den Einzel-Link neu bewerten soll. Gleiche vier Felder wie
+    ChatRequest.llm_*, hier separat statt geteilt, da der Rest von ChatRequest
+    (message, session_id, ...) hier nicht zutrifft. Default "ollama" hält
+    bestehende Aufrufer ohne Body funktionsfähig (Backend bleibt zustandslos —
+    Regel 3 in CLAUDE.md: der API-Key kommt im Request, nie aus Serverstate)."""
+    llm_provider: Optional[str] = "ollama"
+    llm_model: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    llm_base_url: Optional[str] = None
+
+
 class ManualLinkCreate(BaseModel):
     entity_id: int
     doc_title: str

@@ -1,15 +1,16 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+import core.config as cfg
 from core.db_setup import get_db
 from models.database import KnowledgeLink, CodeEntity, DocumentChunk, LinkBuilderRun, Project, KnowledgeSource, User
-from api.schemas import KnowledgeLinkCreate, KnowledgeLinkUpdate
+from api.schemas import KnowledgeLinkCreate, KnowledgeLinkUpdate, LlmReviewRequest
 from api.serializers import serialize_knowledge_link
 from core.config import celery_app
 from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
-from services.ollama_client import ask_llm_json
+from services.ollama_client import ask_llm_json_for_profile
 from sqlalchemy.sql import func
 
 router = APIRouter(prefix="/knowledge-links", tags=["knowledge-links"])
@@ -139,6 +140,7 @@ def update_knowledge_link_status(
 @router.post("/{link_id}/llm-review")
 async def llm_review_knowledge_link(
     link_id: int,
+    body: LlmReviewRequest = LlmReviewRequest(),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
@@ -149,7 +151,19 @@ async def llm_review_knowledge_link(
     parser/tasks/cross_link_builder.py::_llm_review_pair, aber für ein
     einzelnes Paar statt den vollen Cross-Source-Scan. Ändert bewusst nicht
     den Status — der Nutzer entscheidet danach selbst per Bestätigen/Ablehnen.
+    Nutzt das im Link-Manager-Header aktive LLM-Profil (body.llm_*), Cloud-
+    Provider gated wie beim normalen Chat (api/chat.py).
     """
+    requested_provider = (body.llm_provider or "ollama").lower()
+    if requested_provider in cfg.CLOUD_LLM_PROVIDERS and not cfg.cloud_llm_allowed():
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Cloud-LLM-Provider '{requested_provider}' ist für dieses Deployment deaktiviert "
+                "(config/features.json: llm.allowCloudProviders). Bitte ein lokales Ollama-Profil verwenden."
+            ),
+        )
+
     db_link = db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id).first()
     if not db_link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
@@ -175,7 +189,13 @@ async def llm_review_knowledge_link(
     )
 
     try:
-        data = await ask_llm_json(prompt)
+        data = await ask_llm_json_for_profile(
+            prompt,
+            provider=requested_provider,
+            model=body.llm_model,
+            api_key=body.llm_api_key,
+            base_url=body.llm_base_url,
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM-Prüfung fehlgeschlagen: {e}")
 

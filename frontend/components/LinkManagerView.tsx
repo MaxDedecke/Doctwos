@@ -468,7 +468,21 @@ export function LinkManagerView({
       ? `${API_URL}/entity-doc-links/${link.rawId}/llm-review`
       : `${API_URL}/knowledge-links/${link.rawId}/llm-review`;
     try {
-      const res = await fetch(url, { method: 'POST', credentials: 'include' });
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        // Nutzt dasselbe LLM-Profil, das oben im Header-Dropdown aktiv ist (Cloud- oder
+        // lokales Ollama-Profil) statt fix das lokale LLM — sonst schlägt die Prüfung mit
+        // einem irreführenden "Ollama deaktiviert" fehl, obwohl der Nutzer bewusst ein
+        // Cloud-Profil gewählt hat.
+        body: JSON.stringify({
+          llm_provider: activeProfile?.provider || 'ollama',
+          llm_model: activeProfile?.model || undefined,
+          llm_api_key: activeProfile?.apiKey || undefined,
+          llm_base_url: activeProfile?.baseUrl || undefined,
+        }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
         showToast?.(err?.detail || t('linkManagerView.toast.llmReviewFailed'), 'error');
