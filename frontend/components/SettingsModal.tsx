@@ -98,13 +98,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             className={cn(
-              "border rounded-lg w-[95vw] md:w-[80vw] h-[90vh] md:h-[80vh] overflow-hidden shadow-2xl flex flex-col md:flex-row transition-all duration-200",
+              "border rounded-lg w-[95vw] md:w-[96vw] h-[90vh] md:h-[96vh] overflow-hidden shadow-2xl flex flex-col md:flex-row transition-all duration-200",
               theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800/80 shadow-ds-black/80" : "bg-ds-white border-ds-zinc-200 shadow-ds-zinc-300/80"
             )}
           >
             {/* Left tab selectors list */}
             <div className={cn(
-              "w-full md:w-[210px] border-b md:border-b-0 md:border-r p-3 md:p-4 flex flex-row md:flex-col justify-between transition-colors duration-200 shrink-0",
+              "w-full md:w-[252px] border-b md:border-b-0 md:border-r p-3 md:p-4 flex flex-row md:flex-col justify-between transition-colors duration-200 shrink-0",
               theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800/60" : "bg-ds-zinc-50 border-ds-zinc-200"
             )}>
               <div className="space-y-0 md:space-y-5 flex flex-col md:block w-full">
