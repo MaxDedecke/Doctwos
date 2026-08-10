@@ -191,7 +191,16 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     // pendingAccessProjectIds already starts out empty (see useState above) —
     // this tab fully unmounts on tab switch, so there's nothing to reset here.
     (async () => {
-      await Promise.all([refreshDiscoverableProjects(), refreshAllUsers()]);
+      // GET /users ist backend-seitig komplett superuser-only (F-004, siehe
+      // backend/api/users.py). Für Nicht-Admins würde der Call also
+      // garantiert mit 403 fehlschlagen — nur globale Admins können die
+      // "Mitglied hinzufügen"-Liste ohnehin befüllt bekommen (isProjectAdmin
+      // prüft zwar auch projektlokale Admin-Rollen, aber ohne allUsers bleibt
+      // die Auswahl für die leer, das ist ein bekanntes, hier nicht
+      // behobenes Backend-Scoping-Thema).
+      const tasks = [refreshDiscoverableProjects()];
+      if (currentUser?.is_admin) tasks.push(refreshAllUsers());
+      await Promise.all(tasks);
     })();
   }, []);
 
