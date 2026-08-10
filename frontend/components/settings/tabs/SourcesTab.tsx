@@ -123,9 +123,13 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     { name: t('settings.sourcesTab.types.folderwatch.name'), desc: t('settings.sourcesTab.types.folderwatch.desc'), typeKey: "folderwatch", icon: <Folder className="w-5 h-5 text-ds-emerald-400" />, featureKey: 'folderwatch' as const },
   ];
 
-  // Fitering connected sources based on the active selection
+  // Fitering connected sources based on the active selection.
+  // "all" (Allgemein) zeigt nur echte projektübergreifende Quellen
+  // (project_id === null, siehe GitSetupTab-Kommentar zu project_id=null als
+  // "allgemeine Wissensquelle") — projektgebundene Quellen gehören
+  // ausschließlich unter ihr jeweiliges Projekt, nicht zusätzlich hierhin.
   const filteredSources = connectedSources.filter(cs => {
-    if (selectedSourceRepoId === "all") return true;
+    if (selectedSourceRepoId === "all") return cs.project_id == null;
     return cs.project_id?.toString() === selectedSourceRepoId || cs.repoId === selectedSourceRepoId;
   });
 
