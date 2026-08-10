@@ -941,6 +941,7 @@
     "noProjectSelected": "No project selected",
     "selectProjectPlaceholder": "Select project",
     "generalContextOption": "General context",
+    "projectContextTooltip": "Follows the project selected above (or General) — switch the project in the sidebar to change it.",
     "emptyLinks": {
       "pending": "No pending links",
       "approved": "No approved links",

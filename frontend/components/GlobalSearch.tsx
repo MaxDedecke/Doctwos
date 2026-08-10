@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Link2, Settings, Sun, Moon, Plus, ChevronDown, Filter } from 'lucide-react';
+import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ interface GlobalSearchProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (val: boolean) => void;
   setIsSettingsOpen: (val: boolean) => void;
-  onOpenLinkManager: () => void;
   onOpenGraphView: () => void;
   panelConfigs: string[];
   onAddPanel: (type: string) => void;
@@ -56,7 +55,6 @@ export function GlobalSearch({
   isSidebarOpen,
   setIsSidebarOpen,
   setIsSettingsOpen,
-  onOpenLinkManager,
   onOpenGraphView,
   panelConfigs,
   onAddPanel,
@@ -517,23 +515,6 @@ export function GlobalSearch({
             title={t('sidebar.knowledgeGraphTitle')}
           >
             <Network className="w-4 h-4" />
-          </Button>
-        )}
-
-        {features.views.linkManager && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onOpenLinkManager}
-            className={cn(
-              "h-8 w-8 rounded-lg border transition-all duration-200",
-              theme === 'dark'
-                ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-                : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
-            )}
-            title={t('sidebar.linkManagerTitle')}
-          >
-            <Link2 className="w-4 h-4" />
           </Button>
         )}
 

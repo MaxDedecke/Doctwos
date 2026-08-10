@@ -941,6 +941,7 @@
     "noProjectSelected": "Kein Projekt ausgewählt",
     "selectProjectPlaceholder": "Projekt wählen",
     "generalContextOption": "Allgemeiner Kontext",
+    "projectContextTooltip": "Folgt dem oben ausgewählten Projekt (oder Allgemein) — zum Wechseln das Projekt in der Seitenleiste umschalten.",
     "emptyLinks": {
       "pending": "Keine offenen Verknüpfungen",
       "approved": "Keine bestätigten Verknüpfungen",

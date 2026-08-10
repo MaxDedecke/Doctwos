@@ -1840,14 +1840,6 @@ function AppContent() {
     }
   };
 
-  // Analog zu handleOpenGraphView, aber ohne Chat-Reset/Frozen-Sonderfall —
-  // der Link Manager hängt an keiner Datei-/Dokumentauswahl, ein einfaches
-  // "Panel öffnen falls noch nicht offen" reicht.
-  const handleOpenLinkManager = () => {
-    setActiveMobileTab('editor');
-    ensurePanelType('linkmanager');
-  };
-
   const handleDividerMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
@@ -2292,8 +2284,6 @@ function AppContent() {
               selectedProject={selectedProject}
               theme={theme}
               currentUser={currentUser}
-              projects={projects}
-              onSelectProject={handleProjectSelect}
               llmProfiles={llmProfiles}
               activeProfileId={activeProfileId}
               setActiveProfileId={setActiveProfileId}
@@ -2403,8 +2393,10 @@ function AppContent() {
       </SettingsProvider>
 
       {/* Header bar: search (feature-gated), sidebar toggle, and the app-level
-          actions (graph, link manager, theme, settings) — always mounted so
-          those actions stay reachable even if the search feature is disabled. */}
+          actions (graph, theme, settings) — always mounted so those actions
+          stay reachable even if the search feature is disabled. Link Manager
+          is no longer a dedicated header action — it's opened like any other
+          panel type via the "+" add-view menu or a panel's type selector. */}
       <GlobalSearch
         theme={theme}
         setTheme={setTheme}
@@ -2414,7 +2406,6 @@ function AppContent() {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         setIsSettingsOpen={setIsSettingsOpen}
-        onOpenLinkManager={handleOpenLinkManager}
         onOpenGraphView={handleOpenGraphView}
         panelConfigs={panelConfigs}
         onAddPanel={addPanel}

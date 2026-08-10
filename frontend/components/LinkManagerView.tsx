@@ -61,8 +61,6 @@ interface LinkManagerViewProps {
   selectedProject: { id: number; name: string } | null;
   theme: string;
   currentUser?: { is_admin?: boolean } | null;
-  projects?: any[];
-  onSelectProject?: (project: any | null) => void;
   llmProfiles?: any[];
   activeProfileId?: string;
   setActiveProfileId?: (val: string) => void;
@@ -130,7 +128,7 @@ function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }
 
 export function LinkManagerView({
   selectedProject, theme, currentUser,
-  projects = [], onSelectProject, llmProfiles = [], activeProfileId, setActiveProfileId, showToast,
+  llmProfiles = [], activeProfileId, setActiveProfileId, showToast,
 }: LinkManagerViewProps) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
@@ -696,31 +694,21 @@ export function LinkManagerView({
             <Network className={cn('w-5 h-5 shrink-0', iconColor)} />
             <h2 className={cn('text-sm font-semibold shrink-0', titleText)}>{t('linkManagerView.title')}</h2>
 
-            {/* Project selector */}
-            {onSelectProject && (
-              <Select
-                value={selectedProject ? String(selectedProject.id) : '__none__'}
-                onValueChange={(val) => {
-                  if (val === '__none__') { onSelectProject(null); return; }
-                  const project = projects.find((p: any) => String(p.id) === val);
-                  if (project) onSelectProject(project);
-                }}
-              >
-                <SelectTrigger className={cn(
-                  'h-7 max-w-[160px] text-[11px] sm:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
-                  isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
-                )}>
-                  <FolderKanban className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                  <SelectValue placeholder={t('linkManagerView.selectProjectPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent className={isDark ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-800'}>
-                  <SelectItem value="__none__" className="text-xs">{t('linkManagerView.generalContextOption')}</SelectItem>
-                  {projects.map((p: any) => (
-                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            {/* Project context — read-only display, not a separate selector. The
+                Link Manager always follows the app-wide selected project (like
+                every other panel); switching it here would silently diverge
+                from what chat/graph/code panels show. Change it via the
+                project switcher in the sidebar instead. */}
+            <span
+              className={cn(
+                'flex items-center gap-1.5 h-7 max-w-[180px] text-[11px] sm:text-xs border rounded-md font-medium px-2 shrink-0',
+                isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700'
+              )}
+              title={t('linkManagerView.projectContextTooltip')}
+            >
+              <FolderKanban className="w-3.5 h-3.5 shrink-0 opacity-70" />
+              <span className="truncate">{selectedProject ? selectedProject.name : t('linkManagerView.generalContextOption')}</span>
+            </span>
           </div>
           <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
 
