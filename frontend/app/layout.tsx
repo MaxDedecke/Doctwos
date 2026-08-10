@@ -44,8 +44,12 @@ export default async function RootLayout({
 }>) {
   const features = await fetchFeatures();
 
+  // suppressHydrationWarning: das Inline-Script unten setzt die .dark-Klasse
+  // vor der Hydration (verhindert den Theme-Flash), wodurch das
+  // server-gerenderte className zwangsläufig vom Client-DOM abweicht -
+  // harmlos, siehe https://react.dev/link/hydration-mismatch
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
