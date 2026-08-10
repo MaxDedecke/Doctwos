@@ -42,6 +42,7 @@ interface SidebarProps {
   handleLogout: () => void;
   connectedSources: any[];
   pinnedSourceIds: number[];
+  currentUser?: { name?: string | null; username?: string; email?: string | null; role?: string } | null;
 }
 
 export function Sidebar({
@@ -60,7 +61,8 @@ export function Sidebar({
   handleFileSelect,
   handleLogout,
   connectedSources = [],
-  pinnedSourceIds = []
+  pinnedSourceIds = [],
+  currentUser = null
 }: SidebarProps) {
   const { t } = useLanguage();
   const features = useFeatures();
@@ -541,10 +543,10 @@ export function Sidebar({
                   {/* User info */}
                   <div className="min-w-0">
                     <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
-                      Doctus Nutzer
+                      {currentUser?.name || currentUser?.username || t('sidebar.defaultUser')}
                     </p>
                     <p className="text-[9px] font-medium text-ds-zinc-500 leading-none truncate">
-                      Lokale Sitzung
+                      {currentUser?.email || t('sidebar.localSession')}
                     </p>
                   </div>
                 </div>

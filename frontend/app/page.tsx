@@ -2447,6 +2447,7 @@ function AppContent() {
         handleLogout={handleLogout}
         connectedSources={connectedSources}
         pinnedSourceIds={pinnedSourceIds}
+        currentUser={currentUser}
       />
 
       {/* MAIN CONTENT AREA */}

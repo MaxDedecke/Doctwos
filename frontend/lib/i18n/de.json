@@ -637,6 +637,8 @@
     "analyzingCodeObjects": "Analysiere Code-Objekte...",
     "noAnalysisResults": "Keine Analyse-Ergebnisse vorhanden",
     "logoutTitle": "Abmelden",
+    "defaultUser": "Doctus Nutzer",
+    "localSession": "Lokale Sitzung",
     "knowledgeSources": "Wissensquellen",
     "noPinnedSources": "Keine Wissensquellen angepinnt",
     "globalSourceBadge": "Global",
