@@ -908,8 +908,6 @@
     "minConfidenceLabel": "Minimum probability",
     "minConfidenceTooltip": "Minimum probability (%): only candidates the LLM rates at least this confident are saved as a suggestion on the next run.",
     "manualLabel": "Manual",
-    "chatLabel": "Chat",
-    "overviewLabel": "Overview",
     "tabLabels": {
       "pending": "Pending",
       "approved": "Approved",

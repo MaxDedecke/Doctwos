@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Check, Ban, Link2, Plus, RefreshCw, ExternalLink,
   Search, Loader2, AlertCircle, FileCode, Info, CheckCircle2,
-  MessageSquare, LayoutList, Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent, Sparkles,
+  Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent, Sparkles,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { API_URL } from '@/app/services/api';
-import { LinkChatView } from './LinkChatView';
 import { TopicsPanel } from './TopicsPanel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
@@ -137,7 +136,6 @@ export function LinkManagerView({
 
   // Segment: links | topics
   const [segment, setSegment] = useState<Segment>('links');
-  const [viewMode, setViewMode] = useState<'list' | 'chat'>('list');
 
   // Shared list state (both entity- and knowledge-links share one tab/filter/search bar)
   const [tab, setTab] = useState<TabStatus>('pending');
@@ -784,19 +782,9 @@ export function LinkManagerView({
                   <span className="hidden xs:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
-                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', accentBtn)}>
+                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline">{t('linkManagerView.manualLabel')}</span>
-                </button>
-                <button onClick={() => setViewMode('chat')}
-                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5', viewMode === 'chat' ? tabActive : ghostBtn)}>
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">{t('linkManagerView.chatLabel')}</span>
-                </button>
-                <button onClick={() => setViewMode('list')}
-                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5', viewMode === 'list' ? tabActive : ghostBtn)}>
-                  <LayoutList className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">{t('linkManagerView.overviewLabel')}</span>
                 </button>
               </>
             )}
@@ -808,12 +796,7 @@ export function LinkManagerView({
 
         {/* ── Links segment ── */}
         {segment === 'links' && (
-          viewMode === 'chat' ? (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <LinkChatView theme={theme} selectedProject={selectedProject} activeProfile={activeProfile} />
-            </div>
-          ) : (
-            <>
+          <>
               {/* Compute banner */}
               <AnimatePresence>
                 {message && (
@@ -1059,8 +1042,7 @@ export function LinkManagerView({
                   </div>
                 )}
               </ScrollArea>
-            </>
-          )
+          </>
         )}
     </div>
   );
