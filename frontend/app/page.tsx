@@ -495,7 +495,13 @@ function AppContent() {
     // only nudges an already-open, unfrozen ("live") panel of the matching type.
     let targetIndex = index;
     if (targetType && targetType !== panelConfigs[index]) {
-      const existingIndex = panelConfigs.indexOf(targetType);
+      // Prefer an unfrozen ("live") panel of the matching type over a frozen one —
+      // indexOf alone would always pick the first matching panel regardless of its
+      // freeze state, so with e.g. two code panels where the first is pinned, every
+      // reference would silently target the pinned panel instead of the live one.
+      // Fall back to the first (possibly frozen) match only if no live one exists.
+      let existingIndex = panelConfigs.findIndex((cfg, i) => cfg === targetType && !panelFrozen[i]);
+      if (existingIndex === -1) existingIndex = panelConfigs.indexOf(targetType);
       if (existingIndex === -1) {
         if (!openIfMissing) return;
         ensurePanelType(targetType, { selectedFile: path, selectedDoc: targetDoc, selectedEntity: null });
