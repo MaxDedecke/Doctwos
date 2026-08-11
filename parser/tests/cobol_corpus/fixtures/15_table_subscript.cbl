@@ -1,0 +1,21 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. TABSUB.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-IDX              PIC 9(02).
+       01  WS-MONATE.
+           05  WS-MONAT-NR     PIC 9(02) OCCURS 12 TIMES.
+
+       PROCEDURE DIVISION.
+       AUFBAU SECTION.
+       100-MONATE-FUELLEN.
+           PERFORM VARYING WS-IDX FROM 1 BY 1
+                   UNTIL WS-IDX > 12
+               MOVE WS-IDX TO WS-MONAT-NR (WS-IDX)
+           END-PERFORM.
+
+       AUSGABE SECTION.
+       200-MONATE-ANZEIGEN.
+           DISPLAY WS-MONAT-NR (1).
+           GOBACK.

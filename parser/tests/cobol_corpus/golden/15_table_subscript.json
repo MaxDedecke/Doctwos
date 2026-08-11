@@ -1,0 +1,204 @@
+{
+  "program_name": "TABSUB",
+  "path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "TABSUB",
+      "start_line": 1,
+      "end_line": 21,
+      "parent_name": null,
+      "qualified_name": "TABSUB",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 5,
+      "end_line": 8,
+      "parent_name": "TABSUB",
+      "qualified_name": "TABSUB.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "AUFBAU",
+      "start_line": 11,
+      "end_line": 16,
+      "parent_name": "TABSUB",
+      "qualified_name": "TABSUB.AUFBAU",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "AUSGABE",
+      "start_line": 18,
+      "end_line": 21,
+      "parent_name": "TABSUB",
+      "qualified_name": "TABSUB.AUSGABE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "100-MONATE-FUELLEN",
+      "start_line": 12,
+      "end_line": 16,
+      "parent_name": "AUFBAU",
+      "qualified_name": "TABSUB.AUFBAU.100-MONATE-FUELLEN",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "200-MONATE-ANZEIGEN",
+      "start_line": 19,
+      "end_line": 21,
+      "parent_name": "AUSGABE",
+      "qualified_name": "TABSUB.AUSGABE.200-MONATE-ANZEIGEN",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "WS-IDX",
+      "start_line": 6,
+      "end_line": 6,
+      "parent_name": "TABSUB",
+      "qualified_name": "TABSUB.WS-IDX",
+      "meta": {
+        "level": 1,
+        "picture": "9(02)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-MONATE",
+      "start_line": 7,
+      "end_line": 7,
+      "parent_name": "TABSUB",
+      "qualified_name": "TABSUB.WS-MONATE",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-MONAT-NR",
+      "start_line": 8,
+      "end_line": 8,
+      "parent_name": "WS-MONATE",
+      "qualified_name": "TABSUB.WS-MONATE.WS-MONAT-NR",
+      "meta": {
+        "level": 5,
+        "picture": "9(02)",
+        "redefines": null,
+        "occurs": 12,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-IDX",
+      "resolution": "resolved",
+      "src_start_line": 13,
+      "src_end_line": 13,
+      "scope": "TABSUB",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-IDX",
+      "resolution": "resolved",
+      "src_start_line": 14,
+      "src_end_line": 14,
+      "scope": "TABSUB",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-IDX",
+      "resolution": "resolved",
+      "src_start_line": 15,
+      "src_end_line": 15,
+      "scope": "TABSUB",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-MONAT-NR",
+      "resolution": "resolved",
+      "src_start_line": 15,
+      "src_end_line": 15,
+      "scope": "TABSUB",
+      "meta": {
+        "parent": "WS-MONATE"
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-IDX",
+      "resolution": "resolved",
+      "src_start_line": 15,
+      "src_end_line": 15,
+      "scope": "TABSUB",
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "200-MONATE-ANZEIGEN",
+      "dst_name": "WS-MONAT-NR",
+      "resolution": "resolved",
+      "src_start_line": 20,
+      "src_end_line": 20,
+      "scope": "TABSUB",
+      "meta": {
+        "parent": "WS-MONATE"
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       100-MONATE-FUELLEN.\n           PERFORM VARYING WS-IDX FROM 1 BY 1\n                   UNTIL WS-IDX > 12\n               MOVE WS-IDX TO WS-MONAT-NR (WS-IDX)\n           END-PERFORM.",
+      "start_line": 12,
+      "end_line": 16,
+      "meta": {
+        "program": "TABSUB",
+        "section": "AUFBAU",
+        "paragraph": "100-MONATE-FUELLEN",
+        "start_line": 12,
+        "end_line": 16,
+        "format": "fixed"
+      }
+    },
+    {
+      "content": "       200-MONATE-ANZEIGEN.\n           DISPLAY WS-MONAT-NR (1).\n           GOBACK.",
+      "start_line": 19,
+      "end_line": 21,
+      "meta": {
+        "program": "TABSUB",
+        "section": "AUSGABE",
+        "paragraph": "200-MONATE-ANZEIGEN",
+        "start_line": 19,
+        "end_line": 21,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

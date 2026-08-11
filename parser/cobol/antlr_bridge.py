@@ -113,16 +113,35 @@ def original_span(source_text: str, ctx) -> str:
     return source_text[ctx.start.start : ctx.stop.stop + 1]
 
 
-class _SilentErrorListener(ErrorListener):
+class _FlaggingErrorListener(ErrorListener):
     """Syntaxfehler werden bewusst verschluckt, nicht auf stderr ausgegeben
     oder in ParseResult.errors aufgenommen — dieselbe "kein Abbruch"-Haltung
     wie divisions.py/data_division.py sie schon vor der Migration hatten
     (unbekannte Tokens werden übersprungen, nie als Fehler gemeldet). ANTLRs
     eigene Fehlerkorrektur (Resync) sorgt dafür, dass der Rest des Baums
-    trotzdem nutzbar bleibt."""
+    trotzdem nutzbar bleibt. Merkt sich zusätzlich, ob überhaupt ein Fehler
+    auftrat — Signal für das Zwei-Phasen-Parsing in `_parse()`/`build_tree()`."""
+
+    def __init__(self) -> None:
+        self.had_error = False
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa: N802
-        pass
+        self.had_error = True
+
+
+def _parse(ascii_text: str, prediction_mode) -> tuple[Cobol85Parser.StartRuleContext, bool]:
+    """Ein Parse-Durchlauf in einem festen Prediction-Mode. Gibt zusätzlich
+    zurück, ob dabei ein Syntaxfehler auftrat, ohne selbst zu entscheiden,
+    was das bedeutet (dafür da: `build_tree()`s Zwei-Phasen-Logik)."""
+    lexer = Cobol85Lexer(InputStream(ascii_text))
+    tokens = CommonTokenStream(lexer)
+    parser = Cobol85Parser(tokens)
+    parser._interp.predictionMode = prediction_mode
+    parser.removeErrorListeners()
+    listener = _FlaggingErrorListener()
+    parser.addErrorListener(listener)
+    tree = parser.startRule()
+    return tree, listener.had_error
 
 
 def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
@@ -270,27 +289,27 @@ WORKING-STORAGE SECTION.
 05 WS-ENTRY PIC X(10) OCCURS 1 TO 50 TIMES DEPENDING ON WS-COUNT.
 PROCEDURE DIVISION.
 MAIN-PARA.
+DISPLAY WS-ENTRY (WS-COUNT).
 DISPLAY 'WARMUP'.
 STOP RUN.
 """
 
 
 def warmup() -> None:
-    """Zahlt ANTLRs einmaligen Full-Context-Fallback beim Worker-Start statt
-    bei der ersten echten Datei (Spike-README, Abschnitt "Performance" —
-    Pflicht-Auflage aus der Go-Empfehlung für Phase 3). ANTLRs adaptive
-    LL(*)-Prediction eskaliert bei mehrdeutigen Konstrukten (beobachtet:
-    `OCCURS ... DEPENDING ON`) einmalig von SLL auf vollen Kontext und cached
-    die Entscheidung danach prozessweit auf ATN-Ebene (~0.2-1.3s Kosten,
-    genau einmal pro Worker-Prozess — siehe worker.py::_warmup_antlr_cobol_parser,
-    an `celery.signals.worker_process_init` gehängt)."""
-    lexer = Cobol85Lexer(InputStream(_WARMUP_TEXT))
-    tokens = CommonTokenStream(lexer)
-    parser = Cobol85Parser(tokens)
-    parser._interp.predictionMode = PredictionMode.SLL
-    parser.removeErrorListeners()
-    parser.addErrorListener(_SilentErrorListener())
-    parser.startRule()
+    """Zahlt ANTLRs einmalige JIT-/ATN-Kosten für beide Prediction-Modes
+    beim Worker-Start statt bei der ersten echten Datei (Spike-README,
+    Abschnitt "Performance" — Pflicht-Auflage aus der Go-Empfehlung für
+    Phase 3; ~0.2-1.3s, genau einmal pro Worker-Prozess — siehe worker.py::
+    _warmup_antlr_cobol_parser, an `celery.signals.worker_process_init`
+    gehängt). `_WARMUP_TEXT` deckt beide bekannten SLL-Problemfälle ab: das
+    `OCCURS ... DEPENDING ON` in der DATA DIVISION (SLL entscheidet das
+    richtig, aber teuer) und die Tabellen-Subscript-Referenz `WS-ENTRY
+    (WS-COUNT)` in der PROCEDURE DIVISION (SLL entscheidet das FALSCH, siehe
+    build_tree()) — damit ist der LL(*)-Fallback-Pfad beim ersten echten
+    Treffer schon warm, nicht erst dort."""
+    ascii_text = _WARMUP_TEXT.translate(_UMLAUT_FOLD)
+    _parse(ascii_text, PredictionMode.SLL)
+    _parse(ascii_text, PredictionMode.LL)
 
 
 def build_tree(
@@ -311,19 +330,30 @@ def build_tree(
     Rückgabe ist `(tree, source_text)` statt nur `tree` — Aufrufer, die Namen
     per `ctx.getText()` aus dem Baum lesen, bekommen damit potenziell
     ASCII-gefaltete Umlaute zurück (siehe `_UMLAUT_FOLD`); `original_span()`
-    braucht `source_text`, um die echte Schreibweise zu rekonstruieren."""
+    braucht `source_text`, um die echte Schreibweise zu rekonstruieren.
+
+    Zwei-Phasen-Parsing (Standardmuster der ANTLR4-Referenz für "SLL für
+    Tempo, LL(*) als Fallback"): SLL statt ANTLRs Default (Full-LL) ist auf
+    dieser Grammatik ~15-40x schneller (Spike-README, Abschnitt
+    "Performance" — Pflicht-Auflage aus der Go-Empfehlung), entscheidet aber
+    manche mehrdeutigen Konstrukte ohne vollen Kontext falsch — beobachtet
+    bei `identifier: qualifiedDataName | tableCall | ...` (Cobol85.g4):
+    beide Alternativen beginnen gleich, unterscheiden sich nur durch eine
+    optionale Subscript-Klammer `(index)` danach. Mit SLL erzwungen eskaliert
+    ANTLR das NICHT automatisch (anders als bei anderen mehrdeutigen Stellen,
+    siehe warmup()) — jede Tabellen-Subscript-Referenz in der PROCEDURE
+    DIVISION (z.B. `MOVE X TO TABELLE (IDX)`) ließ den Parser ab dort
+    kaskadierend falsche `procedureSection`-Knoten erzeugen (doppelte
+    Section-Entities, UniqueViolation beim Persistieren). Erster Versuch
+    bleibt SLL (schneller Normalfall, keine Kosten für unbetroffene
+    Dateien); nur bei einem Fehler wird komplett neu mit LL(*) geparst."""
     grammar_lines = mask_for_grammar(masked_lines)
     text = _reconstruct_text(grammar_lines)
     if header:
         text = _prepend_header(text, header)
 
-    lexer = Cobol85Lexer(InputStream(text.translate(_UMLAUT_FOLD)))
-    tokens = CommonTokenStream(lexer)
-    parser = Cobol85Parser(tokens)
-    # SLL statt ANTLRs Default (Full-LL): ~15-40x schneller auf dieser
-    # Grammatik, ohne das Fehlerverhalten zu ändern (Spike-README,
-    # Abschnitt "Performance" — Pflicht-Auflage aus der Go-Empfehlung).
-    parser._interp.predictionMode = PredictionMode.SLL
-    parser.removeErrorListeners()
-    parser.addErrorListener(_SilentErrorListener())
-    return parser.startRule(), text
+    ascii_text = text.translate(_UMLAUT_FOLD)
+    tree, had_error = _parse(ascii_text, PredictionMode.SLL)
+    if had_error:
+        tree, _ = _parse(ascii_text, PredictionMode.LL)
+    return tree, text
