@@ -40,8 +40,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Box,
-  Braces,
-  Link2
+  Braces
 } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
@@ -571,11 +570,6 @@ function AppContent() {
     });
     if (!panelFrozen[index]) {
       setSelectedEntity(ent);
-      // Hält den Referenzen-Badge (fileReferences.length) synchron mit dem im
-      // Code-Viewer angeklickten Objekt — ohne diesen Aufruf bleibt die Zahl auf
-      // dem Stand der zuletzt per handleFileSelect/handleEntitySelect geladenen
-      // Datei bzw. Entity stehen.
-      loadFileReferences(ent.file_path, ent.name);
     }
   };
 
@@ -2014,31 +2008,6 @@ function AppContent() {
                 </>
               )}
             </button>
-            {(contentType === 'code' || contentType === 'doc') && (
-              <button
-                onClick={() => setIsReferencesDropdownOpen(!isReferencesDropdownOpen)}
-                className={cn(
-                  "p-1 rounded border transition-all duration-155 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer",
-                  isReferencesDropdownOpen
-                    ? "bg-ds-indigo-500/10 border-ds-indigo-500/30 text-ds-indigo-400 hover:bg-ds-indigo-500/20"
-                    : (theme === 'dark'
-                        ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
-                        : "bg-transparent border-ds-zinc-200 text-ds-zinc-405 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
-                )}
-                title="Referenzen & Verknüpfte Dokumente"
-              >
-                <Link2 className="w-3 h-3 text-ds-indigo-400" />
-                <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">Referenzen</span>
-                {fileReferences.length > 0 && (
-                  <span className={cn(
-                    "px-1 py-0.2 text-[8px] font-bold rounded-sm leading-none",
-                    theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
-                  )}>
-                    {fileReferences.length}
-                  </span>
-                )}
-              </button>
-            )}
             {isChat ? (
               /* The chat can only be collapsed, never fully closed */
               <button
