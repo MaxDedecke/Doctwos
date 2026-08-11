@@ -82,6 +82,36 @@ _IDENT_TEXT_PARAGRAPH_RE = re.compile(
 
 COPY_PLACEHOLDER_NAME = "ANTLR-COPY-PLACEHOLDER"
 
+# Cobol85Lexer.IDENTIFIER kennt nur [a-zA-Z0-9] (siehe grammar/Cobol85.g4) —
+# deutsche Bezeichner mit Umlauten/ß (z.B. "200-BUCHUNGSPOSITIONEN-PRÜFEN")
+# lösen pro Zeichen einen "token recognition error" aus; der Lexer überspringt
+# das Zeichen stillschweigend, was den restlichen Tokenstrom der Zeile
+# verschiebt und (beobachtet) zu doppelt erkannten Section-Namen und in Folge
+# zu UniqueViolations beim Persistieren führt. lexer.py (der handgeschriebene
+# Tokenizer für procedure.py/copybook.py/xref.py) hat dasselbe Problem nicht —
+# er nutzt bewusst `\w` statt `[a-zA-Z0-9]` (siehe dessen WORD-Pattern).
+# Ohne ANTLR-Toolchain in diesem Environment (kein Java/antlr4-Jar) ist eine
+# Grammatik-Änderung nicht regenerierbar; stattdessen wird der Text nur für
+# den Lexer 1:1-zeichenweise auf ASCII gefaltet (Position/Länge bleiben exakt
+# gleich) — `original_span()` liefert anschließend die echte Schreibweise
+# zurück, indem sie anhand der (durch die Faltung stabilen) Zeichen-Offsets
+# eines Tokens in den ungefalteten Originaltext zurückgreift.
+_UMLAUT_FOLD = str.maketrans({
+    "Ä": "A", "Ö": "O", "Ü": "U", "ä": "a", "ö": "o", "ü": "u", "ß": "s",
+})
+
+
+def original_span(source_text: str, ctx) -> str:
+    """Rekonstruiert die echte (nicht auf ASCII gefaltete) Schreibweise eines
+    Parser-Tree-Knotens — für Namen, die `_UMLAUT_FOLD` verändert haben
+    könnte. `ctx.start.start`/`ctx.stop.stop` sind absolute Zeichen-Offsets
+    im an den Lexer übergebenen Input-Stream; da die Faltung Länge und
+    Position jedes Zeichens erhält, sind dieselben Offsets im ungefalteten
+    `source_text` (von `build_tree()` zurückgegeben) gültig."""
+    if ctx is None:
+        return ""
+    return source_text[ctx.start.start : ctx.stop.stop + 1]
+
 
 class _SilentErrorListener(ErrorListener):
     """Syntaxfehler werden bewusst verschluckt, nicht auf stderr ausgegeben
@@ -263,7 +293,9 @@ def warmup() -> None:
     parser.startRule()
 
 
-def build_tree(masked_lines: list[LogicalLine], header: str | None = None) -> Cobol85Parser.StartRuleContext:
+def build_tree(
+    masked_lines: list[LogicalLine], header: str | None = None
+) -> tuple[Cobol85Parser.StartRuleContext, str]:
     """Baut den ANTLR-Parse-Tree aus den (embedded.mask()-maskierten)
     LogicalLines. `masked_lines` wird hier NICHT verändert — mask_for_grammar()
     arbeitet auf einer eigenen Kopie, der Aufrufer behält seine für
@@ -274,13 +306,18 @@ def build_tree(masked_lines: list[LogicalLine], header: str | None = None) -> Co
     Copybook hat laut Grammatik keine (reine Datenbeschreibung, Prinzip 5).
     Der Header wird der ERSTEN nicht-leeren Zeile vorangestellt statt als
     eigene Zeile eingefügt, damit sich keine Zeilennummer verschiebt
-    (CLAUDE.md „Zeilennummern sind heilig")."""
+    (CLAUDE.md „Zeilennummern sind heilig").
+
+    Rückgabe ist `(tree, source_text)` statt nur `tree` — Aufrufer, die Namen
+    per `ctx.getText()` aus dem Baum lesen, bekommen damit potenziell
+    ASCII-gefaltete Umlaute zurück (siehe `_UMLAUT_FOLD`); `original_span()`
+    braucht `source_text`, um die echte Schreibweise zu rekonstruieren."""
     grammar_lines = mask_for_grammar(masked_lines)
     text = _reconstruct_text(grammar_lines)
     if header:
         text = _prepend_header(text, header)
 
-    lexer = Cobol85Lexer(InputStream(text))
+    lexer = Cobol85Lexer(InputStream(text.translate(_UMLAUT_FOLD)))
     tokens = CommonTokenStream(lexer)
     parser = Cobol85Parser(tokens)
     # SLL statt ANTLRs Default (Full-LL): ~15-40x schneller auf dieser
@@ -289,4 +326,4 @@ def build_tree(masked_lines: list[LogicalLine], header: str | None = None) -> Co
     parser._interp.predictionMode = PredictionMode.SLL
     parser.removeErrorListeners()
     parser.addErrorListener(_SilentErrorListener())
-    return parser.startRule()
+    return parser.startRule(), text

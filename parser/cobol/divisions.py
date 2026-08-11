@@ -49,8 +49,8 @@ def scan(masked_lines: list[LogicalLine]) -> tuple[CobolProgram, list[str]]:
     start_line = tokens[0].phys_line
     last_line = tokens[-1].phys_line
 
-    tree = antlr_bridge.build_tree(masked_lines)
-    visitor = _StructureVisitor()
+    tree, source_text = antlr_bridge.build_tree(masked_lines)
+    visitor = _StructureVisitor(source_text)
     visitor.visit(tree)
 
     if not visitor.divisions:
@@ -76,12 +76,13 @@ class _StructureVisitor(Cobol85Visitor):
     späteren `programUnit`-Wiederholungen (verschachtelte Unterprogramme)
     überschreibt den Namen — dieselbe "letzter gewinnt"-Regel wie zuvor."""
 
-    def __init__(self) -> None:
+    def __init__(self, source_text: str) -> None:
         self.program_name = ""
         self.divisions: list[Division] = []
         self.sections: list[Section] = []
         self.paragraphs: list[Paragraph] = []
         self._current_division: str | None = None
+        self._source_text = source_text
 
     def visitProgramUnit(self, ctx: Cobol85Parser.ProgramUnitContext):  # noqa: N802
         for name, rule_key in _DIVISION_RULE_NAMES.items():
@@ -96,7 +97,7 @@ class _StructureVisitor(Cobol85Visitor):
     def visitProgramIdParagraph(self, ctx: Cobol85Parser.ProgramIdParagraphContext):  # noqa: N802
         name_ctx = ctx.programName()
         if name_ctx is not None:
-            self.program_name = _clean_name(name_ctx.getText())
+            self.program_name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx))
         return None
 
     def visitFileSection(self, ctx: Cobol85Parser.FileSectionContext):  # noqa: N802
@@ -119,7 +120,7 @@ class _StructureVisitor(Cobol85Visitor):
 
     def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
         header = ctx.procedureSectionHeader()
-        name = _clean_name(header.sectionName().getText())
+        name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
         self.sections.append(Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop)))
         self._collect_paragraphs(ctx.paragraphs(), name)
         return None
@@ -137,7 +138,7 @@ class _StructureVisitor(Cobol85Visitor):
             return
         for p in paragraphs_ctx.paragraph():
             name_ctx = p.paragraphName()
-            name = _clean_name(name_ctx.getText()) if name_ctx is not None else ""
+            name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx)) if name_ctx is not None else ""
             if not name:
                 continue
             self.paragraphs.append(Paragraph(name, section_name, _line(p.start), _line(p.stop)))

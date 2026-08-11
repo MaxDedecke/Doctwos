@@ -1,0 +1,185 @@
+{
+  "program_name": "KONTOSTATUSPRÜFUNG",
+  "path": "cobol_corpus/fixtures/13_umlauts.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "KONTOSTATUSPRÜFUNG",
+      "start_line": 1,
+      "end_line": 26,
+      "parent_name": null,
+      "qualified_name": "KONTOSTATUSPRÜFUNG",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "FILE",
+      "start_line": 10,
+      "end_line": 12,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.FILE",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 14,
+      "end_line": 20,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "PRÜFUNGS-LOGIK",
+      "start_line": 23,
+      "end_line": 26,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜFUNGS-LOGIK",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
+      "start_line": 24,
+      "end_line": 26,
+      "parent_name": "PRÜFUNGS-LOGIK",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜFUNGS-LOGIK.200-BUCHUNGSPOSITIONEN-PRÜFEN",
+      "meta": {}
+    },
+    {
+      "type": "file_fd",
+      "name": "PRÜF-DATEI",
+      "start_line": 11,
+      "end_line": 11,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜF-DATEI",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "PRÜF-SATZ",
+      "start_line": 12,
+      "end_line": 12,
+      "parent_name": "PRÜF-DATEI",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜF-DATEI.PRÜF-SATZ",
+      "meta": {
+        "level": 1,
+        "picture": "X(20)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-ANZAHL-PRÜFUNGEN",
+      "start_line": 15,
+      "end_line": 15,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WS-ANZAHL-PRÜFUNGEN",
+      "meta": {
+        "level": 1,
+        "picture": "9(03)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-STATUS-TABELLE",
+      "start_line": 16,
+      "end_line": 16,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WS-STATUS-TABELLE",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-STATUS-EINTRAG",
+      "start_line": 17,
+      "end_line": 18,
+      "parent_name": "WS-STATUS-TABELLE",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WS-STATUS-TABELLE.WS-STATUS-EINTRAG",
+      "meta": {
+        "level": 5,
+        "picture": "X(01)",
+        "redefines": null,
+        "occurs": 1,
+        "occurs_depending_on": "WS-ANZAHL-PRÜFUNGEN",
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-STATUS-FLAG",
+      "start_line": 19,
+      "end_line": 19,
+      "parent_name": "KONTOSTATUSPRÜFUNG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WS-STATUS-FLAG",
+      "meta": {
+        "level": 1,
+        "picture": "X(01)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "STATUS-GEPRÜFT",
+      "start_line": 20,
+      "end_line": 20,
+      "parent_name": "WS-STATUS-FLAG",
+      "qualified_name": "KONTOSTATUSPRÜFUNG.WS-STATUS-FLAG.STATUS-GEPRÜFT",
+      "meta": {
+        "level": 88,
+        "picture": null,
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "J"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
+      "dst_name": "WS-STATUS-FLAG",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "KONTOSTATUSPRÜFUNG",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       200-BUCHUNGSPOSITIONEN-PRÜFEN.\n           DISPLAY WS-STATUS-FLAG.\n           GOBACK.",
+      "start_line": 24,
+      "end_line": 26,
+      "meta": {
+        "program": "KONTOSTATUSPRÜFUNG",
+        "section": "PRÜFUNGS-LOGIK",
+        "paragraph": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
+        "start_line": 24,
+        "end_line": 26,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

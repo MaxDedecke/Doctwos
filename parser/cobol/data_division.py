@@ -61,8 +61,8 @@ def parse(program: CobolProgram, masked_lines: list[LogicalLine]) -> tuple[list[
         if is_copybook
         else None
     )
-    tree = antlr_bridge.build_tree(masked_lines, header=header)
-    visitor = _DataDivisionVisitor()
+    tree, source_text = antlr_bridge.build_tree(masked_lines, header=header)
+    visitor = _DataDivisionVisitor(source_text)
     visitor.visit(tree)
 
     items = [i for i in visitor.items if i.name.upper() != COPY_PLACEHOLDER_NAME]
@@ -71,9 +71,13 @@ def parse(program: CobolProgram, masked_lines: list[LogicalLine]) -> tuple[list[
 
 
 class _DataDivisionVisitor(Cobol85Visitor):
-    def __init__(self) -> None:
+    def __init__(self, source_text: str) -> None:
         self.items: list[DataItem] = []
         self.file_descriptors: list[FileDescriptor] = []
+        self._source_text = source_text
+
+    def _name(self, ctx) -> str:
+        return antlr_bridge.original_span(self._source_text, ctx)
 
     def visitFileSection(self, ctx: Cobol85Parser.FileSectionContext):  # noqa: N802
         for fd_ctx in ctx.fileDescriptionEntry():
@@ -81,7 +85,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
         return None
 
     def _visit_file_descriptor(self, ctx: Cobol85Parser.FileDescriptionEntryContext) -> None:
-        name = _clean_name(ctx.fileName().getText())
+        name = _clean_name(self._name(ctx.fileName()))
         entries = ctx.dataDescriptionEntry()
         header_end = _line(entries[0].start) - 1 if entries else _line(ctx.stop)
         header_end = max(header_end, _line(ctx.start))
@@ -111,7 +115,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
 
         fmt2 = entry.dataDescriptionEntryFormat2()
         if fmt2 is not None:
-            name = _clean_name(fmt2.dataName().getText())
+            name = _clean_name(self._name(fmt2.dataName()))
             self.items.append(
                 DataItem(name=name, level=_RENAMES_LEVEL, start_line=_line(fmt2.start), end_line=_line(fmt2.stop), parent=None)
             )
@@ -119,7 +123,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
 
         fmt3 = entry.dataDescriptionEntryFormat3()
         if fmt3 is not None:
-            name = _clean_name(fmt3.conditionName().getText())
+            name = _clean_name(self._name(fmt3.conditionName()))
             parent = stack[-1][1] if stack else current_fd
             value = _value_text(fmt3.dataValueClause())
             self.items.append(
@@ -141,7 +145,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
         if ctx.FILLER() is not None:
             name = "FILLER"
         elif ctx.dataName() is not None:
-            name = _clean_name(ctx.dataName().getText())
+            name = _clean_name(self._name(ctx.dataName()))
         else:
             return  # implizites, unbenanntes Item ohne FILLER - kein Testfall deckt das ab
 
@@ -166,12 +170,18 @@ class _DataDivisionVisitor(Cobol85Visitor):
                 end_line=_line(ctx.stop),
                 parent=parent,
                 picture=picture_ctx.pictureString().getText() if picture_ctx is not None else None,
-                redefines=_clean_name(redefines_ctx.dataName().getText()) if redefines_ctx is not None else None,
+                redefines=_clean_name(self._name(redefines_ctx.dataName())) if redefines_ctx is not None else None,
                 occurs=_occurs_count(occurs_ctx),
-                occurs_depending_on=_occurs_depending_on(occurs_ctx),
+                occurs_depending_on=self._occurs_depending_on(occurs_ctx),
                 value=_value_text_from_clause(value_ctx),
             )
         )
+
+    def _occurs_depending_on(self, ctx) -> str | None:
+        if ctx is None:
+            return None
+        qdn = ctx.qualifiedDataName()
+        return _clean_name(self._name(qdn)) if qdn is not None else None
 
     # Explizit NICHT default-rekursiv absteigen (kein visitChildren-Aufruf in
     # den obigen Overrides) - eine FD/Section wird komplett über ihre eigene
@@ -194,13 +204,6 @@ def _occurs_count(ctx) -> int | None:
         return int(lit.getText())
     except ValueError:
         return None
-
-
-def _occurs_depending_on(ctx) -> str | None:
-    if ctx is None:
-        return None
-    qdn = ctx.qualifiedDataName()
-    return _clean_name(qdn.getText()) if qdn is not None else None
 
 
 def _value_text_from_clause(ctx) -> str | None:
