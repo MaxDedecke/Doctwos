@@ -1,0 +1,6 @@
+# Spike-Code (parser/spikes/) ist per E-11 (docs/ENTSCHEIDUNGEN.md) explizit
+# nicht Teil des Laufzeit-Images — nur eine aktiv genutzte Grammatik-Runtime
+# darf ins Image, kein Spike-Nebencode/generierte Dateien auf Vorrat.
+spikes/
+__pycache__/
+*.pyc
