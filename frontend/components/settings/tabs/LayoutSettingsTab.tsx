@@ -7,10 +7,20 @@ import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Aus SettingsModal herausgelöster 'layout'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
 // Schritt 2). Die zuvor auf Modal-Ebene liegenden Handler handleThemeToggle und
 // exportNeo4j wurden mit hierher gezogen — beide wurden nur von diesem Tab genutzt.
+// Die Monaco-Editor-Optionen (vormals eigener 'editor'-Tab) sind mit hierher
+// gezogen, da sie nur eine einzelne Einstellungsgruppe waren — ein eigener Tab
+// dafür war unnötig.
 export const LayoutSettingsTab: React.FC = () => {
   const { language, setLanguage, t } = useLanguage();
   const {
@@ -20,6 +30,12 @@ export const LayoutSettingsTab: React.FC = () => {
     selectedProject,
     workspaceSplit,
     setWorkspaceSplit,
+    editorFontSize,
+    setEditorFontSize,
+    editorFontFamily,
+    setEditorFontFamily,
+    editorMinimap,
+    setEditorMinimap,
   } = useSettings();
 
   const handleThemeToggle = (newTheme: string) => {
@@ -150,6 +166,74 @@ export const LayoutSettingsTab: React.FC = () => {
               <span className="block text-[9px] text-ds-zinc-500 leading-normal">{layout.desc}</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Monaco Editor Optionen (vormals eigener Editor-Tab) */}
+      <div className="space-y-3">
+        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.editorTab.title')}</h4>
+        <div className={cn(
+          "space-y-4 border rounded-lg p-4 transition-colors",
+          theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
+        )}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontSizeLabel')}</label>
+              <Select
+                value={editorFontSize.toString()}
+                onValueChange={val => setEditorFontSize(parseInt(val))}
+              >
+                <SelectTrigger className={cn(
+                  "w-full h-8 text-xs focus:ring-0",
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-350" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
+                )}>
+                  <SelectValue placeholder={t('settings.editorTab.fontSizePlaceholder')} />
+                </SelectTrigger>
+                <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
+                  {['12', '13', '14', '15', '16', '18'].map(size => (
+                    <SelectItem key={size} value={size}>{size}px</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontFamilyLabel')}</label>
+              <Select value={editorFontFamily} onValueChange={setEditorFontFamily}>
+                <SelectTrigger className={cn(
+                  "w-full h-8 text-xs focus:ring-0",
+                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-350" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
+                )}>
+                  <SelectValue placeholder={t('settings.editorTab.fontFamilyPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
+                  <SelectItem value="'JetBrains Mono', monospace">JetBrains Mono</SelectItem>
+                  <SelectItem value="'Fira Code', monospace">Fira Code</SelectItem>
+                  <SelectItem value="monospace">Courier New</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-1 pt-2 border-t border-ds-zinc-800/40">
+            <div className="space-y-0.5">
+              <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.editorTab.minimapLabel')}</span>
+              <span className="block text-[10px] text-ds-zinc-500">{t('settings.editorTab.minimapDesc')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditorMinimap(!editorMinimap)}
+              className={cn(
+                "w-9 h-5 rounded-full p-0.5 transition-colors duration-250 focus:outline-none relative",
+                editorMinimap ? "bg-ds-indigo-650" : "bg-ds-zinc-800"
+              )}
+            >
+              <div className={cn(
+                "w-4 h-4 rounded-full bg-ds-white transition-transform duration-250 shadow-md",
+                editorMinimap ? "translate-x-4" : "translate-x-0"
+              )} />
+            </button>
+          </div>
         </div>
       </div>
 

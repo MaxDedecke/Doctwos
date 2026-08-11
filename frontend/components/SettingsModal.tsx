@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Database, Cpu, Terminal, Code, Sliders, Layers, Users, UserCog } from 'lucide-react';
+import { Database, Cpu, Terminal, Sliders, Layers, Users, UserCog } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,7 +9,6 @@ import { api } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useSettings } from '@/components/settings/SettingsContext';
-import { EditorSettingsTab } from '@/components/settings/tabs/EditorSettingsTab';
 import { LayoutSettingsTab } from '@/components/settings/tabs/LayoutSettingsTab';
 import { AiSettingsTab } from '@/components/settings/tabs/AiSettingsTab';
 import { ProjectSetupTab } from '@/components/settings/tabs/ProjectSetupTab';
@@ -48,7 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const { language, t } = useLanguage();
   const features = useFeatures();
-  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'editor' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users'>('sources');
+  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users'>('sources');
 
 
 
@@ -122,7 +121,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'users', label: t('settings.nav.users'), icon: <UserCog className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
                     { id: 'ai', label: t('settings.nav.ai'), icon: <Cpu className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.ai },
                     { id: 'logs', label: t('settings.nav.logs'), icon: <Terminal className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.logs },
-                    { id: 'editor', label: t('settings.nav.editor'), icon: <Code className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.editor },
                     { id: 'layout', label: t('settings.nav.layout'), icon: <Sliders className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.layout }
                   ].filter(tab => tab.enabled).map(tab => (
                     <button
@@ -167,7 +165,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    settingsTab === 'users' ? t('settings.nav.users') :
                    settingsTab === 'ai' ? t('settings.nav.ai') :
                    settingsTab === 'logs' ? t('settings.nav.logs') :
-                   settingsTab === 'editor' ? t('settings.header.editorSettings') :
                    t('settings.nav.layout')}
                 </h3>
               </div>
@@ -216,10 +213,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {/* Tab 4: Logs & Status */}
                   {settingsTab === 'logs' && <LogsSettingsTab />}
 
-                  {/* Tab 5: Editor Preferences */}
-                  {settingsTab === 'editor' && <EditorSettingsTab />}
-
-                  {/* Tab 6: Layout & Design */}
+                  {/* Tab 5: Layout & Design (inkl. Monaco Editor Optionen) */}
                   {settingsTab === 'layout' && <LayoutSettingsTab />}
                 </div>
               </ScrollArea>

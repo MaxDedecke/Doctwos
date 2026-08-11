@@ -113,15 +113,13 @@
       "teams": "Teams",
       "ai": "AI-Parameter",
       "logs": "Logs & Status",
-      "editor": "Editor",
       "layout": "Layout & Design",
       "users": "Nutzer"
     },
     "header": {
       "projectSetup": "Neues Projekt",
       "gitSetupWizard": "Git Setup-Assistent",
-      "sourcesSetup": "Setup der Wissensquelle",
-      "editorSettings": "Editor-Einstellungen"
+      "sourcesSetup": "Setup der Wissensquelle"
     },
     "toast": {
       "darkModeEnabled": "Dunkler Modus aktiviert",

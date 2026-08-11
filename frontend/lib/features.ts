@@ -20,7 +20,6 @@ export interface FeaturesConfig {
   settings: {
     ai: boolean;
     logs: boolean;
-    editor: boolean;
     layout: boolean;
   };
   llm: {
@@ -53,7 +52,6 @@ export const DEFAULT_FEATURES: FeaturesConfig = {
   settings: {
     ai: true,
     logs: true,
-    editor: false,
     layout: true,
   },
   llm: {

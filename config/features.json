@@ -24,7 +24,6 @@
   "settings": {
     "ai": true,
     "logs": true,
-    "editor": true,
     "layout": true
   },
   "llm": {
