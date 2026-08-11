@@ -528,7 +528,16 @@ function AppContent() {
           (!resolvedSourceId || Number(ent.source_id) === Number(resolvedSourceId)) &&
           (ent.type === 'program' || ent.type === 'copybook')) || null
       : null;
-    if (path && resolvedSourceId && !isWebOrigin) {
+    // targetDoc already means "this is a document, not COBOL code" (see above) --
+    // resolving a code entity for it would only ever 404. Skipping it here also
+    // matters for timing: the Graph View's "open in view" button fires this AND
+    // onDocFocus back to back for the same document (see KnowledgeGraphView.tsx).
+    // With an await here, this call resumes only after React has already
+    // committed the panel onDocFocus opened synchronously and cleared
+    // pendingPanelTypesRef for it (see ensurePanelType) -- so this continuation
+    // no longer sees it as pending and opens a second doc panel for the same
+    // document. Staying synchronous up to the routing below closes that gap.
+    if (path && resolvedSourceId && !isWebOrigin && !targetDoc) {
       try {
         focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path, selectedProject?.id)).data;
       } catch (error: any) {
