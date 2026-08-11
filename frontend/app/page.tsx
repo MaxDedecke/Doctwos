@@ -77,7 +77,13 @@ import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
 // File-extension buckets that decide which panel type a selection "belongs" to —
 // shared between handleFileSelect (which view opens) and the unfrozen-panel sync
 // effect (which already-open views follow along).
-const DOC_FILE_RE = /\.(pdf|docx?|png|jpe?g)$/i;
+// .md fehlte hier: getKnowledgeSourceContent liefert für .md bereits
+// format="markdown" (backend/api/knowledge_sources.py) und der Doc-Panel
+// rendert das via MarkdownContent -- ohne .md hier landete z.B. README.md
+// trotzdem im Code-Panel (das dafür kein COBOL-Objekt findet und leer
+// bleibt), egal ob per Chat-Quelle, Referenzen-Dropdown oder Graph-Klick
+// geöffnet.
+const DOC_FILE_RE = /\.(pdf|docx?|png|jpe?g|md)$/i;
 
 // null = no selection at all (applies everywhere, e.g. to clear all panels).
 function getSelectionViewType(path: string | null, doc: any | null): string | null {
