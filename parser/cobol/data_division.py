@@ -21,10 +21,11 @@ danach der Stack-Top (oder die aktuelle FD/SD, wenn der Stack leer ist).
 Level 88 (Condition-Name) und 66 (RENAMES) werden nie auf den Stack gelegt,
 Level 77 setzt sich selbst als Top-Level (parent=None).
 
-Ein per COPY-Statement maskiertes Filler-Item (`antlr_bridge.
-COPY_PLACEHOLDER_NAME`) wird aus dem Ergebnis gefiltert — es diente nur dazu,
+Ein per COPY-Statement maskiertes Filler-Item bzw. Filler-FD (`antlr_bridge.
+COPY_PLACEHOLDER_NAME`, je nach Section entweder `01 ... PIC X` oder
+`FD ...`) wird aus beiden Ergebnislisten gefiltert — es diente nur dazu,
 den Zeilenbereich der umschließenden Section im Parse-Tree korrekt zu halten
-(siehe antlr_bridge.py), ist aber kein echtes Datenfeld.
+(siehe antlr_bridge.py), ist aber kein echtes Datenfeld/keine echte Datei.
 
 Kein Abbruch (Plan §6.1 Regel 2): fehlt die DATA DIVISION, gibt es leere
 Ergebnislisten plus einen Fehlereintrag, nie eine Exception.
@@ -65,7 +66,8 @@ def parse(program: CobolProgram, masked_lines: list[LogicalLine]) -> tuple[list[
     visitor.visit(tree)
 
     items = [i for i in visitor.items if i.name.upper() != COPY_PLACEHOLDER_NAME]
-    return items, visitor.file_descriptors, errors
+    file_descriptors = [f for f in visitor.file_descriptors if f.name.upper() != COPY_PLACEHOLDER_NAME]
+    return items, file_descriptors, errors
 
 
 class _DataDivisionVisitor(Cobol85Visitor):

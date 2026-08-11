@@ -1,0 +1,97 @@
+{
+  "program_name": "IDPARA",
+  "path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "IDPARA",
+      "start_line": 1,
+      "end_line": 21,
+      "parent_name": null,
+      "qualified_name": "IDPARA",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "FILE",
+      "start_line": 12,
+      "end_line": 13,
+      "parent_name": "IDPARA",
+      "qualified_name": "IDPARA.FILE",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 15,
+      "end_line": 16,
+      "parent_name": "IDPARA",
+      "qualified_name": "IDPARA.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 19,
+      "end_line": 21,
+      "parent_name": "IDPARA",
+      "qualified_name": "IDPARA.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "WS-FLAG",
+      "start_line": 16,
+      "end_line": 16,
+      "parent_name": "IDPARA",
+      "qualified_name": "IDPARA.WS-FLAG",
+      "meta": {
+        "level": 1,
+        "picture": "X(01)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "N"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "COPY",
+      "src_name": "IDPARA",
+      "dst_name": "SOME-FILE.cpy",
+      "resolution": "unresolved",
+      "src_start_line": 13,
+      "src_end_line": 13,
+      "scope": null,
+      "meta": {}
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-FLAG",
+      "resolution": "resolved",
+      "src_start_line": 20,
+      "src_end_line": 20,
+      "scope": "IDPARA",
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           DISPLAY WS-FLAG.\n           STOP RUN.",
+      "start_line": 19,
+      "end_line": 21,
+      "meta": {
+        "program": "IDPARA",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 19,
+        "end_line": 21,
+        "format": "fixed"
+      }
+    }
+  ],
+  "errors": []
+}

@@ -31,6 +31,17 @@ sie laut Spike (Kernfrage 1-3) NICHT selbst kann:
    Ergebnissen heraus — copybook.py findet die echte COPY-Anweisung
    weiterhin unverändert im normalen (nicht grammatik-maskierten)
    Token-Strom von lexer.py.
+3. **Freitext-Paragraphen der IDENTIFICATION DIVISION.** `AUTHOR.`,
+   `INSTALLATION.`, `DATE-WRITTEN.`, `DATE-COMPILED.`, `SECURITY.` und
+   `REMARKS.` erwarten laut Grammatik ein `COMMENTENTRYLINE`-Token, das nur
+   entsteht, wenn der Text mit einem `*>CE`-Tag vorpräpariert wurde (Cobol85.g4)
+   — ein Preprocessing-Schritt, den dieser Grammatik-Port nicht implementiert.
+   Ohne ihn bricht der Parser direkt hinter dem Paragraph-Kopf ab und die
+   Fehlerkorrektur reißt den Rest der Datei (inkl. DATA/PROCEDURE DIVISION) mit
+   — betraf praktisch jede Datei mit einer `AUTHOR.`-Zeile, bis auf keine
+   Golden-Fixture zutreffend (F-033-Lücke, s. `12_identification_paragraphs.cbl`).
+   Der Freitext wird daher komplett verworfen; nur der Paragraph-Kopf bleibt
+   stehen (`commentEntry` ist in der Grammatik optional).
 
 Bekannte Lücke (siehe Spike-README): COPY innerhalb ENVIRONMENT DIVISION
 (FILE-CONTROL) bekommt denselben Filler-Platzhalter wie DATA DIVISION, ist
@@ -57,6 +68,17 @@ _DATA_SECTION_RE = re.compile(
 )
 _COPY_START_RE = re.compile(r"^COPY\b", re.IGNORECASE)
 _EMBEDDED_BLOCK_RE = re.compile(r"^EMBEDDED-BLOCK-", re.IGNORECASE)
+# IDENTIFICATION-DIVISION-Paragraphen, deren Inhalt frei formulierter Text ist
+# (z.B. "AUTHOR. GEMINI-CLI."). Die Grammatik akzeptiert diesen Text nur als
+# eigenes COMMENTENTRYLINE-Lexer-Token, das per Konvention ein "*>CE"-Tag vor
+# dem Text voraussetzt (siehe Cobol85.g4) — ein Preprocessing-Schritt, den
+# dieser Grammatik-Port nie implementiert hat. Ohne ihn bricht ANTLRs Parser
+# direkt nach dem Divisions-Header ab und die Fehlerkorrektur reißt den
+# gesamten Rest der Datei (inkl. DATA/PROCEDURE DIVISION) mit sich — beobachtet
+# an praktisch jeder Datei dieses Testprojekts, die eine AUTHOR-Zeile hat.
+_IDENT_TEXT_PARAGRAPH_RE = re.compile(
+    r"^(AUTHOR|INSTALLATION|DATE-WRITTEN|DATE-COMPILED|SECURITY|REMARKS)\b", re.IGNORECASE
+)
 
 COPY_PLACEHOLDER_NAME = "ANTLR-COPY-PLACEHOLDER"
 
@@ -92,6 +114,7 @@ def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
     result: list[LogicalLine] = []
     current_division: str | None = None
     in_data_section = False
+    current_data_section: str | None = None
     i = 0
     n = len(lines)
 
@@ -107,12 +130,29 @@ def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
         if m:
             current_division = m.group(1).upper()
             in_data_section = False
-        elif current_division == "DATA" and _DATA_SECTION_RE.match(stripped):
-            in_data_section = True
+            current_data_section = None
+        else:
+            m2 = _DATA_SECTION_RE.match(stripped) if current_division == "DATA" else None
+            if m2:
+                in_data_section = True
+                current_data_section = m2.group(1).upper()
 
         if _EMBEDDED_BLOCK_RE.match(stripped):
             result.append(_placeholder(line, line, "CONTINUE"))
             i += 1
+            continue
+
+        if current_division == "IDENTIFICATION" and _IDENT_TEXT_PARAGRAPH_RE.match(stripped):
+            keyword = _IDENT_TEXT_PARAGRAPH_RE.match(stripped).group(1).upper()
+            j = i
+            while not _ends_with_period(lines[j]) and j + 1 < n:
+                j += 1
+            # Der freie Text wird komplett verworfen (nicht ins Modell übernommen) —
+            # nur der Paragraph-Kopf selbst ("AUTHOR.") bleibt stehen, was die
+            # Grammatik ohne commentEntry-Token akzeptiert (siehe authorParagraph()
+            # & Co. in Cobol85Parser.py: commentEntry ist optional).
+            result.append(_placeholder(line, lines[j], keyword))
+            i = j + 1
             continue
 
         if _COPY_START_RE.match(stripped):
@@ -121,6 +161,11 @@ def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
                 j += 1
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
+            elif current_division == "DATA" and current_data_section == "FILE":
+                # FILE SECTION akzeptiert nur fileDescriptionEntry (FD ...), kein
+                # bare-01-Datenfeld — ein COPY hier steht praktisch immer für einen
+                # kompletten FD-Block aus dem Copybook (Record-Layout einer Datei).
+                placeholder_text = f"FD {COPY_PLACEHOLDER_NAME}"
             elif current_division == "DATA" and in_data_section:
                 placeholder_text = f"01 {COPY_PLACEHOLDER_NAME} PIC X"
             else:

@@ -1,0 +1,21 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. IDPARA.
+       AUTHOR. GEMINI-CLI.
+       DATE-WRITTEN. 2024-01-15.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT SOME-FILE ASSIGN TO "some.dat".
+
+       DATA DIVISION.
+       FILE SECTION.
+           COPY "SOME-FILE.cpy".
+
+       WORKING-STORAGE SECTION.
+       01  WS-FLAG             PIC X(01) VALUE 'N'.
+
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           DISPLAY WS-FLAG.
+           STOP RUN.
