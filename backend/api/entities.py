@@ -10,7 +10,7 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_code_visible_in_context, assert_project_visible
 from core.teams import assert_team_visible
-from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, Project, User
+from models.database import CodeEdge, CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, Project, User
 
 router = APIRouter(prefix="/entities", tags=["entities"])
 
@@ -133,4 +133,37 @@ def get_neighbors(
             "entity": entity_json(other) if other else None,
             "start_line": edge.src_start_line, "end_line": edge.src_end_line,
         })
+
+    # Dokument-Verknüpfungen dieser Entity (EntityDocLink) als eigene Gruppe --
+    # CodeEdge bildet nur Code<->Code-Beziehungen ab, die Graph-View (api/graph.py)
+    # zeichnet für dieselbe Entity aber zusätzlich Kanten zu verlinkten Dokumenten
+    # (z.B. README.md). Ohne diese Gruppe zeigte dieser Endpunkt -- und damit der
+    # "Referenzen"-Dropdown im Code-Editor -- genau diese Dokument-Kanten nicht an,
+    # obwohl die Graph-View sie darstellt (siehe docs/ENTSCHEIDUNGEN.md).
+    doc_links = []
+    if direction in {"out", "both"} and (not requested or "DOC" in requested):
+        doc_links = db.query(EntityDocLink).filter(
+            EntityDocLink.entity_id == entity_id,
+            EntityDocLink.status == "approved",
+        ).all()
+    chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
+    chunks = {
+        c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()
+    } if chunk_ids else {}
+    for lnk in doc_links:
+        chunk = chunks.get(lnk.chunk_id)
+        groups.setdefault("DOC:out", []).append({
+            "edge_id": f"edl:{lnk.id}", "type": "DOC", "direction": "out",
+            "resolution": None, "dst_name": lnk.doc_title, "entity": None,
+            "document": {
+                "title": lnk.doc_title,
+                "file_path": chunk.file_path.split("#")[0] if (chunk and chunk.file_path) else None,
+                "url": lnk.doc_url,
+                "source_type": lnk.source_type,
+                "score": lnk.score,
+                "link_type": lnk.link_type,
+            },
+            "start_line": None, "end_line": None,
+        })
+
     return {"entity": entity_json(entity), "groups": groups}

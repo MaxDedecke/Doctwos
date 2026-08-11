@@ -217,6 +217,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     'GOTO:out': 'Springt zu',
     'USES:out': 'Verwendet',
     'USES:in': 'Verwendet von',
+    'DOC:out': 'Verknüpfte Dokumente',
   };
 
   const localEditorRef = useRef<any>(null);
@@ -996,6 +997,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                 </h3>
                                 {neighbors.map((neighbor: any) => {
                                   const entity = neighbor.entity;
+                                  const document = neighbor.document;
+                                  const canOpen = !!entity || !!document?.file_path;
                                   return (
                                     <button
                                       key={neighbor.edge_id}
@@ -1003,19 +1006,24 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         "w-full px-4 py-2.5 text-left flex items-center gap-2 transition-colors",
                                         theme === 'dark' ? "hover:bg-ds-zinc-900/60" : "hover:bg-ds-zinc-50"
                                       )}
-                                      disabled={!entity}
+                                      disabled={!canOpen}
                                       onClick={() => {
                                         if (entity) handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                        else if (document?.file_path) handleFileSelect(document.file_path, null, selectedEntity?.source_id);
                                         setIsReferencesDropdownOpen(false);
                                       }}
                                     >
-                                      <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
+                                      {document ? (
+                                        <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
+                                      ) : (
+                                        <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
+                                      )}
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate text-xs font-semibold font-mono">
-                                          {entity?.name || neighbor.dst_name}
+                                          {entity?.name || document?.title || neighbor.dst_name}
                                         </span>
                                         <span className="block truncate text-[10px] text-ds-zinc-500 font-mono">
-                                          {entity?.file_path || 'Nicht aufgelöst'}
+                                          {entity?.file_path || document?.source_type || document?.file_path || 'Nicht aufgelöst'}
                                         </span>
                                       </span>
                                       {entity?.start_line && (
