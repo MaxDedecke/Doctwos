@@ -212,6 +212,24 @@ html {
   color: rgb(var(--ds-accent)) !important;
 }
 
+/* The currently focused (clicked) knowledge object — a solid fill instead of
+   .doctus-clickable-entity's faint underline, so it stays recognizable at a
+   glance even after the temporary scroll-highlight on the line has faded. */
+.doctus-selected-entity {
+  text-decoration: none !important;
+  color: rgb(var(--ds-on-accent)) !important;
+  font-weight: 600;
+  border-radius: 2px;
+  background-color: rgb(var(--ds-accent) / 0.85);
+  box-shadow: 0 0 0 1px rgb(var(--ds-accent));
+  cursor: pointer !important;
+}
+
+.doctus-selected-entity-line {
+  background-color: rgb(var(--ds-accent) / 0.08);
+  border-left: 2px solid rgb(var(--ds-accent) / 0.6);
+}
+
 .doctus-entity-glyph-margin {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234d7fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E%3Cpolyline points='2 17 12 22 22 17'/%3E%3Cpolyline points='2 12 12 17 22 12'/%3E%3C/svg%3E");
   background-size: 14px 14px;

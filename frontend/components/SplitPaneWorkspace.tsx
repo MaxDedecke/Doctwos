@@ -472,6 +472,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     if (!model) return;
 
     const newDecorations: any[] = [];
+    // Entities usually carry a stable id, but selections coming from places
+    // that only pass a lightweight { file_path, start_line, name } shape
+    // (e.g. search results) don't — fall back to that triple so the focused
+    // object still gets recognized as "selected" instead of silently
+    // matching nothing.
+    const selectedKey = selectedEntity
+      ? (selectedEntity.id ?? `${selectedEntity.file_path}:${selectedEntity.start_line}:${selectedEntity.name}`)
+      : null;
 
     fileEntities.forEach((ent: any) => {
       const lineNum = ent.start_line;
@@ -488,10 +496,27 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         endCol = startCol + ent.name.length;
       }
 
+      const entKey = ent.id ?? `${ent.file_path}:${ent.start_line}:${ent.name}`;
+      const isSelected = selectedKey !== null && entKey === selectedKey;
+
+      // The currently focused object gets its own persistent style (solid
+      // fill + whole-line wash) instead of the plain dashed-underline used
+      // for merely-clickable entities — otherwise, once the 4s scroll-flash
+      // fades, there's no lasting cue for which object is actually selected.
+      if (isSelected) {
+        newDecorations.push({
+          range: new monaco.Range(lineNum, 1, lineNum, 1),
+          options: {
+            isWholeLine: true,
+            className: 'doctus-selected-entity-line'
+          }
+        });
+      }
+
       newDecorations.push({
         range: new monaco.Range(lineNum, startCol, lineNum, endCol),
         options: {
-          inlineClassName: 'doctus-clickable-entity',
+          inlineClassName: isSelected ? 'doctus-selected-entity' : 'doctus-clickable-entity',
           hoverMessage: {
             value: `**${ent.name}** (${ent.type})\n\n${t('splitPane.clickToSelectReferences')}`
           },
@@ -521,7 +546,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         entityDecorationsRef.current = [];
       }
     };
-  }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t]);
+  }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t, selectedEntity]);
 
   const handleEditorDidMountLocal = (editor: any, monaco: any) => {
     // Assign through the concrete ref rather than the `editorRef || localEditorRef`
