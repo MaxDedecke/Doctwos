@@ -83,7 +83,9 @@
       "maxViewsReached": "Maximal 4 Ansichten",
       "collapseChat": "Chat einklappen",
       "expandChat": "Chat ausklappen",
-      "closeView": "Ansicht schließen"
+      "closeView": "Ansicht schließen",
+      "historyBack": "Zurück",
+      "historyForward": "Vor"
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",

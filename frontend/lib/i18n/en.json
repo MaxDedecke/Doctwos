@@ -83,7 +83,9 @@
       "maxViewsReached": "Maximum of 4 views",
       "collapseChat": "Collapse chat",
       "expandChat": "Expand chat",
-      "closeView": "Close view"
+      "closeView": "Close view",
+      "historyBack": "Back",
+      "historyForward": "Forward"
     },
     "viewTypes": {
       "chat": "💬 Chat view",

@@ -300,6 +300,21 @@ function AppContent() {
   }>>([
     { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null },
   ]);
+  // Zurück/Vor-Verlauf je Panel-Slot (index-parallel zu panelConfigs/panelSelections) —
+  // rein clientseitig für die laufende Sitzung, bewusst nicht Teil von
+  // buildWorkspaceSnapshot. "past"/"future" halten frühere bzw. durch Zurückgehen
+  // "übersprungene" Panel-Selections, analog zum Browser-Verlauf.
+  const [panelHistory, setPanelHistory] = useState<Array<{
+    past: Array<{ selectedFile: string | null; selectedDoc: any | null; selectedEntity: any | null; selectedLine: number | null }>;
+    future: Array<{ selectedFile: string | null; selectedDoc: any | null; selectedEntity: any | null; selectedLine: number | null }>;
+  }>>([{ past: [], future: [] }]);
+  // Unterdrückt das Aufzeichnen neuer History-Einträge, während goBackPanel/
+  // goForwardPanel selbst eine Panel-Selection setzen — sonst würde ein
+  // Zurückgehen sofort wieder einen (redundanten) Vorwärts-Eintrag erzeugen.
+  const isPanelHistoryNavRef = useRef(false);
+  // Zuletzt vom Mauszeiger "betretenes" Panel — Ziel für Alt+←/→, wenn Desktop
+  // (auf Mobile greift stattdessen activeMobileTab, s. Tastatur-Effekt unten).
+  const activePanelIndexRef = useRef(0);
 
   // Synchronize unfrozen panels with global state — but only panels for which the
   // new selection actually makes sense. Chat and the two graph views (knowledge
@@ -321,32 +336,52 @@ function AppContent() {
   ) {
     setPrevPanelSyncDeps({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs });
     const incomingType = getSelectionViewType(selectedFile, selectedDoc);
-    setPanelSelections(prev => {
-      let changed = false;
-      const next = prev.map((sel, idx) => {
-        if (panelFrozen[idx]) return sel;
-        const panelType = panelConfigs[idx];
-        const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
-          || incomingType === null || incomingType === panelType;
-        if (!shouldSync) return sel;
-        if (
-          sel.selectedFile !== selectedFile ||
-          sel.selectedDoc !== selectedDoc ||
-          sel.selectedEntity !== selectedEntity ||
-          sel.selectedLine !== selectedLine
-        ) {
-          changed = true;
-          return {
-            selectedFile,
-            selectedDoc,
-            selectedEntity,
-            selectedLine
-          };
+    let changed = false;
+    // Panels, deren Selection sich hier gerade wirklich ändert (und die vorher
+    // schon etwas Sinnvolles fokussiert hatten) bekommen einen History-Eintrag,
+    // damit goBackPanel dorthin zurückspringen kann. Während goBackPanel/
+    // goForwardPanel selbst die Selection setzt (isPanelHistoryNavRef) oder ein
+    // Chat-Snapshot restauriert wird, wird nichts aufgezeichnet.
+    const historyPushIdxs: number[] = [];
+    const nextSelections = panelSelections.map((sel, idx) => {
+      if (panelFrozen[idx]) return sel;
+      const panelType = panelConfigs[idx];
+      const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
+        || incomingType === null || incomingType === panelType;
+      if (!shouldSync) return sel;
+      if (
+        sel.selectedFile !== selectedFile ||
+        sel.selectedDoc !== selectedDoc ||
+        sel.selectedEntity !== selectedEntity ||
+        sel.selectedLine !== selectedLine
+      ) {
+        changed = true;
+        if (!isPanelHistoryNavRef.current && !isRestoringSnapshotRef.current && (sel.selectedFile || sel.selectedDoc)) {
+          historyPushIdxs.push(idx);
         }
-        return sel;
-      });
-      return changed ? next : prev;
+        return {
+          selectedFile,
+          selectedDoc,
+          selectedEntity,
+          selectedLine
+        };
+      }
+      return sel;
     });
+    if (changed) {
+      const prevSelections = panelSelections;
+      setPanelSelections(nextSelections);
+      if (historyPushIdxs.length > 0) {
+        setPanelHistory(prevHist => {
+          const nextHist = [...prevHist];
+          historyPushIdxs.forEach(idx => {
+            const entry = nextHist[idx] || { past: [], future: [] };
+            nextHist[idx] = { past: [...entry.past, prevSelections[idx]], future: [] };
+          });
+          return nextHist;
+        });
+      }
+    }
   }
 
   const togglePanelFreeze = (index: number) => {
@@ -394,6 +429,7 @@ function AppContent() {
       selectedEntity: selectionOverride ? (selectionOverride.selectedEntity ?? null) : selectedEntity,
       selectedLine: null
     }]);
+    setPanelHistory(prev => [...prev, { past: [], future: [] }]);
     setPanelConfigs(prev => [...prev, type]);
   };
 
@@ -515,16 +551,29 @@ function AppContent() {
     }
 
     if (panelFrozen[targetIndex]) {
+      const prevSel = panelSelections[targetIndex];
+      const newSel = { selectedFile: path, selectedDoc: targetDoc, selectedEntity: focusedEntity, selectedLine: line };
       setPanelSelections(prev => {
         const next = [...prev];
-        next[targetIndex] = {
-          selectedFile: path,
-          selectedDoc: targetDoc,
-          selectedEntity: focusedEntity,
-          selectedLine: line
-        };
+        next[targetIndex] = newSel;
         return next;
       });
+      // Unfrozen panels get their history entry from the global-selection sync
+      // block above (setSelectedFile/... below feeds it) — a frozen panel never
+      // touches global state, so it needs its own push here.
+      if (!isPanelHistoryNavRef.current && prevSel && (prevSel.selectedFile || prevSel.selectedDoc) && (
+        prevSel.selectedFile !== newSel.selectedFile ||
+        prevSel.selectedDoc !== newSel.selectedDoc ||
+        prevSel.selectedEntity !== newSel.selectedEntity ||
+        prevSel.selectedLine !== newSel.selectedLine
+      )) {
+        setPanelHistory(prevHist => {
+          const nextHist = [...prevHist];
+          const entry = nextHist[targetIndex] || { past: [], future: [] };
+          nextHist[targetIndex] = { past: [...entry.past, prevSel], future: [] };
+          return nextHist;
+        });
+      }
     } else {
       setSelectedDoc(targetDoc);
       setSelectedFile(targetDoc ? null : path);
@@ -569,15 +618,111 @@ function AppContent() {
 
   const handlePanelEntitySelect = async (index: number, ent: any) => {
     pinEntityFocus(ent);
+    const prevSel = panelSelections[index];
     setPanelSelections(prev => {
       const next = [...prev];
       next[index] = { ...next[index], selectedEntity: ent };
       return next;
     });
+    // Unfrozen panels get their history entry from the global-selection sync
+    // block (setSelectedEntity below feeds it) — a frozen panel doesn't, so push
+    // its own entry here when the focused object actually changes.
+    if (panelFrozen[index] && !isPanelHistoryNavRef.current && prevSel &&
+        (prevSel.selectedFile || prevSel.selectedDoc) && prevSel.selectedEntity !== ent) {
+      setPanelHistory(prevHist => {
+        const nextHist = [...prevHist];
+        const entry = nextHist[index] || { past: [], future: [] };
+        nextHist[index] = { past: [...entry.past, prevSel], future: [] };
+        return nextHist;
+      });
+    }
     if (!panelFrozen[index]) {
       setSelectedEntity(ent);
     }
   };
+
+  // Navigiert Panel `index` einen Schritt zurück/vor in seiner eigenen
+  // panelHistory. Ein ungefrorenes Panel spiegelt dabei zusätzlich die globale
+  // Selection (statt nur panelSelections), damit es konsistent mit den anderen
+  // "live" Panels bleibt — genau wie bei einem normalen Fokuswechsel.
+  // isPanelHistoryNavRef unterdrückt währenddessen den Sync-Block oben, sonst
+  // würde der Zug selbst sofort wieder einen (redundanten) Verlaufseintrag anlegen.
+  const goBackPanel = (index: number) => {
+    const entry = panelHistory[index];
+    if (!entry || entry.past.length === 0) return;
+    const currentSel = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
+    const targetSel = entry.past[entry.past.length - 1];
+
+    isPanelHistoryNavRef.current = true;
+    setPanelHistory(prev => {
+      const next = [...prev];
+      next[index] = { past: entry.past.slice(0, -1), future: [currentSel, ...entry.future] };
+      return next;
+    });
+    setPanelSelections(prev => {
+      const next = [...prev];
+      next[index] = targetSel;
+      return next;
+    });
+    if (!panelFrozen[index]) {
+      setSelectedFile(targetSel.selectedFile);
+      setSelectedDoc(targetSel.selectedDoc);
+      setSelectedEntity(targetSel.selectedEntity);
+      setSelectedLine(targetSel.selectedLine);
+    }
+    // Reset erst nach dem Commit/Render, das durch die obigen setState-Aufrufe
+    // ausgelöst wird — der Sync-Block liest die Ref synchron währenddessen.
+    setTimeout(() => { isPanelHistoryNavRef.current = false; }, 0);
+  };
+
+  const goForwardPanel = (index: number) => {
+    const entry = panelHistory[index];
+    if (!entry || entry.future.length === 0) return;
+    const currentSel = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
+    const targetSel = entry.future[0];
+
+    isPanelHistoryNavRef.current = true;
+    setPanelHistory(prev => {
+      const next = [...prev];
+      next[index] = { past: [...entry.past, currentSel], future: entry.future.slice(1) };
+      return next;
+    });
+    setPanelSelections(prev => {
+      const next = [...prev];
+      next[index] = targetSel;
+      return next;
+    });
+    if (!panelFrozen[index]) {
+      setSelectedFile(targetSel.selectedFile);
+      setSelectedDoc(targetSel.selectedDoc);
+      setSelectedEntity(targetSel.selectedEntity);
+      setSelectedLine(targetSel.selectedLine);
+    }
+    setTimeout(() => { isPanelHistoryNavRef.current = false; }, 0);
+  };
+
+  // Alt+←/→ (Browser-Konvention, kollidiert nicht mit Monaco-Cursor, Chat-
+  // Textarea oder Sucheingaben) navigiert die Verlaufshistorie des zuletzt vom
+  // Mauszeiger betretenen Panels (activePanelIndexRef). Auf Mobile ist immer
+  // nur ein Panel sichtbar — dort wird stattdessen über activeMobileTab aufgelöst,
+  // analog zum renderPanel-Switch weiter unten.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const idx = isMobile
+        ? (activeMobileTab === 'chat' ? panelConfigs.indexOf('chat')
+          : activeMobileTab === 'graph' ? panelConfigs.indexOf('graph')
+          : panelConfigs.findIndex(c => c !== 'chat' && c !== 'graph'))
+        : activePanelIndexRef.current;
+      if (idx < 0 || idx >= panelConfigs.length) return;
+      e.preventDefault();
+      if (e.key === 'ArrowLeft') goBackPanel(idx);
+      else goForwardPanel(idx);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobile, activeMobileTab, panelConfigs, panelHistory, panelSelections, panelFrozen]);
 
   // Content-/Navigationsstate der "Situation" für den Chat-Snapshot — bewusst ohne
   // reine UI-Prefs (Theme, Editor-Font, Sidebar-/Panel-Collapse). panelFrozen ist
@@ -1062,6 +1207,7 @@ function AppContent() {
     setFileNavStack([]);
     setPanelConfigs(['chat']);
     setPanelSelections([{ selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null }]);
+    setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
     setCollapsedPanels([false]);
     setPanelFocusObject([null]);
@@ -1780,6 +1926,7 @@ function AppContent() {
       setPanelConfigs(Array.isArray(snap.panelConfigs) && snap.panelConfigs.length > 0 ? snap.panelConfigs : ['chat']);
       setPanelFrozen(Array.isArray(snap.panelFrozen) ? snap.panelFrozen : restoredSelections.map(() => false));
       setPanelSelections(restoredSelections);
+      setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
       setPanelFocusObject(Array.isArray(snap.panelFocusObject) ? snap.panelFocusObject : restoredSelections.map(() => null));
       setCollapsedPanels(restoredSelections.map(() => false));
       setFileNavStack(Array.isArray(snap.fileNavStack) ? snap.fileNavStack : []);
@@ -1913,6 +2060,13 @@ function AppContent() {
         next[index] = null;
         return next;
       });
+      // Andere Art von Ansicht in diesem Slot ⇒ eigener Navigationsfaden, alte
+      // Historie passt nicht mehr dazu.
+      setPanelHistory(prev => {
+        const next = [...prev];
+        next[index] = { past: [], future: [] };
+        return next;
+      });
     };
 
     // Collapsed chat rail — the chat can be collapsed but never fully closed
@@ -1947,6 +2101,7 @@ function AppContent() {
 
     return (
       <div
+        onMouseEnter={() => { activePanelIndexRef.current = index; }}
         className={cn(
           "h-full flex flex-col min-w-0 rounded-lg overflow-hidden relative group transition-all duration-300",
           panelFrozen[index] ? "border-2 border-ds-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.55)]" : "border",
@@ -1990,6 +2145,32 @@ function AppContent() {
             </Select>
           </div>
           <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => goBackPanel(index)}
+              disabled={(panelHistory[index]?.past.length || 0) === 0}
+              className={cn(
+                "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
+                theme === 'dark'
+                  ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-200 hover:border-ds-zinc-700"
+                  : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300"
+              )}
+              title={`${t('page.workspace.historyBack')} (Alt+←)`}
+            >
+              <ChevronLeft className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => goForwardPanel(index)}
+              disabled={(panelHistory[index]?.future.length || 0) === 0}
+              className={cn(
+                "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
+                theme === 'dark'
+                  ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-200 hover:border-ds-zinc-700"
+                  : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300"
+              )}
+              title={`${t('page.workspace.historyForward')} (Alt+→)`}
+            >
+              <ChevronRight className="w-3 h-3" />
+            </button>
             <button
               onClick={() => togglePanelFreeze(index)}
               className={cn(
@@ -2035,6 +2216,7 @@ function AppContent() {
                   setPanelFrozen(prev => prev.filter((_, idx) => idx !== index));
                   setCollapsedPanels(prev => prev.filter((_, idx) => idx !== index));
                   setPanelSelections(prev => prev.filter((_, idx) => idx !== index));
+                  setPanelHistory(prev => prev.filter((_, idx) => idx !== index));
                   setPanelFocusObject(prev => prev.filter((_, idx) => idx !== index));
                 }}
                 className={cn(
