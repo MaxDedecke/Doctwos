@@ -1704,6 +1704,14 @@ function AppContent() {
     }
   };
 
+  // Injects a canned assistant bubble locally (no backend round-trip, no id —
+  // feedback/retry buttons stay disabled for it). Used by the zero-state
+  // suggestion cards to ask a clarifying question instead of pasting a vague
+  // label straight into the textarea.
+  const addAssistantHint = (text: string) => {
+    setChatMessages(prev => [...prev, { role: 'assistant', content: text, sources: [], metadata: {} }]);
+  };
+
   const handleSessionSelect = async (session) => {
     ignoreUrlSyncRef.current = true;
     setActiveSessionId(session.id);
@@ -2117,6 +2125,7 @@ function AppContent() {
               handleSendChat={handleSendChat}
               handleRetryMessage={handleRetryMessage}
               handleFeedback={handleFeedback}
+              addAssistantHint={addAssistantHint}
               handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
               activeProfileId={activeProfileId}
               setActiveProfileId={setActiveProfileId}

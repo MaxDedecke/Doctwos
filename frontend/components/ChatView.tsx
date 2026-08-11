@@ -63,6 +63,7 @@ interface ChatViewProps {
   handleSendChat: (overrideMsg?: string, extraMetadata?: Record<string, any>) => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
+  addAssistantHint: (text: string) => void;
   handleFileSelect: (path: string, line?: number, sourceId?: string) => void;
   activeProfileId: string;
   setActiveProfileId: (val: string) => void;
@@ -93,6 +94,7 @@ export function ChatView({
   handleSendChat,
   handleRetryMessage,
   handleFeedback,
+  addAssistantHint,
   handleFileSelect,
   activeProfileId,
   setActiveProfileId,
@@ -306,10 +308,10 @@ export function ChatView({
               {/* Pre-canned Suggestions grids */}
               <div className="grid grid-cols-1 @lg/chat:grid-cols-2 gap-4 w-full max-w-2xl relative z-10">
                 {[
-                  { id: 'explainProgram', label: t('chatView.suggestions.explainProgram.label'), icon: <Code className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.suggestions.explainProgram.desc') },
-                  { id: 'traceCall', label: t('chatView.suggestions.traceCall.label'), icon: <Database className="w-4.5 h-4.5 text-ds-indigo-500" />, desc: t('chatView.suggestions.traceCall.desc') },
+                  { id: 'explainProgram', label: t('chatView.suggestions.explainProgram.label'), icon: <Code className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.suggestions.explainProgram.desc'), clarify: t('chatView.suggestions.explainProgram.clarify'), template: t('chatView.suggestions.explainProgram.template') },
+                  { id: 'traceCall', label: t('chatView.suggestions.traceCall.label'), icon: <Database className="w-4.5 h-4.5 text-ds-indigo-500" />, desc: t('chatView.suggestions.traceCall.desc'), clarify: t('chatView.suggestions.traceCall.clarify'), template: t('chatView.suggestions.traceCall.template') },
                   { id: 'summarizeDocs', label: t('chatView.suggestions.summarizeDocs.label'), icon: <History className="w-4.5 h-4.5 text-ds-emerald-500" />, desc: t('chatView.suggestions.summarizeDocs.desc') },
-                  { id: 'findField', label: t('chatView.suggestions.findField.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.suggestions.findField.desc') }
+                  { id: 'findField', label: t('chatView.suggestions.findField.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.suggestions.findField.desc'), clarify: t('chatView.suggestions.findField.clarify'), template: t('chatView.suggestions.findField.template') }
                 ].map((hint, idx) => {
                   const isOnboarding = hint.id === 'summarizeDocs';
                   const isDisabled = isOnboarding && !selectedProject;
@@ -329,11 +331,28 @@ export function ChatView({
                         handleSendChat(t('chatView.suggestions.summarizeDocs.triggerMessage'), { intent: "onboarding" });
                         return;
                       }
-                      setCurrentMessage(hint.label);
-                      const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
-                      if (textarea) {
-                        textarea.focus();
+                      // These cards name a topic but leave out the one detail
+                      // the LLM would need (which program/objects/field) — so
+                      // instead of pasting the bare label, we show the
+                      // clarifying question the LLM would ask and prefill the
+                      // textarea with a self-contained sentence stub for it.
+                      if ('clarify' in hint && hint.clarify) {
+                        addAssistantHint(hint.clarify);
+                        setCurrentMessage(hint.template || "");
+                      } else {
+                        setCurrentMessage(hint.label);
                       }
+                      // Deferred a tick: the textarea's value is controlled by
+                      // currentMessage, which hasn't re-rendered into the DOM
+                      // yet at this point in the click handler.
+                      requestAnimationFrame(() => {
+                        const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
+                        if (textarea) {
+                          textarea.focus();
+                          const len = textarea.value.length;
+                          textarea.setSelectionRange(len, len);
+                        }
+                      });
                     }}
                     className={cn(
                       "group p-4 border rounded-lg transition-all text-left flex items-start gap-4 shadow-sm",

@@ -650,11 +650,15 @@
     "suggestions": {
       "explainProgram": {
         "label": "Explain COBOL program",
-        "desc": "Structure, sections/paragraphs, copybooks and purpose of a COBOL module"
+        "desc": "Structure, sections/paragraphs, copybooks and purpose of a COBOL module",
+        "clarify": "Which COBOL program should I explain?",
+        "template": "Explain the program "
       },
       "traceCall": {
         "label": "Trace call chain",
-        "desc": "Who calls this program (CALL, JCL step, CICS transaction), and what does it call?"
+        "desc": "Who calls this program (CALL, JCL step, CICS transaction), and what does it call?",
+        "clarify": "Between which objects would you like to trace the call chain?",
+        "template": "Trace the call chain between "
       },
       "summarizeDocs": {
         "label": "Start project onboarding",
@@ -665,7 +669,9 @@
       },
       "findField": {
         "label": "Find data field",
-        "desc": "Where is a field (copybook, VSAM record, DB2 table) defined and where is it used?"
+        "desc": "Where is a field (copybook, VSAM record, DB2 table) defined and where is it used?",
+        "clarify": "Which data field would you like to find?",
+        "template": "Find the data field "
       }
     },
     "generatingResponse": "Generating response...",
