@@ -1,0 +1,44 @@
+{
+  "program_name": "FREEDIR",
+  "path": "cobol_corpus/fixtures/14_free_format_directive.cbl",
+  "source_format": "free",
+  "entities": [
+    {
+      "type": "program",
+      "name": "FREEDIR",
+      "start_line": 4,
+      "end_line": 9,
+      "parent_name": null,
+      "qualified_name": "FREEDIR",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 7,
+      "end_line": 9,
+      "parent_name": "FREEDIR",
+      "qualified_name": "FREEDIR.MAIN-PARA",
+      "meta": {}
+    }
+  ],
+  "edges": [],
+  "chunks": [
+    {
+      "content": "MAIN-PARA.\n    DISPLAY \"HELLO\".\n    STOP RUN.",
+      "start_line": 7,
+      "end_line": 9,
+      "meta": {
+        "program": "FREEDIR",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 7,
+        "end_line": 9,
+        "format": "free"
+      }
+    }
+  ],
+  "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+  ]
+}

@@ -119,6 +119,18 @@ def _split_fixed(text: str) -> list[LogicalLine]:
 def _split_free(text: str) -> list[LogicalLine]:
     lines: list[LogicalLine] = []
     for lineno, raw in enumerate(text.splitlines(), start=1):
+        # Compiler-Direktiven (`>>SOURCE FORMAT FREE`, `>>IF`/`>>DEFINE`, ...)
+        # sind kein `*>`-Kommentar und keine gültige COBOL85-Anweisung — ohne
+        # diesen Filter landet z.B. ">>SOURCE FORMAT FREE" als normale
+        # LogicalLine im Baum und lässt die ANTLR-Grammatik direkt an der
+        # ersten Zeile scheitern (Kein Division/PROGRAM-ID erkannt, siehe
+        # divisions.py). Wie `_DIRECTIVE_INDICATORS` im Fixed-Format: die
+        # Direktive wird nicht ausgewertet, nur unschädlich gemacht (F-021 -
+        # "Dialekt-Eigenheiten werden nachgezogen").
+        if raw.lstrip().startswith(">>"):
+            lines.append(LogicalLine(lineno, lineno, [], "free", is_comment=True))
+            continue
+
         marker = raw.find("*>")
         code = raw if marker == -1 else raw[:marker]
 
