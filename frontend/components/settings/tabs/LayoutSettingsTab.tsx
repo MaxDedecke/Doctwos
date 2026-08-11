@@ -48,7 +48,8 @@ export const LayoutSettingsTab: React.FC = () => {
     const params = new URLSearchParams({ status: 'approved' });
     if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
     try {
-      const res = await fetch(`${API_URL}/graph/export/neo4j?${params}`);
+      const res = await fetch(`${API_URL}/graph/export/neo4j?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`Export fehlgeschlagen (${res.status})`);
       const data = await res.json();
       const blob = new Blob([data.cypher], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
