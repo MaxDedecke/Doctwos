@@ -1,6 +1,6 @@
 import os
 
-from cobol import data_division, divisions, embedded, lexer, sql, source_format
+from cobol import data_division, divisions, embedded, sql, source_format
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
@@ -8,9 +8,8 @@ FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 def _scan(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, blocks = embedded.mask(lines)
-    tokens = lexer.tokenize(masked)
-    program, _ = divisions.scan(tokens)
-    items, _, _ = data_division.parse(program, tokens)
+    program, _ = divisions.scan(masked)
+    items, _, _ = data_division.parse(program, masked)
     sql_blocks, edges, sql_errors = sql.scan(program, blocks, items)
     return program, sql_blocks, edges, sql_errors
 

@@ -1,9 +1,13 @@
 # Spike: ANTLR4-Migration des COBOL-Parsers
 
-Isolierter Spike zu `docs/ENTSCHEIDUNGEN.md` E-11. Nichts hier ist an
-`cobol_persist.py`/`git.py`/`edge_resolver.py` angebunden, nichts unter
-`parser/cobol/` wurde verändert, nichts davon läuft im Produktivimage. Dieser
-Ordner ist das Kernartefakt für die Phase-2-Entscheidung (Go/No-Go).
+**Status (11.08.2026): Phase 3 ist umgesetzt** — die eigentliche Migration
+liegt jetzt unter `parser/cobol/` (`antlr_bridge.py`, `_antlr/`,
+`divisions.py`, `data_division.py`), direkt ersetzt, **ohne** Engine-Flag
+(siehe `docs/ENTSCHEIDUNGEN.md` E-11, Nachtrag Phase 3 — Begründung, warum
+der ursprünglich hier skizzierte Parallelbetrieb/Flag nicht gebaut wurde).
+Dieser Ordner bleibt als historisches Spike-Artefakt liegen (Phase-2-
+Go-Entscheidung, Kernfragen-Analyse) — nichts hier läuft im Produktivimage
+(`parser/.dockerignore`), nichts hier wird noch importiert.
 
 ## Ziel
 
@@ -204,20 +208,31 @@ Zahlen.
 | Lizenz | MIT, eindeutig direkt an der Quelle verifiziert | **Go** |
 | Zweitsprachen-Tauglichkeit | Strukturell plausibel, nicht empirisch getestet | **Go (qualitativ)** |
 
-**Empfehlung: Go für Phase 3 (Vollmigration COBOL, Parallelbetrieb über
-Engine-Flag), unter drei expliziten Auflagen**, die alle aus diesem Spike
-stammen und in einer Phase-3-Beauftragung mit aufgenommen werden sollten:
+**Empfehlung: Go für Phase 3, unter drei expliziten Auflagen** — alle
+umgesetzt, siehe `docs/ENTSCHEIDUNGEN.md` E-11 Nachtrag Phase 3:
 
-1. `PredictionMode.SLL` ist Pflicht, nicht optional (Faktor 15-40x).
+1. `PredictionMode.SLL` ist Pflicht, nicht optional (Faktor 15-40x). →
+   `parser/cobol/antlr_bridge.py::build_tree()`.
 2. Worker-Warmup-Parse beim Start, um den einmaligen Full-Context-Fallback
-   aus dem Antwortzeit-kritischen Pfad zu nehmen.
+   aus dem Antwortzeit-kritischen Pfad zu nehmen. → `parser/worker.py::
+   _warmup_antlr_cobol_parser`, `antlr_bridge.py::warmup()`.
 3. `COPY`- und `EXEC SQL`/`EXEC CICS`-Filterung vor der Hauptgrammatik ist
    ein eigener, kleiner Engineering-Schritt (kein Selbstläufer der
-   Grammatik) — analog zum bestehenden `embedded.py`-Muster.
+   Grammatik) — analog zum bestehenden `embedded.py`-Muster. →
+   `antlr_bridge.py::mask_for_grammar()`.
 
-## Explizit nicht Teil dieses Spikes
+Ursprünglich hier als Ausblick skizziert war zusätzlich ein Parallelbetrieb
+über ein Engine-Flag (`DOCTUS_COBOL_PARSER_ENGINE=legacy|antlr`) — bewusst
+**nicht** gebaut, weil das Produkt noch nicht produktiv läuft und ein Flag
+ohne echten Rollback-Bedarf nur ungenutzter Ballast wäre (Begründung im
+E-11-Nachtrag). Stattdessen direkter Ersatz von `divisions.py`/
+`data_division.py`, alle 115 vorbestehenden Tests inkl. aller 12 Golden
+Files unverändert grün.
+
+## Explizit nicht Teil dieses Spikes (Stand Phase 1)
 
 Keine Anbindung an `cobol_persist.py`/`git.py`/`edge_resolver.py`, kein
 Feature-Flag, keine Änderung an `parser/requirements.txt`/`parser/Dockerfile`,
 keine Änderung unter `parser/cobol/`, kein Test einer zweiten Sprache, kein
-Visitor, der tatsächlich `ParseResult` befüllt (das ist der Kern von Phase 3).
+Visitor, der tatsächlich `ParseResult` befüllt. Alles davon ist seit Phase 3
+überholt — siehe Status-Hinweis am Dateianfang.

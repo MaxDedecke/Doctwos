@@ -94,16 +94,21 @@ im Offline-Bundle (NF-002) ohne Sonderklausel.
 
 ---
 
-## 6. Grammatik-Provenienz (Spike, E-11)
+## 6. Grammatik-Provenienz (E-11 — Spike Phase 1, seit Phase 3 produktiv)
 
-Nicht Teil des Release-Umfangs (kein Produktivcode berührt) — dokumentiert,
-weil die Grammatik selbst eine separate Lizenzquelle ist, unabhängig von der
-bereits geprüften `antlr4-python3-runtime`-Pip-Zeile (Abschnitt 2, BSD-3-Clause).
+`antlr4-python3-runtime` ist seit Phase 3 (E-11) eine reguläre Laufzeit-
+Abhängigkeit in `parser/requirements.txt` — läuft also mit durch
+`scripts/check_licenses_python.py`/CI-Job `licenses` wie jedes andere Paket.
+Dieser Abschnitt bleibt trotzdem bestehen, weil die Grammatik selbst
+(`Cobol85.g4`/`Cobol85Preprocessor.g4`) eine **separate** Lizenzquelle ist,
+die kein automatisierter `pip-licenses`-Lauf erfasst — nur die generierten
+`.py`-Dateien unter `parser/cobol/_antlr/` sind aus ihr abgeleitet, nicht das
+Pip-Paket selbst.
 
 | Artefakt | Lizenz | Quelle |
 |---|---|---|
-| `antlr4-python3-runtime==4.13.2` | BSD-3-Clause | PyPI, isoliert in `parser/spikes/antlr_cobol/requirements-spike.txt`, **nicht** in `parser/requirements.txt`. |
-| `Cobol85.g4` / `Cobol85Preprocessor.g4` | MIT | `github.com/antlr/grammars-v4`, Pfad `cobol85/`, gepinnter Commit `e1c222f3f0e7c1b2fec799e94e34fc388b03f887` (2026-08-08). Grammatik-Header verweist auf `github.com/uwol/cobol85parser` als Ursprung; dessen `LICENSE`-Datei (MIT, Copyright (c) 2017 Ulrich Wolffgang) am 11.08.2026 direkt eingesehen und als `parser/spikes/antlr_cobol/grammar/LICENSE-upstream-cobol85parser` mitgeführt — `grammars-v4` selbst hat kein Root-`LICENSE`, das den Cobol85-Grammatikordner abdeckt, deshalb Verifikation direkt an der Quelle statt Annahme. |
+| `antlr4-python3-runtime==4.13.2` | BSD-3-Clause | PyPI, `parser/requirements.txt` — läuft automatisiert über CI-Job `licenses`. |
+| `Cobol85.g4` / `Cobol85Preprocessor.g4` (Quelle für `parser/cobol/_antlr/*.py`, generiert zur Entwicklungszeit, committet wie normaler Code) | MIT | `github.com/antlr/grammars-v4`, Pfad `cobol85/`, gepinnter Commit `e1c222f3f0e7c1b2fec799e94e34fc388b03f887` (2026-08-08), Kopie unter `parser/spikes/antlr_cobol/grammar/`. Grammatik-Header verweist auf `github.com/uwol/cobol85parser` als Ursprung; dessen `LICENSE`-Datei (MIT, Copyright (c) 2017 Ulrich Wolffgang) am 11.08.2026 direkt eingesehen und als `parser/spikes/antlr_cobol/grammar/LICENSE-upstream-cobol85parser` mitgeführt — `grammars-v4` selbst hat kein Root-`LICENSE`, das den Cobol85-Grammatikordner abdeckt, deshalb Verifikation direkt an der Quelle statt Annahme. |
 
 Beide MIT/BSD-3-Clause, kompatibel mit Architekturprinzip 2. Ergebnis auch in
 `docs/ENTSCHEIDUNGEN.md` E-11 referenziert.

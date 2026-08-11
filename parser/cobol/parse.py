@@ -67,10 +67,13 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
     masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
 
-    program, div_errors = divisions_mod.scan(tokens)
+    # Phase 3 (E-11): divisions.py/data_division.py bauen sich ihren eigenen
+    # ANTLR-Parse-Tree aus denselben masked_lines - procedure.py/copybook.py/
+    # xref.py bleiben unverändert auf dem flachen Token-Strom von lexer.py.
+    program, div_errors = divisions_mod.scan(masked_lines)
     errors.extend(div_errors)
 
-    items, file_descriptors, dd_errors = data_division_mod.parse(program, tokens)
+    items, file_descriptors, dd_errors = data_division_mod.parse(program, masked_lines)
     errors.extend(dd_errors)
 
     proc_edges, proc_errors = procedure_mod.scan(program, tokens)
@@ -362,7 +365,7 @@ def parse_copybook(text: str, path: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -
         divisions=[Division("DATA", start_line, end_line)],
     )
 
-    items, file_descriptors, dd_errors = data_division_mod.parse(synthetic, tokens)
+    items, file_descriptors, dd_errors = data_division_mod.parse(synthetic, masked_lines)
     errors.extend(dd_errors)
 
     entities = [

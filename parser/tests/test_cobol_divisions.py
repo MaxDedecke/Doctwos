@@ -1,6 +1,6 @@
 import os
 
-from cobol import divisions, embedded, lexer, source_format
+from cobol import divisions, embedded, source_format
 from cobol.model import Division, Paragraph, Section
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
@@ -11,8 +11,7 @@ def _program(name: str, fmt: str = "fixed"):
         text = f.read()
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
-    tokens = lexer.tokenize(masked)
-    return divisions.scan(tokens)
+    return divisions.scan(masked)
 
 
 def test_minimal_program_structure():
@@ -89,8 +88,7 @@ def test_paragraph_inside_procedure_section_records_section_name():
     )
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
-    tokens = lexer.tokenize(masked)
-    program, errors = divisions.scan(tokens)
+    program, errors = divisions.scan(masked)
 
     assert errors == []
     assert program.sections == [Section("MAIN-SECTION", "PROCEDURE", 4, 7)]
@@ -106,8 +104,7 @@ def test_missing_program_id_is_reported_but_does_not_crash():
     )
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
-    tokens = lexer.tokenize(masked)
-    program, errors = divisions.scan(tokens)
+    program, errors = divisions.scan(masked)
 
     assert program.name == ""
     assert "PROGRAM-ID nicht gefunden." in errors

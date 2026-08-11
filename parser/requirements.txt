@@ -19,3 +19,4 @@ psutil==7.2.2
 cryptography==49.0.0
 pyyaml==6.0.3
 jsonschema==4.26.0
+antlr4-python3-runtime==4.13.2

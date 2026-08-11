@@ -27,6 +27,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 from db import REDIS_URL, SessionLocal
 
 from core.tracing import TraceIdFilter, trace_id_scope
@@ -63,6 +64,30 @@ app = Celery("parser", broker=REDIS_URL, backend=REDIS_URL)
 # format/handlers/filter set up above — turn that off so our trace-ID format
 # and shared-log-file FileHandler survive.
 app.conf.worker_hijack_root_logger = False
+
+
+@worker_process_init.connect
+def _warmup_antlr_cobol_parser(**kwargs):
+    """Phase 3 (E-11, docs/ENTSCHEIDUNGEN.md): zahlt ANTLRs einmaligen
+    Full-Context-Fallback (siehe cobol/antlr_bridge.py::warmup()) beim
+    Start jedes geforkten Worker-Prozesses statt bei der ersten echten
+    COBOL-Datei - der ATN-DFA-Cache lebt pro Prozess, `worker_process_init`
+    feuert deshalb einmal je Prefork-Kind, nicht nur einmal insgesamt.
+    Fehlschlag ist kein Blocker (nur ein langsamerer erster echter Parse),
+    deshalb hier bewusst nur geloggt statt den Worker-Start zu blockieren."""
+    try:
+        import time
+
+        from cobol.antlr_bridge import warmup as _antlr_warmup
+
+        t0 = time.monotonic()
+        _antlr_warmup()
+        logging.getLogger(__name__).info("ANTLR-COBOL-Warmup abgeschlossen (%.3fs).", time.monotonic() - t0)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "ANTLR-COBOL-Warmup fehlgeschlagen - kein Blocker, nur langsamerer erster Parse.", exc_info=True
+        )
+
 
 app.conf.beat_schedule = {
     # Ein einziger Pull-Scan für ALLE synchronisierbaren Quelltypen statt eines

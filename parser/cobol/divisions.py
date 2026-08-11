@@ -1,186 +1,153 @@
 """
 parser/cobol/divisions.py
 ===========================
-F-020: Programmstruktur aus dem Token-Strom erkennen — IDENTIFICATION/
-ENVIRONMENT/DATA/PROCEDURE DIVISION, PROGRAM-ID, Sections (in DATA wie in
-PROCEDURE DIVISION) und Paragraphen mit exakten Zeilenbereichen (F-023).
+F-020 (Phase 3, E-11): Programmstruktur — IDENTIFICATION/ENVIRONMENT/DATA/
+PROCEDURE DIVISION, PROGRAM-ID, Sections (in DATA wie in PROCEDURE DIVISION)
+und Paragraphen mit exakten Zeilenbereichen (F-023) — aus dem ANTLR-Parse-Tree
+(`antlr_bridge.build_tree()`) statt aus einem handgeschriebenen Token-Scan.
 
-Läuft nach lexer.tokenize() (auf bereits embedded.mask()-maskierten Zeilen).
-Ein einziger linearer Durchlauf, weil Division-/Section-/Paragraphenköpfe
-strukturell identisch sind: ein Name in Area A, der als einziger Inhalt einer
-eigenen Anweisung steht ("eigene Anweisung" = per Definition COBOL-Grammatik,
-nicht per Spaltenposition — Free-Format hat keine Area A). Deshalb wird hier
-nicht über Area A/B unterschieden (das wäre für Free-Format unbrauchbar),
-sondern über "Satzanfang": ein Header darf nur direkt nach einem Punkt (oder
-am Dateianfang) stehen, genau wie im echten COBOL-Grammatik.
+Ersetzt die bis Phase 3 (docs/ENTSCHEIDUNGEN.md E-11) handgeschriebene
+lineare Token-Abtastung: die Grammatik unterscheidet Division-/Section-/
+Paragraphen-Köpfe strukturell bereits selbst (eigene Regeln
+`identificationDivision`/`dataDivision`/`procedureDivision`/
+`procedureSectionHeader`/`paragraph`), ein alleinstehendes `GOBACK.`/`EXIT.`
+sieht im Parse-Tree nie wie ein Paragraphenkopf aus — die frühere
+`_RESERVED_BARE_VERBS`-Ausnahmeliste entfällt ersatzlos.
 
 Kein Abbruch (Plan §6.1 Regel 2): fehlt PROGRAM-ID oder jede Division, gibt
 es einen möglichst vollständigen CobolProgram plus Einträge in der
-zurückgegebenen Fehlerliste — nie eine Exception.
+zurückgegebenen Fehlerliste — nie eine Exception. ANTLR-Syntaxfehler selbst
+werden nie in diese Liste übernommen (antlr_bridge._SilentErrorListener) —
+dieselbe Haltung wie zuvor, als unbekannte Tokens stillschweigend übersprungen
+wurden.
 """
 
 from __future__ import annotations
 
-from .lexer import Token
-from .model import CobolProgram, Division, Paragraph, Section
+from . import antlr_bridge
+from . import lexer as lexer_mod
+from ._antlr.Cobol85Parser import Cobol85Parser
+from ._antlr.Cobol85Visitor import Cobol85Visitor
+from .model import CobolProgram, Division, LogicalLine, Paragraph, Section
 
-_DIVISION_NAMES = {"IDENTIFICATION", "ENVIRONMENT", "DATA", "PROCEDURE"}
-
-# Reservierte, operandenlose COBOL-Verben, die als eigener Satz (WORD PERIOD)
-# auftreten können - z.B. ein alleinstehendes "GOBACK." oder "EXIT." am Ende
-# eines Paragraphen im alten GO-TO-Stil - und strukturell nicht von einem
-# Paragraphen-Kopf zu unterscheiden sind. Da keins dieser Wörter als
-# Anwenderbezeichner zulässig ist (reserviert), ist der Ausschluss ohne
-# Fehlalarm-Risiko: ohne ihn würde z.B. zweimaliges "GOBACK." im selben
-# Programm zwei Paragraph-Entities mit identischem qualified_name erzeugen
-# und beim Persistieren am Unique-Constraint scheitern.
-_RESERVED_BARE_VERBS = {"GOBACK", "EXIT", "CONTINUE", "STOP"}
+_DIVISION_RULE_NAMES = {
+    "identificationDivision": "IDENTIFICATION",
+    "environmentDivision": "ENVIRONMENT",
+    "dataDivision": "DATA",
+    "procedureDivision": "PROCEDURE",
+}
 
 
-def scan(tokens: list[Token]) -> tuple[CobolProgram, list[str]]:
+def scan(masked_lines: list[LogicalLine]) -> tuple[CobolProgram, list[str]]:
     errors: list[str] = []
 
+    tokens = lexer_mod.tokenize(masked_lines)
     if not tokens:
         errors.append("Keine Tokens gefunden - leere oder nicht lesbare Datei.")
         return CobolProgram(name="", start_line=0, end_line=0), errors
 
     start_line = tokens[0].phys_line
-    n = len(tokens)
-
-    divisions: list[Division] = []
-    sections: list[Section] = []
-    paragraphs: list[Paragraph] = []
-
-    program_name = ""
-    current_division_name: str | None = None
-
-    open_division: list | None = None  # [name, start_line]
-    open_section: list | None = None  # [name, division, start_line]
-    open_paragraph: list | None = None  # [name, section, start_line]
-
-    def close_paragraph(last_line: int) -> None:
-        nonlocal open_paragraph
-        if open_paragraph is not None:
-            name, section, p_start = open_paragraph
-            paragraphs.append(Paragraph(name, section, p_start, last_line))
-            open_paragraph = None
-
-    def close_section(last_line: int) -> None:
-        nonlocal open_section
-        close_paragraph(last_line)
-        if open_section is not None:
-            name, division, s_start = open_section
-            sections.append(Section(name, division, s_start, last_line))
-            open_section = None
-
-    def close_division(last_line: int) -> None:
-        nonlocal open_division
-        close_section(last_line)
-        if open_division is not None:
-            name, d_start = open_division
-            divisions.append(Division(name, d_start, last_line))
-            open_division = None
-
-    at_sentence_start = True
-    i = 0
-    while i < n:
-        tok = tokens[i]
-
-        if not at_sentence_start:
-            at_sentence_start = tok.kind == "PERIOD"
-            i += 1
-            continue
-
-        prev_line = tokens[i - 1].phys_line if i > 0 else tok.phys_line
-
-        if (
-            tok.kind == "WORD"
-            and tok.value.upper() in _DIVISION_NAMES
-            and _word_at(tokens, i + 1, "DIVISION")
-        ):
-            close_division(prev_line)
-            current_division_name = tok.value.upper()
-            open_division = [current_division_name, tok.phys_line]
-            period_idx = _find_period(tokens, i + 2)
-            i = period_idx + 1 if period_idx is not None else n
-            at_sentence_start = True
-            continue
-
-        if tok.kind == "WORD" and tok.value.upper() == "PROGRAM-ID" and _is_period(tokens, i + 1):
-            name_idx = i + 2
-            if name_idx < n and tokens[name_idx].kind in ("WORD", "LITERAL"):
-                program_name = _clean_name(tokens[name_idx].value)
-            period_idx = _find_period(tokens, i + 2)
-            i = period_idx + 1 if period_idx is not None else n
-            at_sentence_start = True
-            continue
-
-        if tok.kind == "WORD" and not _is_embedded_placeholder(tok.value) and _word_at(tokens, i + 1, "SECTION"):
-            close_section(prev_line)
-            open_section = [tok.value, current_division_name, tok.phys_line]
-            period_idx = _find_period(tokens, i + 2)
-            i = period_idx + 1 if period_idx is not None else n
-            at_sentence_start = True
-            continue
-
-        if (
-            current_division_name == "PROCEDURE"
-            and tok.kind == "WORD"
-            and not _is_embedded_placeholder(tok.value)
-            and tok.value.upper() not in _RESERVED_BARE_VERBS
-            and _is_period(tokens, i + 1)
-        ):
-            close_paragraph(prev_line)
-            section_name = open_section[0] if open_section else None
-            open_paragraph = [tok.value, section_name, tok.phys_line]
-            i += 2
-            at_sentence_start = True
-            continue
-
-        at_sentence_start = tok.kind == "PERIOD"
-        i += 1
-
     last_line = tokens[-1].phys_line
-    close_division(last_line)
 
-    if not divisions:
+    tree = antlr_bridge.build_tree(masked_lines)
+    visitor = _StructureVisitor()
+    visitor.visit(tree)
+
+    if not visitor.divisions:
         errors.append("Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden).")
-    if not program_name:
+    if not visitor.program_name:
         errors.append("PROGRAM-ID nicht gefunden.")
 
     program = CobolProgram(
-        name=program_name,
+        name=visitor.program_name,
         start_line=start_line,
         end_line=last_line,
-        divisions=divisions,
-        sections=sections,
-        paragraphs=paragraphs,
+        divisions=visitor.divisions,
+        sections=visitor.sections,
+        paragraphs=visitor.paragraphs,
     )
     return program, errors
 
 
-def _word_at(tokens: list[Token], idx: int, word: str) -> bool:
-    return idx < len(tokens) and tokens[idx].kind == "WORD" and tokens[idx].value.upper() == word
+class _StructureVisitor(Cobol85Visitor):
+    """Ein Durchlauf über `programUnit` (nur das erste — mehrere PROGRAM-IDs
+    pro Datei werden wie vor Phase 3 nicht unterstützt, das gesamte File gilt
+    als ein CobolProgram, siehe divisions.py-Historie/Tests). PROGRAM-ID aus
+    späteren `programUnit`-Wiederholungen (verschachtelte Unterprogramme)
+    überschreibt den Namen — dieselbe "letzter gewinnt"-Regel wie zuvor."""
+
+    def __init__(self) -> None:
+        self.program_name = ""
+        self.divisions: list[Division] = []
+        self.sections: list[Section] = []
+        self.paragraphs: list[Paragraph] = []
+        self._current_division: str | None = None
+
+    def visitProgramUnit(self, ctx: Cobol85Parser.ProgramUnitContext):  # noqa: N802
+        for name, rule_key in _DIVISION_RULE_NAMES.items():
+            child = getattr(ctx, name)()
+            if child is None or child.exception is not None:
+                continue
+            self._current_division = rule_key
+            self.divisions.append(Division(rule_key, _line(child.start), _line(child.stop)))
+        self.visitChildren(ctx)
+        return None
+
+    def visitProgramIdParagraph(self, ctx: Cobol85Parser.ProgramIdParagraphContext):  # noqa: N802
+        name_ctx = ctx.programName()
+        if name_ctx is not None:
+            self.program_name = _clean_name(name_ctx.getText())
+        return None
+
+    def visitFileSection(self, ctx: Cobol85Parser.FileSectionContext):  # noqa: N802
+        self._record_named_section(ctx, "FILE", ctx.start, ctx.stop, "DATA")
+        return self.visitChildren(ctx)
+
+    def visitWorkingStorageSection(self, ctx: Cobol85Parser.WorkingStorageSectionContext):  # noqa: N802
+        self._record_named_section(ctx, "WORKING-STORAGE", ctx.start, ctx.stop, "DATA")
+        return self.visitChildren(ctx)
+
+    def visitLinkageSection(self, ctx: Cobol85Parser.LinkageSectionContext):  # noqa: N802
+        self._record_named_section(ctx, "LINKAGE", ctx.start, ctx.stop, "DATA")
+        return self.visitChildren(ctx)
+
+    def visitProcedureSectionHeader(self, ctx: Cobol85Parser.ProcedureSectionHeaderContext):  # noqa: N802
+        # procedureSection wraps header + its paragraphs; the header's own
+        # ctx only spans "NAME SECTION [n]" — the real end_line comes from
+        # the enclosing procedureSection, handled in visitProcedureSection().
+        return None
+
+    def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
+        header = ctx.procedureSectionHeader()
+        name = _clean_name(header.sectionName().getText())
+        self.sections.append(Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop)))
+        self._collect_paragraphs(ctx.paragraphs(), name)
+        return None
+
+    def visitProcedureDivisionBody(self, ctx: Cobol85Parser.ProcedureDivisionBodyContext):  # noqa: N802
+        # Paragraphen direkt unter PROCEDURE DIVISION, vor der ersten Section
+        # (oder wenn es gar keine Section gibt) - section=None.
+        self._collect_paragraphs(ctx.paragraphs(), None)
+        for section_ctx in ctx.procedureSection():
+            self.visit(section_ctx)
+        return None
+
+    def _collect_paragraphs(self, paragraphs_ctx, section_name: str | None) -> None:
+        if paragraphs_ctx is None:
+            return
+        for p in paragraphs_ctx.paragraph():
+            name_ctx = p.paragraphName()
+            name = _clean_name(name_ctx.getText()) if name_ctx is not None else ""
+            if not name:
+                continue
+            self.paragraphs.append(Paragraph(name, section_name, _line(p.start), _line(p.stop)))
+
+    def _record_named_section(self, ctx, name: str, start_tok, stop_tok, division: str) -> None:
+        self.sections.append(Section(name, division, _line(start_tok), _line(stop_tok)))
 
 
-def _is_period(tokens: list[Token], idx: int) -> bool:
-    return idx < len(tokens) and tokens[idx].kind == "PERIOD"
-
-
-def _find_period(tokens: list[Token], start_idx: int) -> int | None:
-    for j in range(start_idx, len(tokens)):
-        if tokens[j].kind == "PERIOD":
-            return j
-    return None
-
-
-def _is_embedded_placeholder(value: str) -> bool:
-    """Ein `EMBEDDED-BLOCK-<DIALEKT>`-Platzhalter (embedded.mask()) besteht oft
-    aus genau WORD+PERIOD (der Punkt nach END-EXEC) — strukturell nicht von
-    einem Paragraphen-/Section-Kopf zu unterscheiden. Ohne diese Ausnahme
-    würde z.B. ein EXEC-Block direkt unter einem Paragraphen-Header dessen
-    Bereich sofort wieder schliessen (siehe 08_exec_cics.cbl)."""
-    return value.upper().startswith("EMBEDDED-BLOCK-")
+def _line(token) -> int:
+    return token.line if token is not None else 0
 
 
 def _clean_name(value: str) -> str:

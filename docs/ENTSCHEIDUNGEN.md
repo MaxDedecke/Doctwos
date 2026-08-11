@@ -474,3 +474,31 @@ No-Go: Ergebnis als Ergänzung zu diesem Eintrag festhalten, CLAUDE.md
 Prinzip 3 bleibt/wird wieder uneingeschränkt formuliert.
 
 **Fundstelle.** CLAUDE.md Architekturprinzip 3, `parser/spikes/antlr_cobol/README.md`.
+
+**Nachtrag Phase 3 (11.08.2026): umgesetzt, ohne Engine-Flag.** Der
+ursprünglich skizzierte Parallelbetrieb mit Feature-Flag
+(`DOCTUS_COBOL_PARSER_ENGINE=legacy|antlr`) wurde bewusst **nicht** gebaut:
+das Produkt läuft noch nicht produktiv (siehe „Anlass" oben), es gibt keinen
+Blast-Radius auf echte Kundendaten, den ein schrittweiser Rollout schützen
+müsste. Ein dauerhafter Flag, der mangels Produktivbetrieb nie umgelegt
+würde, wäre exakt das Muster, das dieser Eintrag selbst als Fehler benennt
+(tree-sitter-Präzedenzfall — importiert, aber nie aktiv genutzt). Stattdessen
+direkter Ersatz: `parser/cobol/divisions.py` und `parser/cobol/
+data_division.py` laufen jetzt vollständig über einen ANTLR-Parse-Tree
+(`parser/cobol/antlr_bridge.py`, generierte Grammatik unter `parser/cobol/
+_antlr/`) statt über den handgeschriebenen Token-Scan. `lexer.py`,
+`procedure.py`, `copybook.py`, `xref.py`, `sql.py`, `chunking.py`,
+`embedded.py`, `source_format.py`, `model.py` blieben unverändert — sie
+arbeiten weiterhin auf dem (unveränderten) flachen Token-Strom bzw. reiner
+Geschäftslogik, unabhängig von der Grammatik. Alle 115 vorbestehenden
+COBOL-Tests inkl. aller 12 Golden Files sind unverändert grün (Verhaltens-
+parität, keine Golden-Neugenerierung nötig). `antlr4-python3-runtime` ist
+jetzt regulärer Bestandteil von `parser/requirements.txt`
+(docs/OSS-CLEARING.md Abschnitt 6). Die im Spike identifizierten Auflagen
+sind umgesetzt: `PredictionMode.SLL` (`antlr_bridge.build_tree()`) und ein
+Worker-Warmup beim Start jedes Celery-Prozesses (`worker.py::
+_warmup_antlr_cobol_parser`, `cobol/antlr_bridge.py::warmup()`), damit der
+einmalige ANTLR-Full-Context-Fallback nicht die erste echte Anfrage
+verzögert. COPY- und EXEC-Block-Maskierung für die Grammatik (`antlr_bridge.
+mask_for_grammar()`) sind der im Spike vorhergesagte kleine Zusatzschritt.
+Phase 4 (Zweitsprache) bleibt unbeauftragt.
