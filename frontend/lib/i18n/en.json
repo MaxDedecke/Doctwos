@@ -85,7 +85,11 @@
       "expandChat": "Expand chat",
       "closeView": "Close view",
       "historyBack": "Back",
-      "historyForward": "Forward"
+      "historyForward": "Forward",
+      "freezePausedTitle": "Auto-refresh paused (click to activate)",
+      "freezeActiveTitle": "Auto-refresh active (click to pause)",
+      "frozenBadge": "Frozen",
+      "liveBadge": "Live"
     },
     "viewTypes": {
       "chat": "💬 Chat view",
@@ -104,7 +108,9 @@
       "file": "File"
     },
     "objectFileFallback": "File",
-    "focusedObjectLabel": "Object"
+    "focusedObjectLabel": "Object",
+    "defaultModelFallback": "Default model",
+    "demoSourceName": "Company Wiki"
   },
   "settings": {
     "nav": {
@@ -434,7 +440,19 @@
       "connectTitle": "Connect {{name}}",
       "pinSource": "Pin",
       "unpinSource": "Unpin",
-      "maxPinsReached": "Maximum of 4 knowledge sources can be pinned"
+      "maxPinsReached": "Maximum of 4 knowledge sources can be pinned",
+      "connectedSourcesHeading": "Connected data sources ({{count}})",
+      "emptyStateHeading": "No active data sources found",
+      "emptyStateHintAll": "Connect your first data source below to feed your Doctus AI project with knowledge.",
+      "emptyStateHintProject": "No specific data sources have been connected for this project yet.",
+      "addNewSourceHeading": "Connect a new knowledge source",
+      "processingFallback": "Processing...",
+      "sourceBadgeSingular": "Source",
+      "sourceBadgePlural": "Sources",
+      "projectLabelColon": "Project:",
+      "branchLabelColon": "Branch:",
+      "intervalLabelColon": "Interval:",
+      "manualDocumentLabel": "Manual document"
     },
     "sourcesSetup": {
       "uploadDocsTitle": "Upload documents",
@@ -709,7 +727,14 @@
     "messageCopiedToast": "Message copied to clipboard!",
     "copyFailedToast": "Copy failed.",
     "startChatFirstToast": "Start a chat first to share it",
-    "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy."
+    "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy.",
+    "askDirectlyTitle": "Ask directly",
+    "typingFallbacks": {
+      "makeCobolKnowledgeVisible": "Make COBOL knowledge visible",
+      "navigateMainframeCode": "Navigate mainframe code with clarity",
+      "unlockLegacySystems": "Unlock legacy systems",
+      "programsCopybooksRelations": "Programs, copybooks, relationships"
+    }
   },
   "loginView": {
     "title": "Sign in",
@@ -729,7 +754,12 @@
     "newPasswordRepeatLabel": "Repeat new password",
     "passwordsDoNotMatch": "The two passwords do not match.",
     "passwordTooShort": "The password must be at least 12 characters long.",
-    "changeSubmit": "Save password"
+    "changeSubmit": "Save password",
+    "heroKicker": "Legacy intelligence workspace",
+    "heroHeadline": "Understand the systems that run everything.",
+    "heroTraceWord": "Trace",
+    "heroExplainWord": "Explain",
+    "heroModernizeWord": "Modernize"
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",
@@ -770,7 +800,31 @@
     "openInBrowser": "Open in browser",
     "knowledgeSourceLabel": "Knowledge source",
     "documentViewerLabel": "Document viewer",
-    "editorLoading": "Loading editor..."
+    "editorLoading": "Loading editor...",
+    "referencesPanelTitle": "References & linked documents",
+    "noParsedFocusObject": "No parsed focus object available for this file.",
+    "loadingReferences": "Loading references …",
+    "noDirectReferencesFor": "No direct references for {{name}}.",
+    "referencesForPrefix": "References for:",
+    "loadingLinkedReferences": "Loading linked references...",
+    "noDirectLinksInGraph": "No direct links for this element in the graph.",
+    "unresolvedLabel": "Unresolved",
+    "webPreviewFallbackTitle": "Web Preview",
+    "localSourceBadge": "Local",
+    "neighborGroupLabels": {
+      "callIn": "Callers",
+      "callOut": "Calls",
+      "copyOut": "Uses copybook",
+      "copyIn": "Used by",
+      "readsOut": "Reads table",
+      "writesOut": "Writes table",
+      "performOut": "Performs",
+      "performIn": "Performed by",
+      "gotoOut": "Goes to",
+      "usesOut": "Uses",
+      "usesIn": "Used by",
+      "docOut": "Linked documents"
+    }
   },
   "agentSteps": {
     "hideThoughts": "Hide reasoning",
@@ -861,7 +915,8 @@
     "createLinkError": "Failed to create link",
     "openOriginal": "Open original",
     "fromLabel": "From",
-    "toLabel": "To"
+    "toLabel": "To",
+    "legendLabel": "Legend"
   },
   "globalSearch": {
     "groups": {
@@ -1066,5 +1121,23 @@
     "sendingReportButton": "Sending...",
     "reportSentToast": "Error report sent, thank you",
     "reportFailedToast": "Failed to send error report"
+  },
+  "callGraphView": {
+    "focusFirst": "Please focus a COBOL object first.",
+    "hopUnit": "Hop",
+    "hopUnitPlural": "Hops",
+    "reloadTitle": "Reload",
+    "zoomInTitle": "Zoom in",
+    "zoomOutTitle": "Zoom out",
+    "fitAllTitle": "Fit all",
+    "truncatedNotice": "Limited to 500 nodes",
+    "noConnections": "No call graph connections for this focus.",
+    "loadError": "Failed to load call graph",
+    "exportError": "Export failed (HTTP {{status}})"
+  },
+  "sourceNetworkGraph": {
+    "title": "Source network",
+    "empty": "No network yet — once a source is connected below, the information flow into Doctus will appear here.",
+    "overflowLabel": "+{{count}} more"
   }
 }

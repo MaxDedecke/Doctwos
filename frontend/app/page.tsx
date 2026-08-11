@@ -794,7 +794,7 @@ function AppContent() {
   const [referencesTab, setReferencesTab] = useState<'code' | 'docs'>('code');
   const [activeSourceType, setActiveSourceType] = useState<string | null>(null);
   const [connectedSources, setConnectedSources] = useState<any[]>([
-    { id: 'conf-init', type: 'Confluence', name: 'Firmen-Wiki', repoId: 'all', spaces: ['ENG', 'PROD'] }
+    { id: 'conf-init', type: 'Confluence', name: t('page.demoSourceName'), repoId: 'all', spaces: ['ENG', 'PROD'] }
   ]);
   const [pinnedSourceIds, setPinnedSourceIds] = useState<number[]>([]);
 
@@ -1772,7 +1772,7 @@ function AppContent() {
       content: "",
       sources: [],
       metadata: {
-        model: activeProfile?.name || activeProfile?.model || "Default Model",
+        model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
         agent_steps: []
       }
@@ -1825,7 +1825,7 @@ function AppContent() {
       content: "",
       sources: [],
       metadata: {
-        model: activeProfile?.name || activeProfile?.model || "Default Model",
+        model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
         agent_steps: []
       }
@@ -2206,17 +2206,17 @@ function AppContent() {
                       ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
                       : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
               )}
-              title={panelFrozen[index] ? "Auto-Refresh pausiert (Klicken zum Aktivieren)" : "Auto-Refresh aktiv (Klicken zum Pausieren)"}
+              title={panelFrozen[index] ? t('page.workspace.freezePausedTitle') : t('page.workspace.freezeActiveTitle')}
             >
               {panelFrozen[index] ? (
                 <>
                   <Lock className="w-3 h-3 text-ds-amber-500" />
-                  <span className="text-[9px] text-ds-amber-500 hidden sm:inline">Fixiert</span>
+                  <span className="text-[9px] text-ds-amber-500 hidden sm:inline">{t('page.workspace.frozenBadge')}</span>
                 </>
               ) : (
                 <>
                   <RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" />
-                  <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">Live</span>
+                  <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('page.workspace.liveBadge')}</span>
                 </>
               )}
             </button>

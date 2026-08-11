@@ -157,7 +157,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
               {t('settings.sourcesTab.title')}
             </h4>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-ds-indigo-500/10 text-ds-indigo-400 border border-ds-indigo-500/20">
-              {connectedSources.length} {connectedSources.length === 1 ? 'Quelle' : 'Quellen'}
+              {connectedSources.length} {connectedSources.length === 1 ? t('settings.sourcesTab.sourceBadgeSingular') : t('settings.sourcesTab.sourceBadgePlural')}
             </span>
           </div>
           <p className={cn("text-xs leading-relaxed max-w-2xl", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-650")}>
@@ -207,7 +207,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       {/* SECTION 1: Active Connected Sources */}
       <div className="space-y-4">
         <h5 className={cn("text-sm font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-550")}>
-          Verbundene Datenquellen ({filteredSources.length})
+          {t('settings.sourcesTab.connectedSourcesHeading', { count: filteredSources.length })}
         </h5>
 
         {sortedSources.length === 0 ? (
@@ -220,12 +220,12 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
               <Info className="w-6 h-6 text-ds-indigo-400" />
             </div>
             <p className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-800")}>
-              Keine aktiven Datenquellen gefunden
+              {t('settings.sourcesTab.emptyStateHeading')}
             </p>
             <p className={cn("text-sm mt-1 max-w-sm leading-relaxed", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
               {selectedSourceRepoId === "all"
-                ? "Binden Sie unten Ihre erste Datenquelle an, um Ihr Doctus AI Projekt mit Wissen zu füttern."
-                : "Für dieses Projekt wurden noch keine spezifischen Datenquellen angebunden."}
+                ? t('settings.sourcesTab.emptyStateHintAll')
+                : t('settings.sourcesTab.emptyStateHintProject')}
             </p>
           </div>
         ) : (
@@ -287,15 +287,15 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           </span>
                         ) : inst.sync_status === 'error' ? (
                           <span className="flex items-center gap-1 text-sm font-bold text-ds-red-400 bg-ds-red-500/10 border border-ds-red-500/20 px-2 py-1 rounded-sm">
-                            <AlertCircle className="w-3.5 h-3.5" /> Error
+                            <AlertCircle className="w-3.5 h-3.5" /> {t('settings.logsTab.statusErrorLabel')}
                           </span>
                         ) : inst.last_synced_at ? (
                           <span className="flex items-center gap-1 text-sm font-bold text-ds-emerald-400 bg-ds-emerald-500/10 border border-ds-emerald-500/20 px-2 py-1 rounded-sm">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Synced
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {t('settings.logsTab.statusSuccess')}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-sm font-bold text-ds-amber-400 bg-ds-amber-500/10 border border-ds-amber-500/20 px-2 py-1 rounded-sm">
-                            <Info className="w-3.5 h-3.5" /> Ready
+                            <Info className="w-3.5 h-3.5" /> {t('settings.logsTab.statusReady')}
                           </span>
                         )}
                       </div>
@@ -308,14 +308,14 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     )}>
                       {project && (
                         <div className="flex items-center gap-1.5">
-                          <span className="opacity-50">Projekt:</span>
+                          <span className="opacity-50">{t('settings.sourcesTab.projectLabelColon')}</span>
                           <span className={cn("font-bold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-800")}>{project.name}</span>
                         </div>
                       )}
                       {inst.type?.toLowerCase() === 'git' && (inst.branch || inst.spaces?.branch) && (
                         <div className="flex items-center gap-1.5">
                           <GitBranch className="w-3.5 h-3.5 opacity-60" />
-                          <span className="opacity-50">Branch:</span>
+                          <span className="opacity-50">{t('settings.sourcesTab.branchLabelColon')}</span>
                           <span className="font-mono text-sm font-bold">{inst.branch || inst.spaces.branch}</span>
                         </div>
                       )}
@@ -344,7 +344,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                       <div className="space-y-2 mt-2 animate-in fade-in duration-300">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-ds-blue-400 font-bold truncate max-w-[80%]">
-                            {inst.progress_message || "Verarbeitung..."}
+                            {inst.progress_message || t('settings.sourcesTab.processingFallback')}
                           </span>
                           {inst.progress > 0 && (
                             <span className="text-ds-blue-400 font-extrabold">{inst.progress}%</span>
@@ -391,7 +391,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     <div>
                       {inst.type?.toLowerCase() !== 'local' ? (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">Intervall:</span>
+                          <span className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.intervalLabelColon')}</span>
                           <select
                             value={inst.sync_interval_minutes ?? 0}
                             onClick={(e) => e.stopPropagation()}
@@ -411,7 +411,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           </select>
                         </div>
                       ) : (
-                        <div className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">Manuelles Dokument</div>
+                        <div className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.manualDocumentLabel')}</div>
                       )}
                     </div>
 
@@ -502,7 +502,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       <div className="space-y-4 pt-3 border-t border-ds-zinc-800/30">
         <div className="flex items-center justify-between">
           <h5 className={cn("text-xs font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-550")}>
-            Neue Wissensquelle anbinden
+            {t('settings.sourcesTab.addNewSourceHeading')}
           </h5>
         </div>
 

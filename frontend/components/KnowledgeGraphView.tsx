@@ -1144,7 +1144,7 @@ export function KnowledgeGraphView({
                 <div className="flex items-center gap-1.5">
                   <Workflow className="w-3.5 h-3.5 text-ds-indigo-500 animate-pulse" />
                   <span className="text-xs font-bold uppercase tracking-wide">
-                    {language === 'de' ? 'Legende' : 'Legend'}
+                    {t('knowledgeGraphView.legendLabel')}
                   </span>
                 </div>
                 <span className="text-[10px] text-ds-zinc-550 hover:text-ds-zinc-300">
@@ -1157,7 +1157,7 @@ export function KnowledgeGraphView({
                   {/* List visible node types */}
                   <div className="space-y-1.5">
                     <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
-                      {language === 'de' ? 'Knoten' : 'Nodes'}
+                      {t('knowledgeGraphView.nodesLabel')}
                     </p>
                     {nodeTypes.map(type => {
                       const typeInfo = UNIFIED_NODE_TYPES[type];
@@ -1176,7 +1176,7 @@ export function KnowledgeGraphView({
                   {linkTypes.length > 0 && (
                     <div className={cn("space-y-1.5 pt-2 border-t", isDark ? "border-ds-zinc-800/60" : "border-ds-zinc-200")}>
                       <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
-                        {language === 'de' ? 'Verbindungen' : 'Links'}
+                        {t('knowledgeGraphView.linksLabel')}
                       </p>
                       {linkTypes.map(type => {
                         const color = LINK_COLORS[type] ?? 'rgb(var(--ds-neutral-300))';

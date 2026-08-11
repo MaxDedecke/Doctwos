@@ -95,14 +95,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           <DoctusWordmark className="h-9 w-32" theme="dark" />
         </div>
         <div className="max-w-2xl">
-          <p className="doctus-kicker text-ds-zinc-400 mb-5">Legacy intelligence workspace</p>
+          <p className="doctus-kicker text-ds-zinc-400 mb-5">{t('loginView.heroKicker')}</p>
           <h1 className="font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em] text-ds-zinc-100">
-            Understand the systems that run everything.
+            {t('loginView.heroHeadline')}
           </h1>
           <div className="mt-10 grid grid-cols-3 border-y border-ds-zinc-800 py-5 text-ds-zinc-400">
-            <span className="doctus-kicker">Trace</span>
-            <span className="doctus-kicker">Explain</span>
-            <span className="doctus-kicker">Modernize</span>
+            <span className="doctus-kicker">{t('loginView.heroTraceWord')}</span>
+            <span className="doctus-kicker">{t('loginView.heroExplainWord')}</span>
+            <span className="doctus-kicker">{t('loginView.heroModernizeWord')}</span>
           </div>
         </div>
         <div aria-hidden="true" />

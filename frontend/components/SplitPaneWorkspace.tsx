@@ -206,18 +206,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   }, [selectedEntity?.id, activeRightTab, selectedProject?.id]);
 
   const neighborGroupLabels: Record<string, string> = {
-    'CALL:in': 'Aufrufer',
-    'CALL:out': 'Ruft auf',
-    'COPY:out': 'Verwendet Copybook',
-    'COPY:in': 'Verwendet von',
-    'READS:out': 'Liest Tabelle',
-    'WRITES:out': 'Schreibt Tabelle',
-    'PERFORM:out': 'Führt aus',
-    'PERFORM:in': 'Ausgeführt von',
-    'GOTO:out': 'Springt zu',
-    'USES:out': 'Verwendet',
-    'USES:in': 'Verwendet von',
-    'DOC:out': 'Verknüpfte Dokumente',
+    'CALL:in': t('splitPane.neighborGroupLabels.callIn'),
+    'CALL:out': t('splitPane.neighborGroupLabels.callOut'),
+    'COPY:out': t('splitPane.neighborGroupLabels.copyOut'),
+    'COPY:in': t('splitPane.neighborGroupLabels.copyIn'),
+    'READS:out': t('splitPane.neighborGroupLabels.readsOut'),
+    'WRITES:out': t('splitPane.neighborGroupLabels.writesOut'),
+    'PERFORM:out': t('splitPane.neighborGroupLabels.performOut'),
+    'PERFORM:in': t('splitPane.neighborGroupLabels.performIn'),
+    'GOTO:out': t('splitPane.neighborGroupLabels.gotoOut'),
+    'USES:out': t('splitPane.neighborGroupLabels.usesOut'),
+    'USES:in': t('splitPane.neighborGroupLabels.usesIn'),
+    'DOC:out': t('splitPane.neighborGroupLabels.docOut'),
   };
 
   const localEditorRef = useRef<any>(null);
@@ -889,7 +889,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                             ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
                             : "bg-transparent border-ds-zinc-200 text-ds-zinc-405 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
                     )}
-                    title="Referenzen & Verknüpfte Dokumente"
+                    title={t('splitPane.referencesPanelTitle')}
                   >
                     <Link2 className="w-3 h-3 text-ds-indigo-400" />
                     <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('splitPane.references')}</span>
@@ -972,18 +972,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       {activeRightTab === 'code' && !selectedEntity ? (
                         <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
                           <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
-                          <span>Für diese Datei ist kein geparstes Fokusobjekt verfügbar.</span>
+                          <span>{t('splitPane.noParsedFocusObject')}</span>
                         </div>
                       ) : activeRightTab === 'code' && isLoadingEntityNeighbors ? (
                         <div className="p-8 flex flex-col items-center justify-center gap-2.5 text-xs text-ds-zinc-500">
                           <Loader2 className="w-5 h-5 animate-spin text-ds-indigo-500" />
-                          <span>Lade Referenzen …</span>
+                          <span>{t('splitPane.loadingReferences')}</span>
                         </div>
                       ) : activeRightTab === 'code' ? (
                         Object.keys(entityNeighborGroups).length === 0 ? (
                           <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
                             <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
-                            <span>Keine direkten Referenzen für {selectedEntity.name}.</span>
+                            <span>{t('splitPane.noDirectReferencesFor', { name: selectedEntity.name })}</span>
                           </div>
                         ) : (
                           <div className="py-2">
@@ -1037,7 +1037,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           {entity?.name || document?.title || neighbor.dst_name}
                                         </span>
                                         <span className="block truncate text-[10px] text-ds-zinc-500 font-mono">
-                                          {entity?.file_path || document?.source_type || document?.file_path || 'Nicht aufgelöst'}
+                                          {entity?.file_path || document?.source_type || document?.file_path || t('splitPane.unresolvedLabel')}
                                         </span>
                                       </span>
                                       {entity?.start_line && (
@@ -1144,7 +1144,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                           )}>
                             <div className="flex items-center gap-2">
                               <Layers className="w-4 h-4 text-ds-indigo-500 animate-pulse" />
-                              <span>Referenzen für: <strong className="font-mono text-ds-indigo-400">{focusedRefNode.name || focusedRefNode.title}</strong></span>
+                              <span>{t('splitPane.referencesForPrefix')} <strong className="font-mono text-ds-indigo-400">{focusedRefNode.name || focusedRefNode.title}</strong></span>
                             </div>
                             <button
                               onClick={() => setFocusedRefNode(null)}
@@ -1159,12 +1159,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                             {isLoadingFocusedRefRefs ? (
                               <div className="p-12 flex flex-col items-center justify-center gap-3 text-xs text-ds-zinc-500">
                                 <Loader2 className="w-6 h-6 animate-spin text-ds-indigo-500" />
-                                <span>Lade verknüpfte Referenzen...</span>
+                                <span>{t('splitPane.loadingLinkedReferences')}</span>
                               </div>
                             ) : focusedRefReferences.length === 0 ? (
                               <div className="p-12 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
                                 <Layers className="w-8 h-8 text-ds-zinc-650 opacity-40" />
-                                <span>Keine direkten Verknüpfungen für dieses Element im Graph vorhanden.</span>
+                                <span>{t('splitPane.noDirectLinksInGraph')}</span>
                               </div>
                             ) : (
                               <div className="space-y-3">
@@ -1219,14 +1219,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                               "px-2 py-0.5 text-[9px] font-bold rounded font-mono border uppercase tracking-wider",
                                               theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-600"
                                             )}>
-                                              Zeile {ref.line}
+                                              {t('splitPane.lineLabel', { line: ref.line })}
                                             </span>
                                           ) : (
                                             <span className={cn(
                                               "px-2 py-0.5 text-[9px] font-bold rounded border uppercase tracking-wider",
                                               theme === 'dark' ? "bg-ds-emerald-500/10 border-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700"
                                             )}>
-                                              {ref.source || "Local"}
+                                              {ref.source || t('splitPane.localSourceBadge')}
                                             </span>
                                           )}
                                         </div>
@@ -1301,7 +1301,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   <iframe
                     srcDoc={contentToUse}
                     className={cn("w-full h-full border-none", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}
-                    title={selectedDoc.name || 'Web Preview'}
+                    title={selectedDoc.name || t('splitPane.webPreviewFallbackTitle')}
                     sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts"
                   />
                 </div>

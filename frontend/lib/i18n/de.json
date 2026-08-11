@@ -85,7 +85,11 @@
       "expandChat": "Chat ausklappen",
       "closeView": "Ansicht schließen",
       "historyBack": "Zurück",
-      "historyForward": "Vor"
+      "historyForward": "Vor",
+      "freezePausedTitle": "Auto-Refresh pausiert (Klicken zum Aktivieren)",
+      "freezeActiveTitle": "Auto-Refresh aktiv (Klicken zum Pausieren)",
+      "frozenBadge": "Fixiert",
+      "liveBadge": "Live"
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",
@@ -104,7 +108,9 @@
       "file": "Datei"
     },
     "objectFileFallback": "Datei",
-    "focusedObjectLabel": "Objekt"
+    "focusedObjectLabel": "Objekt",
+    "defaultModelFallback": "Standard-Modell",
+    "demoSourceName": "Firmen-Wiki"
   },
   "settings": {
     "nav": {
@@ -434,7 +440,19 @@
       "connectTitle": "{{name}} verbinden",
       "pinSource": "Anpinnen",
       "unpinSource": "Entpinnen",
-      "maxPinsReached": "Maximal 4 Wissensquellen anpinnbar"
+      "maxPinsReached": "Maximal 4 Wissensquellen anpinnbar",
+      "connectedSourcesHeading": "Verbundene Datenquellen ({{count}})",
+      "emptyStateHeading": "Keine aktiven Datenquellen gefunden",
+      "emptyStateHintAll": "Binde unten deine erste Datenquelle an, um dein Doctus AI Projekt mit Wissen zu füttern.",
+      "emptyStateHintProject": "Für dieses Projekt wurden noch keine spezifischen Datenquellen angebunden.",
+      "addNewSourceHeading": "Neue Wissensquelle anbinden",
+      "processingFallback": "Verarbeitung...",
+      "sourceBadgeSingular": "Quelle",
+      "sourceBadgePlural": "Quellen",
+      "projectLabelColon": "Projekt:",
+      "branchLabelColon": "Branch:",
+      "intervalLabelColon": "Intervall:",
+      "manualDocumentLabel": "Manuelles Dokument"
     },
     "sourcesSetup": {
       "uploadDocsTitle": "Dokumente hochladen",
@@ -709,7 +727,14 @@
     "messageCopiedToast": "Nachricht in die Zwischenablage kopiert!",
     "copyFailedToast": "Kopieren fehlgeschlagen.",
     "startChatFirstToast": "Starte erst einen Chat zum Teilen",
-    "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit."
+    "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit.",
+    "askDirectlyTitle": "Frage direkt stellen",
+    "typingFallbacks": {
+      "makeCobolKnowledgeVisible": "COBOL-Wissen sichtbar machen",
+      "navigateMainframeCode": "Mainframe-Code verständlich navigieren",
+      "unlockLegacySystems": "Legacy-Systeme erschließen",
+      "programsCopybooksRelations": "Programme, Copybooks, Zusammenhänge"
+    }
   },
   "loginView": {
     "title": "Anmelden",
@@ -729,7 +754,12 @@
     "newPasswordRepeatLabel": "Neues Passwort wiederholen",
     "passwordsDoNotMatch": "Die beiden Passwörter stimmen nicht überein.",
     "passwordTooShort": "Das Passwort muss mindestens 12 Zeichen lang sein.",
-    "changeSubmit": "Passwort speichern"
+    "changeSubmit": "Passwort speichern",
+    "heroKicker": "Legacy Intelligence Workspace",
+    "heroHeadline": "Verstehe die Systeme, die alles am Laufen halten.",
+    "heroTraceWord": "Nachverfolgen",
+    "heroExplainWord": "Erklären",
+    "heroModernizeWord": "Modernisieren"
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",
@@ -770,7 +800,31 @@
     "openInBrowser": "Im Browser öffnen",
     "knowledgeSourceLabel": "Wissensquelle",
     "documentViewerLabel": "Dokumenten-Viewer",
-    "editorLoading": "Editor wird geladen..."
+    "editorLoading": "Editor wird geladen...",
+    "referencesPanelTitle": "Referenzen & Verknüpfte Dokumente",
+    "noParsedFocusObject": "Für diese Datei ist kein geparstes Fokusobjekt verfügbar.",
+    "loadingReferences": "Lade Referenzen …",
+    "noDirectReferencesFor": "Keine direkten Referenzen für {{name}}.",
+    "referencesForPrefix": "Referenzen für:",
+    "loadingLinkedReferences": "Lade verknüpfte Referenzen...",
+    "noDirectLinksInGraph": "Keine direkten Verknüpfungen für dieses Element im Graph vorhanden.",
+    "unresolvedLabel": "Nicht aufgelöst",
+    "webPreviewFallbackTitle": "Web-Vorschau",
+    "localSourceBadge": "Lokal",
+    "neighborGroupLabels": {
+      "callIn": "Aufrufer",
+      "callOut": "Ruft auf",
+      "copyOut": "Verwendet Copybook",
+      "copyIn": "Verwendet von",
+      "readsOut": "Liest Tabelle",
+      "writesOut": "Schreibt Tabelle",
+      "performOut": "Führt aus",
+      "performIn": "Ausgeführt von",
+      "gotoOut": "Springt zu",
+      "usesOut": "Verwendet",
+      "usesIn": "Verwendet von",
+      "docOut": "Verknüpfte Dokumente"
+    }
   },
   "agentSteps": {
     "hideThoughts": "Gedankengang ausblenden",
@@ -861,7 +915,8 @@
     "createLinkError": "Verknüpfung konnte nicht erstellt werden",
     "openOriginal": "Im Original öffnen",
     "fromLabel": "Von",
-    "toLabel": "Nach"
+    "toLabel": "Nach",
+    "legendLabel": "Legende"
   },
   "globalSearch": {
     "groups": {
@@ -1066,5 +1121,23 @@
     "sendingReportButton": "Wird gesendet...",
     "reportSentToast": "Fehlerbericht gesendet, danke",
     "reportFailedToast": "Fehlerbericht konnte nicht gesendet werden"
+  },
+  "callGraphView": {
+    "focusFirst": "Bitte zuerst ein COBOL-Objekt fokussieren.",
+    "hopUnit": "Hop",
+    "hopUnitPlural": "Hops",
+    "reloadTitle": "Neu laden",
+    "zoomInTitle": "Vergrößern",
+    "zoomOutTitle": "Verkleinern",
+    "fitAllTitle": "Alles einpassen",
+    "truncatedNotice": "Auf 500 Knoten begrenzt",
+    "noConnections": "Keine Call-Graph-Verbindungen für diesen Fokus.",
+    "loadError": "Call-Graph konnte nicht geladen werden",
+    "exportError": "Export fehlgeschlagen (HTTP {{status}})"
+  },
+  "sourceNetworkGraph": {
+    "title": "Quellen-Netzwerk",
+    "empty": "Noch kein Netzwerk — sobald unten eine Quelle angebunden ist, erscheint hier der Informationsfluss in Doctus.",
+    "overflowLabel": "+{{count}} weitere"
   }
 }

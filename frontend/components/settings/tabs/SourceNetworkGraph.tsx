@@ -5,6 +5,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Waypoints } from 'lucide-r
 import { cn } from "@/lib/utils";
 import { DoctusIcon } from '@/components/Logo';
 import { getConnectorMetadata } from '@/lib/sourceConnectors';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface SourceNetworkGraphProps {
   sources: any[];
@@ -26,6 +27,7 @@ const MAX_VISIBLE_NODES = 6;
  * das aktuell hart auf 'in' steht.
  */
 export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources, theme, scopeLabel }) => {
+  const { t } = useLanguage();
   const visible = sources.slice(0, MAX_VISIBLE_NODES);
   const overflowCount = sources.length - visible.length;
 
@@ -52,7 +54,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
   if (overflowCount > 0) {
     nodes.push({
       id: '__overflow__',
-      name: `+${overflowCount} weitere`,
+      name: t('sourceNetworkGraph.overflowLabel', { count: overflowCount }),
       status: 'ready',
       direction: 'in',
       meta: getConnectorMetadata(undefined),
@@ -90,7 +92,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
         <div className="flex items-center gap-2">
           <Waypoints className={cn("w-4 h-4", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")} />
           <h5 className={cn("text-sm font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-550")}>
-            Quellen-Netzwerk
+            {t('sourceNetworkGraph.title')}
           </h5>
         </div>
         <span className={cn(
@@ -105,7 +107,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
         <div className="flex items-center justify-center py-8">
           <DoctusIcon className="w-10 h-10 opacity-30 shrink-0" />
           <p className={cn("text-sm ml-4 max-w-sm leading-relaxed", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
-            Noch kein Netzwerk — sobald unten eine Quelle angebunden ist, erscheint hier der Informationsfluss in Doctus.
+            {t('sourceNetworkGraph.empty')}
           </p>
         </div>
       ) : (

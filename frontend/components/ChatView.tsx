@@ -151,10 +151,10 @@ export function ChatView({
       } catch (err) {
         console.error("Failed to fetch typing statement", err);
         const fallbacks = [
-          "COBOL-Wissen sichtbar machen",
-          "Mainframe-Code verständlich navigieren",
-          "Legacy-Systeme erschließen",
-          "Programme, Copybooks, Zusammenhänge"
+          t('chatView.typingFallbacks.makeCobolKnowledgeVisible'),
+          t('chatView.typingFallbacks.navigateMainframeCode'),
+          t('chatView.typingFallbacks.unlockLegacySystems'),
+          t('chatView.typingFallbacks.programsCopybooksRelations')
         ];
         const randomPhrase = fallbacks[Math.floor(Math.random() * fallbacks.length)];
         startTyping(randomPhrase);
@@ -171,7 +171,7 @@ export function ChatView({
       if (typingInterval) clearInterval(typingInterval);
       if (minuteInterval) clearInterval(minuteInterval);
     };
-  }, [chatMessages.length]);
+  }, [chatMessages.length, t]);
   const [isDetectingLph, setIsDetectingLph] = React.useState(false);
 
   React.useEffect(() => {
@@ -296,7 +296,7 @@ export function ChatView({
                             ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-indigo-400 hover:text-ds-indigo-350 hover:bg-ds-zinc-850 hover:border-ds-zinc-700"
                             : "bg-ds-white border-ds-zinc-200 text-ds-indigo-650 hover:text-ds-indigo-700 hover:bg-ds-zinc-50 hover:border-ds-zinc-300"
                         )}
-                        title="Frage direkt stellen"
+                        title={t('chatView.askDirectlyTitle')}
                       >
                         <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                       </button>

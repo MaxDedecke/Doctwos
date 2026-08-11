@@ -5,6 +5,7 @@ import { AlertTriangle, Download, FileCode, Loader2, Maximize2, RefreshCw, ZoomI
 import { API_URL } from '@/app/services/api';
 import { cn } from '@/lib/utils';
 import { resolveDsColor } from '@/lib/designTokens';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type CallNode = {
   id: string;
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }: Props) {
+  const { t } = useLanguage();
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
@@ -114,14 +116,14 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
       setTruncated(Boolean(data.truncated));
       setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
     } catch (err: any) {
-      setError(err?.message || 'Call-Graph konnte nicht geladen werden');
+      setError(err?.message || t('callGraphView.loadError'));
     } finally {
       setLoading(false);
     }
     // focusedEntity is typed `any`, so the compiler can't narrow the
     // dependency to `.id` on its own — depend on the whole reference to
     // match what it infers.
-  }, [focusedEntity, hops, projectId]);
+  }, [focusedEntity, hops, projectId, t]);
 
   useEffect(() => {
     // queueMicrotask: loadGraph() sets loading/error state before its
@@ -144,7 +146,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     if (!focusedEntity?.id) return;
     const projectParam = projectId ? `&project_id=${projectId}` : '';
     const response = await fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}`, { credentials: 'include' });
-    if (!response.ok) return setError(`Export fehlgeschlagen (HTTP ${response.status})`);
+    if (!response.ok) return setError(t('callGraphView.exportError', { status: response.status }));
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -155,18 +157,18 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   };
 
   if (!focusedEntity?.id) {
-    return <div className="h-full flex flex-col items-center justify-center gap-2 text-ds-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">Bitte zuerst ein COBOL-Objekt fokussieren.</p></div>;
+    return <div className="h-full flex flex-col items-center justify-center gap-2 text-ds-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">{t('callGraphView.focusFirst')}</p></div>;
   }
 
   return (
     <div className={cn('h-full flex flex-col', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
       <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
-        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">Call-Graph · {hops} Hop{hops !== 1 ? 's' : ''}</div></div>
-        {[1, 2, 3].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} Hop</button>)}
-        <button onClick={loadGraph} title="Neu laden" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title="Vergrößern" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title="Verkleinern" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title="Alles einpassen" className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
+        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">Call-Graph · {hops} {hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')}</div></div>
+        {[1, 2, 3].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
+        <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title={t('callGraphView.fitAllTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
       </div>
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         {Object.entries(EDGE_COLORS).map(([type, color]) => <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>)}
@@ -175,8 +177,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
         {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-ds-black/10"><Loader2 className="w-6 h-6 animate-spin text-ds-indigo-500" /></div>}
         {error && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-2 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-xs text-ds-red-400">{error}</div>}
-        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400"><AlertTriangle className="w-3 h-3" />Auf 500 Knoten begrenzt</div>}
-        {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-ds-zinc-500">Keine Call-Graph-Verbindungen für diesen Fokus.</div>}
+        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400"><AlertTriangle className="w-3 h-3" />{t('callGraphView.truncatedNotice')}</div>}
+        {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-ds-zinc-500">{t('callGraphView.noConnections')}</div>}
         {ForceGraph && dimensions.width > 0 && filtered.nodes.length > 0 && <ForceGraph
           ref={graphRef}
           graphData={filtered}
