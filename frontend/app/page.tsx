@@ -419,7 +419,14 @@ function AppContent() {
     selectedDoc?: any | null;
     selectedEntity?: any | null;
   }, frozenOverride?: boolean) => {
-    if (panelConfigs.length >= 4) return;
+    // panelConfigs.length alone is a stale snapshot from this render — two
+    // addPanel calls fired back to back in the same tick (e.g. two different
+    // reference clicks before React flushes the first one's state) would both
+    // read the same pre-add length and both pass, pushing the panel count
+    // past 4. pendingPanelCountRef (reset once panelConfigs actually commits,
+    // see the effect below) makes the cap atomic across such a burst.
+    if (panelConfigs.length + pendingPanelCountRef.current >= 4) return;
+    pendingPanelCountRef.current += 1;
     setPanelFrozen(prev => [...prev, frozenOverride ?? false]);
     setCollapsedPanels(prev => [...prev, false]);
     setPanelFocusObject(prev => [...prev, null]);
@@ -445,8 +452,11 @@ function AppContent() {
   // both read the same stale `panelConfigs` snapshot, see the type missing,
   // and each add a panel, opening the same document/model twice.
   const pendingPanelTypesRef = useRef<Set<string>>(new Set());
+  // See addPanel's cap check above for why this exists.
+  const pendingPanelCountRef = useRef(0);
   useEffect(() => {
     pendingPanelTypesRef.current.clear();
+    pendingPanelCountRef.current = 0;
   }, [panelConfigs]);
 
   const ensurePanelType = (type: string, selectionOverride?: {
@@ -2329,6 +2339,7 @@ function AppContent() {
               onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
+              onDocFocus={handleDocFocusRequest}
             />
           )}
 
@@ -2363,6 +2374,7 @@ function AppContent() {
               onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
               fileNavStack={fileNavStack}
               onNavigateBack={handleNavigateBack}
+              onDocFocus={handleDocFocusRequest}
             />
           )}
 

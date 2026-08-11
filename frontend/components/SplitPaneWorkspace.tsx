@@ -1008,8 +1008,22 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       )}
                                       disabled={!canOpen}
                                       onClick={() => {
-                                        if (entity) handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
-                                        else if (document?.file_path) handleFileSelect(document.file_path, null, selectedEntity?.source_id);
+                                        if (entity) {
+                                          handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                        } else if (document?.file_path) {
+                                          // This panel is pinned to the code/doc view (activeRightTab is a fixed
+                                          // prop here, see page.tsx renderPanel) — routing a document through the
+                                          // generic handleFileSelect would also null out the global selectedEntity,
+                                          // which every open callgraph panel unconditionally mirrors (see page.tsx's
+                                          // unfrozen-panel sync) and would blank to "Bitte zuerst fokussieren".
+                                          // onDocFocus (same mechanism the Graph View uses to open a document from
+                                          // its own pinned panel) opens/targets a 'doc' panel without touching it.
+                                          if (onDocFocus && document.source_id) {
+                                            onDocFocus(document.file_path, document.source_id);
+                                          } else {
+                                            handleFileSelect(document.file_path, null, selectedEntity?.source_id);
+                                          }
+                                        }
                                         setIsReferencesDropdownOpen(false);
                                       }}
                                     >

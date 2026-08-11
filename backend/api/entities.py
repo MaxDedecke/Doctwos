@@ -158,6 +158,9 @@ def get_neighbors(
             "document": {
                 "title": lnk.doc_title,
                 "file_path": chunk.file_path.split("#")[0] if (chunk and chunk.file_path) else None,
+                # source_id der Wissensquelle des Chunks -- das Frontend braucht sie, um das
+                # Dokument über ein Doku-Panel zu öffnen (siehe onDocFocus in SplitPaneWorkspace).
+                "source_id": chunk.source_id if chunk else None,
                 "url": lnk.doc_url,
                 "source_type": lnk.source_type,
                 "score": lnk.score,
