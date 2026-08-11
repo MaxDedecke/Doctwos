@@ -22,7 +22,12 @@ als Nächstes dran) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
    (Release-Voraussetzung).
 3. **Keine zusätzlichen Services.** Kein Neo4j, kein ElasticSearch, keine
    ANTLR-/tree-sitter-Runtime. Jede Komponente kostet OSS-Clearing,
-   Offline-Bundle-Aufwand und Betriebsrisiko.
+   Offline-Bundle-Aufwand und Betriebsrisiko. **Ausnahme (E-11):** eine
+   aktiv genutzte Sprachparser-Grammatik-Runtime (`antlr4-python3-runtime`,
+   reines Python, kein JRE im Laufzeit-Image) ist erlaubt, wenn ein Visitor
+   die Grammatik-Ausgabe aktiv in `ParseResult` überführt — keine
+   Importierung auf Vorrat. Details/Bedingungen: `docs/ENTSCHEIDUNGEN.md`
+   E-11.
 4. **Skalierung by Default.** Alles muss 100-GB-Monorepos überstehen: streamen
    statt laden, wiederaufsetzbar statt „von vorn", asynchron im Celery-Worker.
 5. **Zeilennummern sind heilig.** Jede Entity und jede Kante trägt die physische

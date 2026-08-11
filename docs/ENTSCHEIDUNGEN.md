@@ -426,3 +426,51 @@ Wissensquelle (Backend soll zustandslos bleiben, CLAUDE.md).
 **Fundstelle.** `backend/mcp_client.py` (`_is_atlassian_cloud_url`,
 `_atlassian_auth_env`), `backend/tests/test_mcp_client.py`,
 `docs/UMSETZUNGSSTAND.md` Punkt 23.
+
+---
+
+## E-11 — ANTLR4-Grammatik-Runtime für den COBOL-Parser: Ausnahme von Prinzip 3
+
+**Anlass.** Eine zweite Programmiersprache ist beim Kunden konkret absehbar
+(nicht mehr rein hypothetisch). Der heutige COBOL-Parser (`parser/cobol/`,
+~2.230 Zeilen handgeschrieben) ist strikt COBOL-spezifisch — ein zweiter
+handgeschriebener Parser wäre derselbe Aufwand ein zweites Mal. Zusätzlicher
+Auslöser für den Zeitpunkt: Das Produkt ist laut Auftraggeber **noch nicht**
+produktiv (die "AP-0…AP-9 abgeschlossen"-Dokumente spiegeln nicht den echten
+Stand) — das ist der letzte Zeitpunkt, an dem ein Kernumbau des Parsers ohne
+Blast-Radius auf echte Kundendaten/Deep-Links möglich ist.
+
+**Problem.** CLAUDE.md Architekturprinzip 3 schließt ANTLR-/tree-sitter-
+Runtimes explizit aus ("OSS-Clearing-Aufwand, Offline-Bundle-Aufwand,
+Betriebsrisiko — bei null Anforderungsnutzen", `docs/IMPLEMENTIERUNGSPLAN.md:99`),
+und `docs/ABSCHLUSS.md:31` bestätigt das im (veralteten) Abschlussbericht als
+erfüllt. Die Prämisse "null Anforderungsnutzen" gilt nicht mehr.
+
+**Abgrenzung zum tree-sitter-Präzedenzfall.** `tree-sitter` lag bereits einmal
+ungenutzt in `parser/requirements.txt` und wurde als Tech-Debt wieder entfernt
+(`docs/TECH_DEBT_CLEANUP_PLAN.md`) — Runtime importiert, aber nie von einem
+Visitor/Consumer genutzt. Dieser Fehler wird hier nicht wiederholt: der
+zugehörige Spike (Phase 1, siehe unten) muss vor einem Go belegen, dass ein
+Visitor die Grammatik-Ausgabe aktiv in `ParseResult` überführt, nicht nur eine
+Bibliothek auf Vorrat importiert.
+
+**Entscheidung.** Prinzip 3 gilt für den Sprachparser-Fall als punktuell außer
+Kraft gesetzt, unter drei Bedingungen:
+
+1. Nur `antlr4-python3-runtime` (reines Python, kein JRE) kommt ins
+   Laufzeit-Image — der ANTLR-Codegenerator (Java) läuft ausschließlich zur
+   Entwicklungszeit, generierte `.py`-Dateien werden wie normaler Code
+   committet.
+2. Ein Visitor überführt die Grammatik-Ausgabe aktiv in `ParseResult`, keine
+   Importierung auf Vorrat.
+3. Die Lizenz der bezogenen Grammatik selbst (nicht nur der Pip-Runtime) wird
+   separat geprüft und in `docs/OSS-CLEARING.md` dokumentiert.
+
+Umgesetzt zunächst als isolierter Spike (`parser/spikes/antlr_cobol/`, siehe
+Plan „Spike: ANTLR4-Migration des COBOL-Parsers"), der nichts Produktives
+anfasst. Vollmigration und Zweitsprache brauchen ein separates, explizites Go
+auf Basis der Spike-Ergebnisse (Go/No-Go-Kriterien dort dokumentiert). Bei
+No-Go: Ergebnis als Ergänzung zu diesem Eintrag festhalten, CLAUDE.md
+Prinzip 3 bleibt/wird wieder uneingeschränkt formuliert.
+
+**Fundstelle.** CLAUDE.md Architekturprinzip 3, `parser/spikes/antlr_cobol/README.md`.
