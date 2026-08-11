@@ -172,6 +172,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
   const referencesToUse = fileReferences !== undefined ? fileReferences : localFileReferences;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : localIsLoadingReferences;
+  // Die Dropdown-Liste zeigt im Code-Tab entityNeighborGroups (pro Fokusobjekt),
+  // nicht referencesToUse (das ist nur der Inhalt des Doc-Tabs) — das Badge muss
+  // dieselbe Quelle zählen, sonst bleibt die Ziffer beim Wechsel des im Code
+  // angeklickten Objekts auf dem Dateistand stehen.
+  const referenceBadgeCount = activeRightTab === 'code'
+    ? Object.values(entityNeighborGroups).reduce((sum, group) => sum + group.length, 0)
+    : referencesToUse.length;
 
   useEffect(() => {
     if (!selectedEntity?.id || activeRightTab !== 'code') {
@@ -840,12 +847,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   >
                     <Link2 className="w-3 h-3 text-ds-indigo-400" />
                     <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('splitPane.references')}</span>
-                    {referencesToUse.length > 0 && (
+                    {referenceBadgeCount > 0 && (
                       <span className={cn(
                         "px-1 py-0.2 text-[8px] font-bold rounded-sm leading-none",
                         theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
                       )}>
-                        {referencesToUse.length}
+                        {referenceBadgeCount}
                       </span>
                     )}
                   </button>
