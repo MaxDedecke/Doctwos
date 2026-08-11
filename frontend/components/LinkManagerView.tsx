@@ -861,7 +861,13 @@ export function LinkManagerView({
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 w-full @xl/linkmgr:w-auto">
+                  {/* flex-wrap: at @xl/linkmgr the tabs row switches to flex-row alongside this
+                      group, but search input + score-select + accept-all-button don't shrink
+                      below their content width (flex items default to min-width:auto) — without
+                      wrap they silently overflowed/got clipped for container widths roughly
+                      576-720px (e.g. exactly the 3-col panel width once the sidebar is
+                      collapsed), same fix pattern as the header's button group above. */}
+                  <div className="flex items-center flex-wrap gap-2 w-full @xl/linkmgr:w-auto">
                     <div className="relative flex-1 @xl/linkmgr:flex-initial">
                       <Search className={cn('absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3', subText)} />
                       <input type="text" placeholder={t('linkManagerView.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
