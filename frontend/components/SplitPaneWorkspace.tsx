@@ -321,10 +321,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     loadRefs();
   }, [selectedFile, selectedProject, activeRightTab]);
 
+  const selectedLineDecorationsRef = useRef<string[]>([]);
+  const selectedLineClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Local scroll-to-line effect
   useEffect(() => {
     if (activeEditorRef.current && selectedLine) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         const editor = activeEditorRef.current;
         if (editor) {
           editor.revealLineInCenter(selectedLine);
@@ -336,23 +339,40 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               endLineNumber: selectedLine,
               endColumn: 100
             };
-            const decs = editor.deltaDecorations([], [
-              {
-                range: range,
-                options: {
-                  isWholeLine: true,
-                  className: 'bg-ds-indigo-500/20 border-y border-ds-indigo-500/30'
+            // Clear any highlight left over from a previous click before adding
+            // the new one — reusing the prior decoration IDs (instead of `[]`)
+            // is what makes this a *replace*. Without it, clicking another
+            // object before the old highlight's 4s auto-clear fires stacks a
+            // fresh translucent overlay on top of the still-present one, and
+            // a few clicks in quick succession compound into an opaque block
+            // that hides the line's text.
+            selectedLineDecorationsRef.current = editor.deltaDecorations(
+              selectedLineDecorationsRef.current,
+              [
+                {
+                  range: range,
+                  options: {
+                    isWholeLine: true,
+                    className: 'bg-ds-indigo-500/20 border-y border-ds-indigo-500/30'
+                  }
                 }
-              }
-            ]);
-            setTimeout(() => {
+              ]
+            );
+            if (selectedLineClearTimeoutRef.current) {
+              clearTimeout(selectedLineClearTimeoutRef.current);
+            }
+            selectedLineClearTimeoutRef.current = setTimeout(() => {
               if (activeEditorRef.current) {
-                activeEditorRef.current.deltaDecorations(decs, []);
+                selectedLineDecorationsRef.current = activeEditorRef.current.deltaDecorations(
+                  selectedLineDecorationsRef.current,
+                  []
+                );
               }
             }, 4000);
           }
         }
       }, 150);
+      return () => clearTimeout(timer);
     }
   }, [selectedLine, selectedFile, activeEditorRef]);
 
