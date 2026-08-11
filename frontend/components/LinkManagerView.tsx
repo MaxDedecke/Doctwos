@@ -716,9 +716,15 @@ export function LinkManagerView({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col min-h-0">
+    // Named container instead of viewport sm:/md: — the header below needs to
+    // react to *this panel's* width, not the browser window's. In 3-col layout
+    // (3 views open) the panel is only ~1/3 of the viewport, so viewport-relative
+    // breakpoints stayed "wide" and crammed the row layout into a too-narrow
+    // column; split/4-grid (~1/2 width) had enough room and looked fine, which is
+    // why this only showed up with exactly 3 views open.
+    <div className="@container/linkmgr h-full flex flex-col min-h-0">
         {/* ── Header ── */}
-        <div className={cn('flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-4 border-b shrink-0 gap-3', divider)}>
+        <div className={cn('flex flex-col @xl/linkmgr:flex-row items-start @xl/linkmgr:items-center justify-between px-4 @sm/linkmgr:px-6 py-4 border-b shrink-0 gap-3', divider)}>
           <div className="flex items-center gap-3">
             <Network className={cn('w-5 h-5 shrink-0', iconColor)} />
             <h2 className={cn('text-sm font-semibold shrink-0', titleText)}>{t('linkManagerView.title')}</h2>
@@ -730,7 +736,7 @@ export function LinkManagerView({
                 project switcher in the sidebar instead. */}
             <span
               className={cn(
-                'flex items-center gap-1.5 h-7 max-w-[180px] text-[11px] sm:text-xs border rounded-md font-medium px-2 shrink-0',
+                'flex items-center gap-1.5 h-7 max-w-[180px] text-[11px] @sm/linkmgr:text-xs border rounded-md font-medium px-2 shrink-0',
                 isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700'
               )}
               title={t('linkManagerView.projectContextTooltip')}
@@ -739,7 +745,7 @@ export function LinkManagerView({
               <span className="truncate">{selectedProject ? selectedProject.name : t('linkManagerView.generalContextOption')}</span>
             </span>
           </div>
-          <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
+          <div className="flex items-center flex-wrap gap-2 w-full @xl/linkmgr:w-auto">
 
             {/* Model selector */}
             {setActiveProfileId && llmProfiles.length > 0 && (
@@ -755,7 +761,7 @@ export function LinkManagerView({
                 }}
               >
                 <SelectTrigger className={cn(
-                  'h-7 max-w-[150px] text-[11px] sm:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
+                  'h-7 max-w-[150px] text-[11px] @sm/linkmgr:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
                   isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
                 )}>
                   <Cpu className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
@@ -793,7 +799,7 @@ export function LinkManagerView({
             {segment === 'links' && (
               <>
                 <div
-                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] sm:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
+                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
                   title={t('linkManagerView.minConfidenceTooltip')}
                 >
                   <Percent className="w-3 h-3 shrink-0 opacity-70" />
@@ -805,17 +811,17 @@ export function LinkManagerView({
                     aria-label={t('linkManagerView.minConfidenceLabel')}
                     className={cn('w-8 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}
                   />
-                  <span className="hidden xs:inline">%</span>
+                  <span className="hidden @sm/linkmgr:inline">%</span>
                 </div>
                 <button onClick={triggerAutoLink} disabled={isComputing}
-                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
+                  className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
-                  <span className="hidden xs:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
+                  <span className="hidden @sm/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
-                  className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
+                  className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">{t('linkManagerView.manualLabel')}</span>
+                  <span className="hidden @sm/linkmgr:inline">{t('linkManagerView.manualLabel')}</span>
                 </button>
               </>
             )}
@@ -842,28 +848,28 @@ export function LinkManagerView({
               </AnimatePresence>
 
               {/* Tabs + kind filter + search row */}
-              <div className={cn('flex flex-col gap-3 px-4 sm:px-6 py-3 border-b shrink-0', divider)}>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex gap-1 overflow-x-auto w-full sm:w-auto no-scrollbar pb-1 sm:pb-0">
+              <div className={cn('flex flex-col gap-3 px-4 @sm/linkmgr:px-6 py-3 border-b shrink-0', divider)}>
+                <div className="flex flex-col @xl/linkmgr:flex-row items-start @xl/linkmgr:items-center justify-between gap-3">
+                  <div className="flex gap-1 overflow-x-auto w-full @xl/linkmgr:w-auto no-scrollbar pb-1 @xl/linkmgr:pb-0">
                     {(['pending', 'approved', 'rejected'] as const).map(tabOption => (
                       <button key={tabOption} onClick={() => setTab(tabOption)}
-                        className={cn('px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors shrink-0', tab === tabOption ? tabActive : tabInact)}>
+                        className={cn('px-3 py-1.5 rounded-md text-[11px] @sm/linkmgr:text-xs font-medium transition-colors shrink-0', tab === tabOption ? tabActive : tabInact)}>
                         {t(`linkManagerView.tabLabels.${tabOption}`)}
-                        <span className={cn('ml-1.5 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px]', tab === tabOption ? tabBadgeA : tabBadgeI)}>
+                        <span className={cn('ml-1.5 px-1.5 py-0.5 rounded text-[9px] @sm/linkmgr:text-[10px]', tab === tabOption ? tabBadgeA : tabBadgeI)}>
                           {counts[tabOption]}
                         </span>
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:flex-initial">
+                  <div className="flex items-center gap-2 w-full @xl/linkmgr:w-auto">
+                    <div className="relative flex-1 @xl/linkmgr:flex-initial">
                       <Search className={cn('absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3', subText)} />
                       <input type="text" placeholder={t('linkManagerView.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
-                        className={cn('text-[11px] sm:text-xs rounded-md pl-7 pr-3 py-1.5 w-full sm:w-32 md:w-40 border focus:outline-none', inputCls)} />
+                        className={cn('text-[11px] @sm/linkmgr:text-xs rounded-md pl-7 pr-3 py-1.5 w-full @sm/linkmgr:w-32 @md/linkmgr:w-40 border focus:outline-none', inputCls)} />
                     </div>
                     {tab === 'pending' && (
                       <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                        className={cn('text-[11px] sm:text-xs rounded-md px-1.5 py-1.5 border focus:outline-none', selectCls)}>
+                        className={cn('text-[11px] @sm/linkmgr:text-xs rounded-md px-1.5 py-1.5 border focus:outline-none', selectCls)}>
                         <option value={0}>{t('linkManagerView.scoreFilter.all')}</option>
                         <option value={60}>{t('linkManagerView.scoreFilter.min60')}</option>
                         <option value={80}>{t('linkManagerView.scoreFilter.min80')}</option>
@@ -872,10 +878,10 @@ export function LinkManagerView({
                     {tab === 'pending' && perfectPendingLinks.length > 0 && (
                       <button onClick={acceptAllPerfectMatches} disabled={isAcceptingAll}
                         title={t('linkManagerView.acceptAllTooltip')}
-                        className={cn('text-[10px] sm:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
+                        className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
                         {isAcceptingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                        <span className="hidden xs:inline">{t('linkManagerView.acceptAllLabel')}</span>
-                        <span className={cn('px-1 rounded text-[9px] sm:text-[10px]', tabBadgeA)}>{perfectPendingLinks.length}</span>
+                        <span className="hidden @sm/linkmgr:inline">{t('linkManagerView.acceptAllLabel')}</span>
+                        <span className={cn('px-1 rounded text-[9px] @sm/linkmgr:text-[10px]', tabBadgeA)}>{perfectPendingLinks.length}</span>
                       </button>
                     )}
                   </div>
@@ -883,7 +889,7 @@ export function LinkManagerView({
                 <div className="flex gap-1.5">
                   {(['all', 'entity', 'knowledge'] as const).map(kind => (
                     <button key={kind} onClick={() => setKindFilter(kind)}
-                      className={cn('px-2.5 py-1 rounded-sm text-[10px] sm:text-[11px] font-medium border transition-colors', kindFilter === kind ? kindChipActive : kindChipInact)}>
+                      className={cn('px-2.5 py-1 rounded-sm text-[10px] @sm/linkmgr:text-[11px] font-medium border transition-colors', kindFilter === kind ? kindChipActive : kindChipInact)}>
                       {t(`linkManagerView.kindFilter.${kind}`)}
                     </button>
                   ))}
