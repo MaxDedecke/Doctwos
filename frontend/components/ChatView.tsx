@@ -13,7 +13,6 @@ import {
   Cpu,
   GitBranch,
   Globe2,
-  Share2,
   History,
   BookOpen,
   Copy,
@@ -59,7 +58,6 @@ interface ChatViewProps {
   currentMessage: string;
   setCurrentMessage: (msg: string) => void;
   isLoading: boolean;
-  activeSessionId: number | null;
   handleSendChat: (overrideMsg?: string, extraMetadata?: Record<string, any>) => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
@@ -89,7 +87,6 @@ export function ChatView({
   currentMessage,
   setCurrentMessage,
   isLoading,
-  activeSessionId,
   handleSendChat,
   handleRetryMessage,
   handleFeedback,
@@ -803,28 +800,6 @@ export function ChatView({
                     </SelectContent>
                   </Select>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    id="chat-action-share-btn"
-                    title={t('chatView.shareChatTitle')}
-                    className={cn("h-7 w-7 rounded-full", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
-                    onClick={async () => {
-                      if (activeSessionId) {
-                          const url = window.location.href;
-                          const success = await copyToClipboard(url);
-                          if (success) {
-                              showToast(t('chatView.linkCopiedToast'), "success");
-                          } else {
-                              showToast(t('chatView.copyFailedToast'), "error");
-                          }
-                      } else {
-                          showToast(t('chatView.startChatFirstToast'), "error");
-                      }
-                    }}
-                  >
-                      <Share2 className="w-3.5 h-3.5" />
-                  </Button>
                </div>
                <Button
                   size="icon"

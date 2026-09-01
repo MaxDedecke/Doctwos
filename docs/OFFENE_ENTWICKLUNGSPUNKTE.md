@@ -21,7 +21,6 @@ stehen.
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
-| O-011 | UI / Navigation | Teilen-Funktion aus der Chat-View in die Header-Bar verschieben. | Header-Aktion ergänzen und bestehende Chat-Funktion dort anbinden. | Keine externe Abhängigkeit |
 | O-015 | Call Graph / Code View | Klicks in der Call-Graph-View dürfen die fixierte Code-View nicht unerwartet verändern. | Fixierungslogik und Navigationsevents entkoppeln; Verhalten mit fixierter und nicht fixierter View testen. | Keine externe Abhängigkeit |
 | O-016 | Knoten-Icons | Dokumentknoten sollen ein Doku-Icon, Codeknoten ein `</>`-Icon und Webquellen ein Globus-Icon anzeigen. | Einheitliche Typzuordnung und Darstellung in allen Graph-/Listenansichten umsetzen. | Keine externe Abhängigkeit |
 | O-017 | Fixierte Views / Historie | Wenn eine View fixiert ist, soll die Historie dieser View weiterhin über die Pfeile bedienbar sein. | Historiennavigation von der Fixierungslogik trennen und mit mehreren Views prüfen. | Keine externe Abhängigkeit |
@@ -59,6 +58,7 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 ## Erledigt, zuletzt verschoben
 
+- O-011 (Teilen-Funktion) — 01.09.2026 umgesetzt; die Chat-Teilen-Aktion liegt jetzt in der globalen Header-Bar und verwendet weiterhin den bestehenden Link-/Clipboard-Mechanismus inklusive Rückmeldung bei fehlendem Chat.
 - O-014 (Chat/Fokus) — 01.09.2026 umgesetzt; das Projekt-Badge kann über einen zugänglichen X-Button geschlossen werden, nutzt dabei den zentralen Projektwechselpfad und zeigt im allgemeinen Kontext ein „Allgemein“-Badge.
 - O-013 (Berechtigungen) — 01.09.2026 umgesetzt; Projekt-, Quellen- und Graph-Zugriffe prüfen jetzt Team- und Projektmitgliedschaft konsistent, globale Modellumschaltung ist auf globale Admins begrenzt, Projektmitglieder können nur aus dem eigenen Team hinzugefügt werden und das Frontend lädt dafür eine projektbezogene Kandidatenliste. Regressionstests für Quellenzugriff, Modellumschaltung und Projektmitgliedschaft ergänzt.
 - O-012 (UI-Standarddarstellung) — 01.09.2026 umgesetzt; zentrale Desktop-Skalierung auf 110 %, mobile Basis auf 100 % gesetzt und in den Design Guidelines dokumentiert.

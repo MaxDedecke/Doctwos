@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter } from 'lucide-react';
+import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter, Share2 } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ interface GlobalSearchProps {
   onAddPanel: (type: string) => void;
   selectedProject: any;
   onProjectSelect: (project: any) => void;
+  onShareChat: () => void | Promise<void>;
 }
 
 const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager'] as const;
@@ -59,7 +60,8 @@ export function GlobalSearch({
   panelConfigs,
   onAddPanel,
   selectedProject,
-  onProjectSelect
+  onProjectSelect,
+  onShareChat
 }: GlobalSearchProps) {
   const { t } = useLanguage();
   const features = useFeatures();
@@ -500,6 +502,23 @@ export function GlobalSearch({
         </div>
 
         <JobCenter theme={theme} />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          id="header-action-share-btn"
+          aria-label={t('chatView.shareChatTitle')}
+          title={t('chatView.shareChatTitle')}
+          onClick={onShareChat}
+          className={cn(
+            "h-8 w-8 rounded-lg border transition-all duration-200",
+            theme === 'dark'
+              ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
+              : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
+          )}
+        >
+          <Share2 className="w-4 h-4" />
+        </Button>
 
         {features.views.knowledgeGraph && (
           <Button

@@ -25,7 +25,6 @@ import {
   FileCode,
   Trash2,
   Download,
-  Share2,
   X,
   Check,
   ExternalLink,
@@ -54,7 +53,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { api, API_URL } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -873,6 +872,19 @@ function AppContent() {
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 6000);
+  };
+
+  const handleShareChat = async () => {
+    if (!activeSessionId) {
+      showToast(t('chatView.startChatFirstToast'), "error");
+      return;
+    }
+
+    const success = await copyToClipboard(window.location.href);
+    showToast(
+      success ? t('chatView.linkCopiedToast') : t('chatView.copyFailedToast'),
+      success ? "success" : "error"
+    );
   };
 
   // Initial connection check, repositories load & settings restoration
@@ -2311,7 +2323,6 @@ function AppContent() {
               currentMessage={currentMessage}
               setCurrentMessage={setCurrentMessage}
               isLoading={isLoading}
-              activeSessionId={activeSessionId}
               handleSendChat={handleSendChat}
               handleRetryMessage={handleRetryMessage}
               handleFeedback={handleFeedback}
@@ -2612,6 +2623,7 @@ function AppContent() {
         onAddPanel={addPanel}
         selectedProject={selectedProject}
         onProjectSelect={handleProjectSelect}
+        onShareChat={handleShareChat}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">
