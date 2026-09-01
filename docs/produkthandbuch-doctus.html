@@ -9,12 +9,12 @@
     @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
 
     :root {
-      --canvas: #f5f1e7;
-      --paper: #fffefa;
-      --surface: #f7f3ea;
-      --ink: #171f1b;
-      --muted: #5b6359;
-      --line: rgba(23, 31, 27, .16);
+      --canvas: #f3f7fc;
+      --paper: #ffffff;
+      --surface: #f7faff;
+      --ink: #172238;
+      --muted: #536176;
+      --line: rgba(23, 34, 56, .16);
       --signal: #e4002b;
       --violet: #7a2e8c;
       --trace: #0064d2;
@@ -51,16 +51,16 @@
     .brand-dot { display: inline-block; width: .16em; height: .16em; margin-left: .04em; border-radius: 50%; background: var(--gradient); }
     .toc a { text-decoration: none; }
 
-    .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background: var(--ink); color: #fffefa; }
-    .cover::after { position: absolute; inset: auto -18rem -19rem auto; width: 51rem; height: 51rem; content: ""; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; box-shadow: 0 0 0 5rem rgba(255,255,255,.025), 0 0 0 10rem rgba(255,255,255,.025); }
+    .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); color: var(--ink); }
+    .cover::after { position: absolute; inset: auto -18rem -19rem auto; width: 51rem; height: 51rem; content: ""; border: 1px solid rgba(0,100,210,.22); border-radius: 50%; box-shadow: 0 0 0 5rem rgba(0,100,210,.035), 0 0 0 10rem rgba(0,100,210,.025); }
     .cover nav { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; font: 600 .74rem "IBM Plex Mono", monospace; letter-spacing: .09em; text-transform: uppercase; }
     .cover-wordmark { font: 700 1.2rem "Space Grotesk", sans-serif; letter-spacing: -.06em; }
     .cover-body { position: relative; z-index: 1; max-width: 62rem; padding-block: 7rem; }
-    .cover .eyebrow { color: rgba(255,255,255,.67); }
+    .cover .eyebrow { color: var(--muted); }
     .cover h1 { max-width: 9ch; }
-    .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: rgba(255,255,255,.77); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
-    .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.68); font-size: .78rem; }
-    .cover-footer b { display: block; color: #fffefa; font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
+    .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: var(--muted); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
+    .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+    .cover-footer b { display: block; color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
 
     .at-glance { display: grid; grid-template-columns: 1.35fr .9fr; gap: 4rem; align-items: end; }
     .fact-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); }
@@ -104,18 +104,18 @@
     .view ul { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0 0; padding: 0; list-style: none; }
     .view li { padding: .26rem .55rem; border: 1px solid var(--line); font-size: .75rem; }
 
-    .security { color: #fffefa; background: var(--ink); }
-    .security .eyebrow, .security .lede { color: rgba(255,255,255,.67); }
-    .security .card { color: #fffefa; background: #202a25; }
-    .security .card p { color: rgba(255,255,255,.66); }
-    .security .icon { border-color: rgba(255,255,255,.23); color: #ff6a83; }
-    .security .architecture { margin-top: 2.5rem; border-color: rgba(255,255,255,.2); }
+    .security { color: var(--ink); background: #f7faff; }
+    .security .eyebrow, .security .lede { color: var(--muted); }
+    .security .card { color: var(--ink); background: var(--paper); }
+    .security .card p { color: var(--muted); }
+    .security .icon { border-color: var(--line); color: var(--signal); }
+    .security .architecture { margin-top: 2.5rem; border-color: var(--line); }
     .architecture { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
     .architecture div { min-height: 10.4rem; padding: 1.15rem; background: var(--paper); }
-    .security .architecture div { background: #202a25; }
+    .security .architecture div { background: var(--paper); }
     .architecture b { display: block; margin: 1.8rem 0 .38rem; font-family: "Space Grotesk", sans-serif; }
     .architecture span { color: var(--muted); font-size: .82rem; }
-    .security .architecture span { color: rgba(255,255,255,.62); }
+    .security .architecture span { color: var(--muted); }
     .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--trace); text-transform: uppercase; }
 
     .callout { max-width: 49rem; padding: 1.4rem 1.5rem; border-left: 4px solid var(--signal); background: var(--surface); }
@@ -272,15 +272,23 @@
 
     <section class="section" id="ansichten">
       <div class="eyebrow">08 · Ansichten im Detail</div>
-      <h2>Je nach Frage die passende Sicht auf den Bestand.</h2>
-      <article class="view"><div class="view-tag">Arbeitsansicht</div><div><h3>Chat und Codeinspektion</h3><p>Die dialogorientierte Recherche beantwortet Fragen zum Projektbestand und verlinkt ihre Quellen. Parallel ist der Code im Editor lesbar, durchsuchbar und über konkrete Zeilen erreichbar.</p><ul><li>Fragen im Projektkontext</li><li>Quellenchips mit Zeilensprung</li><li>Fokus auf Programme und Strukturelemente</li></ul></div></article>
-      <article class="view"><div class="view-tag">Recherche</div><div><h3>Globale Suche</h3><p>Die Suche führt über Projekte hinweg zu passenden Codeelementen und Wissensdokumenten – stets innerhalb der persönlichen Berechtigung. Sie eignet sich für Begriffe, Namen und einen schnellen Einstieg in unbekannte Bestände.</p><ul><li>Code und Dokumente gemeinsam durchsuchen</li><li>Filterbarer Ergebnisraum</li><li>Direkt in den Arbeitskontext wechseln</li></ul></div></article>
-      <article class="view"><div class="view-tag">Abhängigkeiten</div><div><h3>Aufrufgraph</h3><p>Der Aufrufgraph macht Beziehungen zwischen Programmen und weiteren Elementen sichtbar. Die Tiefe lässt sich steuern, Kantenarten können gefiltert werden. Nicht vollständig auflösbare oder dynamische Beziehungen werden nicht verschwiegen.</p><ul><li>Ein bis drei Beziehungsebenen</li><li>Filter nach Beziehungstyp</li><li>Export als JSON, CSV oder GraphML</li></ul></div></article>
-      <article class="view"><div class="view-tag">Zusammenhang</div><div><h3>Wissensgraph</h3><p>Der Wissensgraph zeigt die Verbindung zwischen Code, Dokumenten und den zwischen ihnen hergestellten Verknüpfungen. Er eignet sich besonders, um die Reichweite eines Themas oder Begriffs zu erkunden.</p><ul><li>Code- und Wissensknoten gemeinsam</li><li>Verbindungen kontextuell erkunden</li><li>Auswahl als neuer Fokus</li></ul></div></article>
-      <article class="view"><div class="view-tag">Kuratiertes Wissen</div><div><h3>Link-Manager und Themen</h3><p>Der Link-Manager unterstützt dabei, fachlich bedeutsame Beziehungen zwischen Code und Dokumentation sichtbar zu machen. Themen helfen, relevante Knoten unabhängig von einem einzelnen Repository zu gruppieren und zu ordnen.</p><ul><li>Verbindungen prüfen und pflegen</li><li>Themenbereiche strukturieren</li><li>Geteilte Orientierung schaffen</li></ul></div></article>
-      <article class="view"><div class="view-tag">Betrieb</div><div><h3>Job-Center</h3><p>Hintergrundaufgaben wie Import, Synchronisation und Verarbeitung bleiben transparent. Der aktuelle Zustand, Fortschritt und Fehlerhinweise helfen bei der täglichen Bedienung und beim Betrieb.</p><ul><li>Fortschritt von Importen</li><li>Status und Hinweise</li><li>Nachvollziehbare Hintergrundarbeit</li></ul></div></article>
+      <h2>Sieben Ansichten für die Arbeit am Wissensbestand.</h2>
+      <p class="lede">Ansichten sind die Bereiche, die im Arbeitsraum geöffnet und nebeneinander angeordnet werden können. Bis zu vier Ansichten lassen sich gleichzeitig nutzen; Chat und Code-Editor sind dabei eigenständige Ansichten.</p>
+      <article class="view"><div class="view-tag">Ansicht 01</div><div><h3>Chat</h3><p>Die dialogorientierte Recherche beantwortet Fragen zum ausgewählten Projektbestand. Quellenangaben führen zurück zu den verwendeten Codezeilen und Dokumentstellen.</p><ul><li>Fragen im Projektkontext</li><li>Quellenchips mit Zeilensprung</li><li>Fokus auf Programme und Strukturelemente</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 02</div><div><h3>Code-Editor</h3><p>Der Code-Editor macht Programmdateien und ihre Struktur lesbar, durchsuchbar und zeilengenau erreichbar. Er dient als prüfbare Originalquelle für Rechercheergebnisse.</p><ul><li>Code und Strukturelemente lesen</li><li>Zu konkreten Zeilen navigieren</li><li>Referenzen im Kontext prüfen</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 03</div><div><h3>Dokumentation</h3><p>Diese Ansicht öffnet erschlossene Dokumente direkt im Arbeitsraum. Sie hält technische und fachliche Begleitinformationen neben dem Code verfügbar.</p><ul><li>Dokumente im Kontext lesen</li><li>Zwischen Dokument und Quelle wechseln</li><li>Dokumentstellen als Beleg nutzen</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 04</div><div><h3>Wissensnetz</h3><p>Das Wissensnetz zeigt die Verbindung zwischen Code, Dokumenten und den zwischen ihnen hergestellten Verknüpfungen. Es eignet sich besonders, um die Reichweite eines Themas oder Begriffs zu erkunden.</p><ul><li>Code- und Wissensknoten gemeinsam</li><li>Verbindungen kontextuell erkunden</li><li>Auswahl als neuer Fokus</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 05</div><div><h3>Call-Graph</h3><p>Der Call-Graph macht Aufrufe und damit technische Ablaufketten zwischen Programmen und weiteren Elementen sichtbar. Die Tiefe lässt sich steuern; nicht vollständig auflösbare oder dynamische Beziehungen bleiben als solche erkennbar.</p><ul><li>Ein bis drei Beziehungsebenen</li><li>Filter nach Beziehungstyp</li><li>Export als JSON, CSV oder GraphML</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 06</div><div><h3>Web-Vorschau</h3><p>Webinhalte aus angebundenen Quellen lassen sich in einer eigenen Vorschau öffnen. So bleibt der Bezug zur ursprünglichen Webseite beim Recherchieren erhalten.</p><ul><li>Webquellen im Arbeitsraum öffnen</li><li>Ursprung und Inhalt zusammen betrachten</li><li>In den Kontext zurückwechseln</li></ul></div></article>
+      <article class="view"><div class="view-tag">Ansicht 07</div><div><h3>Link Manager</h3><p>Der Link Manager unterstützt dabei, fachlich bedeutsame Beziehungen zwischen Code und Dokumentation sichtbar zu machen und zu pflegen. Themen helfen, relevante Knoten unabhängig von einem einzelnen Repository zu gruppieren und zu ordnen.</p><ul><li>Verbindungen prüfen und pflegen</li><li>Themenbereiche strukturieren</li><li>Geteilte Orientierung schaffen</li></ul></div></article>
       <div class="image-slot" data-screenshot="graphen"><div class="slot-label"><b>Vorgesehener Screenshot · Aufruf- oder Wissensgraph</b><span>Hier: Eine Graphansicht mit Kontextmenü oder geöffnetem Knoten einfügen.</span></div></div>
       <p class="caption"><b>Abbildung 6.</b> Graphansichten machen Struktur und Reichweite eines Elements auf einen Blick erfassbar.</p>
+      <div style="margin-top:4rem"><div class="eyebrow">Funktionen im Arbeitsablauf</div><h3 style="font-size:1.75rem; max-width:24ch">Nicht alles, was Doctus leistet, ist eine eigene Ansicht.</h3></div>
+      <div class="three-col" style="margin-top:1.5rem">
+        <article class="card"><div class="icon">F01</div><h3>Globale Suche</h3><p>Die globale Suche führt über Projekte hinweg zu passenden Codeelementen und Wissensdokumenten – stets innerhalb der persönlichen Berechtigung. Ergebnisse öffnen sich anschließend im passenden Arbeitskontext.</p></article>
+        <article class="card"><div class="icon">F02</div><h3>Abläufe nachvollziehen</h3><p>Aufrufe, Sprünge, Ausführungsfolgen und Datenzugriffe helfen dabei, technische Prozesse zu verstehen. Je nach Fragestellung werden sie im Code geprüft oder im Call-Graph als Ablaufkette verfolgt.</p></article>
+        <article class="card"><div class="icon">F03</div><h3>Verarbeitung beobachten</h3><p>Import, Synchronisation und Erschließung laufen im Hintergrund. Das Job-Center informiert über Fortschritt, Zustand und Hinweise zu diesen Vorgängen.</p></article>
+      </div>
     </section>
 
     <section class="section" id="einstellungen">
