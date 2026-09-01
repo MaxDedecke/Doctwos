@@ -63,7 +63,10 @@
     .cover-wordmark { font: 700 1.2rem "Space Grotesk", sans-serif; letter-spacing: -.06em; }
     .cover-body { position: relative; z-index: 1; max-width: 62rem; padding-block: 7rem; }
     .cover .eyebrow { color: var(--muted); }
+    .cover .eyebrow::before { display: none; }
     .cover h1 { max-width: 9ch; }
+    .cover-word { white-space: nowrap; }
+    .cover-mark { display: inline-block; width: .16em; height: .16em; margin-left: .09em; vertical-align: .16em; background: var(--gradient); }
     .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: var(--muted); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
     .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
     .cover-footer b { display: block; color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -85,6 +88,7 @@
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; }
     #arbeitsraum .two-col { display: block; }
     #arbeitsraum .lede { max-width: none; margin-bottom: 2.75rem; }
+    #teams-projekte > h2 { margin-bottom: clamp(3.5rem, 5vw, 5rem); }
     #teams-projekte .team-project-icon { display: block; width: 4.1rem; height: 4.1rem; margin: 0 auto 1.2rem; }
     #teams-projekte .team-project-icon * { fill: none; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
     #teams-projekte .team-project-icon + h3 { text-align: center; }
@@ -109,7 +113,8 @@
     #anmelden .numbered li { min-height: 10.75rem; padding: 1.15rem 1rem 1.15rem 3.35rem; border: 0; background: var(--paper); }
     #anmelden .numbered li:last-child { border-bottom: 0; }
     #anmelden .numbered li::before { left: 1.15rem; }
-    #anmelden .numbered li:nth-child(odd)::after { position: absolute; z-index: 1; top: 1.05rem; right: -.65rem; width: 1.3rem; height: 1.3rem; content: "→"; place-content: center; color: var(--trace); background: var(--paper); font: 600 1rem/1 "IBM Plex Mono", monospace; text-align: center; }
+    #wissensquellen > .lede { margin-bottom: clamp(3.5rem, 5vw, 5rem); }
+    .model-stack { margin-top: 4rem; }
 
     .view { display: grid; grid-template-columns: 11rem 1fr; gap: 2rem; padding: 2.1rem 0; border-top: 1px solid var(--line); }
     .view:last-child { border-bottom: 1px solid var(--line); }
@@ -174,7 +179,6 @@
       #anmelden .numbered { grid-template-columns: 1fr; }
       #anmelden .numbered li { min-height: 5.75rem; padding-left: 4.5rem; }
       #anmelden .numbered li::before { left: 0; }
-      #anmelden .numbered li::after { display: none; }
       .view { gap: .65rem; }
     }
     @media print {
@@ -185,7 +189,10 @@
       .section { padding: 18mm 0; break-inside: avoid; }
       .section > .eyebrow { margin-bottom: 5mm; }
       .section > h2, .section > .lede { margin-bottom: 10mm; }
-      #intelligenz > h2 { margin-bottom: 12mm; }
+      #teams-projekte > h2 { margin-bottom: 15mm; }
+      #wissensquellen > .lede { margin-bottom: 16mm; }
+      #intelligenz > h2 { margin-bottom: 15mm; }
+      .model-stack { margin-top: 0; break-before: page; }
       .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
       .product-images { padding: 18mm 0; break-inside: auto; }
       .product-gallery { grid-template-columns: 1fr; }
@@ -201,7 +208,7 @@
       <nav><span class="cover-brand"><img src="assets/doctus-icon.svg" alt=""><span class="cover-wordmark">Doctus<span class="brand-dot"></span></span></span><span>Produkthandbuch · Stand September 2026</span></nav>
       <div class="cover-body">
         <div class="eyebrow">Code &amp; Knowledge Intelligence</div>
-        <h1>Wissen wird navigierbar<span class="brand-dot"></span></h1>
+        <h1>Wissen wird <span class="cover-word">navigierbar<span class="cover-mark" aria-hidden="true"></span></span></h1>
         <p class="subtitle">Doctus macht gewachsene COBOL-Anwendungen, begleitende Dokumente und ihre Zusammenhänge für Teams verständlich, durchsuchbar und nutzbar.</p>
       </div>
       <div class="cover-footer">
@@ -247,15 +254,14 @@
 
     <section class="section" id="anmelden">
       <div class="eyebrow">03 · Einstieg, Benutzer und Zugriffsrechte</div>
-      <div class="two-col">
-        <div><h2>Der Zugang beginnt kontrolliert und bleibt nachvollziehbar.</h2><p class="lede">Doctus ist für den Betrieb mit eigenen Benutzerkonten ausgelegt. Nach der Anmeldung sehen Personen nur die Teams und Projekte, für die sie freigeschaltet sind.</p></div>
-        <ol class="numbered">
-          <li><strong>Anmelden und Passwort ändern</strong><span>Beim ersten Zugang kann ein Passwortwechsel erzwungen werden. Fehlversuche werden begrenzt und Konten bei auffälligen Anmeldeversuchen zeitweise geschützt.</span></li>
-          <li><strong>Benutzer verwalten</strong><span>Administratoren legen Konten an, aktivieren oder deaktivieren sie, setzen Kennwörter zurück und heben Sperren gezielt auf.</span></li>
-          <li><strong>Teams zuordnen</strong><span>Teams bilden organisatorische Zuständigkeiten ab. Eine Person kann mehreren Teams angehören; die Administration behält den Gesamtüberblick.</span></li>
-          <li><strong>Projektzugriff steuern</strong><span>Innerhalb eines Teams kann der Zugang zusätzlich pro Projekt vergeben oder beantragt werden. So bleibt auch bei gemeinsamen Teams die Sicht auf konkrete Bestände kontrollierbar.</span></li>
-        </ol>
-      </div>
+      <h2>Der Zugang beginnt kontrolliert und bleibt nachvollziehbar.</h2>
+      <p class="lede">Doctus ist für den Betrieb mit eigenen Benutzerkonten ausgelegt. Nach der Anmeldung sehen Personen nur die Teams und Projekte, für die sie freigeschaltet sind.</p>
+      <ol class="numbered">
+        <li><strong>Anmelden und Passwort ändern</strong><span>Beim ersten Zugang kann ein Passwortwechsel erzwungen werden. Fehlversuche werden begrenzt und Konten bei auffälligen Anmeldeversuchen zeitweise geschützt.</span></li>
+        <li><strong>Benutzer verwalten</strong><span>Administratoren legen Konten an, aktivieren oder deaktivieren sie, setzen Kennwörter zurück und heben Sperren gezielt auf.</span></li>
+        <li><strong>Teams zuordnen</strong><span>Teams bilden organisatorische Zuständigkeiten ab. Eine Person kann mehreren Teams angehören; die Administration behält den Gesamtüberblick.</span></li>
+        <li><strong>Projektzugriff steuern</strong><span>Innerhalb eines Teams kann der Zugang zusätzlich pro Projekt vergeben oder beantragt werden. So bleibt auch bei gemeinsamen Teams die Sicht auf konkrete Bestände kontrollierbar.</span></li>
+      </ol>
     </section>
 
     <section class="section" id="teams-projekte">
@@ -271,7 +277,7 @@
       <div class="eyebrow">05 · Wissensquellen</div>
       <h2>Doctus bringt Code und Begleitwissen in einen gemeinsamen Kontext.</h2>
       <p class="lede">Wissensquellen werden projektspezifisch eingerichtet, synchronisiert und im Hintergrund verarbeitet. Der Fortschritt und mögliche Hinweise bleiben im Job-Center und an der jeweiligen Quelle sichtbar.</p>
-      <div class="three-col" style="margin-top:2.3rem">
+      <div class="three-col">
         <article class="card"><div class="icon">CODE</div><h3>Git-Repositories</h3><p>GitHub, GitLab, Bitbucket und generische Git-Server lassen sich inklusive Branch auswählen. Auch große, mehrteilige Bestände können getrennt und wiederaufsetzbar synchronisiert werden.</p></article>
         <article class="card"><div class="icon">DOCS</div><h3>Dokumente und Ablagen</h3><p>Datei-Uploads, WebDAV und Ordner- bzw. NAS-Quellen erschließen Dokumente wie PDF, Word, Markdown und Textdateien. Änderungen werden beim Folgelauf gezielt erkannt.</p></article>
         <article class="card"><div class="icon">WORK</div><h3>Wikis und Tickets</h3><p>Confluence und Jira ergänzen Code um Entscheidungswissen, Anforderungen, Tickets und fachliche Erläuterungen – dort, wo dieses Wissen in der Praxis entsteht.</p></article>
@@ -315,7 +321,7 @@
         <article class="card"><div class="icon">05</div><h3>Antworten belegen</h3><p>Antworten enthalten Referenzen auf die tatsächlich herangezogenen Dateien, Dokumentstellen oder Codezeilen. Damit kann jede Aussage am Original geprüft werden.</p></article>
         <article class="card"><div class="icon">06</div><h3>Regeln prüfen</h3><p>Der Code-Compliance-Checker kann einen definierten Prüfumfang mit einem lokalen Sprachmodell bewerten. Das Ergebnis ist ein Hinweis für die Prüfung, kein automatischer Befund.</p></article>
       </div>
-      <div style="margin-top:4rem"><div class="eyebrow">Empfohlener On-Premise-Stack</div><h3 style="font-size:1.75rem; max-width:30ch">Modelle nach Aufgabe und Hardware auswählen.</h3></div>
+      <div class="model-stack"><div class="eyebrow">Empfohlener On-Premise-Stack</div><h3 style="font-size:1.75rem; max-width:30ch">Modelle nach Aufgabe und Hardware auswählen.</h3></div>
       <table class="scope-table">
         <thead><tr><th>Aufgabe</th><th>Empfehlung</th><th>Einsatzentscheidung</th></tr></thead>
         <tbody>
