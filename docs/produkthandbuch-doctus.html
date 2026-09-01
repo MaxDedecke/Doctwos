@@ -55,14 +55,13 @@
     .brand-dot { display: inline-block; width: .16em; height: .16em; margin-left: .04em; border-radius: 50%; background: var(--gradient); }
     .toc a { text-decoration: none; }
 
-    .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); color: var(--ink); }
-    .cover::after { position: absolute; inset: auto -18rem -19rem auto; width: 51rem; height: 51rem; content: ""; border: 1px solid rgba(0,100,210,.22); border-radius: 50%; box-shadow: 0 0 0 5rem rgba(0,100,210,.035), 0 0 0 10rem rgba(0,100,210,.025); }
+    .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background-color: #f9fbff; background-image: linear-gradient(rgba(0,100,210,.055) 1px, transparent 1px), linear-gradient(90deg, rgba(0,100,210,.055) 1px, transparent 1px), linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); background-size: 2.25rem 2.25rem, 2.25rem 2.25rem, 100% 100%; color: var(--ink); }
     .cover nav { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; font: 600 .74rem "IBM Plex Mono", monospace; letter-spacing: .09em; text-transform: uppercase; }
     .cover-brand { display: flex; align-items: center; gap: .55rem; }
     .cover-brand img { width: 1.8rem; height: 1.8rem; }
     .cover-wordmark { font: 700 1.2rem "Space Grotesk", sans-serif; letter-spacing: -.06em; }
     .cover-body { position: relative; z-index: 1; max-width: 62rem; padding-block: 7rem; }
-    .cover .eyebrow { color: var(--muted); }
+    .cover .eyebrow { color: var(--muted); text-transform: none; }
     .cover .eyebrow::before { display: none; }
     .cover h1 { max-width: 9ch; }
     .cover-word { white-space: nowrap; }
@@ -71,11 +70,13 @@
     .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
     .cover-footer b { display: block; color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
 
-    .at-glance { display: grid; grid-template-columns: 1.35fr .9fr; gap: 4rem; align-items: end; }
-    .fact-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); }
+    .at-glance { display: block; }
+    .at-glance > div:first-child { margin-bottom: 3rem; }
+    .at-glance .lede { max-width: none; }
+    .fact-grid { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); }
     .fact { min-height: 8rem; padding: 1.15rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .fact:nth-child(2n) { border-right: 0; }
-    .fact:nth-last-child(-n+2) { border-bottom: 0; }
+    .fact:last-child { border-right: 0; }
+    .fact:nth-child(-n+4) { border-bottom: 0; }
     .fact b { display: block; margin-bottom: .35rem; font: 600 .77rem "IBM Plex Mono", monospace; color: var(--signal); letter-spacing: .08em; text-transform: uppercase; }
     .fact span { font-size: .9rem; color: var(--muted); }
 
@@ -133,7 +134,7 @@
     .view-index b { display: block; margin-bottom: .25rem; color: var(--signal); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
     .view-index span { font-family: "Space Grotesk", sans-serif; font-weight: 600; }
     .workflow-intro { margin-top: 4rem; margin-bottom: 4rem; }
-    .workflow-intro h3 { margin-bottom: 0; }
+    .workflow-intro h3 { margin-top: 2rem; margin-bottom: 0; }
     .workflow-cards .card:nth-child(2) { border-right: 1px solid var(--line); }
 
     .security { color: var(--ink); background: #f7faff; }
@@ -185,6 +186,10 @@
       .cover-footer, .at-glance, .two-col, .view { grid-template-columns: 1fr; }
       .cover-footer { gap: .7rem; }
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
+      .fact-grid { grid-template-columns: 1fr 1fr; }
+      .fact:nth-child(2n) { border-right: 0; }
+      .fact:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+      .fact:nth-last-child(-n+2) { border-bottom: 0; }
       .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
       .view-index li { grid-column: auto; }
       .view-index li:last-child { grid-column: auto; }
@@ -226,7 +231,7 @@
     <section class="cover" aria-label="Titelseite">
       <nav><span class="cover-brand"><img src="assets/doctus-icon.svg" alt=""><span class="cover-wordmark">Doctus<span class="brand-dot"></span></span></span><span>Produkthandbuch · Stand September 2026</span></nav>
       <div class="cover-body">
-        <div class="eyebrow">Code &amp; Knowledge Intelligence</div>
+        <div class="eyebrow">Knowledge Management System</div>
         <h1>Wissen wird <span class="cover-word">navigierbar<span class="cover-mark" aria-hidden="true"></span></span></h1>
         <p class="subtitle">Doctus macht gewachsene COBOL-Anwendungen, begleitende Dokumente und ihre Zusammenhänge für Teams verständlich, durchsuchbar und nutzbar.</p>
       </div>
@@ -351,15 +356,6 @@
         </tbody>
       </table>
       <div class="callout" style="margin-top:2.5rem"><p><strong>Betriebsprinzip:</strong> Das Embedding-Modell und das Chat-Modell laufen über Ollama im eigenen Netzwerk. Ein Cloud-Modell ist optional, aber nur nach expliziter administrativer Freigabe vorgesehen.</p></div>
-      <div class="expansion">
-        <div class="eyebrow">Möglicher Ausbau</div>
-        <h3 style="font-size:1.75rem; max-width:30ch">Was als Nächstes sinnvoll ergänzt werden kann.</h3>
-        <div class="three-col">
-          <article class="card"><div class="icon">A</div><h3>Änderungsvorhaben vorbereiten</h3><p>Aus einem Fachwunsch betroffene Programme, Regeln und offene Fragen zusammenstellen – mit Freigabe durch Fachbereich und Entwicklung.</p></article>
-          <article class="card"><div class="icon">B</div><h3>Regeln und Begriffe extrahieren</h3><p>Wiederkehrende Geschäftsregeln, Datenbegriffe und Abkürzungen als überprüfbare Vorschläge für eine kuratierte Wissensbasis ableiten.</p></article>
-          <article class="card"><div class="icon">C</div><h3>Semantische Änderungen prüfen</h3><p>Änderungen zwischen Ständen nicht nur zeilenweise, sondern nach betroffenen Abläufen, Schnittstellen und Dokumentation priorisieren.</p></article>
-        </div>
-      </div>
     </section>
 
     <section class="section" id="ansichten">
@@ -473,23 +469,22 @@
         <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151807.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 03 Chat &amp; Code Fenster</figcaption></figure>
         <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151830.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 04 Wissensobjekt im Chat anpinnen</figcaption></figure>
         <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152035.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 05 Chat &amp; Wissensnetz Fenster</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152135.png" alt="Doctus-Arbeitsraum mit Wissensgraph"><figcaption>Produktansicht 06</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152154.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 07</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152435.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 08</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152450.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 09</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152510.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 10</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152618.png" alt="Doctus-Arbeitsraum mit Code-Editor"><figcaption>Produktansicht 11</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152743.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 12</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152804.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 13</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20153014.png" alt="Doctus-Arbeitsraum mit Call-Graph und Code-Editor"><figcaption>Produktansicht 14</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20170719.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 15</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152629.png" alt="Doctus-Einstellungen für Projekte"><figcaption>Produktansicht 16</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152635.png" alt="Doctus-Einstellungen für Wissensquellen"><figcaption>Produktansicht 17</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152642.png" alt="Doctus-Einstellungen für Teams"><figcaption>Produktansicht 18</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152649.png" alt="Doctus-Einstellungen für Benutzer"><figcaption>Produktansicht 19</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152700.png" alt="Doctus-Einstellungen für KI-Parameter"><figcaption>Produktansicht 20</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152707.png" alt="Doctus-Einstellungen für Logs und Status"><figcaption>Produktansicht 21</figcaption></figure>
-        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152718.png" alt="Doctus-Einstellungen für Layout und Design"><figcaption>Produktansicht 22</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152135.png" alt="Doctus-Arbeitsraum mit Wissensgraph"><figcaption>Produktansicht 06 Ausgewähltes Objekt im Graph</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152154.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 07 Fokus auf Objekt im Graph</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152435.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 08 Referenzen des Wissensobjekts</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152510.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 09</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152618.png" alt="Doctus-Arbeitsraum mit Code-Editor"><figcaption>Produktansicht 10</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152743.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 11</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152804.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 12</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20153014.png" alt="Doctus-Arbeitsraum mit Call-Graph und Code-Editor"><figcaption>Produktansicht 13</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20170719.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 14</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152629.png" alt="Doctus-Einstellungen für Projekte"><figcaption>Produktansicht 15</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152635.png" alt="Doctus-Einstellungen für Wissensquellen"><figcaption>Produktansicht 16</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152642.png" alt="Doctus-Einstellungen für Teams"><figcaption>Produktansicht 17</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152649.png" alt="Doctus-Einstellungen für Benutzer"><figcaption>Produktansicht 18</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152700.png" alt="Doctus-Einstellungen für KI-Parameter"><figcaption>Produktansicht 19</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152707.png" alt="Doctus-Einstellungen für Logs und Status"><figcaption>Produktansicht 20</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152718.png" alt="Doctus-Einstellungen für Layout und Design"><figcaption>Produktansicht 21</figcaption></figure>
       </div>
     </section>
 
