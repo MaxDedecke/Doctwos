@@ -48,6 +48,19 @@ def test_copybook_has_no_edges_and_chunks_whole_file():
     assert reconstructed.splitlines() == text.splitlines()
 
 
+def test_copybook_copy_statement_is_retained_as_own_edge():
+    result = parse_copybook(
+        "01 LOCAL-FIELD PIC X.\nCOPY SHARED.\n",
+        "wrapper.cpy",
+        copybook_index={"SHARED": ["shared.cpy"]},
+    )
+
+    edge = next(edge for edge in result.edges if edge.type == "COPY")
+    assert edge.src_name == "WRAPPER"
+    assert edge.dst_name == "SHARED"
+    assert edge.resolution == "resolved"
+
+
 def test_empty_copybook_produces_no_entities_and_no_crash():
     result = parse_copybook("", "empty.cpy")
     assert result.entities == []

@@ -85,7 +85,7 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
     sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items)
     errors.extend(sql_errors)
 
-    inherited_fields = _inherited_copybook_fields(copy_edges, copybook_index)
+    inherited_fields = copybook_mod.inherited_fields(copy_edges, copybook_index)
     xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
     errors.extend(xref_errors)
 
@@ -106,38 +106,6 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
         chunks=chunks,
         errors=errors,
     )
-
-
-def _inherited_copybook_fields(copy_edges, copybook_index: CopybookIndex | None) -> list[dict]:
-    """E-2: Felder eindeutig aufgelöster COPYs mit REPLACING-Namen erben."""
-    if copybook_index is None or not hasattr(copybook_index, "fields_by_path"):
-        return []
-    inherited: list[dict] = []
-    for edge in copy_edges:
-        path = copybook_mod.resolve_path(edge.dst_name, (edge.meta or {}).get("library"), copybook_index)
-        if path is None:
-            continue
-        replacing = (edge.meta or {}).get("replacing", [])
-        for field in copybook_index.fields_by_path.get(path, []):
-            effective_name = _apply_replacing(field["name"], replacing)
-            effective_parent = _apply_replacing(field.get("parent") or "", replacing) or None
-            inherited.append({**field, "effective_name": effective_name, "effective_parent": effective_parent})
-    return inherited
-
-
-def _apply_replacing(value: str, replacing: list[dict]) -> str:
-    result = value
-    for pair in replacing:
-        old = pair.get("from", "")
-        if old:
-            # COBOL-Namen sind case-insensitiv; die Länge bleibt bei der
-            # Slice-Ersetzung nicht vorausgesetzt.
-            upper = result.upper()
-            old_upper = old.upper()
-            pos = upper.find(old_upper)
-            if pos >= 0:
-                result = result[:pos] + pair.get("to", "") + result[pos + len(old):]
-    return result
 
 
 def _build_entities(
@@ -329,7 +297,12 @@ def _fallback_chunks(
     ]
 
 
-def parse_copybook(text: str, path: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> ParseResult:
+def parse_copybook(
+    text: str,
+    path: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    copybook_index: CopybookIndex | None = None,
+) -> ParseResult:
     """F-022/E-2: eine Copybook-Datei als eigenständige Entity mit eigenen
     data_item-Kindern parsen - eigene Zeilennummern, NIE in den Programmtext
     expandiert (CLAUDE.md „Zeilennummern sind heilig"). Analog zu
@@ -367,6 +340,8 @@ def parse_copybook(text: str, path: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -
 
     items, file_descriptors, dd_errors = data_division_mod.parse(synthetic, masked_lines)
     errors.extend(dd_errors)
+    copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
+    errors.extend(copy_errors)
 
     entities = [
         Entity(type="copybook", name=name, start_line=start_line, end_line=end_line, qualified_name=name)
@@ -383,7 +358,7 @@ def parse_copybook(text: str, path: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -
         path=path,
         source_format=source_format,
         entities=entities,
-        edges=[],
+        edges=copy_edges,
         chunks=chunks,
         errors=errors,
     )

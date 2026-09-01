@@ -44,9 +44,19 @@ class CopybookIndex(dict[str, list[str]]):
     Programm zu expandieren.
     """
 
-    def __init__(self, *args, fields_by_path: dict[str, list[dict]] | None = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        fields_by_path: dict[str, list[dict]] | None = None,
+        copy_edges_by_path: dict[str, list[ParsedEdge]] | None = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.fields_by_path = fields_by_path or {}
+        # Wird vom quellenweiten Pass 0 gefuellt. Die Kanten erlauben, Felder
+        # aus verschachtelten Copybooks zu uebernehmen, ohne Copybook-Text in
+        # den aufrufenden Quelltext einzublenden.
+        self.copy_edges_by_path = copy_edges_by_path or {}
 
 _OPERAND_KINDS = ("PSEUDO_TEXT", "LITERAL", "WORD")
 
@@ -143,6 +153,50 @@ def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | 
         if len(matches) == 1:
             return matches[0]
     return None
+
+
+def inherited_fields(copy_edges: list[ParsedEdge], index: CopybookIndex | None) -> list[dict]:
+    """Projiziert Felder eindeutig aufgeloester COPY-Anweisungen in den
+    aktuellen Namensraum.
+
+    ``fields_by_path`` darf dabei bereits transitive Felder eines Copybooks
+    enthalten. Das ist wichtig fuer ``COPY A`` wenn A seinerseits ``COPY B``
+    enthaelt. ``path`` und ``qualified_name`` bleiben stets die des wirklich
+    definierenden Copybooks, damit die spaetere DB-Aufloesung eindeutig bleibt.
+    """
+    if index is None or not hasattr(index, "fields_by_path"):
+        return []
+
+    inherited: list[dict] = []
+    for edge in copy_edges:
+        path = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
+        if path is None:
+            continue
+        replacing = (edge.meta or {}).get("replacing", [])
+        for field in index.fields_by_path.get(path, []):
+            name = field.get("effective_name", field["name"])
+            parent = field.get("effective_parent", field.get("parent") or "")
+            inherited.append(
+                {
+                    **field,
+                    "effective_name": apply_replacing(name, replacing),
+                    "effective_parent": apply_replacing(parent, replacing) or None,
+                }
+            )
+    return inherited
+
+
+def apply_replacing(value: str, replacing: list[dict]) -> str:
+    """Wendet COPY REPLACING ohne Gross-/Kleinschreibungsannahmen an."""
+    result = value
+    for pair in replacing:
+        old = pair.get("from", "")
+        if not old:
+            continue
+        pos = result.upper().find(old.upper())
+        if pos >= 0:
+            result = result[:pos] + pair.get("to", "") + result[pos + len(old):]
+    return result
 
 
 def _replacing_pair(tokens: list[Token], j: int) -> tuple[dict | None, int]:

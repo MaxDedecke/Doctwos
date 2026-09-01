@@ -34,6 +34,7 @@ import redis
 
 import git_utils
 from cobol.model import ParseResult
+from cobol import copybook
 from cobol.copybook import CopybookIndex
 from cobol.parse import parse_copybook, parse_program
 from cobol_persist import persist_parse_result
@@ -101,10 +102,37 @@ def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookI
                 for entity in parsed.entities
                 if entity.type == "data_item"
             ]
+            index.copy_edges_by_path[path] = [edge for edge in parsed.edges if edge.type == "COPY"]
         except OSError:
             # Der Namensindex bleibt nutzbar; die XREF-Vererbung für diese
             # einzelne, nicht lesbare Datei entfällt fehlertolerant (F-029).
             continue
+    # Erst nachdem alle Copybooks gelesen wurden, lassen sich verschachtelte
+    # COPYs eindeutig gegen den vollstaendigen Index aufloesen. Die Rekursion
+    # beendet Zyklen fehlertolerant; ein zyklisches Copybook liefert dann nur
+    # seine lokal definierten Felder statt den Sync abzubrechen.
+    local_fields = {path: list(fields) for path, fields in index.fields_by_path.items()}
+    expanded: dict[str, list[dict]] = {}
+
+    def fields_for(path: str, ancestry: set[str]) -> list[dict]:
+        if path in expanded:
+            return expanded[path]
+        result = list(local_fields.get(path, []))
+        if path in ancestry:
+            return result
+        for edge in index.copy_edges_by_path.get(path, []):
+            target = copybook.resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
+            if target is None or target in ancestry:
+                continue
+            # Die Hilfsinstanz macht die bereits expandierten Ziel-Felder fuer
+            # die gemeinsame REPLACING-Logik sichtbar.
+            target_index = CopybookIndex(index, fields_by_path={target: fields_for(target, ancestry | {path})})
+            result.extend(copybook.inherited_fields([edge], target_index))
+        expanded[path] = result
+        return result
+
+    for path in local_fields:
+        index.fields_by_path[path] = fields_for(path, set())
     return index
 
 # Nur der Fetch/Worktree-Schritt läuft unter diesem Lock, nicht das komplette
@@ -185,7 +213,7 @@ class GitConnector(BaseConnector):
     def _parse_cobol(self, doc: Document, lang: str) -> ParseResult:
         path = doc["storage_key"]
         if lang == "copybook":
-            return parse_copybook(doc["content"], path)
+            return parse_copybook(doc["content"], path, copybook_index=self._copybook_index)
         return parse_program(doc["content"], path, self._copybook_index)
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):

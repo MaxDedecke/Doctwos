@@ -1,7 +1,7 @@
 import os
 
-from cobol.copybook import CopybookIndex
-from cobol.parse import parse_program
+from cobol.copybook import CopybookIndex, inherited_fields
+from cobol.parse import parse_copybook, parse_program
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
@@ -143,6 +143,43 @@ def test_xref_applies_copy_replacing_to_inherited_field_name():
     edge = next(e for e in result.edges if e.type == "USES")
     assert edge.dst_name == ":TAG:-ID"
     assert edge.resolution == "resolved"
+
+
+def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
+    """Der Pass-0-Index liefert fuer ein Copybook auch Felder seiner COPYs.
+    Die Definitions-Identitaet bleibt dabei beim urspruenglichen Copybook."""
+    base_field = {
+        "name": ":TAG:-ID", "parent": ":TAG:-RECORD",
+        "qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID", "path": "copy/BASE.CPY",
+    }
+    wrapper_copy = parse_copybook("       COPY BASE REPLACING ==:TAG:== BY ==CUSTOMER==.\n", "copy/WRAP.CPY")
+    wrapper_fields = inherited_fields(
+        wrapper_copy.edges,
+        CopybookIndex({"BASE": ["copy/BASE.CPY"]}, fields_by_path={"copy/BASE.CPY": [base_field]}),
+    )
+    assert wrapper_fields[0]["effective_name"] == "CUSTOMER-ID"
+
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. NESTEDCOPY.\n"
+        "       DATA DIVISION.\n"
+        "       COPY WRAP REPLACING ==CUSTOMER== BY ==ACCOUNT==.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           DISPLAY ACCOUNT-ID.\n"
+    )
+    index = CopybookIndex(
+        {"WRAP": ["copy/WRAP.CPY"]},
+        fields_by_path={"copy/WRAP.CPY": wrapper_fields},
+    )
+    result = parse_program(text, "MAIN.CBL", index)
+    edge = next(edge for edge in result.edges if edge.type == "USES")
+
+    assert edge.resolution == "resolved"
+    assert edge.meta == {
+        "copybook_path": "copy/BASE.CPY",
+        "target_qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID",
+    }
 
 
 def test_sql_block_becomes_entity_with_extraction_meta():
