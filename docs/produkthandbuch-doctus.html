@@ -66,7 +66,7 @@
     .cover .eyebrow::before { display: none; }
     .cover h1 { max-width: 9ch; }
     .cover-word { white-space: nowrap; }
-    .cover-mark { display: inline-block; width: .16em; height: .16em; margin-left: .09em; vertical-align: .16em; background: var(--gradient); }
+    .cover-mark { display: inline-block; width: .16em; height: .16em; margin-left: .09em; vertical-align: .02em; background: var(--gradient); }
     .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: var(--muted); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
     .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
     .cover-footer b { display: block; color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -126,25 +126,33 @@
     .view p { max-width: 49rem; margin-bottom: .65rem; color: var(--muted); }
     .view ul { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0 0; padding: 0; list-style: none; }
     .view li { padding: .26rem .55rem; border: 1px solid var(--line); font-size: .75rem; }
-    .view-index { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 2rem 0 3rem; padding: 1px; list-style: none; background: var(--line); }
+    .view-index { display: grid; grid-template-columns: repeat(12, 1fr); gap: 0; margin: 2rem 0 3rem; padding: 0; list-style: none; background: var(--paper); }
     .view-index li { min-height: 5.6rem; padding: 1rem 1.1rem; background: var(--paper); }
-    .view-index li:last-child { grid-column: span 2; }
+    .view-index li:nth-child(-n+4), .view-index li:nth-child(n+5) { grid-column: span 3; }
+    .view-index li:nth-child(5) { grid-column: 2 / span 3; }
     .view-index b { display: block; margin-bottom: .25rem; color: var(--signal); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
     .view-index span { font-family: "Space Grotesk", sans-serif; font-weight: 600; }
+    .workflow-intro { margin-top: 4rem; margin-bottom: 4rem; }
+    .workflow-intro h3 { margin-bottom: 0; }
+    .workflow-cards .card:nth-child(2) { border-right: 1px solid var(--line); }
 
     .security { color: var(--ink); background: #f7faff; }
     .security .eyebrow, .security .lede { color: var(--muted); }
     .security .card { color: var(--ink); background: var(--paper); }
     .security .card p { color: var(--muted); }
     .security .icon { border-color: var(--line); color: var(--signal); }
-    .security .architecture { margin-top: 2.5rem; border-color: var(--line); }
-    .architecture { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+    .security .architecture { margin-top: 2.5rem; border-color: var(--line); gap: 0; background: var(--paper); }
+    .security > .three-col { gap: 0; background: var(--paper); }
+    .security > .three-col .card:not(:last-child) { border-right: 1px solid var(--line); }
+    .architecture { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border: 1px solid var(--line); background: var(--paper); }
     .architecture div { min-height: 10.4rem; padding: 1.15rem; background: var(--paper); }
     .security .architecture div { background: var(--paper); }
+    .security .architecture div { border-right: 1px solid var(--line); }
+    .security .architecture div:nth-child(2), .security .architecture div:nth-child(3) { border-right: 0; }
     .architecture b { display: block; margin: 1.8rem 0 .38rem; font-family: "Space Grotesk", sans-serif; }
     .architecture span { color: var(--muted); font-size: .82rem; }
     .security .architecture span { color: var(--muted); }
-    .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--trace); text-transform: uppercase; }
+    .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--signal); text-transform: uppercase; }
 
     .callout { max-width: 49rem; padding: 1.4rem 1.5rem; border-left: 4px solid var(--signal); background: var(--surface); }
     #nutzen .callout, #wissensquellen .callout, #ki .callout { position: relative; padding-left: 1.75rem; border-left: 0; }
@@ -178,10 +186,13 @@
       .cover-footer { gap: .7rem; }
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
       .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
+      .view-index li { grid-column: auto; }
       .view-index li:last-child { grid-column: auto; }
       #nutzen .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
       #intelligenz .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .workflow-cards .card:nth-child(2) { border-right: 0; }
       .expansion .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .security > .three-col .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
       #anmelden .numbered { grid-template-columns: 1fr; }
       #anmelden .numbered li { min-height: 5.75rem; padding-left: 4.5rem; }
       #anmelden .numbered li::before { left: 0; }
@@ -353,7 +364,7 @@
 
     <section class="section" id="ansichten">
       <div class="eyebrow">09 · Ansichten im Detail</div>
-      <h2>Sieben Ansichten für die Arbeit am Wissensbestand.</h2>
+      <h2>Spezifische Ansichten für jede Situation.</h2>
       <p class="lede">Ansichten sind die Bereiche, die im Arbeitsraum geöffnet und nebeneinander angeordnet werden können. Bis zu vier Ansichten lassen sich gleichzeitig nutzen; Chat und Code-Editor sind dabei eigenständige Ansichten.</p>
       <ol class="view-index" aria-label="Verfügbare Ansichten">
         <li><b>Ansicht 01</b><span>Chat</span></li>
@@ -372,8 +383,8 @@
       <article class="view"><div class="view-tag">Ansicht 05 · Call-Graph</div><div><h3>Technische Ablaufketten verfolgen</h3><p>Der Call-Graph zeigt Aufrufe zwischen Programmen und weiteren Codeelementen. So werden technische Ablaufketten, Abhängigkeiten und mögliche Auswirkungen einer Änderung sichtbar, ohne die Beziehungen einzeln aus Dateien zusammensuchen zu müssen.</p><p>Die gewünschte Tiefe kann eingestellt und die Anzeige nach Beziehungstyp eingegrenzt werden. Dynamische oder nicht vollständig auflösbare Verbindungen werden erkennbar gehalten; für die Weiterverarbeitung lässt sich der Graph als JSON, CSV oder GraphML exportieren.</p><ul><li>Ein bis drei Beziehungsebenen</li><li>Filter nach Beziehungstyp</li><li>Dynamische Bezüge sichtbar halten</li><li>Export als JSON, CSV oder GraphML</li></ul></div></article>
       <article class="view"><div class="view-tag">Ansicht 06 · Web-Vorschau</div><div><h3>Webquellen im Ursprungskontext lesen</h3><p>Die Web-Vorschau zeigt Inhalte aus angebundenen Webquellen in einer eigenen Ansicht. Sie bewahrt beim Recherchieren den Bezug zur ursprünglichen Webseite, statt den Inhalt nur als losgelösten Suchtreffer zu behandeln.</p><p>Die Ansicht kann parallel zu Chat, Code oder Dokumentation geöffnet werden. Damit lässt sich der Ursprung eines Webinhalts mit den daraus erschlossenen Informationen und den übrigen Projektquellen abgleichen.</p><ul><li>Webquellen im Arbeitsraum öffnen</li><li>Ursprung und Inhalt zusammen betrachten</li><li>Neben weiteren Ansichten verwenden</li><li>In den Kontext zurückwechseln</li></ul></div></article>
       <article class="view"><div class="view-tag">Ansicht 07 · Link Manager</div><div><h3>Wichtige Beziehungen kuratieren</h3><p>Der Link Manager dient dazu, fachlich bedeutsame Beziehungen zwischen Code und Dokumentation sichtbar zu machen, zu prüfen und zu pflegen. Er ergänzt automatisch erkannte Zusammenhänge dort, wo menschliche Einordnung und dauerhafte Verbindlichkeit wichtig sind.</p><p>Zusätzlich können Themen relevante Knoten unabhängig von einem einzelnen Repository bündeln. So entsteht eine geteilte Orientierung für wiederkehrende Fragestellungen, Fachbegriffe oder Modernisierungsvorhaben.</p><ul><li>Verbindungen prüfen und pflegen</li><li>Code und Dokumentation gezielt verknüpfen</li><li>Themenbereiche strukturieren</li><li>Geteilte Orientierung schaffen</li></ul></div></article>
-      <div style="margin-top:4rem"><div class="eyebrow">Funktionen im Arbeitsablauf</div><h3 style="font-size:1.75rem; max-width:24ch">Nicht alles, was Doctus leistet, ist eine eigene Ansicht.</h3></div>
-      <div class="three-col" style="margin-top:1.5rem">
+      <div class="workflow-intro"><div class="eyebrow">Funktionen im Arbeitsablauf</div><h3 style="font-size:1.75rem; max-width:24ch">Nicht alles, was Doctus leistet, ist eine eigene Ansicht.</h3></div>
+      <div class="three-col workflow-cards">
         <article class="card"><div class="icon">F01</div><h3>Globale Suche</h3><p>Die globale Suche führt über Projekte hinweg zu passenden Codeelementen und Wissensdokumenten – stets innerhalb der persönlichen Berechtigung. Ergebnisse öffnen sich anschließend im passenden Arbeitskontext.</p></article>
         <article class="card"><div class="icon">F02</div><h3>Abläufe nachvollziehen</h3><p>Aufrufe, Sprünge, Ausführungsfolgen und Datenzugriffe helfen dabei, technische Prozesse zu verstehen. Je nach Fragestellung werden sie im Code geprüft oder im Call-Graph als Ablaufkette verfolgt.</p></article>
         <article class="card"><div class="icon">F03</div><h3>Verarbeitung beobachten</h3><p>Import, Synchronisation und Erschließung laufen im Hintergrund. Das Job-Center informiert über Fortschritt, Zustand und Hinweise zu diesen Vorgängen.</p></article>
@@ -401,11 +412,11 @@
       <h2>Für den kontrollierten Betrieb in der eigenen Umgebung.</h2>
       <p class="lede">Doctus ist standardmäßig als On-Premise-Lösung ausgelegt. Der Datenbestand, die Quellen und die KI-Verarbeitung bleiben im eigenen Betriebsumfeld. Eine Cloud-Anbindung für Sprachmodelle ist nur nach expliziter Freigabe vorgesehen.</p>
       <div class="architecture" aria-label="Die technischen Schichten von Doctus">
-        <div><span class="layer">01 · Zugang</span><b>Web-Arbeitsplatz</b><span>Browserbasierte Oberfläche für Recherche, Analyse und Administration.</span></div>
-        <div><span class="layer">02 · Anwendung</span><b>Fachlogik</b><span>Steuert Zugriffe, Projekte, Suche, Chat und die Bedienoberfläche.</span></div>
-        <div><span class="layer">03 · Verarbeitung</span><b>Hintergrunddienste</b><span>Synchronisieren Quellen, analysieren Dateien und bauen Beziehungen auf.</span></div>
-        <div><span class="layer">04 · Wissen</span><b>Daten- und Vektorspeicher</b><span>Hält Strukturinformationen, Dokumentinhalte, Referenzen und Suchrepräsentationen vor.</span></div>
-        <div><span class="layer">05 · KI</span><b>Lokale Inferenz</b><span>Erstellt Suchrepräsentationen und beantwortet Fragen mit lokal betriebenen Modellen.</span></div>
+        <div><span class="layer">Zugang</span><b>Web-Arbeitsplatz</b><span>Browserbasierte Oberfläche für Recherche, Analyse und Administration.</span></div>
+        <div><span class="layer">Anwendung</span><b>Fachlogik</b><span>Steuert Zugriffe, Projekte, Suche, Chat und die Bedienoberfläche.</span></div>
+        <div><span class="layer">Verarbeitung</span><b>Hintergrunddienste</b><span>Synchronisieren Quellen, analysieren Dateien und bauen Beziehungen auf.</span></div>
+        <div><span class="layer">Wissen</span><b>Daten- und Vektorspeicher</b><span>Hält Strukturinformationen, Dokumentinhalte, Referenzen und Suchrepräsentationen vor.</span></div>
+        <div><span class="layer">KI</span><b>Lokale Inferenz</b><span>Erstellt Suchrepräsentationen und beantwortet Fragen mit lokal betriebenen Modellen.</span></div>
       </div>
       <div class="three-col" style="margin-top:2.5rem">
         <article class="card"><div class="icon">AUTH</div><h3>Zugangsschutz</h3><p>Lokale Konten, sichere Kennwortspeicherung, erzwungene Passwortwechsel, Sperrmechanismen und Team-/Projektberechtigungen schützen den Zugriff.</p></article>
@@ -431,7 +442,7 @@
       <h2>Legacy-Systeme werden nicht einfacher – aber wesentlich besser zugänglich.</h2>
       <div class="two-col">
         <div><p class="lede">Doctus gibt Teams eine gemeinsame Sprache für komplexe Bestände. Es verbindet die Genauigkeit des Originalmaterials mit einer schnellen, modernen Recherche- und Navigationsoberfläche.</p></div>
-        <div><p>Dadurch lässt sich fachliches und technisches Wissen früher in Entscheidungen einbeziehen: beim Onboarding, bei der Fehleranalyse, vor einer Änderung, bei Übergaben und bei der schrittweisen Modernisierung. Die entscheidende Grundlage bleibt dabei sichtbar: der konkrete Code und die zugehörige Dokumentation.</p></div>
+        <div><p class="lede">Dadurch lässt sich fachliches und technisches Wissen früher in Entscheidungen einbeziehen: beim Onboarding, bei der Fehleranalyse, vor einer Änderung, bei Übergaben und bei der schrittweisen Modernisierung. Die entscheidende Grundlage bleibt dabei sichtbar: der konkrete Code und die zugehörige Dokumentation.</p></div>
       </div>
       <nav class="toc" aria-label="Inhaltsübersicht">
         <a href="#ueberblick"><span class="toc-no">01</span><b>Überblick</b><span>Was Doctus ist</span></a>
@@ -447,8 +458,8 @@
 
     <section class="product-divider" aria-label="Trennseite Produktbilder">
       <div class="eyebrow">Anhang · Produktbilder</div>
-      <h2>Doctus im Arbeitsraum.</h2>
-      <p>Ausgewählte Ansichten aus der Anwendung – von der ersten Frage bis zur nachvollziehbaren Quelle, dem Graphen und dem Code.</p>
+      <h2>Doctus - Vorschau</h2>
+      <p>Hinweis: Die folgenden Ansichten zeigen eine Vorschau und stellen noch nicht das fertige Produkt dar.</p>
     </section>
 
     <section class="product-images" id="produktbilder">
