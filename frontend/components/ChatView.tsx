@@ -429,7 +429,7 @@ export function ChatView({
                     )}>
                       {isUser ? (
                         <>
-                          {m.metadata && (m.metadata.project || m.metadata.pinned || m.metadata.refs?.length) && (
+                          {m.metadata && Boolean(m.metadata.project || m.metadata.pinned || m.metadata.refs?.length) && (
                             <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-ds-zinc-200/50 dark:border-ds-zinc-800/50">
                               {m.metadata.project && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-indigo-500/10 border border-ds-indigo-500/20 text-[10px] text-ds-indigo-400 font-bold uppercase tracking-tight">
@@ -608,6 +608,7 @@ export function ChatView({
                           alt={t('chatView.userAvatarAlt')}
                           width={32}
                           height={32}
+                          unoptimized
                           className="w-full h-full object-cover"
                         />
                       </div>
