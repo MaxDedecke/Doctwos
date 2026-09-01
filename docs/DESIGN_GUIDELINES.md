@@ -1,6 +1,6 @@
 # Doctwos Design Guidelines
 
-**Stand:** 31.07.2026 — im Frontend umgesetzt
+**Stand:** 01.09.2026 — im Frontend umgesetzt
 
 ## Leitidee: Structured Intelligence
 
@@ -40,6 +40,20 @@ Informationsdichte und wenige, bewusst gesetzte Signalfarben.
 - Space Grotesk für Display/Überschriften, Archivo für UI, IBM Plex Mono für Code.
 - Überschriften dürfen eng und groß sein; Utility-Labels sind uppercase mit Tracking.
 - Übergänge 120–180 ms. Bewegung erklärt Zustandswechsel, sie dekoriert nicht.
+
+### Standarddarstellung und Dichte
+
+- Die Desktop-Basisdarstellung verwendet eine zentrale UI-Skalierung von 110 %
+  (effektiv 17,6 px Root-Schriftgröße). Dadurch wachsen rem-basierte
+  Schriftgrößen, Bedienelemente und Abstände gemeinsam und die Oberfläche
+  entspricht der Darstellung, die zuvor typischerweise mit 110 %
+  Browser-Zoom genutzt wurde.
+- Mobile Ansichten bleiben bei 100 % bzw. 16 px Root-Schriftgröße, damit die
+  schmalen Arbeitsflächen und die responsive Navigation nicht unnötig an
+  nutzbarer Breite verlieren.
+- Kleine technische Kicker, Badges und Editor-Metadaten dürfen kompakt bleiben;
+  Fließtext, Navigation und Bedienelemente verwenden weiterhin die regulären
+  Typografie- und Mindestgrößen.
 
 ## Komponentenregeln
 

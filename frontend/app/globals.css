@@ -6,6 +6,13 @@
    Tailwind opacity modifiers working. */
 @layer base {
   :root {
+    /*
+     * O-012: the previous 100% desktop baseline made the workspace feel
+     * roughly one browser zoom step too small. Keep this as one central
+     * density decision so rem-based Tailwind typography, controls and spacing
+     * move together instead of being tuned component by component.
+     */
+    --ds-ui-scale: 1.1;
     --ds-white: 255 255 255;
     --ds-black: 0 0 0;
     --ds-background: 239 241 234;
@@ -82,6 +89,22 @@
     --ds-on-accent: 8 18 33;
     --ds-focus: 96 165 250;
     --ds-danger: 248 113 113;
+  }
+}
+
+/*
+ * The product's intended desktop presentation is equivalent to the 110%
+ * browser zoom that was previously needed for comfortable reading. Mobile
+ * keeps the normal 16px baseline so narrow layouts do not lose usable width;
+ * the existing 16px input rule remains in place for iOS focus behavior.
+ */
+html {
+  font-size: calc(16px * var(--ds-ui-scale));
+}
+
+@media (max-width: 767px) {
+  :root {
+    --ds-ui-scale: 1;
   }
 }
 

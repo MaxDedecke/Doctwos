@@ -22,7 +22,6 @@ stehen.
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
 | O-011 | UI / Navigation | Teilen-Funktion aus der Chat-View in die Header-Bar verschieben. | Header-Aktion ergänzen und bestehende Chat-Funktion dort anbinden. | Keine externe Abhängigkeit |
-| O-012 | UI / Darstellung | UI wirkt standardmäßig zu klein; bei 110 % Browser-Zoom ist die Darstellung gefühlt passend. | Dichte, Schriftgrößen und Abstände systematisch prüfen und eine passende Standarddarstellung festlegen. | Designentscheidung |
 | O-013 | Berechtigungen | Berechtigungskonzept auf Konsistenz prüfen. | Rollen, Projektzugriff, Quellenzugriff und Aktionen über Frontend und Backend hinweg abgleichen. | Fachliche Freigabe der Rollenregeln |
 | O-014 | Chat / Fokus | Projekt-Badge im Chat per X schließbar machen; bei allgemeinem Kontext soll ebenfalls ein „Allgemein“-Badge angezeigt werden. | Badge-Zustand, Entfernen des Projektfokus und allgemeiner Kontext konsistent modellieren. | Keine externe Abhängigkeit |
 | O-015 | Call Graph / Code View | Klicks in der Call-Graph-View dürfen die fixierte Code-View nicht unerwartet verändern. | Fixierungslogik und Navigationsevents entkoppeln; Verhalten mit fixierter und nicht fixierter View testen. | Keine externe Abhängigkeit |
@@ -62,6 +61,7 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 ## Erledigt, zuletzt verschoben
 
+- O-012 (UI-Standarddarstellung) — 01.09.2026 umgesetzt; zentrale Desktop-Skalierung auf 110 %, mobile Basis auf 100 % gesetzt und in den Design Guidelines dokumentiert.
 - O-010 (Chat-View schließen und erneut öffnen) — 01.09.2026 umgesetzt; der Chat verwendet nun denselben Schließen-Button wie alle anderen Views und wird über „Ansicht hinzufügen“ mit frischem Panelzustand wieder geöffnet.
 - E-7 (`Unidecode`/GPL) — 08.08.2026 durch das MIT-Shim gelöst.
 - E-8 (Embedding-Batchgröße und CPU-only-Timeout) — 08.08.2026 umgesetzt.
