@@ -21,7 +21,6 @@ stehen.
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
-| O-010 | UI / Views | Chat-Fenster vollständig schließbar machen, analog zu den anderen Views. | Schließen-Verhalten und Wiederöffnen prüfen. | Keine externe Abhängigkeit |
 | O-011 | UI / Navigation | Teilen-Funktion aus der Chat-View in die Header-Bar verschieben. | Header-Aktion ergänzen und bestehende Chat-Funktion dort anbinden. | Keine externe Abhängigkeit |
 | O-012 | UI / Darstellung | UI wirkt standardmäßig zu klein; bei 110 % Browser-Zoom ist die Darstellung gefühlt passend. | Dichte, Schriftgrößen und Abstände systematisch prüfen und eine passende Standarddarstellung festlegen. | Designentscheidung |
 | O-013 | Berechtigungen | Berechtigungskonzept auf Konsistenz prüfen. | Rollen, Projektzugriff, Quellenzugriff und Aktionen über Frontend und Backend hinweg abgleichen. | Fachliche Freigabe der Rollenregeln |
@@ -62,6 +61,7 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 ## Erledigt, zuletzt verschoben
 
+- O-010 (Chat-View schließen und erneut öffnen) — 01.09.2026 umgesetzt; der Chat verwendet nun denselben Schließen-Button wie alle anderen Views und wird über „Ansicht hinzufügen“ mit frischem Panelzustand wieder geöffnet.
 - E-7 (`Unidecode`/GPL) — 08.08.2026 durch das MIT-Shim gelöst.
 - E-8 (Embedding-Batchgröße und CPU-only-Timeout) — 08.08.2026 umgesetzt.
 - AP-8-Testlücken (Orphan-Schutz, Chunked-Download) — in AP-8 geschlossen.

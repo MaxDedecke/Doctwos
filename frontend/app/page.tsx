@@ -420,6 +420,22 @@ function AppContent() {
     });
   };
 
+  // All views, including chat, use the same close path. Keeping the
+  // index-parallel panel state together prevents a reopened chat from
+  // inheriting the selection, history, or frozen state of its former slot.
+  // The workspace always retains one panel, matching the behaviour of every
+  // other view type and leaving a stable surface for the add-view control.
+  const closePanel = (index: number) => {
+    if (panelConfigs.length <= 1) return;
+    setPanelConfigs(prev => prev.filter((_, idx) => idx !== index));
+    setPanelFrozen(prev => prev.filter((_, idx) => idx !== index));
+    setCollapsedPanels(prev => prev.filter((_, idx) => idx !== index));
+    setPanelSelections(prev => prev.filter((_, idx) => idx !== index));
+    setPanelHistory(prev => prev.filter((_, idx) => idx !== index));
+    setPanelFocusObject(prev => prev.filter((_, idx) => idx !== index));
+    activePanelIndexRef.current = Math.max(0, index - 1);
+  };
+
   const addPanel = (type: string, selectionOverride?: {
     selectedFile?: string | null;
     selectedDoc?: any | null;
@@ -2094,7 +2110,7 @@ function AppContent() {
       });
     };
 
-    // Collapsed chat rail — the chat can be collapsed but never fully closed
+    // Collapsed chat rail — expanding restores the same chat panel.
     if (isChat && collapsedPanels[index]) {
       return (
         <button
@@ -2220,8 +2236,7 @@ function AppContent() {
                 </>
               )}
             </button>
-            {isChat ? (
-              /* The chat can only be collapsed, never fully closed */
+            {isChat && (
               <button
                 onClick={() => togglePanelCollapse(index)}
                 className={cn(
@@ -2234,16 +2249,10 @@ function AppContent() {
               >
                 <ChevronLeft className="w-3 h-3" />
               </button>
-            ) : panelConfigs.length > 1 && (
+            )}
+            {panelConfigs.length > 1 && (
               <button
-                onClick={() => {
-                  setPanelConfigs(prev => prev.filter((_, idx) => idx !== index));
-                  setPanelFrozen(prev => prev.filter((_, idx) => idx !== index));
-                  setCollapsedPanels(prev => prev.filter((_, idx) => idx !== index));
-                  setPanelSelections(prev => prev.filter((_, idx) => idx !== index));
-                  setPanelHistory(prev => prev.filter((_, idx) => idx !== index));
-                  setPanelFocusObject(prev => prev.filter((_, idx) => idx !== index));
-                }}
+                onClick={() => closePanel(index)}
                 className={cn(
                   "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer",
                   theme === 'dark'
