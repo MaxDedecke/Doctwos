@@ -43,6 +43,9 @@
     .mono { font-family: "IBM Plex Mono", monospace; }
     .page { width: min(100%, 78rem); margin: 0 auto; background: var(--paper); border-inline: 1px solid var(--line); }
     .section { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); }
+    .section > .eyebrow { margin-bottom: 1.15rem; }
+    .section > h2 { margin-bottom: clamp(2rem, 3vw, 3rem); }
+    .section > .lede { margin-bottom: clamp(2rem, 3vw, 3rem); }
     .eyebrow {
       display: flex; align-items: center; gap: .6rem; color: var(--muted);
       font: 600 .72rem/1 "IBM Plex Mono", monospace; letter-spacing: .13em; text-transform: uppercase;
@@ -77,12 +80,16 @@
     .journey-step { min-height: 14.5rem; padding: 1.35rem; background: var(--paper); }
     .journey-num { display: block; margin-bottom: 2.7rem; color: var(--signal); font: 600 .72rem "IBM Plex Mono", monospace; }
     .journey-step p { color: var(--muted); font-size: .9rem; }
+    #ueberblick .fact b, #ueberblick .journey-num { color: var(--trace); }
 
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
     .card { padding: 1.5rem; background: var(--paper); }
     .card p { margin-bottom: 0; color: var(--muted); font-size: .92rem; }
     .icon { display: grid; width: 2.45rem; height: 2.45rem; margin-bottom: 1.35rem; place-items: center; border: 1px solid var(--line); color: var(--signal); font: 600 .77rem "IBM Plex Mono", monospace; }
+    #nutzen .three-col { gap: 0; background: var(--paper); }
+    #nutzen .card:not(:last-child) { border-right: 1px solid var(--line); }
+    #nutzen .icon { color: var(--trace); }
 
     .numbered { margin: 0; padding: 0; list-style: none; counter-reset: section; }
     .numbered li { position: relative; min-height: 5.75rem; padding: 1.15rem 1rem 1.15rem 4.5rem; border-top: 1px solid var(--line); }
@@ -147,6 +154,7 @@
       .cover-footer { gap: .7rem; }
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
       .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
+      #nutzen .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
       .view { gap: .65rem; }
     }
     @media print {
@@ -155,6 +163,8 @@
       .page { width: auto; border: 0; }
       .cover { min-height: 250mm; break-after: page; }
       .section { padding: 18mm 0; break-inside: avoid; }
+      .section > .eyebrow { margin-bottom: 5mm; }
+      .section > h2, .section > .lede { margin-bottom: 10mm; }
       .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
       .product-images { padding: 18mm 0; break-inside: auto; }
       .product-gallery { grid-template-columns: 1fr; }
@@ -184,12 +194,12 @@
       <div class="eyebrow">01 · Überblick</div>
       <div class="at-glance">
         <div>
-          <h2>Ein Arbeitsraum für das Wissen in langlebigen Anwendungen.</h2>
+          <h2>Ein Arbeitsraum - alles im Blick.</h2>
           <p class="lede">Doctus bündelt Programmcode, technische Dokumentation und Projektwissen an einem Ort. Statt Informationen in Dateien, Tickets, Wikis und Köpfen zu suchen, können Teams Fragen stellen, Quellen prüfen und Zusammenhänge direkt verfolgen.</p>
         </div>
         <div class="fact-grid" aria-label="Produktfakten">
           <div class="fact"><b>Fokus</b><span>COBOL- und Legacy-Bestände verstehen</span></div>
-          <div class="fact"><b>Bereitstellung</b><span>Im eigenen Rechenzentrum oder Netz</span></div>
+          <div class="fact"><b>Bereitstellung</b><span>Im eigenen Rechenzentrum oder Server</span></div>
           <div class="fact"><b>Quellen</b><span>Code, Dokumente, Wikis, Tickets und Ablagen</span></div>
           <div class="fact"><b>Arbeitsweise</b><span>Fragen, finden, nachvollziehen und teilen</span></div>
         </div>
@@ -205,7 +215,7 @@
 
     <section class="section" id="nutzen">
       <div class="eyebrow">02 · Wofür Doctus da ist</div>
-      <h2>Aus verteiltem Erfahrungswissen wird eine gemeinsame Arbeitsgrundlage.</h2>
+      <h2>Aus verteiltem Wissen wird eine gemeinsame Arbeitsgrundlage.</h2>
       <div class="three-col">
         <article class="card"><div class="icon">01</div><h3>Schneller einarbeiten</h3><p>Neue Kolleginnen und Kollegen finden Programme, Begriffe, Datenfelder und fachliche Hintergründe nachvollziehbar vor – ohne auf einzelne Wissensträger angewiesen zu sein.</p></article>
         <article class="card"><div class="icon">02</div><h3>Änderungen sicherer planen</h3><p>Wer die Auswirkungen einer Anpassung verstehen muss, verfolgt Aufrufe, Abhängigkeiten und zugehörige Dokumentation über mehrere Perspektiven hinweg.</p></article>
