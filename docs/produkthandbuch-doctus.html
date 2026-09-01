@@ -270,14 +270,14 @@
         <article class="card"><div class="icon">05</div><h3>Antworten belegen</h3><p>Antworten enthalten Referenzen auf die tatsächlich herangezogenen Dateien, Dokumentstellen oder Codezeilen. Damit kann jede Aussage am Original geprüft werden.</p></article>
         <article class="card"><div class="icon">06</div><h3>Regeln prüfen</h3><p>Der Code-Compliance-Checker kann einen definierten Prüfumfang mit einem lokalen Sprachmodell bewerten. Das Ergebnis ist ein Hinweis für die Prüfung, kein automatischer Befund.</p></article>
       </div>
-      <div style="margin-top:4rem"><div class="eyebrow">Empfohlener On-Premise-Stack</div><h3 style="font-size:1.75rem; max-width:30ch">Zwei Modelle, klar getrennte Aufgaben.</h3></div>
+      <div style="margin-top:4rem"><div class="eyebrow">Empfohlener On-Premise-Stack</div><h3 style="font-size:1.75rem; max-width:30ch">Modelle nach Aufgabe und Hardware auswählen.</h3></div>
       <table class="scope-table">
         <thead><tr><th>Aufgabe</th><th>Empfehlung</th><th>Einsatzentscheidung</th></tr></thead>
         <tbody>
           <tr><td><strong>Retrieval und Index</strong></td><td><strong>BGE-M3</strong> als Embedding-Modell</td><td>Doctus-Standard für mehrsprachige, semantische Suche. Auch ohne generatives Modell bleiben Import, Index und Suche nutzbar.</td></tr>
           <tr><td><strong>Chat und Compliance</strong></td><td><strong>Mistral NeMo 12B Instruct, Q4_K_M</strong></td><td>Im Doctus-Stack validierte Standardoption für GPU-Hosts ab 16 GB RAM und 8 GB VRAM. Für CPU-only-Piloten nicht empfohlen.</td></tr>
           <tr><td><strong>Höhere Prüfgenauigkeit</strong></td><td><strong>Mistral NeMo 12B Instruct, Q8_0</strong></td><td>Bei mindestens 24 GB VRAM für den Compliance-Checker; benötigt mehr Speicher, reduziert im validierten Doctus-Test aber übersehene Befunde.</td></tr>
-          <tr><td><strong>Neue Modellintegration</strong></td><td><strong>Ministral 3 8B</strong> als Nachfolgekandidat</td><td>Vor einer Produktivfreigabe mit dem realen Codebestand, den Zielsprachen, Tool-Aufrufen, Lizenzvorgaben und einem eigenen Qualitätsbenchmark prüfen.</td></tr>
+          <tr><td><strong>Mehrstufige Analyse</strong></td><td><strong>Magistral Small</strong> als Reasoning-Modell</td><td>Geeignet für komplexe Prüf- und Planungsfragen. Die Ollama-Anbindung wurde technisch erprobt: Mit deaktiviertem Reasoning-Modus bleiben strukturierte JSON-Ergebnisse zügig verarbeitbar. Vor Produktiveinsatz sind Qualität, Laufzeit und Speicherbedarf am echten Bestand zu bewerten.</td></tr>
         </tbody>
       </table>
       <div class="callout" style="margin-top:2.5rem"><p><strong>Betriebsprinzip:</strong> Das Embedding-Modell und das Chat-Modell laufen über Ollama im eigenen Netzwerk. Ein Cloud-Modell ist optional, aber nur nach expliziter administrativer Freigabe vorgesehen.</p></div>
