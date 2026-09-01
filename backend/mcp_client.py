@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 import httpx
 from typing import Dict, List, Any, Optional
 
+import core.config as cfg
+
 logger = logging.getLogger(__name__)
 
 # Domain suffixes mcp-atlassian itself treats as Atlassian Cloud
@@ -344,14 +346,16 @@ async def execute_chat_with_mcp(
         messages.append({"role": "user", "content": prompt})
         
         async with httpx.AsyncClient(timeout=120.0) as client_http:
+            model_to_use = model_name or "gpt-4o"
             for turn in range(5):
                 payload = {
-                    "model": model_name or "gpt-4o",
+                    "model": model_to_use,
                     "messages": messages,
-                    "temperature": temperature if temperature is not None else 0.7,
                     "tools": openai_tools
                 }
-                
+                if cfg.openai_model_supports_custom_temperature(model_to_use):
+                    payload["temperature"] = temperature if temperature is not None else 0.7
+
                 resp = await client_http.post(full_url, json=payload, headers=headers)
                 resp.raise_for_status()
                 res_data = resp.json()

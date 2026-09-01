@@ -784,12 +784,14 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                             headers = {"Content-Type": "application/json"}
                             if request.llm_api_key:
                                 headers["Authorization"] = f"Bearer {request.llm_api_key}"
+                            model_to_use = request.llm_model or "gpt-4o"
                             payload = {
-                                "model": request.llm_model or "gpt-4o",
+                                "model": model_to_use,
                                 "messages": [{"role": "system", "content": full_system_prompt_for_chat}],
-                                "temperature": request.temperature if request.temperature is not None else 0.7,
                                 "stream": True
                             }
+                            if cfg.openai_model_supports_custom_temperature(model_to_use):
+                                payload["temperature"] = request.temperature if request.temperature is not None else 0.7
 
                         for h_msg in history_messages:
                             payload["messages"].append({"role": h_msg.role, "content": h_msg.content})

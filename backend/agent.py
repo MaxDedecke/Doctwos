@@ -410,11 +410,12 @@ async def run_agent_loop(
                 payload = {
                     "model": model,
                     "messages": messages,
-                    "temperature": temperature if temperature is not None else 0.7,
                     "tools": openai_tools,
                     "stream": True
                 }
-                
+                if is_ollama or cfg.openai_model_supports_custom_temperature(model):
+                    payload["temperature"] = temperature if temperature is not None else 0.7
+
                 accumulated_content = ""
                 accumulated_tool_calls = {}
                 

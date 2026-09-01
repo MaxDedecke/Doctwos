@@ -26,6 +26,24 @@ LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 
+# ── OpenAI-Reasoning-Modelle ─────────────────────────────────────────────────
+# Klassische o1/o3/o4-Serie sowie die Reasoning-Stufen der GPT-5.6-Familie
+# (Sol/Terra/Luna) lehnen einen vom Default (1) abweichenden "temperature"-Wert
+# mit HTTP 400 ab. Lebt hier statt in agent.py/mcp_client.py, weil beide
+# Module sich sonst gegenseitig importieren müssten (agent.py importiert schon
+# MCPClient aus mcp_client.py).
+_OPENAI_REASONING_MODEL_PREFIXES = ("o1", "o3", "o4")
+_OPENAI_REASONING_MODEL_SUFFIXES = ("-sol", "-terra", "-luna")
+
+
+def openai_model_supports_custom_temperature(model: str) -> bool:
+    name = (model or "").lower()
+    if name.startswith(_OPENAI_REASONING_MODEL_PREFIXES):
+        return False
+    if name.endswith(_OPENAI_REASONING_MODEL_SUFFIXES):
+        return False
+    return True
+
 # Das aktive LLM-Modell — kann per /model-info POST zur Laufzeit geändert werden.
 # Bis zur ersten Auslieferung ist das lokale LLM bewusst deaktiviert: der
 # CPU-only-Pilot lädt nur bge-m3. Ein Liefer-/GPU-Host setzt OLLAMA_LLM_MODEL
