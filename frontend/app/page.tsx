@@ -54,6 +54,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { cn, copyToClipboard } from "@/lib/utils";
+import { normalizeInitialUserMessage } from "@/lib/chatMessage";
 import { api, API_URL } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -1764,7 +1765,11 @@ function AppContent() {
   };
 
   const handleSendChat = async (overrideMsg?: string, extraMetadata?: Record<string, any>) => {
-    const msgToSend = (overrideMsg || currentMessage).trim();
+    const isFirstUserMessage = !chatMessages.some((message: any) => message.role === 'user');
+    const msgToSend = normalizeInitialUserMessage(
+      (overrideMsg || currentMessage).trim(),
+      isFirstUserMessage
+    ).trim();
     if (!msgToSend || isLoading) return;
 
     const userMsgContent = msgToSend;
@@ -1992,14 +1997,20 @@ function AppContent() {
 
     try {
       const res = await api.getChatMessages(session.id);
-      const formatted = res.data.map((m: any) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        sources: m.sources_json || undefined,
-        metadata: m.metadata_json || undefined,
-        feedback: m.feedback || undefined
-      }));
+      let hasUserMessage = false;
+      const formatted = res.data.map((m: any) => {
+        const isFirstUserMessage = m.role === 'user' && !hasUserMessage;
+        if (m.role === 'user') hasUserMessage = true;
+
+        return {
+          id: m.id,
+          role: m.role,
+          content: normalizeInitialUserMessage(m.content, isFirstUserMessage),
+          sources: m.sources_json || undefined,
+          metadata: m.metadata_json || undefined,
+          feedback: m.feedback || undefined
+        };
+      });
       setChatMessages(formatted);
       showToast(t('page.toast.sessionLoaded', { title: session.title }), "success");
     } catch (err) {

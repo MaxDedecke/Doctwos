@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 import {
   MessageSquare,
   Code,
@@ -599,10 +600,16 @@ export function ChatView({
                     {/* User Avatar */}
                     {isUser && (
                       <div className={cn(
-                        "w-7 h-7 @sm/chat:w-8 @sm/chat:h-8 rounded-lg flex items-center justify-center shrink-0 border text-[10px] font-bold uppercase shadow-md transition-colors",
-                        theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900 text-ds-zinc-400" : "border-ds-zinc-200 bg-ds-white text-ds-zinc-600"
+                        "w-7 h-7 @sm/chat:w-8 @sm/chat:h-8 rounded-full overflow-hidden shrink-0 border shadow-md transition-colors",
+                        theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900" : "border-ds-zinc-200 bg-ds-white"
                       )}>
-                        ME
+                        <Image
+                          src="/avatars/demo-employee.png"
+                          alt={t('chatView.userAvatarAlt')}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                     )}
                   </div>

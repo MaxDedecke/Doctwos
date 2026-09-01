@@ -730,6 +730,7 @@
     "startChatFirstToast": "Starte erst einen Chat zum Teilen",
     "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit.",
     "askDirectlyTitle": "Frage direkt stellen",
+    "userAvatarAlt": "Beispielavatar für eigene Nachricht",
     "typingFallbacks": {
       "makeCobolKnowledgeVisible": "COBOL-Wissen sichtbar machen",
       "navigateMainframeCode": "Mainframe-Code verständlich navigieren",

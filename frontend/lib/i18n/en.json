@@ -730,6 +730,7 @@
     "startChatFirstToast": "Start a chat first to share it",
     "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy.",
     "askDirectlyTitle": "Ask directly",
+    "userAvatarAlt": "Illustrative employee avatar for your message",
     "typingFallbacks": {
       "makeCobolKnowledgeVisible": "Make COBOL knowledge visible",
       "navigateMainframeCode": "Navigate mainframe code with clarity",
