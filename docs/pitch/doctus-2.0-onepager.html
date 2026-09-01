@@ -1,0 +1,222 @@
+<title>Doctus 2.0 Onepager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --canvas:#F5F1E7;
+    --surface:#FFFFFF;
+    --surface-2:#EAE3D2;
+    --ink:#171F1B;
+    --ink-muted:#5B6359;
+    --line:rgba(23,31,27,.14);
+    --line-strong:rgba(23,31,27,.28);
+    --signal:#E4002B;
+    --violet:#7A2E8C;
+    --trace:#0064D2;
+    --success:#1B7A4B;
+    --gradient:linear-gradient(120deg,var(--signal) 0%,var(--violet) 55%,var(--trace) 100%);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --canvas:#0B1210; --surface:#101917; --surface-2:#16211E;
+      --ink:#ECEEE8; --ink-muted:#9BA79E;
+      --line:rgba(236,238,232,.14); --line-strong:rgba(236,238,232,.30);
+      --signal:#FF5470; --violet:#C07FD1; --trace:#5CA2FF; --success:#3FBE83;
+    }
+  }
+  :root[data-theme="dark"]{
+    --canvas:#0B1210; --surface:#101917; --surface-2:#16211E;
+    --ink:#ECEEE8; --ink-muted:#9BA79E;
+    --line:rgba(236,238,232,.14); --line-strong:rgba(236,238,232,.30);
+    --signal:#FF5470; --violet:#C07FD1; --trace:#5CA2FF; --success:#3FBE83;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:'Archivo',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;
+    justify-content:center;
+    padding:clamp(1.2rem,3vw,2.6rem) clamp(1rem,3vw,1.4rem);
+  }
+  h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;text-wrap:balance;margin:0;letter-spacing:-0.01em;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  .eyebrow{
+    font-family:'IBM Plex Mono';font-size:.68rem;font-weight:600;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--ink-muted);display:flex;align-items:center;gap:.5rem;
+  }
+  .eyebrow::before{content:"";width:.45rem;height:.45rem;background:var(--gradient);flex:none;}
+
+  .sheet{
+    width:100%;
+    max-width:64rem;
+    background:var(--surface);
+    border:1px solid var(--line);
+    padding:clamp(1.6rem,4vw,3rem) clamp(1.6rem,4.5vw,3.4rem);
+  }
+
+  .brand-bar{width:3.6rem;height:5px;background:var(--gradient);margin:.9rem 0 1.1rem;}
+  .grad-word{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;}
+
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:1.6rem;}
+  header h1{font-size:clamp(2.1rem,5vw,2.9rem);}
+  header .tag{font-size:1rem;color:var(--ink-muted);max-width:22rem;margin-top:.5rem;line-height:1.45;}
+  header .meta{text-align:right;font-size:.7rem;color:var(--ink-muted);white-space:nowrap;}
+
+  .split{
+    display:grid;grid-template-columns:1fr 1fr;gap:0;
+    margin-top:1.6rem;border:1px solid var(--line);
+  }
+  .split > div{padding:1.2rem 1.4rem;}
+  .split > div:first-child{border-right:1px solid var(--line);}
+  .split h2{font-size:1.02rem;margin-bottom:.5rem;}
+  .split p{margin:0;font-size:.86rem;color:var(--ink-muted);line-height:1.55;}
+  @media (max-width:40rem){
+    .split{grid-template-columns:1fr;}
+    .split > div:first-child{border-right:none;border-bottom:1px solid var(--line);}
+  }
+
+  .feat-row{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);margin-top:1.3rem;
+  }
+  .feat{background:var(--surface);padding:.85rem 1rem;font-size:.8rem;}
+  .feat b{display:block;font-size:.86rem;margin-bottom:.2rem;}
+  .feat span{color:var(--ink-muted);}
+  @media (max-width:40rem){.feat-row{grid-template-columns:1fr 1fr;}}
+
+  .maturity{
+    display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.3rem;
+  }
+  .pill{
+    font-family:'IBM Plex Mono';font-size:.7rem;color:var(--ink);
+    border:1px solid var(--line-strong);padding:.3rem .65rem;border-radius:2px;
+    display:flex;align-items:center;gap:.4rem;
+  }
+  .pill::before{content:"\2713";color:var(--success);font-weight:600;}
+
+  .road{margin-top:1.6rem;}
+  .road svg{width:100%;height:auto;display:block;}
+
+  .lower{display:grid;grid-template-columns:1.3fr 1fr;gap:0;margin-top:1.5rem;border:1px solid var(--line);}
+  .lower > div{padding:1.2rem 1.4rem;}
+  .lower > div:first-child{border-right:1px solid var(--line);}
+  @media (max-width:40rem){
+    .lower{grid-template-columns:1fr;}
+    .lower > div:first-child{border-right:none;border-bottom:1px solid var(--line);}
+  }
+  .lower h2{font-size:1.02rem;margin-bottom:.6rem;}
+  .pot-list{list-style:none;margin:0;padding:0;display:grid;gap:.5rem;}
+  .pot-list li{font-size:.84rem;display:flex;gap:.5rem;}
+  .pot-list .k{font-family:'IBM Plex Mono';font-size:.66rem;color:var(--signal);flex:none;width:6.4rem;padding-top:.15rem;text-transform:uppercase;letter-spacing:.05em;}
+
+  .ask-list{list-style:none;margin:0;padding:0;display:grid;gap:.45rem;}
+  .ask-list li{font-size:.84rem;display:flex;gap:.5rem;}
+  .ask-list .idx{font-family:'IBM Plex Mono';font-size:.72rem;color:var(--trace);flex:none;width:1.1rem;}
+
+  footer{
+    margin-top:1.6rem;padding-top:1rem;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
+    font-size:.68rem;color:var(--ink-muted);
+  }
+
+  @media print{
+    @page{ size:A4; margin:14mm; }
+    body{padding:0;background:#fff;}
+    .sheet{border:none;max-width:none;padding:0;}
+  }
+</style>
+
+<div class="sheet">
+  <header>
+    <div>
+      <div class="eyebrow">Doctus 2.0 &middot; Onepager</div>
+      <div class="brand-bar"></div>
+      <h1>Doctus<span class="grad-word">.</span></h1>
+      <div class="tag">On-Premise Knowledge Intelligence &mdash; vom laufenden COBOL-Piloten zum vermarktbaren Wissensmanagement-Produkt.</div>
+    </div>
+    <div class="meta mono">STAND 01.09.2026<br>DISKUSSIONSGRUNDLAGE &middot; VERTRAULICH</div>
+  </header>
+
+  <div class="split">
+    <div>
+      <h2>Problem</h2>
+      <p>COBOL-Wissen hängt an wenigen Köpfen. Dokumentation ist über Code, Confluence und Jira verstreut, selten aktuell &mdash; Onboarding dauert Monate, Wissen geht mit Personalabgängen verloren.</p>
+    </div>
+    <div>
+      <h2>Lösung</h2>
+      <p>Natürlichsprachliche Fragen, Antworten mit anklickbarem Beleg im Originalcode, Navigation durch Programm, Section und Paragraph &mdash; plus Wissensgraph über Code und Dokumentation hinweg.</p>
+    </div>
+  </div>
+
+  <div class="feat-row">
+    <div class="feat"><b>Quellenbelege</b><span>Jede Antwort zeigt die exakte Zeile im Code.</span></div>
+    <div class="feat"><b>Aufrufgraph</b><span>CALL, PERFORM, GOTO, COPY visuell und exportierbar.</span></div>
+    <div class="feat"><b>Alle Quellen vereint</b><span>Git, Confluence, Jira, WebDAV, Upload.</span></div>
+    <div class="feat"><b>On-Premise Default</b><span>Läuft lokal, Cloud nur als Opt-in.</span></div>
+    <div class="feat"><b>Strikt Open Source</b><span>Nur MIT / BSD / Apache-2.0.</span></div>
+    <div class="feat"><b>100&#8209;GB-tauglich</b><span>Streamend, wiederaufsetzbar, keine Zusatzdienste.</span></div>
+  </div>
+
+  <div class="maturity">
+    <span class="pill">10 / 10 Arbeitspakete fertig</span>
+    <span class="pill">0 offene CVEs</span>
+    <span class="pill">Lizenzclean</span>
+    <span class="pill">Regressionsgetestet</span>
+  </div>
+
+  <div class="road">
+    <svg viewBox="0 0 900 110" role="img" aria-label="Roadmap: Pilotvorbereitung zwei bis drei Monate, Pilotbetrieb drei Monate, Generalisierung sechs Monate, Markteinführung ab Monat zwölf.">
+      <line x1="30" y1="46" x2="870" y2="46" stroke="var(--line-strong)" stroke-width="1.2"/>
+      <g>
+        <circle cx="60" cy="46" r="6" fill="var(--signal)"/>
+        <text class="mono" x="60" y="28" text-anchor="middle" font-size="9.5" fill="var(--ink-muted)">2&ndash;3 MON.</text>
+        <text x="60" y="70" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="Space Grotesk">Pilotvorbereitung</text>
+      </g>
+      <g>
+        <circle cx="310" cy="46" r="6" fill="var(--violet)"/>
+        <text class="mono" x="310" y="28" text-anchor="middle" font-size="9.5" fill="var(--ink-muted)">3 MON.</text>
+        <text x="310" y="70" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="Space Grotesk">Pilotbetrieb</text>
+      </g>
+      <g>
+        <circle cx="580" cy="46" r="6" fill="var(--trace)"/>
+        <text class="mono" x="580" y="28" text-anchor="middle" font-size="9.5" fill="var(--ink-muted)">6 MON.</text>
+        <text x="580" y="70" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="Space Grotesk">Generalisierung</text>
+      </g>
+      <g>
+        <circle cx="840" cy="46" r="6" fill="var(--trace)"/>
+        <text class="mono" x="840" y="28" text-anchor="middle" font-size="9.5" fill="var(--ink-muted)">AB M.12</text>
+        <text x="840" y="70" text-anchor="middle" font-size="11.5" fill="var(--ink)" font-family="Space Grotesk">Markteinführung</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="lower">
+    <div>
+      <h2>Potenzial</h2>
+      <ul class="pot-list">
+        <li><span class="k">Kurzfristig</span> Pilot als belastbare Referenz &mdash; das, was dem ersten Anlauf fehlte.</li>
+        <li><span class="k">Mittelfristig</span> Cross-Selling in weitere Konten mit vergleichbarem Legacy-Bestand.</li>
+        <li><span class="k">Langfristig</span> Eigenständiges KMS-Produkt mit wiederkehrenden Erlösen &mdash; das im Workshop skizzierte Zielbild.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Nächste Schritte</h2>
+      <ul class="ask-list">
+        <li><span class="idx mono">01</span> Vertiefungsgespräch</li>
+        <li><span class="idx mono">02</span> Abnahme-Sprint (4&ndash;6 Wochen)</li>
+        <li><span class="idx mono">03</span> Marktanalyse KMS-Zielbild</li>
+        <li><span class="idx mono">04</span> Zweiten Bestand als Referenz auswählen</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    <span class="mono">DOCTUS 2.0</span>
+    <span class="mono">On-Premise Knowledge Intelligence</span>
+  </footer>
+</div>
