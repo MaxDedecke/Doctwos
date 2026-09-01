@@ -115,6 +115,9 @@
     #anmelden .numbered li::before { left: 1.15rem; }
     #wissensquellen > .lede { margin-bottom: clamp(3.5rem, 5vw, 5rem); }
     .model-stack { margin-top: 4rem; }
+    .expansion { margin-top: 4rem; }
+    .expansion .three-col { gap: 0; margin-top: 1.5rem; background: var(--paper); }
+    .expansion .card:not(:last-child) { border-right: 1px solid var(--line); }
 
     .view { display: grid; grid-template-columns: 11rem 1fr; gap: 2rem; padding: 2.1rem 0; border-top: 1px solid var(--line); }
     .view:last-child { border-bottom: 1px solid var(--line); }
@@ -125,6 +128,7 @@
     .view li { padding: .26rem .55rem; border: 1px solid var(--line); font-size: .75rem; }
     .view-index { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 2rem 0 3rem; padding: 1px; list-style: none; background: var(--line); }
     .view-index li { min-height: 5.6rem; padding: 1rem 1.1rem; background: var(--paper); }
+    .view-index li:last-child { grid-column: span 2; }
     .view-index b { display: block; margin-bottom: .25rem; color: var(--signal); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
     .view-index span { font-family: "Space Grotesk", sans-serif; font-weight: 600; }
 
@@ -174,8 +178,10 @@
       .cover-footer { gap: .7rem; }
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
       .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
+      .view-index li:last-child { grid-column: auto; }
       #nutzen .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
       #intelligenz .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
+      .expansion .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
       #anmelden .numbered { grid-template-columns: 1fr; }
       #anmelden .numbered li { min-height: 5.75rem; padding-left: 4.5rem; }
       #anmelden .numbered li::before { left: 0; }
@@ -193,6 +199,8 @@
       #wissensquellen > .lede { margin-bottom: 16mm; }
       #intelligenz > h2 { margin-bottom: 15mm; }
       .model-stack { margin-top: 0; break-before: page; }
+      .expansion { margin-top: 0; break-before: page; }
+      .view { break-inside: avoid; }
       .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
       .product-images { padding: 18mm 0; break-inside: auto; }
       .product-gallery { grid-template-columns: 1fr; }
@@ -332,11 +340,14 @@
         </tbody>
       </table>
       <div class="callout" style="margin-top:2.5rem"><p><strong>Betriebsprinzip:</strong> Das Embedding-Modell und das Chat-Modell laufen über Ollama im eigenen Netzwerk. Ein Cloud-Modell ist optional, aber nur nach expliziter administrativer Freigabe vorgesehen.</p></div>
-      <div style="margin-top:4rem"><div class="eyebrow">Möglicher Ausbau</div><h3 style="font-size:1.75rem; max-width:30ch">Was als Nächstes sinnvoll ergänzt werden kann.</h3></div>
-      <div class="three-col" style="margin-top:1.5rem">
-        <article class="card"><div class="icon">A</div><h3>Änderungsvorhaben vorbereiten</h3><p>Aus einem Fachwunsch betroffene Programme, Regeln und offene Fragen zusammenstellen – mit Freigabe durch Fachbereich und Entwicklung.</p></article>
-        <article class="card"><div class="icon">B</div><h3>Regeln und Begriffe extrahieren</h3><p>Wiederkehrende Geschäftsregeln, Datenbegriffe und Abkürzungen als überprüfbare Vorschläge für eine kuratierte Wissensbasis ableiten.</p></article>
-        <article class="card"><div class="icon">C</div><h3>Semantische Änderungen prüfen</h3><p>Änderungen zwischen Ständen nicht nur zeilenweise, sondern nach betroffenen Abläufen, Schnittstellen und Dokumentation priorisieren.</p></article>
+      <div class="expansion">
+        <div class="eyebrow">Möglicher Ausbau</div>
+        <h3 style="font-size:1.75rem; max-width:30ch">Was als Nächstes sinnvoll ergänzt werden kann.</h3>
+        <div class="three-col">
+          <article class="card"><div class="icon">A</div><h3>Änderungsvorhaben vorbereiten</h3><p>Aus einem Fachwunsch betroffene Programme, Regeln und offene Fragen zusammenstellen – mit Freigabe durch Fachbereich und Entwicklung.</p></article>
+          <article class="card"><div class="icon">B</div><h3>Regeln und Begriffe extrahieren</h3><p>Wiederkehrende Geschäftsregeln, Datenbegriffe und Abkürzungen als überprüfbare Vorschläge für eine kuratierte Wissensbasis ableiten.</p></article>
+          <article class="card"><div class="icon">C</div><h3>Semantische Änderungen prüfen</h3><p>Änderungen zwischen Ständen nicht nur zeilenweise, sondern nach betroffenen Abläufen, Schnittstellen und Dokumentation priorisieren.</p></article>
+        </div>
       </div>
     </section>
 
