@@ -18,7 +18,7 @@ Work packages **AP-0 through AP-7 are complete**. The remaining planned work is:
 - **AP-9:** load testing, accessibility/BITV, release hardening, offline bundle,
   and final documentation.
 
-See [implementation status](docs/UMSETZUNGSSTAND.md),
+See [open development points](docs/OFFENE_ENTWICKLUNGSPUNKTE.md),
 [technical plan](docs/IMPLEMENTIERUNGSPLAN.md), and
 [design guidelines](docs/DESIGN_GUIDELINES.md).
 

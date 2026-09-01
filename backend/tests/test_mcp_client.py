@@ -6,7 +6,7 @@ docs/TECH_DEBT_CLEANUP_PLAN.md §2 for why the previous npm package names were
 wrong and non-functional.
 
 Cloud vs. Server/Data Center (added for the on-prem-Confluence-pilot
-preparation, see docs/UMSETZUNGSSTAND.md): Server/DC installs live under the
+preparation, see docs/OFFENE_ENTWICKLUNGSPUNKTE.md): Server/DC installs live under the
 customer's own domain (never *.atlassian.net etc.) and use a bare Personal
 Access Token instead of username+API token, and Confluence Server/DC has no
 "/wiki" path prefix. `_is_atlassian_cloud_url`/`_atlassian_auth_env` in

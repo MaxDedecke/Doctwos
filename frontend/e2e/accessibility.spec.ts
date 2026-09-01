@@ -3,14 +3,14 @@ import AxeBuilder from "@axe-core/playwright";
 
 // NF-012 (Barrierefreiheit): automatisierter Basis-Check, kein Ersatz für die
 // formale BITV-Abnahme (der verbindliche Prüfumfang steht mit dem
-// Auftraggeber noch aus, siehe docs/UMSETZUNGSSTAND.md AP-9). Deckt WCAG2A/
+// Auftraggeber noch aus, siehe docs/OFFENE_ENTWICKLUNGSPUNKTE.md O-002). Deckt WCAG2A/
 // WCAG2AA-Regeln ab: Formular-Labels, ARIA-Attribute, Landmarken, Zoom.
 //
 // "color-contrast" ist bewusst ausgeschlossen: der Scan fand echte Verstöße
 // im bestehenden --ds-*-Palette (u.a. text-ds-zinc-400/500 auf dunklem
 // Grund), deren Behebung eine Design-Entscheidung ist (welche Tokens sich
 // wie stark verschieben, ohne den Fujitsu-Markenlook zu brechen) — siehe
-// docs/UMSETZUNGSSTAND.md AP-9 für die Fundliste. Ein dauerhaft roter Job
+// docs/OFFENE_ENTWICKLUNGSPUNKTE.md O-002 für die Fundliste. Ein dauerhaft roter Job
 // wird nicht mehr gelesen (dieselbe Regel wie bei @requires_ollama, AP-1);
 // bis zur Design-Entscheidung bleibt dieser Check auf die automatisiert
 // eindeutig behebbaren Regeln beschränkt.

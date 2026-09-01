@@ -4,7 +4,7 @@ scripts/generate_synthetic_cobol_corpus.py
 ============================================
 AP-9 (Härtung, NF-010 Lasttest): erzeugt einen synthetischen COBOL-
 Ersatzkorpus, weil kein echter DRV-Bestand verfügbar ist (Plan §1.3 Punkt 4,
-docs/UMSETZUNGSSTAND.md "Fachlich offen"). Ersetzt keine Abnahme am echten
+docs/OFFENE_ENTWICKLUNGSPUNKTE.md). Ersetzt keine Abnahme am echten
 Bestand — liefert nur ein erstes reales Signal für Parser-/Persistenz-/
 Embedding-Durchsatz, bevor der echte Kundenbestand verfügbar ist.
 

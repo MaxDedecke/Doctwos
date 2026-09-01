@@ -18,7 +18,7 @@ gezielt und ausschließlich über diesen Präfix wieder gelöscht werden können
 (--cleanup), unabhängig von sonstigem Inhalt der DB.
 
 Läuft NICHT vom Host aus (DATABASE_URL zeigt auf den Hostnamen "db", nur im
-Docker-Netz auflösbar, siehe docs/UMSETZUNGSSTAND.md). Aufruf:
+Docker-Netz auflösbar, siehe docs/OFFENE_ENTWICKLUNGSPUNKTE.md). Aufruf:
 
     docker cp scripts/loadtest_ingest_synthetic_corpus.py doctus-parser:/app/
     docker cp loadtest/synthetic-corpus doctus-parser:/tmp/synthetic-corpus

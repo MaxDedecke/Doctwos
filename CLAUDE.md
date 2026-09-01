@@ -8,8 +8,8 @@ Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Entstanden als Fork des Condo-Templates (AEC/BIM) mit
 ausgetauschter Fachlogik — siehe `docs/IMPLEMENTIERUNGSPLAN.md`.
 
-**Vor jeder Arbeit lesen:** `docs/UMSETZUNGSSTAND.md` (was ist fertig, was ist
-als Nächstes dran) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
+**Vor jeder Arbeit lesen:** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` (zentrale Liste
+offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 
 ## Architekturprinzipien
 

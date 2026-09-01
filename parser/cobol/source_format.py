@@ -18,7 +18,7 @@ Diese Stufe ist bewusst kein vollständiger Standard-Parser, sondern deckt
 genau das ab, was gegen den Testkorpus (parser/tests/cobol_corpus/)
 verifiziert ist. Dialekt-Eigenheiten (Compiler-Direktiven, Debug-Modus,
 Wort-Continuation außerhalb von Literalen) werden nachgezogen, sobald ein
-realer COBOL-Bestand vorliegt (docs/UMSETZUNGSSTAND.md, „Fachlich offen").
+realer COBOL-Bestand vorliegt (docs/OFFENE_ENTWICKLUNGSPUNKTE.md, O-001).
 """
 
 from __future__ import annotations

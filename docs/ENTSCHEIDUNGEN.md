@@ -197,7 +197,8 @@ AP-2 ist damit abgeschlossen, sobald `parse_program()` existiert **und** das
 Testkorpus-Teilstück aus §6.6 steht (`99_garbage.cbl`, `golden/*.json`,
 CI-Job `parser-golden`) — nicht erst mit Pass 0-2/DB-Anbindung.
 
-**Fundstelle.** `docs/UMSETZUNGSSTAND.md`, Abschnitte „AP-4 (vorgezogen) —
+**Fundstelle.** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` und der technische
+Implementierungsplan; die frühere Umsetzungschronik wurde konsolidiert.
 Chunking (chunking)" und „Nächste Schritte" tragen einen Verweis hierher.
 
 ---
@@ -316,17 +317,17 @@ sie sich ohne Codeänderung an gemessene Kundenhardware anpassen lassen. Das
 ist eine technische Entscheidung innerhalb bestehender Architekturprinzipien
 (keine neue Abhängigkeit, keine Kundendaten nötig) — anders als die formale
 Lasttest-Abnahme selbst, die einen echten Bestand braucht (siehe
-`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss").
+`docs/OFFENE_ENTWICKLUNGSPUNKTE.md` Abschnitt „Umsetzungs- und Übergabestatus").
 
 **Fundstelle.** `parser/ollama_client.py::get_embeddings_batch`,
-`parser/tests/test_ollama_client.py`, `docs/UMSETZUNGSSTAND.md` Abschnitt
+`parser/tests/test_ollama_client.py`, `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` Abschnitt
 „AP-9 — Härtung".
 
 ---
 
 ## E-9 — AP-9-Abschluss ohne Kundenzugang: was bleibt offen, was wird jetzt gefixt
 
-**Problem.** AP-9 (Härtung) hatte laut `docs/UMSETZUNGSSTAND.md` vier offene
+**Problem.** AP-9 (Härtung) hatte vier offene
 Punkte: formale Lasttest-Abnahme am echten DRV-Bestand, BITV-Abnahme,
 Farbkontrast-Nachbesserung, Abschlussdokumentation. Drei davon lassen sich in
 dieser Session nicht abschließend erledigen — nicht aus technischen Gründen,
@@ -337,7 +338,7 @@ Implementierungsauftrags liegt:
    echte(n) DRV-COBOL-Bestand(e) — liegt nicht vor und kann nicht ad hoc
    beschafft werden (Plan §1.3 Punkt 4, seit AP-2 offen). Der synthetische
    Ersatzkorpus-Lauf (`scripts/generate_synthetic_cobol_corpus.py`, siehe
-   AP-9-Lasttest-Abschnitt in `docs/UMSETZUNGSSTAND.md`) bleibt der bestmögliche
+   synthetische Korpuslauf bleibt der bestmögliche
    Ersatz, ersetzt aber keine Abnahme.
 2. **BITV-Abnahme.** Der automatisierte axe-core-Basis-Check (WCAG2A/AA,
    `frontend/e2e/accessibility.spec.ts`) ist fertig und deckt automatisiert
@@ -345,8 +346,7 @@ Implementierungsauftrags liegt:
    Auftraggeber festgelegten, verbindlichen Prüfumfang (Plan-Risiko R6, NF-012)
    und typischerweise eine akkreditierte Prüfstelle für den manuellen Teil.
    Beides liegt außerhalb dessen, was in dieser Session festgelegt werden kann.
-3. **Farbkontrast-Nachbesserung.** Bereits in `docs/UMSETZUNGSSTAND.md`
-   („Bewusst nicht mitgefixt — Farbkontrast") als Design-Entscheidung
+3. **Farbkontrast-Nachbesserung.** Als Design-Entscheidung
    eingestuft: welcher Fujitsu-Markenton wie weit verschoben wird, ohne den
    CI-Look zu brechen, braucht eine Freigabe der Markenverantwortlichen, ist
    nicht aus dem Code oder von einem Implementierungsagenten allein
@@ -359,7 +359,8 @@ technische Entscheidungen innerhalb bestehender Prinzipien):**
   danach 0 Vulnerabilities; TypeScript, Vitest (4/4) und Produktions-Build
   grün.
 - E-8 (Embedding-Batchgröße/Timeout) umgesetzt, siehe oben.
-- Abschlussdokumentation (`docs/ABSCHLUSS.md`) geschrieben.
+- Offene Punkte und Übergabestatus in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
+  konsolidiert.
 
 **Entscheidung.** AP-9 gilt damit als für den Implementierungsauftrag
 abgeschlossen. Die drei liegen gebliebenen Punkte sind keine Bugs und keine
@@ -371,8 +372,8 @@ werden. E-7 (GPL-`Unidecode`) war unabhängig davon ein eigener,
 dokumentierter Release-Blocker — inzwischen (08.08.2026) durch das
 MIT-Shim-Paket gelöst, siehe oben, keine Auftraggeber-Rückmeldung mehr nötig.
 
-**Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile),
-`docs/UMSETZUNGSSTAND.md` Abschnitt „AP-9 — Abschluss", `docs/ABSCHLUSS.md`.
+**Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile) und
+`docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
 
 ## E-10 — Confluence/Jira-MCP-Anbindung: on-prem (Server/Data Center) nachgezogen
 
@@ -425,7 +426,7 @@ Wissensquelle (Backend soll zustandslos bleiben, CLAUDE.md).
 
 **Fundstelle.** `backend/mcp_client.py` (`_is_atlassian_cloud_url`,
 `_atlassian_auth_env`), `backend/tests/test_mcp_client.py`,
-`docs/UMSETZUNGSSTAND.md` Punkt 23.
+`docs/ENTSCHEIDUNGEN.md` E-10.
 
 ---
 
@@ -443,7 +444,7 @@ Blast-Radius auf echte Kundendaten/Deep-Links möglich ist.
 **Problem.** CLAUDE.md Architekturprinzip 3 schließt ANTLR-/tree-sitter-
 Runtimes explizit aus ("OSS-Clearing-Aufwand, Offline-Bundle-Aufwand,
 Betriebsrisiko — bei null Anforderungsnutzen", `docs/IMPLEMENTIERUNGSPLAN.md:99`),
-und `docs/ABSCHLUSS.md:31` bestätigt das im (veralteten) Abschlussbericht als
+und die frühere Abschlussdokumentation bestätigte das als
 erfüllt. Die Prämisse "null Anforderungsnutzen" gilt nicht mehr.
 
 **Abgrenzung zum tree-sitter-Präzedenzfall.** `tree-sitter` lag bereits einmal
