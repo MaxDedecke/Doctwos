@@ -12,7 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 from models.database import DocumentChunk, Project, ProjectMembership, User, KnowledgeSource
-from core.teams import is_admin
+from core.teams import assert_team_visible, get_visible_team_ids, is_admin
 
 def chunk_source_label(chunk, db: Session) -> str:
     """
@@ -33,7 +33,16 @@ def get_visible_project_ids(user: User, db: Session) -> Optional[list[int]]:
     """
     if is_admin(user):
         return None
-    rows = db.query(ProjectMembership.project_id).filter(ProjectMembership.user_id == user.id).all()
+    team_ids = get_visible_team_ids(user, db)
+    rows = (
+        db.query(ProjectMembership.project_id)
+        .join(Project, Project.id == ProjectMembership.project_id)
+        .filter(
+            ProjectMembership.user_id == user.id,
+            Project.team_id.in_(team_ids or []),
+        )
+        .all()
+    )
     return [r[0] for r in rows]
 
 def get_globally_exposed_project_ids(db: Session) -> list[int]:
@@ -115,6 +124,11 @@ def assert_project_visible(project_id: int, user: User, db: Session, not_found_d
     Prüft, ob das Projekt für den Benutzer sichtbar ist.
     Falls nicht, wird eine 403 Forbidden Exception ausgelöst.
     """
+    if not is_admin(user):
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if project is not None:
+            assert_team_visible(project.team_id, user, db, not_found_detail)
+
     visible = get_visible_project_ids(user, db)
     if visible is not None and project_id not in visible:
         # Finde den Projekt-Admin (Ersteller) heraus für die Fehlermeldung
@@ -127,6 +141,25 @@ def assert_project_visible(project_id: int, user: User, db: Session, not_found_d
             status_code=403,
             detail=f"Zugriff verweigert. Bitte wende dich an {admin_info}, um Zugriff zu erhalten."
         )
+
+
+def assert_knowledge_source_visible(
+    source: KnowledgeSource,
+    user: User,
+    db: Session,
+    not_found_detail: str = "Wissensquelle nicht gefunden",
+) -> None:
+    """Prüft die effektive Sichtbarkeit einer Wissensquelle.
+
+    Eine globale Quelle hängt nur an ihrer Team-Sichtbarkeit. Bei einer
+    projektgebundenen Quelle ist zusätzlich die Projektmitgliedschaft nötig;
+    die Teammitgliedschaft allein darf keinen Zugriff auf Projektinhalte
+    eröffnen. Diese Regel wird von allen Source-Lese- und -Schreibpfaden
+    gemeinsam verwendet.
+    """
+    assert_team_visible(source.team_id, user, db, not_found_detail)
+    if source.project_id is not None:
+        assert_project_visible(source.project_id, user, db, not_found_detail)
 
 # Alle vergebbaren Projekt-Mitgliedsrollen (ProjectMembership.role).
 ALLOWED_PROJECT_ROLES = {"admin", "member"}

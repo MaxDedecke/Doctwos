@@ -20,7 +20,7 @@ import {
 // Aus SettingsModal herausgelöster 'projects'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
 // §5, Schritt 2 — letzter Tab). Der Tab kapselt sein gesamtes lokales Domänen-
 // Modell: Projekt-Mitglieder/Zugriffsanfragen, Discoverable-Projects, Projekt-
-// Abschluss/Promote, Inline-Edit und die eigene Users-Liste (allUsers). projects/
+// Abschluss/Promote, Inline-Edit und projektbezogene User-Kandidaten. projects/
 // selectedProject/connectedSources sind geteilter App-Zustand und kommen via
 // useSettings(). Der Einstieg "Neues Projekt" läuft über onNewProject (Navigation
 // gehört dem Modal). Das Laden beim Betreten passiert im mount-Effekt unten.
@@ -50,11 +50,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
   const [editProjectExposeGlobally, setEditProjectExposeGlobally] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
 
-  const [allUsers, setAllUsers] = useState<any[]>([]);
-
   // Project members / access-requests local states
   const [expandedProjectMembersId, setExpandedProjectMembersId] = useState<number | null>(null);
   const [projectMembers, setProjectMembers] = useState<Record<number, any[]>>({});
+  const [projectMemberCandidates, setProjectMemberCandidates] = useState<Record<number, any[]>>({});
   const [projectAccessRequests, setProjectAccessRequests] = useState<Record<number, any[]>>({});
   const [addProjectMemberUserId, setAddProjectMemberUserId] = useState<string>("");
   const [addProjectMemberRole, setAddProjectMemberRole] = useState<'admin' | 'member'>("member");
@@ -97,6 +96,17 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     }
   };
 
+  const refreshProjectMemberCandidates = async (projectId: number) => {
+    try {
+      const res = await api.getProjectMemberCandidates(projectId);
+      setProjectMemberCandidates(prev => ({ ...prev, [projectId]: res.data }));
+    } catch (err) {
+      // Only project admins may load candidates. Other project members simply
+      // get no add-member list.
+      setProjectMemberCandidates(prev => ({ ...prev, [projectId]: [] }));
+    }
+  };
+
   const handleToggleProjectMembersExpand = async (project: any) => {
     if (expandedProjectMembersId === project.id) {
       setExpandedProjectMembersId(null);
@@ -108,7 +118,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     const admin = currentUser?.is_admin || project.creator_id === currentUser?.id
       || (members || []).find((m: any) => m.user_id === currentUser?.id)?.role === 'admin';
     if (admin) {
-      await refreshProjectAccessRequests(project.id);
+      await Promise.all([
+        refreshProjectAccessRequests(project.id),
+        refreshProjectMemberCandidates(project.id),
+      ]);
     }
   };
 
@@ -172,35 +185,13 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     }
   };
 
-  // Users-Liste für die Mitglied-hinzufügen-Auswahl im projects-Tab. Wird hier
-  // eigenständig geladen (früher hing sie am teams-Tab, was für Nicht-Global-
-  // Admins nie befüllt wurde — siehe TeamsSettingsTab).
-  const refreshAllUsers = async () => {
-    try {
-      const res = await api.getUsers();
-      setAllUsers(res.data);
-    } catch (err) {
-      console.error("Failed to load users", err);
-    }
-  };
-
-
   // Laden beim Betreten des Tabs (die Komponente mountet nur, wenn das Modal offen
   // und projects aktiv ist).
   useEffect(() => {
     // pendingAccessProjectIds already starts out empty (see useState above) —
     // this tab fully unmounts on tab switch, so there's nothing to reset here.
     (async () => {
-      // GET /users ist backend-seitig komplett superuser-only (F-004, siehe
-      // backend/api/users.py). Für Nicht-Admins würde der Call also
-      // garantiert mit 403 fehlschlagen — nur globale Admins können die
-      // "Mitglied hinzufügen"-Liste ohnehin befüllt bekommen (isProjectAdmin
-      // prüft zwar auch projektlokale Admin-Rollen, aber ohne allUsers bleibt
-      // die Auswahl für die leer, das ist ein bekanntes, hier nicht
-      // behobenes Backend-Scoping-Thema).
-      const tasks = [refreshDiscoverableProjects()];
-      if (currentUser?.is_admin) tasks.push(refreshAllUsers());
-      await Promise.all(tasks);
+      await refreshDiscoverableProjects();
     })();
   }, []);
 
@@ -702,7 +693,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
                                       {isProjectAdmin(project) && (() => {
                                         const memberIds = new Set((projectMembers[project.id] || []).map((m: any) => m.user_id));
-                                        const availableUsers = allUsers.filter((u: any) => !memberIds.has(u.id));
+                                        const availableUsers = (projectMemberCandidates[project.id] || []).filter((u: any) => !memberIds.has(u.id));
                                         return availableUsers.length > 0 ? (
                                           <div className="flex items-center gap-2">
                                             <Select value={addProjectMemberUserId} onValueChange={setAddProjectMemberUserId}>

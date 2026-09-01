@@ -3,7 +3,7 @@ import os
 import pytest
 
 from core.config import UPLOADS_DIR
-from models.database import KnowledgeSource, Project, ProjectMembership, SourceScanFile, User
+from models.database import KnowledgeSource, Project, ProjectMembership, SourceScanFile, Team, User
 from conftest import TEST_USERNAME
 
 
@@ -125,6 +125,54 @@ def test_get_project_knowledge_sources_lists_only_attached(client, make_project)
     assert resp.status_code == 200
     names = [s["name"] for s in resp.json()]
     assert names == ["a"]
+
+
+def test_project_knowledge_sources_require_project_membership(member_client, db_session):
+    """Team membership alone must not grant access to a project's sources."""
+    member = db_session.query(User).filter(User.username == "test-fixture-member").first()
+    team = db_session.query(Team).filter(Team.name == "Default Team").first()
+    project = Project(name="membership-gated-source-project", team_id=team.id)
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    source = KnowledgeSource(
+        name="membership-gated-source",
+        type="Local",
+        project_id=project.id,
+        team_id=team.id,
+        spaces={},
+    )
+    db_session.add(source)
+    db_session.commit()
+    db_session.refresh(source)
+
+    try:
+        listed = member_client.get("/knowledge-sources")
+        assert listed.status_code == 200
+        assert source.id not in {item["id"] for item in listed.json()}
+
+        assert member_client.get(f"/knowledge-sources/{source.id}/files").status_code == 403
+        assert member_client.patch(
+            f"/knowledge-sources/{source.id}", json={"context_note": "nope"}
+        ).status_code == 403
+        assert member_client.delete(f"/knowledge-sources/{source.id}").status_code == 403
+        assert member_client.post(
+            "/knowledge-sources", json={
+                "name": "unauthorized-source",
+                "type": "Local",
+                "project_id": project.id,
+            }
+        ).status_code == 403
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.query(Project).filter(Project.id == project.id).delete()
+        db_session.commit()
+
+
+def test_model_selection_is_global_admin_only(member_client):
+    response = member_client.post("/model-info", json={"llm": "not-authorized"})
+    assert response.status_code == 403
 
 
 def test_upload_local_document_creates_source_and_saves_file(client, make_project, db_session):

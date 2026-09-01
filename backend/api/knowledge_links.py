@@ -10,6 +10,7 @@ from core.config import celery_app
 from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
+from core.projects import get_visible_project_ids
 from services.ollama_client import ask_llm_json_for_profile
 from sqlalchemy.sql import func
 
@@ -33,6 +34,7 @@ def is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Option
     visible_team_ids = get_visible_team_ids(user, db)
     if visible_team_ids is None:
         return True # admin
+    visible_project_ids = get_visible_project_ids(user, db)
     
     if source_type == 'entity' and entity_id is not None:
         ent = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
@@ -40,20 +42,36 @@ def is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Option
             return False
         if ent.project_id:
             proj = db.query(Project).filter(Project.id == ent.project_id).first()
-            return proj is not None and proj.team_id in visible_team_ids
+            return (
+                proj is not None
+                and proj.team_id in visible_team_ids
+                and ent.project_id in (visible_project_ids or [])
+            )
         if ent.source_id:
             source = db.query(KnowledgeSource).filter(KnowledgeSource.id == ent.source_id).first()
-            return source is not None and source.team_id in visible_team_ids
+            return (
+                source is not None
+                and source.team_id in visible_team_ids
+                and (source.project_id is None or source.project_id in (visible_project_ids or []))
+            )
     elif source_type == 'document' and chunk_id is not None:
         chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
         if not chunk:
             return False
         if chunk.project_id:
             proj = db.query(Project).filter(Project.id == chunk.project_id).first()
-            return proj is not None and proj.team_id in visible_team_ids
+            return (
+                proj is not None
+                and proj.team_id in visible_team_ids
+                and chunk.project_id in (visible_project_ids or [])
+            )
         if chunk.source_id:
             source = db.query(KnowledgeSource).filter(KnowledgeSource.id == chunk.source_id).first()
-            return source is not None and source.team_id in visible_team_ids
+            return (
+                source is not None
+                and source.team_id in visible_team_ids
+                and (source.project_id is None or source.project_id in (visible_project_ids or []))
+            )
     return True
 
 @router.post("")

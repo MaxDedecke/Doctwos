@@ -72,22 +72,36 @@ def _doc_node(title: str, source_type: Optional[str], url: Optional[str], chunk:
     }
 
 
-def _is_project_visible(project_id: Optional[int], team_ids: Optional[list[int]], db: Session) -> bool:
+def _is_project_visible(
+    project_id: Optional[int],
+    team_ids: Optional[list[int]],
+    project_ids: Optional[list[int]],
+    db: Session,
+) -> bool:
     if project_id is None:
         return True
     if team_ids is None:
         return True
     proj = db.query(Project).filter(Project.id == project_id).first()
-    return proj is not None and proj.team_id in team_ids
+    return proj is not None and proj.team_id in team_ids and project_id in (project_ids or [])
 
 
-def _is_source_visible(source_id: Optional[int], team_ids: Optional[list[int]], db: Session) -> bool:
+def _is_source_visible(
+    source_id: Optional[int],
+    team_ids: Optional[list[int]],
+    project_ids: Optional[list[int]],
+    db: Session,
+) -> bool:
     if source_id is None:
         return True
     if team_ids is None:
         return True
     source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
-    return source is not None and source.team_id in team_ids
+    return (
+        source is not None
+        and source.team_id in team_ids
+        and (source.project_id is None or source.project_id in (project_ids or []))
+    )
 
 
 def _side_node_id(nodes: dict, db: Session, side_type: str, entity_id: Optional[int], chunk_id: Optional[int],
@@ -107,8 +121,15 @@ def _side_node_id(nodes: dict, db: Session, side_type: str, entity_id: Optional[
     return nid
 
 
-def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optional[int], team_ids: Optional[list[int]],
-                      db: Session, requesting_project_id: Optional[int] = None) -> bool:
+def _is_side_visible(
+    source_type: str,
+    entity_id: Optional[int],
+    chunk_id: Optional[int],
+    team_ids: Optional[list[int]],
+    project_ids: Optional[list[int]],
+    db: Session,
+    requesting_project_id: Optional[int] = None,
+) -> bool:
     if team_ids is None:
         return True
     if source_type == 'entity' and entity_id is not None:
@@ -121,8 +142,8 @@ def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optio
         # sind davon bewusst nicht betroffen, die sind absichtlich projektübergreifend
         # durchsuchbar.
         return (
-            _is_project_visible(ent.project_id, team_ids, db)
-            and _is_source_visible(ent.source_id, team_ids, db)
+            _is_project_visible(ent.project_id, team_ids, project_ids, db)
+            and _is_source_visible(ent.source_id, team_ids, project_ids, db)
             and is_project_code_visible_in_context(ent.project_id, requesting_project_id, db)
         )
     elif source_type == 'document' and chunk_id is not None:
@@ -130,8 +151,8 @@ def _is_side_visible(source_type: str, entity_id: Optional[int], chunk_id: Optio
         if not chunk:
             return False
         return (
-            _is_project_visible(chunk.project_id, team_ids, db)
-            and _is_source_visible(chunk.source_id, team_ids, db)
+            _is_project_visible(chunk.project_id, team_ids, project_ids, db)
+            and _is_source_visible(chunk.source_id, team_ids, project_ids, db)
             and is_document_chunk_code_visible_in_context(chunk, requesting_project_id, db)
         )
     return True
@@ -151,6 +172,7 @@ def get_graph(
     """
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
+    visible_project_ids = get_visible_project_ids(user, db)
 
     # Validate project visibility
     if project_id:
@@ -174,7 +196,6 @@ def get_graph(
         # kein Projekt freigegeben, also zeigt "Allgemein" nur projektlose Entities
         # (z.B. eigenständige Git-Wissensquellen).
         exposed_project_ids = get_globally_exposed_project_ids(db)
-        visible_project_ids = get_visible_project_ids(user, db)
         if visible_project_ids is not None:
             exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
         entity_query = entity_query.filter(or_(
@@ -192,7 +213,7 @@ def get_graph(
         doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
     else:
         if team_ids is not None:
-            project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(team_ids)).all()]
+            project_ids = visible_project_ids or []
             doc_query = doc_query.filter(or_(
                 DocumentChunk.project_id.in_(project_ids),
                 DocumentChunk.project_id == None
@@ -259,8 +280,8 @@ def get_graph(
     # here. Manual links created from the graph UI (see /knowledge-links) can connect
     # any two nodes, so both sides are resolved generically.
     for klink in db.query(KnowledgeLink).filter(KnowledgeLink.status == status).all():
-        if not (_is_side_visible(klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, team_ids, db, project_id) and
-                _is_side_visible(klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, team_ids, db, project_id)):
+        if not (_is_side_visible(klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, team_ids, visible_project_ids, db, project_id) and
+                _is_side_visible(klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, team_ids, visible_project_ids, db, project_id)):
             continue
         src_id = _side_node_id(nodes, db, klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id,
                                 klink.source_a_title, klink.source_a_source_type, klink.source_a_url)

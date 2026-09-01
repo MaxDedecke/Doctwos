@@ -63,6 +63,52 @@ def test_non_admin_member_cannot_add_or_remove_members(unauthenticated_client, d
     assert res.status_code == 403
 
 
+def test_project_member_candidates_are_team_scoped_and_team_membership_is_required(client, db_session, test_project):
+    project = db_session.query(Project).filter(Project.id == test_project).first()
+    candidate = User(
+        username="candidate-for-project", email="candidate-for-project@example.com",
+        name="Project Candidate", password_hash="x", role="user"
+    )
+    outsider = User(
+        username="outsider-for-project", email="outsider-for-project@example.com",
+        name="Project Outsider", password_hash="x", role="user"
+    )
+    db_session.add_all([candidate, outsider])
+    db_session.commit()
+    db_session.refresh(candidate)
+    db_session.refresh(outsider)
+    db_session.add(TeamMembership(user_id=candidate.id, team_id=project.team_id))
+    db_session.commit()
+
+    try:
+        res = client.get(f"/projects/{test_project}/member-candidates")
+        assert res.status_code == 200
+        ids = {entry["id"] for entry in res.json()}
+        assert candidate.id in ids
+        assert outsider.id not in ids
+
+        res = client.post(
+            f"/projects/{test_project}/members",
+            json={"user_id": outsider.id, "role": "member"},
+        )
+        assert res.status_code == 403
+
+        res = client.post(
+            f"/projects/{test_project}/members",
+            json={"user_id": candidate.id, "role": "member"},
+        )
+        assert res.status_code == 200
+    finally:
+        db_session.query(ProjectMembership).filter(
+            ProjectMembership.project_id == test_project,
+            ProjectMembership.user_id.in_([candidate.id, outsider.id]),
+        ).delete(synchronize_session=False)
+        db_session.query(TeamMembership).filter(
+            TeamMembership.user_id.in_([candidate.id, outsider.id]),
+        ).delete(synchronize_session=False)
+        db_session.query(User).filter(User.id.in_([candidate.id, outsider.id])).delete(synchronize_session=False)
+        db_session.commit()
+
 def test_non_admin_member_cannot_view_or_resolve_access_requests(unauthenticated_client, db_session, test_project, second_team_member):
     unauthenticated_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(second_team_member.id))
 

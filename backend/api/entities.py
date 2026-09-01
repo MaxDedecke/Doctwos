@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from core.projects import assert_project_code_visible_in_context, assert_project_visible
+from core.projects import assert_knowledge_source_visible, assert_project_code_visible_in_context, assert_project_visible
 from core.teams import assert_team_visible
 from models.database import CodeEdge, CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, Project, User
 
@@ -31,7 +31,7 @@ def _assert_entity_visible(entity: CodeEntity, user: User, db: Session, project_
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == entity.source_id).first()
         if not source:
             raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-        assert_team_visible(source.team_id, user, db, "Entity nicht gefunden")
+        assert_knowledge_source_visible(source, user, db, "Entity nicht gefunden")
 
 
 def entity_json(entity: CodeEntity) -> dict:

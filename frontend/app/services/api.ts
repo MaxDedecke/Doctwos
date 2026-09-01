@@ -132,6 +132,7 @@ export const api = {
     resolveProjectAccessRequest: (projectId: number, requestId: number, status: 'approved' | 'rejected') =>
         axios.post(`${API_URL}/projects/${projectId}/access-requests/${requestId}/resolve`, { status }),
     getProjectMembers: (projectId: number) => axios.get(`${API_URL}/projects/${projectId}/members`),
+    getProjectMemberCandidates: (projectId: number) => axios.get(`${API_URL}/projects/${projectId}/member-candidates`),
     addProjectMember: (projectId: number, userId: number, role: 'admin' | 'member' = 'member') =>
         axios.post(`${API_URL}/projects/${projectId}/members`, { user_id: userId, role }),
     updateProjectMemberRole: (projectId: number, userId: number, role: 'admin' | 'member') =>

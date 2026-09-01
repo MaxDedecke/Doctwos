@@ -26,8 +26,13 @@ uneingeschränkt verwalten.
 |---|---|
 | Globaler Administrator (`User.role == superuser`) | Sieht alle Teams und Projekte; verwaltet Teams, Nutzer und Mitgliedschaften. |
 | Projekt-Ersteller oder Projekt-Admin | Verwaltet Mitglieder und Zugriffsanfragen des jeweiligen Projekts. |
-| `pruefingenieur` | Nutzt das Projekt und darf Compliance-Alerts freigeben bzw. zurücksetzen; verwaltet keine Mitglieder. |
-| Mitglied | Nutzt ausschließlich die ihm zugewiesenen Projekte. |
+| Nutzer (`User.role == user`) mit Projektrolle `admin` | Verwaltet Mitglieder, Zugriffsanfragen und projektbezogene Quellen des jeweiligen Projekts. |
+| Nutzer (`User.role == user`) mit Projektrolle `member` | Nutzt ausschließlich die ihm zugewiesenen Projekte und deren Quellen; globale Verwaltungsaktionen sind nicht erlaubt. |
+
+Das aktuelle Datenmodell kennt auf Benutzerebene ausschließlich `superuser` und
+`user`; zusätzliche fachliche Rollen wie `pruefingenieur` sind nicht als
+implementierte Berechtigung hinterlegt und werden daher nicht als wirksame
+Rolle behandelt.
 
 Neue oder nicht zugewiesene Nutzer erhalten keine implizite Mitgliedschaft.
 Der beim Erststart angelegte Superuser wird für den sicheren Bootstrap in das
@@ -43,6 +48,11 @@ Nutzer.
   erlaubten Projekte; `assert_project_visible()` schützt Projektressourcen.
 - Eine Zugriffsanfrage prüft zunächst die Team-Sichtbarkeit. Fremde Projekte
   sind somit weder anfragbar noch über ihre Kennung aufdeckbar.
+- Projektgebundene Wissensquellen, Dokumente, Entitäten, Links und Graphdaten
+  erfordern zusätzlich die Mitgliedschaft im konkreten Projekt. Globale Quellen
+  bleiben für berechtigte Teammitglieder sichtbar.
+- Die globale Modellumschaltung (`POST /model-info`) ist ausschließlich für
+  globale Administratoren erlaubt; Lesen von Modellinformationen bleibt möglich.
 - API-Router filtern Listen bereits bei der Abfrage und prüfen Einzelobjekte
   erneut. Das Frontend verbessert die Bedienung, ersetzt diese Prüfungen aber
   nicht.
@@ -55,9 +65,11 @@ Codeanalyse-Inhalt angezeigt werden darf.
 ## Benutzeroberfläche und API
 
 Globale Administratoren verwalten Teams und Teammitgliedschaften über den
-Teams-Tab. Im Projekte-Tab können Projekt-Admins Mitglieder verwalten und
-offene Anfragen entscheiden. Teammitglieder sehen entdeckbare, aber noch nicht
-beigetretene Projekte und können eine Anfrage stellen.
+Teams-Tab. Im Projekte-Tab können Projekt-Admins Mitglieder aus dem eigenen
+Team verwalten und offene Anfragen entscheiden. Teammitglieder sehen
+entdeckbare, aber noch nicht beigetretene Projekte und können eine Anfrage
+stellen. Die Oberfläche bezieht die Kandidatenliste projektbezogen; sie greift
+nicht auf die globale Nutzerverwaltung zurück.
 
 Die maßgeblichen APIs liegen in `backend/api/teams.py`,
 `backend/api/users.py` und `backend/api/projects.py`; die UI-Anbindung liegt
@@ -65,8 +77,8 @@ in den Settings-Tabs des Frontends.
 
 ## Verifikation und offene Weiterentwicklung
 
-`backend/tests/test_teams.py`, `backend/tests/test_teams_helper.py` und
-`backend/tests/test_project_membership.py` decken die zentralen Verwaltungs-,
-Sichtbarkeits- und Anfrageregeln ab. Die fachliche Gesamtabnahme des
-Berechtigungskonzepts bleibt als O-013 in
-[OFFENE_ENTWICKLUNGSPUNKTE.md](./OFFENE_ENTWICKLUNGSPUNKTE.md) geführt.
+`backend/tests/test_teams.py`, `backend/tests/test_teams_helper.py`,
+`backend/tests/test_project_membership.py` und
+`backend/tests/test_knowledge_sources.py` decken die zentralen Verwaltungs-,
+Sichtbarkeits-, Quellen- und Anfrageregeln ab. O-013 ist technisch umgesetzt;
+eine separate fachliche Freigabe der Rollenregeln bleibt davon unberührt.

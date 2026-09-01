@@ -21,7 +21,7 @@ from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
 from core.projects import assert_project_visible, get_visible_project_ids, ALLOWED_PROJECT_ROLES
 from models.database import (
-    Project, ProjectMembership, ProjectAccessRequest, User,
+    Project, ProjectMembership, ProjectAccessRequest, User, TeamMembership,
     KnowledgeSource, DocumentChunk, CodeEntity, EntityDocLink, KnowledgeLink
 )
 from api.schemas import (
@@ -133,6 +133,44 @@ def list_discoverable_projects(
     return [
         {"id": p.id, "name": p.name, "description": p.description}
         for p in q.all()
+    ]
+
+@router.get("/{id}/member-candidates")
+def list_project_member_candidates(
+    id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """List active users from the project's team that can be added.
+
+    Project membership is deliberately layered on top of team membership. A
+    project admin therefore gets a scoped candidate list instead of the
+    global, superuser-only /users endpoint.
+    """
+    proj = db.query(Project).filter(Project.id == id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    if not _is_project_admin(id, user, db):
+        raise HTTPException(status_code=403, detail="Nur Projekt-Admins können Mitglieder hinzufügen")
+
+    member_ids = db.query(ProjectMembership.user_id).filter(
+        ProjectMembership.project_id == id
+    )
+    candidates = (
+        db.query(User)
+        .join(TeamMembership, TeamMembership.user_id == User.id)
+        .filter(
+            TeamMembership.team_id == proj.team_id,
+            User.is_active.is_(True),
+            ~User.id.in_(member_ids),
+        )
+        .order_by(User.name, User.username)
+        .all()
+    )
+    return [
+        {"id": candidate.id, "name": candidate.name or candidate.email or candidate.username,
+         "email": candidate.email, "username": candidate.username}
+        for candidate in candidates
     ]
 
 @router.get("/{id}")
@@ -765,6 +803,13 @@ def add_project_member(
     target_user = db.query(User).filter(User.id == data.user_id).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+
+    team_membership = db.query(TeamMembership).filter(
+        TeamMembership.team_id == proj.team_id,
+        TeamMembership.user_id == data.user_id,
+    ).first()
+    if not team_membership:
+        raise HTTPException(status_code=403, detail="Benutzer muss zuerst Mitglied des Projektteams sein")
 
     existing = db.query(ProjectMembership).filter(
         ProjectMembership.project_id == id,

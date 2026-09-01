@@ -32,6 +32,7 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from api.schemas import FolderWatchCreate, KnowledgeSourceCreate, KnowledgeSourceUpdate, GitSourceCreate
@@ -41,6 +42,7 @@ from core.db_setup import get_db
 from models.database import DocumentChunk, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin, DEFAULT_TEAM_NAME
+from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])
@@ -106,6 +108,8 @@ def _resolve_team_id(
         proj = db.query(Project).filter(Project.id == project_id).first()
         if not proj:
             raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+        assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+        assert_project_visible(project_id, user, db)
         return proj.team_id
 
     team_ids = get_visible_team_ids(user, db)
@@ -132,6 +136,7 @@ def create_knowledge_source(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
+    team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
     _check_knowledge_source_cap(source.project_id, db)
     db_source = KnowledgeSource(
         name=source.name, type=source.type, url=source.url,
@@ -139,7 +144,7 @@ def create_knowledge_source(
         project_id=source.project_id, spaces=source.spaces,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
         context_note=_validate_context_note(source.context_note),
-        team_id=_resolve_team_id(source.project_id, db, user, source.team_id)
+        team_id=team_id
     )
     db.add(db_source)
     db.commit()
@@ -158,9 +163,12 @@ def get_knowledge_sources(
     user: User = Depends(get_current_user)
 ):
     team_ids = get_visible_team_ids(user, db)
+    project_ids = get_visible_project_ids(user, db)
     q = db.query(KnowledgeSource)
     if team_ids is not None:
         q = q.filter(KnowledgeSource.team_id.in_(team_ids))
+    if project_ids is not None:
+        q = q.filter(or_(KnowledgeSource.project_id.in_(project_ids), KnowledgeSource.project_id.is_(None)))
     return [serialize_source(s) for s in q.all()]
 
 
@@ -173,7 +181,7 @@ def delete_knowledge_source(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     db.query(DocumentChunk).filter(DocumentChunk.source_id == source_id).delete()
 
@@ -201,7 +209,7 @@ def sync_knowledge_source(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "folderwatch", "webdav", "git"):
         celery_app.send_task("process_knowledge_source", args=[db_source.id])
@@ -228,7 +236,7 @@ def update_knowledge_source(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     fields = update.model_dump(exclude_unset=True)
     if "sync_interval_minutes" in fields:
@@ -257,7 +265,7 @@ def resolve_knowledge_source_url(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     if url and not (url.startswith("http://") or url.startswith("https://")):
         chunk = db.query(DocumentChunk).filter(
@@ -304,7 +312,7 @@ def get_knowledge_source_files(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     chunks = db.query(DocumentChunk.file_path).filter(DocumentChunk.source_id == source_id).distinct().all()
     # Eine Datei kann mehrere Chunks unter "<Dateipfad>#<suffix>" ablegen. Für den
@@ -330,7 +338,7 @@ def get_knowledge_source_content(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     path_name = (db_source.spaces or {}).get("path")
     if db_source.type == "Git" and path:
@@ -410,7 +418,7 @@ def get_knowledge_source_raw(
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    assert_team_visible(db_source.team_id, user, db, "Wissensquelle nicht gefunden")
+    assert_knowledge_source_visible(db_source, user, db)
 
     path_name = (db_source.spaces or {}).get("path")
     if path_name:
@@ -570,6 +578,7 @@ def create_folder_watch_source(
     user: User = Depends(get_current_user)
 ):
     """Registriert einen Ordner als Wissensquelle und startet den ersten Scan."""
+    team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
     _check_knowledge_source_cap(source.project_id, db)
     db_source = KnowledgeSource(
         name=source.name,
@@ -577,7 +586,7 @@ def create_folder_watch_source(
         url=source.folder_path,
         project_id=source.project_id,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
-        team_id=_resolve_team_id(source.project_id, db, user, source.team_id),
+        team_id=team_id,
     )
     db.add(db_source)
     db.commit()
@@ -593,6 +602,7 @@ def create_git_source(
     user: User = Depends(get_current_user)
 ):
     """Registriert ein Git-Repository als Wissensquelle und startet den ersten Scan."""
+    team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
     _check_knowledge_source_cap(source.project_id, db)
     db_source = KnowledgeSource(
         name=source.name,
@@ -608,7 +618,7 @@ def create_git_source(
         branch=source.branch,
         spaces={"sparse_paths": source.sparse_paths},
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
-        team_id=_resolve_team_id(source.project_id, db, user, source.team_id),
+        team_id=team_id,
     )
     db.add(db_source)
     db.commit()
@@ -629,12 +639,13 @@ async def upload_local_document(
 ):
     safe_filename = os.path.basename((file.filename or "upload").replace("\\", "/"))
 
+    resolved_team_id = _resolve_team_id(project_id, db, user, team_id)
     _check_knowledge_source_cap(project_id, db)
     db_source = KnowledgeSource(
         name=name,
         type="Local",
         project_id=project_id,
-        team_id=_resolve_team_id(project_id, db, user, team_id)
+        team_id=resolved_team_id
     )
     db.add(db_source)
     db.commit()

@@ -21,7 +21,7 @@ from sqlalchemy import text
 
 import core.config as cfg
 from api.schemas import ModelUpdateRequest
-from core.auth_dependency import get_current_user
+from core.teams import require_admin
 from core.db_setup import engine
 from models.database import User
 
@@ -94,13 +94,11 @@ async def model_info():
 @router.post("/model-info")
 async def update_model_info(
     request: ModelUpdateRequest,
-    _user: User = Depends(get_current_user),
+    _user: User = Depends(require_admin),
 ):
-    # Auth-Pflicht: dieser Endpoint mutiert globalen Prozess-State (cfg.OLLAMA_LLM_MODEL)
-    # und wirkt auf ALLE Nutzer. Ohne Auth (der Router selbst hängt bewusst nicht an
-    # `_authenticated`, wegen /health & /version) könnte jeder im Netz das aktive
-    # Chat-Modell umstellen und den Betrieb lahmlegen. Offene Härtung als Follow-up:
-    # auf require_admin heben und die Modellwahl pro Session statt global halten.
+    # Dieser Endpoint mutiert globalen Prozess-State (cfg.OLLAMA_LLM_MODEL) und
+    # wirkt auf ALLE Nutzer. Deshalb darf ihn nur ein globaler Administrator
+    # bedienen; /health, /version und /models bleiben bewusst öffentlich.
     # Mutation muss auf dem Modul-Objekt passieren, nicht auf einer lokalen Variable
     cfg.OLLAMA_LLM_MODEL = request.llm
     return {"llm": cfg.OLLAMA_LLM_MODEL, "embedding": cfg.OLLAMA_EMBED_MODEL}

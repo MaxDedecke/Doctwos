@@ -40,7 +40,7 @@ from core.db_setup import get_db
 from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, Team, User
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
 from core.projects import (
-    assert_project_visible, resolve_repository_id, get_visible_project_ids,
+    assert_knowledge_source_visible, assert_project_visible, resolve_repository_id, get_visible_project_ids,
     build_document_chunk_code_gate, get_globally_exposed_project_ids,
     is_document_chunk_code_visible_in_context,
 )
@@ -292,7 +292,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == request.source_id).first()
         if not source:
             raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-        assert_team_visible(source.team_id, user, db, "Wissensquelle nicht gefunden")
+        assert_knowledge_source_visible(source, user, db)
 
     # ── Session anlegen oder fortsetzen ──────────────────────────────────────
     session = None
@@ -308,7 +308,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
             if session.source_id:
                 source = db.query(KnowledgeSource).filter(KnowledgeSource.id == session.source_id).first()
                 if source:
-                    assert_team_visible(source.team_id, user, db, "Chat-Sitzung nicht gefunden")
+                    assert_knowledge_source_visible(source, user, db, "Chat-Sitzung nicht gefunden")
 
     if not session:
         title = request.message[:30] + ("..." if len(request.message) > 30 else "")
@@ -714,10 +714,13 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         KnowledgeSource.type.in_(["confluence", "jira"])
                     ).all()
                 else:
-                    mcp_sources = db.query(KnowledgeSource).filter(
+                    mcp_query = db.query(KnowledgeSource).filter(
                         KnowledgeSource.project_id == None,
                         KnowledgeSource.type.in_(["confluence", "jira"])
-                    ).all()
+                    )
+                    if team_ids is not None:
+                        mcp_query = mcp_query.filter(KnowledgeSource.team_id.in_(team_ids))
+                    mcp_sources = mcp_query.all()
 
                 from mcp_client import init_mcp_clients_for_sources
                 mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
