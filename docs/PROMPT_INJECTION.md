@@ -1,8 +1,7 @@
 # Prompt Injection from External Sources
 
-Investigated and mitigated 2026-07-12 in response to `docs/TODO_MODEL_APPROVAL_NEMO_Q4.md`
-item "Prompt-Injection-Abgrenzung für Fremdquellen explizit
-dokumentieren/absichern".
+Investigated and mitigated 2026-07-12 to document and harden the boundary
+between trusted instructions and externally ingested content.
 
 ## Status: Mitigated (XML Framing & System Prompt Hardening)
 
@@ -50,13 +49,11 @@ The mitigation is covered by a backend integration test in `backend/tests/test_p
 Even if an injection succeeds at getting the model to *try* something
 unintended, two existing, code-enforced layers limit what it can reach:
 
-- **Team scoping** (`docs/TEAM_ACCESS_CONTROL.md`): `assert_team_visible`/
-  `get_visible_team_ids`, enforced in `chat.py` before any retrieval or MCP
-  client is initialized. A chat request literally cannot load a
-  `Repository`/`KnowledgeSource` outside the user's own team_ids — the
-  credentials for another team's Jira/Confluence never enter the process.
-- **Project-membership scoping** (`docs/PROJECT_ACCESS_CONTROL.md`):
-  `assert_project_visible`, same enforcement point.
+- **Team- und Projekt-Sichtbarkeit**
+  ([`ACCESS_CONTROL.md`](./ACCESS_CONTROL.md)): `assert_team_visible`,
+  `get_visible_team_ids` und `assert_project_visible` begrenzen Retrieval und
+  MCP-Initialisierung auf den zugänglichen Arbeitskontext. Die Credentials
+  einer fremden Quelle gelangen dadurch nicht in den Prozess.
 - **Turn cap:** the agent loop stops after a fixed number of rounds
   (`max_turns=8` in `backend/agent.py`, `5` in the legacy
   `execute_chat_with_mcp` path in `backend/mcp_client.py`) — bounds how far
@@ -75,16 +72,19 @@ the user wasn't specifically asking about.
 
 ## Remaining Follow-ups
 
-1. **Server-Side Tool Auditing:** Log which MCP tool + arguments were actually invoked per chat turn, server-side (not just returned to the LLM on error, per the existing gap flagged in `docs/DIAGNOSTICS_HARDENING.md`, "Still open" section). This doesn't prevent injection but makes a successful one after-the-fact auditable.
-2. **Rate Limiting:** Rate limiting / per-session tool-call quotas remain absent (see `docs/DIAGNOSTICS_HARDENING.md` and general API surface) — accepted gap.
+1. **Server-Side Tool Auditing:** MCP-Werkzeug und Argumente pro Chat-Turn
+   serverseitig protokollieren (O-022 in
+   [`OFFENE_ENTWICKLUNGSPUNKTE.md`](./OFFENE_ENTWICKLUNGSPUNKTE.md)). Das
+   verhindert keine Injection, macht erfolgreiche Angriffe aber auditierbar.
+2. **Rate Limiting:** Per-Session-Quoten für Tool-Aufrufe sind weiterhin eine
+   bewusst zu bewertende Schutzmaßnahme.
 
 ---
 
 ## What to tell a pilot customer today
 
-Consistent with `docs/POSITIONING.md`'s "assistant with mandatory review,
-not an autonomous authority" framing: chat answers and compliance alerts
-already require human review before being acted on, which is the practical
-mitigation against an injected answer being trusted blindly. Injected content from an external
-source **cannot** cross a team/project boundary or persist past the current
-chat turn (verified boundaries above), and the prompt layer is hardened against steering instructions using explicit XML boundaries and strict passive data instructions.
+Chat answers und Compliance-Alerts brauchen menschliche Prüfung, bevor daraus
+eine Handlung wird. Externe Inhalte können weder Team- oder Projektgrenzen
+überschreiten noch über den aktuellen Chat-Turn hinaus fortwirken; zusätzlich
+härtet die Prompt-Schicht sie mit expliziten XML-Grenzen und passiven
+Kontextregeln gegen Steuerungsversuche.

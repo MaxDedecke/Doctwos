@@ -41,7 +41,7 @@ async def health(response: Response):
     traffic, instead of the previous hardcoded {"status": "healthy"} which
     couldn't tell an "Up" container from one wedged against a dead DB/Redis/
     Ollama connection (docker-compose.yml has no healthcheck: block either;
-    see docs/DIAGNOSTICS_HARDENING.md #4).
+    see docs/DEPLOYMENT.md, "Monitoring").
     """
     checks = {}
 
@@ -76,7 +76,7 @@ async def health(response: Response):
 async def version():
     """
     Reports what's actually running, independent of the diagnostics bundle
-    (see docs/DIAGNOSTICS_HARDENING.md #5) — GIT_SHA/BUILD_TIME are baked in
+    (see docs/DEPLOYMENT.md, "Diagnostics bundle") — GIT_SHA/BUILD_TIME are baked in
     at image build time (see backend/Dockerfile), not read from a .git dir
     that doesn't exist in the deployed container.
     """

@@ -35,7 +35,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   const { theme, showToast, setProjects, setConnectedSources, currentUser } = useSettings();
 
   // F-041: eine Quelle ohne Projekt (targetProjectId === null) braucht ein Team, um
-  // KnowledgeSource.team_id zu füllen (siehe docs/TEAM_ACCESS_CONTROL.md, Sharp Edge 3+4).
+  // KnowledgeSource.team_id zu füllen (siehe docs/ACCESS_CONTROL.md).
   // Admins und projekt-gebundene Quellen sind davon nicht betroffen — das Backend leitet
   // team_id dort automatisch her. Nutzer mit genau einem Team brauchen ebenfalls keine
   // UI, das Backend wählt es automatisch (core/teams.py::_resolve_team_id).

@@ -26,7 +26,7 @@ Vor dem Termin abklären, sonst steht man vor Ort fest:
 - **Auslieferung mit lokalem Mistral NeMo 12B:** mindestens 16 GB RAM / 8 vCPU und möglichst GPU; `LLM_MODEL` vor der Installation explizit setzen.
 - **Mehrere gleichzeitige Nutzer oder große Repos (viel Parsing nebenbei):** eher eine GPU einplanen (lokal oder gemietet, z.B. RunPod) statt CPU-only hochzuskalieren — 12B-Modelle sind auf CPU spürbar langsam.
 - Hat der Server eine NVIDIA-GPU, nutzt Ollama sie automatisch — Antworten werden spürbar schneller. Beim Kunden vorher fragen, ob eine GPU vorhanden ist. Ohne GPU vor Ort: Ollama kann alternativ gegen einen extern gehosteten GPU-Endpoint (z.B. RunPod) zeigen, statt gegen den lokalen `ollama`-Container — das ist aber noch nicht als Standard-Deployment-Pfad verdrahtet, sondern derzeit manuelle Konfiguration.
-- **Bei 24+ GB VRAM:** vor der Installation `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q8_0` in `.env` setzen (Premium-Tier) — laut `docs/COMPLIANCE_EVAL.md` niedrigere Übersehquote (False-Negative-Rate) beim Compliance-Checker als der Standard-Tier `Q4_K_M`, bei sonst gleicher Qualität. Siehe `DEPLOYMENT.md`, Abschnitt "Model mode".
+- **Bei 24+ GB VRAM:** vor der Installation `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q8_0` in `.env` setzen (größerer Delivery-Tier). Siehe `DEPLOYMENT.md`, Abschnitt "Model mode".
 
 ---
 

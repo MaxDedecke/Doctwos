@@ -17,7 +17,7 @@ export DOCTUS_VERSION
 LLM_MODEL="${LLM_MODEL:-disabled}"
 
 # Baked into the backend image so GET /version reports what's actually
-# running, independent of the diagnostics bundle (docs/DIAGNOSTICS_HARDENING.md #5).
+# running, independent of the diagnostics bundle (docs/DEPLOYMENT.md).
 GIT_SHA="$DOCTUS_VERSION"
 BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 export GIT_SHA BUILD_TIME

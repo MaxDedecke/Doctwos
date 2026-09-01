@@ -1,16 +1,12 @@
 # Doctwos — Technischer Implementierungsplan v1.0
 
-> **Umsetzungsstand (02.08.2026): AP-0 bis AP-9 sind abgeschlossen.** Der
-> Implementierungsauftrag ist damit erfüllt. Drei Punkte aus AP-9 (formale
-> Lasttest-Abnahme am echten Bestand, BITV-Abnahme, Farbkontrast-Nachbesserung)
-> sind an den Auftraggeber übergeben, weil sie Kundendaten, einen verbindlichen
-> Prüfumfang bzw. eine Markenfreigabe brauchen — siehe E-9 in
-> `docs/ENTSCHEIDUNGEN.md` und `docs/ABSCHLUSS.md`. Der GPL-Fund `Unidecode`
-> (E-7) bleibt unabhängig davon ein offener Release-Blocker, der eine
-> Auftraggeber-Rückmeldung braucht.
-> Fortlaufender Stand, offene Punkte und nächste Schritte: **`docs/UMSETZUNGSSTAND.md`**.
-> Festgelegte Streitpunkte: **`docs/ENTSCHEIDUNGEN.md`**.
-> Abschlussdokumentation: **`docs/ABSCHLUSS.md`**.
+> **Historische Traceability-Referenz.** Alle Arbeitspakete AP-0 bis AP-9 sind
+> abgeschlossen. Die noch offenen Produktentscheidungen, Abnahmen und
+> Verbesserungen stehen ausschließlich in
+> [`OFFENE_ENTWICKLUNGSPUNKTE.md`](./OFFENE_ENTWICKLUNGSPUNKTE.md); verbindliche
+> technische Entscheidungen dokumentiert
+> [`ENTSCHEIDUNGEN.md`](./ENTSCHEIDUNGEN.md). Dieser Plan bewahrt lediglich
+> Ursprung, Anforderungen und Umsetzungsreihenfolge.
 
 **Basis:** Anforderungskatalog v1.2 (Stand 31.07.2026) · Condo-Template (`develop`, Commit 27789d4)
 **Zielrepo:** `MaxDedecke/Doctwos`
@@ -176,8 +172,7 @@ Legende: **Ü** = 1:1 übernehmen · **U** = umbenennen/anpassen · **N** = Neub
 | `.github/workflows/ci.yml` | U — + Parser-Golden-File-Job (F-033) |
 | `.github/keycloak/` | X |
 | Lizenz-/Provenienzbericht | N — in AP-9 aus den tatsächlichen Lockfiles und Modellmanifesten erzeugen |
-| `docs/DEPLOYMENT.md`, `FOLDER_WATCH.md`, `PROMPT_INJECTION.md`, `DIAGNOSTICS_HARDENING.md`, `PROJECT_ACCESS_CONTROL.md`, `TEAM_ACCESS_CONTROL.md` | U |
-| `AEC_FEATURES.md`, `COMPLIANCE_EVAL*.md`, `IFC_*`, `Businessplan*`, `ROADMAP_PILOTKUNDE.md`, `watched/` | X |
+| `docs/DEPLOYMENT.md`, `FOLDER_WATCH.md`, `PROMPT_INJECTION.md`, `ACCESS_CONTROL.md` | U |
 
 ---
 
@@ -212,7 +207,7 @@ grep -rl 'condo\|Condo\|CONDO' --exclude-dir=.git . | xargs sed -i 's/condo/doct
 
 **Abnahmekriterium AP-0:** `docker compose up -d` startet alle Services healthy, `GET /health` grün, Frontend lädt, `npx tsc --noEmit` fehlerfrei. Ab hier wird nur noch inkrementell gebaut.
 
-> **Abgenommen am 31.07.2026** (`./install.sh`): sieben Services healthy, `/health` mit `database/redis/ollama = ok`, Frontend HTTP 200, Anmeldung end-to-end durchgespielt. Details in `docs/UMSETZUNGSSTAND.md`.
+> **Abgenommen am 31.07.2026** (`./install.sh`): sieben Services healthy, `/health` mit `database/redis/ollama = ok`, Frontend HTTP 200, Anmeldung end-to-end durchgespielt. Der spätere Übergabe- und Folgestatus steht in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
 
 ---
 
@@ -500,7 +495,7 @@ Konfigurierbar über `DOCTUS_COBOL_EXTENSIONS` (Env) + Wissensquellen-Feld — e
 > und die quellenweite XREF-Vererbung über COPY-Grenzen einschließlich
 > `COPY … REPLACING` (E-2). F-043 und die AP-4-relevanten Backend-Router
 > `/entities` und `/callgraph` sind ebenfalls umgesetzt und getestet.
-> Details: `docs/UMSETZUNGSSTAND.md`.
+> Verbleibende Folgethemen stehen in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
 
 | Anforderung | Umsetzung | Aufwand |
 |---|---|---|
@@ -747,11 +742,11 @@ Legende: ✅ übernehmbar · ➕ Erweiterung · ❌ Neubau
 
 ## 16. Nächste Schritte (konkret)
 
-> Laufend gepflegt in `docs/UMSETZUNGSSTAND.md` — die Liste hier hält nur den groben Kurs fest.
+> Laufend gepflegt in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` — die Liste hier hält nur den groben Kurs fest.
 
 **AP-0 bis AP-9 sind abgeschlossen.** Was jetzt aussteht, hängt am
 Auftraggeber, nicht mehr an der Implementierung (siehe E-9 in
-`docs/ENTSCHEIDUNGEN.md`, `docs/ABSCHLUSS.md`):
+`docs/ENTSCHEIDUNGEN.md`):
 
 1. **Realen COBOL-Bestand beschaffen:** Parser-Erkennungsquote, Graphvolumen,
    Erstindexierungsdauer und die formale Lasttest-Abnahme brauchen

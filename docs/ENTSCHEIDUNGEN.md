@@ -372,8 +372,7 @@ werden. E-7 (GPL-`Unidecode`) war unabhängig davon ein eigener,
 dokumentierter Release-Blocker — inzwischen (08.08.2026) durch das
 MIT-Shim-Paket gelöst, siehe oben, keine Auftraggeber-Rückmeldung mehr nötig.
 
-**Fundstelle.** `docs/IMPLEMENTIERUNGSPLAN.md` §13 (AP-9-Zeile) und
-`docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
+**Fundstelle.** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
 
 ## E-10 — Confluence/Jira-MCP-Anbindung: on-prem (Server/Data Center) nachgezogen
 
@@ -443,9 +442,9 @@ Blast-Radius auf echte Kundendaten/Deep-Links möglich ist.
 
 **Problem.** CLAUDE.md Architekturprinzip 3 schließt ANTLR-/tree-sitter-
 Runtimes explizit aus ("OSS-Clearing-Aufwand, Offline-Bundle-Aufwand,
-Betriebsrisiko — bei null Anforderungsnutzen", `docs/IMPLEMENTIERUNGSPLAN.md:99`),
-und die frühere Abschlussdokumentation bestätigte das als
-erfüllt. Die Prämisse "null Anforderungsnutzen" gilt nicht mehr.
+Betriebsrisiko — bei null Anforderungsnutzen") und die frühere
+Abschlussdokumentation bestätigte das als erfüllt. Die Prämisse "null
+Anforderungsnutzen" gilt nicht mehr.
 
 **Abgrenzung zum tree-sitter-Präzedenzfall.** `tree-sitter` lag bereits einmal
 ungenutzt in `parser/requirements.txt` und wurde als Tech-Debt wieder entfernt

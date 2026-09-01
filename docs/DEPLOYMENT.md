@@ -56,7 +56,7 @@ If the customer's hardware has an NVIDIA GPU, wiring it up (see "GPU passthrough
 
 On a suitably sized delivery host, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q4_K_M` explicitly before installing. This validated Standard-Tier model is ~7.5GB and needs at least the 16GB RAM / 8GB+ VRAM class described above.
 
-On 24GB+ VRAM hardware, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q8_0` (~13GB) instead: `docs/COMPLIANCE_EVAL.md` (Befund 9/18/19/24/29) measures a consistently lower false-negative rate for the Code Compliance Checker on Q8_0 (12% vs. 24% on the largest test set), at identical false-positive rates and no measurable difference on general chat quality — the only cost is VRAM. This is a hardware-tier decision, not a license/feature tier: Q8_0 isn't gated behind anything, it just needs more VRAM than the 16GB-standard-tier host has to spare.
+On 24GB+ VRAM hardware, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q8_0` (~13GB) instead. It is a larger, validated delivery-tier model; the only trade-off is VRAM. This is a hardware-tier decision, not a license/feature tier: Q8_0 isn't gated behind anything, it just needs more VRAM than the 16GB-standard-tier host has to spare.
 
 **Enabling or changing tiers on an existing deployment:** update `LLM_MODEL` in `.env`, pull the new tag (`docker exec doctus-ollama ollama pull <new-tag>`), then `docker compose up -d` (an env var change needs container recreation, not just a restart). Remove an old tag with `docker exec doctus-ollama ollama rm <old-tag>` if you want the disk space back.
 
@@ -361,7 +361,7 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 No monitoring stack ships with Doctus — that would be over-engineering for a single-tenant box (see the no-Kubernetes decision above). Point whatever the customer already runs (Nagios, Zabbix, Prometheus blackbox exporter, or just cron + curl) at:
 
-- **Backend liveness:** `GET <API_URL>/health` → `{"status": "healthy", "checks": {"database": "ok", "redis": "ok", "ollama": "ok"}}` on success. Since `docs/DIAGNOSTICS_HARDENING.md` #4, this is a real readiness check — it pings Postgres/Redis/Ollama directly and returns HTTP 503 with the failing entry named in `checks` if any of them is unreachable, so a single `curl` here is enough to catch a wedged dependency.
+- **Backend liveness:** `GET <API_URL>/health` → `{"status": "healthy", "checks": {"database": "ok", "redis": "ok", "ollama": "ok"}}` on success. This readiness check pings Postgres, Redis and Ollama directly and returns HTTP 503 with the failing entry named in `checks` if any dependency is unreachable.
 - **Container status:** `docker compose ps` — every service in `docker-compose.yml` now has a `healthcheck:` block, so a wedged-but-running container shows `(unhealthy)` here, not just plain `Up`; a genuinely crashed one still cycles through `Restarting` (every service is on `restart: always`), and neither state pages anyone on its own.
 - **Dependency reachability**, for manual double-checking or when `/health` itself is unreachable:
   ```sh
@@ -385,3 +385,9 @@ The script collects, into a single `doctus-diagnostics-<timestamp>.tar.gz` in th
 - Loaded Ollama models.
 
 It deliberately does **not** dump `document_chunks` or `chat_messages` (actual customer document/BIM content and chat text) — only metadata about sync state and schema. Safe to send for troubleshooting as-is.
+
+Administrators can also generate a reduced bundle from **Settings → Logs**.
+That bundle contains database metadata and the shared service logs, but cannot
+include Docker container status, image IDs, or installed Ollama models because
+the worker intentionally has no Docker socket. Use the host-side script above
+when those details are needed.

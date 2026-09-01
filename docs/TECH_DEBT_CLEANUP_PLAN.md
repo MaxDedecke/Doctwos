@@ -97,10 +97,8 @@ Begründung:
   in eine `KnowledgeSource` gelangen könnten (Git-Repo-Anbindung), ist im
   UI komplett ausgeblendet. Es gibt aktuell keinen einzigen aktiven
   Nutzerpfad, der `GenericParser`s Python/JS/TS-Zweig überhaupt erreicht.
-- Drei unabhängige Docs (`CLAUDE.md`, `docs/FEATURES.md` §4.5/§11/§12,
-  `docs/DIAGNOSTICS_HARDENING.md`-Nachbarschaft) beschreiben das bereits
-  übereinstimmend als Altlast aus einer früheren, nicht-AEC-Produktrichtung
-  (COBOL-Modernisierungstool), nicht als aktives Feature.
+- Die Projekt- und Betriebsdokumentation beschreibt diesen Pfad als Altlast
+  aus einer früheren, nicht-AEC-Produktrichtung, nicht als aktives Feature.
 - Null Testabdeckung: kein Test importiert `code_parser.py`,
   `languages/__init__.py`, `languages/base.py` oder `languages/generic.py`.
   Zwei COBOL-Fixture-Dateien (`parser/tests/fixtures/sample.cbl`,
@@ -201,10 +199,9 @@ bereits heute nie in Monaco (eigene Regex-Route zu `BimCadViewer.tsx`,
 
 ### Offene Frage für die Zukunft
 
-`docs/FEATURES.md`/`CLAUDE.md` erwähnen "echte AST-Erkennung" als
-Zukunftsidee — nach dieser Bereinigung explizit aus der Zukunftsliste
-streichen (nicht nur den Ist-Zustand korrigieren), da die Produktrichtung
-jetzt klar ist: kein Code-Wissen, nur AEC-Dokumente/BIM.
+Historische Hinweise auf "echte AST-Erkennung" als Zukunftsidee nach dieser
+Bereinigung aus der Zukunftsliste streichen. Dieser Plan ist ein
+abgeschlossener Historieneintrag und keine aktuelle Produkt-Roadmap.
 
 ---
 
@@ -277,7 +274,7 @@ konsolidiert wird.
    zur Laufzeit mehr nötig). `mcp-atlassian` hat dieses Problem nicht, da es
    als normale Python-Dependency bereits beim Image-Build via
    `requirements.txt` installiert wird.
-6. **Logging fixen** (betrifft `docs/DIAGNOSTICS_HARDENING.md`s Muster):
+6. **Logging fixen** (betrifft das allgemeine Beobachtbarkeitsmuster):
    `mcp_client.py:56-62` (Spawn-Fehler nur `print(..., file=sys.stderr)`,
    `stderr=DEVNULL` verschluckt zusätzlich die Subprozess-Fehlerausgabe
    selbst) — auf echtes `logger.error(...)` inkl. der eigentlichen
@@ -437,8 +434,8 @@ Positionsnummer, **Menge** + Einheit, Beschreibung — das war's. Es gibt:
 - **Keine Summenbildung.** Keine Berechnung von Titel-/Los-/Gesamtsummen
   aus den Positionen.
 - **Kein Abgleich gegen das Modell.** Der Code-Compliance-Checker gleicht
-  IFC-Brandschutzklassen gegen Textdokumente ab (siehe
-  `docs/COMPLIANCE_EVAL.md`) — eine analoge Prüfung "stimmen die im LV
+  IFC-Brandschutzklassen gegen Textdokumente ab — eine analoge Prüfung
+  "stimmen die im LV
   angegebenen Mengen mit den tatsächlich im IFC-Modell vorhandenen Bauteilen/
   Flächen überein" gibt es für GAEB nicht.
 

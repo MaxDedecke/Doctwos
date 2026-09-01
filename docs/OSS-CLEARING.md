@@ -1,7 +1,7 @@
 # Doctus — Lizenz-/Provenienzbericht (NF-003, AP-9)
 
-Release-Voraussetzung laut `docs/IMPLEMENTIERUNGSPLAN.md` §12.4. Deckt alle
-Bestandteile ab, die im Betrieb tatsächlich ausgeliefert werden: Python-
+Release-Voraussetzung für alle Bestandteile, die im Betrieb tatsächlich
+ausgeliefert werden: Python-
 (Backend, Parser), Node-Abhängigkeiten (Frontend), Container-Basisimages und
 die beiden Ollama-Modelle. Wird laufend über die CI-Jobs `licenses` (Code)
 gepflegt — für die Container-Images und Modelle ist die Prüfung manuell und

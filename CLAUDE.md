@@ -5,8 +5,8 @@ Kontext für KI-Agenten, die an Doctus arbeiten.
 **Was Doctus ist:** ein On-Premise-Wissensassistent für große COBOL-Bestände.
 Nutzer stellen Fragen in natürlicher Sprache, bekommen Antworten mit klickbaren
 Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
-Aufrufgraphen. Entstanden als Fork des Condo-Templates (AEC/BIM) mit
-ausgetauschter Fachlogik — siehe `docs/IMPLEMENTIERUNGSPLAN.md`.
+Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
+die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
 **Vor jeder Arbeit lesen:** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` (zentrale Liste
 offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).

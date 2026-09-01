@@ -115,7 +115,7 @@ def test_non_admin_member_cannot_change_role(unauthenticated_client, test_projec
 def test_request_access_rejects_project_from_foreign_team(member_client, db_session):
     """Regression test: request-access must not leak/accept requests for a
     project whose team the user isn't a member of (team membership is the
-    only access primitive, per docs/TEAM_ACCESS_CONTROL.md).
+    only access primitive, per docs/ACCESS_CONTROL.md).
 
     Läuft bewusst als gewöhnlicher Nutzer (member_client): ein Superuser sieht
     laut is_admin() team-übergreifend alles, der Test wäre dann gegenstandslos."""

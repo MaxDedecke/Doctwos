@@ -32,6 +32,7 @@ stehen.
 | O-019 | Chat / LLM-Fokus | Der LLM-Fokus kann sich vom angepinnten Objekt im Chat lösen. | Fokuszustand zwischen UI, Request-Metadaten und Antwortkontext durchgängig synchronisieren und sichtbar machen. | Keine externe Abhängigkeit |
 | O-020 | Link Manager / Layout | Link-Manager-View sieht fehlerhaft aus, wenn drei weitere Views geöffnet sind. | Responsive Layout, verfügbare Breite und Überlauf mit vier geöffneten Views prüfen und korrigieren. | Keine externe Abhängigkeit |
 | O-021 | View-Layout | Das Verhältnis der Views soll per Drag-and-drop mit der Maus horizontal und vertikal veränderbar sein. Das Fadenkreuz aus horizontalem und vertikalem Abstand zwischen den Views soll als gemeinsamer Resize-Griff dienen. | Interaktiven Kreuz-/Trennlinien-Griff umsetzen, Größenänderung in beide Richtungen ermöglichen und Mindestgrößen sowie Verhalten bei mehreren Views testen. | Keine externe Abhängigkeit |
+| O-022 | Beobachtbarkeit / Sicherheit | Serverseitig protokollieren, welche MCP-Werkzeuge mit welchen Argumenten pro Chat-Turn ausgeführt wurden. | Strukturierten, datensparsamen Audit-Log für Tool-Aufrufe ergänzen und Aufbewahrung sowie Einsicht durch Admins festlegen. | Fachliche Entscheidung zur Aufbewahrung |
 
 ## Umsetzungs- und Übergabestatus
 

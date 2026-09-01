@@ -15,7 +15,7 @@ einzuführen). Deshalb:
     (siehe docker-compose.yml) statt `docker compose logs`.
   - Docker-Container-Status/Image-Digests/`ollama list` bleiben bewusst
     außen vor — dafür weiterhin scripts/generate_diagnostics.py auf dem Host
-    verwenden (dokumentiert in docs/DIAGNOSTICS_HARDENING.md).
+    verwenden (dokumentiert in docs/DEPLOYMENT.md).
 
 Redaction-Logik dupliziert aus generate_diagnostics.py statt importiert:
 backend/parser sind getrennte Docker-Images ohne gemeinsames Package (gleiches

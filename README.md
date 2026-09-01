@@ -11,15 +11,10 @@ chat, references, knowledge graphs, and call graphs.
 
 ## Current implementation status
 
-Work packages **AP-0 through AP-7 are complete**. The remaining planned work is:
-
-- **AP-8:** connector follow-up and regression coverage for upload, Confluence,
-  Jira, WebDAV, and FolderWatch.
-- **AP-9:** load testing, accessibility/BITV, release hardening, offline bundle,
-  and final documentation.
-
-See [open development points](docs/OFFENE_ENTWICKLUNGSPUNKTE.md),
-[technical plan](docs/IMPLEMENTIERUNGSPLAN.md), and
+The implementation work packages are complete. Remaining product decisions,
+external acceptance work, and follow-up improvements are tracked in
+[open development points](docs/OFFENE_ENTWICKLUNGSPUNKTE.md). See also the
+[access-control model](docs/ACCESS_CONTROL.md) and
 [design guidelines](docs/DESIGN_GUIDELINES.md).
 
 ## Product capabilities
