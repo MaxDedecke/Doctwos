@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Doctus Produkthandbuch – Code und Wissen in einem navigierbaren Arbeitsraum.">
+  <title>Doctus – Produkthandbuch</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+    :root {
+      --canvas: #f5f1e7;
+      --paper: #fffefa;
+      --surface: #f7f3ea;
+      --ink: #171f1b;
+      --muted: #5b6359;
+      --line: rgba(23, 31, 27, .16);
+      --signal: #e4002b;
+      --violet: #7a2e8c;
+      --trace: #0064d2;
+      --green: #1b7a4b;
+      --amber: #a45d00;
+      --gradient: linear-gradient(120deg, var(--signal), var(--violet) 54%, var(--trace));
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font: 16px/1.62 Archivo, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4 { font-family: "Space Grotesk", Arial, sans-serif; line-height: 1.08; letter-spacing: -.025em; }
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { font-size: clamp(3.6rem, 9vw, 7.4rem); margin-bottom: .45rem; }
+    h2 { font-size: clamp(2rem, 4.5vw, 3.45rem); max-width: 20ch; margin-bottom: 1rem; }
+    h3 { font-size: 1.28rem; margin-bottom: .55rem; }
+    h4 { font-size: 1rem; margin-bottom: .35rem; }
+    a { color: inherit; text-underline-offset: .2em; }
+    .mono { font-family: "IBM Plex Mono", monospace; }
+    .page { width: min(100%, 78rem); margin: 0 auto; background: var(--paper); border-inline: 1px solid var(--line); }
+    .section { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); }
+    .eyebrow {
+      display: flex; align-items: center; gap: .6rem; color: var(--muted);
+      font: 600 .72rem/1 "IBM Plex Mono", monospace; letter-spacing: .13em; text-transform: uppercase;
+    }
+    .eyebrow::before { width: .56rem; height: .56rem; content: ""; background: var(--gradient); }
+    .lede { max-width: 48rem; color: var(--muted); font-size: clamp(1.07rem, 2vw, 1.27rem); }
+    .brand-dot { display: inline-block; width: .16em; height: .16em; margin-left: .04em; border-radius: 50%; background: var(--gradient); }
+    .toc a { text-decoration: none; }
+
+    .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background: var(--ink); color: #fffefa; }
+    .cover::after { position: absolute; inset: auto -18rem -19rem auto; width: 51rem; height: 51rem; content: ""; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; box-shadow: 0 0 0 5rem rgba(255,255,255,.025), 0 0 0 10rem rgba(255,255,255,.025); }
+    .cover nav { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; font: 600 .74rem "IBM Plex Mono", monospace; letter-spacing: .09em; text-transform: uppercase; }
+    .cover-wordmark { font: 700 1.2rem "Space Grotesk", sans-serif; letter-spacing: -.06em; }
+    .cover-body { position: relative; z-index: 1; max-width: 62rem; padding-block: 7rem; }
+    .cover .eyebrow { color: rgba(255,255,255,.67); }
+    .cover h1 { max-width: 9ch; }
+    .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: rgba(255,255,255,.77); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
+    .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.68); font-size: .78rem; }
+    .cover-footer b { display: block; color: #fffefa; font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
+
+    .at-glance { display: grid; grid-template-columns: 1.35fr .9fr; gap: 4rem; align-items: end; }
+    .fact-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); }
+    .fact { min-height: 8rem; padding: 1.15rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .fact:nth-child(2n) { border-right: 0; }
+    .fact:nth-last-child(-n+2) { border-bottom: 0; }
+    .fact b { display: block; margin-bottom: .35rem; font: 600 .77rem "IBM Plex Mono", monospace; color: var(--signal); letter-spacing: .08em; text-transform: uppercase; }
+    .fact span { font-size: .9rem; color: var(--muted); }
+
+    .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 3rem; border: 1px solid var(--line); background: var(--line); }
+    .journey-step { min-height: 14.5rem; padding: 1.35rem; background: var(--paper); }
+    .journey-num { display: block; margin-bottom: 2.7rem; color: var(--signal); font: 600 .72rem "IBM Plex Mono", monospace; }
+    .journey-step p { color: var(--muted); font-size: .9rem; }
+
+    .image-slot { position: relative; min-height: 19rem; margin: 2.25rem 0; display: grid; place-items: center; overflow: hidden; border: 1px dashed rgba(23,31,27,.34); background: linear-gradient(135deg, #ebe5d7, #f9f6ee); color: var(--muted); text-align: center; }
+    .image-slot::before { position: absolute; inset: 1rem; content: ""; border: 1px solid rgba(23,31,27,.10); pointer-events: none; }
+    .image-slot .slot-label { position: relative; z-index: 1; max-width: 31rem; padding: 1.4rem; }
+    .slot-label b { display: block; margin-bottom: .45rem; color: var(--ink); font: 600 .75rem "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .slot-label span { font-size: .9rem; }
+    .caption { margin: -1.45rem 0 2.4rem; color: var(--muted); font-size: .78rem; }
+    .caption b { color: var(--ink); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+    .card { padding: 1.5rem; background: var(--paper); }
+    .card p { margin-bottom: 0; color: var(--muted); font-size: .92rem; }
+    .icon { display: grid; width: 2.45rem; height: 2.45rem; margin-bottom: 1.35rem; place-items: center; border: 1px solid var(--line); color: var(--signal); font: 600 .77rem "IBM Plex Mono", monospace; }
+
+    .numbered { margin: 0; padding: 0; list-style: none; counter-reset: section; }
+    .numbered li { position: relative; min-height: 5.75rem; padding: 1.15rem 1rem 1.15rem 4.5rem; border-top: 1px solid var(--line); }
+    .numbered li::before { position: absolute; left: 0; top: 1.2rem; counter-increment: section; content: "0" counter(section); color: var(--trace); font: 600 .78rem "IBM Plex Mono", monospace; }
+    .numbered li:last-child { border-bottom: 1px solid var(--line); }
+    .numbered strong { display: block; margin-bottom: .18rem; font-family: "Space Grotesk", sans-serif; }
+    .numbered span { color: var(--muted); font-size: .91rem; }
+
+    .view { display: grid; grid-template-columns: 11rem 1fr; gap: 2rem; padding: 2.1rem 0; border-top: 1px solid var(--line); }
+    .view:last-child { border-bottom: 1px solid var(--line); }
+    .view-tag { color: var(--signal); font: 600 .7rem "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; }
+    .view h3 { margin-bottom: .6rem; font-size: 1.55rem; }
+    .view p { max-width: 49rem; margin-bottom: .65rem; color: var(--muted); }
+    .view ul { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+    .view li { padding: .26rem .55rem; border: 1px solid var(--line); font-size: .75rem; }
+
+    .security { color: #fffefa; background: var(--ink); }
+    .security .eyebrow, .security .lede { color: rgba(255,255,255,.67); }
+    .security .card { color: #fffefa; background: #202a25; }
+    .security .card p { color: rgba(255,255,255,.66); }
+    .security .icon { border-color: rgba(255,255,255,.23); color: #ff6a83; }
+    .security .architecture { margin-top: 2.5rem; border-color: rgba(255,255,255,.2); }
+    .architecture { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+    .architecture div { min-height: 10.4rem; padding: 1.15rem; background: var(--paper); }
+    .security .architecture div { background: #202a25; }
+    .architecture b { display: block; margin: 1.8rem 0 .38rem; font-family: "Space Grotesk", sans-serif; }
+    .architecture span { color: var(--muted); font-size: .82rem; }
+    .security .architecture span { color: rgba(255,255,255,.62); }
+    .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--trace); text-transform: uppercase; }
+
+    .callout { max-width: 49rem; padding: 1.4rem 1.5rem; border-left: 4px solid var(--signal); background: var(--surface); }
+    .callout p { margin: 0; }
+    .scope-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: .89rem; }
+    .scope-table th, .scope-table td { padding: .9rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    .scope-table th { font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .scope-table td:last-child { color: var(--muted); }
+
+    .toc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 2.4rem; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .toc a { min-height: 8rem; padding: 1.15rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .toc .toc-no { display: block; margin-bottom: 2.6rem; color: var(--signal); font: 600 .7rem "IBM Plex Mono", monospace; }
+    .toc b { display: block; font-family: "Space Grotesk", sans-serif; }
+    .toc span { display: block; margin-top: .25rem; color: var(--muted); font-size: .79rem; }
+
+    .footer { padding: 2rem clamp(1.4rem, 6.3vw, 6rem); display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); background: var(--surface); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
+
+    @media (max-width: 48rem) {
+      .cover { min-height: 38rem; }
+      .cover-footer, .at-glance, .two-col, .view { grid-template-columns: 1fr; }
+      .cover-footer { gap: .7rem; }
+      .journey, .architecture { grid-template-columns: 1fr 1fr; }
+      .three-col, .toc { grid-template-columns: 1fr; }
+      .view { gap: .65rem; }
+    }
+    @media print {
+      @page { size: A4; margin: 12mm; }
+      body { background: #fff; font-size: 10.5pt; }
+      .page { width: auto; border: 0; }
+      .cover { min-height: 250mm; break-after: page; }
+      .section { padding: 18mm 0; break-inside: avoid; }
+      .image-slot { min-height: 105mm; }
+      .toc a, .card, .journey-step, .architecture div { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="cover" aria-label="Titelseite">
+      <nav><span class="cover-wordmark">Doctus<span class="brand-dot"></span></span><span>Produkthandbuch · Stand September 2026</span></nav>
+      <div class="cover-body">
+        <div class="eyebrow">Code &amp; Knowledge Intelligence</div>
+        <h1>Wissen wird navigierbar<span class="brand-dot"></span></h1>
+        <p class="subtitle">Doctus macht gewachsene COBOL-Anwendungen, begleitende Dokumente und ihre Zusammenhänge für Teams verständlich, durchsuchbar und nutzbar.</p>
+      </div>
+      <div class="cover-footer">
+        <div><b>Produkt</b>On-Premise Knowledge Intelligence</div>
+        <div><b>Zielbild</b>Legacy-Systeme sicher verstehen und weiterentwickeln</div>
+        <div><b>Für</b>Fachbereiche, Entwicklung, Betrieb und Wissensträger</div>
+      </div>
+    </section>
+
+    <section class="section" id="ueberblick">
+      <div class="eyebrow">01 · Überblick</div>
+      <div class="at-glance">
+        <div>
+          <h2>Ein Arbeitsraum für das Wissen in langlebigen Anwendungen.</h2>
+          <p class="lede">Doctus bündelt Programmcode, technische Dokumentation und Projektwissen an einem Ort. Statt Informationen in Dateien, Tickets, Wikis und Köpfen zu suchen, können Teams Fragen stellen, Quellen prüfen und Zusammenhänge direkt verfolgen.</p>
+        </div>
+        <div class="fact-grid" aria-label="Produktfakten">
+          <div class="fact"><b>Fokus</b><span>COBOL- und Legacy-Bestände verstehen</span></div>
+          <div class="fact"><b>Bereitstellung</b><span>Im eigenen Rechenzentrum oder Netz</span></div>
+          <div class="fact"><b>Quellen</b><span>Code, Dokumente, Wikis, Tickets und Ablagen</span></div>
+          <div class="fact"><b>Arbeitsweise</b><span>Fragen, finden, nachvollziehen und teilen</span></div>
+        </div>
+      </div>
+
+      <div class="journey" aria-label="Vom Bestand zur nutzbaren Antwort">
+        <article class="journey-step"><span class="journey-num">01 / ANBINDEN</span><h3>Wissen verbinden</h3><p>Projekte erhalten ihre Code- und Wissensquellen – von Git bis zur Dokumentenablage.</p></article>
+        <article class="journey-step"><span class="journey-num">02 / ERSCHLIESSEN</span><h3>Strukturen erkennen</h3><p>Doctus verarbeitet Dateien, Codeelemente, Referenzen und fachliche Dokumente zu einer belastbaren Wissensbasis.</p></article>
+        <article class="journey-step"><span class="journey-num">03 / ERKUNDEN</span><h3>Zusammenhänge sehen</h3><p>Suche, Graphen, Referenzen und Codeansichten machen Abhängigkeiten greifbar.</p></article>
+        <article class="journey-step"><span class="journey-num">04 / HANDELN</span><h3>Fundiert entscheiden</h3><p>Antworten bleiben überprüfbar, weil ihre Herkunft bis in die konkrete Quelle sichtbar bleibt.</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="nutzen">
+      <div class="eyebrow">02 · Wofür Doctus da ist</div>
+      <h2>Aus verteiltem Erfahrungswissen wird eine gemeinsame Arbeitsgrundlage.</h2>
+      <div class="three-col">
+        <article class="card"><div class="icon">01</div><h3>Schneller einarbeiten</h3><p>Neue Kolleginnen und Kollegen finden Programme, Begriffe, Datenfelder und fachliche Hintergründe nachvollziehbar vor – ohne auf einzelne Wissensträger angewiesen zu sein.</p></article>
+        <article class="card"><div class="icon">02</div><h3>Änderungen sicherer planen</h3><p>Wer die Auswirkungen einer Anpassung verstehen muss, verfolgt Aufrufe, Abhängigkeiten und zugehörige Dokumentation über mehrere Perspektiven hinweg.</p></article>
+        <article class="card"><div class="icon">03</div><h3>Wissen bewahren</h3><p>Code und Begleitwissen bleiben im Zusammenhang auffindbar, auch wenn Teams, Zuständigkeiten oder Systemlandschaften sich verändern.</p></article>
+      </div>
+      <div class="callout" style="margin-top:2.5rem"><p><strong>Die zentrale Idee:</strong> Doctus ersetzt keine fachliche Prüfung. Es verkürzt aber den Weg von einer Frage zu nachvollziehbaren, relevanten Quellen erheblich.</p></div>
+    </section>
+
+    <section class="section" id="anmelden">
+      <div class="eyebrow">03 · Einstieg, Benutzer und Zugriffsrechte</div>
+      <div class="two-col">
+        <div><h2>Der Zugang beginnt kontrolliert und bleibt nachvollziehbar.</h2><p class="lede">Doctus ist für den Betrieb mit eigenen Benutzerkonten ausgelegt. Nach der Anmeldung sehen Personen nur die Teams und Projekte, für die sie freigeschaltet sind.</p></div>
+        <ol class="numbered">
+          <li><strong>Anmelden und Passwort ändern</strong><span>Beim ersten Zugang kann ein Passwortwechsel erzwungen werden. Fehlversuche werden begrenzt und Konten bei auffälligen Anmeldeversuchen zeitweise geschützt.</span></li>
+          <li><strong>Benutzer verwalten</strong><span>Administratoren legen Konten an, aktivieren oder deaktivieren sie, setzen Kennwörter zurück und heben Sperren gezielt auf.</span></li>
+          <li><strong>Teams zuordnen</strong><span>Teams bilden organisatorische Zuständigkeiten ab. Eine Person kann mehreren Teams angehören; die Administration behält den Gesamtüberblick.</span></li>
+          <li><strong>Projektzugriff steuern</strong><span>Innerhalb eines Teams kann der Zugang zusätzlich pro Projekt vergeben oder beantragt werden. So bleibt auch bei gemeinsamen Teams die Sicht auf konkrete Bestände kontrollierbar.</span></li>
+        </ol>
+      </div>
+      <div class="image-slot" data-screenshot="login-und-zugriffssteuerung"><div class="slot-label"><b>Vorgesehener Screenshot · Login oder Benutzerverwaltung</b><span>Hier: Anmeldeansicht oder Einstellungen mit Benutzer- und Teamverwaltung einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 1.</b> Der Zugang zu Doctus erfolgt über lokale Konten; Berechtigungen folgen Teams und Projekten.</p>
+    </section>
+
+    <section class="section" id="teams-projekte">
+      <div class="eyebrow">04 · Teams und Projekte</div>
+      <h2>Klare Zuständigkeiten für Wissen, das zusammengehört.</h2>
+      <div class="two-col">
+        <div><h3>Teams</h3><p>Teams bündeln Personen nach Organisation, Produktlinie oder Aufgabe. Sie sind der erste Schutzraum für Inhalte und erleichtern es, gemeinsame Arbeitsbereiche sinnvoll zu strukturieren.</p><p>Administratoren verwalten Teams und Mitgliedschaften zentral. Personen ohne Teamzuordnung erhalten keinen unbeabsichtigten Einblick in Bestände.</p></div>
+        <div><h3>Projekte</h3><p>Ein Projekt ist der fachliche und technische Rahmen für zusammengehörige Quellen: etwa eine Anwendung, einen Modernisierungsstrang oder einen abgegrenzten Systembestand.</p><p>Projekte besitzen Mitglieder und Rollen. Berechtigte Personen können weitere Mitglieder aufnehmen; andere Teammitglieder können einen Zugriff anfragen, sofern das Projekt für sie sichtbar ist.</p></div>
+      </div>
+      <div class="image-slot" data-screenshot="projekte-und-mitglieder"><div class="slot-label"><b>Vorgesehener Screenshot · Projekte</b><span>Hier: Projekteinstellungen, Mitgliederliste oder Zugangsanfragen einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 2.</b> Teams strukturieren die Organisation, Projekte begrenzen den Zugang zu einem konkreten Wissensbestand.</p>
+    </section>
+
+    <section class="section" id="wissensquellen">
+      <div class="eyebrow">05 · Wissensquellen</div>
+      <h2>Doctus bringt Code und Begleitwissen in einen gemeinsamen Kontext.</h2>
+      <p class="lede">Wissensquellen werden projektspezifisch eingerichtet, synchronisiert und im Hintergrund verarbeitet. Der Fortschritt und mögliche Hinweise bleiben im Job-Center und an der jeweiligen Quelle sichtbar.</p>
+      <div class="three-col" style="margin-top:2.3rem">
+        <article class="card"><div class="icon">CODE</div><h3>Git-Repositories</h3><p>GitHub, GitLab, Bitbucket und generische Git-Server lassen sich inklusive Branch auswählen. Auch große, mehrteilige Bestände können getrennt und wiederaufsetzbar synchronisiert werden.</p></article>
+        <article class="card"><div class="icon">DOCS</div><h3>Dokumente und Ablagen</h3><p>Datei-Uploads, WebDAV und Ordner- bzw. NAS-Quellen erschließen Dokumente wie PDF, Word, Markdown und Textdateien. Änderungen werden beim Folgelauf gezielt erkannt.</p></article>
+        <article class="card"><div class="icon">WORK</div><h3>Wikis und Tickets</h3><p>Confluence und Jira ergänzen Code um Entscheidungswissen, Anforderungen, Tickets und fachliche Erläuterungen – dort, wo dieses Wissen in der Praxis entsteht.</p></article>
+      </div>
+      <div class="image-slot" data-screenshot="wissensquellen"><div class="slot-label"><b>Vorgesehener Screenshot · Wissensquellen</b><span>Hier: Quellenübersicht oder Dialog zum Verbinden einer Git-, Dokumenten- oder Wiki-Quelle einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 3.</b> Jede Wissensquelle gehört zu einem Projekt und wird unabhängig synchronisiert.</p>
+      <div class="callout"><p><strong>Für geteilte Ablagen:</strong> Ordnerquellen werden ausschließlich lesend eingebunden. Doctus erkennt neue, geänderte und gelöschte Dateien und aktualisiert nur den betroffenen Teil der Wissensbasis.</p></div>
+    </section>
+
+    <section class="section" id="arbeitsraum">
+      <div class="eyebrow">06 · Der Arbeitsraum</div>
+      <h2>Eine Frage kann sich in mehrere, gleichzeitig sichtbare Perspektiven entfalten.</h2>
+      <div class="two-col">
+        <div><p class="lede">Der Arbeitsraum lässt sich als ein bis vier Bereiche anordnen. Teams kombinieren etwa Chat, Quellcode, Referenzen und Graphen – ohne den fachlichen Kontext beim Wechsel zwischen Ansichten zu verlieren.</p></div>
+        <ol class="numbered">
+          <li><strong>Seitenleiste als Orientierung</strong><span>Projekte, Hauptansichten, Suche, Job-Center und Einstellungen bleiben direkt erreichbar.</span></li>
+          <li><strong>Fokusobjekt als roter Faden</strong><span>Ein Programm, ein Abschnitt oder ein Dokument kann in den Mittelpunkt gestellt werden. Die umliegenden Ansichten beziehen sich darauf.</span></li>
+          <li><strong>Zeilenreferenzen als Beleg</strong><span>Chat- und Rechercheergebnisse führen über anklickbare Quellenangaben an die passende Stelle im Original zurück.</span></li>
+          <li><strong>Layout nach Aufgabe</strong><span>Die Anordnung der Bereiche kann an Analyse, Recherche oder konzentriertes Lesen angepasst werden.</span></li>
+        </ol>
+      </div>
+      <div class="image-slot" data-screenshot="hauptarbeitsraum"><div class="slot-label"><b>Vorgesehener Screenshot · Hauptarbeitsraum</b><span>Hier: Ansicht mit Seitenleiste, Chat, Code und optionalen Zusatzpanels einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 4.</b> Der konfigurierbare Arbeitsraum verbindet Recherche, Prüfung und Navigation.</p>
+    </section>
+
+    <section class="section" id="intelligenz">
+      <div class="eyebrow">07 · Code Intelligence und Recherche</div>
+      <h2>Vom Quelltext zur verständlichen Struktur.</h2>
+      <div class="three-col">
+        <article class="card"><div class="icon">01</div><h3>COBOL verstehen</h3><p>Doctus erkennt unter anderem Programme, Copybooks, Abschnitte, Paragraphen, Datenfelder, Dateibeschreibungen und eingebettete SQL-Bereiche. Physische Zeilen bleiben dabei erhalten.</p></article>
+        <article class="card"><div class="icon">02</div><h3>Beziehungen verfolgen</h3><p>Aufrufe, Sprünge, Ausführungsfolgen, Copybook-Verwendungen sowie Lese- und Schreibzugriffe werden als nachvollziehbare Beziehungen erschlossen. Dynamische oder nicht auflösbare Bezüge werden sichtbar markiert.</p></article>
+        <article class="card"><div class="icon">03</div><h3>Fragen mit Quellen stellen</h3><p>Der Chat nutzt ausschließlich die für das Projekt zugängliche Wissensbasis als Kontext. Antworten können zu Codezeilen und Dokumentstellen zurückführen, damit Aussagen geprüft werden können.</p></article>
+      </div>
+      <div class="image-slot" data-screenshot="chat-und-code"><div class="slot-label"><b>Vorgesehener Screenshot · Chat und Quellcode</b><span>Hier: Eine Antwort mit Quellenreferenzen sowie die geöffnete Codeposition einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 5.</b> Rechercheergebnisse und natürliche Sprache bleiben mit überprüfbaren Quellen verbunden.</p>
+    </section>
+
+    <section class="section" id="ansichten">
+      <div class="eyebrow">08 · Ansichten im Detail</div>
+      <h2>Je nach Frage die passende Sicht auf den Bestand.</h2>
+      <article class="view"><div class="view-tag">Arbeitsansicht</div><div><h3>Chat und Codeinspektion</h3><p>Die dialogorientierte Recherche beantwortet Fragen zum Projektbestand und verlinkt ihre Quellen. Parallel ist der Code im Editor lesbar, durchsuchbar und über konkrete Zeilen erreichbar.</p><ul><li>Fragen im Projektkontext</li><li>Quellenchips mit Zeilensprung</li><li>Fokus auf Programme und Strukturelemente</li></ul></div></article>
+      <article class="view"><div class="view-tag">Recherche</div><div><h3>Globale Suche</h3><p>Die Suche führt über Projekte hinweg zu passenden Codeelementen und Wissensdokumenten – stets innerhalb der persönlichen Berechtigung. Sie eignet sich für Begriffe, Namen und einen schnellen Einstieg in unbekannte Bestände.</p><ul><li>Code und Dokumente gemeinsam durchsuchen</li><li>Filterbarer Ergebnisraum</li><li>Direkt in den Arbeitskontext wechseln</li></ul></div></article>
+      <article class="view"><div class="view-tag">Abhängigkeiten</div><div><h3>Aufrufgraph</h3><p>Der Aufrufgraph macht Beziehungen zwischen Programmen und weiteren Elementen sichtbar. Die Tiefe lässt sich steuern, Kantenarten können gefiltert werden. Nicht vollständig auflösbare oder dynamische Beziehungen werden nicht verschwiegen.</p><ul><li>Ein bis drei Beziehungsebenen</li><li>Filter nach Beziehungstyp</li><li>Export als JSON, CSV oder GraphML</li></ul></div></article>
+      <article class="view"><div class="view-tag">Zusammenhang</div><div><h3>Wissensgraph</h3><p>Der Wissensgraph zeigt die Verbindung zwischen Code, Dokumenten und den zwischen ihnen hergestellten Verknüpfungen. Er eignet sich besonders, um die Reichweite eines Themas oder Begriffs zu erkunden.</p><ul><li>Code- und Wissensknoten gemeinsam</li><li>Verbindungen kontextuell erkunden</li><li>Auswahl als neuer Fokus</li></ul></div></article>
+      <article class="view"><div class="view-tag">Kuratiertes Wissen</div><div><h3>Link-Manager und Themen</h3><p>Der Link-Manager unterstützt dabei, fachlich bedeutsame Beziehungen zwischen Code und Dokumentation sichtbar zu machen. Themen helfen, relevante Knoten unabhängig von einem einzelnen Repository zu gruppieren und zu ordnen.</p><ul><li>Verbindungen prüfen und pflegen</li><li>Themenbereiche strukturieren</li><li>Geteilte Orientierung schaffen</li></ul></div></article>
+      <article class="view"><div class="view-tag">Betrieb</div><div><h3>Job-Center</h3><p>Hintergrundaufgaben wie Import, Synchronisation und Verarbeitung bleiben transparent. Der aktuelle Zustand, Fortschritt und Fehlerhinweise helfen bei der täglichen Bedienung und beim Betrieb.</p><ul><li>Fortschritt von Importen</li><li>Status und Hinweise</li><li>Nachvollziehbare Hintergrundarbeit</li></ul></div></article>
+      <div class="image-slot" data-screenshot="graphen"><div class="slot-label"><b>Vorgesehener Screenshot · Aufruf- oder Wissensgraph</b><span>Hier: Eine Graphansicht mit Kontextmenü oder geöffnetem Knoten einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 6.</b> Graphansichten machen Struktur und Reichweite eines Elements auf einen Blick erfassbar.</p>
+    </section>
+
+    <section class="section" id="einstellungen">
+      <div class="eyebrow">09 · Einstellungen und täglicher Betrieb</div>
+      <h2>Konfiguration dort, wo sie gebraucht wird.</h2>
+      <table class="scope-table">
+        <thead><tr><th>Bereich</th><th>Wofür er dient</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Projekte</strong></td><td>Projekte anlegen, beschreiben, Mitglieder und Zugangsanfragen verwalten.</td></tr>
+          <tr><td><strong>Teams und Benutzer</strong></td><td>Organisationseinheiten, Mitgliedschaften und Benutzerkonten administrieren.</td></tr>
+          <tr><td><strong>Wissensquellen</strong></td><td>Verbindungen einrichten, Synchronisationen anstoßen und ihren Zustand nachvollziehen.</td></tr>
+          <tr><td><strong>KI-Einstellungen</strong></td><td>Die lokal verfügbare KI konfigurieren; optionale externe Modelle bleiben eine bewusste Freigabeentscheidung.</td></tr>
+          <tr><td><strong>Layout</strong></td><td>Den Arbeitsraum passend zur Aufgabe einrichten – von fokussiert bis mehrspaltig.</td></tr>
+          <tr><td><strong>Protokolle und Diagnose</strong></td><td>Für Betrieb und Fehlersuche stehen bereinigte Diagnosen und begrenzte Protokolle zur Verfügung.</td></tr>
+        </tbody>
+      </table>
+      <div class="image-slot" data-screenshot="einstellungen"><div class="slot-label"><b>Vorgesehener Screenshot · Einstellungen</b><span>Hier: Einstellungsdialog mit Navigationspunkten und ausgewähltem Bereich einfügen.</span></div></div>
+      <p class="caption"><b>Abbildung 7.</b> Projekte, Quellen, Benutzer, KI und Betriebsinformationen sind in einer einheitlichen Einstellungen-Umgebung zusammengeführt.</p>
+    </section>
+
+    <section class="section security" id="technik">
+      <div class="eyebrow">10 · Technischer Aufbau und Schutz</div>
+      <h2>Für den kontrollierten Betrieb in der eigenen Umgebung.</h2>
+      <p class="lede">Doctus ist standardmäßig als On-Premise-Lösung ausgelegt. Der Datenbestand, die Quellen und die KI-Verarbeitung bleiben im eigenen Betriebsumfeld. Eine Cloud-Anbindung für Sprachmodelle ist nur nach expliziter Freigabe vorgesehen.</p>
+      <div class="architecture" aria-label="Die technischen Schichten von Doctus">
+        <div><span class="layer">01 · Zugang</span><b>Web-Arbeitsplatz</b><span>Browserbasierte Oberfläche für Recherche, Analyse und Administration.</span></div>
+        <div><span class="layer">02 · Anwendung</span><b>Fachlogik</b><span>Steuert Zugriffe, Projekte, Suche, Chat und die Bedienoberfläche.</span></div>
+        <div><span class="layer">03 · Verarbeitung</span><b>Hintergrunddienste</b><span>Synchronisieren Quellen, analysieren Dateien und bauen Beziehungen auf.</span></div>
+        <div><span class="layer">04 · Wissen</span><b>Daten- und Vektorspeicher</b><span>Hält Strukturinformationen, Dokumentinhalte, Referenzen und Suchrepräsentationen vor.</span></div>
+        <div><span class="layer">05 · KI</span><b>Lokale Inferenz</b><span>Erstellt Suchrepräsentationen und beantwortet Fragen mit lokal betriebenen Modellen.</span></div>
+      </div>
+      <div class="three-col" style="margin-top:2.5rem">
+        <article class="card"><div class="icon">AUTH</div><h3>Zugangsschutz</h3><p>Lokale Konten, sichere Kennwortspeicherung, erzwungene Passwortwechsel, Sperrmechanismen und Team-/Projektberechtigungen schützen den Zugriff.</p></article>
+        <article class="card"><div class="icon">DATA</div><h3>Datensouveränität</h3><p>Quellen, Index und KI laufen standardmäßig im eigenen Netzwerk. Geheimnisse von angebundenen Quellen werden verschlüsselt abgelegt.</p></article>
+        <article class="card"><div class="icon">OPS</div><h3>Betriebssicherheit</h3><p>Gesundheitsprüfungen, begrenzte Logdateien, bereinigte Diagnoseinformationen und voneinander getrennte Dienste unterstützen einen wartbaren Betrieb.</p></article>
+      </div>
+    </section>
+
+    <section class="section" id="ablauf">
+      <div class="eyebrow">11 · Ein typischer Weg mit Doctus</div>
+      <h2>Von der ersten Quelle bis zur fundierten Antwort.</h2>
+      <ol class="numbered" style="max-width:55rem">
+        <li><strong>Organisation und Projekt einrichten</strong><span>Ein Administrator richtet Teams, Benutzer und ein Projekt für den zu erschließenden Bestand ein.</span></li>
+        <li><strong>Wissensquellen verbinden</strong><span>Die verantwortliche Person bindet Code-Repositories, Dokumente, Wissensplattformen oder Ablagen an und stößt die erste Verarbeitung an.</span></li>
+        <li><strong>Bestand erkunden</strong><span>Nach der Verarbeitung kann das Team über Suche, Codeansicht und Graphen orientieren: Was gibt es? Was hängt zusammen? Welche Dokumentation gehört dazu?</span></li>
+        <li><strong>Fragen nachvollziehbar beantworten</strong><span>Im Chat entstehen Antworten im Kontext des ausgewählten Projekts. Quellenreferenzen ermöglichen den direkten Sprung zur überprüfbaren Grundlage.</span></li>
+        <li><strong>Wissen gemeinsam nutzbar halten</strong><span>Neue Quellen, aktualisierte Dokumente und Änderungen am Bestand werden erneut synchronisiert. Wichtige Verbindungen lassen sich kuratieren und als Themen organisieren.</span></li>
+      </ol>
+    </section>
+
+    <section class="section" id="einordnung">
+      <div class="eyebrow">12 · Was Doctus ermöglicht</div>
+      <h2>Legacy-Systeme werden nicht einfacher – aber wesentlich besser zugänglich.</h2>
+      <div class="two-col">
+        <div><p class="lede">Doctus gibt Teams eine gemeinsame Sprache für komplexe Bestände. Es verbindet die Genauigkeit des Originalmaterials mit einer schnellen, modernen Recherche- und Navigationsoberfläche.</p></div>
+        <div><p>Dadurch lässt sich fachliches und technisches Wissen früher in Entscheidungen einbeziehen: beim Onboarding, bei der Fehleranalyse, vor einer Änderung, bei Übergaben und bei der schrittweisen Modernisierung. Die entscheidende Grundlage bleibt dabei sichtbar: der konkrete Code und die zugehörige Dokumentation.</p></div>
+      </div>
+      <nav class="toc" aria-label="Inhaltsübersicht">
+        <a href="#ueberblick"><span class="toc-no">01</span><b>Überblick</b><span>Was Doctus ist</span></a>
+        <a href="#anmelden"><span class="toc-no">03</span><b>Zugang</b><span>Benutzer und Rechte</span></a>
+        <a href="#wissensquellen"><span class="toc-no">05</span><b>Wissensquellen</b><span>Code und Dokumente</span></a>
+        <a href="#arbeitsraum"><span class="toc-no">06</span><b>Arbeitsraum</b><span>Recherche im Kontext</span></a>
+        <a href="#ansichten"><span class="toc-no">08</span><b>Ansichten</b><span>Die passenden Perspektiven</span></a>
+        <a href="#technik"><span class="toc-no">10</span><b>Technik</b><span>Aufbau und Schutz</span></a>
+      </nav>
+    </section>
+
+    <footer class="footer"><span>Doctus · Produkthandbuch</span><span>On-Premise Code &amp; Knowledge Intelligence</span><span>Stand September 2026</span></footer>
+  </main>
+</body>
+</html>
