@@ -2304,8 +2304,7 @@ function AppContent() {
               theme={theme}
               isSidebarOpen={isSidebarOpen}
               selectedProject={selectedProject}
-              setSelectedProject={setSelectedProject}
-              setFiles={setFiles}
+              onProjectSelect={handleProjectSelect}
               pinnedCode={pinnedCode}
               setPinnedCode={setPinnedCode}
               chatMessages={chatMessages}

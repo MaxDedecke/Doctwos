@@ -700,6 +700,7 @@
     "sourceFileTitle": "{{file}} (Zeilen {{lines}})",
     "focusLabel": "Fokus: {{name}}",
     "clearContextTitle": "Kontext aufheben",
+    "generalContextLabel": "Allgemein",
     "sourceLabel": "Quelle: {{name}}",
     "clearSourceFocusTitle": "Quellen-Fokus aufheben",
     "pinLabel": "Pin: {{path}}",

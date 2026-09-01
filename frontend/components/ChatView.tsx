@@ -12,6 +12,7 @@ import {
   Loader2,
   Cpu,
   GitBranch,
+  Globe2,
   Share2,
   History,
   BookOpen,
@@ -51,8 +52,7 @@ interface ChatViewProps {
   theme: string;
   isSidebarOpen: boolean;
   selectedProject: any;
-  setSelectedProject: (project: any) => void;
-  setFiles: (files: string[]) => void;
+  onProjectSelect: (project: any | null) => void | Promise<void>;
   pinnedCode: any;
   setPinnedCode: (code: any) => void;
   chatMessages: any[];
@@ -82,8 +82,7 @@ export function ChatView({
   theme,
   isSidebarOpen,
   selectedProject,
-  setSelectedProject,
-  setFiles,
+  onProjectSelect,
   pinnedCode,
   setPinnedCode,
   chatMessages,
@@ -230,12 +229,37 @@ export function ChatView({
         "h-16 flex items-center justify-end px-4 @sm/chat:px-6 backdrop-blur-sm bg-opacity-20 transition-colors duration-250",
         theme === 'dark' ? "bg-ds-zinc-950/20" : "bg-ds-zinc-100/20"
       )}>
-        {selectedProject && (
-          <div className="flex flex-col items-end gap-1.5 py-2">
-            <div className="flex items-center gap-2 bg-ds-indigo-500/10 border border-ds-indigo-500/20 px-2 @sm/chat:px-3 py-1 rounded-sm text-xs text-ds-indigo-650 font-semibold tracking-wide shadow-sm">
-              <Database className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
-              <span className="hidden @xs/chat:inline">{t('chatView.projectLabel', { name: selectedProject.name })}</span>
-            </div>
+        <div className="flex flex-col items-end gap-1.5 py-2">
+          <div className={cn(
+            "flex items-center gap-2 border px-2 @sm/chat:px-3 py-1 rounded-sm text-xs font-semibold tracking-wide shadow-sm",
+            selectedProject
+              ? "bg-ds-indigo-500/10 border-ds-indigo-500/20 text-ds-indigo-650"
+              : theme === 'dark'
+                ? "bg-ds-zinc-800/50 border-ds-zinc-700/60 text-ds-zinc-400"
+                : "bg-ds-zinc-100/70 border-ds-zinc-200 text-ds-zinc-500"
+          )}>
+            {selectedProject ? (
+              <>
+                <Database className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
+                <span className="hidden @xs/chat:inline">{t('chatView.projectLabel', { name: selectedProject.name })}</span>
+                <button
+                  type="button"
+                  onClick={() => onProjectSelect(null)}
+                  id="clear-chat-project-focus-btn"
+                  className="hover:text-ds-indigo-850 transition-colors ml-0.5 p-0.5 rounded"
+                  title={t('chatView.clearContextTitle')}
+                  aria-label={t('chatView.clearContextTitle')}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </>
+            ) : (
+              <>
+                <Globe2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{t('chatView.generalContextLabel')}</span>
+              </>
+            )}
+          </div>
             {isDetectingLph ? (
               <div className="flex items-center gap-1.5 text-[10px] text-ds-zinc-500">
                 <Loader2 className="w-3 h-3 animate-spin" /> HOAI Copilot analysiert...
@@ -264,8 +288,7 @@ export function ChatView({
                 ))}
               </div>
             ) : null}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Chat message stream container */}
@@ -625,8 +648,7 @@ export function ChatView({
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedProject(null);
-                        setFiles([]);
+                        onProjectSelect(null);
                       }}
                       id="clear-chat-repo-focus-btn"
                       className="hover:text-ds-indigo-850 transition-colors ml-1 p-0.5 rounded"
