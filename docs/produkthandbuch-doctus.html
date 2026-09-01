@@ -42,7 +42,7 @@
     a { color: inherit; text-underline-offset: .2em; }
     .mono { font-family: "IBM Plex Mono", monospace; }
     .page { width: min(100%, 78rem); margin: 0 auto; background: var(--paper); border-inline: 1px solid var(--line); }
-    .section { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); }
+    .section { padding: 4.5rem clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); background: var(--paper); }
     .section > .eyebrow { margin-bottom: 1.15rem; }
     .section > h2 { margin-bottom: clamp(2rem, 3vw, 3rem); }
     .section > .lede { margin-bottom: clamp(2rem, 3vw, 3rem); }
@@ -67,6 +67,7 @@
     .cover-word { white-space: nowrap; }
     .cover-mark { display: inline-block; width: .16em; height: .16em; margin-left: .09em; vertical-align: .02em; background: var(--gradient); }
     .cover .subtitle { max-width: 34rem; margin: 1.35rem 0 0; color: var(--muted); font-size: clamp(1.14rem, 2.3vw, 1.48rem); }
+    .cover-credit { margin: 2rem 0 0; color: var(--muted); font: 600 .72rem "IBM Plex Mono", monospace; letter-spacing: .04em; }
     .cover-footer { position: relative; z-index: 1; display: grid; grid-template-columns: 1.25fr .8fr .8fr; gap: 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
     .cover-footer b { display: block; color: var(--ink); font-family: "IBM Plex Mono", monospace; font-size: .69rem; letter-spacing: .08em; text-transform: uppercase; }
 
@@ -89,7 +90,6 @@
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; }
     #arbeitsraum .two-col { display: block; }
     #arbeitsraum .lede { max-width: none; margin-bottom: 2.75rem; }
-    #teams-projekte > h2 { margin-bottom: clamp(3.5rem, 5vw, 5rem); }
     #teams-projekte .team-project-icon { display: block; width: 4.1rem; height: 4.1rem; margin: 0 auto 1.2rem; }
     #teams-projekte .team-project-icon * { fill: none; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
     #teams-projekte .team-project-icon + h3 { text-align: center; }
@@ -100,7 +100,6 @@
     #nutzen .three-col { gap: 0; background: var(--paper); }
     #nutzen .card:not(:last-child) { border-right: 1px solid var(--line); }
     #nutzen .icon { color: var(--trace); }
-    #intelligenz > h2 { margin-bottom: clamp(2.4rem, 3vw, 3rem); }
     #intelligenz .three-col { gap: 0; background: var(--paper); }
     #intelligenz .card:not(:last-child) { border-right: 1px solid var(--line); }
 
@@ -114,7 +113,6 @@
     #anmelden .numbered li { min-height: 10.75rem; padding: 1.15rem 1rem 1.15rem 3.35rem; border: 0; background: var(--paper); }
     #anmelden .numbered li:last-child { border-bottom: 0; }
     #anmelden .numbered li::before { left: 1.15rem; }
-    #wissensquellen > .lede { margin-bottom: clamp(3.5rem, 5vw, 5rem); }
     .model-stack { margin-top: 4rem; }
     .expansion { margin-top: 4rem; }
     .expansion .three-col { gap: 0; margin-top: 1.5rem; background: var(--paper); }
@@ -137,7 +135,7 @@
     .workflow-intro h3 { margin-top: 2rem; margin-bottom: 0; }
     .workflow-cards .card:nth-child(2) { border-right: 1px solid var(--line); }
 
-    .security { color: var(--ink); background: #f7faff; }
+    .security { color: var(--ink); background: var(--paper); }
     .security .eyebrow, .security .lede { color: var(--muted); }
     .security .card { color: var(--ink); background: var(--paper); }
     .security .card p { color: var(--muted); }
@@ -170,16 +168,17 @@
     .toc b { display: block; font-family: "Space Grotesk", sans-serif; }
     .toc span { display: block; margin-top: .25rem; color: var(--muted); font-size: .79rem; }
 
-    .product-divider { min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); }
+    .product-divider { min-height: 48rem; padding: 4.5rem clamp(1.4rem, 6.3vw, 6rem); display: flex; flex-direction: column; justify-content: center; border-top: 1px solid var(--line); background: var(--paper); }
     .product-divider h2 { max-width: 9ch; margin: 1rem 0; font-size: clamp(3.6rem, 9vw, 7.4rem); }
     .product-divider p { max-width: 34rem; margin: 0; color: var(--muted); font-size: 1.15rem; }
-    .product-images { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); }
+    .product-images { padding: 4.5rem clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); background: var(--paper); }
     .product-gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 2.4rem; }
     .product-gallery figure { margin: 0; border: 1px solid var(--line); background: var(--surface); break-inside: avoid; }
     .product-gallery img { display: block; width: 100%; height: auto; }
     .product-gallery figcaption { padding: .75rem .9rem; color: var(--muted); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
 
     .footer { padding: 2rem clamp(1.4rem, 6.3vw, 6rem); display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); background: var(--surface); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
+    .closing-credit { padding: 1.25rem clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); color: var(--muted); font: 600 .72rem "IBM Plex Mono", monospace; letter-spacing: .04em; }
 
     @media (max-width: 48rem) {
       .cover { min-height: 38rem; }
@@ -208,17 +207,15 @@
       body { background: #fff; font-size: 10.5pt; }
       .page { width: auto; border: 0; }
       .cover { min-height: 250mm; break-after: page; }
-      .section { padding: 18mm 0; break-inside: avoid; }
+      .section, .product-divider, .product-images { background: #fff; }
+      .section { padding: 18mm 0; break-before: page; break-inside: auto; }
       .section > .eyebrow { margin-bottom: 5mm; }
       .section > h2, .section > .lede { margin-bottom: 10mm; }
-      #teams-projekte > h2 { margin-bottom: 15mm; }
-      #wissensquellen > .lede { margin-bottom: 16mm; }
-      #intelligenz > h2 { margin-bottom: 15mm; }
+      .at-glance h2 { margin-bottom: 10mm; }
       .model-stack { margin-top: 0; break-before: page; }
-      .expansion { margin-top: 0; break-before: page; }
       .view { break-inside: avoid; }
       .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
-      .product-images { padding: 18mm 0; break-inside: auto; }
+      .product-images { padding: 18mm 0; break-before: page; break-inside: auto; }
       .product-gallery { grid-template-columns: 1fr; }
       .product-gallery figure { break-after: page; }
       .product-gallery figure:last-child { break-after: auto; }
@@ -234,6 +231,7 @@
         <div class="eyebrow">Knowledge Management System</div>
         <h1>Wissen wird <span class="cover-word">navigierbar<span class="cover-mark" aria-hidden="true"></span></span></h1>
         <p class="subtitle">Doctus macht gewachsene COBOL-Anwendungen, begleitende Dokumente und ihre Zusammenhänge für Teams verständlich, durchsuchbar und nutzbar.</p>
+        <p class="cover-credit">Konzept &amp; Entwicklung: Jan Maximilian Dedecke</p>
       </div>
       <div class="cover-footer">
         <div><b>Produkt</b>On-Premise Knowledge Intelligence</div>
@@ -488,6 +486,7 @@
       </div>
     </section>
 
+    <div class="closing-credit">Konzept &amp; Entwicklung: Jan Maximilian Dedecke</div>
     <footer class="footer"><span>Doctus · Produkthandbuch</span><span>On-Premise Code &amp; Knowledge Intelligence</span><span>Stand September 2026</span></footer>
   </main>
 </body>
