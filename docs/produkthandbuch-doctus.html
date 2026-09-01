@@ -16,12 +16,12 @@
       --ink: #172238;
       --muted: #536176;
       --line: rgba(23, 34, 56, .16);
-      --signal: #e4002b;
+      --signal: #0064d2;
       --violet: #7a2e8c;
       --trace: #0064d2;
       --green: #1b7a4b;
       --amber: #a45d00;
-      --gradient: linear-gradient(120deg, var(--signal), var(--violet) 54%, var(--trace));
+      --gradient: linear-gradient(112deg, #e4002b 0%, #d60055 38%, #7047eb 68%, #0064d2 100%);
     }
 
     * { box-sizing: border-box; }
@@ -125,6 +125,8 @@
     .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--trace); text-transform: uppercase; }
 
     .callout { max-width: 49rem; padding: 1.4rem 1.5rem; border-left: 4px solid var(--signal); background: var(--surface); }
+    #nutzen .callout { position: relative; padding-left: 1.75rem; border-left: 0; }
+    #nutzen .callout::before { position: absolute; inset: 0 auto 0 0; width: 4px; content: ""; background: var(--gradient); }
     .callout p { margin: 0; }
     .scope-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: .89rem; }
     .scope-table th, .scope-table td { padding: .9rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
