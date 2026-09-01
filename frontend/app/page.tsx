@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { normalizeInitialUserMessage } from "@/lib/chatMessage";
+import { resolvePanelNavigationTarget } from "@/lib/panelNavigation";
 import { api, API_URL } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -440,6 +441,7 @@ function AppContent() {
     selectedFile?: string | null;
     selectedDoc?: any | null;
     selectedEntity?: any | null;
+    selectedLine?: number | null;
   }, frozenOverride?: boolean) => {
     // panelConfigs.length alone is a stale snapshot from this render — two
     // addPanel calls fired back to back in the same tick (e.g. two different
@@ -456,7 +458,7 @@ function AppContent() {
       selectedFile: selectionOverride ? (selectionOverride.selectedFile ?? null) : selectedFile,
       selectedDoc: selectionOverride ? (selectionOverride.selectedDoc ?? null) : selectedDoc,
       selectedEntity: selectionOverride ? (selectionOverride.selectedEntity ?? null) : selectedEntity,
-      selectedLine: null
+      selectedLine: selectionOverride ? (selectionOverride.selectedLine ?? null) : null
     }]);
     setPanelHistory(prev => [...prev, { past: [], future: [] }]);
     setPanelConfigs(prev => [...prev, type]);
@@ -531,8 +533,7 @@ function AppContent() {
     if (textarea) textarea.focus();
   };
 
-  const handlePanelFileSelect = async (index: number, path: string | null, line: number | null = null, sourceId: number | string | null = null, openIfMissing: boolean = true) => {
-    pinFileFocus(path, line);
+  const handlePanelFileSelect = async (index: number, path: string | null, line: number | null = null, sourceId: number | string | null = null, openIfMissing: boolean = true, preserveFrozenTarget: boolean = false) => {
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
     const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
       ? { id: resolvedSourceId, name: path, ...(isWebOrigin ? { isWebOrigin: true, url: path } : {}) }
@@ -572,24 +573,37 @@ function AppContent() {
     // only nudges an already-open, unfrozen ("live") panel of the matching type.
     let targetIndex = index;
     if (targetType && targetType !== panelConfigs[index]) {
-      // Prefer an unfrozen ("live") panel of the matching type over a frozen one —
-      // indexOf alone would always pick the first matching panel regardless of its
-      // freeze state, so with e.g. two code panels where the first is pinned, every
-      // reference would silently target the pinned panel instead of the live one.
-      // Fall back to the first (possibly frozen) match only if no live one exists.
-      let existingIndex = panelConfigs.findIndex((cfg, i) => cfg === targetType && !panelFrozen[i]);
-      if (existingIndex === -1) existingIndex = panelConfigs.indexOf(targetType);
-      if (existingIndex === -1) {
-        if (!openIfMissing) return;
-        ensurePanelType(targetType, { selectedFile: path, selectedDoc: targetDoc, selectedEntity: null });
-      } else {
-        targetIndex = existingIndex;
-        if (!openIfMissing && panelFrozen[targetIndex]) return;
+      const resolution = resolvePanelNavigationTarget({
+        targetType,
+        panelConfigs,
+        panelFrozen,
+        openIfMissing,
+        preserveFrozenTarget,
+      });
+      if (resolution.shouldOpenNewPanel) {
+        addPanel(targetType, {
+          selectedFile: path,
+          selectedDoc: targetDoc,
+          selectedEntity: focusedEntity,
+          selectedLine: line,
+        }, false);
+        setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
+        return;
       }
+      if (resolution.ignored || resolution.targetIndex === null) {
+        return;
+      }
+      targetIndex = resolution.targetIndex;
       // On mobile only one panel is visible at a time (see activeMobileTab render
       // switch below) — surface the panel the reference just opened/targeted.
       setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
     }
+
+    // A Call-Graph click is navigation into a code panel, never a command to
+    // rewrite the graph's own frozen selection or another frozen code panel.
+    if (preserveFrozenTarget && panelFrozen[targetIndex]) return;
+
+    pinFileFocus(path, line);
 
     if (panelFrozen[targetIndex]) {
       const prevSel = panelSelections[targetIndex];
@@ -2464,7 +2478,7 @@ function AppContent() {
               theme={theme}
               focusedEntity={sel.selectedEntity}
               projectId={selectedProject?.id}
-              onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
+              onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true, true)}
             />
           )}
 
