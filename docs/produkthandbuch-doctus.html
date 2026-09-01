@@ -130,6 +130,15 @@
     .toc b { display: block; font-family: "Space Grotesk", sans-serif; }
     .toc span { display: block; margin-top: .25rem; color: var(--muted); font-size: .79rem; }
 
+    .product-divider { min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); }
+    .product-divider h2 { max-width: 9ch; margin: 1rem 0; font-size: clamp(3.6rem, 9vw, 7.4rem); }
+    .product-divider p { max-width: 34rem; margin: 0; color: var(--muted); font-size: 1.15rem; }
+    .product-images { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.4rem, 6.3vw, 6rem); border-top: 1px solid var(--line); }
+    .product-gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-top: 2.4rem; }
+    .product-gallery figure { margin: 0; border: 1px solid var(--line); background: var(--surface); break-inside: avoid; }
+    .product-gallery img { display: block; width: 100%; height: auto; }
+    .product-gallery figcaption { padding: .75rem .9rem; color: var(--muted); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+
     .footer { padding: 2rem clamp(1.4rem, 6.3vw, 6rem); display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); background: var(--surface); font: 600 .68rem "IBM Plex Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
 
     @media (max-width: 48rem) {
@@ -137,7 +146,7 @@
       .cover-footer, .at-glance, .two-col, .view { grid-template-columns: 1fr; }
       .cover-footer { gap: .7rem; }
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
-      .three-col, .toc, .view-index { grid-template-columns: 1fr; }
+      .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
       .view { gap: .65rem; }
     }
     @media print {
@@ -146,6 +155,10 @@
       .page { width: auto; border: 0; }
       .cover { min-height: 250mm; break-after: page; }
       .section { padding: 18mm 0; break-inside: avoid; }
+      .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
+      .product-images { padding: 18mm 0; break-inside: auto; }
+      .product-gallery { grid-template-columns: 1fr; }
+      .product-gallery figure { break-after: page; }
       .toc a, .card, .journey-step, .architecture div { break-inside: avoid; }
     }
   </style>
@@ -379,7 +392,46 @@
         <a href="#ki"><span class="toc-no">08</span><b>Lokale KI</b><span>Use Cases und Modelle</span></a>
         <a href="#ansichten"><span class="toc-no">09</span><b>Ansichten</b><span>Die passenden Perspektiven</span></a>
         <a href="#technik"><span class="toc-no">11</span><b>Technik</b><span>Aufbau und Schutz</span></a>
+        <a href="#produktbilder"><span class="toc-no">ANHANG</span><b>Produktbilder</b><span>Arbeitsraum im Einsatz</span></a>
       </nav>
+    </section>
+
+    <section class="product-divider" aria-label="Trennseite Produktbilder">
+      <div class="eyebrow">Anhang · Produktbilder</div>
+      <h2>Doctus im Arbeitsraum.</h2>
+      <p>Ausgewählte Ansichten aus der Anwendung – von der ersten Frage bis zur nachvollziehbaren Quelle, dem Graphen und dem Code.</p>
+    </section>
+
+    <section class="product-images" id="produktbilder">
+      <div class="eyebrow">Produktbilder</div>
+      <h2>Die Anwendung in der Praxis.</h2>
+      <p class="lede">Die folgenden Ansichten zeigen zentrale Arbeitsbereiche von Doctus im Zusammenspiel.</p>
+      <div class="product-gallery">
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151724.png" alt="Doctus-Startansicht mit Vorschlägen für Recherchefragen"><figcaption>Produktansicht 01</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151753.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 02</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151807.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 03</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20151830.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 04</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152035.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 05</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152043.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 06</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152135.png" alt="Doctus-Arbeitsraum mit Wissensgraph"><figcaption>Produktansicht 07</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152154.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 08</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152435.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 09</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152450.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 10</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152510.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 11</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152618.png" alt="Doctus-Arbeitsraum mit Code-Editor"><figcaption>Produktansicht 12</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152629.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 13</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152635.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 14</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152642.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 15</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152649.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 16</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152700.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 17</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152707.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 18</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152718.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 19</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152743.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 20</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152804.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 21</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20153014.png" alt="Doctus-Arbeitsraum mit Call-Graph und Code-Editor"><figcaption>Produktansicht 22</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20153048.png" alt="Doctus-Arbeitsraum mit Code und Dokumentation"><figcaption>Produktansicht 23</figcaption></figure>
+        <figure><img src="assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20170719.png" alt="Doctus-Arbeitsraum"><figcaption>Produktansicht 24</figcaption></figure>
+      </div>
     </section>
 
     <footer class="footer"><span>Doctus · Produkthandbuch</span><span>On-Premise Code &amp; Knowledge Intelligence</span><span>Stand September 2026</span></footer>
