@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Doctus Produkthandbuch – Code und Wissen in einem navigierbaren Arbeitsraum.">
+  <link rel="icon" href="assets/doctus-icon.svg" type="image/svg+xml">
   <title>Doctus – Produkthandbuch</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap');
@@ -54,6 +55,8 @@
     .cover { position: relative; overflow: hidden; min-height: 48rem; padding: clamp(1.4rem, 5vw, 4rem); display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #f9fbff 0%, #eef4ff 100%); color: var(--ink); }
     .cover::after { position: absolute; inset: auto -18rem -19rem auto; width: 51rem; height: 51rem; content: ""; border: 1px solid rgba(0,100,210,.22); border-radius: 50%; box-shadow: 0 0 0 5rem rgba(0,100,210,.035), 0 0 0 10rem rgba(0,100,210,.025); }
     .cover nav { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; font: 600 .74rem "IBM Plex Mono", monospace; letter-spacing: .09em; text-transform: uppercase; }
+    .cover-brand { display: flex; align-items: center; gap: .55rem; }
+    .cover-brand img { width: 1.8rem; height: 1.8rem; }
     .cover-wordmark { font: 700 1.2rem "Space Grotesk", sans-serif; letter-spacing: -.06em; }
     .cover-body { position: relative; z-index: 1; max-width: 62rem; padding-block: 7rem; }
     .cover .eyebrow { color: var(--muted); }
@@ -150,7 +153,7 @@
 <body>
   <main class="page">
     <section class="cover" aria-label="Titelseite">
-      <nav><span class="cover-wordmark">Doctus<span class="brand-dot"></span></span><span>Produkthandbuch · Stand September 2026</span></nav>
+      <nav><span class="cover-brand"><img src="assets/doctus-icon.svg" alt=""><span class="cover-wordmark">Doctus<span class="brand-dot"></span></span></span><span>Produkthandbuch · Stand September 2026</span></nav>
       <div class="cover-body">
         <div class="eyebrow">Code &amp; Knowledge Intelligence</div>
         <h1>Wissen wird navigierbar<span class="brand-dot"></span></h1>
@@ -159,7 +162,7 @@
       <div class="cover-footer">
         <div><b>Produkt</b>On-Premise Knowledge Intelligence</div>
         <div><b>Zielbild</b>Legacy-Systeme sicher verstehen und weiterentwickeln</div>
-        <div><b>Für</b>Fachbereiche, Entwicklung, Betrieb und Wissensträger</div>
+        <div>confidential</div>
       </div>
     </section>
 
@@ -255,8 +258,39 @@
       </div>
     </section>
 
+    <section class="section" id="ki">
+      <div class="eyebrow">08 · Lokale KI</div>
+      <h2>KI verkürzt den Weg zur Antwort – die Quelle bleibt maßgeblich.</h2>
+      <p class="lede">Doctus verbindet lokale Sprachmodelle mit dem jeweils berechtigten Projektwissen. Antworten werden an vorhandenen Code und Dokumente gebunden; sie ersetzen weder fachliche Prüfung noch eine Freigabeentscheidung.</p>
+      <div class="three-col" style="margin-top:2.3rem">
+        <article class="card"><div class="icon">01</div><h3>Fragen beantworten</h3><p>Teams stellen Fragen in natürlicher Sprache zu Programmen, Datenfeldern, Dokumenten und Fachbegriffen. Doctus sucht die relevanten Stellen und beantwortet die Frage im Projektkontext.</p></article>
+        <article class="card"><div class="icon">02</div><h3>Code erklären</h3><p>Ein fokussiertes Programm, eine Sektion oder eine Zeile lässt sich erläutern. Das ist besonders wertvoll beim Onboarding und wenn selten gepflegte Abläufe wieder aufgenommen werden.</p></article>
+        <article class="card"><div class="icon">03</div><h3>Auswirkungen einordnen</h3><p>Chat, Strukturinformationen und Graphen helfen, von einer Änderung zu betroffenen Aufrufen, Datenzugriffen und zugehöriger Dokumentation zu navigieren.</p></article>
+        <article class="card"><div class="icon">04</div><h3>Wissen verdichten</h3><p>Verteilte technische und fachliche Quellen werden für Recherche zugänglich. Quellenkontext und hinterlegte Fachbegriffe helfen dem Modell, kundenspezifischen Jargon richtig einzuordnen.</p></article>
+        <article class="card"><div class="icon">05</div><h3>Antworten belegen</h3><p>Antworten enthalten Referenzen auf die tatsächlich herangezogenen Dateien, Dokumentstellen oder Codezeilen. Damit kann jede Aussage am Original geprüft werden.</p></article>
+        <article class="card"><div class="icon">06</div><h3>Regeln prüfen</h3><p>Der Code-Compliance-Checker kann einen definierten Prüfumfang mit einem lokalen Sprachmodell bewerten. Das Ergebnis ist ein Hinweis für die Prüfung, kein automatischer Befund.</p></article>
+      </div>
+      <div style="margin-top:4rem"><div class="eyebrow">Empfohlener On-Premise-Stack</div><h3 style="font-size:1.75rem; max-width:30ch">Zwei Modelle, klar getrennte Aufgaben.</h3></div>
+      <table class="scope-table">
+        <thead><tr><th>Aufgabe</th><th>Empfehlung</th><th>Einsatzentscheidung</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Retrieval und Index</strong></td><td><strong>BGE-M3</strong> als Embedding-Modell</td><td>Doctus-Standard für mehrsprachige, semantische Suche. Auch ohne generatives Modell bleiben Import, Index und Suche nutzbar.</td></tr>
+          <tr><td><strong>Chat und Compliance</strong></td><td><strong>Mistral NeMo 12B Instruct, Q4_K_M</strong></td><td>Im Doctus-Stack validierte Standardoption für GPU-Hosts ab 16 GB RAM und 8 GB VRAM. Für CPU-only-Piloten nicht empfohlen.</td></tr>
+          <tr><td><strong>Höhere Prüfgenauigkeit</strong></td><td><strong>Mistral NeMo 12B Instruct, Q8_0</strong></td><td>Bei mindestens 24 GB VRAM für den Compliance-Checker; benötigt mehr Speicher, reduziert im validierten Doctus-Test aber übersehene Befunde.</td></tr>
+          <tr><td><strong>Neue Modellintegration</strong></td><td><strong>Ministral 3 8B</strong> als Nachfolgekandidat</td><td>Vor einer Produktivfreigabe mit dem realen Codebestand, den Zielsprachen, Tool-Aufrufen, Lizenzvorgaben und einem eigenen Qualitätsbenchmark prüfen.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout" style="margin-top:2.5rem"><p><strong>Betriebsprinzip:</strong> Das Embedding-Modell und das Chat-Modell laufen über Ollama im eigenen Netzwerk. Ein Cloud-Modell ist optional, aber nur nach expliziter administrativer Freigabe vorgesehen.</p></div>
+      <div style="margin-top:4rem"><div class="eyebrow">Möglicher Ausbau</div><h3 style="font-size:1.75rem; max-width:30ch">Was als Nächstes sinnvoll ergänzt werden kann.</h3></div>
+      <div class="three-col" style="margin-top:1.5rem">
+        <article class="card"><div class="icon">A</div><h3>Änderungsvorhaben vorbereiten</h3><p>Aus einem Fachwunsch betroffene Programme, Regeln und offene Fragen zusammenstellen – mit Freigabe durch Fachbereich und Entwicklung.</p></article>
+        <article class="card"><div class="icon">B</div><h3>Regeln und Begriffe extrahieren</h3><p>Wiederkehrende Geschäftsregeln, Datenbegriffe und Abkürzungen als überprüfbare Vorschläge für eine kuratierte Wissensbasis ableiten.</p></article>
+        <article class="card"><div class="icon">C</div><h3>Semantische Änderungen prüfen</h3><p>Änderungen zwischen Ständen nicht nur zeilenweise, sondern nach betroffenen Abläufen, Schnittstellen und Dokumentation priorisieren.</p></article>
+      </div>
+    </section>
+
     <section class="section" id="ansichten">
-      <div class="eyebrow">08 · Ansichten im Detail</div>
+      <div class="eyebrow">09 · Ansichten im Detail</div>
       <h2>Sieben Ansichten für die Arbeit am Wissensbestand.</h2>
       <p class="lede">Ansichten sind die Bereiche, die im Arbeitsraum geöffnet und nebeneinander angeordnet werden können. Bis zu vier Ansichten lassen sich gleichzeitig nutzen; Chat und Code-Editor sind dabei eigenständige Ansichten.</p>
       <ol class="view-index" aria-label="Verfügbare Ansichten">
@@ -285,7 +319,7 @@
     </section>
 
     <section class="section" id="einstellungen">
-      <div class="eyebrow">09 · Einstellungen und täglicher Betrieb</div>
+      <div class="eyebrow">10 · Einstellungen und täglicher Betrieb</div>
       <h2>Konfiguration dort, wo sie gebraucht wird.</h2>
       <table class="scope-table">
         <thead><tr><th>Bereich</th><th>Wofür er dient</th></tr></thead>
@@ -301,7 +335,7 @@
     </section>
 
     <section class="section security" id="technik">
-      <div class="eyebrow">10 · Technischer Aufbau und Schutz</div>
+      <div class="eyebrow">11 · Technischer Aufbau und Schutz</div>
       <h2>Für den kontrollierten Betrieb in der eigenen Umgebung.</h2>
       <p class="lede">Doctus ist standardmäßig als On-Premise-Lösung ausgelegt. Der Datenbestand, die Quellen und die KI-Verarbeitung bleiben im eigenen Betriebsumfeld. Eine Cloud-Anbindung für Sprachmodelle ist nur nach expliziter Freigabe vorgesehen.</p>
       <div class="architecture" aria-label="Die technischen Schichten von Doctus">
@@ -319,7 +353,7 @@
     </section>
 
     <section class="section" id="ablauf">
-      <div class="eyebrow">11 · Ein typischer Weg mit Doctus</div>
+      <div class="eyebrow">12 · Ein typischer Weg mit Doctus</div>
       <h2>Von der ersten Quelle bis zur fundierten Antwort.</h2>
       <ol class="numbered" style="max-width:55rem">
         <li><strong>Organisation und Projekt einrichten</strong><span>Ein Administrator richtet Teams, Benutzer und ein Projekt für den zu erschließenden Bestand ein.</span></li>
@@ -331,7 +365,7 @@
     </section>
 
     <section class="section" id="einordnung">
-      <div class="eyebrow">12 · Was Doctus ermöglicht</div>
+      <div class="eyebrow">13 · Was Doctus ermöglicht</div>
       <h2>Legacy-Systeme werden nicht einfacher – aber wesentlich besser zugänglich.</h2>
       <div class="two-col">
         <div><p class="lede">Doctus gibt Teams eine gemeinsame Sprache für komplexe Bestände. Es verbindet die Genauigkeit des Originalmaterials mit einer schnellen, modernen Recherche- und Navigationsoberfläche.</p></div>
@@ -342,8 +376,9 @@
         <a href="#anmelden"><span class="toc-no">03</span><b>Zugang</b><span>Benutzer und Rechte</span></a>
         <a href="#wissensquellen"><span class="toc-no">05</span><b>Wissensquellen</b><span>Code und Dokumente</span></a>
         <a href="#arbeitsraum"><span class="toc-no">06</span><b>Arbeitsraum</b><span>Recherche im Kontext</span></a>
-        <a href="#ansichten"><span class="toc-no">08</span><b>Ansichten</b><span>Die passenden Perspektiven</span></a>
-        <a href="#technik"><span class="toc-no">10</span><b>Technik</b><span>Aufbau und Schutz</span></a>
+        <a href="#ki"><span class="toc-no">08</span><b>Lokale KI</b><span>Use Cases und Modelle</span></a>
+        <a href="#ansichten"><span class="toc-no">09</span><b>Ansichten</b><span>Die passenden Perspektiven</span></a>
+        <a href="#technik"><span class="toc-no">11</span><b>Technik</b><span>Aufbau und Schutz</span></a>
       </nav>
     </section>
 
