@@ -83,6 +83,11 @@
     #ueberblick .fact b, #ueberblick .journey-num { color: var(--trace); }
 
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; }
+    #arbeitsraum .two-col { display: block; }
+    #arbeitsraum .lede { max-width: none; margin-bottom: 2.75rem; }
+    #teams-projekte .team-project-icon { display: block; width: 4.1rem; height: 4.1rem; margin: 0 auto 1.2rem; }
+    #teams-projekte .team-project-icon * { fill: none; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    #teams-projekte .team-project-icon + h3 { text-align: center; }
     .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
     .card { padding: 1.5rem; background: var(--paper); }
     .card p { margin-bottom: 0; color: var(--muted); font-size: .92rem; }
@@ -90,6 +95,9 @@
     #nutzen .three-col { gap: 0; background: var(--paper); }
     #nutzen .card:not(:last-child) { border-right: 1px solid var(--line); }
     #nutzen .icon { color: var(--trace); }
+    #intelligenz > h2 { margin-bottom: clamp(2.4rem, 3vw, 3rem); }
+    #intelligenz .three-col { gap: 0; background: var(--paper); }
+    #intelligenz .card:not(:last-child) { border-right: 1px solid var(--line); }
 
     .numbered { margin: 0; padding: 0; list-style: none; counter-reset: section; }
     .numbered li { position: relative; min-height: 5.75rem; padding: 1.15rem 1rem 1.15rem 4.5rem; border-top: 1px solid var(--line); }
@@ -97,6 +105,11 @@
     .numbered li:last-child { border-bottom: 1px solid var(--line); }
     .numbered strong { display: block; margin-bottom: .18rem; font-family: "Space Grotesk", sans-serif; }
     .numbered span { color: var(--muted); font-size: .91rem; }
+    #anmelden .numbered { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; border: 1px solid var(--line); background: var(--line); }
+    #anmelden .numbered li { min-height: 10.75rem; padding: 1.15rem 1rem 1.15rem 3.35rem; border: 0; background: var(--paper); }
+    #anmelden .numbered li:last-child { border-bottom: 0; }
+    #anmelden .numbered li::before { left: 1.15rem; }
+    #anmelden .numbered li:nth-child(odd)::after { position: absolute; z-index: 1; top: 1.05rem; right: -.65rem; width: 1.3rem; height: 1.3rem; content: "→"; place-content: center; color: var(--trace); background: var(--paper); font: 600 1rem/1 "IBM Plex Mono", monospace; text-align: center; }
 
     .view { display: grid; grid-template-columns: 11rem 1fr; gap: 2rem; padding: 2.1rem 0; border-top: 1px solid var(--line); }
     .view:last-child { border-bottom: 1px solid var(--line); }
@@ -125,8 +138,8 @@
     .architecture .layer { font: 600 .67rem "IBM Plex Mono", monospace; letter-spacing: .1em; color: var(--trace); text-transform: uppercase; }
 
     .callout { max-width: 49rem; padding: 1.4rem 1.5rem; border-left: 4px solid var(--signal); background: var(--surface); }
-    #nutzen .callout { position: relative; padding-left: 1.75rem; border-left: 0; }
-    #nutzen .callout::before { position: absolute; inset: 0 auto 0 0; width: 4px; content: ""; background: var(--gradient); }
+    #nutzen .callout, #wissensquellen .callout, #ki .callout { position: relative; padding-left: 1.75rem; border-left: 0; }
+    #nutzen .callout::before, #wissensquellen .callout::before, #ki .callout::before { position: absolute; inset: 0 auto 0 0; width: 4px; content: ""; background: var(--gradient); }
     .callout p { margin: 0; }
     .scope-table { width: 100%; margin-top: 1.5rem; border-collapse: collapse; font-size: .89rem; }
     .scope-table th, .scope-table td { padding: .9rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
@@ -157,6 +170,11 @@
       .journey, .architecture { grid-template-columns: 1fr 1fr; }
       .three-col, .toc, .view-index, .product-gallery { grid-template-columns: 1fr; }
       #nutzen .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
+      #intelligenz .card:not(:last-child) { border-right: 0; border-bottom: 1px solid var(--line); }
+      #anmelden .numbered { grid-template-columns: 1fr; }
+      #anmelden .numbered li { min-height: 5.75rem; padding-left: 4.5rem; }
+      #anmelden .numbered li::before { left: 0; }
+      #anmelden .numbered li::after { display: none; }
       .view { gap: .65rem; }
     }
     @media print {
@@ -167,6 +185,7 @@
       .section { padding: 18mm 0; break-inside: avoid; }
       .section > .eyebrow { margin-bottom: 5mm; }
       .section > h2, .section > .lede { margin-bottom: 10mm; }
+      #intelligenz > h2 { margin-bottom: 12mm; }
       .product-divider { min-height: 250mm; padding: 18mm 0; break-before: page; break-after: page; }
       .product-images { padding: 18mm 0; break-inside: auto; }
       .product-gallery { grid-template-columns: 1fr; }
@@ -243,8 +262,8 @@
       <div class="eyebrow">04 · Teams und Projekte</div>
       <h2>Klare Zuständigkeiten für Wissen, das zusammengehört.</h2>
       <div class="two-col">
-        <div><h3>Teams</h3><p>Teams bündeln Personen nach Organisation, Produktlinie oder Aufgabe. Sie sind der erste Schutzraum für Inhalte und erleichtern es, gemeinsame Arbeitsbereiche sinnvoll zu strukturieren.</p><p>Administratoren verwalten Teams und Mitgliedschaften zentral. Personen ohne Teamzuordnung erhalten keinen unbeabsichtigten Einblick in Bestände.</p></div>
-        <div><h3>Projekte</h3><p>Ein Projekt ist der fachliche und technische Rahmen für zusammengehörige Quellen: etwa eine Anwendung, einen Modernisierungsstrang oder einen abgegrenzten Systembestand.</p><p>Projekte besitzen Mitglieder und Rollen. Berechtigte Personen können weitere Mitglieder aufnehmen; andere Teammitglieder können einen Zugriff anfragen, sofern das Projekt für sie sichtbar ist.</p></div>
+        <div><svg class="team-project-icon" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="teams-icon-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e4002b"/><stop offset="38%" stop-color="#d60055"/><stop offset="68%" stop-color="#7047eb"/><stop offset="100%" stop-color="#0064d2"/></linearGradient></defs><circle cx="18" cy="17" r="5" stroke="url(#teams-icon-gradient)"/><path d="M8 36v-2c0-4.4 3.6-8 8-8h4c4.4 0 8 3.6 8 8v2" stroke="url(#teams-icon-gradient)"/><path d="M30 13.5a5 5 0 0 1 0 9.5M34 26c3.5.8 6 3.9 6 7v3" stroke="url(#teams-icon-gradient)"/></svg><h3>Teams</h3><p>Teams bündeln Personen nach Organisation, Produktlinie oder Aufgabe. Sie sind der erste Schutzraum für Inhalte und erleichtern es, gemeinsame Arbeitsbereiche sinnvoll zu strukturieren.</p><p>Administratoren verwalten Teams und Mitgliedschaften zentral. Personen ohne Teamzuordnung erhalten keinen unbeabsichtigten Einblick in Bestände.</p></div>
+        <div><svg class="team-project-icon" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="projects-icon-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#e4002b"/><stop offset="38%" stop-color="#d60055"/><stop offset="68%" stop-color="#7047eb"/><stop offset="100%" stop-color="#0064d2"/></linearGradient></defs><path d="m24 8 15 8-15 8L9 16l15-8Z" stroke="url(#projects-icon-gradient)"/><path d="m9 24 15 8 15-8M9 32l15 8 15-8" stroke="url(#projects-icon-gradient)"/></svg><h3>Projekte</h3><p>Ein Projekt ist der fachliche und technische Rahmen für zusammengehörige Quellen: etwa eine Anwendung, einen Modernisierungsstrang oder einen abgegrenzten Systembestand.</p><p>Projekte besitzen Mitglieder und Rollen. Berechtigte Personen können weitere Mitglieder aufnehmen; andere Teammitglieder können einen Zugriff anfragen, sofern das Projekt für sie sichtbar ist.</p></div>
       </div>
     </section>
 
