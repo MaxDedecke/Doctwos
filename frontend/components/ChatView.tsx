@@ -632,7 +632,7 @@ export function ChatView({
         "px-3 pb-2 pt-1 bg-opacity-20 backdrop-blur-sm z-20 transition-colors",
         theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-900/40" : "bg-ds-zinc-100/20 border-ds-zinc-200"
       )}>
-        <div className="w-full max-w-4xl mx-auto relative group">
+        <div className="w-[92%] max-w-3xl mx-auto relative group">
 
           <div className={cn(
             "border rounded-lg shadow-2xl transition-all shadow-ds-black/40 backdrop-blur-xl w-full max-w-full overflow-hidden",
