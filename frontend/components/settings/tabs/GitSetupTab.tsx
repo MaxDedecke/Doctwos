@@ -61,7 +61,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   const [selectedRepoFullName, setSelectedRepoFullName] = useState("");
   const [fetchedBranches, setFetchedBranches] = useState<string[]>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
-  const [selectedBranchName, setSelectedBranchName] = useState("main");
+  const [selectedBranchName, setSelectedBranchName] = useState("");
   const [wizardStep, setWizardStep] = useState(1);
 
   const parsePublicGitUrl = (url: string) => {
@@ -195,12 +195,12 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       if (res.data && res.data.length > 0) {
         setSelectedBranchName(res.data[0]);
       } else {
-        setSelectedBranchName("main");
+        setSelectedBranchName("");
       }
     } catch (err) {
       console.error("Error fetching branches:", err);
       showToast(t('settings.toast.branchesFetchFailed'), "error");
-      setSelectedBranchName("main");
+      setSelectedBranchName("");
     } finally {
       setIsLoadingBranches(false);
     }
@@ -262,7 +262,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       const res = await api.createGitSource({
         name: repoName,
         url: cloneUrl,
-        branch: selectedBranchName || "main",
+        branch: selectedBranchName || undefined,
         username: repoType === 'public' ? null : repoUsername,
         token: repoType === 'public' ? null : repoToken,
         project_id: targetProjectId,

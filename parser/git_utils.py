@@ -17,7 +17,10 @@ da mehrere Wissensquellen denselben Bare-Mirror-Pfad teilen können.
 
 import hashlib
 import os
+import re
+import shutil
 import subprocess
+from urllib.parse import urlsplit, urlunsplit
 
 # E-3 (docs/ENTSCHEIDUNGEN.md): Partial Clone spart bei der Erstindexierung
 # eines Monorepos den Großteil des Transfers, braucht dafür aber dauerhaft
@@ -31,10 +34,25 @@ class GitCommandError(RuntimeError):
     """Ein git-Subprozess ist mit einem Fehler zurückgekommen; message = stderr."""
 
 
+def _partial_clone_unsupported(error: GitCommandError) -> bool:
+    """Return whether a Git server rejected the partial-clone filter."""
+    message = str(error).lower()
+    return bool(re.search(r"filter.*(not supported|unsupported|not recognized)|(?:does not|do not) support.*filter", message))
+
+
+def _redact_command_arg(value: str) -> str:
+    """Remove HTTP(S) userinfo before a Git command is included in an error."""
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or "@" not in parsed.netloc:
+        return value
+    return urlunsplit((parsed.scheme, parsed.netloc.rsplit("@", 1)[-1], parsed.path, parsed.query, parsed.fragment))
+
+
 def _run(args: list[str]) -> str:
     result = subprocess.run(args, capture_output=True, text=True)
     if result.returncode != 0:
-        raise GitCommandError(f"`{' '.join(args)}` fehlgeschlagen: {result.stderr.strip()}")
+        safe_args = [_redact_command_arg(arg) for arg in args]
+        raise GitCommandError(f"`{' '.join(safe_args)}` fehlgeschlagen: {result.stderr.strip()}")
     return result.stdout
 
 
@@ -72,7 +90,16 @@ def ensure_bare_mirror(repos_root: str, fingerprint: str, auth_url: str, log=Non
     if PARTIAL_CLONE:
         cmd.append("--filter=blob:none")
     cmd += [auth_url, path]
-    _run(cmd)
+    try:
+        _run(cmd)
+    except GitCommandError as error:
+        if not (PARTIAL_CLONE and _partial_clone_unsupported(error)):
+            raise
+        if log:
+            log("Remote unterstützt keinen Partial Clone; vollständiger Bare-Mirror wird verwendet.")
+        # Git may leave a partially initialized directory behind after clone fails.
+        shutil.rmtree(path, ignore_errors=True)
+        _run(["git", "clone", "--bare", "--no-tags", auth_url, path])
     return path
 
 
@@ -94,8 +121,24 @@ def fetch_branch(bare: str, branch: str, log=None) -> None:
     if PARTIAL_CLONE:
         cmd.append("--filter=blob:none")
     cmd += ["origin", branch]
-    _run(cmd)
+    try:
+        _run(cmd)
+    except GitCommandError as error:
+        if not (PARTIAL_CLONE and _partial_clone_unsupported(error)):
+            raise
+        if log:
+            log("Remote unterstützt keinen Partial Clone; Fetch wird ohne Blob-Filter wiederholt.")
+        _run(["git", "-C", bare, "fetch", "origin", branch])
     _run(["git", "-C", bare, "branch", "-f", branch, "FETCH_HEAD"])
+
+
+def remote_default_branch(url: str) -> str | None:
+    """Read the branch advertised by the remote HEAD symbolic reference."""
+    output = _run(["git", "ls-remote", "--symref", url, "HEAD"])
+    for line in output.splitlines():
+        if line.startswith("ref: refs/heads/") and line.endswith("\tHEAD"):
+            return line[len("ref: refs/heads/"):-len("\tHEAD")]
+    return None
 
 
 def ensure_worktree(bare: str, wt: str, branch: str, sparse_paths: list[str] | None = None, log=None) -> None:

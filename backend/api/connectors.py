@@ -58,6 +58,15 @@ def _pick_https_clone(item: dict) -> str:
     return clones[0]["href"] if clones else ""
 
 
+def _default_branch_first(branches: list[str], default_branch: str | None) -> list[str]:
+    """Keep the provider's default branch first while preserving API order."""
+    if not default_branch:
+        return branches
+    if default_branch not in branches:
+        return [default_branch, *branches]
+    return [default_branch, *(branch for branch in branches if branch != default_branch)]
+
+
 def _check_ascii(value: str | None, field_name: str) -> dict | None:
     """Gibt einen Fehler-Response zurück wenn value Nicht-ASCII-Zeichen enthält, sonst None."""
     if not value:
@@ -205,10 +214,12 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
             if req.type == "github":
                 if req.token:
                     headers["Authorization"] = f"Bearer {req.token}"
+                repo_resp = await client.get(f"https://api.github.com/repos/{req.repo_name}", headers=headers)
+                default_branch = repo_resp.json().get("default_branch") if repo_resp.status_code == 200 else None
                 resp = await client.get(f"https://api.github.com/repos/{req.repo_name}/branches?per_page=100", headers=headers)
                 if resp.status_code != 200:
                     raise HTTPException(status_code=resp.status_code, detail=f"GitHub API Fehler: {resp.text}")
-                return [item["name"] for item in resp.json()]
+                return _default_branch_first([item["name"] for item in resp.json()], default_branch)
 
             elif req.type == "bitbucket":
                 if req.url:
@@ -219,20 +230,40 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
                         raise HTTPException(status_code=400, detail="repo_name muss 'PROJECT_KEY/slug' sein für Bitbucket Server.")
                     project_key, repo_slug = parts
                     bb_auth, bb_headers = _bitbucket_server_auth(req.username, req.token, headers)
+                    repo_resp = await client.get(
+                        f"{base}/rest/api/1.0/projects/{project_key}/repos/{repo_slug}",
+                        auth=bb_auth, headers=bb_headers
+                    )
+                    default_branch = (
+                        repo_resp.json().get("defaultBranch", {}).get("displayId")
+                        if repo_resp.status_code == 200 else None
+                    )
                     resp = await client.get(
                         f"{base}/rest/api/1.0/projects/{project_key}/repos/{repo_slug}/branches?limit=100",
                         auth=bb_auth, headers=bb_headers
                     )
                     if resp.status_code != 200:
                         raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket Server API Fehler: {resp.text}")
-                    return [item["displayId"] for item in resp.json().get("values", [])]
+                    return _default_branch_first(
+                        [item["displayId"] for item in resp.json().get("values", [])], default_branch
+                    )
                 else:
                     # Bitbucket Cloud
                     auth = (req.username, req.token) if req.username and req.token else None
+                    repo_resp = await client.get(
+                        f"https://api.bitbucket.org/2.0/repositories/{req.repo_name}",
+                        auth=auth, headers=headers
+                    )
+                    default_branch = (
+                        repo_resp.json().get("mainbranch", {}).get("name")
+                        if repo_resp.status_code == 200 else None
+                    )
                     resp = await client.get(f"https://api.bitbucket.org/2.0/repositories/{req.repo_name}/refs/branches?pagelen=100", auth=auth, headers=headers)
                     if resp.status_code != 200:
                         raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket API Fehler: {resp.text}")
-                    return [item["name"] for item in resp.json().get("values", [])]
+                    return _default_branch_first(
+                        [item["name"] for item in resp.json().get("values", [])], default_branch
+                    )
 
             elif req.type == "gitlab":
                 if req.token:

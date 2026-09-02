@@ -120,7 +120,7 @@ class FolderWatchCreate(BaseModel):
 class GitSourceCreate(BaseModel):
     name: str
     url: str
-    branch: str = "main"
+    branch: Optional[str] = None
     username: Optional[str] = None
     token: Optional[str] = None
     project_id: Optional[int] = None

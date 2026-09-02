@@ -47,7 +47,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 
 | ID | Aktuelle Anforderung / Softwarestand | Status |
 |---|---|---|
-| DOC-F-010 | GitHub, GitLab, Bitbucket sowie generische Git-Repositories; Branch-Auswahl, bare Mirror, Worktree, Sparse-/Blob-Filter und inkrementelle Dateisynchronisation. | ERFÜLLT; Optimierung für sehr große Repositories ist noch offen (O-006). |
+| DOC-F-010 | GitHub, GitLab, Bitbucket sowie generische Git-Repositories; Branch-Auswahl, bare Mirror, Worktree, Sparse-/Blob-Filter und inkrementelle Dateisynchronisation. | ERFÜLLT; die optionale Performance-Evaluation für sehr große Repositories ist unter „Noch zu evaluieren“ (O-006) dokumentiert und kein aktueller Release-Blocker. |
 | DOC-F-019 | Branch-isolierte Verarbeitung, Wiederaufnahme über Hash-/Scan-Zustand und Konfliktbehandlung bei parallelen Quellen. | ERFÜLLT |
 | DOC-F-011 | Confluence- und Jira-Anbindung als read-only Quellen; Seiten, Anhänge und relevante Inhalte werden synchronisiert. | ERFÜLLT |
 | DOC-F-012 | WebDAV, lokale Ordner und FolderWatch als read-only Quellen. | ERFÜLLT |
@@ -158,7 +158,7 @@ Für eine nächste verbindliche Version sind mindestens folgende Punkte zu entsc
 2. Vollständiger Copybook-Feldindex und USES-XREF-Volumen über den gesamten Quellbestand (O-009).
 3. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
 4. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
-5. Lasttest mit repräsentativem DRV-COBOL (O-001) sowie Git-Verhalten auf großen Repositories (O-006).
+5. Lasttest mit repräsentativem DRV-COBOL (O-001); die optionale Git-Performance-Evaluation ist unter O-006 dokumentiert.
 6. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
 7. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
 

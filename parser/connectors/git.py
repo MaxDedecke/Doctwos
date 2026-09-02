@@ -378,7 +378,7 @@ class GitConnector(BaseConnector):
             except Exception:
                 spaces = {}
 
-        branch = self.source.branch or spaces.get("branch") or "main"
+        requested_branch = self.source.branch or spaces.get("branch")
         sparse_paths = spaces.get("sparse_paths")
         extensions = _resolve_extension_config(spaces)
 
@@ -388,6 +388,7 @@ class GitConnector(BaseConnector):
         fingerprint = self.source.repo_fingerprint
 
         auth_url = get_authenticated_url(self.source.url, self.source.username, self.source.token)
+        branch = requested_branch or await asyncio.to_thread(git_utils.remote_default_branch, auth_url) or "main"
         bare = git_utils.bare_path(REPOS_ROOT, fingerprint)
         wt = git_utils.worktree_path(REPOS_ROOT, self.source_id)
 

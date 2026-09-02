@@ -60,6 +60,52 @@ def test_compute_repo_fingerprint_distinguishes_different_urls():
     assert a != b
 
 
+def test_remote_default_branch(remote):
+    assert git_utils.remote_default_branch(remote) == "main"
+
+
+def test_partial_clone_falls_back_to_full_clone(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(args):
+        calls.append(args)
+        if "--filter=blob:none" in args:
+            raise git_utils.GitCommandError("server does not support filter")
+        return ""
+
+    monkeypatch.setattr(git_utils, "_run", fake_run)
+    monkeypatch.setattr(git_utils, "PARTIAL_CLONE", True)
+
+    fingerprint = git_utils.compute_repo_fingerprint("https://github.com/acme/repo.git")
+    git_utils.ensure_bare_mirror(str(tmp_path), fingerprint, "https://github.com/acme/repo.git")
+
+    assert calls[0][0:4] == ["git", "clone", "--bare", "--no-tags"]
+    assert "--filter=blob:none" in calls[0]
+    assert calls[1] == [
+        "git", "clone", "--bare", "--no-tags", "https://github.com/acme/repo.git",
+        git_utils.bare_path(str(tmp_path), fingerprint),
+    ]
+
+
+def test_partial_fetch_falls_back_to_unfiltered_fetch(monkeypatch):
+    calls = []
+
+    def fake_run(args):
+        calls.append(args)
+        if "--filter=blob:none" in args:
+            raise git_utils.GitCommandError("remote does not support filter")
+        return ""
+
+    monkeypatch.setattr(git_utils, "_run", fake_run)
+    monkeypatch.setattr(git_utils, "PARTIAL_CLONE", True)
+
+    git_utils.fetch_branch("/repos/bare/repo.git", "main")
+
+    assert calls[0] == ["git", "-C", "/repos/bare/repo.git", "fetch", "--filter=blob:none", "origin", "main"]
+    assert calls[1] == ["git", "-C", "/repos/bare/repo.git", "fetch", "origin", "main"]
+    assert calls[2] == ["git", "-C", "/repos/bare/repo.git", "branch", "-f", "main", "FETCH_HEAD"]
+
+
 def test_ensure_bare_mirror_clone_then_reuse(remote, repos_root):
     fp = git_utils.compute_repo_fingerprint(remote)
     bare1 = git_utils.ensure_bare_mirror(repos_root, fp, remote)

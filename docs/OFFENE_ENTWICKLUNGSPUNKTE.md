@@ -17,10 +17,19 @@ stehen.
 | O-003 | Design | Farbkontrast der Fujitsu-Farbtöne prüfen und gegebenenfalls nachbessern. | Markenfreigabe für zulässige Farbabweichungen einholen; danach zentrale Design-Tokens anpassen. | Markenverantwortliche |
 | O-004 | Frontend-Architektur | Domänen-State aus `frontend/app/page.tsx` in eigene Hooks bzw. Context-Provider auslagern. | **Erledigt 02.09.2026:** `useProjects`, `useChatSessions`, `useKnowledgeSources` und `useWorkspaceLayout` extrahieren jeweils ihren State sowie die zugehörigen Lade-/Navigationslogiken; Typecheck, Lint, 18 Tests und Produktions-Build grün. | Keine externe Abhängigkeit |
 | O-005 | Frontend-Performance | Nach O-004 `useCallback`/`memo` gezielt ergänzen. | **Erledigt 02.09.2026:** weitergereichte Navigations-, Session-, Chat-, Projekt- und Layout-Handler stabilisiert; Settings-Context sowie Header-Suche und Sidebar memoisiert. `tsc`, ESLint, 18 Tests und Produktions-Build grün. | O-004 |
-| O-006 | Git-Import | Repack-Nachlauf (`git repack -a -d` und `fetch --refetch`) nach der Erstindexierung bewerten und gegebenenfalls implementieren. | Entscheidung anhand eines echten großen Bestands treffen; anschließend Durchsatz und Speicherverbrauch vergleichen. | Großer Testbestand |
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
+
+## Noch zu evaluieren
+
+- O-006 (Git-Performance) — bewusst aus den aktuell offenen
+  Implementierungsaufträgen herausgenommen. Nach der providerübergreifenden
+  Kompatibilitätsabsicherung für GitHub und Bitbucket soll anhand eines großen,
+  repräsentativen Bestands gemessen werden, ob `git repack -a -d` und
+  `git fetch --refetch` nach der Ersteinindexierung sinnvoll sind. Zu erfassen
+  sind Erst-/Folgesync, Mirror-/Worktree-Größe, Netzwerktraffic sowie CPU-/IO-
+  Aufwand. Kein aktueller Release-Blocker.
 
 ## Umsetzungs- und Übergabestatus
 

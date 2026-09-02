@@ -8,7 +8,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 |----|-------|--------------|--------|
 | E-1 | Kanten-Nachauflösung | `code_edges.scope_entity_id` eingeführt | umgesetzt |
 | E-2 | XREF über Copybook-Grenzen | quellenweiter Feldindex, REPLACING wird mitgeführt | entschieden, offen in AP-2 |
-| E-3 | Partial Clone vs. Offline | `--filter=blob:none` nur bei erreichbarem Remote | umgesetzt, Repack-Nachlauf offen |
+| E-3 | Partial Clone vs. Offline | `--filter=blob:none` nur bei erreichbarem Remote | umgesetzt, Repack-Nachlauf unter „Noch zu evaluieren“ dokumentiert |
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
 | E-6 | AP-2/AP-4-Grenze (chunking.py, parse.py-Umfang) | §6.6/§13 verbindlich: chunking.py = AP-4, parse.py = nur `parse_program()` In-Memory, Pass 0-2 = AP-4 | umgesetzt |
@@ -87,14 +87,17 @@ Worktree-Operationen ohne offensichtlichen Zusammenhang zur Ursache.
   ist der Bare-Store autark. Das ist die Einstellung für Deployments, in denen der
   Git-Server nach der Erstindexierung nicht mehr erreichbar ist.
 
-Zusätzlich: nach Abschluss der Erstindexierung optional `git repack -a -d` +
-`git fetch --refetch` zum „Auffüllen". Wird in AP-3 gemessen, nicht vorab entschieden.
+Zusätzlich bleibt nach Abschluss der Erstindexierung optional `git repack -a -d` +
+`git fetch --refetch` zum „Auffüllen" als Performance-Evaluation erhalten. Die
+Messung ist unter O-006 in `OFFENE_ENTWICKLUNGSPUNKTE.md` dokumentiert, aber
+aktuell kein offener Implementierungsauftrag.
 
-**Stand 31.07.2026.** Der Schalter ist umgesetzt: `DOCTUS_GIT_PARTIAL_CLONE`
+**Stand 02.09.2026.** Der Schalter ist umgesetzt: `DOCTUS_GIT_PARTIAL_CLONE`
 (Default `1`) steuert `--filter=blob:none` in `parser/git_utils.py`
-(`ensure_bare_mirror`/`fetch_branch`). Der optionale Repack-Nachlauf bleibt
-offen — er sollte laut diesem Eintrag selbst erst an einem echten großen
-Bestand gemessen werden, und der fehlt weiterhin (Plan §1.3, Punkt 4).
+(`ensure_bare_mirror`/`fetch_branch`). Falls der Server den Filter nicht
+unterstützt, fällt der Import automatisch auf einen vollständigen Clone/Fetch
+zurück. Der optionale Repack-Nachlauf bleibt als Evaluation unter O-006
+erhalten und ist aktuell kein Release-Blocker.
 
 **Fundstelle.** `parser/git_utils.py::PARTIAL_CLONE`, `ensure_bare_mirror()`, `fetch_branch()`.
 
