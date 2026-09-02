@@ -28,6 +28,7 @@ from core.tracing import get_trace_id
 from core.db_setup import get_db
 from core.auth_dependency import get_current_user
 from models.database import DiagnosticsRun, User
+from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ def trigger_diagnostics_bundle(
     db.commit()
     db.refresh(run)
 
-    celery_app.send_task("generate_diagnostics_bundle", args=[run.id], kwargs={"trace_id": get_trace_id()})
+    send_tracked_task(db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()})
     return {"message": "Diagnostics bundle generation started", "run_id": run.id}
 
 

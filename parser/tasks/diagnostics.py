@@ -152,6 +152,10 @@ async def generate_diagnostics_bundle_async(run_id: int) -> None:
         logger.error(f"[Diagnostics] DiagnosticsRun {run_id} nicht gefunden — abgebrochen.")
         db.close()
         return
+    if run.status == "cancelled":
+        logger.info(f"[Diagnostics] Run {run_id} wurde vor dem Start abgebrochen.")
+        db.close()
+        return
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     bundle_name = f"doctus-diagnostics-{timestamp}"

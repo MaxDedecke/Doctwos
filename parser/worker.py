@@ -29,6 +29,7 @@ from celery import Celery
 from celery.schedules import crontab
 from celery.signals import worker_process_init
 from db import REDIS_URL, SessionLocal
+from models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
 
 from core.tracing import TraceIdFilter, trace_id_scope
 from tasks.document import process_local_document_async
@@ -64,6 +65,23 @@ app = Celery("parser", broker=REDIS_URL, backend=REDIS_URL)
 # format/handlers/filter set up above — turn that off so our trace-ID format
 # and shared-log-file FileHandler survive.
 app.conf.worker_hijack_root_logger = False
+
+
+def _register_task_id(model, row_id: int, task_id: str | None) -> None:
+    """Persist the Celery id so the Job Center can revoke auto-triggered work."""
+    if not task_id:
+        return
+    db = SessionLocal()
+    try:
+        row = db.query(model).filter(model.id == row_id).first()
+        if row and row.celery_task_id != task_id:
+            row.celery_task_id = task_id
+            db.commit()
+    except Exception:
+        db.rollback()
+        logging.getLogger(__name__).warning("Could not register Celery task id", exc_info=True)
+    finally:
+        db.close()
 
 
 @worker_process_init.connect
@@ -108,21 +126,23 @@ app.conf.beat_schedule = {
 
 
 
-@app.task(name="process_local_document")
-def process_local_document(source_id: int, file_path: str):
+@app.task(name="process_local_document", bind=True)
+def process_local_document(task, source_id: int, file_path: str):
     """Celery-Task: Hochgeladenes lokales Dokument (PDF, Word, Text) parsen und einbetten."""
+    _register_task_id(KnowledgeSource, source_id, task.request.id)
     asyncio.run(process_local_document_async(source_id, file_path))
     return {"status": "finished", "source_id": source_id}
 
 
-@app.task(name="process_knowledge_source")
-def process_knowledge_source(source_id: int):
+@app.task(name="process_knowledge_source", bind=True)
+def process_knowledge_source(task, source_id: int):
     """
     Celery-Task: Wissensquelle synchronisieren (einheitlicher Task für alle Typen).
 
     Der passende Connector wird anhand von KnowledgeSource.type aus der
     ConnectorRegistry geladen. Neuen Typ unterstützen: nur registry.py anpassen.
     """
+    _register_task_id(KnowledgeSource, source_id, task.request.id)
     asyncio.run(process_knowledge_source_async(source_id))
     return {"status": "finished", "source_id": source_id}
 
@@ -131,20 +151,22 @@ def process_knowledge_source(source_id: int):
 # Alte Task-Namen bleiben als Aliases erhalten, bis der Backend vollständig auf
 # "process_knowledge_source" umgestellt ist. Danach können diese entfernt werden.
 
-@app.task(name="process_confluence_source")
-def process_confluence_source(source_id: int):
+@app.task(name="process_confluence_source", bind=True)
+def process_confluence_source(task, source_id: int):
+    _register_task_id(KnowledgeSource, source_id, task.request.id)
     asyncio.run(process_knowledge_source_async(source_id))
     return {"status": "finished", "source_id": source_id}
 
 
-@app.task(name="process_jira_source")
-def process_jira_source(source_id: int):
+@app.task(name="process_jira_source", bind=True)
+def process_jira_source(task, source_id: int):
+    _register_task_id(KnowledgeSource, source_id, task.request.id)
     asyncio.run(process_knowledge_source_async(source_id))
     return {"status": "finished", "source_id": source_id}
 
 
-@app.task(name="compute_entity_links")
-def compute_entity_links(run_id: int, project_id: int, trace_id: str | None = None, min_confidence: int | None = None):
+@app.task(name="compute_entity_links", bind=True)
+def compute_entity_links(task, run_id: int, project_id: int, trace_id: str | None = None, min_confidence: int | None = None):
     """
     Celery-Task: Semantische Verknüpfungen zwischen Code-Entities und Wissens-Chunks
     berechnen (3 Passes: semantisch, keyword, syntaktisch). Erzeugt pending-Empfehlungen
@@ -155,13 +177,14 @@ def compute_entity_links(run_id: int, project_id: int, trace_id: str | None = No
     (0-100) für die LLM-Konfidenz, ab der ein Kandidat als Vorschlag gespeichert
     wird. None = Default aus link_builder.LLM_MIN_CONFIDENCE.
     """
+    _register_task_id(LinkBuilderRun, run_id, task.request.id)
     with trace_id_scope(trace_id):
         asyncio.run(compute_entity_links_async(run_id, project_id, min_confidence=min_confidence))
     return {"status": "finished", "run_id": run_id, "project_id": project_id}
 
 
-@app.task(name="compute_knowledge_links")
-def compute_knowledge_links(run_id: int, trace_id: str | None = None, min_confidence: int | None = None):
+@app.task(name="compute_knowledge_links", bind=True)
+def compute_knowledge_links(task, run_id: int, trace_id: str | None = None, min_confidence: int | None = None):
     """
     Celery-Task: Cross-Source Analyse starten. Findet semantische Verknüpfungen
     über alle Wissensquellen und Repositories hinweg. Fortschritt/Ergebnis werden
@@ -170,18 +193,20 @@ def compute_knowledge_links(run_id: int, trace_id: str | None = None, min_confid
     min_confidence: siehe compute_entity_links — hier für die Cross-Source-LLM-
     Bewertung in cross_link_builder.LLM_MIN_CONFIDENCE.
     """
+    _register_task_id(LinkBuilderRun, run_id, task.request.id)
     with trace_id_scope(trace_id):
         asyncio.run(compute_knowledge_links_async(run_id, min_confidence=min_confidence))
     return {"status": "finished", "run_id": run_id}
 
 
-@app.task(name="generate_diagnostics_bundle")
-def generate_diagnostics_bundle(run_id: int, trace_id: str | None = None):
+@app.task(name="generate_diagnostics_bundle", bind=True)
+def generate_diagnostics_bundle(task, run_id: int, trace_id: str | None = None):
     """
     Celery-Task: Diagnose-Bundle erzeugen (DB-Metadaten, Service-Logs,
     Schema-Version, redaktiert) — ausgelöst über den Settings > Logs Button.
     Fortschritt/Ergebnis werden laufend in DiagnosticsRun geschrieben.
     """
+    _register_task_id(DiagnosticsRun, run_id, task.request.id)
     with trace_id_scope(trace_id):
         asyncio.run(generate_diagnostics_bundle_async(run_id))
     return {"status": "finished", "run_id": run_id}
@@ -240,4 +265,3 @@ def scan_pull_sources():
         app.send_task("process_knowledge_source", args=[source_id])
 
     return {"status": "finished", "triggered": len(due_ids)}
-

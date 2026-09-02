@@ -12,6 +12,7 @@ from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
 from core.projects import get_visible_project_ids
 from services.ollama_client import ask_llm_json_for_profile
+from services.job_control import send_tracked_task
 from sqlalchemy.sql import func
 
 router = APIRouter(prefix="/knowledge-links", tags=["knowledge-links"])
@@ -274,10 +275,12 @@ def trigger_knowledge_link_computation(
     db.commit()
     db.refresh(run)
 
-    celery_app.send_task(
+    send_tracked_task(
+        db,
+        run,
         "compute_knowledge_links",
-        args=[run.id],
-        kwargs={"trace_id": get_trace_id(), "min_confidence": min_confidence},
+        [run.id],
+        {"trace_id": get_trace_id(), "min_confidence": min_confidence},
     )
     return {"message": "Cross-Source Analyse gestartet", "run_id": run.id}
 

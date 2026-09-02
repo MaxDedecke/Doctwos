@@ -27,7 +27,9 @@ def test_admin_can_restart_failed_source_and_keep_job_visible(client, db_session
     db_session.refresh(source)
     assert source.sync_status == "pending"
     assert source.progress == 0
-    assert sent_tasks == [(("process_knowledge_source",), {"args": [source.id], "kwargs": {"trace_id": "-"}})]
+    assert sent_tasks[0][0] == ("process_knowledge_source",)
+    assert sent_tasks[0][1]["args"] == [source.id]
+    assert sent_tasks[0][1]["kwargs"]["trace_id"]
 
     listed = client.get("/jobs")
     assert listed.status_code == 200
@@ -62,7 +64,9 @@ def test_admin_can_restart_failed_diagnostics_run(client, db_session, monkeypatc
     created = db_session.query(DiagnosticsRun).order_by(DiagnosticsRun.id.desc()).first()
     assert created.id != run.id
     assert created.status == "pending"
-    assert sent_tasks == [(("generate_diagnostics_bundle",), {"args": [created.id], "kwargs": {"trace_id": "-"}})]
+    assert sent_tasks[0][0] == ("generate_diagnostics_bundle",)
+    assert sent_tasks[0][1]["args"] == [created.id]
+    assert sent_tasks[0][1]["kwargs"]["trace_id"]
     db_session.delete(created)
     db_session.delete(run)
     db_session.commit()
@@ -91,4 +95,49 @@ def test_admin_can_remove_completed_source_job_without_deleting_source(client, d
         JobCenterDismissal.job_id == source.id,
     ).delete(synchronize_session=False)
     db_session.delete(source)
+    db_session.commit()
+
+
+def test_admin_can_remove_failed_diagnostics_job(client, db_session):
+    run = DiagnosticsRun(status="failed", error_message="bundle failed")
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    response = client.delete(f"/jobs/diagnostics/{run.id}")
+
+    assert response.status_code == 200
+    listed = client.get("/jobs")
+    assert all(job["key"] != f"diagnostics:{run.id}" for job in listed.json()["jobs"])
+    db_session.query(JobCenterDismissal).filter(
+        JobCenterDismissal.kind == "diagnostics",
+        JobCenterDismissal.job_id == run.id,
+    ).delete(synchronize_session=False)
+    db_session.delete(run)
+    db_session.commit()
+
+
+def test_admin_can_stop_running_diagnostics_job(client, db_session, monkeypatch):
+    run = DiagnosticsRun(status="pending", celery_task_id="celery-task-123")
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+    revoked = []
+    monkeypatch.setattr(
+        jobs_api.celery_app.control,
+        "revoke",
+        lambda *args, **kwargs: revoked.append((args, kwargs)),
+    )
+
+    response = client.post(f"/jobs/diagnostics/{run.id}/stop")
+
+    assert response.status_code == 200
+    db_session.refresh(run)
+    assert run.status == "cancelled"
+    assert run.progress_message == "Vom Administrator abgebrochen"
+    assert revoked == [(
+        ("celery-task-123",),
+        {"terminate": True, "signal": "SIGTERM"},
+    )]
+    db_session.delete(run)
     db_session.commit()

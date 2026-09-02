@@ -248,6 +248,10 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
         logger.error(f"[LinkBuilder] LinkBuilderRun {run_id} nicht gefunden — abgebrochen.")
         db.close()
         return
+    if run.status == "cancelled":
+        logger.info(f"[LinkBuilder] Run {run_id} wurde vor dem Start abgebrochen.")
+        db.close()
+        return
 
     # Try to acquire the Redis lock with run_id as owner, renewed per entity below.
     acquired = redis_client.set(lock_key, str(run_id), ex=LOCK_LEASE_SECONDS, nx=True)
@@ -312,6 +316,10 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
         await ensure_model_pulled(config.EMBED_MODEL)
 
         for entity in entities:
+            db.refresh(run)
+            if run.status == "cancelled":
+                logger.info(f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen.")
+                return
             # Heartbeat: renew the lock lease as long as we're still making
             # progress, so a genuinely long-running scan (many entities)
             # never loses its lock mid-run.
@@ -421,6 +429,9 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
                 requeue_db.add(new_run)
                 requeue_db.commit()
                 requeue_db.refresh(new_run)
-                current_app.send_task("compute_entity_links", args=[new_run.id, project_id])
+                result = current_app.send_task("compute_entity_links", args=[new_run.id, project_id])
+                if getattr(result, "id", None):
+                    new_run.celery_task_id = result.id
+                    requeue_db.commit()
             finally:
                 requeue_db.close()

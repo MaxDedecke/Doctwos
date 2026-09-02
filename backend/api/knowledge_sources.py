@@ -43,6 +43,7 @@ from models.database import DocumentChunk, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin, DEFAULT_TEAM_NAME
 from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
+from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])
@@ -152,7 +153,7 @@ def create_knowledge_source(
 
     # Einheitlicher Task für alle Web-Connector-Typen (Git/Confluence/Jira/WebDAV)
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "webdav", "git"):
-        celery_app.send_task("process_knowledge_source", args=[db_source.id])
+        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
 
     return serialize_source(db_source)
 
@@ -212,7 +213,7 @@ def sync_knowledge_source(
     assert_knowledge_source_visible(db_source, user, db)
 
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "folderwatch", "webdav", "git"):
-        celery_app.send_task("process_knowledge_source", args=[db_source.id])
+        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
     else:
         raise HTTPException(status_code=400, detail="Synchronisierung wird für diesen Quelltyp nicht unterstützt")
 
@@ -591,7 +592,7 @@ def create_folder_watch_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    celery_app.send_task("process_knowledge_source", args=[db_source.id])
+    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
     return serialize_source(db_source)
 
 
@@ -623,7 +624,7 @@ def create_git_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    celery_app.send_task("process_knowledge_source", args=[db_source.id])
+    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
     return serialize_source(db_source)
 
 
@@ -659,7 +660,7 @@ async def upload_local_document(
     with open(file_dest, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    celery_app.send_task("process_local_document", args=[db_source.id, file_dest])
+    send_tracked_task(db, db_source, "process_local_document", [db_source.id, file_dest])
     return db_source
 
 

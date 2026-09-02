@@ -1121,13 +1121,17 @@
     "activeCount": "{{count}} aktive Jobs",
     "resume": "Wiederaufnehmen",
     "restart": "Neu anstoßen",
+    "stop": "Stoppen",
     "remove": "Aus dem Job-Center entfernen",
     "actionFailed": "Job-Aktion konnte nicht ausgeführt werden.",
     "status": {
       "pending": "In Warteschlange",
       "running": "Wird ausgeführt",
       "failed": "Fehlgeschlagen",
-      "completed": "Abgeschlossen"
+      "completed": "Abgeschlossen",
+      "cancelled": "Abgebrochen",
+      "syncing": "Synchronisierung",
+      "parsing": "Verarbeitung"
     }
   },
   "errorBoundary": {

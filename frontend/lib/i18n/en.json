@@ -1121,13 +1121,17 @@
     "activeCount": "{{count}} active jobs",
     "resume": "Resume",
     "restart": "Restart",
+    "stop": "Stop",
     "remove": "Remove from job center",
     "actionFailed": "The job action could not be completed.",
     "status": {
       "pending": "Queued",
       "running": "Running",
       "failed": "Failed",
-      "completed": "Completed"
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "syncing": "Syncing",
+      "parsing": "Processing"
     }
   },
   "errorBoundary": {

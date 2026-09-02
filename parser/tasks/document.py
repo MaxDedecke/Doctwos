@@ -27,6 +27,11 @@ async def process_local_document_async(source_id: int, file_path: str):
         logger.warning(f"Local document source {source_id} not found.")
         return
 
+    if source.sync_status == "cancelled":
+        logger.info(f"Local document source {source_id} was cancelled before processing.")
+        db.close()
+        return
+
     if source.sync_status == "syncing":
         logger.info(f"Verarbeitung für Quelle {source_id} läuft bereits, überspringe.")
         return

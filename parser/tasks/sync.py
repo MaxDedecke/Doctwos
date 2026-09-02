@@ -42,6 +42,9 @@ async def process_knowledge_source_async(source_id: int) -> None:
         if not source:
             logger.warning(f"[Sync] KnowledgeSource {source_id} nicht gefunden.")
             return
+        if source.sync_status == "cancelled":
+            logger.info(f"[Sync] KnowledgeSource {source_id} wurde vor dem Start abgebrochen.")
+            return
         
         source_type = source.type
         connector_cls = get_connector(source_type)
@@ -55,7 +58,10 @@ async def process_knowledge_source_async(source_id: int) -> None:
             db.add(link_run)
             db.commit()
             db.refresh(link_run)
-            celery_app.send_task("compute_entity_links", args=[link_run.id, source.project_id])
+            result = celery_app.send_task("compute_entity_links", args=[link_run.id, source.project_id])
+            if getattr(result, "id", None):
+                link_run.celery_task_id = result.id
+                db.commit()
             logger.info(f"[Sync] Link-Berechnung für Projekt {source.project_id} gestartet, da Änderungen vorliegen.")
 
     except Exception as e:

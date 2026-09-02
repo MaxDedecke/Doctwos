@@ -32,6 +32,7 @@ from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
 from services.ollama_client import ask_llm_json_for_profile
+from services.job_control import send_tracked_task
 
 
 def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
@@ -163,10 +164,12 @@ def trigger_link_computation(
     db.commit()
     db.refresh(run)
 
-    celery_app.send_task(
+    send_tracked_task(
+        db,
+        run,
         "compute_entity_links",
-        args=[run.id, project_id],
-        kwargs={"trace_id": get_trace_id(), "min_confidence": min_confidence},
+        [run.id, project_id],
+        {"trace_id": get_trace_id(), "min_confidence": min_confidence},
     )
     return {"message": "Link computation started", "project_id": project_id, "run_id": run.id}
 

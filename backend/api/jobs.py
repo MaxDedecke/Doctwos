@@ -7,6 +7,7 @@ damit die Fehlerhistorie erhalten bleibt.
 """
 
 import os
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
@@ -19,9 +20,11 @@ from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids, is_admin, require_admin
 from core.tracing import get_trace_id
 from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource, LinkBuilderRun, User
+from services.job_control import revoke_tracked_task, send_tracked_task
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 ACTIVE = {"pending", "running", "syncing", "parsing"}
+TERMINAL = {"completed", "failed", "cancelled"}
 SUPPORTED_SOURCE_TYPES = {"confluence", "jira", "folderwatch", "webdav", "git", "local"}
 
 
@@ -50,7 +53,8 @@ def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
         "created_at": _iso(source.parse_started_at or source.created_at),
         "finished_at": _iso(source.parse_finished_at), "can_resume": status == "failed",
         "can_start": _source_can_start(source, admin, status),
-        "can_delete": admin and status == "completed",
+        "can_delete": admin and status in TERMINAL,
+        "can_stop": admin and status in ACTIVE,
     }
 
 
@@ -62,7 +66,8 @@ def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
         "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
-        "can_delete": admin and run.status == "completed",
+        "can_delete": admin and run.status in TERMINAL,
+        "can_stop": admin and run.status in ACTIVE,
     }
 
 
@@ -73,7 +78,8 @@ def _diagnostics_job(run: DiagnosticsRun, admin: bool = False) -> dict:
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
         "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
-        "can_delete": admin and run.status == "completed",
+        "can_delete": admin and run.status in TERMINAL,
+        "can_stop": admin and run.status in ACTIVE,
     }
 
 
@@ -126,9 +132,9 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
     ).delete(synchronize_session=False)
     db.commit()
     if source_type == "local":
-        celery_app.send_task("process_local_document", args=[source.id, file_path], kwargs={"trace_id": get_trace_id()})
+        send_tracked_task(db, source, "process_local_document", [source.id, file_path], {"trace_id": get_trace_id()})
     else:
-        celery_app.send_task("process_knowledge_source", args=[source.id], kwargs={"trace_id": get_trace_id()})
+        send_tracked_task(db, source, "process_knowledge_source", [source.id], {"trace_id": get_trace_id()})
     return {"message": "Job gestartet", "key": f"source:{source.id}"}
 
 
@@ -139,7 +145,7 @@ def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     db.refresh(run)
     task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
     args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
-    celery_app.send_task(task, args=args, kwargs={"trace_id": get_trace_id()})
+    send_tracked_task(db, run, task, args, {"trace_id": get_trace_id()})
     return {"message": "Job gestartet", "key": f"link_builder:{run.id}"}
 
 
@@ -148,7 +154,7 @@ def _queue_diagnostics(user: User, db: Session) -> dict:
     db.add(run)
     db.commit()
     db.refresh(run)
-    celery_app.send_task("generate_diagnostics_bundle", args=[run.id], kwargs={"trace_id": get_trace_id()})
+    send_tracked_task(db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()})
     return {"message": "Job gestartet", "key": f"diagnostics:{run.id}"}
 
 
@@ -220,8 +226,8 @@ def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
 
     if status in ACTIVE:
         raise HTTPException(409, "Laufende Jobs können nicht entfernt werden")
-    if status != "completed":
-        raise HTTPException(409, "Nur erfolgreiche Jobs können entfernt werden")
+    if status not in TERMINAL:
+        raise HTTPException(409, "Nur abgeschlossene, fehlgeschlagene oder abgebrochene Jobs können entfernt werden")
 
     dismissal = db.query(JobCenterDismissal).filter(
         JobCenterDismissal.kind == kind,
@@ -231,6 +237,54 @@ def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         db.add(JobCenterDismissal(kind=kind, job_id=job_id, dismissed_by_user_id=user.id))
         db.commit()
     return {"message": "Job aus dem Job-Center entfernt", "key": f"{kind}:{job_id}"}
+
+
+@router.post("/{kind}/{job_id}/stop", dependencies=[Depends(require_admin)])
+def stop_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Cancel an active job and revoke its Celery task when an id is available."""
+    task_id = None
+    if kind == "source":
+        record = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
+        if not record:
+            raise HTTPException(404, "Job nicht gefunden")
+        status = "running" if record.sync_status in {"syncing", "parsing"} else (record.sync_status or "pending")
+        if status == "error":
+            status = "failed"
+        if status not in ACTIVE:
+            raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
+        task_id = record.celery_task_id
+        record.sync_status = "cancelled"
+        record.progress_message = "Vom Administrator abgebrochen"
+        record.last_error = record.last_error_detail = "Job wurde vom Administrator abgebrochen"
+        record.parse_finished_at = datetime.now(timezone.utc)
+    elif kind == "link_builder":
+        record = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == job_id).first()
+        if not record:
+            raise HTTPException(404, "Job nicht gefunden")
+        if record.status not in ACTIVE:
+            raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
+        task_id = record.celery_task_id
+        record.status = "cancelled"
+        record.progress_message = "Vom Administrator abgebrochen"
+        record.error_message = "Job wurde vom Administrator abgebrochen"
+        record.finished_at = datetime.now(timezone.utc)
+    elif kind == "diagnostics":
+        record = db.query(DiagnosticsRun).filter(DiagnosticsRun.id == job_id).first()
+        if not record:
+            raise HTTPException(404, "Job nicht gefunden")
+        if record.status not in ACTIVE:
+            raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
+        task_id = record.celery_task_id
+        record.status = "cancelled"
+        record.progress_message = "Vom Administrator abgebrochen"
+        record.error_message = "Job wurde vom Administrator abgebrochen"
+        record.finished_at = datetime.now(timezone.utc)
+    else:
+        raise HTTPException(404, "Job nicht gefunden")
+
+    db.commit()
+    revoke_tracked_task(task_id)
+    return {"message": "Job abgebrochen", "key": f"{kind}:{job_id}"}
 
 
 @router.post("/{kind}/{job_id}/resume")
@@ -252,7 +306,7 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         source.last_error = source.last_error_detail = None
         source.parse_finished_at = None
         db.commit()
-        celery_app.send_task("process_knowledge_source", args=[source.id])
+        send_tracked_task(db, source, "process_knowledge_source", [source.id])
         return {"message": "Job wiederaufgenommen", "key": f"source:{source.id}"}
 
     if kind == "link_builder":
@@ -272,7 +326,7 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         db.refresh(run)
         task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
         args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
-        celery_app.send_task(task, args=args, kwargs=trace)
+        send_tracked_task(db, run, task, args, trace)
         return {"message": "Job wiederaufgenommen", "key": f"link_builder:{run.id}"}
 
     if kind == "diagnostics" and is_admin(user):
@@ -285,7 +339,7 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         db.add(run)
         db.commit()
         db.refresh(run)
-        celery_app.send_task("generate_diagnostics_bundle", args=[run.id], kwargs=trace)
+        send_tracked_task(db, run, "generate_diagnostics_bundle", [run.id], trace)
         return {"message": "Job wiederaufgenommen", "key": f"diagnostics:{run.id}"}
 
     raise HTTPException(404, "Job nicht gefunden")

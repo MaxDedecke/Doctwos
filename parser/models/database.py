@@ -112,7 +112,8 @@ class KnowledgeSource(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     spaces = Column(JSON, nullable=True)
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
-    sync_status = Column(String, default="pending") # pending, syncing, completed, error
+    sync_status = Column(String, default="pending") # pending, syncing, completed, error, cancelled
+    celery_task_id = Column(String(255), nullable=True)
     progress = Column(Integer, default=0)
     progress_message = Column(String, nullable=True)
     last_error = Column(Text, nullable=True)
@@ -422,6 +423,7 @@ class LinkBuilderRun(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, default="pending", nullable=False)  # pending, running, completed, failed
+    celery_task_id = Column(String(255), nullable=True)
     progress_message = Column(String, nullable=True)
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
@@ -440,6 +442,7 @@ class DiagnosticsRun(Base):
     triggered_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(String, default="pending", nullable=False)  # pending, running, completed, failed
+    celery_task_id = Column(String(255), nullable=True)
     progress_message = Column(String, nullable=True)
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
