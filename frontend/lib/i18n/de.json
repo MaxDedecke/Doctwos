@@ -1105,14 +1105,18 @@
   },
   "jobCenter": {
     "title": "Job-Center",
-    "subtitle": "Aktive und fehlgeschlagene Vorgänge",
-    "empty": "Keine aktiven oder fehlgeschlagenen Jobs.",
+    "subtitle": "Verlauf und Steuerung der Hintergrundjobs",
+    "empty": "Noch keine Jobs vorhanden.",
     "activeCount": "{{count}} aktive Jobs",
     "resume": "Wiederaufnehmen",
+    "start": "Jetzt starten",
+    "restart": "Neu anstoßen",
+    "actionFailed": "Job-Aktion konnte nicht ausgeführt werden.",
     "status": {
       "pending": "In Warteschlange",
       "running": "Wird ausgeführt",
-      "failed": "Fehlgeschlagen"
+      "failed": "Fehlgeschlagen",
+      "completed": "Abgeschlossen"
     }
   },
   "errorBoundary": {

@@ -6,28 +6,41 @@ Wiederaufnehmen nicht überschrieben: Run-basierte Jobs erhalten einen neuen Run
 damit die Fehlerhistorie erhalten bleibt.
 """
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
-from core.config import celery_app
+from core.config import UPLOADS_DIR, celery_app
 from core.db_setup import get_db
 from core.projects import get_visible_project_ids
-from core.teams import get_visible_team_ids, is_admin
+from core.teams import get_visible_team_ids, is_admin, require_admin
 from core.tracing import get_trace_id
 from models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun, User
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 ACTIVE = {"pending", "running", "syncing", "parsing"}
+SUPPORTED_SOURCE_TYPES = {"confluence", "jira", "folderwatch", "webdav", "git", "local"}
 
 
 def _iso(value):
     return value.isoformat() if value else None
 
 
-def _source_job(source: KnowledgeSource) -> dict:
-    status = "running" if source.sync_status in {"syncing", "parsing"} else source.sync_status
+def _source_can_start(source: KnowledgeSource, admin: bool, status: str) -> bool:
+    if not admin or status in ACTIVE:
+        return False
+    source_type = (source.type or "").lower()
+    if source_type != "local":
+        return source_type in SUPPORTED_SOURCE_TYPES
+    path_name = source.spaces.get("path") if isinstance(source.spaces, dict) else None
+    return bool(path_name and os.path.isfile(os.path.join(UPLOADS_DIR, path_name)))
+
+
+def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
+    status = "running" if source.sync_status in {"syncing", "parsing"} else (source.sync_status or "pending")
     if status == "error":
         status = "failed"
     return {
@@ -36,27 +49,28 @@ def _source_job(source: KnowledgeSource) -> dict:
         "progress_message": source.progress_message, "error_message": source.last_error_detail or source.last_error,
         "created_at": _iso(source.parse_started_at or source.created_at),
         "finished_at": _iso(source.parse_finished_at), "can_resume": status == "failed",
+        "can_start": _source_can_start(source, admin, status),
     }
 
 
-def _run_job(run: LinkBuilderRun) -> dict:
+def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
     label = "Entity-Verknüpfungen" if run.task_type == "entity_links" else "Wissens-Verknüpfungen"
     return {
         "key": f"link_builder:{run.id}", "kind": "link_builder", "id": run.id,
         "label": label, "status": run.status, "progress": None,
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed",
+        "can_resume": run.status == "failed", "can_start": admin and run.status not in ACTIVE,
     }
 
 
-def _diagnostics_job(run: DiagnosticsRun) -> dict:
+def _diagnostics_job(run: DiagnosticsRun, admin: bool = False) -> dict:
     return {
         "key": f"diagnostics:{run.id}", "kind": "diagnostics", "id": run.id,
         "label": "Diagnosepaket", "status": run.status, "progress": None,
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed",
+        "can_resume": run.status == "failed", "can_start": admin and run.status not in ACTIVE,
     }
 
 
@@ -65,26 +79,99 @@ def list_jobs(db: Session = Depends(get_db), user: User = Depends(get_current_us
     project_ids = get_visible_project_ids(user, db)
     team_ids = get_visible_team_ids(user, db)
 
-    source_query = db.query(KnowledgeSource).filter(
-        KnowledgeSource.sync_status.in_(("pending", "syncing", "parsing", "error"))
-    )
+    source_query = db.query(KnowledgeSource)
     if team_ids is not None:
         source_query = source_query.filter(KnowledgeSource.team_id.in_(team_ids))
     if project_ids is not None:
         source_query = source_query.filter(or_(KnowledgeSource.project_id.is_(None), KnowledgeSource.project_id.in_(project_ids)))
 
-    run_query = db.query(LinkBuilderRun).filter(LinkBuilderRun.status.in_(("pending", "running", "failed")))
-    if not is_admin(user):
+    run_query = db.query(LinkBuilderRun)
+    admin = is_admin(user)
+    if not admin:
         run_query = run_query.filter(LinkBuilderRun.project_id.in_(project_ids or []))
 
-    jobs = [_source_job(row) for row in source_query.all()]
-    jobs += [_run_job(row) for row in run_query.all()]
-    if is_admin(user):
-        jobs += [_diagnostics_job(row) for row in db.query(DiagnosticsRun).filter(
-            DiagnosticsRun.status.in_(("pending", "running", "failed"))
-        ).all()]
+    jobs = [_source_job(row, admin) for row in source_query.all()]
+    jobs += [_run_job(row, admin) for row in run_query.all()]
+    if admin:
+        jobs += [_diagnostics_job(row, admin) for row in db.query(DiagnosticsRun).all()]
     jobs.sort(key=lambda item: item["created_at"] or "", reverse=True)
     return {"active_count": sum(job["status"] in ACTIVE for job in jobs), "jobs": jobs}
+
+
+def _queue_source(source: KnowledgeSource, db: Session) -> dict:
+    source_type = (source.type or "").lower()
+    file_path = None
+    if source_type == "local":
+        path_name = source.spaces.get("path") if isinstance(source.spaces, dict) else None
+        file_path = os.path.join(UPLOADS_DIR, path_name) if path_name else None
+        if not file_path or not os.path.isfile(file_path):
+            raise HTTPException(409, "Die hochgeladene Datei ist nicht mehr vorhanden")
+
+    source.sync_status = "pending"
+    source.progress = 0
+    source.progress_message = "In Warteschlange…"
+    source.last_error = source.last_error_detail = None
+    source.parse_finished_at = None
+    db.commit()
+    if source_type == "local":
+        celery_app.send_task("process_local_document", args=[source.id, file_path], kwargs={"trace_id": get_trace_id()})
+    else:
+        celery_app.send_task("process_knowledge_source", args=[source.id], kwargs={"trace_id": get_trace_id()})
+    return {"message": "Job gestartet", "key": f"source:{source.id}"}
+
+
+def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
+    run = LinkBuilderRun(task_type=previous.task_type, project_id=previous.project_id, status="pending")
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
+    args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
+    celery_app.send_task(task, args=args, kwargs={"trace_id": get_trace_id()})
+    return {"message": "Job gestartet", "key": f"link_builder:{run.id}"}
+
+
+def _queue_diagnostics(user: User, db: Session) -> dict:
+    run = DiagnosticsRun(status="pending", triggered_by_user_id=user.id)
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    celery_app.send_task("generate_diagnostics_bundle", args=[run.id], kwargs={"trace_id": get_trace_id()})
+    return {"message": "Job gestartet", "key": f"diagnostics:{run.id}"}
+
+
+@router.post("/{kind}/{job_id}/start", dependencies=[Depends(require_admin)])
+def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Start a new execution while retaining the previous execution record."""
+    if kind == "source":
+        source = db.query(KnowledgeSource).with_for_update().filter(KnowledgeSource.id == job_id).first()
+        if not source:
+            raise HTTPException(404, "Job nicht gefunden")
+        if not _source_can_start(source, True, source.sync_status or "pending"):
+            raise HTTPException(409, "Für diesen Quelltyp gibt es keinen verarbeitbaren Job")
+        if source.sync_status in ACTIVE:
+            raise HTTPException(409, "Job läuft bereits")
+        return _queue_source(source, db)
+
+    if kind == "link_builder":
+        previous = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == job_id).first()
+        if not previous:
+            raise HTTPException(404, "Job nicht gefunden")
+        if previous.task_type not in {"entity_links", "knowledge_links"}:
+            raise HTTPException(409, "Unbekannter Jobtyp")
+        if previous.status in ACTIVE:
+            raise HTTPException(409, "Job läuft bereits")
+        return _queue_link_builder(previous, db)
+
+    if kind == "diagnostics":
+        previous = db.query(DiagnosticsRun).filter(DiagnosticsRun.id == job_id).first()
+        if not previous:
+            raise HTTPException(404, "Job nicht gefunden")
+        if previous.status in ACTIVE:
+            raise HTTPException(409, "Job läuft bereits")
+        return _queue_diagnostics(user, db)
+
+    raise HTTPException(404, "Job nicht gefunden")
 
 
 @router.post("/{kind}/{job_id}/resume")

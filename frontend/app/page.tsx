@@ -864,6 +864,7 @@ function AppContent() {
         selectedProject={selectedProject}
         onProjectSelect={handleProjectSelect}
         onShareChat={handleShareChat}
+        currentUser={currentUser}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">

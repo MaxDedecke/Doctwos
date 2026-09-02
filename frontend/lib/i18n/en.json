@@ -1105,14 +1105,18 @@
   },
   "jobCenter": {
     "title": "Job center",
-    "subtitle": "Active and failed operations",
-    "empty": "No active or failed jobs.",
+    "subtitle": "Background job history and controls",
+    "empty": "No jobs yet.",
     "activeCount": "{{count}} active jobs",
     "resume": "Resume",
+    "start": "Start now",
+    "restart": "Restart",
+    "actionFailed": "The job action could not be completed.",
     "status": {
       "pending": "Queued",
       "running": "Running",
-      "failed": "Failed"
+      "failed": "Failed",
+      "completed": "Completed"
     }
   },
   "errorBoundary": {

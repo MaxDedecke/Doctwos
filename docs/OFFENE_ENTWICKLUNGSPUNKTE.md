@@ -21,7 +21,6 @@ stehen.
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
-| O-018 | Job Center | Job-Center-Einträge verschwinden nie und können nicht gelöscht werden. | Aufbewahrungs- und Löschkonzept definieren; Löschmöglichkeit oder automatische Bereinigung implementieren. | Fachliche Entscheidung zur Aufbewahrungsdauer |
 | O-020 | Link Manager / Layout | Link-Manager-View sieht fehlerhaft aus, wenn drei weitere Views geöffnet sind. | Responsive Layout, verfügbare Breite und Überlauf mit vier geöffneten Views prüfen und korrigieren. | Keine externe Abhängigkeit |
 | O-021 | View-Layout | Das Verhältnis der Views soll per Drag-and-drop mit der Maus horizontal und vertikal veränderbar sein. Das Fadenkreuz aus horizontalem und vertikalem Abstand zwischen den Views soll als gemeinsamer Resize-Griff dienen. | Interaktiven Kreuz-/Trennlinien-Griff umsetzen, Größenänderung in beide Richtungen ermöglichen und Mindestgrößen sowie Verhalten bei mehreren Views testen. | Keine externe Abhängigkeit |
 | O-022 | Beobachtbarkeit / Sicherheit | Serverseitig protokollieren, welche MCP-Werkzeuge mit welchen Argumenten pro Chat-Turn ausgeführt wurden. | Strukturierten, datensparsamen Audit-Log für Tool-Aufrufe ergänzen und Aufbewahrung sowie Einsicht durch Admins festlegen. | Fachliche Entscheidung zur Aufbewahrung |
@@ -98,6 +97,13 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   ursprünglichen Turn-Fokus statt einer späteren UI-Auswahl; Legacy-Metadaten
   bleiben lesbar. Mit sechs gezielten Hook-Tests, Typecheck, ESLint und
   Produktions-Build verifiziert.
+- O-018 (Job Center) — 02.09.2026 umgesetzt; abgeschlossene und fehlgeschlagene
+  Vorgänge bleiben in der Job-Übersicht sichtbar. Admins können unterstützte
+  Jobs aus der UI starten bzw. neu anstoßen; laufende Jobs werden gegen
+  Doppelstarts geschützt, Run-basierte Wiederholungen erzeugen einen neuen
+  Lauf und erhalten die Historie. Backend-Berechtigungs- und Queue-Tests sind
+  ergänzt; Frontend-Tests, Typecheck, ESLint, Produktions-Build und Service-
+  Smokechecks sind grün.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation

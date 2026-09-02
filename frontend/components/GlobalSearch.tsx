@@ -36,6 +36,7 @@ interface GlobalSearchProps {
   selectedProject: any;
   onProjectSelect: (project: any) => void;
   onShareChat: () => void | Promise<void>;
+  currentUser?: { is_admin?: boolean } | null;
 }
 
 const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager'] as const;
@@ -62,7 +63,8 @@ export function GlobalSearch({
   onAddPanel,
   selectedProject,
   onProjectSelect,
-  onShareChat
+  onShareChat,
+  currentUser,
 }: GlobalSearchProps) {
   const { t } = useLanguage();
   const features = useFeatures();
@@ -512,7 +514,7 @@ export function GlobalSearch({
           )}
         </div>
 
-        <JobCenter theme={theme} />
+        <JobCenter theme={theme} currentUser={currentUser} />
 
         <Button
           variant="ghost"

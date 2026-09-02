@@ -134,7 +134,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-NF-011 | Große Mengen werden durch Server-Limits, Pagination oder Virtualisierung beherrscht. | TEILWEISE – Suche besitzt Limits/Nachladen; mehrere Datei-/Entitätslisten liefern aktuell noch vollständige Mengen ohne durchgängige Virtualisierung. |
 | DOC-NF-012 | BITV-/Barrierefreiheitsanforderungen und automatisierte UI-Prüfungen. | TEILWEISE – automatisierte axe-Basis ist vorhanden; formale BITV-Abnahme steht aus (O-002). |
 | DOC-NF-013 | Alle externen Quellsysteme werden strikt read-only verwendet. | ERFÜLLT |
-| DOC-NF-014 | Job Center zeigt laufende/fehlgeschlagene Prozesse; fehlgeschlagene Jobs können nachvollziehbar fortgesetzt werden. | TEILWEISE – Status, Fehler und Resume sind vorhanden; Aufbewahrung/Löschen der Historie ist noch nicht abschließend definiert (O-018). |
+| DOC-NF-014 | Job Center zeigt laufende/fehlgeschlagene Prozesse; fehlgeschlagene Jobs können nachvollziehbar fortgesetzt werden. | ERFÜLLT – Verlauf bleibt sichtbar; fehlgeschlagene Jobs können fortgesetzt werden, Admins können unterstützte Jobs aus der UI neu anstoßen. |
 
 ## 5. Bewusst nicht als aktuelle v1-Funktion zu führen
 
