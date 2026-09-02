@@ -1,18 +1,12 @@
 "use client";
 
 import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MessageSquare,
   Folder,
-  Code,
   Send,
   Menu,
   History,
-  Terminal,
-  Lock,
-  RefreshCw,
   Database,
   Search,
   MoreVertical,
@@ -20,7 +14,6 @@ import {
   Sparkles,
   HelpCircle,
   Clock,
-  BookOpen,
   FileText,
   FileCode,
   Trash2,
@@ -32,34 +25,23 @@ import {
   Activity,
   Github,
   LogOut,
-  Globe,
   Key,
   GitBranch,
-  Network,
-  ChevronRight,
-  ChevronLeft,
-  Box,
-  Braces
 } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { resolveReferenceTarget } from "@/lib/referenceTarget";
 import { api } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { LinkManagerView } from "@/components/LinkManagerView";
+import { PanelRenderer } from "@/components/PanelRenderer";
 import { SplitPaneWorkspace } from "@/components/SplitPaneWorkspace";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { LoginView } from "@/components/LoginView";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatView } from "@/components/ChatView";
@@ -784,259 +766,7 @@ function AppContent() {
 
   // Divider interaction lives in useWorkspaceLayout.
 
-  // Whichever knowledge object is focused in a panel — a code entity, a document,
-  // a graph node, or a focused object — resolved into one shape so every view
-  // can show the same focus bar, no matter which content type is active.
-  const getPanelFocusInfo = (index: number, contentType: string, sel: {
-    selectedFile: string | null;
-    selectedDoc: any | null;
-    selectedEntity: any | null;
-    selectedLine: number | null;
-  }): { Icon: any; label: string; kind: string; colorClass: string } | null => {
-    const focusObject = panelFocusObject[index];
-    if (focusObject) {
-      return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: "text-ds-purple-400" };
-    }
-    if (sel.selectedEntity) {
-      return { Icon: Braces, label: sel.selectedEntity.name, kind: sel.selectedEntity.type || t('page.focusBar.entity'), colorClass: "text-ds-indigo-400" };
-    }
-    if (sel.selectedDoc) {
-      const isWeb = sel.selectedDoc.isWebOrigin ||
-        ['confluence', 'jira'].includes((sel.selectedDoc.type || '').toLowerCase());
-      // Local documents carry their storage path in .name (see handleDocFocusRequest) —
-      // show just the filename here so the focus bar doesn't duplicate the path the
-      // doc panel's own header already renders right below it.
-      return {
-        Icon: isWeb ? Globe : BookOpen,
-        label: isWeb ? sel.selectedDoc.name : (sel.selectedDoc.name?.split('/').pop() || sel.selectedDoc.name),
-        kind: isWeb ? t('page.focusBar.webOrigin') : t('page.focusBar.document'),
-        colorClass: isWeb ? "text-ds-emerald-400" : "text-ds-orange-400"
-      };
-    }
-    if (sel.selectedFile) {
-      return { Icon: Terminal, label: sel.selectedFile, kind: t('page.focusBar.file'), colorClass: "text-ds-blue-400" };
-    }
-    return null;
-  };
-
-  const renderPanel = (index: number) => {
-    const contentType = panelConfigs[index] || 'chat';
-    // panelConfigs can grow independently of the mobile tab indices below —
-    // fall back to an empty selection rather than crashing on out-of-range access.
-    const sel = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
-    const focusInfo = getPanelFocusInfo(index, contentType, sel);
-
-    const isChat = contentType === 'chat';
-
-    const setContentType = (newType: string) => {
-      setPanelConfigs(prev => {
-        const next = [...prev];
-        next[index] = newType;
-        return next;
-      });
-      setPanelFocusObject(prev => {
-        const next = [...prev];
-        next[index] = null;
-        return next;
-      });
-      // Andere Art von Ansicht in diesem Slot ⇒ eigener Navigationsfaden, alte
-      // Historie passt nicht mehr dazu.
-      setPanelHistory(prev => {
-        const next = [...prev];
-        next[index] = { past: [], future: [] };
-        return next;
-      });
-    };
-
-    // Collapsed chat rail — expanding restores the same chat panel.
-    if (isChat && collapsedPanels[index]) {
-      return (
-        <button
-          onClick={() => togglePanelCollapse(index)}
-          title={t('page.workspace.expandChat')}
-          className={cn(
-            "h-full w-full flex flex-col items-center gap-3 py-3 border rounded-lg transition-colors cursor-pointer group",
-            theme === 'dark'
-              ? "bg-ds-zinc-950/40 border-ds-zinc-900 text-ds-zinc-400 hover:text-ds-indigo-400 hover:border-ds-zinc-800"
-              : "bg-ds-white/40 border-ds-zinc-200 text-ds-zinc-500 hover:text-ds-indigo-600 hover:border-ds-zinc-300"
-          )}
-        >
-          <span className={cn(
-            "p-1.5 rounded-lg border",
-            theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/60" : "border-ds-zinc-200 bg-ds-zinc-50"
-          )}>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </span>
-          <MessageSquare className="w-4 h-4 text-ds-indigo-500 shrink-0" />
-          <span
-            className="text-[10px] font-bold uppercase tracking-widest"
-            style={{ writingMode: 'vertical-rl' }}
-          >
-            {t('page.mobileTab.chat')}
-          </span>
-        </button>
-      );
-    }
-
-    return (
-      <div
-        onMouseEnter={() => setActivePanelIndex(index)}
-        className={cn(
-          "h-full flex flex-col min-w-0 rounded-lg overflow-hidden relative group transition-all duration-300",
-          panelFrozen[index] ? "border-2 border-ds-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.55)]" : "border",
-          theme === 'dark'
-            ? (panelFrozen[index] ? "bg-ds-zinc-955" : "bg-ds-zinc-950/40 border-ds-zinc-900")
-            : (panelFrozen[index] ? "bg-ds-amber-50/5" : "bg-ds-white/40 border-ds-zinc-200")
-        )}
-        style={(!panelFrozen[index] && selectedProject?.color) ? {
-          boxShadow: `0 4px 20px rgba(0, 0, 0, 0.05), 0 0 15px ${selectedProject.color}${theme === 'dark' ? '12' : '08'}`,
-          borderColor: `${selectedProject.color}25`
-        } : undefined}
-      >
-        {/* Panel Header Selector */}
-        <div className={cn(
-          "px-3 py-1.5 border-b flex items-center justify-between shrink-0 z-20 backdrop-blur-md select-none transition-colors duration-300",
-          theme === 'dark'
-            ? (panelFrozen[index] ? "border-ds-amber-500/20 bg-ds-zinc-950/60" : "border-ds-zinc-900 bg-ds-zinc-950/60")
-            : (panelFrozen[index] ? "border-ds-amber-500/20 bg-ds-zinc-50/60" : "border-ds-zinc-200 bg-ds-zinc-50/60")
-        )}>
-          <div className="flex items-center gap-1.5">
-            <Select value={contentType} onValueChange={setContentType}>
-              <SelectTrigger aria-label={t('page.panelTypeSelectorLabel')} className={cn(
-                "h-6 text-[10px] bg-transparent border-0 font-bold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 px-1 py-0 gap-1.5 w-auto transition-colors duration-200",
-                panelFrozen[index]
-                  ? "text-ds-amber-500 hover:text-ds-amber-400"
-                  : "text-ds-indigo-400 hover:text-ds-indigo-350"
-              )}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className={theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-100" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900"}>
-                <SelectItem value="chat" className="text-xs">{t('page.viewTypes.chat')}</SelectItem>
-                <SelectItem value="code" className="text-xs">{t('page.viewTypes.code')}</SelectItem>
-                <SelectItem value="doc" className="text-xs">{t('page.viewTypes.doc')}</SelectItem>
-                <SelectItem value="graph" className="text-xs">{t('page.viewTypes.graph')}</SelectItem>
-                <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
-                <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
-                {features.views.linkManager && (
-                  <SelectItem value="linkmanager" className="text-xs">{t('page.viewTypes.linkmanager')}</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => goBackPanel(index)}
-              disabled={(panelHistory[index]?.past.length || 0) === 0}
-              className={cn(
-                "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
-                theme === 'dark'
-                  ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-200 hover:border-ds-zinc-700"
-                  : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300"
-              )}
-              title={`${t('page.workspace.historyBack')} (Alt+←)`}
-            >
-              <ChevronLeft className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => goForwardPanel(index)}
-              disabled={(panelHistory[index]?.future.length || 0) === 0}
-              className={cn(
-                "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
-                theme === 'dark'
-                  ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-200 hover:border-ds-zinc-700"
-                  : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300"
-              )}
-              title={`${t('page.workspace.historyForward')} (Alt+→)`}
-            >
-              <ChevronRight className="w-3 h-3" />
-            </button>
-            <button
-              onClick={() => togglePanelFreeze(index)}
-              className={cn(
-                "p-1 rounded border transition-all duration-150 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer",
-                panelFrozen[index]
-                  ? "bg-ds-amber-500/10 border-ds-amber-500/30 text-ds-amber-500 hover:bg-ds-amber-500/20"
-                  : (theme === 'dark'
-                      ? "bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700"
-                      : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
-              )}
-              title={panelFrozen[index] ? t('page.workspace.freezePausedTitle') : t('page.workspace.freezeActiveTitle')}
-            >
-              {panelFrozen[index] ? (
-                <>
-                  <Lock className="w-3 h-3 text-ds-amber-500" />
-                  <span className="text-[9px] text-ds-amber-500 hidden sm:inline">{t('page.workspace.frozenBadge')}</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" />
-                  <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('page.workspace.liveBadge')}</span>
-                </>
-              )}
-            </button>
-            {isChat && (
-              <button
-                onClick={() => togglePanelCollapse(index)}
-                className={cn(
-                  "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer",
-                  theme === 'dark'
-                    ? "bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-indigo-400 hover:border-ds-indigo-900/40 hover:bg-ds-indigo-950/20"
-                    : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-indigo-600 hover:border-ds-indigo-200 hover:bg-ds-indigo-50"
-                )}
-                title={t('page.workspace.collapseChat')}
-              >
-                <ChevronLeft className="w-3 h-3" />
-              </button>
-            )}
-            {panelConfigs.length > 1 && (
-              <button
-                onClick={() => closePanel(index)}
-                className={cn(
-                  "p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer",
-                  theme === 'dark'
-                    ? "bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-red-400 hover:border-ds-red-900/40 hover:bg-ds-red-950/20"
-                    : "bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-red-500 hover:border-ds-red-200 hover:bg-ds-red-50"
-                )}
-                title={t('page.workspace.closeView')}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Focus Bar — always shows which knowledge object (file, doc, code entity,
-            graph node, fokussiertes Objekt, ...) the panel below currently relates to, so the
-            user can tell context apart at a glance regardless of which view is active. */}
-        {contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && (
-          <div className={cn(
-            "px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0",
-            theme === 'dark' ? "border-ds-zinc-900 bg-ds-zinc-950/40" : "border-ds-zinc-200 bg-ds-zinc-50/40"
-          )}>
-            {focusInfo ? (
-              <>
-                <focusInfo.Icon className={cn("w-3 h-3 shrink-0", focusInfo.colorClass)} />
-                {contentType !== 'webview' && (
-                  <>
-                    <span
-                      className={cn("truncate font-medium", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
-                      title={focusInfo.label}
-                    >
-                      {focusInfo.label}
-                    </span>
-                    <span className="text-ds-zinc-600 shrink-0">·</span>
-                  </>
-                )}
-                <span className="text-ds-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
-              </>
-            ) : (
-              <span className="text-ds-zinc-600 italic">{t('page.focusBar.none')}</span>
-            )}
-          </div>
-        )}
-
-        {/* Panel Content Renderer */}
-        <div className="flex-1 min-w-0 min-h-0 overflow-hidden relative">
+  const renderPanelContent = (index: number, contentType: string, sel: any) => (<>
           {contentType === 'chat' && (
             <ChatView
               theme={theme}
@@ -1229,8 +959,53 @@ function AppContent() {
             />
           )}
 
-        </div>
-      </div>
+  </>);
+
+  const handlePanelContentTypeChange = (index: number, newType: string) => {
+    setPanelConfigs((previous) => {
+      const next = [...previous];
+      next[index] = newType;
+      return next;
+    });
+    setPanelFocusObject((previous) => {
+      const next = [...previous];
+      next[index] = null;
+      return next;
+    });
+    setPanelHistory((previous) => {
+      const next = [...previous];
+      next[index] = { past: [], future: [] };
+      return next;
+    });
+  };
+
+  const renderPanel = (index: number) => {
+    const contentType = panelConfigs[index] || 'chat';
+    const selection = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
+    return (
+      <PanelRenderer
+        index={index}
+        contentType={contentType}
+        selection={selection}
+        focusObject={panelFocusObject[index]}
+        theme={theme}
+        t={t}
+        selectedProject={selectedProject}
+        panelFrozen={Boolean(panelFrozen[index])}
+        collapsed={Boolean(collapsedPanels[index])}
+        panelCount={panelConfigs.length}
+        panelHistory={panelHistory[index]}
+        linkManagerEnabled={features.views.linkManager}
+        onContentTypeChange={handlePanelContentTypeChange}
+        onExpand={togglePanelCollapse}
+        onMouseEnter={setActivePanelIndex}
+        onHistoryBack={goBackPanel}
+        onHistoryForward={goForwardPanel}
+        onToggleFreeze={togglePanelFreeze}
+        onCollapse={togglePanelCollapse}
+        onClose={closePanel}
+        content={renderPanelContent(index, contentType, selection)}
+      />
     );
   };
 
@@ -1359,120 +1134,26 @@ function AppContent() {
           />
         )}
 
-        {/* Mobile View Toggle Bar */}
-        {(selectedFile || selectedDoc || activeRightTab === 'graph') && (
-          <div className={cn(
-            "flex md:hidden border-b p-2 gap-2 justify-center shrink-0 z-20",
-            theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/40" : "border-ds-zinc-200 bg-ds-zinc-100/50"
-          )}>
-            <Button
-              variant={activeMobileTab === 'chat' ? 'default' : 'ghost'}
-              onClick={() => setActiveMobileTab('chat')}
-              className={cn(
-                "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'chat' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
-              )}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>{t('page.mobileTab.chat')}</span>
-            </Button>
-            <Button
-              variant={activeMobileTab === 'editor' ? 'default' : 'ghost'}
-              onClick={() => {
-                setActiveMobileTab('editor');
-                if (activeRightTab === 'graph') {
-                  if (selectedFile) setActiveRightTab('code');
-                  else if (selectedDoc) setActiveRightTab('doc');
-                }
-              }}
-              className={cn(
-                "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'editor' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
-              )}
-            >
-              <Code className="w-3.5 h-3.5" />
-              <span>{t('page.mobileTab.editor')}</span>
-            </Button>
-            <Button
-              variant={activeMobileTab === 'graph' ? 'default' : 'ghost'}
-              onClick={() => {
-                setActiveMobileTab('graph');
-                setActiveRightTab('graph');
-              }}
-              className={cn(
-                "flex-1 text-xs gap-1.5 h-8 rounded-lg font-bold",
-                activeMobileTab === 'graph' && "bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-550"
-              )}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span>{t('page.mobileTab.graph')}</span>
-            </Button>
-          </div>
-        )}
-
-        {/* DYNAMIC PANEL WORKSPACE */}
-        <div ref={splitContainerRef} className="flex-1 flex overflow-hidden z-10 mt-1">
-          {isMobile ? (
-            <div className="flex-1 p-2 h-full">
-              {/* Panels now open on demand at whatever index is next free, so
-                  look up each tab's panel by type instead of assuming a fixed slot. */}
-              {activeMobileTab === 'chat' && renderPanel(panelConfigs.indexOf('chat'))}
-              {activeMobileTab === 'editor' && renderPanel(panelConfigs.findIndex(c => c !== 'chat' && c !== 'graph'))}
-              {activeMobileTab === 'graph' && renderPanel(panelConfigs.indexOf('graph'))}
-            </div>
-          ) : (
-            // One stable container mapped over panelConfigs, instead of four mutually-exclusive
-            // `{layoutMode === 'x' && <div>...}` siblings: since only one of those ever rendered,
-            // switching layoutMode (any panel open/close) flipped a whole subtree from an element
-            // to `false` and back, which React always unmounts — wiping panel-internal state (e.g.
-            // the graph's zoom/pan/selection) instead of just resizing it in place.
-            <div
-              className={cn(
-                "flex-1 p-2 h-full overflow-hidden",
-                layoutMode === '4-grid'
-                  ? "grid grid-cols-2 grid-rows-2 gap-2"
-                  : cn("flex", layoutMode !== '1-pane' && "gap-2")
-              )}
-            >
-              {panelConfigs.map((_, i) => (
-                <React.Fragment key={i}>
-                  {layoutMode === 'split' && i === 1 && (
-                    // DRAGGABLE DIVIDER
-                    <div
-                      onMouseDown={handleDividerMouseDown}
-                      className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative"
-                    >
-                      <div className={cn(
-                        "absolute inset-y-0 -left-1 -right-1",
-                        isDragging ? "bg-ds-indigo-500/20" : "group-hover:bg-ds-indigo-500/10"
-                      )} />
-                      <div className={cn(
-                        "w-0.5 h-10 rounded-full transition-colors relative z-10",
-                        isDragging ? "bg-ds-indigo-500" : "bg-ds-zinc-700 group-hover:bg-ds-indigo-400"
-                      )} />
-                    </div>
-                  )}
-                  {layoutMode === 'split' && i === 0 ? (
-                    <div
-                      style={isPanelCollapsed(0) ? undefined : { width: `${splitPercent}%` }}
-                      className={cn(
-                        "h-full flex flex-col min-w-0",
-                        isPanelCollapsed(0) && "flex-none w-12",
-                        !isDragging && "transition-all duration-300"
-                      )}
-                    >
-                      {renderPanel(0)}
-                    </div>
-                  ) : (
-                    <div className={cellCls(i, "flex-1")}>
-                      {renderPanel(i)}
-                    </div>
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-        </div>
+        <WorkspaceShell
+          theme={theme}
+          t={t}
+          isMobile={isMobile}
+          selectedFile={selectedFile}
+          selectedDoc={selectedDoc}
+          activeRightTab={activeRightTab}
+          setActiveRightTab={setActiveRightTab}
+          activeMobileTab={activeMobileTab}
+          setActiveMobileTab={setActiveMobileTab}
+          panelConfigs={panelConfigs}
+          layoutMode={layoutMode}
+          splitPercent={splitPercent}
+          isDragging={isDragging}
+          splitContainerRef={splitContainerRef}
+          handleDividerMouseDown={handleDividerMouseDown}
+          isPanelCollapsed={isPanelCollapsed}
+          cellCls={cellCls}
+          renderPanel={renderPanel}
+        />
       </main>
       </div>
     </div>

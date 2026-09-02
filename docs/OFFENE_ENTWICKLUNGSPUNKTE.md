@@ -26,7 +26,6 @@ stehen.
 | O-020 | Link Manager / Layout | Link-Manager-View sieht fehlerhaft aus, wenn drei weitere Views geöffnet sind. | Responsive Layout, verfügbare Breite und Überlauf mit vier geöffneten Views prüfen und korrigieren. | Keine externe Abhängigkeit |
 | O-021 | View-Layout | Das Verhältnis der Views soll per Drag-and-drop mit der Maus horizontal und vertikal veränderbar sein. Das Fadenkreuz aus horizontalem und vertikalem Abstand zwischen den Views soll als gemeinsamer Resize-Griff dienen. | Interaktiven Kreuz-/Trennlinien-Griff umsetzen, Größenänderung in beide Richtungen ermöglichen und Mindestgrößen sowie Verhalten bei mehreren Views testen. | Keine externe Abhängigkeit |
 | O-022 | Beobachtbarkeit / Sicherheit | Serverseitig protokollieren, welche MCP-Werkzeuge mit welchen Argumenten pro Chat-Turn ausgeführt wurden. | Strukturierten, datensparsamen Audit-Log für Tool-Aufrufe ergänzen und Aufbewahrung sowie Einsicht durch Admins festlegen. | Fachliche Entscheidung zur Aufbewahrung |
-| O-026 | Frontend-Architektur / Workspace-Rendering | `renderPanel` und das Desktop-/Mobile-Workspace-Layout sind weiterhin direkt in `page.tsx` implementiert. | Eine `PanelRenderer`-Komponente und eine `WorkspaceShell`-Komponente extrahieren; Panel-Identität, History und Layoutwechsel dürfen dabei nicht durch unbeabsichtigtes Unmounting verloren gehen. | O-025 |
 | O-027 | Frontend-Architektur / AI-Settings | AI-Modell-, Profil- und Editor-Einstellungen liegen weiterhin als lokaler Querzustand im App-Orchestrator. | AI-Modell-/Profil-Lifecycle und verbleibende Settings-Zustände in einen eigenen Hook bzw. Context überführen, sodass `page.tsx` nur noch die gemeinsame Verdrahtung übernimmt. | O-004, O-005 |
 
 ## Umsetzungs- und Übergabestatus
@@ -77,6 +76,11 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   Navigation in `usePanelNavigation` ausgelagert. Die gemeinsame Referenzauflösung
   liegt in `referenceTarget`. Mit sechs gezielten Regressionstests sowie insgesamt
   27 Frontend-Tests, Typecheck, ESLint und Produktions-Build verifiziert.
+- O-026 (Workspace-Rendering) — 02.09.2026 umgesetzt; Panel-Chrome und Fokusleiste
+  liegen in `PanelRenderer`, Mobile-Tabs sowie Desktop-Split/Grid-Layout in
+  `WorkspaceShell`. Das Mapping über stabile Panel-Indizes, Panel-History und
+  Layoutwechsel bleiben erhalten. 27 Frontend-Tests, Typecheck, ESLint und
+  Produktions-Build grün.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation
