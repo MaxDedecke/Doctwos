@@ -8,6 +8,7 @@ import {
   type PanelSelection,
 } from '@/lib/panelHistory';
 import { getSelectionViewType } from '@/lib/workspaceSelection';
+import { clampWorkspacePercent, pointerToWorkspacePercent } from '@/lib/workspaceResize';
 import { cn } from '@/lib/utils';
 
 type Translate = (key: string, values?: Record<string, unknown>) => string;
@@ -56,6 +57,8 @@ export function useWorkspaceLayout({
   const [isEditorMaximized, setIsEditorMaximized] = useState(false);
   const [workspaceSplit, setWorkspaceSplit] = useState('45/55');
   const [splitPercent, setSplitPercent] = useState(45);
+  const [gridColumnPercent, setGridColumnPercent] = useState(50);
+  const [gridRowPercent, setGridRowPercent] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
   const [fileNavStack, setFileNavStack] = useState<Array<{
@@ -73,6 +76,8 @@ export function useWorkspaceLayout({
   const [activePanelIndex, setActivePanelIndex] = useState(0);
 
   const isDraggingRef = useRef(false);
+  const resizeModeRef = useRef<'split' | 'grid' | null>(null);
+  const resizeContainerRef = useRef<HTMLElement | null>(null);
   const dragStartXRef = useRef(0);
   const dragStartPercentRef = useRef(45);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -254,7 +259,7 @@ export function useWorkspaceLayout({
 
   const isPanelCollapsed = (index: number) => collapsedPanels[index] && panelConfigs[index] === 'chat';
   const cellCls = (index: number, expanded: string) =>
-    cn('h-full min-w-0', isPanelCollapsed(index) ? 'flex-none w-12' : expanded);
+    cn('h-full min-w-0 min-h-0', isPanelCollapsed(index) ? 'flex-none w-12' : expanded);
 
   const handlePanelEntitySelect = useCallback((index: number, entity: any) => {
     const previousSelection = panelSelections[index];
@@ -350,6 +355,8 @@ export function useWorkspaceLayout({
     panelFrozen,
     activeRightTab,
     splitPercent,
+    gridColumnPercent,
+    gridRowPercent,
     fileNavStack,
     pinnedCode,
     selectedProjectId: selectedProject?.id ?? null,
@@ -368,7 +375,7 @@ export function useWorkspaceLayout({
     };
   // Snapshot contents, not the callback identity, define the save boundary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
+  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
 
   // Presets are a second representation of the same split value. The guarded
   // render update keeps a drag-selected percentage intact until a preset
@@ -381,36 +388,55 @@ export function useWorkspaceLayout({
   }
 
   useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      if (!isDraggingRef.current || !splitContainerRef.current) return;
-      const containerWidth = splitContainerRef.current.getBoundingClientRect().width;
-      const deltaPercent = ((event.clientX - dragStartXRef.current) / containerWidth) * 100;
-      setSplitPercent(Math.max(20, Math.min(80, dragStartPercentRef.current + deltaPercent)));
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!isDraggingRef.current || !resizeContainerRef.current) return;
+      const containerRect = resizeContainerRef.current.getBoundingClientRect();
+      if (resizeModeRef.current === 'grid') {
+        setGridColumnPercent(pointerToWorkspacePercent(event.clientX, containerRect.left, containerRect.width));
+        setGridRowPercent(pointerToWorkspacePercent(event.clientY, containerRect.top, containerRect.height));
+        return;
+      }
+      const deltaPercent = ((event.clientX - dragStartXRef.current) / containerRect.width) * 100;
+      setSplitPercent(clampWorkspacePercent(dragStartPercentRef.current + deltaPercent));
     };
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
+      resizeModeRef.current = null;
+      resizeContainerRef.current = null;
       setIsDragging(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
     };
   }, []);
 
-  const handleDividerMouseDown = useCallback((event: React.MouseEvent) => {
+  const handleDividerMouseDown = useCallback((event: React.PointerEvent) => {
     event.preventDefault();
     isDraggingRef.current = true;
+    resizeModeRef.current = 'split';
+    resizeContainerRef.current = splitContainerRef.current;
     setIsDragging(true);
     dragStartXRef.current = event.clientX;
     dragStartPercentRef.current = splitPercent;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
   }, [splitPercent]);
+
+  const handleGridResizePointerDown = useCallback((event: React.PointerEvent) => {
+    event.preventDefault();
+    isDraggingRef.current = true;
+    resizeModeRef.current = 'grid';
+    resizeContainerRef.current = event.currentTarget.parentElement;
+    setIsDragging(true);
+    document.body.style.cursor = 'move';
+    document.body.style.userSelect = 'none';
+  }, []);
 
   const restoreWorkspaceSnapshot = useCallback((snapshot: any) => {
     isRestoringSnapshotRef.current = true;
@@ -432,6 +458,8 @@ export function useWorkspaceLayout({
     setPinnedCode(snapshot.pinnedCode ?? null);
     if (typeof snapshot.activeRightTab === 'string') setActiveRightTab(snapshot.activeRightTab);
     if (typeof snapshot.splitPercent === 'number') setSplitPercent(snapshot.splitPercent);
+    if (typeof snapshot.gridColumnPercent === 'number') setGridColumnPercent(clampWorkspacePercent(snapshot.gridColumnPercent));
+    if (typeof snapshot.gridRowPercent === 'number') setGridRowPercent(clampWorkspacePercent(snapshot.gridRowPercent));
     setTimeout(() => { isRestoringSnapshotRef.current = false; }, 0);
   }, []);
 
@@ -452,6 +480,8 @@ export function useWorkspaceLayout({
     setCollapsedPanels([false]);
     setPanelFocusObject([null]);
     setSplitPercent(45);
+    setGridColumnPercent(50);
+    setGridRowPercent(50);
     setWorkspaceSplit('45/55');
   }, []);
 
@@ -480,6 +510,8 @@ export function useWorkspaceLayout({
     workspaceSplit,
     setWorkspaceSplit,
     splitPercent,
+    gridColumnPercent,
+    gridRowPercent,
     setSplitPercent,
     isDragging,
     panelConfigs,
@@ -517,6 +549,7 @@ export function useWorkspaceLayout({
     goBackPanel,
     goForwardPanel,
     handleDividerMouseDown,
+    handleGridResizePointerDown,
     restoreWorkspaceSnapshot,
     resetWorkspace,
   };

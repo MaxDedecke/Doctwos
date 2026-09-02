@@ -89,7 +89,8 @@
       "freezePausedTitle": "Auto-refresh paused (click to activate)",
       "freezeActiveTitle": "Auto-refresh active (click to pause)",
       "frozenBadge": "Frozen",
-      "liveBadge": "Live"
+      "liveBadge": "Live",
+      "resizeGrid": "Resize workspace panels"
     },
     "viewTypes": {
       "chat": "💬 Chat view",

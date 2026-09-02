@@ -89,7 +89,8 @@
       "freezePausedTitle": "Auto-Refresh pausiert (Klicken zum Aktivieren)",
       "freezeActiveTitle": "Auto-Refresh aktiv (Klicken zum Pausieren)",
       "frozenBadge": "Fixiert",
-      "liveBadge": "Live"
+      "liveBadge": "Live",
+      "resizeGrid": "Workspace-Panels vergrößern oder verkleinern"
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",

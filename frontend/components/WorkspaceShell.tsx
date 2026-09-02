@@ -19,9 +19,12 @@ interface WorkspaceShellProps {
   panelConfigs: string[];
   layoutMode: LayoutMode;
   splitPercent: number;
+  gridColumnPercent: number;
+  gridRowPercent: number;
   isDragging: boolean;
   splitContainerRef: React.RefObject<HTMLDivElement | null>;
-  handleDividerMouseDown: (event: React.MouseEvent) => void;
+  handleDividerMouseDown: (event: React.PointerEvent) => void;
+  handleGridResizePointerDown: (event: React.PointerEvent) => void;
   isPanelCollapsed: (index: number) => boolean;
   cellCls: (index: number, expanded: string) => string;
   renderPanel: (index: number) => React.ReactNode;
@@ -40,13 +43,25 @@ export function WorkspaceShell({
   panelConfigs,
   layoutMode,
   splitPercent,
+  gridColumnPercent,
+  gridRowPercent,
   isDragging,
   splitContainerRef,
   handleDividerMouseDown,
+  handleGridResizePointerDown,
   isPanelCollapsed,
   cellCls,
   renderPanel,
 }: WorkspaceShellProps) {
+  const gridStyle = layoutMode === '4-grid'
+    ? {
+        // Subtract half the gap from each track so the two percentages fill
+        // the available area without adding the gap on top of 100 percent.
+        gridTemplateColumns: `minmax(0, calc(${gridColumnPercent}% - 0.25rem)) minmax(0, calc(${100 - gridColumnPercent}% - 0.25rem))`,
+        gridTemplateRows: `minmax(0, calc(${gridRowPercent}% - 0.25rem)) minmax(0, calc(${100 - gridRowPercent}% - 0.25rem))`,
+      }
+    : undefined;
+
   return (
     <>
       {(selectedFile || selectedDoc || activeRightTab === 'graph') && (
@@ -83,11 +98,12 @@ export function WorkspaceShell({
             {activeMobileTab === 'graph' && renderPanel(panelConfigs.indexOf('graph'))}
           </div>
         ) : (
-          <div className={cn('flex-1 p-2 h-full overflow-hidden', layoutMode === '4-grid' ? 'grid grid-cols-2 grid-rows-2 gap-2' : cn('flex', layoutMode !== '1-pane' && 'gap-2'))}>
+          <div className="flex-1 p-2 h-full overflow-hidden">
+            <div className={cn('h-full w-full', layoutMode === '4-grid' ? 'relative grid gap-2' : cn('flex', layoutMode !== '1-pane' && 'gap-2'))} style={gridStyle}>
             {panelConfigs.map((_, index) => (
               <React.Fragment key={index}>
                 {layoutMode === 'split' && index === 1 && (
-                  <div onMouseDown={handleDividerMouseDown} className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative">
+                  <div onPointerDown={handleDividerMouseDown} className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative touch-none">
                     <div className={cn('absolute inset-y-0 -left-1 -right-1', isDragging ? 'bg-ds-indigo-500/20' : 'group-hover:bg-ds-indigo-500/10')} />
                     <div className={cn('w-0.5 h-10 rounded-full transition-colors relative z-10', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-700 group-hover:bg-ds-indigo-400')} />
                   </div>
@@ -101,6 +117,24 @@ export function WorkspaceShell({
                 )}
               </React.Fragment>
             ))}
+            {layoutMode === '4-grid' && (
+              <button
+                type="button"
+                onPointerDown={handleGridResizePointerDown}
+                aria-label={t('page.workspace.resizeGrid')}
+                title={t('page.workspace.resizeGrid')}
+                className={cn(
+                  'absolute z-30 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-move touch-none items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-indigo-500',
+                  isDragging ? 'bg-ds-indigo-500/25' : 'hover:bg-ds-indigo-500/15'
+                )}
+                style={{ left: `${gridColumnPercent}%`, top: `${gridRowPercent}%` }}
+              >
+                <span className={cn('absolute h-0.5 w-7 rounded-full', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-600')} />
+                <span className={cn('absolute h-7 w-0.5 rounded-full', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-600')} />
+                <span className="relative h-2 w-2 rounded-full bg-ds-indigo-500" />
+              </button>
+            )}
+            </div>
           </div>
         )}
       </div>

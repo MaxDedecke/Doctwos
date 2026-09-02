@@ -191,7 +191,7 @@ function AppContent() {
     setSelectedLine, activeRightTab, setActiveRightTab, fileContent, setFileContent,
     fileContentFormat, setFileContentFormat, isLoadingFile, setIsLoadingFile,
     isEditorMaximized, setIsEditorMaximized, workspaceSplit, setWorkspaceSplit,
-    splitPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
+    splitPercent, gridColumnPercent, gridRowPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
     layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
     pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen, collapsedPanels,
     setCollapsedPanels, panelFocusObject, setPanelFocusObject, panelSelections,
@@ -199,7 +199,7 @@ function AppContent() {
     activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
     togglePanelCollapse, closePanel, addPanel, ensurePanelType, isPanelCollapsed,
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
-    handleDividerMouseDown, restoreWorkspaceSnapshot,
+    handleDividerMouseDown, handleGridResizePointerDown, restoreWorkspaceSnapshot,
   } = workspaceState;
 
   const router = useRouter();
@@ -924,9 +924,12 @@ function AppContent() {
           panelConfigs={panelConfigs}
           layoutMode={layoutMode}
           splitPercent={splitPercent}
+          gridColumnPercent={gridColumnPercent}
+          gridRowPercent={gridRowPercent}
           isDragging={isDragging}
           splitContainerRef={splitContainerRef}
           handleDividerMouseDown={handleDividerMouseDown}
+          handleGridResizePointerDown={handleGridResizePointerDown}
           isPanelCollapsed={isPanelCollapsed}
           cellCls={cellCls}
           renderPanel={renderPanel}
