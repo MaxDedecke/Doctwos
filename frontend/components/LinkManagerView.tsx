@@ -727,16 +727,12 @@ export function LinkManagerView({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    // Named container instead of viewport sm:/md: — the header below needs to
-    // react to *this panel's* width, not the browser window's. In 3-col layout
-    // (3 views open) the panel is only ~1/3 of the viewport, so viewport-relative
-    // breakpoints stayed "wide" and crammed the row layout into a too-narrow
-    // column; split/4-grid (~1/2 width) had enough room and looked fine, which is
-    // why this only showed up with exactly 3 views open.
-    <div className="@container/linkmgr h-full flex flex-col min-h-0">
+    // Keep layout decisions scoped to the panel. This prevents a narrow grid
+    // cell from inheriting desktop-sized rows from the browser viewport.
+    <div className="@container/linkmgr h-full w-full min-w-0 flex flex-col min-h-0">
         {/* ── Header ── */}
         <div className={cn('flex flex-col @xl/linkmgr:flex-row items-start @xl/linkmgr:items-center justify-between px-4 @sm/linkmgr:px-6 py-4 border-b shrink-0 gap-3', divider)}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap @sm/linkmgr:flex-nowrap">
             <Network className={cn('w-5 h-5 shrink-0', iconColor)} />
             <h2 className={cn('text-sm font-semibold shrink-0', titleText)}>{t('linkManagerView.title')}</h2>
 
@@ -747,7 +743,7 @@ export function LinkManagerView({
                 project switcher in the sidebar instead. */}
             <span
               className={cn(
-                'flex items-center gap-1.5 h-7 max-w-[180px] text-[11px] @sm/linkmgr:text-xs border rounded-md font-medium px-2 shrink-0',
+                'flex items-center gap-1.5 h-7 min-w-0 max-w-full @sm/linkmgr:max-w-[180px] text-[11px] @sm/linkmgr:text-xs border rounded-md font-medium px-2',
                 isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700'
               )}
               title={t('linkManagerView.projectContextTooltip')}
@@ -756,7 +752,7 @@ export function LinkManagerView({
               <span className="truncate">{selectedProject ? selectedProject.name : t('linkManagerView.generalContextOption')}</span>
             </span>
           </div>
-          <div className="flex items-center flex-wrap gap-2 w-full @xl/linkmgr:w-auto">
+          <div className="flex items-center justify-start @xl/linkmgr:justify-end flex-wrap gap-2 w-full min-w-0 @xl/linkmgr:w-auto">
 
             {/* Model selector */}
             {setActiveProfileId && llmProfiles.length > 0 && (
@@ -771,7 +767,7 @@ export function LinkManagerView({
                 }}
               >
                 <SelectTrigger className={cn(
-                  'h-7 max-w-[150px] text-[11px] @sm/linkmgr:text-xs border focus:ring-0 shrink-0 rounded-md font-medium px-2 gap-1',
+                  'h-7 w-full @sm/linkmgr:w-auto min-w-0 max-w-[150px] text-[11px] @sm/linkmgr:text-xs border focus:ring-0 rounded-md font-medium px-2 gap-1',
                   isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
                 )}>
                   <Cpu className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
@@ -821,17 +817,17 @@ export function LinkManagerView({
                     aria-label={t('linkManagerView.minConfidenceLabel')}
                     className={cn('w-8 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}
                   />
-                  <span className="hidden @sm/linkmgr:inline">%</span>
+                  <span className="hidden @md/linkmgr:inline">%</span>
                 </div>
                 <button onClick={triggerAutoLink} disabled={isComputing}
                   className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
-                  <span className="hidden @sm/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
+                  <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
                   className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden @sm/linkmgr:inline">{t('linkManagerView.manualLabel')}</span>
+                  <span className="hidden @md/linkmgr:inline">{t('linkManagerView.manualLabel')}</span>
                 </button>
               </>
             )}
@@ -916,7 +912,7 @@ export function LinkManagerView({
               <AnimatePresence>
                 {showManualForm && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden shrink-0">
-                    <div className={cn('px-6 py-4 border-b', manualBg, divider)}>
+                    <div className={cn('px-4 @sm/linkmgr:px-6 py-4 border-b', manualBg, divider)}>
                       <div className="flex items-start justify-between mb-1">
                         <p className={cn('text-xs font-semibold flex items-center gap-2', manualTitle)}>
                           {manualKind && (
@@ -946,7 +942,7 @@ export function LinkManagerView({
                       ) : manualKind === 'entity' ? (
                         <>
                           <p className={cn('text-[11px] mb-4', manualDesc)}>{t('linkManagerView.manualForm.description')}</p>
-                          <div className="flex items-start gap-4">
+                          <div className="flex flex-col @sm/linkmgr:flex-row items-stretch @sm/linkmgr:items-start gap-3 @sm/linkmgr:gap-4">
                             {/* Entity picker */}
                             <div className="flex-1 min-w-0">
                               <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step1Label')}</label>
@@ -983,7 +979,7 @@ export function LinkManagerView({
                                 </div>
                               )}
                             </div>
-                            <div className={cn('shrink-0 mt-7 text-sm font-light select-none', arrowColor)}>→</div>
+                            <div className={cn('self-center @sm/linkmgr:self-start shrink-0 mt-0 @sm/linkmgr:mt-7 text-sm font-light select-none', arrowColor)}>→</div>
                             {/* Doc picker */}
                             <div className="flex-1 min-w-0">
                               <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step2Label')}</label>
@@ -994,12 +990,12 @@ export function LinkManagerView({
                       ) : (
                         <>
                           <p className={cn('text-[11px] mb-4', manualDesc)}>{t('linkManagerView.manualForm.descriptionKnowledge')}</p>
-                          <div className="flex items-start gap-4">
+                          <div className="flex flex-col @sm/linkmgr:flex-row items-stretch @sm/linkmgr:items-start gap-3 @sm/linkmgr:gap-4">
                             <div className="flex-1 min-w-0">
                               <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepALabel')}</label>
                               {renderDocPicker(docAQuery, setDocAQuery, docAResults, selectedDocA, setSelectedDocA)}
                             </div>
-                            <div className={cn('shrink-0 mt-7 text-sm font-light select-none', arrowColor)}>↔</div>
+                            <div className={cn('self-center @sm/linkmgr:self-start shrink-0 mt-0 @sm/linkmgr:mt-7 text-sm font-light select-none', arrowColor)}>↔</div>
                             <div className="flex-1 min-w-0">
                               <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepBLabel')}</label>
                               {renderDocPicker(docBQuery, setDocBQuery, docBResults, selectedDocB, setSelectedDocB)}
@@ -1060,9 +1056,9 @@ export function LinkManagerView({
                 ) : (
                   <div className="p-4 space-y-2">
                     {filteredLinks.map(link => (
-                      <div key={link.id} className={cn('border rounded-lg px-4 py-3 flex items-start gap-4 transition-colors', cardCls)}>
+                      <div key={link.id} className={cn('@container/linkcard border rounded-lg px-3 @sm/linkmgr:px-4 py-3 grid grid-cols-1 @sm/linkcard:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-x-3 @sm/linkcard:gap-x-4 gap-y-2 transition-colors', cardCls)}>
                         {renderSide(link.left)}
-                        <div className={cn('shrink-0 pt-0.5 text-xs select-none', arrowColor)}>{link.kind === 'entity' ? '→' : '↔'}</div>
+                        <div className={cn('shrink-0 pt-0 text-xs select-none @sm/linkcard:pt-0.5', arrowColor)}>{link.kind === 'entity' ? '→' : '↔'}</div>
                         <div className="flex-1 min-w-0">
                           {renderSide(link.right)}
                           <div className="flex items-center gap-2 mt-1">
@@ -1086,7 +1082,7 @@ export function LinkManagerView({
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <div className="flex items-center justify-self-end gap-1 shrink-0 pt-0.5">
                           {tab === 'pending' && (
                             <>
                               <button onClick={() => llmReviewLink(link)} disabled={reviewingLinkIds.has(link.id)} title={t('linkManagerView.actions.llmReview')}
