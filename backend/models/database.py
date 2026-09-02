@@ -222,6 +222,35 @@ class ChatMessage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     session = relationship("ChatSession", back_populates="messages")
 
+
+class MCPToolAuditLog(Base):
+    """Data-minimal audit entry for one executed MCP tool call.
+
+    Tool results are intentionally excluded because they may contain large or
+    external content and remain traceable through the chat turn itself.
+    """
+    __tablename__ = "mcp_tool_audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    chat_session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    chat_message_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    knowledge_source_id = Column(Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True, index=True)
+    server_name = Column(String(120), nullable=False)
+    tool_name = Column(String(200), nullable=False)
+    arguments_json = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False)  # "success" or "error"
+    error_message = Column(String(1000), nullable=True)
+    duration_ms = Column(Integer, nullable=False, default=0)
+    trace_id = Column(String(128), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    user = relationship("User")
+    chat_session = relationship("ChatSession")
+    chat_message = relationship("ChatMessage")
+    project = relationship("Project")
+    knowledge_source = relationship("KnowledgeSource")
+
 class CodeEntity(Base):
     """
     Ein geparstes COBOL-Objekt. Die Hierarchie Programm→Section→Paragraph bzw.

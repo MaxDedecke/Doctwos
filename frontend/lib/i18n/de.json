@@ -577,7 +577,17 @@
       "diagnosticsDownload": "Bundle herunterladen",
       "diagnosticsStartedToast": "Diagnose-Bundle-Erzeugung gestartet",
       "diagnosticsFailedToast": "Diagnose-Bundle-Erzeugung fehlgeschlagen",
-      "diagnosticsStartFailedToast": "Diagnose-Bundle-Erzeugung konnte nicht gestartet werden"
+      "diagnosticsStartFailedToast": "Diagnose-Bundle-Erzeugung konnte nicht gestartet werden",
+      "mcpAuditTitle": "MCP-Tool-Aufruf-Audit",
+      "mcpAuditDescription": "Bereinigte Tool-Aufrufe werden {{days}} Tage gespeichert und sind nur für Administratoren sichtbar.",
+      "mcpAuditRefresh": "Aktualisieren",
+      "mcpAuditLoading": "Audit-Einträge werden geladen...",
+      "mcpAuditEmpty": "Bisher wurden keine MCP-Tool-Aufrufe erfasst.",
+      "mcpAuditSuccess": "Erfolgreich",
+      "mcpAuditError": "Fehler",
+      "mcpAuditUser": "Nutzer: {{user}}",
+      "mcpAuditDuration": "{{duration}} ms",
+      "mcpAuditProject": "Projekt: {{project}}"
     },
     "editorTab": {
       "title": "Monaco Editor Optionen",

@@ -577,7 +577,17 @@
       "diagnosticsDownload": "Download bundle",
       "diagnosticsStartedToast": "Diagnostics bundle generation started",
       "diagnosticsFailedToast": "Diagnostics bundle generation failed",
-      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation"
+      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation",
+      "mcpAuditTitle": "MCP tool-call audit",
+      "mcpAuditDescription": "Redacted tool calls are retained for {{days}} days and visible to administrators only.",
+      "mcpAuditRefresh": "Refresh",
+      "mcpAuditLoading": "Loading audit entries...",
+      "mcpAuditEmpty": "No MCP tool calls have been recorded yet.",
+      "mcpAuditSuccess": "Successful",
+      "mcpAuditError": "Error",
+      "mcpAuditUser": "User: {{user}}",
+      "mcpAuditDuration": "{{duration}} ms",
+      "mcpAuditProject": "Project: {{project}}"
     },
     "editorTab": {
       "title": "Monaco Editor Options",

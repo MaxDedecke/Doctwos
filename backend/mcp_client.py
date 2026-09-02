@@ -51,8 +51,9 @@ class MCPClient:
     A lightweight, native JSON-RPC 2.0 client for Model Context Protocol (MCP) servers.
     Communicates with MCP server subprocesses over stdin/stdout.
     """
-    def __init__(self, name: str, command: str, args: List[str], env: Dict[str, str]):
+    def __init__(self, name: str, command: str, args: List[str], env: Dict[str, str], source_id: Optional[int] = None):
         self.name = name
+        self.source_id = source_id
         self.command = command
         self.args = args
         self.env = env
@@ -253,7 +254,8 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
                 name=f"jira-{src.id}",
                 command="mcp-atlassian",
                 args=[],
-                env=env
+                env=env,
+                source_id=src.id,
             )
             if await client.start():
                 clients.append(client)
@@ -279,7 +281,8 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
                 name=f"confluence-{src.id}",
                 command="mcp-atlassian",
                 args=[],
-                env=env
+                env=env,
+                source_id=src.id,
             )
             if await client.start():
                 clients.append(client)

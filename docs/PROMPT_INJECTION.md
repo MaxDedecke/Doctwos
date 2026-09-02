@@ -73,9 +73,9 @@ the user wasn't specifically asking about.
 ## Remaining Follow-ups
 
 1. **Server-Side Tool Auditing:** MCP-Werkzeug und Argumente pro Chat-Turn
-   serverseitig protokollieren (O-022 in
-   [`OFFENE_ENTWICKLUNGSPUNKTE.md`](./OFFENE_ENTWICKLUNGSPUNKTE.md)). Das
-   verhindert keine Injection, macht erfolgreiche Angriffe aber auditierbar.
+   werden seit O-022 serverseitig protokolliert. Die Einträge sind redigiert,
+   zeitlich begrenzt und nur für Administratoren einsehbar. Das verhindert keine
+   Injection, macht erfolgreiche Angriffe aber auditierbar.
 2. **Rate Limiting:** Per-Session-Quoten für Tool-Aufrufe sind weiterhin eine
    bewusst zu bewertende Schutzmaßnahme.
 

@@ -21,6 +21,18 @@ from celery import Celery
 
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+
+def _positive_int_env(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(name, str(default))))
+    except (TypeError, ValueError):
+        return default
+
+
+# MCP audit entries are retained for a bounded period so the audit table cannot
+# grow without limit. Deployments can choose a stricter customer policy via env.
+MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90)
+
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")

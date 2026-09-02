@@ -1,11 +1,13 @@
 import logging
 import os
 import json
+import time
 import httpx
 from typing import Dict, List, Any, Optional, AsyncGenerator
 import core.config as cfg
 from mcp_client import MCPClient
 from models.database import CodeEntity
+from services.mcp_audit import record_mcp_tool_call
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +179,10 @@ async def run_agent_loop(
     mcp_clients: List[MCPClient],
     ollama_base_url: str = "http://ollama:11434",
     chat_history: Optional[List[Dict[str, str]]] = None,
-    project_id: Optional[int] = None
+    project_id: Optional[int] = None,
+    audit_user_id: Optional[int] = None,
+    audit_chat_session_id: Optional[int] = None,
+    audit_chat_message_id: Optional[int] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -351,8 +356,14 @@ async def run_agent_loop(
         # Check MCP tools
         elif name in mcp_tool_map:
             mcp_client = mcp_tool_map[name]
+            started_at = time.perf_counter()
+            success = False
+            error_message = None
             try:
                 tool_res = await mcp_client.call_tool(name, args)
+                success = not bool(tool_res.get("isError") or tool_res.get("error"))
+                if not success:
+                    error_message = tool_res.get("error") or "MCP server returned an error"
                 text_content = ""
                 for item in tool_res.get("content", []):
                     if item.get("type") == "text":
@@ -361,7 +372,24 @@ async def run_agent_loop(
                     text_content = json.dumps(tool_res)
                 return text_content
             except Exception as ex:
+                error_message = ex
                 return f"Fehler beim Aufruf des MCP-Tools: {ex}"
+            finally:
+                if audit_user_id is not None:
+                    record_mcp_tool_call(
+                        db_session,
+                        user_id=audit_user_id,
+                        chat_session_id=audit_chat_session_id,
+                        chat_message_id=audit_chat_message_id,
+                        project_id=project_id,
+                        knowledge_source_id=getattr(mcp_client, "source_id", None),
+                        server_name=mcp_client.name,
+                        tool_name=name,
+                        arguments=args,
+                        success=success,
+                        duration_ms=int((time.perf_counter() - started_at) * 1000),
+                        error_message=error_message,
+                    )
         
         return f"Fehler: Werkzeug '{name}' ist nicht registriert."
 

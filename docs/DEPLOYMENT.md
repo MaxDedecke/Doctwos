@@ -107,6 +107,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | `OIDC_REDIRECT_URI` | Register this exact URI as an allowed redirect URI on the IdP client — typically `<API_URL>/auth/callback`. |
 | `FRONTEND_URL` | Used for CORS (`allow_origins`) — must be the exact origin the browser loads the frontend from. |
 | `LOG_LEVEL` | Backend log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO`. The parser worker's verbosity is set separately via `--loglevel` on its `celery` command (`parser/Dockerfile`), not by this var. |
+| `MCP_AUDIT_RETENTION_DAYS` | Retention period for redacted MCP tool-call audit entries, default `90`; visible to administrators under Settings > Logs. |
 | `ADMIN_EMAILS` | Comma-separated list, matched case-insensitively against the OIDC `email` claim. Grants admin: bypasses team-based visibility, manages teams/members. No separate admin-bootstrap UI — set this before first login for whoever should be the customer's first admin. |
 
 ## TLS

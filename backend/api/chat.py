@@ -742,7 +742,10 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         mcp_clients=mcp_clients,
                         ollama_base_url=cfg.OLLAMA_BASE_URL,
                         chat_history=[{"role": m.role, "content": m.content} for m in history_messages],
-                        project_id=request.project_id
+                        project_id=request.project_id,
+                        audit_user_id=user.id,
+                        audit_chat_session_id=session_id,
+                        audit_chat_message_id=user_msg.id,
                     ):
                         if event["type"] == "answer":
                             answer = event["content"]

@@ -87,7 +87,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-042 | Graph-gestützte Retrieval-Erweiterung über relevante COPY-/CALL-Beziehungen. | ERFÜLLT |
 | DOC-F-043 | Globale Suche über Projekte/Quellen/Entitäten mit begrenzten Ergebnismengen und Nachladen. | ERFÜLLT |
 | DOC-F-044 | Nachvollziehbare Quellen-/Chunk-Bezüge in Chat-Antworten und Code-/Dokumentkontext. | ERFÜLLT |
-| DOC-F-049 | MCP-Anbindung für Confluence/Jira-Werkzeuge sowie MCP-basierte Recherche im Chat. | TEILWEISE – Tool-Aufrufe funktionieren; eine strukturierte Audit-Aufzeichnung von Toolnamen und Argumenten je Chat-Turn ist noch offen (O-022). |
+| DOC-F-049 | MCP-Anbindung für Confluence/Jira-Werkzeuge sowie MCP-basierte Recherche im Chat. | ERFÜLLT – Tool-Aufrufe funktionieren; Toolname und bereinigte Argumente werden je Chat-Turn strukturiert, zeitlich begrenzt und admin-only auditierbar aufgezeichnet (O-022). |
 | DOC-F-045 | Lokales Ollama als Standard; Cloud-Provider sind standardmäßig deaktiviert und müssen explizit freigeschaltet werden. | ERFÜLLT |
 | DOC-F-046 | Provider-, Modell-, Base-URL- und Request-Optionen können am Chat übergeben werden; Cloud-Nutzung ist serverseitig gesperrt, wenn nicht erlaubt. | ERFÜLLT |
 | DOC-F-047 | Cloud-Anfragen werden nur bei aktivierter Konfiguration und mit expliziter Providerwahl ausgeführt. | ERFÜLLT |
@@ -156,12 +156,11 @@ Für eine nächste verbindliche Version sind mindestens folgende Punkte zu entsc
 
 1. CSV-Anforderung und einheitliche Upload-Allowlist einschließlich DOCX/OCR (O-007).
 2. Vollständiger Copybook-Feldindex und USES-XREF-Volumen über den gesamten Quellbestand (O-009).
-3. MCP-Audit pro Chat-Turn mit Toolnamen und Argumenten (O-022).
-4. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
-5. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
-6. Lasttest mit repräsentativem DRV-COBOL (O-001) sowie Git-Verhalten auf großen Repositories (O-006).
-7. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
-8. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
+3. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
+4. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
+5. Lasttest mit repräsentativem DRV-COBOL (O-001) sowie Git-Verhalten auf großen Repositories (O-006).
+6. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
+7. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
 
 ## 7. Nachweis und Teststand
 

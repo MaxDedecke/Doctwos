@@ -101,6 +101,7 @@ services:
       BOOTSTRAP_SUPERUSER_EMAIL: ${BOOTSTRAP_SUPERUSER_EMAIL:-}
       FRONTEND_URL: ${FRONTEND_URL}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       OLLAMA_LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
     volumes:

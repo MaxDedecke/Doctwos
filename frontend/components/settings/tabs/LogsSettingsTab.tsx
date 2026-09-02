@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Download, Loader2, FileText, Activity, CheckCircle2,
-  AlertTriangle, ClipboardList, Terminal, RefreshCw,
+  AlertTriangle, ClipboardList, Terminal, RefreshCw, ShieldCheck, Clock3,
 } from 'lucide-react';
 import { cn, copyToClipboard } from "@/lib/utils";
 import { api, API_URL } from '@/app/services/api';
@@ -32,6 +32,9 @@ export const LogsSettingsTab: React.FC = () => {
   const [refreshingLogs, setRefreshingLogs] = useState<boolean>(false);
   const [diagnosticsRun, setDiagnosticsRun] = useState<any | null>(null);
   const [diagnosticsGenerating, setDiagnosticsGenerating] = useState<boolean>(false);
+  const [mcpAuditEntries, setMcpAuditEntries] = useState<any[]>([]);
+  const [mcpAuditRetentionDays, setMcpAuditRetentionDays] = useState<number | null>(null);
+  const [mcpAuditLoading, setMcpAuditLoading] = useState<boolean>(false);
 
   const refreshKnowledgeSources = async () => {
     setRefreshingLogs(true);
@@ -63,6 +66,32 @@ export const LogsSettingsTab: React.FC = () => {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLogSource?.id]);
+
+  const refreshMcpAuditLogs = async () => {
+    if (!currentUser?.is_admin) return;
+    setMcpAuditLoading(true);
+    try {
+      const res = await api.getMcpToolAuditLogs();
+      setMcpAuditEntries(res.data?.entries || []);
+      setMcpAuditRetentionDays(typeof res.data?.retention_days === 'number' ? res.data.retention_days : null);
+    } catch (err) {
+      console.error("Failed to reload MCP audit logs", err);
+    } finally {
+      setMcpAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser?.is_admin) return;
+    (async () => {
+      await refreshMcpAuditLogs();
+    })();
+    const interval = setInterval(refreshMcpAuditLogs, 10000);
+    return () => clearInterval(interval);
+    // The admin flag is the only lifecycle input; refreshMcpAuditLogs is a
+    // component-local action and intentionally not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.is_admin]);
 
   const handleGenerateDiagnostics = async () => {
     setDiagnosticsGenerating(true);
@@ -171,6 +200,96 @@ export const LogsSettingsTab: React.FC = () => {
               {diagnosticsGenerating ? t('settings.logsTab.diagnosticsGenerating') : t('settings.logsTab.diagnosticsGenerate')}
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* MCP audit trail (admin-only; arguments are redacted server-side). */}
+      {currentUser?.is_admin && (
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className={cn("text-xs font-bold uppercase tracking-wide flex items-center gap-1.5", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
+                <ShieldCheck className="w-3.5 h-3.5 text-ds-indigo-500" />
+                {t('settings.logsTab.mcpAuditTitle')}
+              </h4>
+              <p className={cn("text-[10px] mt-1", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                {t('settings.logsTab.mcpAuditDescription', { days: mcpAuditRetentionDays ?? '—' })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={refreshMcpAuditLogs}
+              disabled={mcpAuditLoading}
+              className={cn(
+                "h-7 text-[10px] px-2.5 flex items-center gap-1.5 shrink-0 focus:ring-0",
+                theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
+              )}
+            >
+              {mcpAuditLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              {t('settings.logsTab.mcpAuditRefresh')}
+            </Button>
+          </div>
+
+          {mcpAuditLoading && mcpAuditEntries.length === 0 ? (
+            <div className="flex items-center gap-2 text-xs text-ds-zinc-500 p-4 border rounded-lg">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-ds-indigo-500" />
+              {t('settings.logsTab.mcpAuditLoading')}
+            </div>
+          ) : mcpAuditEntries.length === 0 ? (
+            <p className={cn(
+              "text-xs italic p-4 border rounded-lg border-dashed text-center",
+              theme === 'dark' ? "text-ds-zinc-500 border-ds-zinc-800" : "text-ds-zinc-400 border-ds-zinc-200"
+            )}>
+              {t('settings.logsTab.mcpAuditEmpty')}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {mcpAuditEntries.map((entry) => {
+                const successful = entry.status === 'success';
+                const formattedTime = entry.created_at
+                  ? new Date(entry.created_at).toLocaleString(language === 'de' ? 'de-DE' : 'en-US')
+                  : '—';
+                return (
+                  <div
+                    key={entry.id}
+                    className={cn(
+                      "border rounded-lg p-3 space-y-2",
+                      theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
+                      <span className={cn("font-mono font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{entry.tool_name}</span>
+                      <span className="text-ds-zinc-500">{entry.server_name}</span>
+                      <span className={cn(
+                        "px-1.5 py-0.5 rounded border font-bold uppercase",
+                        successful ? "bg-ds-emerald-500/10 text-ds-emerald-455 border-ds-emerald-500/20" : "bg-ds-rose-500/10 text-ds-rose-455 border-ds-rose-500/20"
+                      )}>
+                        {successful ? t('settings.logsTab.mcpAuditSuccess') : t('settings.logsTab.mcpAuditError')}
+                      </span>
+                      <span className="ml-auto flex items-center gap-1 text-ds-zinc-500">
+                        <Clock3 className="w-3 h-3" />{formattedTime}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-ds-zinc-500">
+                      <span>{t('settings.logsTab.mcpAuditUser', { user: entry.user_name || '—' })}</span>
+                      <span>{t('settings.logsTab.mcpAuditDuration', { duration: entry.duration_ms ?? 0 })}</span>
+                      {entry.project_name && <span>{t('settings.logsTab.mcpAuditProject', { project: entry.project_name })}</span>}
+                      {entry.trace_id && <span className="font-mono">trace: {entry.trace_id}</span>}
+                    </div>
+                    <pre className={cn(
+                      "max-h-32 overflow-auto rounded border p-2 text-[10px] leading-relaxed whitespace-pre-wrap break-all",
+                      theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600"
+                    )}>
+                      {JSON.stringify(entry.arguments ?? {}, null, 2)}
+                    </pre>
+                    {entry.error_message && <p className="text-[10px] text-ds-rose-500 break-all">{entry.error_message}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
