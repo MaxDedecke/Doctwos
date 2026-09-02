@@ -1,5 +1,5 @@
 from api import jobs as jobs_api
-from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource
+from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource, LinkBuilderRun, Project
 
 
 def test_admin_can_restart_failed_source_and_keep_job_visible(client, db_session, test_project, test_team, monkeypatch):
@@ -44,6 +44,47 @@ def test_non_admin_cannot_start_job(member_client):
     response = member_client.post("/jobs/source/999999/start")
 
     assert response.status_code == 403
+
+
+def test_job_list_can_be_scoped_to_a_project(client, db_session, test_project, test_team):
+    """The selected project view must not leak jobs from other projects."""
+    other_project = Project(name="Other job project", team_id=test_team)
+    db_session.add(other_project)
+    db_session.commit()
+    db_session.refresh(other_project)
+    source_current = KnowledgeSource(
+        name="Current project source", type="Git", project_id=test_project,
+        team_id=test_team, sync_status="pending",
+    )
+    source_other = KnowledgeSource(
+        name="Other project source", type="Git", project_id=other_project.id,
+        team_id=test_team, sync_status="pending",
+    )
+    link_current = LinkBuilderRun(task_type="entity_links", project_id=test_project, status="pending")
+    link_other = LinkBuilderRun(task_type="entity_links", project_id=other_project.id, status="pending")
+    db_session.add_all([source_current, source_other, link_current, link_other])
+    db_session.commit()
+
+    try:
+        response = client.get(f"/jobs?project_id={test_project}")
+        assert response.status_code == 200, response.text
+        keys = {job["key"] for job in response.json()["jobs"]}
+        assert f"source:{source_current.id}" in keys
+        assert f"link_builder:{link_current.id}" in keys
+        assert f"source:{source_other.id}" not in keys
+        assert f"link_builder:{link_other.id}" not in keys
+        assert not any(job["kind"] == "diagnostics" for job in response.json()["jobs"])
+    finally:
+        db_session.query(JobCenterDismissal).filter(
+            JobCenterDismissal.kind == "source",
+            JobCenterDismissal.job_id.in_([source_current.id, source_other.id]),
+        ).delete(synchronize_session=False)
+        db_session.delete(source_current)
+        db_session.delete(source_other)
+        db_session.delete(link_current)
+        db_session.delete(link_other)
+        db_session.delete(other_project)
+        db_session.commit()
 
 
 def test_admin_can_restart_failed_diagnostics_run(client, db_session, monkeypatch):

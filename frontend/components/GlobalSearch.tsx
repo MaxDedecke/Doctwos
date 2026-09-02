@@ -514,7 +514,7 @@ export function GlobalSearch({
           )}
         </div>
 
-        <JobCenter theme={theme} currentUser={currentUser} />
+        <JobCenter theme={theme} currentUser={currentUser} projectId={selectedProject?.id ?? null} />
 
         <Button
           variant="ghost"

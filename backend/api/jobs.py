@@ -84,24 +84,34 @@ def _diagnostics_job(run: DiagnosticsRun, admin: bool = False) -> dict:
 
 
 @router.get("")
-def list_jobs(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def list_jobs(
+    project_id: int | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     project_ids = get_visible_project_ids(user, db)
     team_ids = get_visible_team_ids(user, db)
+    if project_id is not None and project_ids is not None and project_id not in project_ids:
+        raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Projekt")
 
     source_query = db.query(KnowledgeSource)
     if team_ids is not None:
         source_query = source_query.filter(KnowledgeSource.team_id.in_(team_ids))
-    if project_ids is not None:
+    if project_id is not None:
+        source_query = source_query.filter(KnowledgeSource.project_id == project_id)
+    elif project_ids is not None:
         source_query = source_query.filter(or_(KnowledgeSource.project_id.is_(None), KnowledgeSource.project_id.in_(project_ids)))
 
     run_query = db.query(LinkBuilderRun)
     admin = is_admin(user)
-    if not admin:
+    if project_id is not None:
+        run_query = run_query.filter(LinkBuilderRun.project_id == project_id)
+    elif not admin:
         run_query = run_query.filter(LinkBuilderRun.project_id.in_(project_ids or []))
 
     jobs = [_source_job(row, admin) for row in source_query.all()]
     jobs += [_run_job(row, admin) for row in run_query.all()]
-    if admin:
+    if admin and project_id is None:
         jobs += [_diagnostics_job(row, admin) for row in db.query(DiagnosticsRun).all()]
     dismissed = {
         (row.kind, row.job_id)

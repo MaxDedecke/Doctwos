@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch
 
 from core.config import UPLOADS_DIR
-from models.database import KnowledgeSource, Project, ProjectMembership, SourceScanFile, Team, User
+from models.database import JobCenterDismissal, KnowledgeSource, Project, ProjectMembership, SourceScanFile, Team, User
 from conftest import TEST_USERNAME
 
 
@@ -137,6 +137,9 @@ def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
     db_session.add(source)
     db_session.commit()
     db_session.refresh(source)
+    admin = db_session.query(User).filter(User.username == TEST_USERNAME).one()
+    db_session.add(JobCenterDismissal(kind="source", job_id=source.id, dismissed_by_user_id=admin.id))
+    db_session.commit()
     calls = []
 
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
@@ -155,6 +158,10 @@ def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
         assert source.total_files == 0
         assert source.last_error is None
         assert source.sync_log == ""
+        assert db_session.query(JobCenterDismissal).filter(
+            JobCenterDismissal.kind == "source",
+            JobCenterDismissal.job_id == source.id,
+        ).first() is None
     finally:
         db_session.delete(source)
         db_session.commit()

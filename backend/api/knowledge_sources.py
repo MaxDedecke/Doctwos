@@ -39,7 +39,7 @@ from api.schemas import FolderWatchCreate, KnowledgeSourceCreate, KnowledgeSourc
 from api.serializers import serialize_source
 from core.config import celery_app, UPLOADS_DIR, REPOS_ROOT
 from core.db_setup import get_db
-from models.database import DocumentChunk, KnowledgeSource, Project, Team, User
+from models.database import DocumentChunk, JobCenterDismissal, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin, require_admin, DEFAULT_TEAM_NAME
 from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
@@ -242,6 +242,10 @@ def reindex_knowledge_source(
     db_source.progress_message = "Vollständige Neu-Analyse in Warteschlange…"
     db_source.last_error = None
     db_source.sync_log = ""
+    db.query(JobCenterDismissal).filter(
+        JobCenterDismissal.kind == "source",
+        JobCenterDismissal.job_id == db_source.id,
+    ).delete(synchronize_session=False)
     db.commit()
     send_tracked_task(
         db, db_source, "process_knowledge_source", [db_source.id], {"force_reindex": True}

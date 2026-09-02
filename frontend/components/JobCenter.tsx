@@ -14,7 +14,15 @@ type Job = {
   can_start?: boolean; can_delete?: boolean; can_stop?: boolean;
 };
 
-export function JobCenter({ theme, currentUser }: { theme: string; currentUser?: { is_admin?: boolean } | null }) {
+export function JobCenter({
+  theme,
+  currentUser,
+  projectId = null,
+}: {
+  theme: string;
+  currentUser?: { is_admin?: boolean } | null;
+  projectId?: number | null;
+}) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -29,13 +37,13 @@ export function JobCenter({ theme, currentUser }: { theme: string; currentUser?:
 
   const refresh = useCallback(async () => {
     try {
-      const response = await api.getJobs();
+      const response = await api.getJobs(projectId);
       setJobs(response.data.jobs || []);
       setActiveCount(response.data.active_count || 0);
     } catch (error: any) {
       if (error?.response?.status !== 401) console.error("Job center refresh failed", error);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     // queueMicrotask: refresh() only ever sets state after its own await,
@@ -44,7 +52,7 @@ export function JobCenter({ theme, currentUser }: { theme: string; currentUser?:
     queueMicrotask(refresh);
     const timer = window.setInterval(refresh, 3000);
     return () => window.clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, projectId]);
 
   useEffect(() => {
     const close = (event: MouseEvent) => {
