@@ -786,6 +786,7 @@
     "askDoctusAi": "Ask Doctus AI",
     "askAboutLineMenuItem": "Ask about line {{line}}",
     "askAboutEntityMenuItem": "Ask about {{name}}",
+    "openReferencesMenuItem": "Open references",
     "exportCypherTitle": "Export as Cypher (Neo4j)",
     "closeGraphTitle": "Close graph",
     "backToPreviousFileTitle": "Back to previous file",

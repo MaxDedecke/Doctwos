@@ -409,6 +409,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     entity: any | null;
   } | null>(null);
   const gutterMenuRef = useRef<HTMLDivElement>(null);
+  const [entityMenu, setEntityMenu] = useState<{
+    x: number;
+    y: number;
+    entity: any;
+  } | null>(null);
+  const entityMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onGutterClickRef.current = onGutterClick;
@@ -446,6 +452,28 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [gutterMenu]);
+
+  useEffect(() => {
+    if (!entityMenu) return;
+    const handlePointerDown = (ev: MouseEvent) => {
+      if (entityMenuRef.current && !entityMenuRef.current.contains(ev.target as Node)) {
+        setEntityMenu(null);
+      }
+    };
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setEntityMenu(null);
+    };
+    // Attach after the opening click has finished propagating through Monaco.
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handlePointerDown);
+      document.addEventListener('keydown', handleKeyDown);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [entityMenu]);
 
   useEffect(() => {
     projectEntitiesRef.current = projectEntities;
@@ -735,9 +763,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         });
 
         if (clickedEntity) {
-          if (handleEntitySelectRef.current) {
-            handleEntitySelectRef.current(clickedEntity);
-          }
+          handleEntitySelectRef.current?.(clickedEntity);
+          const native = e.event?.browserEvent;
+          setEntityMenu({
+            x: native?.clientX ?? e.event?.posx ?? 0,
+            y: native?.clientY ?? e.event?.posy ?? 0,
+            entity: clickedEntity,
+          });
           return;
         }
       }
@@ -1549,6 +1581,50 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: gutterMenu.entity.name })}</span>
           </button>
         )}
+      </div>,
+      document.body
+    )}
+    {entityMenu && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={entityMenuRef}
+        style={{ position: 'fixed', left: entityMenu.x + 10, top: entityMenu.y - 8, zIndex: 10000 }}
+        className={cn(
+          "min-w-[220px] rounded-[3px] text-xs shadow-lg border py-1 overflow-hidden",
+          theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-300 border-ds-zinc-700 shadow-ds-black" : "bg-ds-white text-ds-zinc-800 border-ds-zinc-200 shadow-ds-zinc-300"
+        )}
+      >
+        <button
+          onClick={() => {
+            onGutterAskEntityRef.current?.(entityMenu.entity);
+            setEntityMenu(null);
+          }}
+          className={cn(
+            "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+            theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+          )}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-ds-emerald-400 shrink-0" />
+          <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: entityMenu.entity.name })}</span>
+        </button>
+        <button
+          onClick={() => {
+            // The object was focused when the menu opened; this reuses the
+            // existing references dropdown for the same focused selection.
+            handleEntitySelectRef.current?.(entityMenu.entity);
+            setReferencesTab('code');
+            setFocusedRefNode(null);
+            setIsReferencesModalMode(false);
+            setIsReferencesDropdownOpen(true);
+            setEntityMenu(null);
+          }}
+          className={cn(
+            "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+            theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+          )}
+        >
+          <Link2 className="w-3.5 h-3.5 text-ds-indigo-400 shrink-0" />
+          <span className="truncate">{t('splitPane.openReferencesMenuItem')}</span>
+        </button>
       </div>,
       document.body
     )}
