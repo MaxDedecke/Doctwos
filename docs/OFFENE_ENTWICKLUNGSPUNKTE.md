@@ -87,6 +87,12 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   Wiederherstellung. Chat, Link Manager und Settings verwenden nun denselben
   Profilwechselpfad; 30 Frontend-Tests, Typecheck, ESLint und Produktions-Build
   grün.
+- O-028 (Panel-Content-Rendering) — 02.09.2026 umgesetzt; Chat, Code-,
+  Dokument-, Graph-, Web-, Call-Graph- und Link-Manager-Inhalte liegen in
+  `PanelContentRenderer`. `page.tsx` ist dadurch von 1.096 auf 947 Zeilen
+  reduziert; Panel-State und bereichsübergreifende Navigation bleiben im
+  Orchestrator. Auf ausdrückliche Vorgabe wurde für diesen Entwicklungsschritt
+  kein Test- oder Buildlauf gestartet.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation

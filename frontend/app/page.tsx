@@ -38,15 +38,12 @@ import { resolveReferenceTarget } from "@/lib/referenceTarget";
 import { api } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
-import { LinkManagerView } from "@/components/LinkManagerView";
 import { PanelRenderer } from "@/components/PanelRenderer";
-import { SplitPaneWorkspace } from "@/components/SplitPaneWorkspace";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { LoginView } from "@/components/LoginView";
 import { Sidebar } from "@/components/Sidebar";
-import { ChatView } from "@/components/ChatView";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { CallGraphView } from "@/components/CallGraphView";
+import { PanelContentRenderer } from "@/components/PanelContentRenderer";
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -691,200 +688,54 @@ function AppContent() {
 
   // Divider interaction lives in useWorkspaceLayout.
 
-  const renderPanelContent = (index: number, contentType: string, sel: any) => (<>
-          {contentType === 'chat' && (
-            <ChatView
-              theme={theme}
-              isSidebarOpen={isSidebarOpen}
-              selectedProject={selectedProject}
-              onProjectSelect={handleProjectSelect}
-              pinnedCode={pinnedCode}
-              setPinnedCode={setPinnedCode}
-              chatMessages={chatMessages}
-              currentMessage={currentMessage}
-              setCurrentMessage={setCurrentMessage}
-              isLoading={isLoading}
-              handleSendChat={handleSendChat}
-              handleRetryMessage={handleRetryMessage}
-              handleFeedback={handleFeedback}
-              addAssistantHint={addAssistantHint}
-              handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
-              activeProfileId={activeProfileId}
-              setActiveProfileId={setActiveProfileId}
-              llmProfiles={llmProfiles}
-              showToast={showToast}
-              selectedFile={sel.selectedFile}
-              selectedDoc={sel.selectedDoc}
-              splitClasses={{ chat: "w-full", editor: "w-full" }}
-              chatEndRef={chatEndRef}
-              selectedSource={selectedSource}
-              setSelectedSource={setSelectedSource}
-              connectedSources={connectedSources}
-            />
-          )}
-
-          {contentType === 'code' && (
-            <SplitPaneWorkspace
-              theme={theme}
-              selectedFile={sel.selectedFile}
-              selectedDoc={sel.selectedDoc}
-              selectedLine={sel.selectedLine}
-              activeRightTab="code"
-              setActiveRightTab={() => {}}
-              isEditorMaximized={false}
-              setIsEditorMaximized={() => {}}
-              setSelectedFile={(path) => handlePanelFileSelect(index, path)}
-              setSelectedDoc={(doc) => handlePanelFileSelect(index, doc?.name || null, null, doc?.id || null)}
-              handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
-              isReferencesDropdownOpen={isReferencesDropdownOpen}
-              setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
-              referencesTab={referencesTab}
-              setReferencesTab={setReferencesTab}
-              selectedEntity={sel.selectedEntity}
-              splitClasses={{ chat: "w-full", editor: "w-full" }}
-              activeLlmModel={activeLlmModel}
-              activeEmbeddingModel={activeEmbeddingModel}
-              editorFontSize={editorFontSize}
-              editorFontFamily={editorFontFamily}
-              editorMinimap={editorMinimap}
-              selectedProject={selectedProject}
-              projectEntities={projectEntities}
-              handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
-              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
-              fileNavStack={fileNavStack}
-              onNavigateBack={handleNavigateBack}
-              onDocFocus={handleDocFocusRequest}
-            />
-          )}
-
-          {contentType === 'doc' && (
-            <SplitPaneWorkspace
-              theme={theme}
-              selectedFile={sel.selectedFile}
-              selectedDoc={sel.selectedDoc}
-              selectedLine={sel.selectedLine}
-              activeRightTab="doc"
-              setActiveRightTab={() => {}}
-              isEditorMaximized={false}
-              setIsEditorMaximized={() => {}}
-              setSelectedFile={(path) => handlePanelFileSelect(index, path)}
-              setSelectedDoc={(doc) => handlePanelFileSelect(index, doc?.name || null, null, doc?.id || null)}
-              handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
-              isReferencesDropdownOpen={isReferencesDropdownOpen}
-              setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
-              referencesTab={referencesTab}
-              setReferencesTab={setReferencesTab}
-              selectedEntity={sel.selectedEntity}
-              splitClasses={{ chat: "w-full", editor: "w-full" }}
-              activeLlmModel={activeLlmModel}
-              activeEmbeddingModel={activeEmbeddingModel}
-              editorFontSize={editorFontSize}
-              editorFontFamily={editorFontFamily}
-              editorMinimap={editorMinimap}
-              selectedProject={selectedProject}
-              projectEntities={projectEntities}
-              handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
-              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
-              fileNavStack={fileNavStack}
-              onNavigateBack={handleNavigateBack}
-              onDocFocus={handleDocFocusRequest}
-            />
-          )}
-
-          {contentType === 'graph' && (
-            <SplitPaneWorkspace
-              theme={theme}
-              selectedFile={sel.selectedFile}
-              selectedDoc={sel.selectedDoc}
-              selectedLine={sel.selectedLine}
-              activeRightTab="graph"
-              setActiveRightTab={() => {}}
-              isEditorMaximized={false}
-              setIsEditorMaximized={() => {}}
-              setSelectedFile={(path) => handlePanelFileSelect(index, path)}
-              setSelectedDoc={(doc) => handlePanelFileSelect(index, doc?.name || null, null, doc?.id || null)}
-              handleFileSelect={(path, line, sourceId, openIfMissing) => handlePanelFileSelect(index, path, line, sourceId, openIfMissing)}
-              isReferencesDropdownOpen={isReferencesDropdownOpen}
-              setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
-              referencesTab={referencesTab}
-              setReferencesTab={setReferencesTab}
-              selectedEntity={sel.selectedEntity}
-              splitClasses={{ chat: "w-full", editor: "w-full" }}
-              activeLlmModel={activeLlmModel}
-              activeEmbeddingModel={activeEmbeddingModel}
-              editorFontSize={editorFontSize}
-              editorFontFamily={editorFontFamily}
-              editorMinimap={editorMinimap}
-              selectedProject={selectedProject}
-              projectEntities={projectEntities}
-              handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
-              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
-              fileNavStack={fileNavStack}
-              onNavigateBack={handleNavigateBack}
-              onDocFocus={handleDocFocusRequest}
-              layoutMode={layoutMode}
-            />
-          )}
-
-          {contentType === 'callgraph' && (
-            <CallGraphView
-              theme={theme}
-              focusedEntity={sel.selectedEntity}
-              projectId={selectedProject?.id}
-              onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true, true)}
-            />
-          )}
-
-          {contentType === 'webview' && (
-            <SplitPaneWorkspace
-              theme={theme}
-              selectedFile={sel.selectedFile}
-              selectedDoc={sel.selectedDoc}
-              selectedLine={sel.selectedLine}
-              activeRightTab="weborigin"
-              setActiveRightTab={() => {}}
-              isEditorMaximized={false}
-              setIsEditorMaximized={() => {}}
-              setSelectedFile={(path) => handlePanelFileSelect(index, path)}
-              setSelectedDoc={(doc) => handlePanelFileSelect(index, doc?.name || null, null, doc?.id || null)}
-              handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}
-              isReferencesDropdownOpen={isReferencesDropdownOpen}
-              setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
-              referencesTab={referencesTab}
-              setReferencesTab={setReferencesTab}
-              selectedEntity={sel.selectedEntity}
-              splitClasses={{ chat: "w-full", editor: "w-full" }}
-              activeLlmModel={activeLlmModel}
-              activeEmbeddingModel={activeEmbeddingModel}
-              editorFontSize={editorFontSize}
-              editorFontFamily={editorFontFamily}
-              editorMinimap={editorMinimap}
-              selectedProject={selectedProject}
-              projectEntities={projectEntities}
-              handleEntitySelect={(ent) => handlePanelEntitySelect(index, ent)}
-              onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
-              onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
-              fileNavStack={fileNavStack}
-              onNavigateBack={handleNavigateBack}
-            />
-          )}
-
-          {contentType === 'linkmanager' && (
-            <LinkManagerView
-              selectedProject={selectedProject}
-              theme={theme}
-              currentUser={currentUser}
-              llmProfiles={llmProfiles}
-              activeProfileId={activeProfileId}
-              setActiveProfileId={setActiveProfileId}
-              showToast={showToast}
-            />
-          )}
-
-  </>);
+  const renderPanelContent = (index: number, contentType: string, selection: any) => (
+    <PanelContentRenderer
+      index={index}
+      contentType={contentType}
+      selection={selection}
+      theme={theme}
+      isSidebarOpen={isSidebarOpen}
+      selectedProject={selectedProject}
+      handleProjectSelect={handleProjectSelect}
+      pinnedCode={pinnedCode}
+      setPinnedCode={setPinnedCode}
+      chatMessages={chatMessages}
+      currentMessage={currentMessage}
+      setCurrentMessage={setCurrentMessage}
+      isLoading={isLoading}
+      handleSendChat={handleSendChat}
+      handleRetryMessage={handleRetryMessage}
+      handleFeedback={handleFeedback}
+      addAssistantHint={addAssistantHint}
+      handlePanelFileSelect={handlePanelFileSelect}
+      activeProfileId={activeProfileId}
+      setActiveProfileId={setActiveProfileId}
+      llmProfiles={llmProfiles}
+      showToast={showToast}
+      selectedSource={selectedSource}
+      setSelectedSource={setSelectedSource}
+      connectedSources={connectedSources}
+      activeLlmModel={activeLlmModel}
+      activeEmbeddingModel={activeEmbeddingModel}
+      editorFontSize={editorFontSize}
+      editorFontFamily={editorFontFamily}
+      editorMinimap={editorMinimap}
+      isReferencesDropdownOpen={isReferencesDropdownOpen}
+      setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
+      referencesTab={referencesTab}
+      setReferencesTab={setReferencesTab}
+      handlePanelEntitySelect={handlePanelEntitySelect}
+      handleGutterClick={handleGutterClick}
+      handleGutterAskEntity={handleGutterAskEntity}
+      projectEntities={projectEntities}
+      fileNavStack={fileNavStack}
+      handleNavigateBack={handleNavigateBack}
+      handleDocFocusRequest={handleDocFocusRequest}
+      layoutMode={layoutMode}
+      chatEndRef={chatEndRef}
+      currentUser={currentUser}
+    />
+  );
 
   const handlePanelContentTypeChange = (index: number, newType: string) => {
     setPanelConfigs((previous) => {
