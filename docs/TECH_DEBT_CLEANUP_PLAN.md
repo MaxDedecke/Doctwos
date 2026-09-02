@@ -27,7 +27,8 @@
 >   notion` inzwischen auf `true`.
 >
 > - §5 (Frontend-God-Components `page.tsx`/`SettingsModal.tsx` entflechten):
->   **in Arbeit** (2026-07-16). **Schritt 1 (SettingsContext) erledigt** — die
+>   **Schritte 1–3 erledigt 2026-09-02; Schritt 4 bleibt als O-005 offen.**
+>   **Schritt 1 (SettingsContext) erledigt** — die
 >   ~36 Einzel-Props von `SettingsModal` laufen jetzt über `components/settings/
 >   SettingsContext.tsx` statt durch `page.tsx` gedrillt; die Aufrufstelle in
 >   `page.tsx` ist von 47 Props auf `<SettingsProvider value={…}><SettingsModal
@@ -49,10 +50,10 @@
 >   Login-Screen per Playwright gegen `next dev` gegengeprüft (rendert
 >   fehlerfrei; ein authentifizierter Klick-Test war nicht möglich, da Login
 >   ausschließlich per OIDC/SSO läuft und keine Testzugangsdaten vorliegen).
->   Offen: Schritt 3 selbst (page.tsx-Domänen-Hooks: `useProjects`,
->   `useChatSessions`, `useKnowledgeSources`, `useWorkspaceLayout` — Cluster/
->   Kopplungsanalyse für diese vier liegt bereits vor, siehe Session vom
->   2026-07-17), Schritt 4 (useCallback/memo) **offen**. Die XSS-/401-Befunde
+>   **Schritt 3 erledigt:** Die vier Domänen-Hooks `useProjects`,
+>   `useChatSessions`, `useKnowledgeSources` und `useWorkspaceLayout` kapseln
+>   ihre Zustände, Ladeeffekte und die zugehörigen Navigationsaktionen.
+>   Schritt 4 (useCallback/memo) bleibt als O-005 **offen**. Die XSS-/401-Befunde
 >   desselben Reviews sind separat gefixt (Commit `41779bc`).
 >
 > Dieses Dokument ist bewusst so
@@ -572,14 +573,17 @@ Nicht als ein Big-Bang. Reihenfolge nach Aufwand/Risiko:
    `sources`-Poll, und die Navigations-/Wizard-Einstiegs-Callbacks). Ungenutzte
    Context-Destrukturierungen + Icon-/UI-Imports wurden dabei entfernt. (`sources`
    `WizardStep` bleibt als bereits vorher toter State bestehen.)
-3. **`page.tsx`: Domänen-State aus dem Orchestrator ziehen.** Kandidaten für
-   eigene Context-Provider/Hooks (`useProjects`, `useChatSessions`,
-   `useKnowledgeSources`, `useWorkspaceLayout`): die zusammenhängenden
-   `useState`-Cluster + ihre Fetch-Effekte + Handler wandern in einen Hook,
-   `page.tsx` konsumiert nur noch. Ziel ist die in CLAUDE.md beschriebene Rolle
-   "only shared state wiring".
-4. **Erst nach Schritt 3 `useCallback`/`memo` gezielt nachziehen** — vorher
-   lohnt es nicht, weil die Handler eh noch verschoben werden.
+3. **`page.tsx`: Domänen-State aus dem Orchestrator ziehen. ERLEDIGT 2026-09-02.**
+   Die Kandidaten für
+   eigene Hooks (`useProjects`, `useChatSessions`, `useKnowledgeSources`,
+   `useWorkspaceLayout`) ausgelagert. Die Hooks kapseln die jeweiligen
+   `useState`-Cluster, Fetch-Effekte und domänennahen Handler; die Seite bleibt
+   als Orchestrator für bewusst bereichsübergreifende Navigation zuständig.
+   Damit erfüllt `page.tsx` die in CLAUDE.md beschriebene Rolle "only shared
+   state wiring" weitgehend; die gezielte Handler-Stabilisierung folgt in O-005.
+4. **Erst nach Schritt 3 `useCallback`/`memo` gezielt nachziehen — OFFEN (O-005).**
+   Die verbliebenen Handler sollen erst nach der Extraktion gezielt gemessen
+   und stabilisiert werden.
 
 ### Verifikation (pro Schritt, nicht erst am Ende)
 

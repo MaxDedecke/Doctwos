@@ -56,7 +56,7 @@ import {
 import { cn, copyToClipboard } from "@/lib/utils";
 import { normalizeInitialUserMessage } from "@/lib/chatMessage";
 import { resolvePanelNavigationTarget } from "@/lib/panelNavigation";
-import { appendPanelHistory, EMPTY_PANEL_SELECTION, navigatePanelHistory, type PanelHistoryEntry, type PanelSelection } from "@/lib/panelHistory";
+import { appendPanelHistory, EMPTY_PANEL_SELECTION } from "@/lib/panelHistory";
 import { api, API_URL } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -71,31 +71,15 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
+import { DOC_FILE_RE, getSelectionViewType } from '@/lib/workspaceSelection';
+import { useProjects } from '@/hooks/useProjects';
+import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
+import { useChatSessions } from '@/hooks/useChatSessions';
+import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
 
 
 
 // --- Main App Component ---
-
-// File-extension buckets that decide which panel type a selection "belongs" to —
-// shared between handleFileSelect (which view opens) and the unfrozen-panel sync
-// effect (which already-open views follow along).
-// .md fehlte hier: getKnowledgeSourceContent liefert für .md bereits
-// format="markdown" (backend/api/knowledge_sources.py) und der Doc-Panel
-// rendert das via MarkdownContent -- ohne .md hier landete z.B. README.md
-// trotzdem im Code-Panel (das dafür kein COBOL-Objekt findet und leer
-// bleibt), egal ob per Chat-Quelle, Referenzen-Dropdown oder Graph-Klick
-// geöffnet.
-const DOC_FILE_RE = /\.(pdf|docx?|png|jpe?g|md)$/i;
-
-// null = no selection at all (applies everywhere, e.g. to clear all panels).
-function getSelectionViewType(path: string | null, doc: any | null): string | null {
-  if (doc?.isWebOrigin) return 'webview';
-  const name = path || doc?.name || null;
-  if (!name) return null;
-  const cleanName = name.split('#')[0];
-  if (DOC_FILE_RE.test(cleanName)) return 'doc';
-  return 'code';
-}
 
 // Shared by handleFileSelect and handlePanelFileSelect: figures out what kind of
 // thing a bare (path, sourceId) reference actually points at — a locally-connected
@@ -144,9 +128,6 @@ function AppContent() {
   const [isLoginInitialized, setIsLoginInitialized] = useState(false);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
 
-  // --- UI Layout & Sidebar States ---
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
   useEffect(() => {
     // Session läuft über eine httpOnly-Cookie (lokale Anmeldung, siehe backend/api/auth.py)
     api.getMe()
@@ -154,11 +135,6 @@ function AppContent() {
       .catch(() => setIsLoggedIn(false))
       .finally(() => setIsLoginInitialized(true));
 
-    // Collapse sidebar on mobile devices initially
-    if (typeof window !== 'undefined') {
-      const isMobile = window.innerWidth < 768;
-      (() => setIsSidebarOpen(!isMobile))();
-    }
   }, []);
 
   // Session abgelaufen/ungültig (401 an irgendeinem Request): der axios-Interceptor
@@ -185,40 +161,7 @@ function AppContent() {
     }
   };
 
-  const [isMobile, setIsMobile] = useState(false);
-  const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // --- Project & File States ---
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [selectedSource, setSelectedSource] = useState(null);
-  const [files, setFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedDoc, setSelectedDoc] = useState<any>(null);
-  const [selectedLine, setSelectedLine] = useState<number | null>(null);
-  const [activeRightTab, setActiveRightTab] = useState<'code' | 'doc' | 'weborigin' | 'graph'>('code');
-  const [fileContent, setFileContent] = useState("");
-  const [fileContentFormat, setFileContentFormat] = useState("text"); // 'text' | 'html' | 'markdown'
-  const [isLoadingFile, setIsLoadingFile] = useState(false);
-  const [branch, setBranch] = useState("main");
-
-  // --- Chat & Session States ---
-  const [chatMessages, setChatMessages] = useState([]);
-  const [currentMessage, setCurrentMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [isSessionsLoaded, setIsSessionsLoaded] = useState(false);
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
-  const [toast, setToast] = useState(null);
+  const [toast, setToast] = useState<any | null>(null);
 
   // --- Analysis & AI Models ---
   const [activeLlmModel, setActiveLlmModel] = useState("qwen2.5:1.5b");
@@ -241,33 +184,10 @@ function AppContent() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
-  const [workspaceSplit, setWorkspaceSplit] = useState("45/55");
-  const [splitPercent, setSplitPercent] = useState(45);
-  const [isDragging, setIsDragging] = useState(false);
-  const isDraggingRef = useRef(false);
-  const dragStartXRef = useRef(0);
-  const dragStartPercentRef = useRef(45);
-  const splitContainerRef = useRef<HTMLDivElement>(null);
-  const [isEditorMaximized, setIsEditorMaximized] = useState(false);
-  // Only the chat opens on load — every other view opens on demand, triggered
-  // by an explicit action (selecting a file/doc, clicking the graph icon, ...).
-  const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
-  const layoutMode =
-    panelConfigs.length === 1 ? '1-pane' :
-    panelConfigs.length === 2 ? 'split' :
-    panelConfigs.length === 3 ? '3-col' :
-    '4-grid';
-  const [fileNavStack, setFileNavStack] = useState<Array<{file: string|null, doc: any|null, tab: 'code'|'doc'|'weborigin'|'graph'}>>([]);
   const isEditorNavigatingRef = useRef(false);
   const [editorFontSize, setEditorFontSize] = useState(13);
   const [editorMinimap, setEditorMinimap] = useState(true);
   const [editorFontFamily, setEditorFontFamily] = useState("'JetBrains Mono', monospace");
-
-  // --- Entity & Metadata States ---
-  const [projectEntities, setProjectEntities] = useState<any[]>([]);
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
-  const [projectStats, setProjectStats] = useState<Record<number, any>>({});
-  const [backendStatus, setBackendStatus] = useState('connecting'); // 'connected' | 'error' | 'connecting'
 
 
 
@@ -278,261 +198,95 @@ function AppContent() {
   // declaration — kept fresh via ref/effect rather than moved, same "latest
   // ref" pattern as projectsRef/selectedProjectRef below.
   const handleSessionSelectRef = useRef<(session: any) => void>(() => {});
-  // Guards the debounced snapshot auto-save from firing while handleSessionSelect
-  // is itself applying a restored snapshot (would otherwise immediately re-save it).
-  const isRestoringSnapshotRef = useRef(false);
-  const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const [pinnedCode, setPinnedCode] = useState<{
-    filepath: string;
-    line: number;
-    label?: string;
-    context?: string;
-    sourceId?: number | string | null;
-    program?: string | null;
-    section?: string | null;
-    paragraph?: string | null;
-  } | null>(null);
-
-  const [panelFrozen, setPanelFrozen] = useState<boolean[]>([false]);
-  const [collapsedPanels, setCollapsedPanels] = useState<boolean[]>([false]);
-  // Zuletzt fokussiertes Objekt je Panel — wird in der Fokusleiste des Panels
-  // angezeigt, getrennt von panelSelections, weil es keine Datei/Doc/Entity ist.
-  // Wird in AP-5 zum Fokus-Objekt nach F-067 ausgebaut.
-  const [panelFocusObject, setPanelFocusObject] = useState<Array<any | null>>([null]);
-  const [panelSelections, setPanelSelections] = useState<PanelSelection[]>([EMPTY_PANEL_SELECTION]);
-  // Zurück/Vor-Verlauf je Panel-Slot (index-parallel zu panelConfigs/panelSelections) —
-  // rein clientseitig für die laufende Sitzung, bewusst nicht Teil von
-  // buildWorkspaceSnapshot. "past"/"future" halten frühere bzw. durch Zurückgehen
-  // "übersprungene" Panel-Selections, analog zum Browser-Verlauf.
-  const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>([{ past: [], future: [] }]);
-  // Unterdrückt das Aufzeichnen neuer History-Einträge, während goBackPanel/
-  // goForwardPanel selbst eine Panel-Selection setzen — sonst würde ein
-  // Zurückgehen sofort wieder einen (redundanten) Vorwärts-Eintrag erzeugen.
-  const isPanelHistoryNavRef = useRef(false);
-  // Zuletzt vom Mauszeiger "betretenes" Panel — Ziel für Alt+←/→, wenn Desktop
-  // (auf Mobile greift stattdessen activeMobileTab, s. Tastatur-Effekt unten).
-  const activePanelIndexRef = useRef(0);
-
-  // Synchronize unfrozen panels with global state — but only panels for which the
-  // new selection actually makes sense. Chat and the two graph views (knowledge
-  // graph, call graph) mirror every focus change unconditionally (chat wants the
-  // context, and every selectable object should have a node in both graphs);
-  // code/doc/webview panels only follow selections of their own kind, otherwise
-  // e.g. clicking a document would make an open Doku panel try to load it as a
-  // document.
-  // Done during render (guarded by a combined-deps state comparison) rather
-  // than in an effect.
-  const [prevPanelSyncDeps, setPrevPanelSyncDeps] = useState({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs });
-  if (
-    prevPanelSyncDeps.selectedFile !== selectedFile ||
-    prevPanelSyncDeps.selectedDoc !== selectedDoc ||
-    prevPanelSyncDeps.selectedEntity !== selectedEntity ||
-    prevPanelSyncDeps.selectedLine !== selectedLine ||
-    prevPanelSyncDeps.panelFrozen !== panelFrozen ||
-    prevPanelSyncDeps.panelConfigs !== panelConfigs
-  ) {
-    setPrevPanelSyncDeps({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs });
-    const incomingType = getSelectionViewType(selectedFile, selectedDoc);
-    let changed = false;
-    // Panels, deren Selection sich hier gerade wirklich ändert (und die vorher
-    // schon etwas Sinnvolles fokussiert hatten) bekommen einen History-Eintrag,
-    // damit goBackPanel dorthin zurückspringen kann. Während goBackPanel/
-    // goForwardPanel selbst die Selection setzt (isPanelHistoryNavRef) oder ein
-    // Chat-Snapshot restauriert wird, wird nichts aufgezeichnet.
-    const historyPushIdxs: number[] = [];
-    const nextSelections = panelSelections.map((sel, idx) => {
-      if (panelFrozen[idx]) return sel;
-      const panelType = panelConfigs[idx];
-      const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
-        || incomingType === null || incomingType === panelType;
-      if (!shouldSync) return sel;
-      if (
-        sel.selectedFile !== selectedFile ||
-        sel.selectedDoc !== selectedDoc ||
-        sel.selectedEntity !== selectedEntity ||
-        sel.selectedLine !== selectedLine
-      ) {
-        changed = true;
-        if (!isPanelHistoryNavRef.current && !isRestoringSnapshotRef.current && (sel.selectedFile || sel.selectedDoc)) {
-          historyPushIdxs.push(idx);
-        }
-        return {
-          selectedFile,
-          selectedDoc,
-          selectedEntity,
-          selectedLine
-        };
-      }
-      return sel;
-    });
-    if (changed) {
-      const prevSelections = panelSelections;
-      setPanelSelections(nextSelections);
-      if (historyPushIdxs.length > 0) {
-        setPanelHistory(prevHist => {
-          const nextHist = [...prevHist];
-          historyPushIdxs.forEach(idx => {
-            const entry = nextHist[idx] || { past: [], future: [] };
-            nextHist[idx] = appendPanelHistory(entry, prevSelections[idx], nextSelections[idx]);
-          });
-          return nextHist;
-        });
-      }
-    }
-  }
-
-  const togglePanelFreeze = (index: number) => {
-    const willUnfreeze = panelFrozen[index];
-    setPanelFrozen(prev => {
-      const next = [...prev];
-      next[index] = !next[index];
-      return next;
-    });
-
-    // Catch up on unfreeze, but keep the fixed selection in this panel's
-    // history first. This makes the freeze toggle a normal navigation event:
-    // the arrows remain useful after a panel rejoins the global selection.
-    if (willUnfreeze) {
-      const previousSelection = panelSelections[index] || EMPTY_PANEL_SELECTION;
-      const liveSelection: PanelSelection = {
-        selectedFile,
-        selectedDoc,
-        selectedEntity,
-        selectedLine: null,
-      };
-      setPanelHistory(prevHist => {
-        const nextHist = [...prevHist];
-        const entry = nextHist[index] || { past: [], future: [] };
-        nextHist[index] = appendPanelHistory(entry, previousSelection, liveSelection);
-        return nextHist;
-      });
-      setPanelSelections(prevSels => {
-        const nextSels = [...prevSels];
-        nextSels[index] = liveSelection;
-        return nextSels;
-      });
-    }
+  const showToast = (message: string, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 6000);
   };
 
-  const togglePanelCollapse = (index: number) => {
-    setCollapsedPanels(prev => {
-      const next = [...prev];
-      next[index] = !next[index];
-      return next;
-    });
-  };
+  const projectState = useProjects({ isLoggedIn, isSettingsOpen, t, showToast });
+  const sourceState = useKnowledgeSources({
+    isLoggedIn,
+    selectedProject: projectState.selectedProject,
+    t,
+    showToast,
+  });
+  const chatState = useChatSessions({ isLoggedIn, t, showToast });
+  const workspaceState = useWorkspaceLayout({
+    activeSessionId: chatState.activeSessionId,
+    selectedProject: projectState.selectedProject,
+    selectedSource: sourceState.selectedSource,
+    t,
+  });
 
-  // All views, including chat, use the same close path. Keeping the
-  // index-parallel panel state together prevents a reopened chat from
-  // inheriting the selection, history, or frozen state of its former slot.
-  // The workspace always retains one panel, matching the behaviour of every
-  // other view type and leaving a stable surface for the add-view control.
-  const closePanel = (index: number) => {
-    if (panelConfigs.length <= 1) return;
-    setPanelConfigs(prev => prev.filter((_, idx) => idx !== index));
-    setPanelFrozen(prev => prev.filter((_, idx) => idx !== index));
-    setCollapsedPanels(prev => prev.filter((_, idx) => idx !== index));
-    setPanelSelections(prev => prev.filter((_, idx) => idx !== index));
-    setPanelHistory(prev => prev.filter((_, idx) => idx !== index));
-    setPanelFocusObject(prev => prev.filter((_, idx) => idx !== index));
-    activePanelIndexRef.current = Math.max(0, index - 1);
-  };
+  const {
+    projects, setProjects, selectedProject, setSelectedProject, files, setFiles,
+    branch, setBranch, projectEntities, setProjectEntities, projectStats,
+    setProjectStats, backendStatus, selectProject,
+  } = projectState;
+  const {
+    selectedSource, setSelectedSource, selectedSourceRepoId, setSelectedSourceRepoId,
+    fileReferences, setFileReferences, isLoadingReferences, isReferencesDropdownOpen,
+    setIsReferencesDropdownOpen, referencesTab, setReferencesTab, activeSourceType,
+    setActiveSourceType, connectedSources, setConnectedSources, pinnedSourceIds,
+    setPinnedSourceIds, togglePinSource, loadFileReferences,
+  } = sourceState;
+  const {
+    chatMessages, setChatMessages, currentMessage, setCurrentMessage, isLoading,
+    setIsLoading, sessions, setSessions, isSessionsLoaded, activeSessionId,
+    setActiveSessionId, handleFeedback, addAssistantHint,
+  } = chatState;
+  const {
+    isSidebarOpen, setIsSidebarOpen, isMobile, activeMobileTab, setActiveMobileTab,
+    selectedFile, setSelectedFile, selectedDoc, setSelectedDoc, selectedLine,
+    setSelectedLine, activeRightTab, setActiveRightTab, fileContent, setFileContent,
+    fileContentFormat, setFileContentFormat, isLoadingFile, setIsLoadingFile,
+    isEditorMaximized, setIsEditorMaximized, workspaceSplit, setWorkspaceSplit,
+    splitPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
+    layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
+    pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen, collapsedPanels,
+    setCollapsedPanels, panelFocusObject, setPanelFocusObject, panelSelections,
+    setPanelSelections, panelHistory, setPanelHistory, splitContainerRef,
+    activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
+    togglePanelCollapse, closePanel, addPanel, ensurePanelType, isPanelCollapsed,
+    cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
+    handleDividerMouseDown, restoreWorkspaceSnapshot,
+  } = workspaceState;
 
-  const addPanel = (type: string, selectionOverride?: {
-    selectedFile?: string | null;
-    selectedDoc?: any | null;
-    selectedEntity?: any | null;
-    selectedLine?: number | null;
-  }, frozenOverride?: boolean) => {
-    // panelConfigs.length alone is a stale snapshot from this render — two
-    // addPanel calls fired back to back in the same tick (e.g. two different
-    // reference clicks before React flushes the first one's state) would both
-    // read the same pre-add length and both pass, pushing the panel count
-    // past 4. pendingPanelCountRef (reset once panelConfigs actually commits,
-    // see the effect below) makes the cap atomic across such a burst.
-    if (panelConfigs.length + pendingPanelCountRef.current >= 4) return;
-    pendingPanelCountRef.current += 1;
-    setPanelFrozen(prev => [...prev, frozenOverride ?? false]);
-    setCollapsedPanels(prev => [...prev, false]);
-    setPanelFocusObject(prev => [...prev, null]);
-    setPanelSelections(prev => [...prev, {
-      selectedFile: selectionOverride ? (selectionOverride.selectedFile ?? null) : selectedFile,
-      selectedDoc: selectionOverride ? (selectionOverride.selectedDoc ?? null) : selectedDoc,
-      selectedEntity: selectionOverride ? (selectionOverride.selectedEntity ?? null) : selectedEntity,
-      selectedLine: selectionOverride ? (selectionOverride.selectedLine ?? null) : null
-    }]);
-    setPanelHistory(prev => [...prev, { past: [], future: [] }]);
-    setPanelConfigs(prev => [...prev, type]);
-  };
-
-  // Opens a view only if it isn't already open — this is how views come into
-  // existence "on demand" (file/doc/entity selected, graph icon clicked, ...)
-  // instead of all being visible from the start.
-  //
-  // `pendingPanelTypesRef` guards against a same-tick double-add: some call
-  // sites (e.g. the graph's "open in view" button) fire two handlers back to
-  // back that both call ensurePanelType for the same type (one for the
-  // generic selection, one for the doc-specific focus request) before
-  // React has re-rendered with the first addPanel's result — without this,
-  // both read the same stale `panelConfigs` snapshot, see the type missing,
-  // and each add a panel, opening the same document/model twice.
-  const pendingPanelTypesRef = useRef<Set<string>>(new Set());
-  // See addPanel's cap check above for why this exists.
-  const pendingPanelCountRef = useRef(0);
-  useEffect(() => {
-    pendingPanelTypesRef.current.clear();
-    pendingPanelCountRef.current = 0;
-  }, [panelConfigs]);
-
-  const ensurePanelType = (type: string, selectionOverride?: {
-    selectedFile?: string | null;
-    selectedDoc?: any | null;
-    selectedEntity?: any | null;
-  }, frozenOverride?: boolean) => {
-    if (panelConfigs.includes(type) || pendingPanelTypesRef.current.has(type)) return;
-    pendingPanelTypesRef.current.add(type);
-    addPanel(type, selectionOverride, frozenOverride);
-  };
-
-  // Collapsed chat panels shrink to a narrow rail; siblings reclaim the space
-  const isPanelCollapsed = (index: number) =>
-    collapsedPanels[index] && panelConfigs[index] === 'chat';
-  const cellCls = (index: number, expanded: string) =>
-    cn("h-full min-w-0", isPanelCollapsed(index) ? "flex-none w-12" : expanded);
-
-  // Pin whatever the user just focused (a file, a document, a code entity) into the
-  // chat so it's ready as context the moment they start typing — same idea as the
-  // Pin unten, verallgemeinert auf jeden Objekttyp.
+  // Pin the current navigation target as chat context without coupling the
+  // workspace hook to ChatView's DOM or message composition rules.
   const pinFileFocus = (path: string | null, line: number | null = null) => {
     if (!path) return;
     setPinnedCode({ filepath: path, line: line || 0 });
   };
-  const pinEntityFocus = (ent: any) => {
-    if (!ent) return;
-    setPinnedCode({ filepath: ent.file_path, line: ent.start_line, label: ent.name });
+
+  const pinEntityFocus = (entity: any) => {
+    if (!entity) return;
+    setPinnedCode({ filepath: entity.file_path, line: entity.start_line, label: entity.name });
   };
 
-  // Pin a focused object into the chat so the LLM can build context on it,
-  // and remember it for that panel's focus bar
-  const handleObjectFocus = (obj: any, panelIndex: number) => {
-    if (!obj) return;
-    setPanelFocusObject(prev => {
-      const next = [...prev];
-      next[panelIndex] = obj;
+  const handleObjectFocus = (object: any, panelIndex: number) => {
+    if (!object) return;
+    setPanelFocusObject(previous => {
+      const next = [...previous];
+      next[panelIndex] = object;
       return next;
     });
-    const sel = panelSelections[panelIndex];
-    const filepath = sel?.selectedFile || sel?.selectedDoc?.name || t('page.objectFileFallback');
+    const selection = panelSelections[panelIndex];
+    const filepath = selection?.selectedFile || selection?.selectedDoc?.name || t('page.objectFileFallback');
     const context =
-      `${t('page.focusedObjectLabel')}: ${obj.name}\n` +
-      `Typ: ${obj.type}\n` +
-      `Material: ${obj.material}\n` +
-      `Volumen: ${obj.volume}\n` +
-      `Feuerwiderstand: ${obj.fireRating}`;
-    setPinnedCode({ filepath, line: 0, label: obj.name, context });
-    const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
+      `${t('page.focusedObjectLabel')}: ${object.name}\n` +
+      `Typ: ${object.type}\n` +
+      `Material: ${object.material}\n` +
+      `Volumen: ${object.volume}\n` +
+      `Feuerwiderstand: ${object.fireRating}`;
+    setPinnedCode({ filepath, line: 0, label: object.name, context });
+    const textarea = document.getElementById('chat-textarea') as HTMLTextAreaElement;
     if (textarea) textarea.focus();
+  };
+
+  const handlePanelEntitySelect = async (index: number, entity: any) => {
+    pinEntityFocus(entity);
+    updatePanelEntitySelection(index, entity);
   };
 
   const handlePanelFileSelect = async (index: number, path: string | null, line: number | null = null, sourceId: number | string | null = null, openIfMissing: boolean = true, preserveFrozenTarget: boolean = false) => {
@@ -673,37 +427,8 @@ function AppContent() {
     setSelectedLine(null);
   };
 
-  const handlePanelEntitySelect = async (index: number, ent: any) => {
-    pinEntityFocus(ent);
-    const prevSel = panelSelections[index];
-    setPanelSelections(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], selectedEntity: ent };
-      return next;
-    });
-    // Unfrozen panels get their history entry from the global-selection sync
-    // block (setSelectedEntity below feeds it) — a frozen panel doesn't, so push
-    // its own entry here when the focused object actually changes.
-    if (panelFrozen[index] && !isPanelHistoryNavRef.current && prevSel &&
-        (prevSel.selectedFile || prevSel.selectedDoc) && prevSel.selectedEntity !== ent) {
-      setPanelHistory(prevHist => {
-        const nextHist = [...prevHist];
-        const entry = nextHist[index] || { past: [], future: [] };
-        nextHist[index] = appendPanelHistory(entry, prevSel, { ...prevSel, selectedEntity: ent });
-        return nextHist;
-      });
-    }
-    if (!panelFrozen[index]) {
-      setSelectedEntity(ent);
-    }
-  };
-
-  // Navigiert Panel `index` einen Schritt zurück/vor in seiner eigenen
-  // panelHistory. Ein ungefrorenes Panel spiegelt dabei zusätzlich die globale
-  // Selection (statt nur panelSelections), damit es konsistent mit den anderen
-  // "live" Panels bleibt — genau wie bei einem normalen Fokuswechsel.
-  // isPanelHistoryNavRef unterdrückt währenddessen den Sync-Block oben, sonst
-  // würde der Zug selbst sofort wieder einen (redundanten) Verlaufseintrag anlegen.
+  // Panel-history navigation lives in useWorkspaceLayout.
+  /*
   const goBackPanel = (index: number) => {
     const entry = panelHistory[index];
     if (!entry) return;
@@ -816,82 +541,18 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
 
+  */
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const chatUuidParam = searchParams.get('chat');
 
-  const [selectedSourceRepoId, setSelectedSourceRepoId] = useState<string>("all");
-  const [fileReferences, setFileReferences] = useState<any[]>([]);
-  const [isLoadingReferences, setIsLoadingReferences] = useState(false);
-  const [isReferencesDropdownOpen, setIsReferencesDropdownOpen] = useState(false);
-  const [referencesTab, setReferencesTab] = useState<'code' | 'docs'>('code');
-  const [activeSourceType, setActiveSourceType] = useState<string | null>(null);
-  const [connectedSources, setConnectedSources] = useState<any[]>([
-    { id: 'conf-init', type: 'Confluence', name: t('page.demoSourceName'), repoId: 'all', spaces: ['ENG', 'PROD'] }
-  ]);
-  const [pinnedSourceIds, setPinnedSourceIds] = useState<number[]>([]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('pinnedSourceIds');
-      if (saved) {
-        try {
-          (() => setPinnedSourceIds(JSON.parse(saved)))();
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-  }, []);
-
-  const togglePinSource = (sourceId: number) => {
-    setPinnedSourceIds(prev => {
-      let next = [...prev];
-      if (next.includes(sourceId)) {
-        next = next.filter(id => id !== sourceId);
-      } else {
-        if (next.length >= 4) {
-          showToast(t('settings.sourcesTab.maxPinsReached'), 'error');
-          return prev;
-        }
-        next.push(sourceId);
-      }
-      localStorage.setItem('pinnedSourceIds', JSON.stringify(next));
-      return next;
-    });
-  };
+  // Source state and loading live in useKnowledgeSources.
 
   const editorRef = useRef<any>(null);
 
-  // Reset activeMobileTab to 'chat' if no file or document is selected and we
-  // are not in graph mode. Done during render (guarded by state comparisons)
-  // rather than in an effect, since activeMobileTab is otherwise user-controlled.
-  const [prevMobileTabResetDeps, setPrevMobileTabResetDeps] = useState({ selectedFile, selectedDoc, activeRightTab });
-  if (
-    prevMobileTabResetDeps.selectedFile !== selectedFile ||
-    prevMobileTabResetDeps.selectedDoc !== selectedDoc ||
-    prevMobileTabResetDeps.activeRightTab !== activeRightTab
-  ) {
-    setPrevMobileTabResetDeps({ selectedFile, selectedDoc, activeRightTab });
-    if (!selectedFile && !selectedDoc && activeRightTab !== 'graph') {
-      setActiveMobileTab('chat');
-    }
-  }
-
-  // Sync activeMobileTab with activeRightTab when switching to graph on mobile
-  const [prevGraphTabSyncDeps, setPrevGraphTabSyncDeps] = useState({ activeRightTab, isMobile });
-  if (prevGraphTabSyncDeps.activeRightTab !== activeRightTab || prevGraphTabSyncDeps.isMobile !== isMobile) {
-    setPrevGraphTabSyncDeps({ activeRightTab, isMobile });
-    if (activeRightTab === 'graph' && isMobile) {
-      setActiveMobileTab('graph');
-    }
-  }
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 6000);
-  };
+  // Mobile-tab synchronization lives in useWorkspaceLayout.
 
   const handleShareChat = async () => {
     if (!activeSessionId) {
@@ -991,79 +652,21 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Backend-Daten erst nach bestätigter Session laden (getMe erfolgreich). Vorher
-  // feuerten /projects, /knowledge-sources, /chat/sessions ungegatet beim Mount mit
-  // und lieferten auf der Login-Seite unnötige 401er (Konsolen-Rauschen + Last durch
-  // unauthentifizierte Clients) — bis zum Login zeigt die App ohnehin nur die LoginView.
+  // Model configuration is independent from project, source, and session data.
+  // Keep its authenticated lifecycle local to the AI settings domain.
   useEffect(() => {
     if (!isLoggedIn) return;
-
-    (() => setBackendStatus('connecting'))();
-
-    // 2. Fetch All Initial Data from Backend
-    api.getProjects()
-      .then(res => {
-        setProjects(res.data);
-        setBackendStatus('connected');
-      })
-      .catch(err => {
-        console.error(err);
-        setBackendStatus('error');
-        showToast(t('page.toast.backendConnectionFailed'), "error");
-      });
-
-    // Fetch Knowledge Sources (e.g. Confluence, Local Docs)
-    api.getKnowledgeSources()
-      .then(res => {
-        setConnectedSources(res.data);
-        // pinnedSourceIds is persisted client-side in localStorage and can
-        // go stale (source deleted, or the whole demo/DB reseeded) — prune
-        // any pinned id that no longer matches a real source so it stops
-        // silently eating into the pin limit.
-        setPinnedSourceIds(prev => {
-          const valid = prev.filter(id => res.data.some((s: any) => s.id === id));
-          if (valid.length !== prev.length) {
-            localStorage.setItem('pinnedSourceIds', JSON.stringify(valid));
-          }
-          return valid;
-        });
-      })
-      .catch(err => {
-        console.error("Failed to load knowledge sources", err);
-      });
-
-    // Fetch AI Model Configuration
     api.getModelInfo()
       .then(res => {
         if (res.data.llm) setActiveLlmModel(res.data.llm);
         if (res.data.embedding) setActiveEmbeddingModel(res.data.embedding);
       })
-      .catch(err => {
-        console.error("Failed to load model info", err);
-      });
-
-    // Fetch Available Models from Ollama
+      .catch(err => console.error('Failed to load model info:', err));
     api.getModels()
       .then(res => {
-        if (res.data.models) {
-          setAvailableModels(res.data.models);
-        }
+        if (res.data.models) setAvailableModels(res.data.models);
       })
-      .catch(err => {
-        console.error("Failed to load available models", err);
-      });
-
-    // Fetch Past Chat Sessions
-    api.getChatSessions()
-      .then(res => {
-        setSessions(res.data);
-        setIsSessionsLoaded(true);
-      })
-      .catch(err => {
-        console.error("Failed to load chat sessions", err);
-        setIsSessionsLoaded(true);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(err => console.error('Failed to load available models:', err));
   }, [isLoggedIn]);
 
   // Handle chat UUID from URL
@@ -1109,137 +712,11 @@ function AppContent() {
           });
       }
     }
-  }, [chatUuidParam, sessions, activeSessionId, isSessionsLoaded, pathname, router, t]);
+  }, [chatUuidParam, sessions, activeSessionId, isSessionsLoaded, pathname, router, t, setSessions]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
-
-  // Tracks in-flight/fetched project ids instead of reading projectStats
-  // itself, so this effect doesn't need projectStats as a dependency (that
-  // would make it re-run every time a fetch below completes).
-  const fetchedProjectStatsIdsRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    if (isSettingsOpen && projects.length > 0) {
-      projects.forEach(project => {
-        if (!fetchedProjectStatsIdsRef.current.has(project.id)) {
-          fetchedProjectStatsIdsRef.current.add(project.id);
-          api.getProjectStats(project.id)
-            .then(res => {
-              setProjectStats(prev => ({ ...prev, [project.id]: res.data }));
-            })
-            .catch(err => {
-              console.error(`Error fetching stats for project ${project.id}:`, err);
-              fetchedProjectStatsIdsRef.current.delete(project.id);
-            });
-        }
-      });
-    }
-  }, [isSettingsOpen, projects]);
-
-  // Refs to hold latest state for the polling interval callback
-  const projectsRef = useRef(projects);
-  const selectedProjectRef = useRef(selectedProject);
-  useEffect(() => { projectsRef.current = projects; }, [projects]);
-  useEffect(() => { selectedProjectRef.current = selectedProject; }, [selectedProject]);
-
-  // Sync workspaceSplit preset → splitPercent. Done during render (guarded by
-  // a state comparison) rather than in an effect, since splitPercent is
-  // otherwise user-controlled (dragging the divider).
-  const [prevWorkspaceSplitForSync, setPrevWorkspaceSplitForSync] = useState(workspaceSplit);
-  if (workspaceSplit !== prevWorkspaceSplitForSync) {
-    setPrevWorkspaceSplitForSync(workspaceSplit);
-    const map: Record<string, number> = { '50/50': 50, '40/60': 40, '60/40': 60, '45/55': 45 };
-    setSplitPercent(map[workspaceSplit] ?? 45);
-  }
-
-  // Drag-to-resize: global mouse listeners
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingRef.current || !splitContainerRef.current) return;
-      const containerWidth = splitContainerRef.current.getBoundingClientRect().width;
-      const deltaX = e.clientX - dragStartXRef.current;
-      const deltaPercent = (deltaX / containerWidth) * 100;
-      const newPercent = Math.max(20, Math.min(80, dragStartPercentRef.current + deltaPercent));
-      setSplitPercent(newPercent);
-    };
-    const handleMouseUp = () => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
-
-  // Poll project status if any are parsing or pending
-  const hasActiveTask = projects.some((p: any) => p.status === 'parsing' || p.status === 'pending');
-  useEffect(() => {
-    if (!hasActiveTask) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await api.getProjects();
-        const updatedProjects = res.data;
-        const currentProjects = projectsRef.current;
-        const currentSelectedProject = selectedProjectRef.current;
-
-        // Check if any project transitioned to completed or error to notify user
-        currentProjects.forEach((oldProject: any) => {
-          const newProject = updatedProjects.find((p: any) => p.id === oldProject.id);
-          if (newProject && oldProject.status !== newProject.status) {
-            if (newProject.status === 'completed') {
-              showToast(t('page.toast.projectAnalyzed', { name: newProject.name }), 'success');
-
-              // Trigger re-fetch of stats for this project to show language breakdown immediately
-              api.getProjectStats(newProject.id)
-                .then(statRes => {
-                  setProjectStats(prev => ({ ...prev, [newProject.id]: statRes.data }));
-                })
-                .catch(err => console.error(`Error fetching stats for completed project ${newProject.id}:`, err));
-
-              if (currentSelectedProject && currentSelectedProject.id === newProject.id) {
-                setSelectedProject(newProject);
-                api.getProjectFiles(newProject.id).then(fileRes => setFiles(fileRes.data)).catch(console.error);
-                api.getProjectEntities(newProject.id).then(entRes => setProjectEntities(entRes.data)).catch(console.error);
-              }
-            } else if (newProject.status === 'error') {
-              showToast(t('page.toast.projectAnalysisError', { name: newProject.name }), 'error');
-            }
-          }
-        });
-
-        setProjects(updatedProjects);
-      } catch (err) {
-        console.error("Error polling project status:", err);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [hasActiveTask, t]);
-
-  // Load project entities when selected project changes
-  useEffect(() => {
-    if (!selectedProject) {
-      (() => setProjectEntities([]))();
-      return;
-    }
-    const fetchEntities = async () => {
-      try {
-        const res = await api.getProjectEntities(selectedProject.id);
-        setProjectEntities(res.data);
-      } catch (err) {
-        console.error("Fehler beim Laden der Code-Objekte:", err);
-      }
-    };
-    fetchEntities();
-  }, [selectedProject]);
 
   // Resets just the chat/session identity — used internally whenever the app
   // auto-starts a fresh conversation as a side effect of something else (switching
@@ -1290,14 +767,11 @@ function AppContent() {
 
   const handleProjectSelect = async (project) => {
     if (!project) {
-      setSelectedProject(null);
-      setFiles([]);
-      setProjectEntities([]);
-
       const activeSession = sessions.find(s => s.id === activeSessionId);
       if (activeSessionId && activeSession && activeSession.project_id !== null) {
         resetChatSession();
       }
+      await selectProject(null);
       showToast(t('page.toast.projectSelectedGeneral') || "Allgemeiner Kontext ausgewählt", "success");
       return;
     }
@@ -1307,37 +781,15 @@ function AppContent() {
       showToast(t('page.toast.projectStillAnalyzing', { name: project.name }), 'warning');
       return;
     }
-    setSelectedProject(project);
-    setBranch(project.branch || "main");
-
     const activeSession = sessions.find(s => s.id === activeSessionId);
     if (activeSessionId && activeSession && activeSession.project_id !== project.id) {
       resetChatSession();
     }
 
-    try {
-      const res = await api.getProjectFiles(project.id);
-      setFiles(res.data);
-      showToast(t('page.toast.projectSelected', { name: project.name }), "success");
-    } catch (err) {
-      showToast(t('page.toast.filesFetchFailed'), "error");
-    }
+    await selectProject(project);
   };
 
-  const loadFileReferences = async (filePath, entityName = null, projectOverride = null) => {
-    const project = projectOverride || selectedProject;
-    if (!project) return;
-    setIsLoadingReferences(true);
-    try {
-      const res = await api.getProjectReferences(project.id, filePath, entityName || undefined);
-      setFileReferences(res.data);
-    } catch (err) {
-      console.error("Fehler beim Laden der Referenzen:", err);
-      setFileReferences([]);
-    } finally {
-      setIsLoadingReferences(false);
-    }
-  };
+  // File-reference loading lives in useKnowledgeSources.
 
   const handleFileSelect = async (path, line = null, sourceId = null, projectOverride = null) => {
     // Chunks einer Datei liegen unter "<pfad>#<suffix>" — für die Dateiauswahl
@@ -1909,31 +1361,6 @@ function AppContent() {
     }, index);
   };
 
-  // Optimistic toggle: clicking the same rating again clears it, matches how the
-  // buttons visually behave (active/filled vs. outline) in ChatView.
-  const handleFeedback = async (messageId: number, feedback: 'up' | 'down') => {
-    const current = (chatMessages.find((m: any) => m.id === messageId) as any)?.feedback ?? null;
-    const nextValue = current === feedback ? null : feedback;
-
-    setChatMessages(prev => prev.map((m: any) => m.id === messageId ? { ...m, feedback: nextValue } : m));
-
-    try {
-      await api.updateChatMessageFeedback(messageId, nextValue);
-    } catch (err) {
-      console.error(err);
-      setChatMessages(prev => prev.map((m: any) => m.id === messageId ? { ...m, feedback: current } : m));
-      showToast(t('page.toast.feedbackFailed'), "error");
-    }
-  };
-
-  // Injects a canned assistant bubble locally (no backend round-trip, no id —
-  // feedback/retry buttons stay disabled for it). Used by the zero-state
-  // suggestion cards to ask a clarifying question instead of pasting a vague
-  // label straight into the textarea.
-  const addAssistantHint = (text: string) => {
-    setChatMessages(prev => [...prev, { role: 'assistant', content: text, sources: [], metadata: {} }]);
-  };
-
   const handleSessionSelect = async (session) => {
     ignoreUrlSyncRef.current = true;
     setActiveSessionId(session.id);
@@ -1977,8 +1404,6 @@ function AppContent() {
     // snapshot_json yet, so this falls back to the current single-panel default.
     const snap = session.snapshot_json;
     if (snap) {
-      isRestoringSnapshotRef.current = true;
-
       if (!session.project && !session.project_id && snap.selectedProjectId && projects && projects.length > 0) {
         const matchedProject = projects.find((p: any) => p.id === snap.selectedProjectId);
         if (matchedProject) handleProjectSelect(matchedProject);
@@ -1988,29 +1413,7 @@ function AppContent() {
         if (matchedSource) setSelectedSource(matchedSource);
       }
 
-      const restoredSelections = Array.isArray(snap.panelSelections) && snap.panelSelections.length > 0
-        ? snap.panelSelections
-        : [{ selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null }];
-      const primary = restoredSelections[0];
-
-      // Global focus mirrors panel 0 — the unfrozen-panel sync effect (above) keys off these.
-      setSelectedFile(primary.selectedFile ?? null);
-      setSelectedDoc(primary.selectedDoc ?? null);
-      setSelectedEntity(primary.selectedEntity ?? null);
-      setSelectedLine(primary.selectedLine ?? null);
-
-      setPanelConfigs(Array.isArray(snap.panelConfigs) && snap.panelConfigs.length > 0 ? snap.panelConfigs : ['chat']);
-      setPanelFrozen(Array.isArray(snap.panelFrozen) ? snap.panelFrozen : restoredSelections.map(() => false));
-      setPanelSelections(restoredSelections);
-      setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
-      setPanelFocusObject(Array.isArray(snap.panelFocusObject) ? snap.panelFocusObject : restoredSelections.map(() => null));
-      setCollapsedPanels(restoredSelections.map(() => false));
-      setFileNavStack(Array.isArray(snap.fileNavStack) ? snap.fileNavStack : []);
-      setPinnedCode(snap.pinnedCode ?? null);
-      if (typeof snap.activeRightTab === 'string') setActiveRightTab(snap.activeRightTab);
-      if (typeof snap.splitPercent === 'number') setSplitPercent(snap.splitPercent);
-
-      setTimeout(() => { isRestoringSnapshotRef.current = false; }, 0);
+      restoreWorkspaceSnapshot(snap);
     }
 
     try {
@@ -2077,15 +1480,7 @@ function AppContent() {
     }
   };
 
-  const handleDividerMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    isDraggingRef.current = true;
-    setIsDragging(true);
-    dragStartXRef.current = e.clientX;
-    dragStartPercentRef.current = splitPercent;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  };
+  // Divider interaction lives in useWorkspaceLayout.
 
   // Whichever knowledge object is focused in a panel — a code entity, a document,
   // a graph node, or a focused object — resolved into one shape so every view
@@ -2183,7 +1578,7 @@ function AppContent() {
 
     return (
       <div
-        onMouseEnter={() => { activePanelIndexRef.current = index; }}
+        onMouseEnter={() => setActivePanelIndex(index)}
         className={cn(
           "h-full flex flex-col min-w-0 rounded-lg overflow-hidden relative group transition-all duration-300",
           panelFrozen[index] ? "border-2 border-ds-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.55)]" : "border",
