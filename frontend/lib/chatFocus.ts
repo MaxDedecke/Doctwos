@@ -83,9 +83,10 @@ export function getChatTurnFocus(message: any): ChatTurnFocus {
 export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: Record<string, any> = {}) {
   const pinned = focus.pinned;
   const refs = pinned && pinned.line !== null && pinned.line !== undefined
-    ? [{
+      ? [{
         file: pinned.filepath,
         line: pinned.line,
+        label: pinned.label ?? null,
         source_id: pinned.sourceId ?? null,
         program: pinned.program ?? null,
         section: pinned.section ?? null,

@@ -440,8 +440,17 @@ export function ChatView({
                               {(m.metadata.refs?.length ? m.metadata.refs : (m.metadata.pinned ? [{
                                 file: m.metadata.pinned.filepath,
                                 line: m.metadata.pinned.line,
+                                label: m.metadata.pinned.label,
                                 source_id: m.metadata.pinned.source_id
-                              }] : [])).map((ref: any, refIndex: number) => (
+                              }] : [])).map((ref: any, refIndex: number) => {
+                                const pinned = m.metadata.focus?.pinned || m.metadata.pinned;
+                                const label = ref.label || (
+                                  pinned?.filepath === ref.file && pinned?.line === ref.line
+                                    ? pinned.label
+                                    : null
+                                );
+                                const location = `${ref.file.split('/').pop()}:${ref.line}`;
+                                return (
                                 <button
                                   type="button"
                                   onClick={() => handleFileSelect(
@@ -451,12 +460,15 @@ export function ChatView({
                                   )}
                                   key={`${ref.file}:${ref.line}:${refIndex}`}
                                   className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-[10px] text-ds-emerald-400 hover:bg-ds-emerald-500/20 hover:border-ds-emerald-500/40 font-bold uppercase tracking-tight transition-colors cursor-pointer"
-                                  title={t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}
+                                  title={label
+                                    ? `${label} · ${t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}`
+                                    : t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}
                                 >
                                   <Code className="w-3 h-3" />
-                                  {`${ref.file.split('/').pop()}:${ref.line}`}
+                                  {label ? `${label} · ${location}` : location}
                                 </button>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                           <p className="whitespace-pre-wrap font-medium">{m.content}</p>

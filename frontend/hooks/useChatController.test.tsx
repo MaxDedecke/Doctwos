@@ -164,6 +164,11 @@ describe('useChatController', () => {
       pinned_label: 'BUCH-ZINS-LAST',
       pinned_source_id: 1154,
     });
+    expect(request.metadata.refs[0]).toMatchObject({
+      file: 'copy/BUCHUNGS-REC.cpy',
+      line: 23,
+      label: 'BUCH-ZINS-LAST',
+    });
   });
 
   it('retries an existing assistant message with its original user metadata', async () => {
