@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { resolveDsColor } from '@/lib/designTokens';
 import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
 
@@ -66,7 +67,7 @@ function nodeTypeKey(node: any): string {
 // either overlapping (radius too small) or spaced needlessly far apart
 // (radius too large).
 function nodeRadius(node: any): number {
-  return node?.type === 'entity' ? 7 : 6;
+  return node?.type === 'entity' ? 8 : 7;
 }
 
 export const LINK_COLORS: Record<string, string> = {
@@ -619,6 +620,7 @@ export function KnowledgeGraphView({
     ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
     ctx.fillStyle = color;
     ctx.fill();
+    drawKnowledgeNodeIcon(node, ctx, globalScale);
 
     if (isSelected) {
       ctx.strokeStyle = resolveDsColor('rgb(var(--ds-white))');
@@ -712,8 +714,7 @@ export function KnowledgeGraphView({
         <div className="px-3 py-3 space-y-4 flex-1">
           {showNodeName && (
             <div className="flex items-start gap-2">
-              <span className="w-3 h-3 rounded-full mt-0.5 shrink-0"
-                style={{ background: nodeColor(selectedNode) }} />
+              <KnowledgeNodeIcon node={selectedNode} className="w-3.5 h-3.5 mt-0.5 shrink-0 text-ds-indigo-400" />
               <p className={cn('text-xs font-semibold leading-snug break-words', textMain)}>
                 {selectedNode.label}
               </p>
@@ -850,7 +851,7 @@ export function KnowledgeGraphView({
                       onClick={() => setLinkPickerTargetId(n.id)}
                       className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors',
                         linkPickerTargetId === n.id ? (isDark ? 'bg-ds-indigo-500/20' : 'bg-ds-indigo-100') : connRow)}>
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: nodeColor(n) }} />
+                      <KnowledgeNodeIcon node={n} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                       <span className={cn('truncate', textMain)}>{n.label}</span>
                       {linkPickerTargetId === n.id && <Check className="w-3 h-3 shrink-0 text-ds-indigo-400 ml-auto" />}
                     </button>
@@ -910,7 +911,7 @@ export function KnowledgeGraphView({
               <p className={cn('text-[10px] mb-1', textMuted)}>{t('knowledgeGraphView.fromLabel')}</p>
               <button onClick={() => { setSelectedNodeId(edgeSrc.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: nodeColor(edgeSrc) }} />
+                <KnowledgeNodeIcon node={edgeSrc} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                 <span className={cn('font-medium truncate', textMain)}>{edgeSrc.label}</span>
               </button>
             </div>
@@ -921,7 +922,7 @@ export function KnowledgeGraphView({
               <p className={cn('text-[10px] mb-1', textMuted)}>{t('knowledgeGraphView.toLabel')}</p>
               <button onClick={() => { setSelectedNodeId(edgeTgt.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: nodeColor(edgeTgt) }} />
+                <KnowledgeNodeIcon node={edgeTgt} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                 <span className={cn('font-medium truncate', textMain)}>{edgeTgt.label}</span>
               </button>
             </div>
@@ -953,14 +954,13 @@ export function KnowledgeGraphView({
             {nodeTypes.map(type => {
               const typeInfo = UNIFIED_NODE_TYPES[type];
               if (!typeInfo) return null;
-              const color = typeInfo.color;
               const label = language === 'de' ? typeInfo.labelDe : typeInfo.labelEn;
               const hidden = hiddenNodeTypes.has(type);
               return (
                 <button key={type} onClick={() => toggleNodeType(type)}
                   className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
                     hidden ? 'opacity-30' : 'opacity-100')}>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                   {label}
                 </button>
               );
@@ -1165,7 +1165,7 @@ export function KnowledgeGraphView({
                       const label = language === 'de' ? typeInfo.labelDe : typeInfo.labelEn;
                       return (
                         <div key={type} className="flex items-center gap-2 text-[10px]">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: typeInfo.color }} />
+                          <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                           <span className="truncate">{label}</span>
                         </div>
                       );
@@ -1227,7 +1227,7 @@ export function KnowledgeGraphView({
             <div className={cn('flex items-center gap-2 px-3 py-2 shrink-0 cursor-pointer', isBottomDrawerExpanded && 'border-b', border)}
               onClick={() => setIsBottomDrawerExpanded(o => !o)}>
               {selectedNode && (
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: nodeColor(selectedNode) }} />
+                <KnowledgeNodeIcon node={selectedNode} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
               )}
               {selectedEdge && !selectedNode && (
                 <span className="w-4 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />

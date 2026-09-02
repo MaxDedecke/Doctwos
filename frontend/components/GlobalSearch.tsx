@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { DoctusIcon } from './Logo';
 import { JobCenter } from './JobCenter';
+import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 interface SearchResult {
   node_type: string;
@@ -384,7 +385,18 @@ export function GlobalSearch({
                               : (theme === 'dark' ? "text-ds-zinc-300 hover:bg-ds-zinc-800/60" : "text-ds-zinc-700 hover:bg-ds-zinc-50")
                           )}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-ds-zinc-500" />
+                          {item.node_type === 'entity' || item.node_type === 'document' || item.node_type === 'knowledge_source' ? (
+                            <KnowledgeNodeIcon
+                              node={{
+                                node_type: item.node_type,
+                                node_url: item.node_url,
+                                node_meta: item.node_meta,
+                              }}
+                              className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400"
+                            />
+                          ) : (
+                            <Icon className="h-3.5 w-3.5 shrink-0 text-ds-zinc-500" />
+                          )}
                           <span className="flex flex-col min-w-0 flex-1">
                             <span className="truncate">{item.node_label}</span>
                             {item.node_type === 'entity' && item.node_meta?.file_path && (

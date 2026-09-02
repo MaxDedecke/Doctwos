@@ -1,6 +1,6 @@
 # Doctwos — Offene Entwicklungspunkte
 
-**Stand:** 01.09.2026
+**Stand:** 02.09.2026
 **Zweck:** Zentrale Liste für noch offene Änderungen, Abnahmen und Entscheidungen.
 
 Neue offene Punkte werden ausschließlich hier aufgenommen. Erledigte Punkte bleiben
@@ -21,7 +21,6 @@ stehen.
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
-| O-016 | Knoten-Icons | Dokumentknoten sollen ein Doku-Icon, Codeknoten ein `</>`-Icon und Webquellen ein Globus-Icon anzeigen. | Einheitliche Typzuordnung und Darstellung in allen Graph-/Listenansichten umsetzen. | Keine externe Abhängigkeit |
 | O-017 | Fixierte Views / Historie | Wenn eine View fixiert ist, soll die Historie dieser View weiterhin über die Pfeile bedienbar sein. | Historiennavigation von der Fixierungslogik trennen und mit mehreren Views prüfen. | Keine externe Abhängigkeit |
 | O-018 | Job Center | Job-Center-Einträge verschwinden nie und können nicht gelöscht werden. | Aufbewahrungs- und Löschkonzept definieren; Löschmöglichkeit oder automatische Bereinigung implementieren. | Fachliche Entscheidung zur Aufbewahrungsdauer |
 | O-019 | Chat / LLM-Fokus | Der LLM-Fokus kann sich vom angepinnten Objekt im Chat lösen. | Fokuszustand zwischen UI, Request-Metadaten und Antwortkontext durchgängig synchronisieren und sichtbar machen. | Keine externe Abhängigkeit |
@@ -57,6 +56,11 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 ## Erledigt, zuletzt verschoben
 
+- O-016 (Knoten-Icons) — 02.09.2026 umgesetzt; zentrale Icon-Zuordnung für
+  Dokumente, Code-Entitäten und Webquellen in Graph-, Such-, Topic-, Link- und
+  Referenzansichten ergänzt, einschließlich Canvas-Darstellung im Knowledge- und
+  Call-Graph. Unit-Tests für die Typzuordnung sowie Frontend-Test, Typecheck und
+  gezielter Lintlauf grün.
 - O-015 (Call Graph / Code View) — 01.09.2026 umgesetzt; Call-Graph-Klicks navigieren bevorzugt in ein live/unfixiertes Code-Panel oder öffnen bei verfügbarem Platz ein neues Code-Panel. Fixierte Code-Views bleiben dabei unverändert; der Routingpfad ist durch Tests für live, fixiert und volle Panelbelegung abgesichert.
 - O-011 (Teilen-Funktion) — 01.09.2026 umgesetzt; die Chat-Teilen-Aktion liegt jetzt in der globalen Header-Bar und verwendet weiterhin den bestehenden Link-/Clipboard-Mechanismus inklusive Rückmeldung bei fehlendem Chat.
 - O-023 (Chat/Darstellung) — 01.09.2026 umgesetzt; die leere `refs`-Liste wurde nicht mehr als sichtbare `0` gerendert, sodass jede Nutzernachricht ohne Kontext sauber beginnt. Das „ME“-Label wurde durch ein lokales, originales Demo-Mitarbeiter-Avatarbild ersetzt; die Bildbeschreibung ist in Deutsch und Englisch hinterlegt.

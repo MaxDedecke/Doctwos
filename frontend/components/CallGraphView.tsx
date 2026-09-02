@@ -6,6 +6,7 @@ import { API_URL } from '@/app/services/api';
 import { cn } from '@/lib/utils';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 type CallNode = {
   id: string;
@@ -188,6 +189,29 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
           nodeLabel={(node: any) => `${node.name} (${node.type})`}
           nodeColor={(node: any) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
           nodeVal={(node: any) => node.entityId === focusedEntity.id ? 7 : 4}
+          nodeCanvasObjectMode={() => 'replace'}
+          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            const radius = node.entityId === focusedEntity.id ? 8 : 7;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = node.unresolved
+              ? resolveDsColor('rgb(var(--ds-warning-base))')
+              : node.entityId === focusedEntity.id
+                ? resolveDsColor('rgb(var(--ds-accent))')
+                : resolveDsColor('rgb(var(--ds-info-base))');
+            ctx.fill();
+            drawKnowledgeNodeIcon({ ...node, type: node.unresolved ? 'external' : 'entity' }, ctx, globalScale);
+            if (globalScale > 0.5) {
+              const label = node.name ?? '';
+              const maxLen = Math.min(18, Math.max(7, Math.floor(globalScale * 8)));
+              const truncated = label.length > maxLen ? `${label.slice(0, maxLen)}…` : label;
+              ctx.font = `${Math.min(11, 8 / globalScale * 1.8)}px Inter, system-ui, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'top';
+              ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
+              ctx.fillText(truncated, node.x, node.y + radius + 2 / globalScale);
+            }
+          }}
           linkColor={(edge: any) => resolveDsColor(edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : 'rgb(var(--ds-warning-base))')}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}

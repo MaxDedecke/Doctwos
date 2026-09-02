@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -559,7 +560,11 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                             chipCls,
                           )}
                         >
-                          <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                          {key === 'entity' || key === 'document' || key === 'knowledge_source' ? (
+                            <KnowledgeNodeIcon node={node} className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                          ) : (
+                            <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                          )}
                           <span className={cn('max-w-[180px] truncate', titleText)}>{node.node_label}</span>
                           {node.node_meta?.type && (
                             <span className={cn('text-[10px] px-1 rounded shrink-0', subText)}>
@@ -657,7 +662,11 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                                   isDark ? 'border-ds-zinc-700' : 'border-ds-zinc-100',
                                 )}
                               >
-                                <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                                {r.node_type === 'entity' || r.node_type === 'document' || r.node_type === 'knowledge_source' ? (
+                                  <KnowledgeNodeIcon node={r} className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                                ) : (
+                                  <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
+                                )}
                                 <span className="truncate flex-1">{r.node_label}</span>
                                 {r.node_meta?.type && (
                                   <span className={cn('text-[10px] shrink-0', subText)}>{r.node_meta.type as string}</span>

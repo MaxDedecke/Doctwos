@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { API_URL } from '@/app/services/api';
 import { TopicsPanel } from './TopicsPanel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -629,10 +630,9 @@ export function LinkManagerView({
     return l.left.label?.toLowerCase().includes(q) || l.right.label?.toLowerCase().includes(q) || (l.left.caption ?? '').toLowerCase().includes(q);
   }), [unifiedLinks, kindFilter, search]);
 
-  const perfectPendingLinks = useMemo(
-    () => (tab === 'pending' ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD) : []),
-    [filteredLinks, tab]
-  );
+  const perfectPendingLinks = tab === 'pending'
+    ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD)
+    : [];
 
   const filteredEntityEntities = useMemo(() =>
     entities.filter(e =>
@@ -653,6 +653,10 @@ export function LinkManagerView({
   const renderDocPicker = (query: string, setQuery: (v: string) => void, results: any[], selected: any | null, setSelected: (v: any | null) => void) => (
     selected ? (
       <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-white border-ds-zinc-300')}>
+        <KnowledgeNodeIcon
+          node={{ type: 'document', source_type: selected.source_type, url: selected.url }}
+          className={cn('w-3.5 h-3.5 shrink-0', selected.source_type && ['confluence', 'jira', 'web', 'webdav'].includes(selected.source_type.toLowerCase()) ? 'text-ds-emerald-400' : 'text-ds-zinc-500')}
+        />
         {selected.source_type && (
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
             sourceColors[selected.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
@@ -676,6 +680,10 @@ export function LinkManagerView({
               <button key={i}
                 onClick={() => { setSelected(doc); setQuery(doc.title); }}
                 className={cn('w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b last:border-0', dropItem, divider)}>
+                <KnowledgeNodeIcon
+                  node={{ type: 'document', source_type: doc.source_type, url: doc.url }}
+                  className="w-3.5 h-3.5 shrink-0 text-ds-emerald-400"
+                />
                 {doc.source_type && (
                   <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
                     sourceColors[doc.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
@@ -694,7 +702,10 @@ export function LinkManagerView({
   const renderSide = (side: UnifiedSide) => (
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
-        {side.icon === 'code' && <FileCode className={cn('w-3.5 h-3.5 shrink-0', subText)} />}
+        <KnowledgeNodeIcon
+          node={{ type: side.icon === 'code' ? 'entity' : 'document', source_type: side.sourceType, url: side.url }}
+          className={cn('w-3.5 h-3.5 shrink-0', side.icon === 'code' ? 'text-ds-indigo-400' : 'text-ds-emerald-400')}
+        />
         {side.sourceType && (
           <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
             sourceColors[side.sourceType] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>

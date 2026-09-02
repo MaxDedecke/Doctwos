@@ -11,11 +11,9 @@ import {
   BookOpen,
   Activity,
   ExternalLink,
-  FileCode,
   Loader2,
   Code,
   Globe,
-  FileText,
   Network,
   Download,
   ChevronLeft,
@@ -23,6 +21,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
+import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1027,11 +1026,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         setIsReferencesDropdownOpen(false);
                                       }}
                                     >
-                                      {document ? (
-                                        <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
-                                      ) : (
-                                        <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
-                                      )}
+                                      <KnowledgeNodeIcon
+                                        node={document
+                                          ? { type: 'document', source_type: document.source_type }
+                                          : { type: 'entity' }}
+                                        className={cn('w-4 h-4 shrink-0', document ? 'text-ds-emerald-400' : 'text-ds-indigo-400')}
+                                      />
                                       <span className="min-w-0 flex-1">
                                         <span className="block truncate text-xs font-semibold font-mono">
                                           {entity?.name || document?.title || neighbor.dst_name}
@@ -1082,11 +1082,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex items-center gap-2 overflow-hidden">
-                                    {isEntity ? (
-                                      <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
-                                    ) : (
-                                      <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
-                                    )}
+                                    <KnowledgeNodeIcon
+                                      node={isEntity ? { type: 'entity' } : ref}
+                                      className={cn('w-4 h-4 shrink-0', isEntity ? 'text-ds-indigo-400' : 'text-ds-emerald-400')}
+                                    />
                                     <div className="flex flex-col truncate">
                                       <span className={cn(
                                         "font-semibold font-mono",
@@ -1193,11 +1192,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                     >
                                       <div className="flex items-start justify-between gap-2">
                                         <div className="flex items-center gap-2.5 overflow-hidden">
-                                          {isEntity ? (
-                                            <FileCode className="w-4 h-4 text-ds-indigo-400 shrink-0" />
-                                          ) : (
-                                            <BookOpen className="w-4 h-4 text-ds-emerald-400 shrink-0" />
-                                          )}
+                                          <KnowledgeNodeIcon
+                                            node={isEntity ? { type: 'entity' } : ref}
+                                            className={cn('w-4 h-4 shrink-0', isEntity ? 'text-ds-indigo-400' : 'text-ds-emerald-400')}
+                                          />
                                           <div className="flex flex-col truncate">
                                             <span className={cn(
                                               "font-semibold font-mono",
