@@ -12,13 +12,22 @@ from services.mcp_audit import record_mcp_tool_call
 logger = logging.getLogger(__name__)
 
 # Securely locate the repository path
+def get_repo_root(repo_id: int) -> str:
+    """Return the active worktree, with support for repositories from before AP-3."""
+    candidates = (
+        os.path.abspath(f"/repos/wt/ks_{repo_id}"),
+        os.path.abspath(f"/repos/{repo_id}"),
+    )
+    return next((path for path in candidates if os.path.isdir(path)), candidates[0])
+
+
 def get_repo_path(repo_id: int, file_path: str = "") -> str:
-    base_path = os.path.abspath(f"/repos/{repo_id}")
+    base_path = get_repo_root(repo_id)
     if not file_path:
         return base_path
-    # Prevent directory traversal
+    # Prevent directory traversal.
     target_path = os.path.abspath(os.path.join(base_path, file_path.lstrip("/")))
-    if not target_path.startswith(base_path):
+    if os.path.commonpath((base_path, target_path)) != base_path:
         raise ValueError("Directory traversal attempt detected")
     return target_path
 

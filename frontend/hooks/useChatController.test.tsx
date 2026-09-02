@@ -137,6 +137,35 @@ describe('useChatController', () => {
     expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-42');
   });
 
+  it('sends the currently focused code object with the chat turn', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse([
+      { type: 'answer', content: 'Erklärung', agent_steps: [] },
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useControllerHarness({
+      currentMessage: 'Was macht das?',
+      pinnedCode: {
+        filepath: 'copy/BUCHUNGS-REC.cpy',
+        line: 23,
+        label: 'BUCH-ZINS-LAST',
+        sourceId: 1154,
+      },
+    }));
+
+    await act(async () => {
+      await result.current.controller.handleSendChat();
+    });
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request).toMatchObject({
+      pinned_file: 'copy/BUCHUNGS-REC.cpy',
+      pinned_line: 23,
+      pinned_label: 'BUCH-ZINS-LAST',
+      pinned_source_id: 1154,
+    });
+  });
+
   it('retries an existing assistant message with its original user metadata', async () => {
     const fetchMock = vi.fn().mockResolvedValue(streamResponse([
       { type: 'answer', content: 'Neue Antwort', agent_steps: [] },

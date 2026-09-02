@@ -6,7 +6,7 @@ decrypted candidates in Python (see _SECTION_MATCH_SCAN_LIMIT). This proves it s
 chunk containing the section number without needing a real embedding call -- limit=1 means the
 vector-search fallback branch is never reached.
 """
-from api.chat import _hybrid_chunk_search
+from api.chat import _find_pinned_chunks, _hybrid_chunk_search
 from models.database import DocumentChunk
 
 
@@ -32,6 +32,38 @@ def test_section_number_match_finds_decrypted_chunk(db_session, test_project):
         )
         assert len(results) == 1
         assert results[0].file_path == "docs/spec.pdf"
+    finally:
+        db_session.query(DocumentChunk).filter(DocumentChunk.project_id == test_project).delete()
+        db_session.commit()
+
+
+def test_pinned_chunk_lookup_prefers_the_chunk_covering_the_focused_line(db_session, test_project):
+    first_chunk = DocumentChunk(
+        project_id=test_project,
+        file_path="copy/BUCHUNGS-REC.cpy",
+        content="BUCH-BETRAG",
+        start_line=1,
+        end_line=20,
+    )
+    focused_chunk = DocumentChunk(
+        project_id=test_project,
+        file_path="copy/BUCHUNGS-REC.cpy",
+        content="BUCH-ZINS-LAST",
+        start_line=21,
+        end_line=40,
+    )
+    db_session.add_all([first_chunk, focused_chunk])
+    db_session.commit()
+
+    try:
+        results = _find_pinned_chunks(
+            db_session,
+            project_id=test_project,
+            source_id=None,
+            file_path="copy/BUCHUNGS-REC.cpy",
+            line=23,
+        )
+        assert [chunk.content for chunk in results] == ["BUCH-ZINS-LAST"]
     finally:
         db_session.query(DocumentChunk).filter(DocumentChunk.project_id == test_project).delete()
         db_session.commit()

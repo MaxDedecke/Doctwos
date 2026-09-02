@@ -159,6 +159,27 @@ def _hybrid_chunk_search(base_query, query_embedding: list, query_text: str, lim
     return picked
 
 
+def _find_pinned_chunks(
+    db: Session,
+    project_id: Optional[int],
+    source_id: Optional[int],
+    file_path: str,
+    line: Optional[int],
+) -> List[DocumentChunk]:
+    """Load chunks covering the explicitly focused file/line before semantic search."""
+    query = db.query(DocumentChunk).filter(DocumentChunk.file_path == file_path)
+    if project_id is not None:
+        query = query.filter(DocumentChunk.project_id == project_id)
+    if source_id is not None:
+        query = query.filter(DocumentChunk.source_id == source_id)
+    if line is not None and line > 0:
+        query = query.filter(
+            or_(DocumentChunk.start_line.is_(None), DocumentChunk.start_line <= line),
+            or_(DocumentChunk.end_line.is_(None), DocumentChunk.end_line >= line),
+        )
+    return query.order_by(DocumentChunk.start_line.asc().nullslast()).limit(3).all()
+
+
 def _gate_graph_neighbors(db: Session, chunks: List[DocumentChunk], requesting_project_id: Optional[int]) -> List[DocumentChunk]:
     """Filters graph-expanded chunks (see expand_chunks_with_graph) against the same
     per-project code-visibility opt-in used in graph.py/search.py. CALL/COPY edges are
@@ -293,6 +314,13 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
         if not source:
             raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
         assert_knowledge_source_visible(source, user, db)
+    if request.pinned_source_id and request.pinned_source_id != request.source_id:
+        pinned_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == request.pinned_source_id).first()
+        if not pinned_source:
+            raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
+        assert_knowledge_source_visible(pinned_source, user, db)
+        if request.project_id and pinned_source.project_id not in (None, request.project_id):
+            raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
 
     # ── Session anlegen oder fortsetzen ──────────────────────────────────────
     session = None
@@ -372,7 +400,22 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
             results = []
             context = ""
             pinned_context = ""
+            pinned_chunks: List[DocumentChunk] = []
             multi_project_names = []
+
+            # Git sources use one worktree per source. Keep the source from the
+            # focused entity authoritative even when the selected chat source is stale.
+            resolved_repo_id = resolve_repository_id(request.project_id, db) if request.project_id else None
+            focused_source_id = request.pinned_source_id or request.source_id or resolved_repo_id
+            if request.pinned_source_id:
+                focused_source = db.query(KnowledgeSource).filter(
+                    KnowledgeSource.id == request.pinned_source_id,
+                    KnowledgeSource.type == "Git",
+                ).first()
+                if focused_source and (
+                    request.project_id is None or focused_source.project_id == request.project_id
+                ):
+                    resolved_repo_id = focused_source.id
 
             team_ids = get_visible_team_ids(user, db)
             q_global = db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == None)
@@ -554,10 +597,34 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                 except Exception as e:
                     logger.error(f"Fehler beim Kontext-Retrieval: {e}")
 
-                resolved_repo_id = resolve_repository_id(request.project_id, db) if request.project_id else None
-                if resolved_repo_id and request.pinned_file:
-                    full_path = os.path.join(f"/repos/{resolved_repo_id}", request.pinned_file)
-                    if os.path.exists(full_path):
+                if request.pinned_file:
+                    pinned_chunks = _find_pinned_chunks(
+                        db,
+                        request.project_id,
+                        focused_source_id,
+                        request.pinned_file,
+                        request.pinned_line,
+                    )
+                    if pinned_chunks:
+                        chunk_context = "\n\n".join(
+                            f"File: {_chunk_header(chunk)}\n{chunk.content}" for chunk in pinned_chunks
+                        )
+                        pinned_context = (
+                            "The user explicitly focused the following code object/file and asks about this "
+                            "context first:\n"
+                            f"<untrusted_pinned_code path=\"{request.pinned_file}\">\n"
+                            f"Focused object: {request.pinned_label or request.pinned_file}\n"
+                            f"{chunk_context}\n"
+                            f"</untrusted_pinned_code>\n\n"
+                        )
+                    elif resolved_repo_id:
+                        # The database chunk may be unavailable during a first sync;
+                        # fall back to the checked-out source file in that case.
+                        from agent import get_repo_path
+                        full_path = get_repo_path(resolved_repo_id, request.pinned_file)
+                    else:
+                        full_path = None
+                    if not pinned_chunks and full_path and os.path.exists(full_path):
                         try:
                             with open(full_path, "r", errors="ignore") as f:
                                 lines = f.readlines()
@@ -574,8 +641,10 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                                 location_note = "File content:" if end == len(lines) else f"File content (first {end} lines):"
                             code_snippet = "".join([f"{i}: {lines[i-1]}" for i in range(start, end + 1)])
                             pinned_context = (
-                                f"The user has pinned the following file to ask a question about it:\n"
+                                f"The user explicitly focused the following code object/file and asks about this "
+                                f"context first:\n"
                                 f"<untrusted_pinned_file path=\"{request.pinned_file}\">\n"
+                                f"Focused object: {request.pinned_label or request.pinned_file}\n"
                                 f"File: {request.pinned_file}\n{location_note}\n{code_snippet}\n"
                                 f"</untrusted_pinned_file>\n\n"
                             )
@@ -612,6 +681,15 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                         "user which project they mean and to switch to that project's scope, and withhold a "
                         "definitive answer until they do.\n\n"
                     )
+                pinned_priority_note = ""
+                if request.pinned_file:
+                    pinned_priority_note = (
+                        "Instruction: The user explicitly selected a code object in the pinned file. Treat the "
+                        "pinned code as the primary subject of the answer. Use other retrieved files only as "
+                        "supporting context for direct references; never replace the focused object with an "
+                        "unrelated semantically similar file or answer about that file instead. If the pinned "
+                        "context is insufficient, say so clearly.\n\n"
+                    )
                 citation_note = (
                     "Instruction: When a specific file actually informed your answer, cite it inline in backticks "
                     "as `path/to/file.ext:line` (e.g. `payroll.cbl:120`) using exactly ONE integer line number — "
@@ -633,7 +711,7 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                     "<untrusted_context>\n"
                     f"{pinned_context}{context}\n"
                     "</untrusted_context>\n\n"
-                    f"{out_of_scope_note}{scope_ambiguous_note}{citation_note}"
+                    f"{out_of_scope_note}{scope_ambiguous_note}{pinned_priority_note}{citation_note}"
                     f"Question: {request.message}\n"
                     f"Answer:"
                 )
@@ -689,12 +767,19 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
             # die Sichtbarkeit in "Referenzierte Quellen" entscheidet erst _resolve_cited_sources
             # anhand dessen, was das LLM in der Antwort tatsächlich zitiert (siehe unten).
             candidate_sources = [{"file": r.file_path, "lines": [r.start_line, r.end_line], "source_id": r.source_id} for r in results]
+            for chunk in pinned_chunks:
+                if not any(c["file"] == chunk.file_path and c["lines"] == [chunk.start_line, chunk.end_line] for c in candidate_sources):
+                    candidate_sources.insert(0, {
+                        "file": chunk.file_path,
+                        "lines": [chunk.start_line, chunk.end_line],
+                        "source_id": chunk.source_id,
+                    })
             pinned_source = None
             if request.pinned_file:
                 pinned_source = {
                     "file": request.pinned_file,
                     "lines": [request.pinned_line, request.pinned_line],
-                    "source_id": None
+                    "source_id": focused_source_id,
                 }
 
             agent_steps = []

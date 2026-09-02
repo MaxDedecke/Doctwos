@@ -274,7 +274,10 @@ export function usePanelNavigation({
       filepath: entity.file_path,
       line: entity.start_line,
       label: entity.name,
-      sourceId: entity.source_id || selectedSource?.id || null,
+      sourceId: entity.source_id ?? selectedSource?.id ?? null,
+      program: entity.program ?? null,
+      section: entity.section ?? null,
+      paragraph: entity.paragraph ?? null,
     });
     ensurePanelType('chat');
     setActiveMobileTab('chat');

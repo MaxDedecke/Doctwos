@@ -119,5 +119,7 @@ export function chatFocusRequestFields(focus: ChatTurnFocus) {
     pinned_file: focus.pinned?.filepath ?? null,
     pinned_line: focus.pinned?.line ?? null,
     pinned_context: focus.pinned?.context ?? null,
+    pinned_label: focus.pinned?.label ?? null,
+    pinned_source_id: focus.pinned?.sourceId ?? null,
   };
 }

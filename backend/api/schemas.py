@@ -54,6 +54,8 @@ class ChatRequest(BaseModel):
     pinned_file: Optional[str] = None
     pinned_line: Optional[int] = None
     pinned_context: Optional[str] = None
+    pinned_label: Optional[str] = None
+    pinned_source_id: Optional[int] = None
     temperature: Optional[float] = 0.7
     system_prompt: Optional[str] = None
     llm_provider: Optional[str] = "ollama"
