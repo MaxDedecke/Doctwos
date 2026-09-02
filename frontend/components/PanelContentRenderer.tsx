@@ -34,7 +34,7 @@ type PanelContentRendererProps = {
     sourceId?: number | string | null,
     openIfMissing?: boolean,
     preserveFrozenTarget?: boolean,
-  ) => Promise<void> | void;
+  ) => Promise<void>;
   activeProfileId: string;
   setActiveProfileId: (value: string) => void;
   llmProfiles: any[];
