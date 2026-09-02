@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -15,7 +16,6 @@ import {
   LogOut,
   Database,
   Pin,
-  User
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -545,10 +545,17 @@ export function Sidebar({
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
                   <div className={cn(
-                    "h-8 w-8 rounded-md border flex items-center justify-center shrink-0",
-                    theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-200 text-ds-zinc-500"
+                    "h-8 w-8 rounded-full overflow-hidden border shadow-md shrink-0",
+                    theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900" : "border-ds-zinc-200 bg-ds-white"
                   )}>
-                    <User className="w-4 h-4" />
+                    <Image
+                      src="/avatars/demo-employee.png"
+                      alt={t('chatView.userAvatarAlt')}
+                      width={32}
+                      height={32}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   {/* User info */}
                   <div className="min-w-0">
