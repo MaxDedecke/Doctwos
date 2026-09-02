@@ -23,7 +23,7 @@ from models.database import KnowledgeSource, LinkBuilderRun
 logger = logging.getLogger(__name__)
 
 
-async def process_knowledge_source_async(source_id: int) -> None:
+async def process_knowledge_source_async(source_id: int, force_reindex: bool = False) -> None:
     """
     Instanziiert den passenden Connector für die gegebene KnowledgeSource
     und führt den vollständigen Sync-Ablauf durch.
@@ -34,6 +34,7 @@ async def process_knowledge_source_async(source_id: int) -> None:
 
     Args:
         source_id: Primärschlüssel der KnowledgeSource in der DB
+        force_reindex: Reparse all Git files even when the commit is unchanged.
     """
     db = SessionLocal()
     source = None
@@ -49,7 +50,12 @@ async def process_knowledge_source_async(source_id: int) -> None:
         source_type = source.type
         connector_cls = get_connector(source_type)
         connector = connector_cls(source_id)
-        await connector.sync()
+        if force_reindex and source_type.lower() != "git":
+            raise ValueError("Force-Reindex wird nur für Git-Wissensquellen unterstützt.")
+        if force_reindex:
+            await connector.sync(force_reindex=True)
+        else:
+            await connector.sync()
 
         # Semantische Verknüpfungen mit Code-Entities neu berechnen, falls sich Chunks geändert haben
         if source.project_id and getattr(connector, "has_changes", False):

@@ -1,6 +1,7 @@
 import os
 
 import pytest
+from unittest.mock import patch
 
 from core.config import UPLOADS_DIR
 from models.database import KnowledgeSource, Project, ProjectMembership, SourceScanFile, Team, User
@@ -112,6 +113,57 @@ def test_deleting_a_source_with_scan_file_journal_succeeds(client, make_project,
 
     del_resp = client.delete(f"/knowledge-sources/{source_id}")
     assert del_resp.status_code == 200, del_resp.text
+
+
+def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
+    """The admin action queues a forced parser run and resets source progress."""
+    project_id = make_project()
+    project = db_session.query(Project).filter(Project.id == project_id).one()
+    source = KnowledgeSource(
+        name="full-reindex-source",
+        type="Git",
+        url="https://example.test/repository.git",
+        branch="main",
+        project_id=project.id,
+        team_id=project.team_id,
+        sync_status="completed",
+        progress=100,
+        parsed_files=12,
+        total_files=12,
+        progress_message="old result",
+        last_error="old error",
+        sync_log="old log",
+    )
+    db_session.add(source)
+    db_session.commit()
+    db_session.refresh(source)
+    calls = []
+
+    def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
+        calls.append((task_name, args, kwargs))
+
+    try:
+        with patch("api.knowledge_sources.send_tracked_task", side_effect=fake_send_tracked_task):
+            response = client.post(f"/knowledge-sources/{source.id}/reindex")
+
+        assert response.status_code == 200, response.text
+        assert calls == [("process_knowledge_source", [source.id], {"force_reindex": True})]
+        db_session.refresh(source)
+        assert source.sync_status == "pending"
+        assert source.progress == 0
+        assert source.parsed_files == 0
+        assert source.total_files == 0
+        assert source.last_error is None
+        assert source.sync_log == ""
+    finally:
+        db_session.delete(source)
+        db_session.commit()
+
+
+def test_non_admin_cannot_queue_full_reindex(member_client):
+    """Full reindex remains restricted to administrators."""
+    response = member_client.post("/knowledge-sources/999999/reindex")
+    assert response.status_code == 403
 
 
 def test_get_project_knowledge_sources_lists_only_attached(client, make_project):

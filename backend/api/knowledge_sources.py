@@ -41,7 +41,7 @@ from core.config import celery_app, UPLOADS_DIR, REPOS_ROOT
 from core.db_setup import get_db
 from models.database import DocumentChunk, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
-from core.teams import get_visible_team_ids, assert_team_visible, is_admin, DEFAULT_TEAM_NAME
+from core.teams import get_visible_team_ids, assert_team_visible, is_admin, require_admin, DEFAULT_TEAM_NAME
 from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
 from services.job_control import send_tracked_task
 
@@ -218,6 +218,35 @@ def sync_knowledge_source(
         raise HTTPException(status_code=400, detail="Synchronisierung wird für diesen Quelltyp nicht unterstützt")
 
     return {"message": "Synchronisierung der Wissensquelle gestartet", "source_id": source_id}
+
+
+@router.post("/{source_id}/reindex")
+def reindex_knowledge_source(
+    source_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Queue an admin-only full reindex without recreating the source."""
+    db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+    if not db_source:
+        raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
+    if (db_source.type or "").lower() != "git":
+        raise HTTPException(status_code=400, detail="Vollständige Neu-Analyse wird nur für Git unterstützt")
+    if db_source.sync_status in {"pending", "syncing"}:
+        raise HTTPException(status_code=409, detail="Für diese Wissensquelle läuft bereits eine Analyse")
+
+    db_source.sync_status = "pending"
+    db_source.progress = 0
+    db_source.parsed_files = 0
+    db_source.total_files = 0
+    db_source.progress_message = "Vollständige Neu-Analyse in Warteschlange…"
+    db_source.last_error = None
+    db_source.sync_log = ""
+    db.commit()
+    send_tracked_task(
+        db, db_source, "process_knowledge_source", [db_source.id], {"force_reindex": True}
+    )
+    return {"message": "Vollständige Neu-Analyse gestartet", "source_id": source_id}
 
 
 @router.patch("/{source_id}")

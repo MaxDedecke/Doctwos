@@ -370,7 +370,7 @@ class GitConnector(BaseConnector):
 
             return 0
 
-    async def fetch_documents(self) -> AsyncIterator[Document]:
+    async def fetch_documents(self, force_reindex: bool = False) -> AsyncIterator[Document]:
         spaces = self.source.spaces or {}
         if isinstance(spaces, str):
             try:
@@ -414,15 +414,20 @@ class GitConnector(BaseConnector):
         deleted_paths: list[str] = []
         additions: list[str] = []
         current_hashes: dict[str, str] = {}
+        existing_hashes = {
+            r.file_path: r.content_hash
+            for r in self.db.query(SourceScanFile).filter(SourceScanFile.source_id == self.source_id).all()
+        }
 
         if worktree_is_new or not old_commit:
             self._log("Vollständige Ersteinlesung des Worktrees…")
             current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
             additions = list(current_hashes.keys())
-            existing_hashes = {
-                r.file_path: r.content_hash
-                for r in self.db.query(SourceScanFile).filter(SourceScanFile.source_id == self.source_id).all()
-            }
+            deleted_paths = sorted(set(existing_hashes.keys()) - set(current_hashes.keys()))
+        elif force_reindex:
+            self._log("Vollständige Neu-Analyse erzwungen; alle Dateien werden erneut verarbeitet…")
+            current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
+            additions = list(current_hashes.keys())
             deleted_paths = sorted(set(existing_hashes.keys()) - set(current_hashes.keys()))
         else:
             if old_commit == new_commit:
@@ -452,7 +457,7 @@ class GitConnector(BaseConnector):
             if blob_sha is None:
                 continue  # nicht (mehr) materialisiert, z.B. außerhalb des Sparse-Checkout-Kegels
             content_hash = git_utils.blob_content_hash(blob_sha)
-            if existing_hashes.get(path) == content_hash:
+            if not force_reindex and existing_hashes.get(path) == content_hash:
                 continue
             to_process.append((path, content_hash))
 
@@ -503,7 +508,7 @@ class GitConnector(BaseConnector):
                 extra_meta={"language": lang, "branch": branch, "content_hash": content_hash},
             )
 
-    async def sync(self) -> None:
+    async def sync(self, force_reindex: bool = False) -> None:
         """
         Orchestriert Chunking und Embedding parallel (Semaphore), DB-Schreiben
         sequenziell. Der Git-Fetch/Worktree-Schritt selbst läuft unter einem
@@ -544,7 +549,7 @@ class GitConnector(BaseConnector):
             pending_tasks = set()
 
             async def doc_producer():
-                async for doc in self.fetch_documents():
+                async for doc in self.fetch_documents(force_reindex=force_reindex):
                     task = asyncio.create_task(self._embed_document(doc, semaphore))
                     yield task
 

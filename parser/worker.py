@@ -135,7 +135,7 @@ def process_local_document(task, source_id: int, file_path: str):
 
 
 @app.task(name="process_knowledge_source", bind=True)
-def process_knowledge_source(task, source_id: int):
+def process_knowledge_source(task, source_id: int, force_reindex: bool = False):
     """
     Celery-Task: Wissensquelle synchronisieren (einheitlicher Task für alle Typen).
 
@@ -143,7 +143,7 @@ def process_knowledge_source(task, source_id: int):
     ConnectorRegistry geladen. Neuen Typ unterstützen: nur registry.py anpassen.
     """
     _register_task_id(KnowledgeSource, source_id, task.request.id)
-    asyncio.run(process_knowledge_source_async(source_id))
+    asyncio.run(process_knowledge_source_async(source_id, force_reindex=force_reindex))
     return {"status": "finished", "source_id": source_id}
 
 

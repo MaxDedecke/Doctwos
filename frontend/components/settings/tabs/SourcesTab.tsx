@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  GitBranch, RefreshCw, Link2, Loader2, Database, Layers,
+  GitBranch, RefreshCw, RefreshCcw, Link2, Loader2, Database, Layers,
   FileText, Code, Folder, Building2, Wrench, ClipboardList, Download, Pin, Trash2,
   Plus, Info, Calendar, AlertCircle, CheckCircle2
 } from 'lucide-react';
@@ -46,7 +46,9 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     pinnedSourceIds,
     togglePinSource,
     showToast,
+    currentUser,
   } = useSettings();
+  const [reindexingSourceId, setReindexingSourceId] = React.useState<number | null>(null);
 
   const handleDeleteSource = async (sourceId: string | number) => {
     if (!confirm(t('settings.confirm.deleteSource'))) return;
@@ -82,6 +84,31 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     } catch (err) {
       console.error(err);
       showToast(t('settings.toast.sourceSyncFailed'), "error");
+    }
+  };
+
+  const handleFullReindex = async (sourceId: string | number, sourceName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentUser?.is_admin) return;
+    const idVal = typeof sourceId === 'string' ? parseInt(sourceId) : sourceId;
+    if (Number.isNaN(idVal)) return;
+    if (!confirm(t('settings.confirm.fullReindexSource', { name: sourceName }))) return;
+
+    setReindexingSourceId(idVal);
+    try {
+      await api.reindexKnowledgeSource(idVal);
+      setConnectedSources(prev => prev.map(source => source.id === idVal ? {
+        ...source,
+        sync_status: 'pending',
+        progress: 0,
+        progress_message: t('settings.toast.fullReindexQueued'),
+      } : source));
+      showToast(t('settings.toast.fullReindexStarted', { name: sourceName }), "success");
+    } catch (err) {
+      console.error(err);
+      showToast(t('settings.toast.fullReindexFailed'), "error");
+    } finally {
+      setReindexingSourceId(null);
     }
   };
 
@@ -437,21 +464,40 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                       )}
 
                       {(inst.type?.toLowerCase() === 'confluence' || inst.type?.toLowerCase() === 'jira' || inst.type?.toLowerCase() === 'git') && (
-                        <button
-                          type="button"
-                          disabled={inst.sync_status === 'syncing'}
-                          onClick={(e) => handleSyncSource(inst.id, inst.name, e)}
-                          className={cn(
-                            "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
-                            theme === 'dark'
-                              ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200"
-                              : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-50 hover:text-ds-zinc-800",
-                            inst.sync_status === 'syncing' && "opacity-50 cursor-not-allowed"
+                        <>
+                          <button
+                            type="button"
+                            disabled={inst.sync_status === 'syncing'}
+                            onClick={(e) => handleSyncSource(inst.id, inst.name, e)}
+                            className={cn(
+                              "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
+                              theme === 'dark'
+                                ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200"
+                                : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-50 hover:text-ds-zinc-800",
+                              inst.sync_status === 'syncing' && "opacity-50 cursor-not-allowed"
+                            )}
+                            title={t('settings.sourcesTab.syncSourceTitle')}
+                          >
+                            <RefreshCw className={cn("w-3.5 h-3.5", inst.sync_status === 'syncing' && "animate-spin")} />
+                          </button>
+                          {currentUser?.is_admin && inst.type?.toLowerCase() === 'git' && (
+                            <button
+                              type="button"
+                              disabled={inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id}
+                              onClick={(e) => handleFullReindex(inst.id, inst.name, e)}
+                              className={cn(
+                                "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
+                                theme === 'dark'
+                                  ? "bg-ds-amber-500/5 border-ds-amber-500/20 text-ds-amber-400 hover:bg-ds-amber-500/10 hover:text-ds-amber-300"
+                                  : "bg-ds-amber-50 border-ds-amber-200 text-ds-amber-600 hover:bg-ds-amber-100 hover:text-ds-amber-700",
+                                (inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id) && "opacity-50 cursor-not-allowed"
+                              )}
+                              title={t('settings.sourcesTab.fullReindexTitle')}
+                            >
+                              <RefreshCcw className={cn("w-3.5 h-3.5", reindexingSourceId === inst.id && "animate-spin")} />
+                            </button>
                           )}
-                          title={t('settings.sourcesTab.syncSourceTitle')}
-                        >
-                          <RefreshCw className={cn("w-3.5 h-3.5", inst.sync_status === 'syncing' && "animate-spin")} />
-                        </button>
+                        </>
                       )}
 
                       {/* Pin button */}

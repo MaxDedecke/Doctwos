@@ -162,6 +162,26 @@ async def test_git_connector_delta_sync_add_modify_delete(db_session, test_sourc
 
 
 @pytest.mark.anyio
+async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_session, test_source):
+    """A forced run must parse and embed files even when the Git commit is unchanged."""
+    connector = GitConnector(test_source.id)
+    first_batch, first_single, first_model = _patched_sync(connector)
+    with first_batch, first_single, first_model:
+        await connector.sync()
+
+    embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
+    connector = GitConnector(test_source.id)
+    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
+         patch("connectors.git.get_embeddings_batch", embed_batch), \
+         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+        await connector.sync(force_reindex=True)
+
+    assert embed_batch.await_count > 0
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+
+
+@pytest.mark.anyio
 async def test_git_connector_resumes_via_content_hash(db_session, test_source, monkeypatch, tmp_path):
     """NF-004: eine Datei, deren Blob-SHA schon in SourceScanFile steht (z.B.
     aus einem abgebrochenen vorherigen Lauf), wird beim erneuten Sync NICHT

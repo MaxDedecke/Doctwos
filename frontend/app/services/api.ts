@@ -90,6 +90,7 @@ export const api = {
         }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),
     syncKnowledgeSource: (id: number) => axios.post(`${API_URL}/knowledge-sources/${id}/sync`),
+    reindexKnowledgeSource: (id: number) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get(`${API_URL}/chat/sessions`),
     getChatMessages: (sessionId: number) => axios.get(`${API_URL}/chat/sessions/${sessionId}/messages`),
