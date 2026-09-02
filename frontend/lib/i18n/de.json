@@ -1109,8 +1109,8 @@
     "empty": "Noch keine Jobs vorhanden.",
     "activeCount": "{{count}} aktive Jobs",
     "resume": "Wiederaufnehmen",
-    "start": "Jetzt starten",
     "restart": "Neu anstoßen",
+    "remove": "Aus dem Job-Center entfernen",
     "actionFailed": "Job-Aktion konnte nicht ausgeführt werden.",
     "status": {
       "pending": "In Warteschlange",

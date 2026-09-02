@@ -144,4 +144,5 @@ export const api = {
     getJobs: () => axios.get(`${API_URL}/jobs`),
     resumeJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/resume`),
     startJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/start`),
+    deleteJob: (kind: string, id: number) => axios.delete(`${API_URL}/jobs/${kind}/${id}`),
 };

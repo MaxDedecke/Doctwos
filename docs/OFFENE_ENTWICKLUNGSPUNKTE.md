@@ -98,12 +98,14 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   bleiben lesbar. Mit sechs gezielten Hook-Tests, Typecheck, ESLint und
   Produktions-Build verifiziert.
 - O-018 (Job Center) — 02.09.2026 umgesetzt; abgeschlossene und fehlgeschlagene
-  Vorgänge bleiben in der Job-Übersicht sichtbar. Admins können unterstützte
-  Jobs aus der UI starten bzw. neu anstoßen; laufende Jobs werden gegen
-  Doppelstarts geschützt, Run-basierte Wiederholungen erzeugen einen neuen
-  Lauf und erhalten die Historie. Backend-Berechtigungs- und Queue-Tests sind
-  ergänzt; Frontend-Tests, Typecheck, ESLint, Produktions-Build und Service-
-  Smokechecks sind grün.
+  Vorgänge bleiben in der Job-Übersicht sichtbar. Admins können fehlgeschlagene
+  Jobs aus der UI neu anstoßen; erfolgreiche Jobs bleiben schreibgeschützt und
+  laufende Jobs werden gegen Doppelstarts geschützt. Erfolgreiche Einträge
+  können per X aus dem Job-Center entfernt werden, ohne die zugrunde liegende
+  Wissensquelle zu löschen; Run-basierte Wiederholungen erzeugen einen neuen
+  Lauf und erhalten die Historie. Backend-Berechtigungs-, Queue- und
+  Entfernen-Tests sind ergänzt; Frontend-Tests, Typecheck, ESLint,
+  Produktions-Build und Service-Smokechecks sind grün.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation

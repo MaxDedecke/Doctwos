@@ -444,3 +444,17 @@ class DiagnosticsRun(Base):
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     bundle_path = Column(String, nullable=True)  # tar.gz path under the shared ./repos mount
+
+
+class JobCenterDismissal(Base):
+    """Admin dismissal of a completed entry without deleting its domain record."""
+    __tablename__ = "job_center_dismissals"
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String, nullable=False)
+    job_id = Column(Integer, nullable=False)
+    dismissed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    dismissed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("kind", "job_id", name="uq_job_center_dismissals_kind_job"),
+    )

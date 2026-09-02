@@ -18,7 +18,7 @@ from core.db_setup import get_db
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids, is_admin, require_admin
 from core.tracing import get_trace_id
-from models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun, User
+from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource, LinkBuilderRun, User
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 ACTIVE = {"pending", "running", "syncing", "parsing"}
@@ -30,7 +30,7 @@ def _iso(value):
 
 
 def _source_can_start(source: KnowledgeSource, admin: bool, status: str) -> bool:
-    if not admin or status in ACTIVE:
+    if not admin or status != "failed":
         return False
     source_type = (source.type or "").lower()
     if source_type != "local":
@@ -50,6 +50,7 @@ def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
         "created_at": _iso(source.parse_started_at or source.created_at),
         "finished_at": _iso(source.parse_finished_at), "can_resume": status == "failed",
         "can_start": _source_can_start(source, admin, status),
+        "can_delete": admin and status == "completed",
     }
 
 
@@ -60,7 +61,8 @@ def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
         "label": label, "status": run.status, "progress": None,
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed", "can_start": admin and run.status not in ACTIVE,
+        "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
+        "can_delete": admin and run.status == "completed",
     }
 
 
@@ -70,7 +72,8 @@ def _diagnostics_job(run: DiagnosticsRun, admin: bool = False) -> dict:
         "label": "Diagnosepaket", "status": run.status, "progress": None,
         "progress_message": run.progress_message, "error_message": run.error_message,
         "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed", "can_start": admin and run.status not in ACTIVE,
+        "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
+        "can_delete": admin and run.status == "completed",
     }
 
 
@@ -94,6 +97,11 @@ def list_jobs(db: Session = Depends(get_db), user: User = Depends(get_current_us
     jobs += [_run_job(row, admin) for row in run_query.all()]
     if admin:
         jobs += [_diagnostics_job(row, admin) for row in db.query(DiagnosticsRun).all()]
+    dismissed = {
+        (row.kind, row.job_id)
+        for row in db.query(JobCenterDismissal).all()
+    }
+    jobs = [job for job in jobs if (job["kind"], job["id"]) not in dismissed]
     jobs.sort(key=lambda item: item["created_at"] or "", reverse=True)
     return {"active_count": sum(job["status"] in ACTIVE for job in jobs), "jobs": jobs}
 
@@ -112,6 +120,10 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
     source.progress_message = "In Warteschlange…"
     source.last_error = source.last_error_detail = None
     source.parse_finished_at = None
+    db.query(JobCenterDismissal).filter(
+        JobCenterDismissal.kind == "source",
+        JobCenterDismissal.job_id == source.id,
+    ).delete(synchronize_session=False)
     db.commit()
     if source_type == "local":
         celery_app.send_task("process_local_document", args=[source.id, file_path], kwargs={"trace_id": get_trace_id()})
@@ -147,10 +159,15 @@ def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User 
         source = db.query(KnowledgeSource).with_for_update().filter(KnowledgeSource.id == job_id).first()
         if not source:
             raise HTTPException(404, "Job nicht gefunden")
-        if not _source_can_start(source, True, source.sync_status or "pending"):
-            raise HTTPException(409, "Für diesen Quelltyp gibt es keinen verarbeitbaren Job")
-        if source.sync_status in ACTIVE:
+        status = "running" if source.sync_status in {"syncing", "parsing"} else (source.sync_status or "pending")
+        if status == "error":
+            status = "failed"
+        if status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
+        if status != "failed":
+            raise HTTPException(409, "Nur fehlgeschlagene Jobs können neu angestoßen werden")
+        if not _source_can_start(source, True, status):
+            raise HTTPException(409, "Für diesen Quelltyp gibt es keinen verarbeitbaren Job")
         return _queue_source(source, db)
 
     if kind == "link_builder":
@@ -161,6 +178,8 @@ def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User 
             raise HTTPException(409, "Unbekannter Jobtyp")
         if previous.status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
+        if previous.status != "failed":
+            raise HTTPException(409, "Nur fehlgeschlagene Jobs können neu angestoßen werden")
         return _queue_link_builder(previous, db)
 
     if kind == "diagnostics":
@@ -169,9 +188,49 @@ def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User 
             raise HTTPException(404, "Job nicht gefunden")
         if previous.status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
+        if previous.status != "failed":
+            raise HTTPException(409, "Nur fehlgeschlagene Jobs können neu angestoßen werden")
         return _queue_diagnostics(user, db)
 
     raise HTTPException(404, "Job nicht gefunden")
+
+
+@router.delete("/{kind}/{job_id}", dependencies=[Depends(require_admin)])
+def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Dismiss a completed job while retaining the underlying execution record."""
+    if kind == "source":
+        source = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
+        status = "running" if source and source.sync_status in {"syncing", "parsing"} else (source.sync_status if source else None)
+        if status == "error":
+            status = "failed"
+        if not source:
+            raise HTTPException(404, "Job nicht gefunden")
+    elif kind == "link_builder":
+        run = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == job_id).first()
+        status = run.status if run else None
+        if not run:
+            raise HTTPException(404, "Job nicht gefunden")
+    elif kind == "diagnostics":
+        run = db.query(DiagnosticsRun).filter(DiagnosticsRun.id == job_id).first()
+        status = run.status if run else None
+        if not run:
+            raise HTTPException(404, "Job nicht gefunden")
+    else:
+        raise HTTPException(404, "Job nicht gefunden")
+
+    if status in ACTIVE:
+        raise HTTPException(409, "Laufende Jobs können nicht entfernt werden")
+    if status != "completed":
+        raise HTTPException(409, "Nur erfolgreiche Jobs können entfernt werden")
+
+    dismissal = db.query(JobCenterDismissal).filter(
+        JobCenterDismissal.kind == kind,
+        JobCenterDismissal.job_id == job_id,
+    ).first()
+    if not dismissal:
+        db.add(JobCenterDismissal(kind=kind, job_id=job_id, dismissed_by_user_id=user.id))
+        db.commit()
+    return {"message": "Job aus dem Job-Center entfernt", "key": f"{kind}:{job_id}"}
 
 
 @router.post("/{kind}/{job_id}/resume")

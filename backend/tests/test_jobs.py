@@ -1,15 +1,15 @@
 from api import jobs as jobs_api
-from models.database import DiagnosticsRun, KnowledgeSource
+from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource
 
 
-def test_admin_can_start_completed_source_and_keep_job_visible(client, db_session, test_project, test_team, monkeypatch):
+def test_admin_can_restart_failed_source_and_keep_job_visible(client, db_session, test_project, test_team, monkeypatch):
     source = KnowledgeSource(
         name="Restartable source",
         type="Git",
         project_id=test_project,
         team_id=test_team,
-        sync_status="completed",
-        progress=100,
+        sync_status="error",
+        progress=42,
     )
     db_session.add(source)
     db_session.commit()
@@ -44,8 +44,8 @@ def test_non_admin_cannot_start_job(member_client):
     assert response.status_code == 403
 
 
-def test_admin_can_start_completed_diagnostics_run(client, db_session, monkeypatch):
-    run = DiagnosticsRun(status="completed")
+def test_admin_can_restart_failed_diagnostics_run(client, db_session, monkeypatch):
+    run = DiagnosticsRun(status="failed")
     db_session.add(run)
     db_session.commit()
     db_session.refresh(run)
@@ -65,4 +65,30 @@ def test_admin_can_start_completed_diagnostics_run(client, db_session, monkeypat
     assert sent_tasks == [(("generate_diagnostics_bundle",), {"args": [created.id], "kwargs": {"trace_id": "-"}})]
     db_session.delete(created)
     db_session.delete(run)
+    db_session.commit()
+
+
+def test_admin_can_remove_completed_source_job_without_deleting_source(client, db_session, test_project, test_team):
+    source = KnowledgeSource(
+        name="Dismissable source",
+        type="Git",
+        project_id=test_project,
+        team_id=test_team,
+        sync_status="completed",
+    )
+    db_session.add(source)
+    db_session.commit()
+    db_session.refresh(source)
+
+    response = client.delete(f"/jobs/source/{source.id}")
+
+    assert response.status_code == 200
+    assert db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).first() is not None
+    listed = client.get("/jobs")
+    assert all(job["key"] != f"source:{source.id}" for job in listed.json()["jobs"])
+    db_session.query(JobCenterDismissal).filter(
+        JobCenterDismissal.kind == "source",
+        JobCenterDismissal.job_id == source.id,
+    ).delete(synchronize_session=False)
+    db_session.delete(source)
     db_session.commit()

@@ -1109,8 +1109,8 @@
     "empty": "No jobs yet.",
     "activeCount": "{{count}} active jobs",
     "resume": "Resume",
-    "start": "Start now",
     "restart": "Restart",
+    "remove": "Remove from job center",
     "actionFailed": "The job action could not be completed.",
     "status": {
       "pending": "Queued",
