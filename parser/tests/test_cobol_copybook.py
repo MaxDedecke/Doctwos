@@ -142,3 +142,9 @@ def test_copy_of_quoted_literal_with_extension_still_resolves():
     # copybook.py-Docstring) - nur die Indexauflösung normalisiert sie weg.
     assert edges[0].dst_name == "WSFIELDS.cpy"
     assert edges[0].resolution == "resolved"
+
+
+def test_replacing_applies_to_all_occurrences():
+    assert copybook.apply_replacing(
+        "CUSTOMER-CUSTOMER-ID", [{"from": "CUSTOMER", "to": "ACCOUNT"}]
+    ) == "ACCOUNT-ACCOUNT-ID"

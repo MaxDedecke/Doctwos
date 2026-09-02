@@ -24,7 +24,7 @@ Die Kernfunktionen sind vorhanden: lokale Anmeldung und Projektberechtigungen, r
 Die wichtigsten Korrekturen gegenüber v1.2 sind:
 
 1. Uploads sind nicht einheitlich: Die UI bietet PDF/Markdown/Text an; DOC/DOCX und OCR sind bei Connectoren vorhanden, bei lokalen Uploads aber nicht vollständig. CSV ist nicht als belastbarer eigener Dokumenttyp umgesetzt.
-2. Die COBOL-XREF ist für Copybooks und REPLACING vorhanden, der vollständige quellübergreifende Feldindex ist noch offen.
+2. Die COBOL-XREF ist für Copybooks und REPLACING vorhanden; der quellenweite Feldindex ist mit eigenen Copybook-Entities, verschachtelten COPYs und gezielter USES-Nachauflösung vollständig umgesetzt und geprüft.
 3. JCL bleibt in v1 textbasiert. Ein struktureller JCL-Parser und `EXECUTES`-Kanten gehören nicht zum aktuellen v1-Umfang.
 4. Der lokale Ollama-Modellname ist derzeit eine administrativ veränderbare Prozesskonfiguration und nicht vollständig request-stateless.
 5. Sessions/Snapshots und Knowledge-Graph-Export sind funktional vorhanden, erfüllen die ursprünglich formulierten Sicherheits-/Exportversprechen aber nur teilweise.
@@ -64,10 +64,10 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 |---|---|---|
 | DOC-F-020 | IBM Enterprise COBOL/z/OS mit Fixed- und Free-Format, Fortsetzungen und toleranter Verarbeitung typischer Legacy-Varianten. | ERFÜLLT |
 | DOC-F-021 | Eigener Analyse-/Orchestrierungspfad mit ANTLR-Brücke, strukturierten Entitäten und stabiler Fallback-Verarbeitung bei fehlerhaften Quellen. | ERFÜLLT |
-| DOC-F-022 | Copybook-Auflösung inklusive Suchindex, Namensauflösung, `REPLACING` und expliziten unresolved/dynamic Ergebnissen. | TEILWEISE – Copybook-Auflösung ist vorhanden; der vollständige Feldindex über alle Copybook-Grenzen ist noch nicht abgeschlossen (O-009). |
+| DOC-F-022 | Copybook-Auflösung inklusive Suchindex, Namensauflösung, `REPLACING` und expliziten unresolved/dynamic Ergebnissen. | ERFÜLLT – inklusive verschachtelter COPYs, vollständiger REPLACING-Anwendung und expliziter unresolved/dynamic Ergebnisse. |
 | DOC-F-023 | Erkennung von Programmen, Copybooks, Sections, Paragraphs, Data Items, File Descriptions sowie SQL-Blöcken/-Tabellen. | ERFÜLLT |
 | DOC-F-024 | Beziehungen für `CALL`, `PERFORM`, `GOTO`, `COPY`, `READS`, `WRITES`, `USES` und Definitionen. | ERFÜLLT |
-| DOC-F-025 | Feldverwendung und Feld-XREF über lokale und eingebundene Copybook-Strukturen. | TEILWEISE – lokale Analyse und Copybook-Vererbung sind implementiert; die quellweite Vollständigkeit ist offen (O-009). |
+| DOC-F-025 | Feldverwendung und Feld-XREF über lokale und eingebundene Copybook-Strukturen. | ERFÜLLT – lokale und quellenweite Copybook-Felder werden ohne Text-Expansion in USES-Kanten überführt und pfadgenau nachaufgelöst. |
 | DOC-F-026 | JCL-Unterstützung als optionaler Umfang. | GEÄNDERT – v1 indexiert JCL textuell; ein struktureller JCL-Parser ist nicht Bestandteil des aktuellen v1. |
 | DOC-F-027 | Embedded SQL wird als eigener Analyseblock verarbeitet; SQL-Tabellen/Verwendungen werden in den Analysekontext übernommen. | ERFÜLLT |
 | DOC-F-028 | Zeichensätze ASCII/UTF-8 im aktuellen v1; EBCDIC bleibt späterer Umfang. | GEÄNDERT – EBCDIC ist v2 und nicht als v1-Funktion zu versprechen. |
@@ -143,7 +143,6 @@ Die folgenden Punkte aus bzw. im Umfeld der v1.2-Fassung dürfen im aktuellen Ka
 - struktureller JCL-Parser und `EXECUTES`-Kanten;
 - EBCDIC-Verarbeitung;
 - belastbare Dead-Code-Kandidaten als Produktfunktion;
-- vollständiger quellweiter Copybook-Feldindex inklusive aller `REPLACING`-Sonderfälle;
 - CSV als vollständig unterstützter Dokumenttyp im Upload;
 - vollständiger neutraler CSV/GraphML-Export des Knowledge Graphs;
 - formale Performance-, BITV- und Marken-/Kontrastabnahme.
@@ -155,12 +154,11 @@ Der fehlende Neo4j-Service ist dagegen kein Architekturfehler: Für den laufende
 Für eine nächste verbindliche Version sind mindestens folgende Punkte zu entscheiden bzw. abzunehmen:
 
 1. CSV-Anforderung und einheitliche Upload-Allowlist einschließlich DOCX/OCR (O-007).
-2. Vollständiger Copybook-Feldindex und USES-XREF-Volumen über den gesamten Quellbestand (O-009).
-3. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
-4. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
-5. Lasttest mit repräsentativem DRV-COBOL (O-001); die optionale Git-Performance-Evaluation ist unter O-006 dokumentiert.
-6. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
-7. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
+2. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
+3. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
+4. Lasttest mit repräsentativem DRV-COBOL (O-001); die optionale Git-Performance-Evaluation ist unter O-006 dokumentiert.
+5. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
+6. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
 
 ## 7. Nachweis und Teststand
 

@@ -85,7 +85,25 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
     sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items)
     errors.extend(sql_errors)
 
-    inherited_fields = copybook_mod.inherited_fields(copy_edges, copybook_index)
+    data_division_index = next(
+        (index for index, division in enumerate(program.divisions) if division.name == "DATA"),
+        None,
+    )
+    data_division = (
+        program.divisions[data_division_index]
+        if data_division_index is not None else None
+    )
+    data_end_line = (
+        program.divisions[data_division_index + 1].start_line - 1
+        if data_division_index is not None and data_division_index + 1 < len(program.divisions)
+        else data_division.end_line if data_division is not None else None
+    )
+    data_copy_edges = [
+        edge for edge in copy_edges
+        if data_division is not None
+        and data_division.start_line <= edge.src_start_line <= data_end_line
+    ]
+    inherited_fields = copybook_mod.inherited_fields(data_copy_edges, copybook_index)
     xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
     errors.extend(xref_errors)
 

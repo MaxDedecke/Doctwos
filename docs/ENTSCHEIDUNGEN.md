@@ -7,7 +7,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | ID | Thema | Entscheidung | Status |
 |----|-------|--------------|--------|
 | E-1 | Kanten-Nachauflösung | `code_edges.scope_entity_id` eingeführt | umgesetzt |
-| E-2 | XREF über Copybook-Grenzen | quellenweiter Feldindex, REPLACING wird mitgeführt | entschieden, offen in AP-2 |
+| E-2 | XREF über Copybook-Grenzen | quellenweiter Feldindex, REPLACING wird mitgeführt | umgesetzt |
 | E-3 | Partial Clone vs. Offline | `--filter=blob:none` nur bei erreichbarem Remote | umgesetzt, Repack-Nachlauf unter „Noch zu evaluieren“ dokumentiert |
 | E-4 | `sql_block` als Entity-Typ | ja, achter Typ (D-1 aus dem Plan) | umgesetzt |
 | E-5 | Login-Sperre bei Redis-Ausfall | zwei Zähler: Redis (Name+IP) und DB (Nutzer), der höhere gilt | umgesetzt |
@@ -67,8 +67,13 @@ F-025 („Verwendungsstellen von Datenfeldern") wäre damit nur halb erfüllt.
    Ist die Ersetzung nicht eindeutig anwendbar, bleibt die Kante `unresolved` —
    kein Raten.
 
-**Offen bis AP-2.** Mengengerüst prüfen: XREF ist laut Risiko R5 die volumenstärkste
-Kantenart; falls die Zeilenzahl explodiert, auf 01-Level-Gruppen aggregieren.
+**Abschluss.** Der quellenweite Feldindex wird vor dem Parsen der Programme
+aufgebaut. Copybooks werden als eigene Entities verarbeitet, verschachtelte
+COPYs werden transitiv vererbt, `REPLACING` wird vollständig auf die geerbten
+Namen angewendet und `USES`-Ziele werden über Copybook-Pfad und Qualified Name
+nachaufgelöst. COPYs in der PROCEDURE DIVISION werden nicht als Datenfelder
+vererbt. Das Mengengerüst bleibt für die formale Bestandsabnahme beobachtbar,
+ändert aber nicht mehr die fachliche Auflösungslogik.
 
 ---
 

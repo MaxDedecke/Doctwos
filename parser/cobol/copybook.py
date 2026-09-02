@@ -31,6 +31,7 @@ XREF-Nachauflösung, sobald der quellenweite Feldindex existiert (E-2).
 from __future__ import annotations
 
 import os
+import re
 
 from .lexer import Token
 from .model import CobolProgram, ParsedEdge
@@ -187,15 +188,14 @@ def inherited_fields(copy_edges: list[ParsedEdge], index: CopybookIndex | None) 
 
 
 def apply_replacing(value: str, replacing: list[dict]) -> str:
-    """Wendet COPY REPLACING ohne Gross-/Kleinschreibungsannahmen an."""
+    """Apply every COPY REPLACING pair case-insensitively."""
     result = value
     for pair in replacing:
         old = pair.get("from", "")
         if not old:
             continue
-        pos = result.upper().find(old.upper())
-        if pos >= 0:
-            result = result[:pos] + pair.get("to", "") + result[pos + len(old):]
+        new = pair.get("to", "")
+        result = re.sub(re.escape(old), lambda _: new, result, flags=re.IGNORECASE)
     return result
 
 

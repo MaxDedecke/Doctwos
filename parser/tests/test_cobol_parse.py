@@ -145,6 +145,31 @@ def test_xref_applies_copy_replacing_to_inherited_field_name():
     assert edge.resolution == "resolved"
 
 
+def test_xref_does_not_inherit_data_fields_from_procedure_copy():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. PROCEDURECOPY.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           COPY CODEBOOK.\n"
+        "           DISPLAY SHARED-FIELD.\n"
+    )
+    index = CopybookIndex(
+        {"CODEBOOK": ["CODEBOOK.CPY"]},
+        fields_by_path={"CODEBOOK.CPY": [{
+            "name": "SHARED-FIELD", "parent": "SHARED-RECORD",
+            "qualified_name": "CODEBOOK.SHARED-RECORD.SHARED-FIELD",
+            "path": "CODEBOOK.CPY",
+        }]},
+    )
+
+    result = parse_program(text, "MAIN.CBL", index)
+
+    assert not [edge for edge in result.edges if edge.type == "USES"]
+
+
 def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
     """Der Pass-0-Index liefert fuer ein Copybook auch Felder seiner COPYs.
     Die Definitions-Identitaet bleibt dabei beim urspruenglichen Copybook."""
