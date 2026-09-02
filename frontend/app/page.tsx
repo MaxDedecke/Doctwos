@@ -54,8 +54,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { resolvePanelNavigationTarget } from "@/lib/panelNavigation";
-import { appendPanelHistory, EMPTY_PANEL_SELECTION } from "@/lib/panelHistory";
+import { resolveReferenceTarget } from "@/lib/referenceTarget";
 import { api } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -70,11 +69,11 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
-import { DOC_FILE_RE, getSelectionViewType } from '@/lib/workspaceSelection';
 import { useProjects } from '@/hooks/useProjects';
 import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { useChatController } from '@/hooks/useChatController';
+import { usePanelNavigation } from '@/hooks/usePanelNavigation';
 import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
 
 const MemoSettingsModal = React.memo(SettingsModal);
@@ -84,44 +83,6 @@ const MemoSidebar = React.memo(Sidebar);
 
 
 // --- Main App Component ---
-
-// Shared by handleFileSelect and handlePanelFileSelect: figures out what kind of
-// thing a bare (path, sourceId) reference actually points at — a locally-connected
-// document (matched by filename against connectedSources), a live web-origin source
-// (Confluence/Jira) oder eine gewöhnliche Code-/Dokumentdatei — so öffnen beide Aufrufstellen
-// the same panel type for the same reference instead of drifting apart.
-function resolveReferenceTarget(path: string | null, sourceId: any, connectedSources: any[] | null) {
-  const cleanPath = path ? path.split('#')[0] : null;
-  let resolvedSourceId = sourceId;
-  if (!resolvedSourceId && cleanPath && connectedSources) {
-    const clickedFilename = cleanPath.split('/').pop()?.toLowerCase();
-    let cleanClickedFilename = clickedFilename;
-    const prefixMatch = clickedFilename?.match(/^\d+_(.+)$/);
-    if (prefixMatch) {
-      cleanClickedFilename = prefixMatch[1];
-    }
-    const matchedSource = connectedSources.find(src => {
-      if (src.type?.toLowerCase() !== 'local') return false;
-      const srcFilename = src.name?.toLowerCase();
-      const spacesFilename = src.spaces?.filename?.toLowerCase();
-      return srcFilename === cleanClickedFilename || spacesFilename === cleanClickedFilename ||
-             srcFilename === clickedFilename || spacesFilename === clickedFilename;
-    });
-    if (matchedSource) {
-      resolvedSourceId = matchedSource.id;
-    }
-  }
-  const matchedSource = resolvedSourceId && connectedSources ? connectedSources.find(src => src.id === resolvedSourceId) : null;
-  const isWebOrigin = !!(matchedSource && (
-    matchedSource.type?.toLowerCase() === 'confluence' ||
-    matchedSource.type?.toLowerCase() === 'jira'
-  ));
-  return {
-    isDoc: cleanPath ? DOC_FILE_RE.test(cleanPath) : false,
-    isWebOrigin,
-    resolvedSourceId,
-  };
-}
 
 function AppContent() {
   const { t } = useLanguage();
@@ -255,297 +216,6 @@ function AppContent() {
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
     handleDividerMouseDown, restoreWorkspaceSnapshot,
   } = workspaceState;
-
-  // Pin the current navigation target as chat context without coupling the
-  // workspace hook to ChatView's DOM or message composition rules.
-  const pinFileFocus = useCallback((path: string | null, line: number | null = null) => {
-    if (!path) return;
-    setPinnedCode({ filepath: path, line: line || 0 });
-  }, [setPinnedCode]);
-
-  const pinEntityFocus = useCallback((entity: any) => {
-    if (!entity) return;
-    setPinnedCode({ filepath: entity.file_path, line: entity.start_line, label: entity.name });
-  }, [setPinnedCode]);
-
-  const handleObjectFocus = (object: any, panelIndex: number) => {
-    if (!object) return;
-    setPanelFocusObject(previous => {
-      const next = [...previous];
-      next[panelIndex] = object;
-      return next;
-    });
-    const selection = panelSelections[panelIndex];
-    const filepath = selection?.selectedFile || selection?.selectedDoc?.name || t('page.objectFileFallback');
-    const context =
-      `${t('page.focusedObjectLabel')}: ${object.name}\n` +
-      `Typ: ${object.type}\n` +
-      `Material: ${object.material}\n` +
-      `Volumen: ${object.volume}\n` +
-      `Feuerwiderstand: ${object.fireRating}`;
-    setPinnedCode({ filepath, line: 0, label: object.name, context });
-    const textarea = document.getElementById('chat-textarea') as HTMLTextAreaElement;
-    if (textarea) textarea.focus();
-  };
-
-  const handlePanelEntitySelect = async (index: number, entity: any) => {
-    pinEntityFocus(entity);
-    updatePanelEntitySelection(index, entity);
-  };
-
-  const handlePanelFileSelect = async (index: number, path: string | null, line: number | null = null, sourceId: number | string | null = null, openIfMissing: boolean = true, preserveFrozenTarget: boolean = false) => {
-    const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
-    const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
-      ? { id: resolvedSourceId, name: path, ...(isWebOrigin ? { isWebOrigin: true, url: path } : {}) }
-      : null;
-    const targetType = getSelectionViewType(path, targetDoc);
-    let focusedEntity = path && !targetDoc
-      ? projectEntities.find((ent: any) =>
-          ent.file_path === path &&
-          (!resolvedSourceId || Number(ent.source_id) === Number(resolvedSourceId)) &&
-          (ent.type === 'program' || ent.type === 'copybook')) || null
-      : null;
-    // targetDoc already means "this is a document, not COBOL code" (see above) --
-    // resolving a code entity for it would only ever 404. Skipping it here also
-    // matters for timing: the Graph View's "open in view" button fires this AND
-    // onDocFocus back to back for the same document (see KnowledgeGraphView.tsx).
-    // With an await here, this call resumes only after React has already
-    // committed the panel onDocFocus opened synchronously and cleared
-    // pendingPanelTypesRef for it (see ensurePanelType) -- so this continuation
-    // no longer sees it as pending and opens a second doc panel for the same
-    // document. Staying synchronous up to the routing below closes that gap.
-    if (path && resolvedSourceId && !isWebOrigin && !targetDoc) {
-      try {
-        focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path, selectedProject?.id)).data;
-      } catch (error: any) {
-        // A plain text file legitimately has no COBOL entity. Authentication and
-        // server errors still surface in the console/global 401 handler.
-        if (error?.response?.status !== 404) console.error('Failed to resolve code focus:', error);
-      }
-    }
-
-    // A reference can point at a different kind of view than the panel it was
-    // clicked from (e.g. a doc source cited from a chat panel) — route it to
-    // an already-open panel of that type, or open one, instead of only updating
-    // state that this panel's own view never reads.
-    // `openIfMissing=false` (a plain Graph View node click, as opposed to its
-    // "open in matching view" button) must not surface a panel on its own — it
-    // only nudges an already-open, unfrozen ("live") panel of the matching type.
-    let targetIndex = index;
-    if (targetType && targetType !== panelConfigs[index]) {
-      const resolution = resolvePanelNavigationTarget({
-        targetType,
-        panelConfigs,
-        panelFrozen,
-        openIfMissing,
-        preserveFrozenTarget,
-      });
-      if (resolution.shouldOpenNewPanel) {
-        addPanel(targetType, {
-          selectedFile: path,
-          selectedDoc: targetDoc,
-          selectedEntity: focusedEntity,
-          selectedLine: line,
-        }, false);
-        setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
-        return;
-      }
-      if (resolution.ignored || resolution.targetIndex === null) {
-        return;
-      }
-      targetIndex = resolution.targetIndex;
-      // On mobile only one panel is visible at a time (see activeMobileTab render
-      // switch below) — surface the panel the reference just opened/targeted.
-      setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
-    }
-
-    // A Call-Graph click is navigation into a code panel, never a command to
-    // rewrite the graph's own frozen selection or another frozen code panel.
-    if (preserveFrozenTarget && panelFrozen[targetIndex]) return;
-
-    pinFileFocus(path, line);
-
-    if (panelFrozen[targetIndex]) {
-      const prevSel = panelSelections[targetIndex];
-      const newSel = { selectedFile: path, selectedDoc: targetDoc, selectedEntity: focusedEntity, selectedLine: line };
-      setPanelSelections(prev => {
-        const next = [...prev];
-        next[targetIndex] = newSel;
-        return next;
-      });
-      // Unfrozen panels get their history entry from the global-selection sync
-      // block above (setSelectedFile/... below feeds it) — a frozen panel never
-      // touches global state, so it needs its own push here.
-      if (!isPanelHistoryNavRef.current && prevSel && (prevSel.selectedFile || prevSel.selectedDoc) && (
-        prevSel.selectedFile !== newSel.selectedFile ||
-        prevSel.selectedDoc !== newSel.selectedDoc ||
-        prevSel.selectedEntity !== newSel.selectedEntity ||
-        prevSel.selectedLine !== newSel.selectedLine
-      )) {
-        setPanelHistory(prevHist => {
-          const nextHist = [...prevHist];
-          const entry = nextHist[targetIndex] || { past: [], future: [] };
-          nextHist[targetIndex] = appendPanelHistory(entry, prevSel, newSel);
-          return nextHist;
-        });
-      }
-    } else {
-      setSelectedDoc(targetDoc);
-      setSelectedFile(targetDoc ? null : path);
-      setSelectedEntity(focusedEntity);
-      setSelectedLine(targetDoc ? null : line);
-      setPanelSelections(prev => {
-        const next = [...prev];
-        next[targetIndex] = {
-          ...next[targetIndex],
-          selectedEntity: focusedEntity,
-          selectedLine: line
-        };
-        return next;
-      });
-    }
-  };
-
-  // "Open in view" from the Knowledge Graph on a plain document/PDF node. Needed because a graph
-  // panel is pinned to contentType 'graph' (see the SplitPaneWorkspace render
-  // below), so selecting a document there only updates shared selection state
-  // and never surfaces a document panel on its own; this opens/navigates one.
-  //
-  // Always updates the global selection (not just when a 'doc' panel already
-  // existed) — the graph panel is opened frozen (see handleOpenGraphView), so
-  // its own clicks never touch global selectedFile/selectedDoc. Leaving global
-  // state stale here would make the sync effect above see incomingType===null
-  // on its next run (panelConfigs/panelFrozen changing is itself a dependency)
-  // and blank out the doc panel we just seeded via ensurePanelType.
-  const handleDocFocusRequest = (filePath: string, sourceId: number | string | null, openIfMissing: boolean = true) => {
-    if (!sourceId) return;
-    if (!panelConfigs.includes('doc') && !openIfMissing) return;
-    const selectionOverride = {
-      selectedFile: null,
-      selectedDoc: { id: sourceId, name: filePath },
-      selectedEntity: null,
-    };
-    ensurePanelType('doc', selectionOverride);
-    setSelectedDoc({ id: sourceId, name: filePath });
-    setSelectedFile(null);
-    setSelectedLine(null);
-  };
-
-  // Panel-history navigation lives in useWorkspaceLayout.
-  /*
-  const goBackPanel = (index: number) => {
-    const entry = panelHistory[index];
-    if (!entry) return;
-    const currentSel = panelSelections[index] || EMPTY_PANEL_SELECTION;
-    const transition = navigatePanelHistory(entry, currentSel, 'back');
-    if (!transition) return;
-
-    isPanelHistoryNavRef.current = true;
-    setPanelHistory(prev => {
-      const next = [...prev];
-      next[index] = transition.entry;
-      return next;
-    });
-    setPanelSelections(prev => {
-      const next = [...prev];
-      next[index] = transition.selection;
-      return next;
-    });
-    if (!panelFrozen[index]) {
-      setSelectedFile(transition.selection.selectedFile);
-      setSelectedDoc(transition.selection.selectedDoc);
-      setSelectedEntity(transition.selection.selectedEntity);
-      setSelectedLine(transition.selection.selectedLine);
-    }
-    // Reset erst nach dem Commit/Render, das durch die obigen setState-Aufrufe
-    // ausgelöst wird — der Sync-Block liest die Ref synchron währenddessen.
-    setTimeout(() => { isPanelHistoryNavRef.current = false; }, 0);
-  };
-
-  const goForwardPanel = (index: number) => {
-    const entry = panelHistory[index];
-    if (!entry) return;
-    const currentSel = panelSelections[index] || EMPTY_PANEL_SELECTION;
-    const transition = navigatePanelHistory(entry, currentSel, 'forward');
-    if (!transition) return;
-
-    isPanelHistoryNavRef.current = true;
-    setPanelHistory(prev => {
-      const next = [...prev];
-      next[index] = transition.entry;
-      return next;
-    });
-    setPanelSelections(prev => {
-      const next = [...prev];
-      next[index] = transition.selection;
-      return next;
-    });
-    if (!panelFrozen[index]) {
-      setSelectedFile(transition.selection.selectedFile);
-      setSelectedDoc(transition.selection.selectedDoc);
-      setSelectedEntity(transition.selection.selectedEntity);
-      setSelectedLine(transition.selection.selectedLine);
-    }
-    setTimeout(() => { isPanelHistoryNavRef.current = false; }, 0);
-  };
-
-  // Alt+←/→ (Browser-Konvention, kollidiert nicht mit Monaco-Cursor, Chat-
-  // Textarea oder Sucheingaben) navigiert die Verlaufshistorie des zuletzt vom
-  // Mauszeiger betretenen Panels (activePanelIndexRef). Auf Mobile ist immer
-  // nur ein Panel sichtbar — dort wird stattdessen über activeMobileTab aufgelöst,
-  // analog zum renderPanel-Switch weiter unten.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      const idx = isMobile
-        ? (activeMobileTab === 'chat' ? panelConfigs.indexOf('chat')
-          : activeMobileTab === 'graph' ? panelConfigs.indexOf('graph')
-          : panelConfigs.findIndex(c => c !== 'chat' && c !== 'graph'))
-        : activePanelIndexRef.current;
-      if (idx < 0 || idx >= panelConfigs.length) return;
-      e.preventDefault();
-      if (e.key === 'ArrowLeft') goBackPanel(idx);
-      else goForwardPanel(idx);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isMobile, activeMobileTab, panelConfigs, panelHistory, panelSelections, panelFrozen]);
-
-  // Content-/Navigationsstate der "Situation" für den Chat-Snapshot — bewusst ohne
-  // reine UI-Prefs (Theme, Editor-Font, Sidebar-/Panel-Collapse). panelFrozen ist
-  // enthalten, obwohl es wie ein UI-Toggle wirkt: es entscheidet, ob ein Panel an
-  // seine eigene Datei/Doc/Entity gebunden ist statt den globalen Fokus zu spiegeln
-  // (s. Sync-Effekt oben) — ohne es würden beim Restore mehrere Panels auf dieselbe
-  // Auswahl kollabieren.
-  const buildWorkspaceSnapshot = () => ({
-    panelConfigs,
-    panelSelections,
-    panelFocusObject,
-    panelFrozen,
-    activeRightTab,
-    splitPercent,
-    fileNavStack,
-    pinnedCode,
-    selectedProjectId: selectedProject?.id ?? null,
-    selectedSourceId: selectedSource?.id ?? null,
-  });
-
-  // Automatisches, debounced Speichern des Workspace-Snapshots je aktiver Session.
-  useEffect(() => {
-    if (!activeSessionId || isRestoringSnapshotRef.current) return;
-    if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current);
-    snapshotDebounceRef.current = setTimeout(() => {
-      api.updateChatSessionSnapshot(activeSessionId, buildWorkspaceSnapshot())
-        .catch(err => console.error("Failed to save workspace snapshot", err));
-    }, 1200);
-    return () => {
-      if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
-
-  */
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -942,85 +612,45 @@ function AppContent() {
     }
   }, [activeSessionId, connectedSources, ensurePanelType, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
 
-  const handleGutterClick = (panelIndex: number, lineNumber: number, lineContent: string) => {
-    const selection = panelSelections[panelIndex];
-    const filepath = selection?.selectedFile;
-    if (!filepath) return;
-
-    const enclosingEntities = projectEntities.filter((candidate: any) =>
-      candidate.file_path === filepath &&
-      candidate.start_line <= lineNumber &&
-      candidate.end_line >= lineNumber
-    );
-    const entity = selection?.selectedEntity || enclosingEntities[0];
-    const enclosingName = (type: string) => enclosingEntities
-      .filter((candidate: any) => candidate.type === type)
-      .sort((a: any, b: any) => (a.end_line - a.start_line) - (b.end_line - b.start_line))[0]?.name || null;
-    setPinnedCode({
-      filepath,
-      line: lineNumber,
-      label: `${filepath.split('/').pop()}:${lineNumber}`,
-      context: lineContent,
-      sourceId: entity?.source_id || selectedSource?.id || null,
-      program: enclosingName('program'),
-      section: enclosingName('section'),
-      paragraph: enclosingName('paragraph')
-    });
-    ensurePanelType('chat');
-    setActiveMobileTab('chat');
-    setTimeout(() => {
-      const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.focus();
-      }
-    }, 150);
-  };
-
-  // Counterpart to handleGutterClick for the gutter menu's "Etwas zu X fragen"
-  // option — pins the enclosing code object (not just the clicked line) as
-  // chat context. The entity is resolved by SplitPaneWorkspace itself (it
-  // already has the smallest enclosing entity for the clicked line at hand).
-  const handleGutterAskEntity = (panelIndex: number, entity: any) => {
-    if (!entity) return;
-    setPinnedCode({
-      filepath: entity.file_path,
-      line: entity.start_line,
-      label: entity.name,
-      sourceId: entity.source_id || selectedSource?.id || null,
-    });
-    ensurePanelType('chat');
-    setActiveMobileTab('chat');
-    setTimeout(() => {
-      const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.focus();
-      }
-    }, 150);
-  };
-
-  const handleEntitySelect = useCallback(async (ent: any, projectOverride: any = null) => {
-    setSelectedEntity(ent);
-    pinEntityFocus(ent);
-    loadFileReferences(ent.file_path, ent.name, projectOverride);
-
-    await handleFileSelect(ent.file_path, ent.start_line, ent.source_id ?? null, projectOverride);
-  }, [handleFileSelect, loadFileReferences, pinEntityFocus, setSelectedEntity]);
-
-  const handleNavigateBack = useCallback(async () => {
-    if (fileNavStack.length === 0) return;
-    const newStack = fileNavStack.slice(0, -1);
-    const prev = fileNavStack[fileNavStack.length - 1];
-    setFileNavStack(newStack);
-    if (newStack.length === 0) {
-      setIsEditorMaximized(false);
-    }
-    isEditorNavigatingRef.current = true;
-    if (prev.file) {
-      await handleFileSelect(prev.file, null, null);
-    } else if (prev.doc) {
-      await handleFileSelect(prev.doc.name, null, prev.doc.id);
-    }
-  }, [fileNavStack, handleFileSelect, setFileNavStack, setIsEditorMaximized]);
+  const {
+    pinFileFocus,
+    pinEntityFocus,
+    handlePanelEntitySelect,
+    handlePanelFileSelect,
+    handleDocFocusRequest,
+    handleGutterClick,
+    handleGutterAskEntity,
+    handleEntitySelect,
+    handleNavigateBack,
+  } = usePanelNavigation({
+    t,
+    selectedProject,
+    selectedSource,
+    connectedSources,
+    projectEntities,
+    panelConfigs,
+    panelFrozen,
+    panelSelections,
+    fileNavStack,
+    setPinnedCode,
+    setPanelFocusObject,
+    setPanelSelections,
+    setPanelHistory,
+    setActiveMobileTab,
+    setSelectedDoc,
+    setSelectedFile,
+    setSelectedEntity,
+    setSelectedLine,
+    setFileNavStack,
+    setIsEditorMaximized,
+    isPanelHistoryNavRef,
+    isEditorNavigatingRef,
+    addPanel,
+    ensurePanelType,
+    updatePanelEntitySelection,
+    handleFileSelect,
+    loadFileReferences,
+  });
 
   const handleSearchResultSelect = useCallback(async (result: any) => {
     const meta = result.node_meta || {};
