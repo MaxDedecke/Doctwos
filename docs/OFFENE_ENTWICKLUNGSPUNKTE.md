@@ -21,7 +21,6 @@ stehen.
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
 | O-009 | COBOL-Parser / XREF | Quellenweiten Feldindex über Copybook-Grenzen vollständig in `parse.py` integrieren. | Copybooks als eigene Entities parsen, geerbte Felder inklusive `REPLACING` auflösen und das Mengengerüst der `USES`-Kanten prüfen. | Repräsentativer COBOL-Bestand für die Mengenbewertung |
-| O-017 | Fixierte Views / Historie | Wenn eine View fixiert ist, soll die Historie dieser View weiterhin über die Pfeile bedienbar sein. | Historiennavigation von der Fixierungslogik trennen und mit mehreren Views prüfen. | Keine externe Abhängigkeit |
 | O-018 | Job Center | Job-Center-Einträge verschwinden nie und können nicht gelöscht werden. | Aufbewahrungs- und Löschkonzept definieren; Löschmöglichkeit oder automatische Bereinigung implementieren. | Fachliche Entscheidung zur Aufbewahrungsdauer |
 | O-019 | Chat / LLM-Fokus | Der LLM-Fokus kann sich vom angepinnten Objekt im Chat lösen. | Fokuszustand zwischen UI, Request-Metadaten und Antwortkontext durchgängig synchronisieren und sichtbar machen. | Keine externe Abhängigkeit |
 | O-020 | Link Manager / Layout | Link-Manager-View sieht fehlerhaft aus, wenn drei weitere Views geöffnet sind. | Responsive Layout, verfügbare Breite und Überlauf mit vier geöffneten Views prüfen und korrigieren. | Keine externe Abhängigkeit |
@@ -56,6 +55,11 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 ## Erledigt, zuletzt verschoben
 
+- O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
+  sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation
+  arbeitet in fixierten und live Panels gleich; beim Aufheben einer Fixierung wird
+  die bisherige feste Auswahl als Verlaufseintrag erhalten. 14 Frontend-Tests,
+  Typecheck und Produktions-Build grün.
 - O-016 (Knoten-Icons) — 02.09.2026 umgesetzt; zentrale Icon-Zuordnung für
   Dokumente, Code-Entitäten und Webquellen in Graph-, Such-, Topic-, Link- und
   Referenzansichten ergänzt, einschließlich Canvas-Darstellung im Knowledge- und

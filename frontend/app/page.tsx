@@ -56,6 +56,7 @@ import {
 import { cn, copyToClipboard } from "@/lib/utils";
 import { normalizeInitialUserMessage } from "@/lib/chatMessage";
 import { resolvePanelNavigationTarget } from "@/lib/panelNavigation";
+import { appendPanelHistory, EMPTY_PANEL_SELECTION, navigatePanelHistory, type PanelHistoryEntry, type PanelSelection } from "@/lib/panelHistory";
 import { api, API_URL } from './services/api';
 import { SettingsModal } from "@/components/SettingsModal";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
@@ -299,22 +300,12 @@ function AppContent() {
   // angezeigt, getrennt von panelSelections, weil es keine Datei/Doc/Entity ist.
   // Wird in AP-5 zum Fokus-Objekt nach F-067 ausgebaut.
   const [panelFocusObject, setPanelFocusObject] = useState<Array<any | null>>([null]);
-  const [panelSelections, setPanelSelections] = useState<Array<{
-    selectedFile: string | null;
-    selectedDoc: any | null;
-    selectedEntity: any | null;
-    selectedLine: number | null;
-  }>>([
-    { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null },
-  ]);
+  const [panelSelections, setPanelSelections] = useState<PanelSelection[]>([EMPTY_PANEL_SELECTION]);
   // Zurück/Vor-Verlauf je Panel-Slot (index-parallel zu panelConfigs/panelSelections) —
   // rein clientseitig für die laufende Sitzung, bewusst nicht Teil von
   // buildWorkspaceSnapshot. "past"/"future" halten frühere bzw. durch Zurückgehen
   // "übersprungene" Panel-Selections, analog zum Browser-Verlauf.
-  const [panelHistory, setPanelHistory] = useState<Array<{
-    past: Array<{ selectedFile: string | null; selectedDoc: any | null; selectedEntity: any | null; selectedLine: number | null }>;
-    future: Array<{ selectedFile: string | null; selectedDoc: any | null; selectedEntity: any | null; selectedLine: number | null }>;
-  }>>([{ past: [], future: [] }]);
+  const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>([{ past: [], future: [] }]);
   // Unterdrückt das Aufzeichnen neuer History-Einträge, während goBackPanel/
   // goForwardPanel selbst eine Panel-Selection setzen — sonst würde ein
   // Zurückgehen sofort wieder einen (redundanten) Vorwärts-Eintrag erzeugen.
@@ -383,7 +374,7 @@ function AppContent() {
           const nextHist = [...prevHist];
           historyPushIdxs.forEach(idx => {
             const entry = nextHist[idx] || { past: [], future: [] };
-            nextHist[idx] = { past: [...entry.past, prevSelections[idx]], future: [] };
+            nextHist[idx] = appendPanelHistory(entry, prevSelections[idx], nextSelections[idx]);
           });
           return nextHist;
         });
@@ -392,25 +383,36 @@ function AppContent() {
   }
 
   const togglePanelFreeze = (index: number) => {
+    const willUnfreeze = panelFrozen[index];
     setPanelFrozen(prev => {
       const next = [...prev];
       next[index] = !next[index];
-
-      // Catch up on unfreeze
-      if (!next[index]) {
-        setPanelSelections(prevSels => {
-          const nextSels = [...prevSels];
-          nextSels[index] = {
-            selectedFile,
-            selectedDoc,
-            selectedEntity,
-            selectedLine: null
-          };
-          return nextSels;
-        });
-      }
       return next;
     });
+
+    // Catch up on unfreeze, but keep the fixed selection in this panel's
+    // history first. This makes the freeze toggle a normal navigation event:
+    // the arrows remain useful after a panel rejoins the global selection.
+    if (willUnfreeze) {
+      const previousSelection = panelSelections[index] || EMPTY_PANEL_SELECTION;
+      const liveSelection: PanelSelection = {
+        selectedFile,
+        selectedDoc,
+        selectedEntity,
+        selectedLine: null,
+      };
+      setPanelHistory(prevHist => {
+        const nextHist = [...prevHist];
+        const entry = nextHist[index] || { past: [], future: [] };
+        nextHist[index] = appendPanelHistory(entry, previousSelection, liveSelection);
+        return nextHist;
+      });
+      setPanelSelections(prevSels => {
+        const nextSels = [...prevSels];
+        nextSels[index] = liveSelection;
+        return nextSels;
+      });
+    }
   };
 
   const togglePanelCollapse = (index: number) => {
@@ -625,7 +627,7 @@ function AppContent() {
         setPanelHistory(prevHist => {
           const nextHist = [...prevHist];
           const entry = nextHist[targetIndex] || { past: [], future: [] };
-          nextHist[targetIndex] = { past: [...entry.past, prevSel], future: [] };
+          nextHist[targetIndex] = appendPanelHistory(entry, prevSel, newSel);
           return nextHist;
         });
       }
@@ -687,7 +689,7 @@ function AppContent() {
       setPanelHistory(prevHist => {
         const nextHist = [...prevHist];
         const entry = nextHist[index] || { past: [], future: [] };
-        nextHist[index] = { past: [...entry.past, prevSel], future: [] };
+        nextHist[index] = appendPanelHistory(entry, prevSel, { ...prevSel, selectedEntity: ent });
         return nextHist;
       });
     }
@@ -704,26 +706,27 @@ function AppContent() {
   // würde der Zug selbst sofort wieder einen (redundanten) Verlaufseintrag anlegen.
   const goBackPanel = (index: number) => {
     const entry = panelHistory[index];
-    if (!entry || entry.past.length === 0) return;
-    const currentSel = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
-    const targetSel = entry.past[entry.past.length - 1];
+    if (!entry) return;
+    const currentSel = panelSelections[index] || EMPTY_PANEL_SELECTION;
+    const transition = navigatePanelHistory(entry, currentSel, 'back');
+    if (!transition) return;
 
     isPanelHistoryNavRef.current = true;
     setPanelHistory(prev => {
       const next = [...prev];
-      next[index] = { past: entry.past.slice(0, -1), future: [currentSel, ...entry.future] };
+      next[index] = transition.entry;
       return next;
     });
     setPanelSelections(prev => {
       const next = [...prev];
-      next[index] = targetSel;
+      next[index] = transition.selection;
       return next;
     });
     if (!panelFrozen[index]) {
-      setSelectedFile(targetSel.selectedFile);
-      setSelectedDoc(targetSel.selectedDoc);
-      setSelectedEntity(targetSel.selectedEntity);
-      setSelectedLine(targetSel.selectedLine);
+      setSelectedFile(transition.selection.selectedFile);
+      setSelectedDoc(transition.selection.selectedDoc);
+      setSelectedEntity(transition.selection.selectedEntity);
+      setSelectedLine(transition.selection.selectedLine);
     }
     // Reset erst nach dem Commit/Render, das durch die obigen setState-Aufrufe
     // ausgelöst wird — der Sync-Block liest die Ref synchron währenddessen.
@@ -732,26 +735,27 @@ function AppContent() {
 
   const goForwardPanel = (index: number) => {
     const entry = panelHistory[index];
-    if (!entry || entry.future.length === 0) return;
-    const currentSel = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
-    const targetSel = entry.future[0];
+    if (!entry) return;
+    const currentSel = panelSelections[index] || EMPTY_PANEL_SELECTION;
+    const transition = navigatePanelHistory(entry, currentSel, 'forward');
+    if (!transition) return;
 
     isPanelHistoryNavRef.current = true;
     setPanelHistory(prev => {
       const next = [...prev];
-      next[index] = { past: [...entry.past, currentSel], future: entry.future.slice(1) };
+      next[index] = transition.entry;
       return next;
     });
     setPanelSelections(prev => {
       const next = [...prev];
-      next[index] = targetSel;
+      next[index] = transition.selection;
       return next;
     });
     if (!panelFrozen[index]) {
-      setSelectedFile(targetSel.selectedFile);
-      setSelectedDoc(targetSel.selectedDoc);
-      setSelectedEntity(targetSel.selectedEntity);
-      setSelectedLine(targetSel.selectedLine);
+      setSelectedFile(transition.selection.selectedFile);
+      setSelectedDoc(transition.selection.selectedDoc);
+      setSelectedEntity(transition.selection.selectedEntity);
+      setSelectedLine(transition.selection.selectedLine);
     }
     setTimeout(() => { isPanelHistoryNavRef.current = false; }, 0);
   };

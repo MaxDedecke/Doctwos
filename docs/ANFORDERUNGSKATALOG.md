@@ -107,7 +107,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-066 | Callgraph für 0–3 Hops mit CALL/PERFORM/GOTO/COPY, Begrenzung, Filtern, unresolved/dynamic Darstellung und JSON/CSV/GraphML-Export. | ERFÜLLT – JCL/`EXECUTES` ist wegen DOC-F-026 nicht Teil des aktuellen v1-Callgraphs. |
 | DOC-F-067 | Callgraph- und Analysezugriffe respektieren Projektberechtigungen. | ERFÜLLT |
 | DOC-F-068 | Klickbare Code-Entitäten und Rücksprünge zwischen Entität, Datei und Referenz. | ERFÜLLT |
-| DOC-F-069 | Zeilenreferenz/Glyph in Monaco öffnet oder fokussiert die zugehörige Stelle und kann für den Chat verwendet werden. | TEILWEISE – die Zeilenreferenz funktioniert; Fokus-Synchronisierung bei LLM-Anfragen und die History in fixierten Views sind noch offene Nacharbeiten (O-017/O-019). |
+| DOC-F-069 | Zeilenreferenz/Glyph in Monaco öffnet oder fokussiert die zugehörige Stelle und kann für den Chat verwendet werden. | TEILWEISE – die Zeilenreferenz funktioniert; die Fokus-Synchronisierung bei LLM-Anfragen ist noch eine offene Nacharbeit (O-019). |
 | DOC-F-070 | Sitzungen besitzen UUIDs; Teilen ist optional und soll nur explizit öffentliche Sitzungen sichtbar machen. | TEILWEISE – UUID/Public-Felder und Teilen existieren; die Zugriffskontrolle der UUID-/Snapshot-Routen muss für dieses Versprechen nachgeschärft bzw. formal abgenommen werden. |
 | DOC-F-071 | Workspace-Snapshot kann gespeichert und wiederhergestellt werden. | TEILWEISE – umgesetzt; Snapshot-Inhalt liegt als JSON vor und die Zugriffskontrolle ist noch nicht vollständig dokumentiert/abgenommen. |
 | DOC-F-072 | Deutsch/Englisch, Themes und responsive Darstellung. | ERFÜLLT |
@@ -175,4 +175,3 @@ Relevante Nachweise liegen insbesondere in:
 - `docs/ACCESS_CONTROL.md`
 - `docs/OSS-CLEARING.md`
 - `backend/api/`, `backend/services/`, `parser/cobol/`, `parser/connectors/` und `frontend/components/`
-
