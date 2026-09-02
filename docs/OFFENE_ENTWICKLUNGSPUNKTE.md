@@ -26,7 +26,6 @@ stehen.
 | O-020 | Link Manager / Layout | Link-Manager-View sieht fehlerhaft aus, wenn drei weitere Views geöffnet sind. | Responsive Layout, verfügbare Breite und Überlauf mit vier geöffneten Views prüfen und korrigieren. | Keine externe Abhängigkeit |
 | O-021 | View-Layout | Das Verhältnis der Views soll per Drag-and-drop mit der Maus horizontal und vertikal veränderbar sein. Das Fadenkreuz aus horizontalem und vertikalem Abstand zwischen den Views soll als gemeinsamer Resize-Griff dienen. | Interaktiven Kreuz-/Trennlinien-Griff umsetzen, Größenänderung in beide Richtungen ermöglichen und Mindestgrößen sowie Verhalten bei mehreren Views testen. | Keine externe Abhängigkeit |
 | O-022 | Beobachtbarkeit / Sicherheit | Serverseitig protokollieren, welche MCP-Werkzeuge mit welchen Argumenten pro Chat-Turn ausgeführt wurden. | Strukturierten, datensparsamen Audit-Log für Tool-Aufrufe ergänzen und Aufbewahrung sowie Einsicht durch Admins festlegen. | Fachliche Entscheidung zur Aufbewahrung |
-| O-027 | Frontend-Architektur / AI-Settings | AI-Modell-, Profil- und Editor-Einstellungen liegen weiterhin als lokaler Querzustand im App-Orchestrator. | AI-Modell-/Profil-Lifecycle und verbleibende Settings-Zustände in einen eigenen Hook bzw. Context überführen, sodass `page.tsx` nur noch die gemeinsame Verdrahtung übernimmt. | O-004, O-005 |
 
 ## Umsetzungs- und Übergabestatus
 
@@ -49,8 +48,8 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 - Der frühere GPL-Fund `Unidecode` wurde durch das MIT-Shim ersetzt (E-7,
   08.08.2026); er ist kein Release-Blocker mehr.
 - Die Refaktorierung des `SettingsModal` bis zur Shell und die Aufteilung der
-  Tabs ist erledigt. Offen bleiben dort nur die in O-004/O-005 genannten
-  `page.tsx`-Nacharbeiten.
+  Tabs ist erledigt. Die verbliebenen `page.tsx`-Nacharbeiten aus O-004/O-005
+  und O-027 sind ebenfalls abgeschlossen.
 - Die frühere Testlücke bei Orphan-Schutz und Chunked-Downloads wurde in AP-8
   geschlossen.
 
@@ -81,6 +80,13 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   `WorkspaceShell`. Das Mapping über stabile Panel-Indizes, Panel-History und
   Layoutwechsel bleiben erhalten. 27 Frontend-Tests, Typecheck, ESLint und
   Produktions-Build grün.
+- O-027 (AI-Settings) — 02.09.2026 umgesetzt; `useAiSettings` kapselt
+  Profilmigration, aktives Profil, Profilparameter, Modellinformationen und
+  verfügbare Modelle inklusive localStorage-/API-Lifecycle. `useDisplaySettings`
+  kapselt Theme- und Editorpräferenzen inklusive Hydration-sicherer
+  Wiederherstellung. Chat, Link Manager und Settings verwenden nun denselben
+  Profilwechselpfad; 30 Frontend-Tests, Typecheck, ESLint und Produktions-Build
+  grün.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation

@@ -40,7 +40,6 @@ export const LayoutSettingsTab: React.FC = () => {
 
   const handleThemeToggle = (newTheme: string) => {
     setTheme(newTheme);
-    localStorage.setItem('doctus-theme', newTheme);
     showToast(newTheme === 'dark' ? t('settings.toast.darkModeEnabled') : t('settings.toast.lightModeEnabled'), "success");
   };
 

@@ -27,7 +27,7 @@
 >   notion` inzwischen auf `true`.
 >
 > - §5 (Frontend-God-Components `page.tsx`/`SettingsModal.tsx` entflechten):
->   **Schritte 1–4 erledigt 2026-09-02.**
+>   **Schritte 1–4 und O-027 erledigt 2026-09-02.**
 >   **Schritt 1 (SettingsContext) erledigt** — die
 >   ~36 Einzel-Props von `SettingsModal` laufen jetzt über `components/settings/
 >   SettingsContext.tsx` statt durch `page.tsx` gedrillt; die Aufrufstelle in
@@ -59,6 +59,12 @@
 >   renderbaren Header-/Sidebar-Bereiche sind mit `React.memo` abgeschirmt.
 >   Verifiziert mit Typecheck, ESLint, 18 Frontend-Tests und Produktions-Build.
 >   Die XSS-/401-Befunde desselben Reviews sind separat gefixt (Commit `41779bc`).
+>   **O-027 erledigt:** `useAiSettings` übernimmt den AI-Modell-/Profil-Lifecycle
+>   einschließlich Legacy-Migration, Profilwechsel-Synchronisierung,
+>   Modellabfragen und Persistenz; `useDisplaySettings` übernimmt Theme- und
+>   Editorpräferenzen samt Hydration-sicherer Wiederherstellung. `page.tsx`
+>   enthält dafür nur noch die gemeinsame Verdrahtung. 30 Frontend-Tests,
+>   Typecheck, ESLint und Produktions-Build grün.
 >
 > Dieses Dokument ist bewusst so
 > geschrieben, dass eine andere/spätere Session ohne Rückfragen direkt mit

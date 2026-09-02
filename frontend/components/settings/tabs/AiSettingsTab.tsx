@@ -20,8 +20,8 @@ import {
 // Schritt 2). Die LLM-Profil-Formularzustände lagen zuvor auf Modal-Ebene, wurden
 // aber ausschließlich von diesem Tab genutzt und sind jetzt hier lokal gekapselt.
 // Die zugehörigen Handler (Add/Edit/Delete/Save Profile, Save AI-Params) sind
-// mitgewandert. Global geteilte LLM-Settings (llmProfiles, activeProfileId,
-// temperature, systemPrompt) kommen weiterhin via useSettings() aus dem Context.
+// mitgewandert. Der geteilte AI-Zustand und sein localStorage/API-Lifecycle
+// kommen via useSettings() aus dem Context, der intern useAiSettings nutzt.
 export const AiSettingsTab: React.FC = () => {
   const { t } = useLanguage();
   const features = useFeatures();
@@ -77,7 +77,6 @@ export const AiSettingsTab: React.FC = () => {
     if (activeProfileId === id) {
       const nextActiveId = updated[0].id;
       setActiveProfileId(nextActiveId);
-      localStorage.setItem('doctus-active-profile-id', nextActiveId);
     }
     showToast(t('settings.toast.profileDeleted'), "success");
   };
@@ -413,17 +412,7 @@ export const AiSettingsTab: React.FC = () => {
             <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.activeProfileLabel')}</label>
             <Select
               value={activeProfileId}
-              onValueChange={val => {
-                setActiveProfileId(val);
-                localStorage.setItem('doctus-active-profile-id', val);
-
-                // Sync temperature and systemPrompt when profile changes
-                const profile = llmProfiles.find(p => p.id === val);
-                if (profile) {
-                  if (profile.temperature !== undefined) setTemperature(profile.temperature);
-                  if (profile.systemPrompt !== undefined) setSystemPrompt(profile.systemPrompt);
-                }
-              }}
+              onValueChange={setActiveProfileId}
             >
               <SelectTrigger className={cn(
                 "w-full h-8 text-xs focus:ring-0",

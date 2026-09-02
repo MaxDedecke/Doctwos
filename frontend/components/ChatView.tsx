@@ -781,7 +781,6 @@ export function ChatView({
                     value={activeProfileId}
                     onValueChange={(val) => {
                       setActiveProfileId(val);
-                      localStorage.setItem('doctus-active-profile-id', val);
                       const selectedProf = llmProfiles.find(p => p.id === val);
                       if (selectedProf) {
                         showToast(t('chatView.modelSwitchedToast', { name: selectedProf.name }), "success");

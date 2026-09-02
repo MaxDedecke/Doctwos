@@ -71,7 +71,6 @@ export function GlobalSearch({
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    localStorage.setItem('doctus-theme', newTheme);
   };
 
   const [query, setQuery] = useState('');

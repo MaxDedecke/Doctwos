@@ -57,6 +57,8 @@ import { useChatSessions } from '@/hooks/useChatSessions';
 import { useChatController } from '@/hooks/useChatController';
 import { usePanelNavigation } from '@/hooks/usePanelNavigation';
 import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
+import { useAiSettings } from '@/hooks/useAiSettings';
+import { useDisplaySettings } from '@/hooks/useDisplaySettings';
 
 const MemoSettingsModal = React.memo(SettingsModal);
 const MemoGlobalSearch = React.memo(GlobalSearch);
@@ -110,32 +112,36 @@ function AppContent() {
 
   const [toast, setToast] = useState<any | null>(null);
 
-  // --- Analysis & AI Models ---
-  const [activeLlmModel, setActiveLlmModel] = useState("qwen2.5:1.5b");
-  const [activeEmbeddingModel, setActiveEmbeddingModel] = useState("nomic-embed-text");
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [temperature, setTemperature] = useState(0.7);
-  const [systemPrompt, setSystemPrompt] = useState(
-    "Du bist Doctus, ein Enterprise-Wissensassistent. Du hilfst dabei, große, gewachsene Projektlandschaften zu verstehen — "
-    + "von COBOL-Beständen über Copybooks und JCL bis zu Dokumenten und angebundenen Wissensquellen (z. B. Confluence, Jira). "
-    + "Antworte präzise und begründet, stütze dich ausschließlich auf die dir bereitgestellten und indexierten Inhalte, "
-    + "und mache transparent, wenn dir Informationen fehlen oder unsicher sind."
-  );
-  const [llmProfiles, setLlmProfiles] = useState<any[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string>("ollama-default");
-
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState('repos');
-  const [theme, setTheme] = useState('dark');
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
   const isEditorNavigatingRef = useRef(false);
-  const [editorFontSize, setEditorFontSize] = useState(13);
-  const [editorMinimap, setEditorMinimap] = useState(true);
-  const [editorFontFamily, setEditorFontFamily] = useState("'JetBrains Mono', monospace");
-
+  const aiSettings = useAiSettings({ isLoggedIn, t });
+  const displaySettings = useDisplaySettings();
+  const {
+    activeLlmModel,
+    setActiveLlmModel,
+    activeEmbeddingModel,
+    setActiveEmbeddingModel,
+    availableModels,
+    temperature,
+    setTemperature,
+    systemPrompt,
+    setSystemPrompt,
+    llmProfiles,
+    setLlmProfiles,
+    activeProfileId,
+    setActiveProfileId,
+  } = aiSettings;
+  const {
+    theme,
+    setTheme,
+    editorFontSize,
+    setEditorFontSize,
+    editorMinimap,
+    setEditorMinimap,
+    editorFontFamily,
+    setEditorFontFamily,
+  } = displaySettings;
 
 
   const chatEndRef = useRef(null);
@@ -210,7 +216,7 @@ function AppContent() {
 
   // Mobile-tab synchronization lives in useWorkspaceLayout.
 
-  // Initial connection check, repositories load & settings restoration
+  // Initial connection check and repository loading
   useEffect(() => {
     // Monaco's harmless "Canceled" error is already suppressed globally by the
     // capture-phase <script> in app/layout.tsx, which runs in <head> before
@@ -218,99 +224,8 @@ function AppContent() {
     // was dead weight (layout's stopImmediatePropagation() fires first).
     (() => {
 
-    // 1. Restore Theme from LocalStorage
-    const savedTheme = localStorage.getItem('doctus-theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      setTheme(savedTheme);
-    }
-
-    const savedProfilesStr = localStorage.getItem('doctus-llm-profiles');
-    let profilesList: any[] = [];
-    if (savedProfilesStr) {
-      try {
-        profilesList = JSON.parse(savedProfilesStr);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    if (profilesList.length === 0) {
-      const legacyProvider = localStorage.getItem('doctus-llm-provider') || 'ollama';
-      const legacyModel = localStorage.getItem('doctus-llm-model') || "qwen2.5:1.5b";
-      const legacyApiKey = localStorage.getItem('doctus-llm-api-key') || '';
-      const legacyBaseUrl = localStorage.getItem('doctus-llm-base-url') || '';
-
-      profilesList = [
-        {
-          id: "ollama-default",
-          name: t('page.defaultLlmProfiles.localOllama'),
-          provider: "ollama",
-          model: legacyProvider === 'ollama' ? legacyModel : "qwen2.5:1.5b"
-        }
-      ];
-
-      if (legacyProvider !== 'ollama' || (legacyProvider === 'ollama' && legacyModel !== 'qwen2.5:1.5b')) {
-        profilesList.push({
-          id: "custom-legacy",
-          name: legacyProvider === 'openai' ? t('page.defaultLlmProfiles.companyGpt') : t('page.defaultLlmProfiles.providerModel', { provider: legacyProvider.toUpperCase() }),
-          provider: legacyProvider,
-          model: legacyModel,
-          apiKey: legacyApiKey,
-          baseUrl: legacyBaseUrl
-        });
-      }
-      localStorage.setItem('doctus-llm-profiles', JSON.stringify(profilesList));
-    }
-
-    setLlmProfiles(profilesList);
-
-    const savedActiveId = localStorage.getItem('doctus-active-profile-id');
-    if (savedActiveId && profilesList.some(p => p.id === savedActiveId)) {
-      setActiveProfileId(savedActiveId);
-
-      // Restore AI Parameters from active profile
-      const activeProfile = profilesList.find(p => p.id === savedActiveId);
-      if (activeProfile) {
-        if (activeProfile.temperature !== undefined) setTemperature(activeProfile.temperature);
-        if (activeProfile.systemPrompt !== undefined) setSystemPrompt(activeProfile.systemPrompt);
-      }
-    } else {
-      const initialId = profilesList[0]?.id || "ollama-default";
-      setActiveProfileId(initialId);
-      localStorage.setItem('doctus-active-profile-id', initialId);
-
-      // Restore from the first profile if no active one was saved
-      const firstProfile = profilesList[0];
-      if (firstProfile) {
-        if (firstProfile.temperature !== undefined) setTemperature(firstProfile.temperature);
-        if (firstProfile.systemPrompt !== undefined) setSystemPrompt(firstProfile.systemPrompt);
-      }
-    }
-
     })();
-    // Intentionally mount-once: only reads/writes localStorage-backed profile
-    // state. Including `t` would re-run the whole restore (and, for users on
-    // first run with no saved profiles yet, rebuild the default profile names)
-    // on every language switch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Model configuration is independent from project, source, and session data.
-  // Keep its authenticated lifecycle local to the AI settings domain.
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    api.getModelInfo()
-      .then(res => {
-        if (res.data.llm) setActiveLlmModel(res.data.llm);
-        if (res.data.embedding) setActiveEmbeddingModel(res.data.embedding);
-      })
-      .catch(err => console.error('Failed to load model info:', err));
-    api.getModels()
-      .then(res => {
-        if (res.data.models) setAvailableModels(res.data.models);
-      })
-      .catch(err => console.error('Failed to load available models:', err));
-  }, [isLoggedIn]);
 
   // Handle chat UUID from URL
   useEffect(() => {
@@ -761,6 +676,16 @@ function AppContent() {
     setFiles,
     setProjects,
     setSelectedProject,
+    setActiveEmbeddingModel,
+    setActiveLlmModel,
+    setActiveProfileId,
+    setEditorFontFamily,
+    setEditorFontSize,
+    setEditorMinimap,
+    setLlmProfiles,
+    setSystemPrompt,
+    setTemperature,
+    setTheme,
     setWorkspaceSplit,
   ]);
 
