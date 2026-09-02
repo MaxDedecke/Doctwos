@@ -146,8 +146,30 @@ describe('useChatController', () => {
 
     const { result } = renderHook(() => useControllerHarness({
       activeSessionId: 7,
+      selectedProject: { id: 99, name: 'Current project' },
+      selectedSource: { id: 77, name: 'Current source' },
+      pinnedCode: { filepath: 'current.cbl', line: 4, context: 'Current focus', sourceId: 77 },
       chatMessages: [
-        { id: 10, role: 'user', content: 'Erkläre das', metadata: { refs: [{ file: 'main.cbl' }] } },
+        {
+          id: 10,
+          role: 'user',
+          content: 'Erkläre das',
+          metadata: {
+            project: { id: 11, name: 'Original project' },
+            source: { id: 8, name: 'Original source' },
+            focus: {
+              project: { id: 11, name: 'Original project' },
+              source: { id: 8, name: 'Original source' },
+              pinned: {
+                filepath: 'main.cbl',
+                line: 42,
+                context: 'Original focus',
+                sourceId: 8,
+              },
+            },
+            refs: [{ file: 'main.cbl', line: 42 }],
+          },
+        },
         { id: 20, role: 'assistant', content: 'Alte Antwort' },
       ],
     }));
@@ -160,6 +182,11 @@ describe('useChatController', () => {
     expect(request).toMatchObject({
       message: 'Erkläre das',
       session_id: 7,
+      project_id: 11,
+      source_id: 8,
+      pinned_file: 'main.cbl',
+      pinned_line: 42,
+      pinned_context: 'Original focus',
       metadata: { refs: [{ file: 'main.cbl' }] },
       retry_of_message_id: 20,
     });

@@ -74,14 +74,22 @@ export function usePanelNavigation({
   handleFileSelect,
   loadFileReferences,
 }: PanelNavigationOptions) {
-  const pinFileFocus = useCallback((path: string | null, line: number | null = null) => {
+  const pinFileFocus = useCallback((path: string | null, line: number | null = null, sourceId: number | string | null = null) => {
     if (!path) return;
-    setPinnedCode({ filepath: path, line: line || 0 });
+    setPinnedCode({ filepath: path, line: line ?? 0, sourceId });
   }, [setPinnedCode]);
 
   const pinEntityFocus = useCallback((entity: any) => {
     if (!entity) return;
-    setPinnedCode({ filepath: entity.file_path, line: entity.start_line, label: entity.name });
+    setPinnedCode({
+      filepath: entity.file_path,
+      line: entity.start_line,
+      label: entity.name,
+      sourceId: entity.source_id ?? null,
+      program: entity.program ?? null,
+      section: entity.section ?? null,
+      paragraph: entity.paragraph ?? null,
+    });
   }, [setPinnedCode]);
 
   const handleObjectFocus = useCallback((object: any, panelIndex: number) => {
@@ -150,6 +158,7 @@ export function usePanelNavigation({
         preserveFrozenTarget,
       });
       if (resolution.shouldOpenNewPanel) {
+        pinFileFocus(path, line, resolvedSourceId);
         addPanel(targetType, {
           selectedFile: path,
           selectedDoc: targetDoc,
@@ -167,7 +176,7 @@ export function usePanelNavigation({
     // A Call-Graph click must not rewrite the graph's own frozen selection.
     if (preserveFrozenTarget && panelFrozen[targetIndex]) return;
 
-    pinFileFocus(path, line);
+    pinFileFocus(path, line, resolvedSourceId);
 
     if (panelFrozen[targetIndex]) {
       const previousSelection = panelSelections[targetIndex];
@@ -221,10 +230,11 @@ export function usePanelNavigation({
       selectedEntity: null,
     };
     ensurePanelType('doc', selectionOverride);
+    pinFileFocus(filePath, null, sourceId);
     setSelectedDoc({ id: sourceId, name: filePath });
     setSelectedFile(null);
     setSelectedLine(null);
-  }, [ensurePanelType, panelConfigs, setSelectedDoc, setSelectedFile, setSelectedLine]);
+  }, [ensurePanelType, panelConfigs, pinFileFocus, setSelectedDoc, setSelectedFile, setSelectedLine]);
 
   const handleGutterClick = useCallback((panelIndex: number, lineNumber: number, lineContent: string) => {
     const selection = panelSelections[panelIndex];

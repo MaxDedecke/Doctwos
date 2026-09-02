@@ -99,6 +99,11 @@ describe('usePanelNavigation', () => {
       selectedEntity: null,
       selectedLine: null,
     }, false);
+    expect(result.current.pinnedCode).toMatchObject({
+      filepath: 'manual.pdf',
+      line: 0,
+      sourceId: 8,
+    });
     expect(result.current.activeMobileTab).toBe('editor');
   });
 

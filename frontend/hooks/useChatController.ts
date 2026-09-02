@@ -4,6 +4,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import { api } from '@/app/services/api';
 import { copyToClipboard } from '@/lib/utils';
 import { normalizeInitialUserMessage } from '@/lib/chatMessage';
+import {
+  chatFocusRequestFields,
+  createChatMetadata,
+  createChatTurnFocus,
+  getChatTurnFocus,
+} from '@/lib/chatFocus';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Toast = (message: string, type?: string) => void;
@@ -132,14 +138,15 @@ export function useChatController({
                 if (!activeSessionId && newSessionId) {
                   ignoreUrlSyncRef.current = true;
                   setActiveSessionId(newSessionId);
+                  const requestFocus = requestBody.metadata?.focus;
                   const newSession = {
                     id: newSessionId,
                     uuid: newSessionUuid,
                     title: data.session_title || (requestBody.message.length > 28 ? requestBody.message.substring(0, 25) + '...' : requestBody.message),
-                    project_id: selectedProject?.id,
-                    project: selectedProject,
-                    source_id: selectedSource?.id || null,
-                    source: selectedSource
+                    project_id: requestBody.project_id ?? null,
+                    project: requestFocus?.project ?? selectedProject,
+                    source_id: requestBody.source_id ?? null,
+                    source: requestFocus?.source ?? selectedSource,
                   };
                   setSessions(prev => [newSession, ...prev]);
 
@@ -299,28 +306,11 @@ export function useChatController({
     if (!msgToSend || isLoading) return;
 
     const userMsgContent = msgToSend;
+    const turnFocus = createChatTurnFocus(selectedProject, selectedSource, pinnedCode);
     const newUserMsg = {
       role: 'user',
       content: userMsgContent,
-      metadata: {
-        project: selectedProject ? { name: selectedProject.name, id: selectedProject.id } : null,
-        source: selectedSource ? { name: selectedSource.name, id: selectedSource.id } : null,
-        pinned: pinnedCode ? {
-          filepath: pinnedCode.filepath,
-          line: pinnedCode.line,
-          label: pinnedCode.label,
-          source_id: pinnedCode.sourceId || null
-        } : null,
-        refs: pinnedCode?.line ? [{
-          file: pinnedCode.filepath,
-          line: pinnedCode.line,
-          source_id: pinnedCode.sourceId || null,
-          program: pinnedCode.program || null,
-          section: pinnedCode.section || null,
-          paragraph: pinnedCode.paragraph || null
-        }] : [],
-        ...extraMetadata
-      }
+      metadata: createChatMetadata(turnFocus, extraMetadata),
     };
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
@@ -342,19 +332,11 @@ export function useChatController({
     const textareaEl = document.getElementById('chat-textarea') as HTMLTextAreaElement | null;
     if (textareaEl) textareaEl.style.height = 'auto';
 
-    // The pin stays attached across messages until the user removes it
-    // manually; it is the ongoing subject of the conversation.
-    const currentPinned = pinnedCode;
-
     await runChatStream({
       message: userMsgContent,
       session_id: activeSessionId,
-      project_id: selectedProject?.id,
-      source_id: selectedSource?.id || null,
+      ...chatFocusRequestFields(turnFocus),
       branch,
-      pinned_file: currentPinned?.filepath || null,
-      pinned_line: currentPinned?.line || null,
-      pinned_context: currentPinned?.context || null,
       temperature,
       system_prompt: systemPrompt,
       llm_provider: activeProfile?.provider || 'ollama',
@@ -391,25 +373,23 @@ export function useChatController({
     });
     setIsLoading(true);
 
+    const turnFocus = getChatTurnFocus(userMsg);
+
     await runChatStream({
       message: userMsg.content,
       session_id: activeSessionId,
-      project_id: selectedProject?.id,
-      source_id: selectedSource?.id || null,
+      ...chatFocusRequestFields(turnFocus),
       branch,
-      pinned_file: pinnedCode?.filepath || null,
-      pinned_line: pinnedCode?.line || null,
-      pinned_context: pinnedCode?.context || null,
       temperature,
       system_prompt: systemPrompt,
       llm_provider: activeProfile?.provider || 'ollama',
       llm_model: activeProfile?.model || undefined,
       llm_api_key: activeProfile?.apiKey || undefined,
       llm_base_url: activeProfile?.baseUrl || undefined,
-      metadata: userMsg.metadata,
+      metadata: createChatMetadata(turnFocus, userMsg.metadata),
       retry_of_message_id: assistantMsg.id
     }, index);
-  }, [activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setIsLoading, systemPrompt, temperature, t]);
+  }, [activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
 
   const handleSessionSelect = useCallback(async (session: any) => {
     ignoreUrlSyncRef.current = true;

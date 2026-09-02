@@ -570,7 +570,7 @@ function AppContent() {
       }, targetProject);
     } else if (result.node_type === 'document') {
       const filePath = meta.file_path || result.node_label;
-      pinFileFocus(filePath);
+      pinFileFocus(filePath, null, meta.source_id ?? null);
       await handleFileSelect(filePath, null, meta.source_id, targetProject);
     } else if (result.node_type === 'knowledge_source') {
       setSelectedSource({ id: result.node_id, name: result.node_label, project_id: meta.project_id, type: meta.type });
@@ -602,7 +602,7 @@ function AppContent() {
 
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
   const handleSidebarFileSelect = useCallback((path: string, line?: number, sourceId?: string) => {
-    pinFileFocus(path, line ?? null);
+    pinFileFocus(path, line ?? null, sourceId ?? null);
     return handleFileSelect(path, line, sourceId);
   }, [handleFileSelect, pinFileFocus]);
 
