@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/app/services/api';
 
 type Translate = (key: string, values?: Record<string, unknown>) => string;
@@ -64,7 +64,7 @@ export function useKnowledgeSources({
       .catch((error) => console.error('Failed to load knowledge sources:', error));
   }, [isLoggedIn]);
 
-  const togglePinSource = (sourceId: number) => {
+  const togglePinSource = useCallback((sourceId: number) => {
     setPinnedSourceIds((previous) => {
       if (previous.includes(sourceId)) {
         const next = previous.filter((id) => id !== sourceId);
@@ -79,9 +79,9 @@ export function useKnowledgeSources({
       localStorage.setItem('pinnedSourceIds', JSON.stringify(next));
       return next;
     });
-  };
+  }, [showToast, t]);
 
-  const loadFileReferences = async (filePath: string, entityName: string | null = null, projectOverride: any | null = null) => {
+  const loadFileReferences = useCallback(async (filePath: string, entityName: string | null = null, projectOverride: any | null = null) => {
     const project = projectOverride || selectedProject;
     if (!project) return;
     setIsLoadingReferences(true);
@@ -94,7 +94,7 @@ export function useKnowledgeSources({
     } finally {
       setIsLoadingReferences(false);
     }
-  };
+  }, [selectedProject]);
 
   return {
     selectedSource,

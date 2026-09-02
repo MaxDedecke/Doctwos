@@ -179,7 +179,7 @@ export function useWorkspaceLayout({
   }
   /* eslint-enable react-hooks/refs, react-hooks/immutability */
 
-  const togglePanelFreeze = (index: number) => {
+  const togglePanelFreeze = useCallback((index: number) => {
     const willUnfreeze = panelFrozen[index];
     setPanelFrozen((previous) => {
       const next = [...previous];
@@ -202,17 +202,17 @@ export function useWorkspaceLayout({
         return next;
       });
     }
-  };
+  }, [panelFrozen, panelSelections, selectedDoc, selectedEntity, selectedFile]);
 
-  const togglePanelCollapse = (index: number) => {
+  const togglePanelCollapse = useCallback((index: number) => {
     setCollapsedPanels((previous) => {
       const next = [...previous];
       next[index] = !next[index];
       return next;
     });
-  };
+  }, []);
 
-  const closePanel = (index: number) => {
+  const closePanel = useCallback((index: number) => {
     if (panelConfigs.length <= 1) return;
     setPanelConfigs((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelFrozen((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
@@ -221,9 +221,9 @@ export function useWorkspaceLayout({
     setPanelHistory((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelFocusObject((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     activePanelIndexRef.current = Math.max(0, index - 1);
-  };
+  }, [panelConfigs.length]);
 
-  const addPanel = (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
+  const addPanel = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
     // React state from the current render is stale during same-tick bursts.
     // This counter makes the four-panel cap atomic until the next commit.
     if (panelConfigs.length + pendingPanelCountRef.current >= 4) return;
@@ -239,24 +239,24 @@ export function useWorkspaceLayout({
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
-  };
+  }, [panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
 
   useEffect(() => {
     pendingPanelTypesRef.current.clear();
     pendingPanelCountRef.current = 0;
   }, [panelConfigs]);
 
-  const ensurePanelType = (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
+  const ensurePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
     if (panelConfigs.includes(type) || pendingPanelTypesRef.current.has(type)) return;
     pendingPanelTypesRef.current.add(type);
     addPanel(type, selectionOverride, frozenOverride);
-  };
+  }, [addPanel, panelConfigs]);
 
   const isPanelCollapsed = (index: number) => collapsedPanels[index] && panelConfigs[index] === 'chat';
   const cellCls = (index: number, expanded: string) =>
     cn('h-full min-w-0', isPanelCollapsed(index) ? 'flex-none w-12' : expanded);
 
-  const handlePanelEntitySelect = (index: number, entity: any) => {
+  const handlePanelEntitySelect = useCallback((index: number, entity: any) => {
     const previousSelection = panelSelections[index];
     setPanelSelections((previous) => {
       const next = [...previous];
@@ -273,7 +273,7 @@ export function useWorkspaceLayout({
       });
     }
     if (!panelFrozen[index]) setSelectedEntity(entity);
-  };
+  }, [panelFrozen, panelSelections]);
 
   const goBackPanel = useCallback((index: number) => {
     const entry = panelHistory[index];
@@ -402,7 +402,7 @@ export function useWorkspaceLayout({
     };
   }, []);
 
-  const handleDividerMouseDown = (event: React.MouseEvent) => {
+  const handleDividerMouseDown = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
     isDraggingRef.current = true;
     setIsDragging(true);
@@ -410,9 +410,9 @@ export function useWorkspaceLayout({
     dragStartPercentRef.current = splitPercent;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-  };
+  }, [splitPercent]);
 
-  const restoreWorkspaceSnapshot = (snapshot: any) => {
+  const restoreWorkspaceSnapshot = useCallback((snapshot: any) => {
     isRestoringSnapshotRef.current = true;
     const restoredSelections = Array.isArray(snapshot.panelSelections) && snapshot.panelSelections.length > 0
       ? snapshot.panelSelections
@@ -433,9 +433,9 @@ export function useWorkspaceLayout({
     if (typeof snapshot.activeRightTab === 'string') setActiveRightTab(snapshot.activeRightTab);
     if (typeof snapshot.splitPercent === 'number') setSplitPercent(snapshot.splitPercent);
     setTimeout(() => { isRestoringSnapshotRef.current = false; }, 0);
-  };
+  }, []);
 
-  const resetWorkspace = () => {
+  const resetWorkspace = useCallback(() => {
     setSelectedDoc(null);
     setSelectedFile(null);
     setSelectedEntity(null);
@@ -453,7 +453,7 @@ export function useWorkspaceLayout({
     setPanelFocusObject([null]);
     setSplitPercent(45);
     setWorkspaceSplit('45/55');
-  };
+  }, []);
 
   return {
     isSidebarOpen,

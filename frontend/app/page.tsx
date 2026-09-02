@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -77,6 +77,10 @@ import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
 
+const MemoSettingsModal = React.memo(SettingsModal);
+const MemoGlobalSearch = React.memo(GlobalSearch);
+const MemoSidebar = React.memo(Sidebar);
+
 
 
 // --- Main App Component ---
@@ -150,7 +154,7 @@ function AppContent() {
     return () => window.removeEventListener('doctus:unauthorized', onUnauthorized);
   }, []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       await api.logout();
     } finally {
@@ -159,7 +163,7 @@ function AppContent() {
       setIsLoggedIn(false);
       setCurrentUser(null);
     }
-  };
+  }, []);
 
   const [toast, setToast] = useState<any | null>(null);
 
@@ -198,10 +202,10 @@ function AppContent() {
   // declaration — kept fresh via ref/effect rather than moved, same "latest
   // ref" pattern as projectsRef/selectedProjectRef below.
   const handleSessionSelectRef = useRef<(session: any) => void>(() => {});
-  const showToast = (message: string, type = 'success') => {
+  const showToast = useCallback((message: string, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 6000);
-  };
+  }, []);
 
   const projectState = useProjects({ isLoggedIn, isSettingsOpen, t, showToast });
   const sourceState = useKnowledgeSources({
@@ -254,15 +258,15 @@ function AppContent() {
 
   // Pin the current navigation target as chat context without coupling the
   // workspace hook to ChatView's DOM or message composition rules.
-  const pinFileFocus = (path: string | null, line: number | null = null) => {
+  const pinFileFocus = useCallback((path: string | null, line: number | null = null) => {
     if (!path) return;
     setPinnedCode({ filepath: path, line: line || 0 });
-  };
+  }, [setPinnedCode]);
 
-  const pinEntityFocus = (entity: any) => {
+  const pinEntityFocus = useCallback((entity: any) => {
     if (!entity) return;
     setPinnedCode({ filepath: entity.file_path, line: entity.start_line, label: entity.name });
-  };
+  }, [setPinnedCode]);
 
   const handleObjectFocus = (object: any, panelIndex: number) => {
     if (!object) return;
@@ -554,7 +558,7 @@ function AppContent() {
 
   // Mobile-tab synchronization lives in useWorkspaceLayout.
 
-  const handleShareChat = async () => {
+  const handleShareChat = useCallback(async () => {
     if (!activeSessionId) {
       showToast(t('chatView.startChatFirstToast'), "error");
       return;
@@ -565,7 +569,7 @@ function AppContent() {
       success ? t('chatView.linkCopiedToast') : t('chatView.copyFailedToast'),
       success ? "success" : "error"
     );
-  };
+  }, [activeSessionId, showToast, t]);
 
   // Initial connection check, repositories load & settings restoration
   useEffect(() => {
@@ -712,7 +716,7 @@ function AppContent() {
           });
       }
     }
-  }, [chatUuidParam, sessions, activeSessionId, isSessionsLoaded, pathname, router, t, setSessions]);
+  }, [chatUuidParam, sessions, activeSessionId, isSessionsLoaded, pathname, router, t, setSessions, showToast]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -722,7 +726,7 @@ function AppContent() {
   // auto-starts a fresh conversation as a side effect of something else (switching
   // project/file mid-chat, removing the active session, opening the graph view),
   // where the caller deliberately keeps its own view/panel state around afterward.
-  const resetChatSession = () => {
+  const resetChatSession = useCallback(() => {
     ignoreUrlSyncRef.current = true;
     setChatMessages([]);
     setSelectedFile(null);
@@ -733,7 +737,7 @@ function AppContent() {
     router.push(pathname);
 
     showToast(t('page.toast.newChatStarted'), "success");
-  };
+  }, [pathname, router, showToast, t, setActiveSessionId, setChatMessages, setIsEditorMaximized, setSelectedFile]);
 
   // "+ Neuer Chat": resets the conversation/views to a clean slate, but
   // deliberately keeps the current project focus (selectedProject/files/
@@ -742,7 +746,7 @@ function AppContent() {
   // open view/panel, file focus, and modal closes, not just the message
   // list (they otherwise stay open and keep adapting to whatever file was
   // previously focused).
-  const startNewChat = () => {
+  const startNewChat = useCallback(() => {
     resetChatSession();
     setSelectedSource(null);
     setSelectedDoc(null);
@@ -763,9 +767,9 @@ function AppContent() {
     setSplitPercent(45);
     setWorkspaceSplit("45/55");
     setIsSettingsOpen(false);
-  };
+  }, [resetChatSession, setActiveRightTab, setCollapsedPanels, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
-  const handleProjectSelect = async (project) => {
+  const handleProjectSelect = useCallback(async (project) => {
     if (!project) {
       const activeSession = sessions.find(s => s.id === activeSessionId);
       if (activeSessionId && activeSession && activeSession.project_id !== null) {
@@ -787,11 +791,11 @@ function AppContent() {
     }
 
     await selectProject(project);
-  };
+  }, [activeSessionId, resetChatSession, selectProject, sessions, showToast, t]);
 
   // File-reference loading lives in useKnowledgeSources.
 
-  const handleFileSelect = async (path, line = null, sourceId = null, projectOverride = null) => {
+  const handleFileSelect = useCallback(async (path, line = null, sourceId = null, projectOverride = null) => {
     // Chunks einer Datei liegen unter "<pfad>#<suffix>" — für die Dateiauswahl
     // zählt nur der Pfad davor.
     const cleanPath = path && path.includes('#') ? path.split('#')[0] : path;
@@ -910,7 +914,7 @@ function AppContent() {
     } finally {
       setIsLoadingFile(false);
     }
-  };
+  }, [activeSessionId, connectedSources, ensurePanelType, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
 
   const handleGutterClick = (panelIndex: number, lineNumber: number, lineContent: string) => {
     const selection = panelSelections[panelIndex];
@@ -968,15 +972,15 @@ function AppContent() {
     }, 150);
   };
 
-  const handleEntitySelect = async (ent: any, projectOverride: any = null) => {
+  const handleEntitySelect = useCallback(async (ent: any, projectOverride: any = null) => {
     setSelectedEntity(ent);
     pinEntityFocus(ent);
     loadFileReferences(ent.file_path, ent.name, projectOverride);
 
     await handleFileSelect(ent.file_path, ent.start_line, ent.source_id ?? null, projectOverride);
-  };
+  }, [handleFileSelect, loadFileReferences, pinEntityFocus, setSelectedEntity]);
 
-  const handleNavigateBack = async () => {
+  const handleNavigateBack = useCallback(async () => {
     if (fileNavStack.length === 0) return;
     const newStack = fileNavStack.slice(0, -1);
     const prev = fileNavStack[fileNavStack.length - 1];
@@ -990,9 +994,9 @@ function AppContent() {
     } else if (prev.doc) {
       await handleFileSelect(prev.doc.name, null, prev.doc.id);
     }
-  };
+  }, [fileNavStack, handleFileSelect, setFileNavStack, setIsEditorMaximized]);
 
-  const handleSearchResultSelect = async (result: any) => {
+  const handleSearchResultSelect = useCallback(async (result: any) => {
     const meta = result.node_meta || {};
     const targetProjectId = result.node_type === 'project' ? result.node_id : meta.project_id;
 
@@ -1022,12 +1026,12 @@ function AppContent() {
       setSelectedSource({ id: result.node_id, name: result.node_label, project_id: meta.project_id, type: meta.type });
       showToast(t('page.toast.sourceFocused', { name: result.node_label }), "success");
     }
-  };
+  }, [handleEntitySelect, handleFileSelect, handleProjectSelect, pinFileFocus, projects, selectedProject, setSelectedSource, showToast, t]);
 
   // Shared SSE-consumer for both a fresh send and a retry/regenerate — both stream
   // into a specific `chatMessages` slot (`targetIndex`), they only differ in what
   // that slot was initialized to and what request body they send.
-  const runChatStream = async (requestBody: any, targetIndex: number) => {
+  const runChatStream = useCallback(async (requestBody: any, targetIndex: number) => {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -1232,9 +1236,9 @@ function AppContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [pathname, router, selectedProject, selectedSource, activeSessionId, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
-  const handleSendChat = async (overrideMsg?: string, extraMetadata?: Record<string, any>) => {
+  const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: Record<string, any>) => {
     const isFirstUserMessage = !chatMessages.some((message: any) => message.role === 'user');
     const msgToSend = normalizeInitialUserMessage(
       (overrideMsg || currentMessage).trim(),
@@ -1310,12 +1314,12 @@ function AppContent() {
       llm_base_url: activeProfile?.baseUrl || undefined,
       metadata: newUserMsg.metadata
     }, targetIndex);
-  };
+  }, [activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 
   // Regenerates the assistant answer at `index` in place — the old answer is
   // deleted server-side and replaced (see retry_of_message_id in /chat), so the
   // history doesn't grow a duplicate question+answer pair like a fresh send would.
-  const handleRetryMessage = async (index: number) => {
+  const handleRetryMessage = useCallback(async (index: number) => {
     if (isLoading) return;
     const assistantMsg: any = chatMessages[index];
     const userMsg: any = chatMessages[index - 1];
@@ -1359,9 +1363,9 @@ function AppContent() {
       metadata: userMsg.metadata,
       retry_of_message_id: assistantMsg.id
     }, index);
-  };
+  }, [activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setIsLoading, systemPrompt, temperature, t]);
 
-  const handleSessionSelect = async (session) => {
+  const handleSessionSelect = useCallback(async (session) => {
     ignoreUrlSyncRef.current = true;
     setActiveSessionId(session.id);
 
@@ -1438,12 +1442,12 @@ function AppContent() {
       console.error(err);
       showToast(t('page.toast.sessionLoadFailed'), "error");
     }
-  };
+  }, [connectedSources, handleProjectSelect, pathname, projects, restoreWorkspaceSnapshot, router, setActiveSessionId, setChatMessages, setSelectedSource, showToast, t]);
   useEffect(() => {
     handleSessionSelectRef.current = handleSessionSelect;
   });
 
-  const handleRemoveSession = async (id, e) => {
+  const handleRemoveSession = useCallback(async (id, e) => {
     e.stopPropagation();
     try {
       await api.deleteChatSession(id);
@@ -1456,9 +1460,9 @@ function AppContent() {
       console.error(err);
       showToast(t('page.toast.sessionDeleteFailed'), "error");
     }
-  };
+  }, [activeSessionId, resetChatSession, setSessions, showToast, t]);
 
-  const handleOpenGraphView = () => {
+  const handleOpenGraphView = useCallback(() => {
     resetChatSession();
     setActiveRightTab('graph');
     setActiveMobileTab('graph');
@@ -1478,7 +1482,83 @@ function AppContent() {
         return next;
       });
     }
-  };
+  }, [ensurePanelType, panelConfigs, resetChatSession, setActiveMobileTab, setActiveRightTab, setPanelFrozen, setPanelSelections]);
+
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
+  const handleSidebarFileSelect = useCallback((path: string, line?: number, sourceId?: string) => {
+    pinFileFocus(path, line ?? null);
+    return handleFileSelect(path, line, sourceId);
+  }, [handleFileSelect, pinFileFocus]);
+
+  // Keep the context identity stable while unrelated workspace/chat state
+  // changes. Settings tabs subscribe to this value, so an inline object here
+  // would otherwise rerender the complete settings tree on every keystroke or
+  // streamed chat chunk.
+  const settingsContextValue = useMemo(() => ({
+    theme,
+    setTheme,
+    projects,
+    setProjects,
+    selectedProject,
+    setSelectedProject,
+    setFiles,
+    showToast,
+    backendStatus,
+    activeLlmModel,
+    setActiveLlmModel,
+    activeEmbeddingModel,
+    setActiveEmbeddingModel,
+    availableModels,
+    temperature,
+    setTemperature,
+    systemPrompt,
+    setSystemPrompt,
+    llmProfiles,
+    setLlmProfiles,
+    activeProfileId,
+    setActiveProfileId,
+    editorFontSize,
+    setEditorFontSize,
+    editorMinimap,
+    setEditorMinimap,
+    editorFontFamily,
+    setEditorFontFamily,
+    workspaceSplit,
+    setWorkspaceSplit,
+    connectedSources,
+    setConnectedSources,
+    projectStats,
+    pinnedSourceIds,
+    togglePinSource,
+    currentUser,
+  }), [
+    activeEmbeddingModel,
+    activeLlmModel,
+    activeProfileId,
+    availableModels,
+    backendStatus,
+    connectedSources,
+    currentUser,
+    editorFontFamily,
+    editorFontSize,
+    editorMinimap,
+    llmProfiles,
+    pinnedSourceIds,
+    projectStats,
+    projects,
+    selectedProject,
+    showToast,
+    systemPrompt,
+    temperature,
+    theme,
+    togglePinSource,
+    workspaceSplit,
+    setConnectedSources,
+    setFiles,
+    setProjects,
+    setSelectedProject,
+    setWorkspaceSplit,
+  ]);
 
   // Divider interaction lives in useWorkspaceLayout.
 
@@ -1983,48 +2063,11 @@ function AppContent() {
 
       {/* Advanced Settings Modal Dialog */}
       <SettingsProvider
-        value={{
-          theme,
-          setTheme,
-          projects,
-          setProjects,
-          selectedProject,
-          setSelectedProject,
-          setFiles,
-          showToast,
-          backendStatus,
-          activeLlmModel,
-          setActiveLlmModel,
-          activeEmbeddingModel,
-          setActiveEmbeddingModel,
-          availableModels,
-          temperature,
-          setTemperature,
-          systemPrompt,
-          setSystemPrompt,
-          llmProfiles,
-          setLlmProfiles,
-          activeProfileId,
-          setActiveProfileId,
-          editorFontSize,
-          setEditorFontSize,
-          editorMinimap,
-          setEditorMinimap,
-          editorFontFamily,
-          setEditorFontFamily,
-          workspaceSplit,
-          setWorkspaceSplit,
-          connectedSources,
-          setConnectedSources,
-          projectStats,
-          pinnedSourceIds,
-          togglePinSource,
-          currentUser,
-        }}
+        value={settingsContextValue}
       >
-        <SettingsModal
+        <MemoSettingsModal
           isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
+          onClose={handleCloseSettings}
         />
       </SettingsProvider>
 
@@ -2033,7 +2076,7 @@ function AppContent() {
           stay reachable even if the search feature is disabled. Link Manager
           is no longer a dedicated header action — it's opened like any other
           panel type via the "+" add-view menu or a panel's type selector. */}
-      <GlobalSearch
+      <MemoGlobalSearch
         theme={theme}
         setTheme={setTheme}
         projects={projects}
@@ -2061,7 +2104,7 @@ function AppContent() {
       )}
 
       {/* LEFT SIDEBAR PANEL */}
-      <Sidebar
+      <MemoSidebar
         theme={theme}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -2074,10 +2117,7 @@ function AppContent() {
         selectedProject={selectedProject}
         selectedFile={selectedFile}
         selectedDoc={selectedDoc}
-        handleFileSelect={(path, line, sourceId) => {
-          pinFileFocus(path, line);
-          return handleFileSelect(path, line, sourceId);
-        }}
+        handleFileSelect={handleSidebarFileSelect}
         handleLogout={handleLogout}
         connectedSources={connectedSources}
         pinnedSourceIds={pinnedSourceIds}

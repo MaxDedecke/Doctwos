@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/app/services/api';
 
 interface UseChatSessionsOptions {
@@ -34,7 +34,7 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
    * Keep feedback optimistic so the chat remains responsive, but roll it back
    * if persistence fails. This is a chat-session concern rather than page UI.
    */
-  const handleFeedback = async (messageId: number, feedback: 'up' | 'down') => {
+  const handleFeedback = useCallback(async (messageId: number, feedback: 'up' | 'down') => {
     const current = chatMessages.find((message: any) => message.id === messageId)?.feedback ?? null;
     const nextValue = current === feedback ? null : feedback;
     setChatMessages((previous) => previous.map((message: any) =>
@@ -50,11 +50,11 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
       ));
       showToast(t('page.toast.feedbackFailed'), 'error');
     }
-  };
+  }, [chatMessages, showToast, t]);
 
-  const addAssistantHint = (text: string) => {
+  const addAssistantHint = useCallback((text: string) => {
     setChatMessages((previous) => [...previous, { role: 'assistant', content: text, sources: [], metadata: {} }]);
-  };
+  }, []);
 
   return {
     chatMessages,

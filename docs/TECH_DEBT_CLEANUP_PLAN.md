@@ -27,7 +27,7 @@
 >   notion` inzwischen auf `true`.
 >
 > - §5 (Frontend-God-Components `page.tsx`/`SettingsModal.tsx` entflechten):
->   **Schritte 1–3 erledigt 2026-09-02; Schritt 4 bleibt als O-005 offen.**
+>   **Schritte 1–4 erledigt 2026-09-02.**
 >   **Schritt 1 (SettingsContext) erledigt** — die
 >   ~36 Einzel-Props von `SettingsModal` laufen jetzt über `components/settings/
 >   SettingsContext.tsx` statt durch `page.tsx` gedrillt; die Aufrufstelle in
@@ -53,8 +53,12 @@
 >   **Schritt 3 erledigt:** Die vier Domänen-Hooks `useProjects`,
 >   `useChatSessions`, `useKnowledgeSources` und `useWorkspaceLayout` kapseln
 >   ihre Zustände, Ladeeffekte und die zugehörigen Navigationsaktionen.
->   Schritt 4 (useCallback/memo) bleibt als O-005 **offen**. Die XSS-/401-Befunde
->   desselben Reviews sind separat gefixt (Commit `41779bc`).
+>   **Schritt 4 erledigt:** weitergereichte Navigations-, Session-, Chat-,
+>   Projekt- und Layout-Handler verwenden stabile Callback-Identitäten;
+>   `SettingsProvider` erhält ein memoisiertes Value-Objekt und die unabhängig
+>   renderbaren Header-/Sidebar-Bereiche sind mit `React.memo` abgeschirmt.
+>   Verifiziert mit Typecheck, ESLint, 18 Frontend-Tests und Produktions-Build.
+>   Die XSS-/401-Befunde desselben Reviews sind separat gefixt (Commit `41779bc`).
 >
 > Dieses Dokument ist bewusst so
 > geschrieben, dass eine andere/spätere Session ohne Rückfragen direkt mit
@@ -581,9 +585,10 @@ Nicht als ein Big-Bang. Reihenfolge nach Aufwand/Risiko:
    als Orchestrator für bewusst bereichsübergreifende Navigation zuständig.
    Damit erfüllt `page.tsx` die in CLAUDE.md beschriebene Rolle "only shared
    state wiring" weitgehend; die gezielte Handler-Stabilisierung folgt in O-005.
-4. **Erst nach Schritt 3 `useCallback`/`memo` gezielt nachziehen — OFFEN (O-005).**
-   Die verbliebenen Handler sollen erst nach der Extraktion gezielt gemessen
-   und stabilisiert werden.
+4. **Erst nach Schritt 3 `useCallback`/`memo` gezielt nachziehen — ERLEDIGT
+   2026-09-02 (O-005).** Die weitergereichten Handler wurden nach der
+   Extraktion stabilisiert; `SettingsProvider`, Header-Suche und Sidebar
+   vermeiden dadurch unnötige Teilbaum-Renderings bei Chat-/Workspace-Updates.
 
 ### Verifikation (pro Schritt, nicht erst am Ende)
 

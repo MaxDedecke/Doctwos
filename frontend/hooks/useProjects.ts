@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/app/services/api';
 
 type Translate = (key: string, values?: Record<string, unknown>) => string;
@@ -141,7 +141,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
    * Select a project and load its file list. Session reset decisions stay in
    * the page because they cross the project/chat/workspace domain boundary.
    */
-  const selectProject = async (project: any | null) => {
+  const selectProject = useCallback(async (project: any | null) => {
     if (!project) {
       setSelectedProject(null);
       setFiles([]);
@@ -168,7 +168,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
       console.error('Failed to load project files:', error);
       showToast(t('page.toast.filesFetchFailed'), 'error');
     }
-  };
+  }, [showToast, t]);
 
   return {
     projects,

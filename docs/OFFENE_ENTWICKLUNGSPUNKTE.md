@@ -16,7 +16,7 @@ stehen.
 | O-002 | Barrierefreiheit | Formale BITV-Abnahme durchführen. | Verbindlichen Prüfumfang festlegen und manuellen Prüfschritt organisieren. Der automatisierte axe-core-Basischeck ist vorhanden. | Auftraggeber / Prüfstelle |
 | O-003 | Design | Farbkontrast der Fujitsu-Farbtöne prüfen und gegebenenfalls nachbessern. | Markenfreigabe für zulässige Farbabweichungen einholen; danach zentrale Design-Tokens anpassen. | Markenverantwortliche |
 | O-004 | Frontend-Architektur | Domänen-State aus `frontend/app/page.tsx` in eigene Hooks bzw. Context-Provider auslagern. | **Erledigt 02.09.2026:** `useProjects`, `useChatSessions`, `useKnowledgeSources` und `useWorkspaceLayout` extrahieren jeweils ihren State sowie die zugehörigen Lade-/Navigationslogiken; Typecheck, Lint, 18 Tests und Produktions-Build grün. | Keine externe Abhängigkeit |
-| O-005 | Frontend-Performance | Nach O-004 `useCallback`/`memo` gezielt ergänzen. | Nur für tatsächlich weitergereichte Handler und betroffene Kindkomponenten messen und umsetzen. | O-004 |
+| O-005 | Frontend-Performance | Nach O-004 `useCallback`/`memo` gezielt ergänzen. | **Erledigt 02.09.2026:** weitergereichte Navigations-, Session-, Chat-, Projekt- und Layout-Handler stabilisiert; Settings-Context sowie Header-Suche und Sidebar memoisiert. `tsc`, ESLint, 18 Tests und Produktions-Build grün. | O-004 |
 | O-006 | Git-Import | Repack-Nachlauf (`git repack -a -d` und `fetch --refetch`) nach der Erstindexierung bewerten und gegebenenfalls implementieren. | Entscheidung anhand eines echten großen Bestands treffen; anschließend Durchsatz und Speicherverbrauch vergleichen. | Großer Testbestand |
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
@@ -59,6 +59,11 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
   Chat-Session- und Workspace-Layout-Zustände sind aus `app/page.tsx` in
   englisch dokumentierte Hooks ausgelagert. Typecheck, Lint, 18 Frontend-Tests
   und Produktions-Build grün.
+- O-005 (gezielte Frontend-Performance) — 02.09.2026 umgesetzt; weitergereichte
+  Handler verwenden stabile Callback-Identitäten, der Settings-Context erhält
+  ein memoisiertes Value-Objekt und die unabhängig renderbaren Header-/Sidebar-
+  Bereiche sind memoisiert. Typecheck, Lint, 18 Frontend-Tests und
+  Produktions-Build grün.
 
 - O-017 (Fixierte Views / Historie) — 02.09.2026 umgesetzt; die History-Transitionen
   sind jetzt unabhängig von der Fixierung gekapselt. Zurück-/Vorwärtsnavigation
