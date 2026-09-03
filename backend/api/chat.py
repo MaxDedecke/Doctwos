@@ -34,7 +34,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from api.schemas import ChatRequest, ChatSnapshotUpdate, ChatMessageFeedbackUpdate
+from api.schemas import ChatRequest, ChatSessionCreate, ChatSnapshotUpdate, ChatMessageFeedbackUpdate
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, Team, User
@@ -1020,6 +1020,34 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
                 break
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post("/chat/sessions")
+def create_chat_session(body: ChatSessionCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Legt eine Sitzung ohne Chat-Nachricht an (O-038) -- z.B. wenn ein Befund
+    nur über mehrere Views (Graph + Code) entsteht, ohne dass der Chat je
+    benutzt wurde. Braucht deshalb einen vom Nutzer vergebenen Titel; POST
+    /chat oben leitet den Titel stattdessen aus der ersten Nachricht ab."""
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Titel darf nicht leer sein")
+    if body.project_id:
+        proj = db.query(Project).filter(Project.id == body.project_id).first()
+        if not proj:
+            raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+        assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+        assert_project_visible(body.project_id, user, db)
+    if body.source_id:
+        source = db.query(KnowledgeSource).filter(KnowledgeSource.id == body.source_id).first()
+        if not source:
+            raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
+        assert_knowledge_source_visible(source, user, db)
+    session = ChatSession(title=title, project_id=body.project_id, source_id=body.source_id,
+                          owner_id=user.id, snapshot_json=body.snapshot)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return _serialize_session(session)
 
 
 @router.get("/chat/sessions")

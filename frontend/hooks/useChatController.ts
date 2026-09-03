@@ -97,6 +97,37 @@ export function useChatController({
     );
   }, [activeSessionId, showToast, t]);
 
+  // O-038: legt eine benannte Sitzung an, ohne dass je eine Chat-Nachricht
+  // geschrieben wurde -- z.B. ein Befund, der nur über mehrere Views (Graph +
+  // Code) entsteht. Der Workspace-Snapshot selbst kommt nicht von hier: sobald
+  // activeSessionId gesetzt ist, greift derselbe debounced Autosave-Effekt wie
+  // bei jeder anderen Sitzung (siehe useWorkspaceLayout.ts) und schreibt ihn
+  // kurz danach über PATCH .../snapshot -- keine zweite Snapshot-Bau-Stelle nötig.
+  const handleSaveSessionWithoutChat = useCallback(async (title: string) => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+    try {
+      const res = await api.createChatSession({
+        title: trimmedTitle,
+        project_id: selectedProject?.id ?? null,
+        source_id: selectedSource?.id ?? null,
+      });
+      const newSession = res.data;
+      setSessions(prev => [newSession, ...prev]);
+      ignoreUrlSyncRef.current = true;
+      setActiveSessionId(newSession.id);
+      if (newSession.uuid) {
+        const params = new URLSearchParams(window.location.search);
+        params.set('chat', newSession.uuid);
+        router.push(`${pathname}?${params.toString()}`);
+      }
+      showToast(t('page.toast.sessionSaved', { title: trimmedTitle }), 'success');
+    } catch (error) {
+      console.error('Failed to save session without a chat message:', error);
+      showToast(t('page.toast.sessionSaveFailed'), 'error');
+    }
+  }, [ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setSessions, showToast, t]);
+
   // Shared SSE consumer for both a fresh send and a retry/regenerate. The
   // caller prepares the target assistant slot; this function only consumes the
   // stream and applies events to that slot.
@@ -489,6 +520,7 @@ export function useChatController({
 
   return {
     handleShareChat,
+    handleSaveSessionWithoutChat,
     handleSendChat,
     handleRetryMessage,
     handleSessionSelect,

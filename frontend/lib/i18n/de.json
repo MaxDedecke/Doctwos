@@ -57,6 +57,8 @@
       "sessionLoadFailed": "Sitzungsinhalte konnten nicht geladen werden",
       "sessionRemoved": "Sitzung entfernt",
       "sessionDeleteFailed": "Sitzung konnte nicht gelöscht werden",
+      "sessionSaved": "Sitzung \"{{title}}\" gespeichert",
+      "sessionSaveFailed": "Sitzung konnte nicht gespeichert werden",
       "documentUploaded": "Dokument erfolgreich hochgeladen und Indizierung gestartet",
       "documentUploadFailed": "Fehler beim Hochladen des Dokuments",
       "newChatStarted": "Neuer Chat gestartet",
@@ -88,7 +90,8 @@
       "freezeActiveTitle": "Auto-Refresh aktiv (Klicken zum Pausieren)",
       "frozenBadge": "Fixiert",
       "liveBadge": "Live",
-      "resizeGrid": "Workspace-Panels vergrößern oder verkleinern"
+      "resizeGrid": "Workspace-Panels vergrößern oder verkleinern",
+      "saveSessionTitle": "Sitzung speichern (Chat wurde noch nicht benutzt)"
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",
@@ -754,6 +757,13 @@
       "unlockLegacySystems": "Legacy-Systeme erschließen",
       "programsCopybooksRelations": "Programme, Copybooks, Zusammenhänge"
     }
+  },
+  "saveSessionDialog": {
+    "title": "Sitzung speichern",
+    "description": "Der Chat wurde nicht benutzt, aber der aktuelle Stand über mehrere Ansichten lässt sich trotzdem als benannte Sitzung sichern und später teilen.",
+    "namePlaceholder": "Name der Sitzung",
+    "cancel": "Abbrechen",
+    "save": "Speichern"
   },
   "loginView": {
     "title": "Anmelden",

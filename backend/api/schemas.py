@@ -66,6 +66,17 @@ class ChatRequest(BaseModel):
     retry_of_message_id: Optional[int] = None  # regenerate: replaces this assistant message instead of appending a new turn
 
 
+class ChatSessionCreate(BaseModel):
+    """Manuell benannte Sitzung ohne Chat-Nachricht (O-038) -- Gegenstück zur
+    impliziten Session-Erzeugung in POST /chat, die den Titel aus der ersten
+    Nachricht ableitet. Deckt den Fall ab, dass ein Befund nur über mehrere
+    Views (z.B. Graph + Code) entsteht, ohne den Chat je benutzt zu haben."""
+    title: str
+    project_id: Optional[int] = None
+    source_id: Optional[int] = None
+    snapshot: Optional[dict] = None
+
+
 class ChatSnapshotUpdate(BaseModel):
     """Content-/Navigationsstate des Workspace (Panels, offene Dateien/Docs/Entities) — s. buildWorkspaceSnapshot im Frontend."""
     snapshot: dict

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from models.database import ChatMessage, ChatSession, User
+from models.database import ChatMessage, ChatSession, KnowledgeSource, User
 
 OTHER_USERNAME = "test-fixture-sub-other"
 OTHER_USER_EMAIL = "fixture-user-other@example.com"
@@ -193,3 +193,95 @@ def test_continuing_someone_elses_private_session_via_chat_is_forbidden(client, 
 
     resp = client.post("/chat", json={"message": "hi", "session_id": other_session.id})
     assert resp.status_code == 404
+
+
+# ── O-038: Sitzung ohne Chat-Nachricht anlegen ────────────────────────────────
+# Gegenstück zur impliziten Session-Erzeugung in POST /chat -- deckt den Fall
+# ab, dass ein Befund nur über mehrere Views (z.B. Graph + Code) entsteht, ohne
+# dass der Chat je benutzt wurde.
+
+def test_create_session_without_message_is_owned_and_untitled_from_no_message(client, db_session):
+    resp = client.post("/chat/sessions", json={"title": "Brandschutz-Befund"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["title"] == "Brandschutz-Befund"
+    assert body["uuid"] is not None
+
+    session = db_session.query(ChatSession).filter(ChatSession.id == body["id"]).first()
+    assert session is not None
+    assert session.owner_id is not None
+    assert session.snapshot_json is None
+
+    messages = client.get(f"/chat/sessions/{body['id']}/messages")
+    assert messages.status_code == 200
+    assert messages.json() == []
+
+    db_session.query(ChatSession).filter(ChatSession.id == body["id"]).delete()
+    db_session.commit()
+
+
+def test_create_session_without_message_stores_the_given_snapshot(client, db_session):
+    snapshot = {"panelConfigs": ["graph", "code"], "activeRightTab": "graph"}
+    resp = client.post("/chat/sessions", json={"title": "Graph-Befund", "snapshot": snapshot})
+    assert resp.status_code == 200
+    session_id = resp.json()["id"]
+
+    session = db_session.query(ChatSession).filter(ChatSession.id == session_id).first()
+    assert session.snapshot_json == snapshot
+
+    db_session.query(ChatSession).filter(ChatSession.id == session_id).delete()
+    db_session.commit()
+
+
+def test_create_session_without_message_appears_in_own_session_list(client, db_session):
+    resp = client.post("/chat/sessions", json={"title": "Sichtbarer Befund"})
+    session_id = resp.json()["id"]
+
+    listing = client.get("/chat/sessions")
+    assert any(s["id"] == session_id for s in listing.json())
+
+    db_session.query(ChatSession).filter(ChatSession.id == session_id).delete()
+    db_session.commit()
+
+
+def test_create_session_without_message_rejects_blank_title(client):
+    resp = client.post("/chat/sessions", json={"title": "   "})
+    assert resp.status_code == 400
+
+
+def test_create_session_without_message_rejects_unknown_project(client):
+    resp = client.post("/chat/sessions", json={"title": "x", "project_id": 999999})
+    assert resp.status_code == 404
+
+
+def test_create_session_without_message_rejects_unknown_source(client):
+    resp = client.post("/chat/sessions", json={"title": "x", "source_id": 999999})
+    assert resp.status_code == 404
+
+
+def test_create_session_without_message_accepts_visible_project_and_source(client, db_session, test_project, test_team):
+    source = KnowledgeSource(name="o38-source", type="Git", url="https://example.test/o38.git",
+                             branch="main", project_id=test_project, team_id=test_team)
+    db_session.add(source)
+    db_session.commit()
+    db_session.refresh(source)
+
+    try:
+        resp = client.post("/chat/sessions", json={
+            "title": "Projekt-Befund", "project_id": test_project, "source_id": source.id,
+        })
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["project_id"] == test_project
+        assert body["source_id"] == source.id
+
+        db_session.query(ChatSession).filter(ChatSession.id == body["id"]).delete()
+        db_session.commit()
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_create_session_without_message_requires_authentication(unauthenticated_client):
+    resp = unauthenticated_client.post("/chat/sessions", json={"title": "x"})
+    assert resp.status_code == 401

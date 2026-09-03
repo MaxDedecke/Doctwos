@@ -93,6 +93,11 @@ export const api = {
     reindexKnowledgeSource: (id: number) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get(`${API_URL}/chat/sessions`),
+    // O-038: legt eine benannte Sitzung ohne Chat-Nachricht an -- z.B. ein Befund,
+    // der nur über mehrere Views (Graph + Code) entsteht, ohne dass der Chat je
+    // benutzt wurde. Gegenstück zur impliziten Session-Erzeugung in POST /chat.
+    createChatSession: (data: { title: string; project_id?: number | null; source_id?: number | null; snapshot?: any }) =>
+        axios.post(`${API_URL}/chat/sessions`, data),
     getChatMessages: (sessionId: number) => axios.get(`${API_URL}/chat/sessions/${sessionId}/messages`),
     getChatSessionByUuid: (uuid: string) => axios.get(`${API_URL}/chat/sessions/by-uuid/${uuid}`),
     getChatMessagesByUuid: (uuid: string) => axios.get(`${API_URL}/chat/sessions/by-uuid/${uuid}/messages`),

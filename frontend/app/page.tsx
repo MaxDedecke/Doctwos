@@ -346,6 +346,7 @@ function AppContent() {
 
   const {
     handleShareChat,
+    handleSaveSessionWithoutChat,
     handleSendChat,
     handleRetryMessage,
     handleSessionSelect,
@@ -861,6 +862,8 @@ function AppContent() {
         selectedProject={selectedProject}
         onProjectSelect={handleProjectSelect}
         onShareChat={handleShareChat}
+        canSaveSessionWithoutChat={chatMessages.length === 0 && panelConfigs.length >= 2}
+        onSaveSessionWithoutChat={handleSaveSessionWithoutChat}
         currentUser={currentUser}
       />
 

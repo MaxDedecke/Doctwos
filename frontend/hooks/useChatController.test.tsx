@@ -22,6 +22,7 @@ type HarnessOverrides = {
   handleProjectSelect?: any;
   restoreWorkspaceSnapshot?: any;
   resetChatSession?: any;
+  showToast?: any;
 };
 
 function useControllerHarness(overrides: HarnessOverrides = {}) {
@@ -35,10 +36,11 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
   const handleProjectSelect = (overrides.handleProjectSelect ?? vi.fn()) as (project: any) => void | Promise<void>;
   const restoreWorkspaceSnapshot = (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: any) => void;
   const resetChatSession = (overrides.resetChatSession ?? vi.fn()) as () => void;
+  const showToast = (overrides.showToast ?? vi.fn()) as (message: string, type?: string) => void;
 
   const controller = useChatController({
     t: (key, vars) => vars ? `${key}:${JSON.stringify(vars)}` : key,
-    showToast: vi.fn(),
+    showToast,
     ignoreUrlSyncRef: { current: false },
     activeSessionId,
     setActiveSessionId,
@@ -75,6 +77,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
     selectedSource,
     handleProjectSelect,
     restoreWorkspaceSnapshot,
+    showToast,
   };
 }
 
@@ -262,5 +265,54 @@ describe('useChatController', () => {
     expect(result.current.selectedSource).toMatchObject({ id: 8, name: 'Docs' });
     expect(restoreWorkspaceSnapshot).toHaveBeenCalledWith(session.snapshot_json);
     expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-7');
+  });
+
+  // O-038: eine Sitzung ohne Chat-Nachricht anlegen (Speicher-Icon in der
+  // Header-Bar, sichtbar bei leerem Chat + zweiter offener View).
+  describe('handleSaveSessionWithoutChat', () => {
+    it('creates a session via the API, activates it, and lists it', async () => {
+      const newSession = { id: 55, uuid: 'chat-55', title: 'Graph-Befund', project_id: 11, source_id: null };
+      vi.spyOn(api, 'createChatSession').mockResolvedValue({ data: newSession } as any);
+      const { result } = renderHook(() => useControllerHarness());
+
+      await act(async () => {
+        await result.current.controller.handleSaveSessionWithoutChat('  Graph-Befund  ');
+      });
+
+      expect(api.createChatSession).toHaveBeenCalledWith({
+        title: 'Graph-Befund',
+        project_id: 11,
+        source_id: null,
+      });
+      expect(result.current.activeSessionId).toBe(55);
+      expect(result.current.sessions).toEqual([newSession]);
+      expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-55');
+    });
+
+    it('does nothing for a blank title -- no API call, no session created', async () => {
+      const createSpy = vi.spyOn(api, 'createChatSession');
+      const { result } = renderHook(() => useControllerHarness());
+
+      await act(async () => {
+        await result.current.controller.handleSaveSessionWithoutChat('   ');
+      });
+
+      expect(createSpy).not.toHaveBeenCalled();
+      expect(result.current.activeSessionId).toBeNull();
+      expect(result.current.sessions).toEqual([]);
+    });
+
+    it('shows an error toast and leaves state untouched when the API call fails', async () => {
+      vi.spyOn(api, 'createChatSession').mockRejectedValue(new Error('network down'));
+      const { result } = renderHook(() => useControllerHarness());
+
+      await act(async () => {
+        await result.current.controller.handleSaveSessionWithoutChat('Graph-Befund');
+      });
+
+      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error');
+      expect(result.current.activeSessionId).toBeNull();
+      expect(result.current.sessions).toEqual([]);
+    });
   });
 });

@@ -57,6 +57,8 @@
       "sessionLoadFailed": "Could not load session contents",
       "sessionRemoved": "Session removed",
       "sessionDeleteFailed": "Could not delete session",
+      "sessionSaved": "Session \"{{title}}\" saved",
+      "sessionSaveFailed": "Could not save session",
       "documentUploaded": "Document uploaded successfully and indexing started",
       "documentUploadFailed": "Error uploading document",
       "newChatStarted": "New chat started",
@@ -88,7 +90,8 @@
       "freezeActiveTitle": "Auto-refresh active (click to pause)",
       "frozenBadge": "Frozen",
       "liveBadge": "Live",
-      "resizeGrid": "Resize workspace panels"
+      "resizeGrid": "Resize workspace panels",
+      "saveSessionTitle": "Save session (chat has not been used yet)"
     },
     "viewTypes": {
       "chat": "💬 Chat view",
@@ -754,6 +757,13 @@
       "unlockLegacySystems": "Unlock legacy systems",
       "programsCopybooksRelations": "Programs, copybooks, relationships"
     }
+  },
+  "saveSessionDialog": {
+    "title": "Save session",
+    "description": "The chat was never used, but the current state across multiple views can still be saved as a named session and shared later.",
+    "namePlaceholder": "Session name",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "loginView": {
     "title": "Sign in",

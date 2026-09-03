@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter, Share2 } from 'lucide-react';
+import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter, Share2, Save } from 'lucide-react';
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useFeatures } from '@/lib/FeaturesContext';
 import { DoctusIcon } from './Logo';
 import { JobCenter } from './JobCenter';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { SaveSessionDialog } from './SaveSessionDialog';
 
 interface SearchResult {
   node_type: string;
@@ -36,6 +37,11 @@ interface GlobalSearchProps {
   selectedProject: any;
   onProjectSelect: (project: any) => void;
   onShareChat: () => void | Promise<void>;
+  // O-038: nur true, wenn der Chat noch leer ist UND eine zweite View offen ist --
+  // sonst ist ein reiner Graph-/Code-View-Befund ohne Chat-Nutzung nicht teil-/
+  // konservierbar, weil eine Sitzung sonst erst mit der ersten Nachricht entsteht.
+  canSaveSessionWithoutChat: boolean;
+  onSaveSessionWithoutChat: (title: string) => void | Promise<void>;
   currentUser?: { is_admin?: boolean } | null;
 }
 
@@ -64,11 +70,14 @@ export function GlobalSearch({
   selectedProject,
   onProjectSelect,
   onShareChat,
+  canSaveSessionWithoutChat,
+  onSaveSessionWithoutChat,
   currentUser,
 }: GlobalSearchProps) {
   const { t } = useLanguage();
   const features = useFeatures();
   const [isAddViewOpen, setIsAddViewOpen] = useState(false);
+  const [isSaveSessionOpen, setIsSaveSessionOpen] = useState(false);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -516,6 +525,25 @@ export function GlobalSearch({
 
         <JobCenter theme={theme} currentUser={currentUser} projectId={selectedProject?.id ?? null} />
 
+        {canSaveSessionWithoutChat && (
+          <Button
+            variant="ghost"
+            size="icon"
+            id="header-action-save-session-btn"
+            aria-label={t('page.workspace.saveSessionTitle')}
+            title={t('page.workspace.saveSessionTitle')}
+            onClick={() => setIsSaveSessionOpen(true)}
+            className={cn(
+              "h-8 w-8 rounded-lg border transition-all duration-200",
+              theme === 'dark'
+                ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
+                : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
+            )}
+          >
+            <Save className="w-4 h-4" />
+          </Button>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
@@ -581,6 +609,13 @@ export function GlobalSearch({
           <Settings className="w-4 h-4" />
         </Button>
       </div>
+
+      <SaveSessionDialog
+        isOpen={isSaveSessionOpen}
+        theme={theme}
+        onClose={() => setIsSaveSessionOpen(false)}
+        onSave={onSaveSessionWithoutChat}
+      />
     </div>
   );
 }
