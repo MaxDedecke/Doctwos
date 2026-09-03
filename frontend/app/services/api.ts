@@ -96,6 +96,7 @@ export const api = {
     getChatMessages: (sessionId: number) => axios.get(`${API_URL}/chat/sessions/${sessionId}/messages`),
     getChatSessionByUuid: (uuid: string) => axios.get(`${API_URL}/chat/sessions/by-uuid/${uuid}`),
     getChatMessagesByUuid: (uuid: string) => axios.get(`${API_URL}/chat/sessions/by-uuid/${uuid}/messages`),
+    shareChatSession: (sessionId: number) => axios.post(`${API_URL}/chat/sessions/${sessionId}/share`),
     deleteChatSession: (sessionId: number) => axios.delete(`${API_URL}/chat/sessions/${sessionId}`),
     updateChatSessionSnapshot: (sessionId: number, snapshot: any) =>
         axios.patch(`${API_URL}/chat/sessions/${sessionId}/snapshot`, { snapshot }),

@@ -80,6 +80,16 @@ export function useChatController({
       return;
     }
 
+    // Sitzung muss explizit freigegeben werden (is_public), bevor der Link für
+    // andere Nutzer etwas nützt — der by-uuid-Zugriff prüft das serverseitig (O-032).
+    try {
+      await api.shareChatSession(activeSessionId);
+    } catch (error) {
+      console.error('Failed to mark chat session as shared:', error);
+      showToast(t('chatView.copyFailedToast'), 'error');
+      return;
+    }
+
     const success = await copyToClipboard(window.location.href);
     showToast(
       success ? t('chatView.linkCopiedToast') : t('chatView.copyFailedToast'),

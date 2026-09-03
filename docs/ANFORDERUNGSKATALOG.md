@@ -115,8 +115,8 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-067 | Callgraph- und Analysezugriffe respektieren Projektberechtigungen. | ERFÜLLT |
 | DOC-F-068 | Klickbare Code-Entitäten und Rücksprünge zwischen Entität, Datei und Referenz. | ERFÜLLT – seit 02.09.2026 zusätzlich per Rechtsklick-Kontextmenü auf Code-Entitäten in Monaco (`SplitPaneWorkspace.tsx`, Commit `b45d1cf`). |
 | DOC-F-069 | Zeilenreferenz/Glyph in Monaco öffnet oder fokussiert die zugehörige Stelle und kann für den Chat verwendet werden. | ERFÜLLT – O-019 (kanonischer Fokus-Snapshot pro Chat-Turn) sowie die direkten Folgefixes `e75c2a4`/`ff4c864` (02.09.2026) lassen den fokussierten Code-Objekt/Datei-Kontext jetzt im Chat-Request ankommen (`backend/api/chat.py::_find_pinned_chunks`) und in der Chat-Nachricht sichtbar werden (`ChatView.tsx`). |
-| DOC-F-070 | Sitzungen besitzen UUIDs; Teilen ist optional und soll nur explizit öffentliche Sitzungen sichtbar machen. | TEILWEISE – UUID/Public-Feld (`ChatSession.is_public`) existieren, werden aber von den `by-uuid`-Leserouten nicht geprüft: jede Session ist über ihre UUID lesbar, unabhängig davon, ob sie je geteilt wurde. Sicherheitsrelevanter Nachschärfbedarf, siehe O-032. |
-| DOC-F-071 | Workspace-Snapshot kann gespeichert und wiederhergestellt werden. | TEILWEISE – umgesetzt; `PATCH /chat/sessions/{id}/snapshot` ist über eine fortlaufende Integer-ID statt UUID adressiert, verlangt keine Authentifizierung und prüft `is_public` nicht (O-032). |
+| DOC-F-070 | Sitzungen besitzen UUIDs; Teilen ist optional und soll nur explizit öffentliche Sitzungen sichtbar machen. | ERFÜLLT – O-032 (03.09.2026) behoben: neuer `POST /chat/sessions/{id}/share`-Endpunkt setzt `is_public` erst nach explizitem "Chat teilen"; die `by-uuid`-Leserouten prüfen `is_public`/Owner jetzt (`_session_accessible`, `backend/api/chat.py`). |
+| DOC-F-071 | Workspace-Snapshot kann gespeichert und wiederhergestellt werden. | ERFÜLLT – O-032 (03.09.2026) behoben: `PATCH /chat/sessions/{id}/snapshot` verlangt jetzt Authentifizierung und gated auf Owner/`is_public`. |
 | DOC-F-072 | Deutsch/Englisch, Themes und responsive Darstellung. | ERFÜLLT |
 | DOC-F-073 | Persistente Chatdaten mit Verschlüsselung sensibler Inhalte und nachvollziehbaren Quellen/Feedbackdaten. | TEILWEISE – Nachrichteninhalt (`ChatMessage.content`) ist als `EncryptedString` verschlüsselt; `metadata_json` (u. a. Refs) und `feedback` sind weiterhin unverschlüsselt (O-033). |
 | DOC-F-080 | Automatische Aufbereitung/Generierung von Dokumenten in mehreren Schritten mit Review-/Freigabestatus. | ERFÜLLT – Entwurf, Review und Approve/Reject sind vorhanden. |
@@ -163,7 +163,7 @@ Der fehlende Neo4j-Service ist dagegen kein Architekturfehler: Für den laufende
 Für eine nächste verbindliche Version sind mindestens folgende Punkte zu entscheiden bzw. abzunehmen:
 
 1. CSV-Anforderung und einheitliche Upload-Allowlist einschließlich DOCX/OCR (O-007, O-030, O-031).
-2. Session-/Snapshot-Zugriffskontrolle: `by-uuid`-Leserouten prüfen `is_public` nicht, Snapshot-/Feedback-Updates sind unauthentifiziert über eine fortlaufende ID erreichbar (O-032, sicherheitsrelevant) — sowie Verschlüsselungsumfang für Metadaten/Feedback (O-033).
+2. Session-/Snapshot-Zugriffskontrolle: O-032 behoben (03.09.2026) — Verschlüsselungsumfang für Metadaten/Feedback bleibt offen (O-033).
 3. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt (O-034).
 4. Lasttest mit repräsentativem DRV-COBOL (O-001); die optionale Git-Performance-Evaluation ist unter O-006 dokumentiert.
 5. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).

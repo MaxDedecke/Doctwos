@@ -50,6 +50,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
 
 
+def _session_accessible(session: ChatSession, user: User) -> bool:
+    """Owner hat immer Zugriff; alle anderen nur, wenn die Sitzung explizit
+    über 'Chat teilen' freigegeben wurde (is_public). Siehe O-032."""
+    return session.owner_id == user.id or session.is_public
+
+
 def _record_agent_source(agent_sources: list, file_path: str, start_line: int, end_line: int) -> None:
     """Fügt eine vom Agenten tatsächlich gelesene Datei/Zeile zu den Quellen hinzu (dedupliziert)."""
     lines = [start_line, end_line]
@@ -326,6 +332,8 @@ async def chat(request: ChatRequest, db: Session = Depends(get_db), user: User =
     session = None
     if request.session_id:
         session = db.query(ChatSession).filter(ChatSession.id == request.session_id).first()
+        if session and not _session_accessible(session, user):
+            raise HTTPException(status_code=404, detail="Chat-Sitzung nicht gefunden")
         if session:
             # Enforce team visibility on session's project/source if present
             if session.project_id:
@@ -1023,36 +1031,54 @@ def get_chat_sessions(db: Session = Depends(get_db), user: User = Depends(get_cu
 
 
 @router.get("/chat/sessions/by-uuid/{session_uuid}")
-def get_chat_session_by_uuid(session_uuid: str, db: Session = Depends(get_db)):
+def get_chat_session_by_uuid(session_uuid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     session = db.query(ChatSession).filter(ChatSession.uuid == session_uuid).first()
-    if not session:
+    # is_public wird geprüft (O-032): eine nie geteilte Session bleibt über ihre
+    # UUID unerreichbar, auch für andere angemeldete Nutzer.
+    if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
     return _serialize_session(session)
 
 
 @router.get("/chat/sessions/by-uuid/{session_uuid}/messages")
-def get_chat_messages_by_uuid(session_uuid: str, db: Session = Depends(get_db)):
+def get_chat_messages_by_uuid(session_uuid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     session = db.query(ChatSession).filter(ChatSession.uuid == session_uuid).first()
-    if not session:
+    if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
     return _serialize_messages(session.id, db)
 
 
 @router.get("/chat/sessions/{session_id}/messages")
-def get_chat_messages(session_id: int, db: Session = Depends(get_db)):
+def get_chat_messages(session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
-    if not session:
+    if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
     return _serialize_messages(session_id, db)
 
 
-@router.patch("/chat/sessions/{session_id}/snapshot")
-def update_chat_session_snapshot(session_id: int, body: ChatSnapshotUpdate, db: Session = Depends(get_db)):
-    # Kein Owner-Check: dieselbe Fortsetzungs-Logik wie /chat oben — ein über den
-    # Share-Link fortgesetzter Chat muss den Workspace-Snapshot ebenfalls aktualisieren
-    # können, nicht nur der Owner.
+@router.post("/chat/sessions/{session_id}/share")
+def share_chat_session(session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Macht eine Sitzung explizit öffentlich (is_public) und damit über ihre UUID
+    für andere angemeldete Nutzer erreichbar — Voraussetzung für den 'Chat teilen'-
+    Link im Frontend. Siehe O-032 / DOC-F-070."""
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+    if session.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Nur der Besitzer kann diese Sitzung teilen")
+    if not session.is_public:
+        session.is_public = True
+        db.commit()
+    return _serialize_session(session)
+
+
+@router.patch("/chat/sessions/{session_id}/snapshot")
+def update_chat_session_snapshot(session_id: int, body: ChatSnapshotUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # Fortsetzungs-Logik wie /chat oben: ein über den Share-Link fortgesetzter Chat
+    # muss den Workspace-Snapshot auch ohne Owner-Rechte aktualisieren können — aber
+    # nur, wenn die Sitzung tatsächlich freigegeben (is_public) wurde (O-032).
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
     session.snapshot_json = body.snapshot
     db.commit()
@@ -1066,8 +1092,10 @@ def update_chat_message_feedback(message_id: int, body: ChatMessageFeedbackUpdat
     msg = db.query(ChatMessage).filter(ChatMessage.id == message_id, ChatMessage.role == "assistant").first()
     if not msg:
         raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
-    # Kein Owner-Check: dieselbe Fortsetzungs-Logik wie beim Snapshot-Update oben —
-    # ein über den Share-Link fortgesetzter Chat muss Antworten ebenfalls bewerten können.
+    # Dieselbe Fortsetzungs-Logik wie beim Snapshot-Update oben — aber ebenfalls an
+    # is_public gebunden statt komplett ungeprüft (O-032).
+    if not msg.session or not _session_accessible(msg.session, user):
+        raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
     msg.feedback = body.feedback
     db.commit()
     return {"id": msg.id, "feedback": msg.feedback}
@@ -1102,6 +1130,7 @@ def _serialize_session(s: ChatSession) -> dict:
             "id": s.source.id, "name": s.source.name, "type": s.source.type
         } if s.source else None,
         "snapshot_json": s.snapshot_json,
+        "is_public": s.is_public,
         "created_at": s.created_at.isoformat() if s.created_at else None
     }
 
