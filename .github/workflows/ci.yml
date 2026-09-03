@@ -59,6 +59,14 @@ jobs:
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
+      # O-037: backend/core/config.py::UPLOADS_DIR (and REPOS_ROOT) is hardcoded
+      # to /repos -- in production this is the docker-compose ./repos:/repos
+      # mount, but this job runs pytest directly on the bare runner, where
+      # /repos doesn't exist and the runner user can't create it at the
+      # filesystem root. Without this, the local-upload tests fail with
+      # PermissionError: [Errno 13] Permission denied: '/repos'.
+      - name: Prepare /repos for local uploads
+        run: sudo mkdir -p /repos/uploads && sudo chown -R "$(whoami)" /repos
       - name: Run tests
         working-directory: backend
         run: python -m pytest tests/ -v

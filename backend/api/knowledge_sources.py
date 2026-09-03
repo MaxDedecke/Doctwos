@@ -706,7 +706,7 @@ async def upload_local_document(
         shutil.copyfileobj(file.file, buffer)
 
     send_tracked_task(db, db_source, "process_local_document", [db_source.id, file_dest])
-    return db_source
+    return serialize_source(db_source)
 
 
 # ── Interne Render-Helfer für /resolve ───────────────────────────────────────
