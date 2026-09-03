@@ -1,8 +1,15 @@
-# Doctus – Anforderungskatalog v1.3
+# Doctus – Anforderungskatalog v1.4
 
-**Abgleich mit der Software: 02.09.2026**  
-**Software-Ground-Truth:** Repository `Doctwos`, Commit `fdfb906` vom 01.09.2026  
+**Abgleich mit der Software: 03.09.2026**  
+**Software-Ground-Truth:** Repository `Doctwos`, Commit `ff4c864` vom 02.09.2026  
 **Ausgangsdokument:** `Doctus_Anforderungskonzept.pdf`, Version 1.2, Stand 31.07.2026
+
+**Nachtrag 03.09.2026:** erneuter Codeabgleich (29 Commits seit der v1.3-Ground-Truth
+`fdfb906`). Ergebnisse: DOC-F-069 ist inzwischen erfüllt; mehrere TEILWEISE-Punkte
+bestehen unverändert und sind jetzt als Folge-Todos O-029–O-036 in
+[`OFFENE_ENTWICKLUNGSPUNKTE.md`](OFFENE_ENTWICKLUNGSPUNKTE.md) nachgetragen; zwei
+zuvor nicht formulierte, bereits umgesetzte Anforderungen (DOC-F-090, DOC-F-091)
+sind ergänzt.
 
 ## 1. Zweck und Verbindlichkeit
 
@@ -52,9 +59,9 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-011 | Confluence- und Jira-Anbindung als read-only Quellen; Seiten, Anhänge und relevante Inhalte werden synchronisiert. | ERFÜLLT |
 | DOC-F-012 | WebDAV, lokale Ordner und FolderWatch als read-only Quellen. | ERFÜLLT |
 | DOC-F-013 | Upload bzw. Verarbeitung von PDF, Markdown und Text; Connectoren verarbeiten zusätzlich DOC/DOCX. | ERFÜLLT für die tatsächlich angebotenen/unterstützten Wege. |
-| DOC-F-014 | OCR-Fallback für gescannte PDFs bei den Datei-Connectoren. | TEILWEISE – bei Folder/WebDAV ist OCR vorhanden; der lokale Upload-Pfad bricht bei PDF ohne extrahierbaren Text ab. |
+| DOC-F-014 | OCR-Fallback für gescannte PDFs bei den Datei-Connectoren. | TEILWEISE – bei Folder/WebDAV ist OCR vorhanden (gemeinsame `connectors/folder.py::_extract_text`); der lokale Upload-Pfad (`parser/tasks/document.py`) dupliziert die PDF-Extraktion separat ohne OCR und bricht bei PDF ohne extrahierbaren Text ab (O-031). |
 | DOC-F-015 | Quellen werden über Projektgrenzen hinweg nicht unberechtigt sichtbar; alle Quellen bleiben im jeweiligen Projektkontext. | ERFÜLLT |
-| DOC-F-016 | Erweiterungen und Connector-Typen werden konfigurierbar verarbeitet; unbekannte Dateien werden nicht als fachlich unterstützte Dokumente behauptet. | TEILWEISE – der Upload-Endpunkt besitzt keine strikte Allowlist; die UI begrenzt die Auswahl auf `.pdf`, `.md`, `.txt`. |
+| DOC-F-016 | Erweiterungen und Connector-Typen werden konfigurierbar verarbeitet; unbekannte Dateien werden nicht als fachlich unterstützte Dokumente behauptet. | TEILWEISE – der Upload-Endpunkt (`POST /knowledge-sources/upload`) besitzt weiterhin keine serverseitige Allowlist; die UI begrenzt die Auswahl clientseitig auf `.pdf`, `.md`, `.txt` (O-030). |
 | DOC-F-017 | Ingestion ist idempotent, wiederaufnehmbar und erzeugt nachvollziehbare Source-/Scan-Zustände. | ERFÜLLT |
 | DOC-F-018 | Unterstützte Dokumenttypen umfassen PDF, TXT, Markdown und DOC/DOCX; CSV ist nicht als belastbarer eigener Parser/Dokumenttyp umgesetzt. | TEILWEISE – CSV aus v1.2 ist als offene Produktentscheidung zu behandeln (O-007); lokale Uploads bieten derzeit nur PDF/MD/TXT an. |
 
@@ -91,7 +98,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-045 | Lokales Ollama als Standard; Cloud-Provider sind standardmäßig deaktiviert und müssen explizit freigeschaltet werden. | ERFÜLLT |
 | DOC-F-046 | Provider-, Modell-, Base-URL- und Request-Optionen können am Chat übergeben werden; Cloud-Nutzung ist serverseitig gesperrt, wenn nicht erlaubt. | ERFÜLLT |
 | DOC-F-047 | Cloud-Anfragen werden nur bei aktivierter Konfiguration und mit expliziter Providerwahl ausgeführt. | ERFÜLLT |
-| DOC-F-048 | Keine unbeabsichtigte gemeinsame Chat-/Provider-State-Nutzung zwischen Requests. | TEILWEISE – Chatparameter sind requestbezogen; der lokale Ollama-Modellname kann über Admin-`/model-info` global im Prozess geändert werden. |
+| DOC-F-048 | Keine unbeabsichtigte gemeinsame Chat-/Provider-State-Nutzung zwischen Requests. | TEILWEISE – Chatparameter sind requestbezogen; der lokale Ollama-Modellname kann über Admin-`/model-info` weiterhin global im Prozess geändert werden (O-035). |
 | DOC-F-050 | Analyseunterstützung wird als nicht bindende technische Unterstützung gekennzeichnet; Quellen und Unsicherheiten bleiben sichtbar. | ERFÜLLT |
 
 ### 3.5 Workspace, Graphen und Navigation
@@ -102,20 +109,22 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-F-061 | Monaco-Codeansicht mit Syntaxdarstellung, Zeilenbezug und Navigation. | ERFÜLLT |
 | DOC-F-062 | Fixierbare Ansichten, Fokusobjekte, Referenzsprünge und kontextbezogene Chat-Anfragen. | ERFÜLLT |
 | DOC-F-063 | Sitzungen, Snapshots und Wiederherstellung des Workspace-Zustands. | TEILWEISE – Funktion vorhanden; Snapshot-Endpunkte und Deep Links benötigen noch eine vollständige Prüfung der Sichtbarkeits-/Berechtigungsregeln. |
-| DOC-F-064 | Ein bis vier Ansichten sowie responsive Desktop-/Mobile-Layouts. | ERFÜLLT – das 1–4-Layout existiert; frei mit der Maus veränderbare Teiler für alle Layouts sind noch offen (O-021). |
-| DOC-F-065 | Datei-/Entitätsnavigation und Projektkontext in der Seitenleiste. | ERFÜLLT – große Listen sind funktional, aber noch nicht durchgängig virtualisiert/paginiert (siehe NF-011). |
+| DOC-F-064 | Ein bis vier Ansichten sowie responsive Desktop-/Mobile-Layouts. | TEILWEISE – das 1–4-Layout existiert; O-021 hat `split` (2 Panels) und `4-grid` (neuer Kreuzgriff) mit der Maus verstellbar gemacht, `3-col` hat aber weiterhin keinen Teiler (O-029). |
+| DOC-F-065 | Datei-/Entitätsnavigation und Projektkontext in der Seitenleiste. | ERFÜLLT – große Listen sind funktional, aber noch nicht durchgängig virtualisiert/paginiert (siehe NF-011, O-036). |
 | DOC-F-066 | Callgraph für 0–3 Hops mit CALL/PERFORM/GOTO/COPY, Begrenzung, Filtern, unresolved/dynamic Darstellung und JSON/CSV/GraphML-Export. | ERFÜLLT – JCL/`EXECUTES` ist wegen DOC-F-026 nicht Teil des aktuellen v1-Callgraphs. |
 | DOC-F-067 | Callgraph- und Analysezugriffe respektieren Projektberechtigungen. | ERFÜLLT |
-| DOC-F-068 | Klickbare Code-Entitäten und Rücksprünge zwischen Entität, Datei und Referenz. | ERFÜLLT |
-| DOC-F-069 | Zeilenreferenz/Glyph in Monaco öffnet oder fokussiert die zugehörige Stelle und kann für den Chat verwendet werden. | TEILWEISE – die Zeilenreferenz funktioniert; die Fokus-Synchronisierung bei LLM-Anfragen ist noch eine offene Nacharbeit (O-019). |
-| DOC-F-070 | Sitzungen besitzen UUIDs; Teilen ist optional und soll nur explizit öffentliche Sitzungen sichtbar machen. | TEILWEISE – UUID/Public-Felder und Teilen existieren; die Zugriffskontrolle der UUID-/Snapshot-Routen muss für dieses Versprechen nachgeschärft bzw. formal abgenommen werden. |
-| DOC-F-071 | Workspace-Snapshot kann gespeichert und wiederhergestellt werden. | TEILWEISE – umgesetzt; Snapshot-Inhalt liegt als JSON vor und die Zugriffskontrolle ist noch nicht vollständig dokumentiert/abgenommen. |
+| DOC-F-068 | Klickbare Code-Entitäten und Rücksprünge zwischen Entität, Datei und Referenz. | ERFÜLLT – seit 02.09.2026 zusätzlich per Rechtsklick-Kontextmenü auf Code-Entitäten in Monaco (`SplitPaneWorkspace.tsx`, Commit `b45d1cf`). |
+| DOC-F-069 | Zeilenreferenz/Glyph in Monaco öffnet oder fokussiert die zugehörige Stelle und kann für den Chat verwendet werden. | ERFÜLLT – O-019 (kanonischer Fokus-Snapshot pro Chat-Turn) sowie die direkten Folgefixes `e75c2a4`/`ff4c864` (02.09.2026) lassen den fokussierten Code-Objekt/Datei-Kontext jetzt im Chat-Request ankommen (`backend/api/chat.py::_find_pinned_chunks`) und in der Chat-Nachricht sichtbar werden (`ChatView.tsx`). |
+| DOC-F-070 | Sitzungen besitzen UUIDs; Teilen ist optional und soll nur explizit öffentliche Sitzungen sichtbar machen. | TEILWEISE – UUID/Public-Feld (`ChatSession.is_public`) existieren, werden aber von den `by-uuid`-Leserouten nicht geprüft: jede Session ist über ihre UUID lesbar, unabhängig davon, ob sie je geteilt wurde. Sicherheitsrelevanter Nachschärfbedarf, siehe O-032. |
+| DOC-F-071 | Workspace-Snapshot kann gespeichert und wiederhergestellt werden. | TEILWEISE – umgesetzt; `PATCH /chat/sessions/{id}/snapshot` ist über eine fortlaufende Integer-ID statt UUID adressiert, verlangt keine Authentifizierung und prüft `is_public` nicht (O-032). |
 | DOC-F-072 | Deutsch/Englisch, Themes und responsive Darstellung. | ERFÜLLT |
-| DOC-F-073 | Persistente Chatdaten mit Verschlüsselung sensibler Inhalte und nachvollziehbaren Quellen/Feedbackdaten. | TEILWEISE – Nachrichteninhalt ist verschlüsselt; Quellen-/Metadaten-/Feedback-JSON und Workspace-Snapshots sind nicht vollständig verschlüsselt. |
+| DOC-F-073 | Persistente Chatdaten mit Verschlüsselung sensibler Inhalte und nachvollziehbaren Quellen/Feedbackdaten. | TEILWEISE – Nachrichteninhalt (`ChatMessage.content`) ist als `EncryptedString` verschlüsselt; `metadata_json` (u. a. Refs) und `feedback` sind weiterhin unverschlüsselt (O-033). |
 | DOC-F-080 | Automatische Aufbereitung/Generierung von Dokumenten in mehreren Schritten mit Review-/Freigabestatus. | ERFÜLLT – Entwurf, Review und Approve/Reject sind vorhanden. |
 | DOC-F-081 | Manuelles Verknüpfen und Bewerten von Wissen/Quellen. | ERFÜLLT |
 | DOC-F-082 | Knowledge Graph mit Fokus, Übersicht und kontextbezogenen Links. | ERFÜLLT |
-| DOC-F-083 | Neutrale Graph-Ausgabe für JSON/CSV/GraphML; keine Neo4j-Laufzeitabhängigkeit. | TEILWEISE – kein Neo4j-Service ist erforderlich; der Callgraph exportiert neutral, der Knowledge-Graph besitzt aktuell jedoch keinen vollständigen neutralen CSV/GraphML-Export und führt noch einen Legacy-`/export/neo4j`-Kompatibilitätsendpunkt. |
+| DOC-F-083 | Neutrale Graph-Ausgabe für JSON/CSV/GraphML; keine Neo4j-Laufzeitabhängigkeit. | TEILWEISE – kein Neo4j-Service ist erforderlich; der Callgraph exportiert neutral, der Knowledge-Graph-Router (`backend/api/graph.py`) besitzt aber weiterhin nur `/export/neo4j` und keinen CSV/GraphML-Export (O-034). |
+| DOC-F-090 | Admin kann eine bestehende Git-Wissensquelle vollständig neu analysieren (Reindex), ohne sie neu anzulegen und ohne bestehende Verknüpfungen zu verlieren. | ERFÜLLT – `POST /knowledge-sources/{id}/reindex` (admin-only, Commit `46c0edf`, 02.09.2026); nur für Git-Quellen, blockiert bei bereits laufender Analyse. *(Nachgetragen 03.09.2026 – in v1.2/v1.3 nicht formuliert.)* |
+| DOC-F-091 | Admin kann einen laufenden Job (Quellen-Sync, Link-Builder u. a.) aktiv abbrechen, nicht nur fehlgeschlagene erneut anstoßen oder abgeschlossene entfernen. | ERFÜLLT – `POST /jobs/{kind}/{id}/stop` (admin-only, Commit `d585e16`, 02.09.2026), storniert den DB-Zustand und widerruft den Celery-Task. Erweiterung zu DOC-NF-014. *(Nachgetragen 03.09.2026 – in v1.2/v1.3 nicht formuliert.)* |
 
 ## 4. Nichtfunktionale Anforderungen
 
@@ -131,7 +140,7 @@ Die wichtigsten Korrekturen gegenüber v1.2 sind:
 | DOC-NF-008 | Backend- und Parser-Datenmodelle dürfen nicht auseinanderlaufen. | ERFÜLLT – die synchron gehaltenen Modelle werden automatisiert verglichen. |
 | DOC-NF-009 | KI-Ausgaben werden mit Quellen-/Unsicherheitshinweisen als Analysehilfe kenntlich gemacht. | ERFÜLLT – Quellen werden im Chat-Kontext eingefordert und dargestellt; eine fachliche Wahrheitsgarantie ist ausdrücklich nicht Bestandteil. |
 | DOC-NF-010 | Skalierbare Suche/Graph-Abfragen mit HNSW und begrenzten Ergebnismengen. | TEILWEISE – HNSW, Limits und Graph-Begrenzungen sind implementiert; formaler Lasttest steht aus (O-001). |
-| DOC-NF-011 | Große Mengen werden durch Server-Limits, Pagination oder Virtualisierung beherrscht. | TEILWEISE – Suche besitzt Limits/Nachladen; mehrere Datei-/Entitätslisten liefern aktuell noch vollständige Mengen ohne durchgängige Virtualisierung. |
+| DOC-NF-011 | Große Mengen werden durch Server-Limits, Pagination oder Virtualisierung beherrscht. | TEILWEISE – Suche besitzt Limits/Nachladen; mehrere Datei-/Entitätslisten liefern aktuell noch vollständige Mengen ohne durchgängige Virtualisierung, keine Virtualisierungsbibliothek im Frontend vorhanden (O-036). |
 | DOC-NF-012 | BITV-/Barrierefreiheitsanforderungen und automatisierte UI-Prüfungen. | TEILWEISE – automatisierte axe-Basis ist vorhanden; formale BITV-Abnahme steht aus (O-002). |
 | DOC-NF-013 | Alle externen Quellsysteme werden strikt read-only verwendet. | ERFÜLLT |
 | DOC-NF-014 | Job Center zeigt laufende/fehlgeschlagene Prozesse; fehlgeschlagene Jobs können nachvollziehbar fortgesetzt werden. | ERFÜLLT – Verlauf bleibt sichtbar; fehlgeschlagene Jobs können fortgesetzt werden, Admins können unterstützte Jobs aus der UI neu anstoßen. |
@@ -153,12 +162,13 @@ Der fehlende Neo4j-Service ist dagegen kein Architekturfehler: Für den laufende
 
 Für eine nächste verbindliche Version sind mindestens folgende Punkte zu entscheiden bzw. abzunehmen:
 
-1. CSV-Anforderung und einheitliche Upload-Allowlist einschließlich DOCX/OCR (O-007).
-2. Session-/Snapshot-Sichtbarkeit, Public-Share-Semantik und Verschlüsselungsumfang.
-3. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt.
+1. CSV-Anforderung und einheitliche Upload-Allowlist einschließlich DOCX/OCR (O-007, O-030, O-031).
+2. Session-/Snapshot-Zugriffskontrolle: `by-uuid`-Leserouten prüfen `is_public` nicht, Snapshot-/Feedback-Updates sind unauthentifiziert über eine fortlaufende ID erreichbar (O-032, sicherheitsrelevant) — sowie Verschlüsselungsumfang für Metadaten/Feedback (O-033).
+3. Neutraler Knowledge-Graph-Export und Umgang mit dem Legacy-Neo4j-Endpunkt (O-034).
 4. Lasttest mit repräsentativem DRV-COBOL (O-001); die optionale Git-Performance-Evaluation ist unter O-006 dokumentiert.
 5. BITV-Abnahme, Farbkontrast und Markenfreigabe (O-002/O-003).
-6. UI-Nacharbeiten: View-Resize, Link-Manager bei vier Views, Job-Center-Historie und LLM-Fokus-Synchronisierung (O-018–O-021).
+6. UI-Nacharbeiten: View-Resize für `3-col` (O-029), Job-Center-Historie und Frontend-Listen-Virtualisierung (O-036).
+7. Prozessglobale Ollama-Modellwahl über `/model-info` (O-035).
 
 ## 7. Nachweis und Teststand
 

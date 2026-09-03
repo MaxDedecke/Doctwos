@@ -1,7 +1,11 @@
 # Doctwos — Offene Entwicklungspunkte
 
-**Stand:** 02.09.2026
+**Stand:** 03.09.2026
 **Zweck:** Zentrale Liste für noch offene Änderungen, Abnahmen und Entscheidungen.
+
+O-029 bis O-036 stammen aus einem Abgleich des [Anforderungskatalogs](ANFORDERUNGSKATALOG.md)
+gegen den tatsächlichen Codestand (03.09.2026, Ground Truth `ff4c864`): für jede dort als
+TEILWEISE geführte Anforderung wurde am Code geprüft, ob die Lücke noch besteht.
 
 Neue offene Punkte werden ausschließlich hier aufgenommen. Erledigte Punkte bleiben
 zur Nachvollziehbarkeit mit Erledigungsdatum und Verweis dokumentiert. Die
@@ -19,6 +23,14 @@ stehen.
 | O-005 | Frontend-Performance | Nach O-004 `useCallback`/`memo` gezielt ergänzen. | **Erledigt 02.09.2026:** weitergereichte Navigations-, Session-, Chat-, Projekt- und Layout-Handler stabilisiert; Settings-Context sowie Header-Suche und Sidebar memoisiert. `tsc`, ESLint, 18 Tests und Produktions-Build grün. | O-004 |
 | O-007 | Fachliche Anforderungen | Klären, ob CSV-Unterstützung aus Plan §13 / F-018 tatsächlich erforderlich ist. | Anforderung bestätigen oder als veraltet markieren; bei Bestätigung Umfang und betroffene Upload-/Connector-Flächen festlegen. | Fachliche Entscheidung |
 | O-008 | Test-/Entwicklungsumgebung | Entscheidung treffen, ob Ollama in CI verbindlich getestet werden soll. | CI-Strategie festlegen: echter Ollama-Service, dedizierter optionaler Job oder bewusstes Ausnehmen mit dokumentierter Begründung. | Teamentscheidung / CI-Ressourcen |
+| O-029 | Frontend-Layout | 3-Spalten-Layout (`3-col`) hat keinen ziehbaren Teiler. O-021 hat nur `split` (2 Panels, bestand schon vorher) und `4-grid` (neuer Kreuzgriff) resizable gemacht; `3-col` rendert in `WorkspaceShell.tsx` weiterhin starr zu gleichen Dritteln — keine der beiden Resize-Branches (`handleDividerMouseDown`/`handleGridResizePointerDown`) greift für diesen Layoutmodus. | Kreuzgriff- bzw. Divider-Mechanik aus O-021 auf `3-col` übertragen (zwei Teiler statt einem/einer Kreuzung). | O-021 (technische Basis vorhanden) |
+| O-030 | Backend / Ingestion | `POST /knowledge-sources/upload` (`backend/api/knowledge_sources.py`) hat keine serverseitige Extension-Allowlist — nur die UI begrenzt die Dateiauswahl auf `.pdf`/`.md`/`.txt`; ein direkter API-Call nimmt jede Datei entgegen und schickt sie in die Verarbeitungs-Pipeline. | Allowlist serverseitig im Endpunkt selbst durchsetzen, nicht nur clientseitig. | Keine |
+| O-031 | Backend / Ingestion | Lokaler Upload-Pfad (`parser/tasks/document.py::process_local_document_async`) hat keinen OCR-Fallback für Bild-PDFs. Folder-/WebDAV-Connectoren teilen sich dafür bereits `connectors/folder.py::_extract_text` (inkl. OCR); `document.py` extrahiert PDF-Text separat und dupliziert die Logik ohne OCR. | `document.py` auf dieselbe geteilte Extraktionsfunktion umstellen statt eigener PDF-Parsing-Logik. | Keine |
+| O-032 | Backend / Sicherheit | Chat-Share-Mechanik ist schwächer geschützt als beabsichtigt: `GET /chat/sessions/by-uuid/{uuid}` und `.../messages` prüfen `ChatSession.is_public` nicht und verlangen keine Authentifizierung — jede Session ist über ihre UUID lesbar, auch wenn sie nie geteilt wurde. `PATCH /chat/sessions/{id}/snapshot` und `PATCH /chat/messages/{id}/feedback` sind zusätzlich über eine fortlaufende Integer-`session_id`/`message_id` statt UUID adressiert und komplett ohne Auth-Check erreichbar (bewusst kommentiert als „kein Owner-Check" für Share-Link-Fortsetzung, aber ohne begleitende `is_public`-Prüfung). | `is_public`-Prüfung in den by-uuid-Routen nachziehen; Snapshot-/Feedback-Update auf UUID-Kontext umstellen oder mindestens gegen `is_public` gaten. | Keine — sicherheitsrelevant, sollte vorgezogen werden |
+| O-033 | Backend / Verschlüsselung | `ChatMessage.metadata_json` (u. a. `refs`) und `feedback` liegen unverschlüsselt in der DB; nur `content` ist als `EncryptedString` modelliert. | Fachlich klären, ob Metadaten/Refs schutzwürdige Auszüge enthalten können; falls ja, Verschlüsselung erweitern. | Fachliche Einschätzung nötig |
+| O-034 | Backend / Knowledge Graph | Der Knowledge-Graph-Endpunkt (`backend/api/graph.py`) bietet nur `/export/neo4j` (Cypher); anders als der Callgraph (JSON/CSV/GraphML) gibt es keinen neutralen CSV-/GraphML-Export. | CSV-/GraphML-Export analog zum Callgraph-Export ergänzen; Legacy-Neo4j-Endpunkt danach zur Entfernung vorschlagen. | Keine |
+| O-035 | Backend / LLM-Konfiguration | `POST /model-info` (`backend/api/system.py`) verändert weiterhin `cfg.OLLAMA_LLM_MODEL` global im laufenden Prozess statt request-/profilgebunden zu bleiben. | Modellwahl request- bzw. profilgebunden umsetzen, falls Mehrmandantenbetrieb mit unterschiedlichen lokalen Modellen relevant wird. | Fachliche Priorität klären |
+| O-036 | Frontend / Performance | Datei-/Entitätslisten in der Seitenleiste sind bei sehr großen Beständen nicht virtualisiert — die volle Liste wird gerendert, keine Virtualisierungsbibliothek im Frontend vorhanden. | Virtualisierung einführen, sobald ein Bestand das in der Praxis spürbar zeigt. | Kein aktueller Release-Blocker, aber Ziel-Skalierung laut CLAUDE.md Prinzip 4 |
 
 ## Noch zu evaluieren
 
