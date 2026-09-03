@@ -662,6 +662,11 @@ def create_git_source(
 
 
 
+# Muss mit der `accept`-Liste in frontend/components/settings/tabs/SourcesSetupTab.tsx
+# synchron bleiben — die UI begrenzt nur die Auswahl, hier wird sie durchgesetzt.
+_ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".md", ".txt"}
+
+
 @router.post("/upload")
 async def upload_local_document(
     file: UploadFile = File(...),
@@ -672,6 +677,13 @@ async def upload_local_document(
     user: User = Depends(get_current_user)
 ):
     safe_filename = os.path.basename((file.filename or "upload").replace("\\", "/"))
+    extension = os.path.splitext(safe_filename)[1].lower()
+    if extension not in _ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dateityp '{extension or '(ohne Endung)'}' ist nicht erlaubt. "
+                   f"Erlaubt: {', '.join(sorted(_ALLOWED_UPLOAD_EXTENSIONS))}",
+        )
 
     resolved_team_id = _resolve_team_id(project_id, db, user, team_id)
     _check_knowledge_source_cap(project_id, db)

@@ -261,6 +261,27 @@ def test_upload_local_document_creates_source_and_saves_file(client, make_projec
     db_session.commit()
 
 
+def test_upload_local_document_rejects_disallowed_extension(client, make_project, db_session):
+    """O-030: die UI begrenzt die Dateiauswahl auf .pdf/.md/.txt, aber ein direkter
+    API-Call muss serverseitig ebenfalls abgelehnt werden, nicht nur clientseitig."""
+    project_id = make_project()
+
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "evil.sh", "project_id": str(project_id)},
+        files={"file": ("evil.sh", b"#!/bin/sh\necho pwned", "application/x-sh")},
+    )
+    assert resp.status_code == 400
+    assert ".sh" in resp.json()["detail"]
+
+    assert (
+        db_session.query(KnowledgeSource)
+        .filter(KnowledgeSource.name == "evil.sh")
+        .first()
+        is None
+    )
+
+
 def test_upload_local_document_sanitizes_path_traversal_in_filename(client, make_project, db_session):
     """F-018: der Dateiname kommt vom Client (multipart filename) -- os.path.basename()
     muss einen Pfad wie '../../etc/passwd' auf den reinen Dateinamen kappen, sonst
@@ -270,7 +291,7 @@ def test_upload_local_document_sanitizes_path_traversal_in_filename(client, make
     resp = client.post(
         "/knowledge-sources/upload",
         data={"name": "evil", "project_id": str(project_id)},
-        files={"file": ("../../etc/passwd", b"harmless", "text/plain")},
+        files={"file": ("../../etc/passwd.txt", b"harmless", "text/plain")},
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -279,7 +300,7 @@ def test_upload_local_document_sanitizes_path_traversal_in_filename(client, make
     assert source is not None
     assert ".." not in source.spaces["path"]
 
-    expected_path = os.path.join(UPLOADS_DIR, f"{source.id}_passwd")
+    expected_path = os.path.join(UPLOADS_DIR, f"{source.id}_passwd.txt")
     assert os.path.isfile(expected_path)
 
     os.remove(expected_path)
