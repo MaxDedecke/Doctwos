@@ -23,11 +23,25 @@ interface WorkspaceShellProps {
   gridRowPercent: number;
   isDragging: boolean;
   splitContainerRef: React.RefObject<HTMLDivElement | null>;
+  threeColLeftPercent: number;
+  threeColRightPercent: number;
   handleDividerMouseDown: (event: React.PointerEvent) => void;
   handleGridResizePointerDown: (event: React.PointerEvent) => void;
+  handleThreeColLeftDividerPointerDown: (event: React.PointerEvent) => void;
+  handleThreeColRightDividerPointerDown: (event: React.PointerEvent) => void;
   isPanelCollapsed: (index: number) => boolean;
   cellCls: (index: number, expanded: string) => string;
   renderPanel: (index: number) => React.ReactNode;
+}
+
+/** Draggable divider between two workspace panels; shared by the split and 3-col layouts. */
+function WorkspaceDivider({ onPointerDown, isDragging }: { onPointerDown: (event: React.PointerEvent) => void; isDragging: boolean }) {
+  return (
+    <div onPointerDown={onPointerDown} className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative touch-none">
+      <div className={cn('absolute inset-y-0 -left-1 -right-1', isDragging ? 'bg-ds-indigo-500/20' : 'group-hover:bg-ds-indigo-500/10')} />
+      <div className={cn('w-0.5 h-10 rounded-full transition-colors relative z-10', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-700 group-hover:bg-ds-indigo-400')} />
+    </div>
+  );
 }
 
 export function WorkspaceShell({
@@ -47,8 +61,12 @@ export function WorkspaceShell({
   gridRowPercent,
   isDragging,
   splitContainerRef,
+  threeColLeftPercent,
+  threeColRightPercent,
   handleDividerMouseDown,
   handleGridResizePointerDown,
+  handleThreeColLeftDividerPointerDown,
+  handleThreeColRightDividerPointerDown,
   isPanelCollapsed,
   cellCls,
   renderPanel,
@@ -103,14 +121,25 @@ export function WorkspaceShell({
             {panelConfigs.map((_, index) => (
               <React.Fragment key={index}>
                 {layoutMode === 'split' && index === 1 && (
-                  <div onPointerDown={handleDividerMouseDown} className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative touch-none">
-                    <div className={cn('absolute inset-y-0 -left-1 -right-1', isDragging ? 'bg-ds-indigo-500/20' : 'group-hover:bg-ds-indigo-500/10')} />
-                    <div className={cn('w-0.5 h-10 rounded-full transition-colors relative z-10', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-700 group-hover:bg-ds-indigo-400')} />
-                  </div>
+                  <WorkspaceDivider onPointerDown={handleDividerMouseDown} isDragging={isDragging} />
+                )}
+                {layoutMode === '3-col' && (index === 1 || index === 2) && (
+                  <WorkspaceDivider
+                    onPointerDown={index === 1 ? handleThreeColLeftDividerPointerDown : handleThreeColRightDividerPointerDown}
+                    isDragging={isDragging}
+                  />
                 )}
                 {layoutMode === 'split' && index === 0 ? (
                   <div style={isPanelCollapsed(0) ? undefined : { width: `${splitPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(0) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
                     {renderPanel(0)}
+                  </div>
+                ) : layoutMode === '3-col' && index === 0 ? (
+                  <div style={isPanelCollapsed(0) ? undefined : { width: `${threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(0) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
+                    {renderPanel(0)}
+                  </div>
+                ) : layoutMode === '3-col' && index === 1 ? (
+                  <div style={isPanelCollapsed(1) ? undefined : { width: `${threeColRightPercent - threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(1) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
+                    {renderPanel(1)}
                   </div>
                 ) : (
                   <div className={cellCls(index, 'flex-1')}>{renderPanel(index)}</div>

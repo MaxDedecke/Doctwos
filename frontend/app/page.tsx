@@ -191,7 +191,7 @@ function AppContent() {
     setSelectedLine, activeRightTab, setActiveRightTab, fileContent, setFileContent,
     fileContentFormat, setFileContentFormat, isLoadingFile, setIsLoadingFile,
     isEditorMaximized, setIsEditorMaximized, workspaceSplit, setWorkspaceSplit,
-    splitPercent, gridColumnPercent, gridRowPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
+    splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
     layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
     pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen, collapsedPanels,
     setCollapsedPanels, panelFocusObject, setPanelFocusObject, panelSelections,
@@ -199,7 +199,8 @@ function AppContent() {
     activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
     togglePanelCollapse, closePanel, addPanel, ensurePanelType, isPanelCollapsed,
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
-    handleDividerMouseDown, handleGridResizePointerDown, restoreWorkspaceSnapshot,
+    handleDividerMouseDown, handleGridResizePointerDown, handleThreeColLeftDividerPointerDown,
+    handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot,
   } = workspaceState;
 
   const router = useRouter();
@@ -926,10 +927,14 @@ function AppContent() {
           splitPercent={splitPercent}
           gridColumnPercent={gridColumnPercent}
           gridRowPercent={gridRowPercent}
+          threeColLeftPercent={threeColLeftPercent}
+          threeColRightPercent={threeColRightPercent}
           isDragging={isDragging}
           splitContainerRef={splitContainerRef}
           handleDividerMouseDown={handleDividerMouseDown}
           handleGridResizePointerDown={handleGridResizePointerDown}
+          handleThreeColLeftDividerPointerDown={handleThreeColLeftDividerPointerDown}
+          handleThreeColRightDividerPointerDown={handleThreeColRightDividerPointerDown}
           isPanelCollapsed={isPanelCollapsed}
           cellCls={cellCls}
           renderPanel={renderPanel}

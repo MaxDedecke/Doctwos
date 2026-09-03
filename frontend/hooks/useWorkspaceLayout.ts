@@ -8,7 +8,13 @@ import {
   type PanelSelection,
 } from '@/lib/panelHistory';
 import { getSelectionViewType } from '@/lib/workspaceSelection';
-import { clampWorkspacePercent, pointerToWorkspacePercent } from '@/lib/workspaceResize';
+import {
+  clampPercentBetween,
+  clampWorkspacePercent,
+  MIN_THREE_COL_PANEL_PERCENT,
+  pointerToPercent,
+  pointerToWorkspacePercent,
+} from '@/lib/workspaceResize';
 import { cn } from '@/lib/utils';
 
 type Translate = (key: string, values?: Record<string, unknown>) => string;
@@ -59,6 +65,11 @@ export function useWorkspaceLayout({
   const [splitPercent, setSplitPercent] = useState(45);
   const [gridColumnPercent, setGridColumnPercent] = useState(50);
   const [gridRowPercent, setGridRowPercent] = useState(50);
+  // Boundaries (as % of container width) between the 3-col layout's three
+  // panels: panel 0 spans [0, threeColLeftPercent], panel 1 spans
+  // [threeColLeftPercent, threeColRightPercent], panel 2 gets the rest.
+  const [threeColLeftPercent, setThreeColLeftPercent] = useState(100 / 3);
+  const [threeColRightPercent, setThreeColRightPercent] = useState((100 / 3) * 2);
   const [isDragging, setIsDragging] = useState(false);
   const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
   const [fileNavStack, setFileNavStack] = useState<Array<{
@@ -76,10 +87,16 @@ export function useWorkspaceLayout({
   const [activePanelIndex, setActivePanelIndex] = useState(0);
 
   const isDraggingRef = useRef(false);
-  const resizeModeRef = useRef<'split' | 'grid' | null>(null);
+  const resizeModeRef = useRef<'split' | 'grid' | 'three-col' | null>(null);
   const resizeContainerRef = useRef<HTMLElement | null>(null);
   const dragStartXRef = useRef(0);
   const dragStartPercentRef = useRef(45);
+  // Which 3-col divider is being dragged, and the *other* divider's position
+  // at drag start -- it doesn't move during this drag, so it's the fixed
+  // bound the dragged divider must not cross (kept in a ref, not state, to
+  // avoid the pointermove handler closing over a stale value).
+  const threeColDividerRef = useRef<'left' | 'right' | null>(null);
+  const threeColOtherBoundaryRef = useRef(100 / 3);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isPanelHistoryNavRef = useRef(false);
   const activePanelIndexRef = useRef(0);
@@ -357,6 +374,8 @@ export function useWorkspaceLayout({
     splitPercent,
     gridColumnPercent,
     gridRowPercent,
+    threeColLeftPercent,
+    threeColRightPercent,
     fileNavStack,
     pinnedCode,
     selectedProjectId: selectedProject?.id ?? null,
@@ -375,7 +394,7 @@ export function useWorkspaceLayout({
     };
   // Snapshot contents, not the callback identity, define the save boundary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
+  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
 
   // Presets are a second representation of the same split value. The guarded
   // render update keeps a drag-selected percentage intact until a preset
@@ -396,6 +415,23 @@ export function useWorkspaceLayout({
         setGridRowPercent(pointerToWorkspacePercent(event.clientY, containerRect.top, containerRect.height));
         return;
       }
+      if (resizeModeRef.current === 'three-col') {
+        const rawPercent = pointerToPercent(event.clientX, containerRect.left, containerRect.width);
+        if (threeColDividerRef.current === 'left') {
+          setThreeColLeftPercent(clampPercentBetween(
+            rawPercent,
+            MIN_THREE_COL_PANEL_PERCENT,
+            threeColOtherBoundaryRef.current - MIN_THREE_COL_PANEL_PERCENT,
+          ));
+        } else {
+          setThreeColRightPercent(clampPercentBetween(
+            rawPercent,
+            threeColOtherBoundaryRef.current + MIN_THREE_COL_PANEL_PERCENT,
+            100 - MIN_THREE_COL_PANEL_PERCENT,
+          ));
+        }
+        return;
+      }
       const deltaPercent = ((event.clientX - dragStartXRef.current) / containerRect.width) * 100;
       setSplitPercent(clampWorkspacePercent(dragStartPercentRef.current + deltaPercent));
     };
@@ -404,6 +440,7 @@ export function useWorkspaceLayout({
       isDraggingRef.current = false;
       resizeModeRef.current = null;
       resizeContainerRef.current = null;
+      threeColDividerRef.current = null;
       setIsDragging(false);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
@@ -438,6 +475,30 @@ export function useWorkspaceLayout({
     document.body.style.userSelect = 'none';
   }, []);
 
+  const handleThreeColLeftDividerPointerDown = useCallback((event: React.PointerEvent) => {
+    event.preventDefault();
+    isDraggingRef.current = true;
+    resizeModeRef.current = 'three-col';
+    threeColDividerRef.current = 'left';
+    threeColOtherBoundaryRef.current = threeColRightPercent;
+    resizeContainerRef.current = splitContainerRef.current;
+    setIsDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [threeColRightPercent]);
+
+  const handleThreeColRightDividerPointerDown = useCallback((event: React.PointerEvent) => {
+    event.preventDefault();
+    isDraggingRef.current = true;
+    resizeModeRef.current = 'three-col';
+    threeColDividerRef.current = 'right';
+    threeColOtherBoundaryRef.current = threeColLeftPercent;
+    resizeContainerRef.current = splitContainerRef.current;
+    setIsDragging(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [threeColLeftPercent]);
+
   const restoreWorkspaceSnapshot = useCallback((snapshot: any) => {
     isRestoringSnapshotRef.current = true;
     const restoredSelections = Array.isArray(snapshot.panelSelections) && snapshot.panelSelections.length > 0
@@ -460,6 +521,15 @@ export function useWorkspaceLayout({
     if (typeof snapshot.splitPercent === 'number') setSplitPercent(snapshot.splitPercent);
     if (typeof snapshot.gridColumnPercent === 'number') setGridColumnPercent(clampWorkspacePercent(snapshot.gridColumnPercent));
     if (typeof snapshot.gridRowPercent === 'number') setGridRowPercent(clampWorkspacePercent(snapshot.gridRowPercent));
+    if (typeof snapshot.threeColLeftPercent === 'number' && typeof snapshot.threeColRightPercent === 'number') {
+      // Restore only if the pair is still a valid, ordered boundary -- a
+      // corrupted or hand-edited snapshot must not collapse a column to
+      // negative width.
+      const left = clampPercentBetween(snapshot.threeColLeftPercent, MIN_THREE_COL_PANEL_PERCENT, 100 - 2 * MIN_THREE_COL_PANEL_PERCENT);
+      const right = clampPercentBetween(snapshot.threeColRightPercent, left + MIN_THREE_COL_PANEL_PERCENT, 100 - MIN_THREE_COL_PANEL_PERCENT);
+      setThreeColLeftPercent(left);
+      setThreeColRightPercent(right);
+    }
     setTimeout(() => { isRestoringSnapshotRef.current = false; }, 0);
   }, []);
 
@@ -482,6 +552,8 @@ export function useWorkspaceLayout({
     setSplitPercent(45);
     setGridColumnPercent(50);
     setGridRowPercent(50);
+    setThreeColLeftPercent(100 / 3);
+    setThreeColRightPercent((100 / 3) * 2);
     setWorkspaceSplit('45/55');
   }, []);
 
@@ -512,6 +584,8 @@ export function useWorkspaceLayout({
     splitPercent,
     gridColumnPercent,
     gridRowPercent,
+    threeColLeftPercent,
+    threeColRightPercent,
     setSplitPercent,
     isDragging,
     panelConfigs,
@@ -550,6 +624,8 @@ export function useWorkspaceLayout({
     goForwardPanel,
     handleDividerMouseDown,
     handleGridResizePointerDown,
+    handleThreeColLeftDividerPointerDown,
+    handleThreeColRightDividerPointerDown,
     restoreWorkspaceSnapshot,
     resetWorkspace,
   };
