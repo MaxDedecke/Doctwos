@@ -7,14 +7,18 @@ This module provides routes to prepare the networked data of the Doctus system a
 graphs (nodes and edges) for frontend visualization (Force-Graph, Mermaid).
 
 Endpoints:
-    GET /graph           — Full graph of a project (entities + documents)
-    GET /graph/focus     — 1-hop neighborhood of an entity (local focus)
-    GET /graph/export    — Cypher export for external graph databases (Neo4j)
+    GET /graph              — Full graph of a project (entities + documents)
+    GET /graph/focus        — 1-hop neighborhood of an entity (local focus)
+    GET /graph/export/neo4j — Cypher export for external graph databases (Neo4j)
+    GET /graph/export       — Neutral CSV/GraphML export (analogous to /callgraph/export)
 """
 
+import csv
+import io
 from typing import Optional
+from xml.etree.ElementTree import Element, SubElement, tostring
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
@@ -380,6 +384,52 @@ def get_graph_focus(
         })
 
     return {"focus_id": focus_id, "nodes": list(nodes.values()), "edges": edges, "truncated": truncated}
+
+
+@router.get("/export")
+def export_graph(
+    format: str = Query(..., pattern="^(csv|graphml)$"),
+    project_id: Optional[int] = None,
+    status: str = "approved",
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Neutraler CSV-/GraphML-Export des Wissensgraphen (O-034), analog zu
+    /callgraph/export -- anders als /export/neo4j (Cypher, an Neo4j gebunden)
+    ist das Ergebnis in jedem generischen Graph-Werkzeug importierbar."""
+    graph = get_graph(project_id=project_id, status=status, db=db, user=user)
+    nodes = graph["nodes"]
+    edges = graph["edges"]
+
+    if format == "csv":
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow(["source", "target", "link_type", "score", "context"])
+        for edge in edges:
+            writer.writerow([
+                edge["source"], edge["target"], edge["link_type"],
+                edge["score"] if edge.get("score") is not None else "",
+                edge.get("context") or "",
+            ])
+        return Response(out.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": "attachment; filename=knowledge_graph.csv"})
+
+    root = Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
+    xml_graph = SubElement(root, "graph", edgedefault="directed")
+    for node in nodes:
+        xml_node = SubElement(xml_graph, "node", id=str(node["id"]))
+        SubElement(xml_node, "data", key="label").text = node["label"]
+        SubElement(xml_node, "data", key="type").text = node["type"]
+        if node.get("entity_type"):
+            SubElement(xml_node, "data", key="entity_type").text = node["entity_type"]
+    for edge in edges:
+        xml_edge = SubElement(xml_graph, "edge", id=str(edge["id"]),
+                              source=str(edge["source"]), target=str(edge["target"]))
+        SubElement(xml_edge, "data", key="link_type").text = edge["link_type"]
+        if edge.get("score") is not None:
+            SubElement(xml_edge, "data", key="score").text = str(edge["score"])
+    return Response(tostring(root, encoding="unicode"), media_type="application/graphml+xml",
+                    headers={"Content-Disposition": "attachment; filename=knowledge_graph.graphml"})
 
 
 @router.get("/export/neo4j")

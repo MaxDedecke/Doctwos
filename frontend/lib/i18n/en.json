@@ -629,9 +629,12 @@
         }
       },
       "graphExportTitle": "Knowledge Graph Export",
-      "graphExportLabel": "Neo4j Cypher Export",
-      "graphExportDesc": "Export the entire knowledge graph as a Neo4j Cypher script.",
-      "exportError": "Cypher export failed"
+      "graphExportLabel": "Export knowledge graph",
+      "graphExportDesc": "Export the entire knowledge graph as a Neo4j Cypher script, CSV, or GraphML.",
+      "graphExportCypherButton": "Cypher",
+      "graphExportCsvButton": "CSV",
+      "graphExportGraphmlButton": "GraphML",
+      "exportError": "Export failed"
     },
     "users": {
       "usernameLabel": "Username",
@@ -797,7 +800,6 @@
     "docCodeReferencesHeading": "Document & Code References",
     "openAsDialogTitle": "Open as dialog",
     "knowledgeGraphHeading": "Knowledge Graph",
-    "neo4jExportButton": "Neo4j Export",
     "graphButtonLabel": "Graph",
     "codeTabLabel": "Code ({{count}})",
     "documentsTabLabel": "Documents ({{count}})",

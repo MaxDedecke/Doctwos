@@ -63,6 +63,28 @@ export const LayoutSettingsTab: React.FC = () => {
     }
   };
 
+  // Neutraler CSV-/GraphML-Export (O-034) -- anders als exportNeo4j oben (Cypher,
+  // JSON-Response mit dem Skript im Body) liefert /graph/export direkt die fertige
+  // Datei als Blob, analog zu CallGraphView.tsx::exportGraph.
+  const exportGraph = async (format: 'csv' | 'graphml') => {
+    const params = new URLSearchParams({ status: 'approved', format });
+    if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
+    try {
+      const res = await fetch(`${API_URL}/graph/export?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`Export fehlgeschlagen (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `knowledge_graph_${selectedProject?.name ?? 'all'}.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      showToast(t('settings.layoutTab.exportError'), 'error');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Whitemode / Theme Switcher */}
@@ -246,7 +268,7 @@ export const LayoutSettingsTab: React.FC = () => {
           "border rounded-lg p-4 transition-colors",
           theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
         )}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-y-2">
             <div className="space-y-0.5">
               <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>
                 {t('settings.layoutTab.graphExportLabel')}
@@ -255,19 +277,47 @@ export const LayoutSettingsTab: React.FC = () => {
                 {t('settings.layoutTab.graphExportDesc')}
               </span>
             </div>
-            <Button
-              type="button"
-              onClick={exportNeo4j}
-              className={cn(
-                "flex items-center gap-1.5 h-8 px-4 rounded-lg border text-xs font-semibold transition-colors shrink-0",
-                theme === 'dark'
-                  ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-                  : "border-ds-zinc-300 bg-ds-white text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
-              )}
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{t('splitPane.neo4jExportButton')}</span>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                type="button"
+                onClick={exportNeo4j}
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-4 rounded-lg border text-xs font-semibold transition-colors",
+                  theme === 'dark'
+                    ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                    : "border-ds-zinc-300 bg-ds-white text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+                )}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{t('settings.layoutTab.graphExportCypherButton')}</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => exportGraph('csv')}
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-4 rounded-lg border text-xs font-semibold transition-colors",
+                  theme === 'dark'
+                    ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                    : "border-ds-zinc-300 bg-ds-white text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+                )}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{t('settings.layoutTab.graphExportCsvButton')}</span>
+              </Button>
+              <Button
+                type="button"
+                onClick={() => exportGraph('graphml')}
+                className={cn(
+                  "flex items-center gap-1.5 h-8 px-4 rounded-lg border text-xs font-semibold transition-colors",
+                  theme === 'dark'
+                    ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                    : "border-ds-zinc-300 bg-ds-white text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+                )}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{t('settings.layoutTab.graphExportGraphmlButton')}</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
