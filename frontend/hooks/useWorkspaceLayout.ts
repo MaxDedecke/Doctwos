@@ -80,7 +80,6 @@ export function useWorkspaceLayout({
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
   const [pinnedCode, setPinnedCode] = useState<PinnedCode | null>(null);
   const [panelFrozen, setPanelFrozen] = useState<boolean[]>([false]);
-  const [collapsedPanels, setCollapsedPanels] = useState<boolean[]>([false]);
   const [panelFocusObject, setPanelFocusObject] = useState<Array<any | null>>([null]);
   const [panelSelections, setPanelSelections] = useState<PanelSelection[]>([EMPTY_PANEL_SELECTION]);
   const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>([{ past: [], future: [] }]);
@@ -226,19 +225,10 @@ export function useWorkspaceLayout({
     }
   }, [panelFrozen, panelSelections, selectedDoc, selectedEntity, selectedFile]);
 
-  const togglePanelCollapse = useCallback((index: number) => {
-    setCollapsedPanels((previous) => {
-      const next = [...previous];
-      next[index] = !next[index];
-      return next;
-    });
-  }, []);
-
   const closePanel = useCallback((index: number) => {
     if (panelConfigs.length <= 1) return;
     setPanelConfigs((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelFrozen((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
-    setCollapsedPanels((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelSelections((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelHistory((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelFocusObject((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
@@ -251,7 +241,6 @@ export function useWorkspaceLayout({
     if (panelConfigs.length + pendingPanelCountRef.current >= 4) return;
     pendingPanelCountRef.current += 1;
     setPanelFrozen((previous) => [...previous, frozenOverride ?? false]);
-    setCollapsedPanels((previous) => [...previous, false]);
     setPanelFocusObject((previous) => [...previous, null]);
     setPanelSelections((previous) => [...previous, {
       selectedFile: selectionOverride?.selectedFile ?? selectedFile,
@@ -274,9 +263,7 @@ export function useWorkspaceLayout({
     addPanel(type, selectionOverride, frozenOverride);
   }, [addPanel, panelConfigs]);
 
-  const isPanelCollapsed = (index: number) => collapsedPanels[index] && panelConfigs[index] === 'chat';
-  const cellCls = (index: number, expanded: string) =>
-    cn('h-full min-w-0 min-h-0', isPanelCollapsed(index) ? 'flex-none w-12' : expanded);
+  const cellCls = (expanded: string) => cn('h-full min-w-0 min-h-0', expanded);
 
   const handlePanelEntitySelect = useCallback((index: number, entity: any) => {
     const previousSelection = panelSelections[index];
@@ -514,7 +501,6 @@ export function useWorkspaceLayout({
     setPanelSelections(restoredSelections);
     setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
     setPanelFocusObject(Array.isArray(snapshot.panelFocusObject) ? snapshot.panelFocusObject : restoredSelections.map(() => null));
-    setCollapsedPanels(restoredSelections.map(() => false));
     setFileNavStack(Array.isArray(snapshot.fileNavStack) ? snapshot.fileNavStack : []);
     setPinnedCode(snapshot.pinnedCode ?? null);
     if (typeof snapshot.activeRightTab === 'string') setActiveRightTab(snapshot.activeRightTab);
@@ -547,7 +533,6 @@ export function useWorkspaceLayout({
     setPanelSelections([EMPTY_PANEL_SELECTION]);
     setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
-    setCollapsedPanels([false]);
     setPanelFocusObject([null]);
     setSplitPercent(45);
     setGridColumnPercent(50);
@@ -599,8 +584,6 @@ export function useWorkspaceLayout({
     setPinnedCode,
     panelFrozen,
     setPanelFrozen,
-    collapsedPanels,
-    setCollapsedPanels,
     panelFocusObject,
     setPanelFocusObject,
     panelSelections,
@@ -613,11 +596,9 @@ export function useWorkspaceLayout({
     isRestoringSnapshotRef,
     isPanelHistoryNavRef,
     togglePanelFreeze,
-    togglePanelCollapse,
     closePanel,
     addPanel,
     ensurePanelType,
-    isPanelCollapsed,
     cellCls,
     handlePanelEntitySelect,
     goBackPanel,

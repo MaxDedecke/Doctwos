@@ -29,8 +29,7 @@ interface WorkspaceShellProps {
   handleGridResizePointerDown: (event: React.PointerEvent) => void;
   handleThreeColLeftDividerPointerDown: (event: React.PointerEvent) => void;
   handleThreeColRightDividerPointerDown: (event: React.PointerEvent) => void;
-  isPanelCollapsed: (index: number) => boolean;
-  cellCls: (index: number, expanded: string) => string;
+  cellCls: (expanded: string) => string;
   renderPanel: (index: number) => React.ReactNode;
 }
 
@@ -67,7 +66,6 @@ export function WorkspaceShell({
   handleGridResizePointerDown,
   handleThreeColLeftDividerPointerDown,
   handleThreeColRightDividerPointerDown,
-  isPanelCollapsed,
   cellCls,
   renderPanel,
 }: WorkspaceShellProps) {
@@ -130,19 +128,19 @@ export function WorkspaceShell({
                   />
                 )}
                 {layoutMode === 'split' && index === 0 ? (
-                  <div style={isPanelCollapsed(0) ? undefined : { width: `${splitPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(0) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
+                  <div style={{ width: `${splitPercent}%` }} className={cn('h-full flex flex-col min-w-0', !isDragging && 'transition-all duration-300')}>
                     {renderPanel(0)}
                   </div>
                 ) : layoutMode === '3-col' && index === 0 ? (
-                  <div style={isPanelCollapsed(0) ? undefined : { width: `${threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(0) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
+                  <div style={{ width: `${threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', !isDragging && 'transition-all duration-300')}>
                     {renderPanel(0)}
                   </div>
                 ) : layoutMode === '3-col' && index === 1 ? (
-                  <div style={isPanelCollapsed(1) ? undefined : { width: `${threeColRightPercent - threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', isPanelCollapsed(1) && 'flex-none w-12', !isDragging && 'transition-all duration-300')}>
+                  <div style={{ width: `${threeColRightPercent - threeColLeftPercent}%` }} className={cn('h-full flex flex-col min-w-0', !isDragging && 'transition-all duration-300')}>
                     {renderPanel(1)}
                   </div>
                 ) : (
-                  <div className={cellCls(index, 'flex-1')}>{renderPanel(index)}</div>
+                  <div className={cellCls('flex-1')}>{renderPanel(index)}</div>
                 )}
               </React.Fragment>
             ))}

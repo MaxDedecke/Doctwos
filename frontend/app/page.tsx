@@ -193,11 +193,11 @@ function AppContent() {
     isEditorMaximized, setIsEditorMaximized, workspaceSplit, setWorkspaceSplit,
     splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
     layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
-    pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen, collapsedPanels,
-    setCollapsedPanels, panelFocusObject, setPanelFocusObject, panelSelections,
+    pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen,
+    panelFocusObject, setPanelFocusObject, panelSelections,
     setPanelSelections, panelHistory, setPanelHistory, splitContainerRef,
     activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
-    togglePanelCollapse, closePanel, addPanel, ensurePanelType, isPanelCollapsed,
+    closePanel, addPanel, ensurePanelType,
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
     handleDividerMouseDown, handleGridResizePointerDown, handleThreeColLeftDividerPointerDown,
     handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot,
@@ -314,12 +314,11 @@ function AppContent() {
     setPanelSelections([{ selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null }]);
     setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
-    setCollapsedPanels([false]);
     setPanelFocusObject([null]);
     setSplitPercent(45);
     setWorkspaceSplit("45/55");
     setIsSettingsOpen(false);
-  }, [resetChatSession, setActiveRightTab, setCollapsedPanels, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
+  }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
   const handleProjectSelect = useCallback(async (project) => {
     if (!project) {
@@ -769,17 +768,14 @@ function AppContent() {
         t={t}
         selectedProject={selectedProject}
         panelFrozen={Boolean(panelFrozen[index])}
-        collapsed={Boolean(collapsedPanels[index])}
         panelCount={panelConfigs.length}
         panelHistory={panelHistory[index]}
         linkManagerEnabled={features.views.linkManager}
         onContentTypeChange={handlePanelContentTypeChange}
-        onExpand={togglePanelCollapse}
         onMouseEnter={setActivePanelIndex}
         onHistoryBack={goBackPanel}
         onHistoryForward={goForwardPanel}
         onToggleFreeze={togglePanelFreeze}
-        onCollapse={togglePanelCollapse}
         onClose={closePanel}
         content={renderPanelContent(index, contentType, selection)}
       />
@@ -935,7 +931,6 @@ function AppContent() {
           handleGridResizePointerDown={handleGridResizePointerDown}
           handleThreeColLeftDividerPointerDown={handleThreeColLeftDividerPointerDown}
           handleThreeColRightDividerPointerDown={handleThreeColRightDividerPointerDown}
-          isPanelCollapsed={isPanelCollapsed}
           cellCls={cellCls}
           renderPanel={renderPanel}
         />

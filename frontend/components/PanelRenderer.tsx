@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Globe,
   Lock,
-  MessageSquare,
   RefreshCw,
   Terminal,
   X,
@@ -33,18 +32,15 @@ interface PanelRendererProps {
   t: Translate;
   selectedProject: any | null;
   panelFrozen: boolean;
-  collapsed: boolean;
   panelCount: number;
   panelHistory?: PanelHistoryEntry;
   linkManagerEnabled: boolean;
   content: React.ReactNode;
   onContentTypeChange: (index: number, type: string) => void;
-  onExpand: (index: number) => void;
   onMouseEnter: (index: number) => void;
   onHistoryBack: (index: number) => void;
   onHistoryForward: (index: number) => void;
   onToggleFreeze: (index: number) => void;
-  onCollapse: (index: number) => void;
   onClose: (index: number) => void;
 }
 
@@ -57,48 +53,18 @@ export function PanelRenderer({
   t,
   selectedProject,
   panelFrozen,
-  collapsed,
   panelCount,
   panelHistory,
   linkManagerEnabled,
   content,
   onContentTypeChange,
-  onExpand,
   onMouseEnter,
   onHistoryBack,
   onHistoryForward,
   onToggleFreeze,
-  onCollapse,
   onClose,
 }: PanelRendererProps) {
-  const isChat = contentType === 'chat';
   const focusInfo = getPanelFocusInfo(focusObject, selection, t);
-
-  if (isChat && collapsed) {
-    return (
-      <button
-        onClick={() => onExpand(index)}
-        title={t('page.workspace.expandChat')}
-        className={cn(
-          'h-full w-full flex flex-col items-center gap-3 py-3 border rounded-lg transition-colors cursor-pointer group',
-          theme === 'dark'
-            ? 'bg-ds-zinc-950/40 border-ds-zinc-900 text-ds-zinc-400 hover:text-ds-indigo-400 hover:border-ds-zinc-800'
-            : 'bg-ds-white/40 border-ds-zinc-200 text-ds-zinc-500 hover:text-ds-indigo-600 hover:border-ds-zinc-300'
-        )}
-      >
-        <span className={cn(
-          'p-1.5 rounded-lg border',
-          theme === 'dark' ? 'border-ds-zinc-800 bg-ds-zinc-900/60' : 'border-ds-zinc-200 bg-ds-zinc-50'
-        )}>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </span>
-        <MessageSquare className="w-4 h-4 text-ds-indigo-500 shrink-0" />
-        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ writingMode: 'vertical-rl' }}>
-          {t('page.mobileTab.chat')}
-        </span>
-      </button>
-    );
-  }
 
   return (
     <div
@@ -157,7 +123,6 @@ export function PanelRenderer({
           >
             {panelFrozen ? <><Lock className="w-3 h-3 text-ds-amber-500" /><span className="text-[9px] text-ds-amber-500 hidden sm:inline">{t('page.workspace.frozenBadge')}</span></> : <><RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" /><span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('page.workspace.liveBadge')}</span></>}
           </button>
-          {isChat && <button onClick={() => onCollapse(index)} className={cn('p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer', theme === 'dark' ? 'bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-indigo-400 hover:border-ds-indigo-900/40 hover:bg-ds-indigo-950/20' : 'bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-indigo-600 hover:border-ds-indigo-200 hover:bg-ds-indigo-50')} title={t('page.workspace.collapseChat')}><ChevronLeft className="w-3 h-3" /></button>}
           {panelCount > 1 && <button onClick={() => onClose(index)} className={cn('p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer', theme === 'dark' ? 'bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-red-400 hover:border-ds-red-900/40 hover:bg-ds-red-950/20' : 'bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-red-500 hover:border-ds-red-200 hover:bg-ds-red-50')} title={t('page.workspace.closeView')}><X className="w-3 h-3" /></button>}
         </div>
       </div>
