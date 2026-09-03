@@ -37,18 +37,30 @@ def _md5(file_path: str) -> str:
 
 from utils import extract_text_from_pdf_ocr
 
+
+def extract_pdf_pages(file_path: str) -> list[tuple[int | None, str]]:
+    """Liest eine PDF-Datei seitenweise ein; OCR-Fallback für Bild-PDFs ohne Text-Layer.
+
+    Liefert eine Liste aus (Seitennummer, Text) für Aufrufer, die die Seite pro
+    Chunk erhalten wollen (z. B. `parser/tasks/document.py` für die
+    "was steht auf Seite X"-Navigation). Ist kein Text-Layer vorhanden, wird die
+    gesamte Datei per OCR erkannt; dabei geht die Seitenzuordnung verloren, daher
+    ein einzelner Eintrag mit `page_no=None`.
+    """
+    from pypdf import PdfReader
+    reader = PdfReader(file_path)
+    pages = [(page_no, page.extract_text() or "") for page_no, page in enumerate(reader.pages, start=1)]
+    if not any(text.strip() for _, text in pages):
+        logger.info(f"OCR-Fallback für PDF ohne Text-Layer: '{file_path}'")
+        return [(None, extract_text_from_pdf_ocr(file_path))]
+    return pages
+
+
 def _extract_text(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".pdf":
         try:
-            from pypdf import PdfReader
-            reader = PdfReader(file_path)
-            text = "\n".join(p.extract_text() or "" for p in reader.pages)
-            if not text.strip():
-                # Kein Textlayer vorhanden → OCR-Fallback
-                logger.info(f"[FolderConnector] OCR-Fallback für '{file_path}'")
-                text = extract_text_from_pdf_ocr(file_path)
-            return text
+            return "\n".join(text for _, text in extract_pdf_pages(file_path))
         except Exception as e:
             # Fallback to plain text if the PDF is actually a text/mock file (like the Markdown mock files)
             try:

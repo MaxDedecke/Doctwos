@@ -1,6 +1,7 @@
 import logging
 import os
 from chunk_reindex import reindex_chunks_preserving_links
+from connectors.folder import extract_pdf_pages
 from core import config
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
@@ -13,8 +14,10 @@ async def process_local_document_async(source_id: int, file_path: str):
     """
     Parses and indexes a locally uploaded file (PDF, Word, or plain text).
     
-    1. Extracts text content depending on the file format (PDF parsing with pypdf,
-       Word parsing with python-docx, or default raw text reading).
+    1. Extracts text content depending on the file format (PDF parsing via the
+       shared `connectors.folder.extract_pdf_pages` incl. OCR fallback for
+       image-only PDFs, Word parsing with python-docx, or default raw text
+       reading).
     2. Removes invalid characters (null bytes).
     3. Triggers embedding model pulling in Ollama.
     4. Chunks the document content using CodeParser.
@@ -66,12 +69,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         if ext == ".pdf":
             try:
                 log_event("Lese PDF-Dokument ein...")
-                from pypdf import PdfReader
-                reader = PdfReader(file_path)
-                for page_no, page in enumerate(reader.pages, start=1):
-                    text = page.extract_text()
-                    if text:
-                        pages.append((page_no, text))
+                pages = [(page_no, text) for page_no, text in extract_pdf_pages(file_path) if text]
             except Exception as e:
                 log_event(f"Fehler beim Lesen der PDF-Datei, versuche Plaintext-Fallback: {e}")
                 try:
