@@ -59,6 +59,7 @@
       "sessionDeleteFailed": "Could not delete session",
       "sessionSaved": "Session \"{{title}}\" saved",
       "sessionSaveFailed": "Could not save session",
+      "sessionUpdated": "Session updated",
       "documentUploaded": "Document uploaded successfully and indexing started",
       "documentUploadFailed": "Error uploading document",
       "newChatStarted": "New chat started",
@@ -91,7 +92,8 @@
       "frozenBadge": "Frozen",
       "liveBadge": "Live",
       "resizeGrid": "Resize workspace panels",
-      "saveSessionTitle": "Save session (chat has not been used yet)"
+      "saveSessionTitle": "Save session (chat has not been used yet)",
+      "updateSessionTitle": "Update session with the current state"
     },
     "viewTypes": {
       "chat": "💬 Chat view",

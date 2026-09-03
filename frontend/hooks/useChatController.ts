@@ -41,6 +41,7 @@ interface ChatControllerOptions {
   handleProjectSelect: (project: any | null) => void | Promise<void>;
   restoreWorkspaceSnapshot: (snapshot: any) => void;
   resetChatSession: () => void;
+  buildWorkspaceSnapshot: () => any;
 }
 
 export function useChatController({
@@ -70,6 +71,7 @@ export function useChatController({
   handleProjectSelect,
   restoreWorkspaceSnapshot,
   resetChatSession,
+  buildWorkspaceSnapshot,
 }: ChatControllerOptions) {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,10 +101,10 @@ export function useChatController({
 
   // O-038: legt eine benannte Sitzung an, ohne dass je eine Chat-Nachricht
   // geschrieben wurde -- z.B. ein Befund, der nur über mehrere Views (Graph +
-  // Code) entsteht. Der Workspace-Snapshot selbst kommt nicht von hier: sobald
-  // activeSessionId gesetzt ist, greift derselbe debounced Autosave-Effekt wie
-  // bei jeder anderen Sitzung (siehe useWorkspaceLayout.ts) und schreibt ihn
-  // kurz danach über PATCH .../snapshot -- keine zweite Snapshot-Bau-Stelle nötig.
+  // Code) entsteht. Der Snapshot wird hier sofort mitgespeichert (statt nur
+  // auf den debounced Autosave in useWorkspaceLayout.ts zu warten): klickt der
+  // Nutzer direkt danach dieselbe Sitzung in der Sidebar an, wäre sonst in dem
+  // ~1,2s-Fenster noch kein Snapshot vorhanden und die Panels blieben leer.
   const handleSaveSessionWithoutChat = useCallback(async (title: string) => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) return;
@@ -113,7 +115,9 @@ export function useChatController({
         source_id: selectedSource?.id ?? null,
       });
       const newSession = res.data;
-      setSessions(prev => [newSession, ...prev]);
+      const snapshot = buildWorkspaceSnapshot();
+      await api.updateChatSessionSnapshot(newSession.id, snapshot);
+      setSessions(prev => [{ ...newSession, snapshot_json: snapshot }, ...prev]);
       ignoreUrlSyncRef.current = true;
       setActiveSessionId(newSession.id);
       if (newSession.uuid) {
@@ -126,7 +130,28 @@ export function useChatController({
       console.error('Failed to save session without a chat message:', error);
       showToast(t('page.toast.sessionSaveFailed'), 'error');
     }
-  }, [ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setSessions, showToast, t]);
+  }, [buildWorkspaceSnapshot, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setSessions, showToast, t]);
+
+  // O-038 Folgefix: ein zweites Mal auf das Speicher-Icon zu klicken, während
+  // bereits eine chat-lose Sitzung aktiv ist (activeSessionId gesetzt,
+  // chatMessages leer -- die einzige Bedingung, unter der der Button
+  // überhaupt sichtbar ist), darf KEINE zweite Sitzung anlegen. Stattdessen
+  // wird der aktuelle Stand sofort in die bestehende Sitzung geschrieben,
+  // ohne erneut nach einem Namen zu fragen.
+  const handleUpdateSessionSnapshot = useCallback(async () => {
+    if (!activeSessionId) return;
+    try {
+      const snapshot = buildWorkspaceSnapshot();
+      await api.updateChatSessionSnapshot(activeSessionId, snapshot);
+      setSessions(prev => prev.map(session =>
+        session.id === activeSessionId ? { ...session, snapshot_json: snapshot } : session
+      ));
+      showToast(t('page.toast.sessionUpdated'), 'success');
+    } catch (error) {
+      console.error('Failed to update session snapshot:', error);
+      showToast(t('page.toast.sessionSaveFailed'), 'error');
+    }
+  }, [activeSessionId, buildWorkspaceSnapshot, setSessions, showToast, t]);
 
   // Shared SSE consumer for both a fresh send and a retry/regenerate. The
   // caller prepares the target assistant slot; this function only consumes the
@@ -521,6 +546,7 @@ export function useChatController({
   return {
     handleShareChat,
     handleSaveSessionWithoutChat,
+    handleUpdateSessionSnapshot,
     handleSendChat,
     handleRetryMessage,
     handleSessionSelect,

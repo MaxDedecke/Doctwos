@@ -29,7 +29,9 @@ function renderGlobalSearch(overrides: Partial<React.ComponentProps<typeof Globa
         onProjectSelect={vi.fn()}
         onShareChat={vi.fn()}
         canSaveSessionWithoutChat={false}
+        hasActiveSessionWithoutChat={false}
         onSaveSessionWithoutChat={vi.fn()}
+        onUpdateSessionSnapshot={vi.fn()}
         currentUser={null}
         {...overrides}
       />
@@ -75,5 +77,27 @@ describe('GlobalSearch save-session-without-chat button', () => {
     });
 
     expect(onSaveSessionWithoutChat).toHaveBeenCalledWith('Graph-Befund');
+  });
+
+  // O-038 Folgefix: ist bereits eine chat-lose Sitzung aktiv, darf der Klick
+  // nicht erneut den Namens-Dialog öffnen (das würde eine zweite Sitzung
+  // anlegen) -- stattdessen wird direkt aktualisiert.
+  it('updates the existing session directly instead of reopening the dialog when one is already active', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue({ data: { jobs: [], active_count: 0 } } as any);
+    const onSaveSessionWithoutChat = vi.fn();
+    const onUpdateSessionSnapshot = vi.fn();
+    renderGlobalSearch({
+      canSaveSessionWithoutChat: true,
+      hasActiveSessionWithoutChat: true,
+      onSaveSessionWithoutChat,
+      onUpdateSessionSnapshot,
+    });
+
+    const button = screen.getByTitle('Sitzung mit aktuellem Stand aktualisieren');
+    fireEvent.click(button);
+
+    expect(onUpdateSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(onSaveSessionWithoutChat).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText('Name der Sitzung')).toBeNull();
   });
 });

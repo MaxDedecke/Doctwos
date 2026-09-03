@@ -166,6 +166,7 @@ function AppContent() {
     selectedProject: projectState.selectedProject,
     selectedSource: sourceState.selectedSource,
     t,
+    setSessions: chatState.setSessions,
   });
 
   const {
@@ -200,7 +201,7 @@ function AppContent() {
     closePanel, addPanel, ensurePanelType,
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
     handleDividerMouseDown, handleGridResizePointerDown, handleThreeColLeftDividerPointerDown,
-    handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot,
+    handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot, buildWorkspaceSnapshot,
   } = workspaceState;
 
   const router = useRouter();
@@ -347,6 +348,7 @@ function AppContent() {
   const {
     handleShareChat,
     handleSaveSessionWithoutChat,
+    handleUpdateSessionSnapshot,
     handleSendChat,
     handleRetryMessage,
     handleSessionSelect,
@@ -378,6 +380,7 @@ function AppContent() {
     handleProjectSelect,
     restoreWorkspaceSnapshot,
     resetChatSession,
+    buildWorkspaceSnapshot,
   });
 
   useEffect(() => {
@@ -863,7 +866,9 @@ function AppContent() {
         onProjectSelect={handleProjectSelect}
         onShareChat={handleShareChat}
         canSaveSessionWithoutChat={chatMessages.length === 0 && panelConfigs.length >= 2}
+        hasActiveSessionWithoutChat={chatMessages.length === 0 && activeSessionId !== null}
         onSaveSessionWithoutChat={handleSaveSessionWithoutChat}
+        onUpdateSessionSnapshot={handleUpdateSessionSnapshot}
         currentUser={currentUser}
       />
 

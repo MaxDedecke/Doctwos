@@ -23,6 +23,8 @@ type HarnessOverrides = {
   restoreWorkspaceSnapshot?: any;
   resetChatSession?: any;
   showToast?: any;
+  buildWorkspaceSnapshot?: any;
+  sessions?: any[];
 };
 
 function useControllerHarness(overrides: HarnessOverrides = {}) {
@@ -30,13 +32,19 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
   const [chatMessages, setChatMessages] = useState<any[]>(overrides.chatMessages ?? []);
   const [currentMessage, setCurrentMessage] = useState(overrides.currentMessage ?? '');
   const [isLoading, setIsLoading] = useState(overrides.isLoading ?? false);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>(overrides.sessions ?? []);
   const [selectedSource, setSelectedSource] = useState<any | null>(overrides.selectedSource ?? null);
   const selectedProject = overrides.selectedProject ?? { id: 11, name: 'Demo' };
-  const handleProjectSelect = (overrides.handleProjectSelect ?? vi.fn()) as (project: any) => void | Promise<void>;
-  const restoreWorkspaceSnapshot = (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: any) => void;
-  const resetChatSession = (overrides.resetChatSession ?? vi.fn()) as () => void;
-  const showToast = (overrides.showToast ?? vi.fn()) as (message: string, type?: string) => void;
+  // Lazy useState initializers (not a plain `overrides.X ?? vi.fn()`) so the
+  // mock identity is stable across re-renders -- a handler under test here
+  // can itself trigger a state update (e.g. setSessions), and asserting on
+  // `result.current.showToast` after that re-render must still see the same
+  // mock instance the callback actually closed over, not a freshly recreated one.
+  const [handleProjectSelect] = useState(() => (overrides.handleProjectSelect ?? vi.fn()) as (project: any) => void | Promise<void>);
+  const [restoreWorkspaceSnapshot] = useState(() => (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: any) => void);
+  const [resetChatSession] = useState(() => (overrides.resetChatSession ?? vi.fn()) as () => void);
+  const [showToast] = useState(() => (overrides.showToast ?? vi.fn()) as (message: string, type?: string) => void);
+  const [buildWorkspaceSnapshot] = useState(() => (overrides.buildWorkspaceSnapshot ?? vi.fn(() => ({ panelConfigs: ['chat', 'graph'] }))) as () => any);
 
   const controller = useChatController({
     t: (key, vars) => vars ? `${key}:${JSON.stringify(vars)}` : key,
@@ -65,6 +73,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
     handleProjectSelect,
     restoreWorkspaceSnapshot,
     resetChatSession,
+    buildWorkspaceSnapshot,
   });
 
   return {
@@ -77,6 +86,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
     selectedSource,
     handleProjectSelect,
     restoreWorkspaceSnapshot,
+    buildWorkspaceSnapshot,
     showToast,
   };
 }
@@ -270,9 +280,10 @@ describe('useChatController', () => {
   // O-038: eine Sitzung ohne Chat-Nachricht anlegen (Speicher-Icon in der
   // Header-Bar, sichtbar bei leerem Chat + zweiter offener View).
   describe('handleSaveSessionWithoutChat', () => {
-    it('creates a session via the API, activates it, and lists it', async () => {
+    it('creates a session via the API, saves its snapshot immediately, activates it, and lists it', async () => {
       const newSession = { id: 55, uuid: 'chat-55', title: 'Graph-Befund', project_id: 11, source_id: null };
       vi.spyOn(api, 'createChatSession').mockResolvedValue({ data: newSession } as any);
+      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
       const { result } = renderHook(() => useControllerHarness());
 
       await act(async () => {
@@ -284,8 +295,12 @@ describe('useChatController', () => {
         project_id: 11,
         source_id: null,
       });
+      // The snapshot is saved right away instead of waiting for the debounced
+      // autosave (useWorkspaceLayout.ts) -- clicking straight back into this
+      // session in the sidebar must not find an empty snapshot_json.
+      expect(updateSnapshotSpy).toHaveBeenCalledWith(55, { panelConfigs: ['chat', 'graph'] });
       expect(result.current.activeSessionId).toBe(55);
-      expect(result.current.sessions).toEqual([newSession]);
+      expect(result.current.sessions).toEqual([{ ...newSession, snapshot_json: { panelConfigs: ['chat', 'graph'] } }]);
       expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-55');
     });
 
@@ -313,6 +328,68 @@ describe('useChatController', () => {
       expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error');
       expect(result.current.activeSessionId).toBeNull();
       expect(result.current.sessions).toEqual([]);
+    });
+  });
+
+  // O-038 Folgefix: erneutes Klicken auf das Speicher-Icon, während schon eine
+  // chat-lose Sitzung aktiv ist, darf keine zweite Sitzung anlegen -- nur die
+  // bestehende updaten.
+  describe('handleUpdateSessionSnapshot', () => {
+    it('saves the current snapshot into the already-active session, without creating a new one', async () => {
+      const createSpy = vi.spyOn(api, 'createChatSession');
+      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+      const { result } = renderHook(() => useControllerHarness({
+        activeSessionId: 55,
+        buildWorkspaceSnapshot: () => ({ panelConfigs: ['chat', 'graph', 'code'] }),
+      }));
+
+      await act(async () => {
+        await result.current.controller.handleUpdateSessionSnapshot();
+      });
+
+      expect(createSpy).not.toHaveBeenCalled();
+      expect(updateSnapshotSpy).toHaveBeenCalledWith(55, { panelConfigs: ['chat', 'graph', 'code'] });
+      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionUpdated', 'success');
+    });
+
+    it('updates the matching cached session entry with the newly saved snapshot', async () => {
+      vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+      const { result } = renderHook(() => useControllerHarness({
+        activeSessionId: 55,
+        sessions: [{ id: 55, title: 'Graph-Befund', snapshot_json: { panelConfigs: ['chat', 'graph'] } }, { id: 9, title: 'Andere Sitzung' }],
+        buildWorkspaceSnapshot: () => ({ panelConfigs: ['graph', 'code'] }),
+      }));
+
+      await act(async () => {
+        await result.current.controller.handleUpdateSessionSnapshot();
+      });
+
+      expect(result.current.sessions).toEqual([
+        { id: 55, title: 'Graph-Befund', snapshot_json: { panelConfigs: ['graph', 'code'] } },
+        { id: 9, title: 'Andere Sitzung' },
+      ]);
+    });
+
+    it('does nothing when there is no active session', async () => {
+      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot');
+      const { result } = renderHook(() => useControllerHarness({ activeSessionId: null }));
+
+      await act(async () => {
+        await result.current.controller.handleUpdateSessionSnapshot();
+      });
+
+      expect(updateSnapshotSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows an error toast when the update fails', async () => {
+      vi.spyOn(api, 'updateChatSessionSnapshot').mockRejectedValue(new Error('network down'));
+      const { result } = renderHook(() => useControllerHarness({ activeSessionId: 55 }));
+
+      await act(async () => {
+        await result.current.controller.handleUpdateSessionSnapshot();
+      });
+
+      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error');
     });
   });
 });

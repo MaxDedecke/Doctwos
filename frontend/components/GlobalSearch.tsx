@@ -41,7 +41,13 @@ interface GlobalSearchProps {
   // sonst ist ein reiner Graph-/Code-View-Befund ohne Chat-Nutzung nicht teil-/
   // konservierbar, weil eine Sitzung sonst erst mit der ersten Nachricht entsteht.
   canSaveSessionWithoutChat: boolean;
+  // Ist bereits eine chat-lose Sitzung aktiv (activeSessionId gesetzt, während
+  // canSaveSessionWithoutChat true ist), öffnet der Button-Klick NICHT erneut
+  // den Namens-Dialog -- sonst würde jede weitere Änderung eine neue Sitzung
+  // statt eines Updates der bestehenden anlegen.
+  hasActiveSessionWithoutChat: boolean;
   onSaveSessionWithoutChat: (title: string) => void | Promise<void>;
+  onUpdateSessionSnapshot: () => void | Promise<void>;
   currentUser?: { is_admin?: boolean } | null;
 }
 
@@ -71,7 +77,9 @@ export function GlobalSearch({
   onProjectSelect,
   onShareChat,
   canSaveSessionWithoutChat,
+  hasActiveSessionWithoutChat,
   onSaveSessionWithoutChat,
+  onUpdateSessionSnapshot,
   currentUser,
 }: GlobalSearchProps) {
   const { t } = useLanguage();
@@ -530,9 +538,15 @@ export function GlobalSearch({
             variant="ghost"
             size="icon"
             id="header-action-save-session-btn"
-            aria-label={t('page.workspace.saveSessionTitle')}
-            title={t('page.workspace.saveSessionTitle')}
-            onClick={() => setIsSaveSessionOpen(true)}
+            aria-label={hasActiveSessionWithoutChat ? t('page.workspace.updateSessionTitle') : t('page.workspace.saveSessionTitle')}
+            title={hasActiveSessionWithoutChat ? t('page.workspace.updateSessionTitle') : t('page.workspace.saveSessionTitle')}
+            onClick={() => {
+              if (hasActiveSessionWithoutChat) {
+                onUpdateSessionSnapshot();
+              } else {
+                setIsSaveSessionOpen(true);
+              }
+            }}
             className={cn(
               "h-8 w-8 rounded-lg border transition-all duration-200",
               theme === 'dark'

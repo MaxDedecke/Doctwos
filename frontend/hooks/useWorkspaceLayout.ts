@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { api } from '@/app/services/api';
 import {
   appendPanelHistory,
@@ -24,6 +25,13 @@ interface UseWorkspaceLayoutOptions {
   selectedProject: any | null;
   selectedSource: any | null;
   t: Translate;
+  // Optional: keeps the sidebar's cached session list in sync with what the
+  // debounced snapshot autosave below actually persists. Without this, a
+  // session selected again in the same tab (no reload) would restore
+  // whatever snapshot_json happened to be cached at select-time -- stale or
+  // entirely missing (see O-038 follow-up fix). Optional so existing/test
+  // callers that never touch the session list don't need to wire it up.
+  setSessions?: Dispatch<SetStateAction<any[]>>;
 }
 
 export interface PinnedCode {
@@ -49,6 +57,7 @@ export function useWorkspaceLayout({
   selectedProject,
   selectedSource,
   t,
+  setSessions,
 }: UseWorkspaceLayoutOptions) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -373,7 +382,17 @@ export function useWorkspaceLayout({
     if (!activeSessionId || isRestoringSnapshotRef.current) return;
     if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current);
     snapshotDebounceRef.current = setTimeout(() => {
-      api.updateChatSessionSnapshot(activeSessionId, buildWorkspaceSnapshot())
+      const snapshot = buildWorkspaceSnapshot();
+      api.updateChatSessionSnapshot(activeSessionId, snapshot)
+        .then(() => {
+          // Mirror what was actually persisted into the cached session list --
+          // without this, re-selecting this same session later in the same
+          // tab (no reload) would restore whatever snapshot_json happened to
+          // be cached at select-time instead of the current layout.
+          setSessions?.((previous) => previous.map((session) =>
+            session.id === activeSessionId ? { ...session, snapshot_json: snapshot } : session
+          ));
+        })
         .catch((error) => console.error('Failed to save workspace snapshot:', error));
     }, 1200);
     return () => {
@@ -381,7 +400,7 @@ export function useWorkspaceLayout({
     };
   // Snapshot contents, not the callback identity, define the save boundary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, fileNavStack, pinnedCode, selectedProject, selectedSource]);
+  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, fileNavStack, pinnedCode, selectedProject, selectedSource, setSessions]);
 
   // Presets are a second representation of the same split value. The guarded
   // render update keeps a drag-selected percentage intact until a preset
@@ -600,6 +619,7 @@ export function useWorkspaceLayout({
     addPanel,
     ensurePanelType,
     cellCls,
+    buildWorkspaceSnapshot,
     handlePanelEntitySelect,
     goBackPanel,
     goForwardPanel,

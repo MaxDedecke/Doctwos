@@ -59,6 +59,7 @@
       "sessionDeleteFailed": "Sitzung konnte nicht gelöscht werden",
       "sessionSaved": "Sitzung \"{{title}}\" gespeichert",
       "sessionSaveFailed": "Sitzung konnte nicht gespeichert werden",
+      "sessionUpdated": "Sitzung aktualisiert",
       "documentUploaded": "Dokument erfolgreich hochgeladen und Indizierung gestartet",
       "documentUploadFailed": "Fehler beim Hochladen des Dokuments",
       "newChatStarted": "Neuer Chat gestartet",
@@ -91,7 +92,8 @@
       "frozenBadge": "Fixiert",
       "liveBadge": "Live",
       "resizeGrid": "Workspace-Panels vergrößern oder verkleinern",
-      "saveSessionTitle": "Sitzung speichern (Chat wurde noch nicht benutzt)"
+      "saveSessionTitle": "Sitzung speichern (Chat wurde noch nicht benutzt)",
+      "updateSessionTitle": "Sitzung mit aktuellem Stand aktualisieren"
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",
