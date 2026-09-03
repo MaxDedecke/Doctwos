@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Browser-tab favicon: same "structural D" mark as components/Logo.tsx's
+       DoctusIcon, with the theme CSS vars (rgb(var(--ds-accent)) etc.) baked
+       in as literal hex colors -- a static favicon file has no access to the
+       page's CSS custom properties. Colors taken from the dark theme in
+       globals.css (the app's default look, see app/layout.tsx's inline
+       theme script). Keep this in sync if DoctusIcon's paths ever change. -->
+  <path d="M18 14H48C72 14 86 28 86 50C86 72 72 86 48 86H18V14Z" fill="#60A5FA" />
+  <path d="M35 30H48C61 30 69 37 69 50C69 63 61 70 48 70H35V30Z" fill="#061212" />
+  <path d="M8 50H50" stroke="#081221" stroke-width="8" />
+  <path d="M43 40L55 50L43 60" stroke="#081221" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter" />
+</svg>
