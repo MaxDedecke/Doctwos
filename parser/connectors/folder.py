@@ -56,6 +56,22 @@ def extract_pdf_pages(file_path: str) -> list[tuple[int | None, str]]:
     return pages
 
 
+def extract_docx_text(file_path: str) -> str:
+    """Liest Absätze und Tabellenzellen eines Word-Dokuments (.docx/.doc) als Text ein.
+
+    Geteilt zwischen Folder-/WebDAV-Connector und lokalem Datei-Upload
+    (`parser/tasks/document.py`), analog zu `extract_pdf_pages` (O-031/O-044) --
+    vorher hatte `document.py` eine eigene, unabhängige python-docx-Schleife.
+    """
+    import docx
+    doc = docx.Document(file_path)
+    parts = [p.text for p in doc.paragraphs]
+    for table in doc.tables:
+        for row in table.rows:
+            parts.append(" | ".join(cell.text for cell in row.cells))
+    return "\n".join(parts)
+
+
 def _extract_text(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".pdf":
@@ -72,13 +88,7 @@ def _extract_text(file_path: str) -> str:
                 pass
             raise e
     if ext in (".docx", ".doc"):
-        import docx
-        doc = docx.Document(file_path)
-        parts = [p.text for p in doc.paragraphs]
-        for table in doc.tables:
-            for row in table.rows:
-                parts.append(" | ".join(cell.text for cell in row.cells))
-        return "\n".join(parts)
+        return extract_docx_text(file_path)
     with open(file_path, "r", errors="ignore") as f:
         return f.read()
 

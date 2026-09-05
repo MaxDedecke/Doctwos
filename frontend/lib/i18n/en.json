@@ -498,7 +498,7 @@
       "selectFileTitle": "Select file",
       "selectFileDesc": "Upload PDF, Markdown or text files. These will be analyzed, vectorized and assigned to the currently selected project ({{project}}).",
       "dropzoneText": "Drag a file here or click",
-      "dropzoneHint": "PDF, MD, TXT (Max. 10MB)",
+      "dropzoneHint": "PDF, MD, TXT, DOCX, DOC (Max. 10MB)",
       "uploading": "Uploading...",
       "uploadAndIndex": "Upload & Index",
       "integrationSetupDesc": "Set up the integration for {{type}}. (This service module uses the local Ollama pipeline for extraction and pgvector for storage).",

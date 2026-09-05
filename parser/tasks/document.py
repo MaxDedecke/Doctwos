@@ -1,7 +1,7 @@
 import logging
 import os
 from chunk_reindex import reindex_chunks_preserving_links
-from connectors.folder import extract_pdf_pages
+from connectors.folder import extract_docx_text, extract_pdf_pages
 from core import config
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
@@ -82,16 +82,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         elif ext in [".docx", ".doc"]:
             try:
                 log_event("Lese Word-Dokument (.docx) ein...")
-                import docx
-                doc = docx.Document(file_path)
-                text_parts = []
-                for para in doc.paragraphs:
-                    text_parts.append(para.text)
-                for table in doc.tables:
-                    for row in table.rows:
-                        row_text = [cell.text for cell in row.cells]
-                        text_parts.append(" | ".join(row_text))
-                pages.append((None, "\n".join(text_parts)))
+                pages.append((None, extract_docx_text(file_path)))
             except Exception as e:
                 log_event(f"Fehler beim Lesen des Word-Dokuments: {e}")
         else:

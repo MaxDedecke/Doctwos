@@ -498,7 +498,7 @@
       "selectFileTitle": "Datei auswählen",
       "selectFileDesc": "Lade PDF, Markdown oder Textdateien hoch. Diese werden analysiert, vektorisiert und dem aktuell ausgewählten Projekt ({{project}}) zugeordnet.",
       "dropzoneText": "Datei hierher ziehen oder klicken",
-      "dropzoneHint": "PDF, MD, TXT (Max. 10MB)",
+      "dropzoneHint": "PDF, MD, TXT, DOCX, DOC (Max. 10MB)",
       "uploading": "Wird hochgeladen...",
       "uploadAndIndex": "Hochladen & Indizieren",
       "integrationSetupDesc": "Integration für {{type}} einrichten. (Dieses Service-Modul nutzt die lokale Ollama-Pipeline zur Extraktion und pgvector zur Speicherung).",

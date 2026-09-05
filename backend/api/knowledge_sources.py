@@ -664,7 +664,11 @@ def create_git_source(
 
 # Muss mit der `accept`-Liste in frontend/components/settings/tabs/SourcesSetupTab.tsx
 # synchron bleiben — die UI begrenzt nur die Auswahl, hier wird sie durchgesetzt.
-_ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".md", ".txt"}
+# O-044: an die vom Folder-/WebDAV-Connector unterstützten Formate angeglichen
+# (parser/connectors/folder.py::SUPPORTED_EXTENSIONS) -- vorher konnte ein
+# Kunde .docx nur über den Ordner-Watch-Connector einbinden, obwohl der lokale
+# Upload-Pfad (parser/tasks/document.py) .docx längst extrahieren konnte.
+_ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".md", ".txt", ".docx", ".doc"}
 
 
 @router.post("/upload")

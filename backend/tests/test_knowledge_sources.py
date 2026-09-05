@@ -261,9 +261,34 @@ def test_upload_local_document_creates_source_and_saves_file(client, make_projec
     db_session.commit()
 
 
+def test_upload_local_document_accepts_docx(client, make_project, db_session):
+    """O-044: Ordner-Watch-/WebDAV-Connector konnten .docx/.doc schon immer einlesen,
+    der Direkt-Upload lehnte dieselben Formate serverseitig ab -- Allowlist angeglichen."""
+    project_id = make_project()
+
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "Handbuch.docx", "project_id": str(project_id)},
+        files={"file": ("Handbuch.docx", b"irrelevant fuer den Allowlist-Check", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["name"] == "Handbuch.docx"
+
+    source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == body["id"]).first()
+    assert source is not None
+
+    expected_path = os.path.join(UPLOADS_DIR, f"{source.id}_Handbuch.docx")
+    assert os.path.isfile(expected_path)
+
+    os.remove(expected_path)
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+    db_session.commit()
+
+
 def test_upload_local_document_rejects_disallowed_extension(client, make_project, db_session):
-    """O-030: die UI begrenzt die Dateiauswahl auf .pdf/.md/.txt, aber ein direkter
-    API-Call muss serverseitig ebenfalls abgelehnt werden, nicht nur clientseitig."""
+    """O-030: die UI begrenzt die Dateiauswahl auf .pdf/.md/.txt/.docx/.doc, aber ein
+    direkter API-Call muss serverseitig ebenfalls abgelehnt werden, nicht nur clientseitig."""
     project_id = make_project()
 
     resp = client.post(

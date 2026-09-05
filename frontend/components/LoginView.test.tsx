@@ -52,17 +52,20 @@ describe('LoginView SSO button', () => {
     const originalLocation = window.location;
 
     afterEach(() => {
-      // @ts-expect-error -- jsdom's window.location can only be reassigned
-      // after deleting it first; restored to the real object afterwards so
-      // other tests in this file keep a working location.
-      delete window.location;
-      window.location = originalLocation;
+      // window.location has no setter in newer lib.dom typings (get-only
+      // accessor) -- Object.defineProperty bypasses that instead of the
+      // previous delete-then-reassign dance, which stopped type-checking
+      // after a TypeScript/lib.dom update (found opportunistically here,
+      // tracked as O-052). Restored afterwards so other tests in this file
+      // keep a working location.
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation });
     });
 
     it('navigates the browser to the backend OIDC login endpoint', () => {
-      // @ts-expect-error -- see above
-      delete window.location;
-      window.location = { ...originalLocation, href: '' } as Location;
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { ...originalLocation, href: '' },
+      });
       vi.spyOn(featuresModule, 'getFeatures').mockReturnValue({
         ...featuresModule.DEFAULT_FEATURES,
         auth: { ssoEnabled: true },

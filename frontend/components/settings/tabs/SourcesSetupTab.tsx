@@ -311,7 +311,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
 
               <input
                 type="file"
-                accept=".pdf,.md,.txt"
+                accept=".pdf,.md,.txt,.docx,.doc"
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
