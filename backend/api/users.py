@@ -64,6 +64,9 @@ def _serialize(u: User) -> dict:
         "name": u.name,
         "role": u.role,
         "is_active": u.is_active,
+        # Per SSO angelegte Konten (E-12) haben kein lokales Passwort — das
+        # Frontend blendet den "Passwort zurücksetzen"-Button dafür aus.
+        "auth_provider": "oidc" if u.oidc_subject else "local",
         "must_change_password": bool(u.must_change_password),
         "failed_login_count": u.failed_login_count or 0,
         "locked_until": locked_until,
@@ -158,6 +161,13 @@ def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(
 @router.post("/{user_id}/reset-password")
 def reset_password(user_id: int, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = _get_user(user_id, db)
+    # E-12: ein gesetztes lokales Passwort wäre für ein SSO-Konto ein Weg an der
+    # Kunden-IdP-Anmeldung vorbei — genau das Gegenteil dessen, was SSO zusagt.
+    if user.oidc_subject is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Dieser Nutzer meldet sich per SSO an und hat kein lokales Passwort zum Zurücksetzen.",
+        )
     password = set_password(db, user, payload.password)
     return {**_serialize(user), "initial_password": password}
 

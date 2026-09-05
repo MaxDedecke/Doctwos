@@ -105,6 +105,28 @@ if not SESSION_SECRET_KEY:
 # Für CORS (Cookies + allow_origins=["*"] ist inkompatibel) und Redirect nach Login
 FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+# Öffentlich erreichbare Backend-Adresse — dieselbe Variable, die das Frontend schon
+# nutzt (frontend/app/layout.tsx), damit der Browser das Backend direkt ansprechen
+# kann. Der Backend-Container braucht sie zusätzlich für die OIDC-Redirect-URI
+# (core/oidc.py::redirect_uri): der IdP schickt den Browser dorthin zurück, die
+# Adresse muss exakt der beim IdP hinterlegten Redirect-URI entsprechen.
+API_URL: str = os.getenv("API_URL", "http://localhost:8000").rstrip("/")
+
+# ── SSO / OIDC (optionaler zweiter Anmeldeweg, Opt-in) ───────────────────────
+# Ergänzt die lokale Passwort-Anmeldung um OpenID Connect gegen einen vom Kunden
+# betriebenen IdP (Keycloak, Entra ID, Okta, ...) — ersetzt sie nicht, siehe
+# api/auth.py-Docstring und E-12. Deaktiviert, solange nicht alle drei Werte
+# gesetzt sind: ein Deployment ohne IdP-Anbindung bleibt beim reinen
+# Passwort-Login, ohne dass am Code etwas umgeschaltet werden müsste.
+
+OIDC_ISSUER: str = os.getenv("OIDC_ISSUER", "").rstrip("/")
+OIDC_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "")
+OIDC_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "")
+
+
+def oidc_enabled() -> bool:
+    return bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)
+
 # ── Superuser-Bootstrap (F-001) ───────────────────────────────────────────────
 # Beim ersten Start wird genau ein Superuser angelegt. Ist kein Passwort gesetzt,
 # generiert core/db_setup.py eines und schreibt es EINMALIG ins Startlog — die

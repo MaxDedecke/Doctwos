@@ -19,7 +19,14 @@ class User(Base):
     # Bewusst String und NICHT EncryptedString: gefordert ist ein gesalzener Hash
     # (Argon2id), keine reversible Verschlüsselung. Das Feld darf in keinem
     # Serializer, Log oder Diagnose-Bundle auftauchen (CI-Job no-password-leak).
-    password_hash = Column(String, nullable=False)
+    # NULL nur für per OIDC angelegte Nutzer (core/users.py::create_oidc_user) —
+    # die haben kein lokales Passwort, das gehasht werden könnte (E-12).
+    password_hash = Column(String, nullable=True)
+    # Feste IdP-Nutzerkennung ('sub'-Claim) für per SSO angelegte Konten. NULL bei
+    # lokalen Konten. Dient als alleiniger Schlüssel für den erneuten Login über
+    # OIDC — bewusst nicht die E-Mail (kann sich beim IdP ändern/wiederverwendet
+    # werden), siehe E-12.
+    oidc_subject = Column(String, unique=True, index=True, nullable=True)
     role = Column(String, nullable=False, server_default="user")  # 'superuser' | 'user'
     is_active = Column(Boolean, nullable=False, server_default="true")
     must_change_password = Column(Boolean, nullable=False, server_default="false")
@@ -222,6 +229,35 @@ class ChatMessage(Base):
     feedback = Column(String, nullable=True)  # 'up' | 'down' | null, assistant messages only
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     session = relationship("ChatSession", back_populates="messages")
+
+
+class MCPToolAuditLog(Base):
+    """Data-minimal audit entry for one executed MCP tool call.
+
+    Tool results are intentionally excluded because they may contain large or
+    external content and remain traceable through the chat turn itself.
+    """
+    __tablename__ = "mcp_tool_audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    chat_session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)
+    chat_message_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="SET NULL"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+    knowledge_source_id = Column(Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True, index=True)
+    server_name = Column(String(120), nullable=False)
+    tool_name = Column(String(200), nullable=False)
+    arguments_json = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False)  # "success" or "error"
+    error_message = Column(String(1000), nullable=True)
+    duration_ms = Column(Integer, nullable=False, default=0)
+    trace_id = Column(String(128), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    user = relationship("User")
+    chat_session = relationship("ChatSession")
+    chat_message = relationship("ChatMessage")
+    project = relationship("Project")
+    knowledge_source = relationship("KnowledgeSource")
 
 class CodeEntity(Base):
     """
@@ -447,3 +483,17 @@ class DiagnosticsRun(Base):
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     bundle_path = Column(String, nullable=True)  # tar.gz path under the shared ./repos mount
+
+
+class JobCenterDismissal(Base):
+    """Admin dismissal of a completed entry without deleting its domain record."""
+    __tablename__ = "job_center_dismissals"
+    id = Column(Integer, primary_key=True, index=True)
+    kind = Column(String, nullable=False)
+    job_id = Column(Integer, nullable=False)
+    dismissed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    dismissed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("kind", "job_id", name="uq_job_center_dismissals_kind_job"),
+    )

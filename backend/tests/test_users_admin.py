@@ -105,6 +105,26 @@ def test_reset_password_replaces_the_old_one(client, cleanup_user):
         assert anon.post("/auth/login", json={"username": NEW_USERNAME, "password": old_password}).status_code == 401
 
 
+def test_reset_password_is_rejected_for_sso_accounts(client, db_session):
+    """E-12: ein gesetztes lokales Passwort wäre für ein SSO-Konto ein Weg an
+    der Kunden-IdP-Anmeldung vorbei."""
+    from core.users import create_oidc_user
+
+    user = create_oidc_user(db_session, username="test-oidc-reset-guard", subject="test-oidc-reset-guard-sub")
+    try:
+        resp = client.post(f"/users/{user.id}/reset-password", json={})
+        assert resp.status_code == 400
+    finally:
+        db_session.query(User).filter(User.username == "test-oidc-reset-guard").delete()
+        db_session.commit()
+
+
+def test_users_list_reports_auth_provider(client, cleanup_user):
+    _create(client)
+    listed = next(u for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+    assert listed["auth_provider"] == "local"
+
+
 def test_reset_password_lifts_an_existing_lock(client, db_session, cleanup_user):
     from datetime import datetime, timedelta, timezone
 

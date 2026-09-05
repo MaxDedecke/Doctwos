@@ -19,7 +19,14 @@ class User(Base):
     # Bewusst String und NICHT EncryptedString: gefordert ist ein gesalzener Hash
     # (Argon2id), keine reversible Verschlüsselung. Das Feld darf in keinem
     # Serializer, Log oder Diagnose-Bundle auftauchen (CI-Job no-password-leak).
-    password_hash = Column(String, nullable=False)
+    # NULL nur für per OIDC angelegte Nutzer (core/users.py::create_oidc_user) —
+    # die haben kein lokales Passwort, das gehasht werden könnte (E-12).
+    password_hash = Column(String, nullable=True)
+    # Feste IdP-Nutzerkennung ('sub'-Claim) für per SSO angelegte Konten. NULL bei
+    # lokalen Konten. Dient als alleiniger Schlüssel für den erneuten Login über
+    # OIDC — bewusst nicht die E-Mail (kann sich beim IdP ändern/wiederverwendet
+    # werden), siehe E-12.
+    oidc_subject = Column(String, unique=True, index=True, nullable=True)
     role = Column(String, nullable=False, server_default="user")  # 'superuser' | 'user'
     is_active = Column(Boolean, nullable=False, server_default="true")
     must_change_password = Column(Boolean, nullable=False, server_default="false")

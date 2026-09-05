@@ -510,3 +510,67 @@ einmalige ANTLR-Full-Context-Fallback nicht die erste echte Anfrage
 verzögert. COPY- und EXEC-Block-Maskierung für die Grammatik (`antlr_bridge.
 mask_for_grammar()`) sind der im Spike vorhergesagte kleine Zusatzschritt.
 Phase 4 (Zweitsprache) bleibt unbeauftragt.
+
+---
+
+## E-12 — OIDC/SSO als zweiter Anmeldeweg (O-041)
+
+**Problem.** Der lokale Passwort-Login (F-001) ist für Konzernkunden im
+Fujitsu/DRV-Format kein tragfähiger Endzustand: sie erwarten Anmeldung über
+ihren eigenen Identity Provider (Keycloak, Entra ID, Okta, ...), nicht ein
+zweites, separat zu pflegendes Nutzerverzeichnis. `docs/deployment-
+customer.md` beschrieb einen solchen OIDC-Login bereits, bevor der Code dafür
+existierte — dieser Nachtrag löst diesen Widerspruch auf, statt ihn zu
+korrigieren.
+
+**Entscheidung.** OpenID-Connect-Authorization-Code-Flow als **zweiter**
+Provisioning-Pfad neben dem lokalen (core/users.py-Docstring sah diesen Zweig
+von Anfang an vor), aktiv nur wenn `OIDC_ISSUER`/`OIDC_CLIENT_ID`/
+`OIDC_CLIENT_SECRET` alle drei gesetzt sind (`core/config.py::oidc_enabled()`).
+Vier Teilentscheidungen dabei:
+
+1. **State/Nonce über eine eigene signierte Cookie, kein Server-Session-
+   Speicher.** Bleibt konsistent mit "Backend bleibt zustandslos" (CLAUDE.md
+   Regel 3) und braucht keine neue Infrastruktur (Redis wird hierfür bewusst
+   nicht verwendet — dieselbe Begründung wie E-5: was an einem Cache-artigen
+   Dienst hängt, darf kein Sicherheitsmechanismus mit harten Garantien sein;
+   hier reicht die 10-Minuten-Cookie aber ohnehin aus, ein Restart mitten in
+   einem einzelnen Login-Vorgang ist tolerierbar).
+2. **Matching ausschließlich über den `sub`-Claim, kein automatisches
+   Verknüpfen über die E-Mail-Adresse** mit einem bestehenden lokalen Konto.
+   `sub` ist laut OIDC-Spezifikation stabil und pro IdP eindeutig; die
+   E-Mail-Adresse kann sich ändern oder (bei manchen IdP-Konfigurationen)
+   wiederverwendet werden — ein zu riskanter Schlüssel für eine
+   Kontoverknüpfung, die im Erfolgsfall vollen Zugriff auf ein bestehendes
+   Konto gibt. Ein Nutzer mit bereits bestehendem lokalen Konto bekommt beim
+   ersten SSO-Login ein zweites, separates Konto; explizites Zusammenführen
+   ist nicht umgesetzt (kein aktueller Bedarf, siehe O-041 in
+   `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`).
+3. **`password_hash` wird nullable statt eines zufälligen, nie ausgegebenen
+   Hash-Werts.** Deutlicher im Datenmodell sichtbar ("dieses Konto hat kein
+   lokales Passwort") als ein Hash, der nie verifizieren soll, und spart eine
+   unnötige Argon2-Berechnung pro SSO-Login. `POST /auth/login` und
+   `/auth/change-password` prüfen explizit auf `None`, bevor sie überhaupt
+   `verify_password()` aufrufen (sonst Crash statt sauberem 401/400).
+4. **Rollen kommen weiterhin aus Doctus selbst, nicht aus IdP-Gruppen-Claims.**
+   Gruppen-/Rollenbenennung unterscheidet sich stark zwischen Keycloak/Entra
+   ID/Okta — ein generisches Mapping wäre Rätselraten ohne einen konkreten
+   Kunden-IdP vor Augen. Ein per SSO neu angelegter Nutzer bekommt die
+   Default-Rolle `user`; ein Administrator stuft bei Bedarf über die
+   bestehende Nutzerverwaltung hoch, genau wie bei einem lokal angelegten
+   Konto.
+
+Zusätzlich (Sicherheitsentscheidung, kein Streitpunkt): `POST
+/users/{id}/reset-password` lehnt SSO-Konten ab (400) — ein dort gesetztes
+lokales Passwort wäre ein Weg an der Kunden-IdP-Anmeldung vorbei und würde
+genau die Zusicherung unterlaufen, die SSO dem Kunden gibt.
+
+**Testbarkeit ohne echten Kunden-IdP.** Unit-/Komponententests mocken
+Discovery-, Token- und JWKS-Endpunkte (httpx) und signieren eigene Test-
+ID-Tokens; sie decken die Protokoll- und Provisioning-Logik vollständig ab,
+ohne einen echten IdP zu brauchen (`backend/tests/test_oidc.py`).
+
+**Fundstelle.** `backend/core/oidc.py`, `backend/core/config.py::oidc_enabled()`,
+`backend/core/users.py::create_oidc_user`/`get_by_oidc_subject`,
+`backend/api/auth.py::oidc_login`/`oidc_callback`, Migration
+`0007_user_oidc_subject`.

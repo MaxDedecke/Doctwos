@@ -28,6 +28,11 @@ export interface FeaturesConfig {
     // flipping this on breaks the "no data leaves the network" guarantee for that customer.
     allowCloudProviders: boolean;
   };
+  auth: {
+    // Set server-side from core/config.py::oidc_enabled() (E-12), not from
+    // features.json — see backend/api/config_router.py::_with_auth_flags.
+    ssoEnabled: boolean;
+  };
 }
 
 export const DEFAULT_FEATURES: FeaturesConfig = {
@@ -57,6 +62,9 @@ export const DEFAULT_FEATURES: FeaturesConfig = {
   llm: {
     allowCloudProviders: false,
   },
+  auth: {
+    ssoEnabled: false,
+  },
 };
 
 declare global {
@@ -75,5 +83,6 @@ export function getFeatures(): FeaturesConfig {
     views: { ...DEFAULT_FEATURES.views, ...injected.views },
     settings: { ...DEFAULT_FEATURES.settings, ...injected.settings },
     llm: { ...DEFAULT_FEATURES.llm, ...injected.llm },
+    auth: { ...DEFAULT_FEATURES.auth, ...injected.auth },
   };
 }

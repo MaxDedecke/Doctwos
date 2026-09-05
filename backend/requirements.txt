@@ -16,6 +16,12 @@ cryptography==49.0.0
 alembic==1.18.5
 itsdangerous==2.2.0
 argon2-cffi==25.1.0
+# OIDC-ID-Token-Prüfung (core/oidc.py, E-12): JOSE/JWKS, kein OAuth-Framework
+# drumherum. BSD-3-Clause, reines Python auf Basis von `cryptography`, das
+# ohnehin schon Abhängigkeit ist. (Nicht `Authlib` selbst: dessen `authlib.jose`-
+# Submodul ist zugunsten von `joserfc`, demselben Autor/Projekt, als deprecated
+# markiert.)
+joserfc==1.7.5
 Pillow==12.3.0
 markdown==3.10.2
 # MIT-Shim fuer die GPL-2.0-or-later "Unidecode"-Transitivabhaengigkeit von

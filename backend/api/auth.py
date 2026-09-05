@@ -1,31 +1,37 @@
 """
 backend/api/auth.py
 ====================
-Lokale Anmeldung gegen die eigene users-Tabelle (F-001) — kein IdP, kein
-Netzzugang, keine Fremdkomponente im Betriebshandbuch.
+Lokale Anmeldung gegen die eigene users-Tabelle (F-001) sowie optional OpenID
+Connect gegen einen vom Kunden betriebenen IdP (E-12, core/oidc.py) — beide
+Wege ergänzen dieselbe users-Tabelle, keiner ersetzt den anderen.
 
     POST /auth/login            — Benutzername/Passwort, setzt die Session-Cookie
                                   (rate-limitiert, siehe core/login_throttle.py)
     POST /auth/logout           — Löscht die Session-Cookie
     POST /auth/change-password  — Passwortwechsel (erzwungen bei must_change_password)
     GET  /auth/me               — Aktueller Nutzer (401 wenn nicht angemeldet)
+    GET  /auth/oidc/login       — Redirect zum IdP (404, wenn OIDC nicht konfiguriert)
+    GET  /auth/oidc/callback    — Rücksprung vom IdP, setzt bei Erfolg dieselbe
+                                  Session-Cookie wie /auth/login
 
 Die Session-Schicht darunter (signierte HTTP-only-Cookie, 14 Tage) ist unverändert
 die des Templates — nur der Weg, wie ein Nutzer zu einer Session kommt, ist neu.
 
-Kapselung für v2: Es gibt genau einen User-Provisioning-Pfad. Ein späterer
-IdP-Anschluss ergänzt hier einen zweiten Zweig und ERGÄNZT die lokale
-users-Tabelle, statt sie zu ersetzen.
+Kapselung für v2: Es gibt genau zwei User-Provisioning-Pfade (core/users.py
+lokal, core/oidc.py per SSO) — kein dritter entsteht hier im Router.
 """
 
 import math
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 import core.config as cfg
+import core.oidc as oidc_service
 from core.auth_dependency import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
@@ -138,7 +144,9 @@ async def login(
         count_failure()
         raise invalid
 
-    if not verify_password(payload.password, user.password_hash):
+    # password_hash ist NULL bei per SSO angelegten Konten (E-12) — die haben
+    # kein lokales Passwort, gegen das geprüft werden könnte.
+    if user.password_hash is None or not verify_password(payload.password, user.password_hash):
         count_failure()
         raise invalid
 
@@ -169,6 +177,11 @@ async def change_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if user.password_hash is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Dieses Konto meldet sich per SSO an und hat kein lokales Passwort.",
+        )
     if not verify_password(payload.old_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Das aktuelle Passwort ist falsch.")
     if payload.old_password == payload.new_password:
@@ -178,6 +191,69 @@ async def change_password(
     user.must_change_password = False
     db.commit()
     return {"status": "ok"}
+
+
+def _oidc_error_redirect(message: str) -> RedirectResponse:
+    """Landet zurück auf der Login-Seite mit einer für Nutzer lesbaren
+    Fehlermeldung als Query-Param — das Frontend zeigt sie in LoginView an."""
+    url = f"{cfg.FRONTEND_URL}/?{urlencode({'oidc_error': message})}"
+    return RedirectResponse(url, status_code=302)
+
+
+@router.get("/oidc/login")
+async def oidc_login():
+    if not cfg.oidc_enabled():
+        raise HTTPException(status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert.")
+
+    try:
+        url, state_cookie_value = oidc_service.build_authorization_url()
+    except oidc_service.OidcError as exc:
+        return _oidc_error_redirect(str(exc))
+
+    response = RedirectResponse(url, status_code=302)
+    response.set_cookie(
+        key=oidc_service.OIDC_STATE_COOKIE_NAME,
+        value=state_cookie_value,
+        max_age=oidc_service.OIDC_STATE_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=cfg.FRONTEND_URL.startswith("https://"),
+    )
+    return response
+
+
+@router.get("/oidc/callback")
+async def oidc_callback(request: Request, db: Session = Depends(get_db)):
+    if not cfg.oidc_enabled():
+        raise HTTPException(status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert.")
+
+    idp_error = request.query_params.get("error")
+    if idp_error:
+        logger_detail = request.query_params.get("error_description") or idp_error
+        return _oidc_error_redirect(f"Identity Provider meldet: {logger_detail}")
+
+    state_cookie_value = request.cookies.get(oidc_service.OIDC_STATE_COOKIE_NAME)
+    returned_state = request.query_params.get("state")
+    code = request.query_params.get("code")
+
+    try:
+        expected_nonce = oidc_service.verify_state_cookie(state_cookie_value, returned_state)
+        if not code:
+            raise oidc_service.OidcError("Identity Provider hat keinen Code geliefert.")
+        claims = oidc_service.exchange_code(code, expected_nonce)
+        user = oidc_service.provision_or_link_user(claims, db)
+    except oidc_service.OidcError as exc:
+        return _oidc_error_redirect(str(exc))
+
+    user.failed_login_count = 0
+    user.locked_until = None
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+
+    response = RedirectResponse(cfg.FRONTEND_URL, status_code=302)
+    response.delete_cookie(oidc_service.OIDC_STATE_COOKIE_NAME)
+    _set_session_cookie(response, user.id)
+    return response
 
 
 @router.get("/me")

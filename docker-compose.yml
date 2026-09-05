@@ -124,12 +124,18 @@ services:
       BOOTSTRAP_SUPERUSER_PASSWORD: ${BOOTSTRAP_SUPERUSER_PASSWORD:-}
       BOOTSTRAP_SUPERUSER_EMAIL: ${BOOTSTRAP_SUPERUSER_EMAIL:-}
       FRONTEND_URL: ${FRONTEND_URL}
+      API_URL: ${API_URL:-http://localhost:8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
       OLLAMA_LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
       ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
+      # SSO (E-12) — leer lässt Doctus beim reinen Passwort-Login, siehe
+      # docs/deployment-customer.md Abschnitt "Identity Provider".
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
     volumes:
       - ./repos:/repos
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro

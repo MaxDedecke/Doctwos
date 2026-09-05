@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DoctusIcon, DoctusWordmark } from './Logo';
-import { api } from '@/app/services/api';
+import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getFeatures } from '@/lib/features';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -27,6 +28,30 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ssoEnabled = getFeatures().auth.ssoEnabled;
+
+  // GET /auth/oidc/callback landet bei einem Fehler hier zurück (siehe
+  // backend/api/auth.py::_oidc_error_redirect) statt in einer eigenen Route —
+  // die Nachricht kommt einmalig als Query-Param, danach aus der URL entfernt,
+  // damit ein Neuladen der Seite sie nicht erneut anzeigt.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const oidcError = params.get('oidc_error');
+    if (oidcError) {
+      params.delete('oidc_error');
+      const query = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+      // queueMicrotask statt direktem setState im Effekt-Körper (react-hooks/
+      // set-state-in-effect) — gleiches Muster wie in den übrigen Views.
+      queueMicrotask(() => setError(t('loginView.oidcErrorPrefix', { message: oidcError })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSsoLogin = () => {
+    window.location.href = `${API_URL}/auth/oidc/login`;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,6 +200,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
               </Button>
             </form>
           ) : (
+            <>
+            {ssoEnabled && (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  onClick={handleSsoLogin}
+                  className={cn(
+                    "w-full h-11 rounded-md bg-ds-zinc-100 text-ds-zinc-900 font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer hover:bg-ds-zinc-300",
+                    "active:scale-[0.98]"
+                  )}
+                >
+                  <span>{t('loginView.ssoButton')}</span>
+                </Button>
+                <div className="flex items-center gap-3 text-[11px] text-ds-zinc-500">
+                  <div className="h-px flex-1 bg-ds-zinc-800" />
+                  <span>{t('loginView.ssoDivider')}</span>
+                  <div className="h-px flex-1 bg-ds-zinc-800" />
+                </div>
+              </div>
+            )}
             <form className="space-y-3" onSubmit={handleLogin}>
               <div className="space-y-1.5">
                 <label htmlFor="username" className="text-[11px] text-ds-zinc-400">{t('loginView.usernameLabel')}</label>
@@ -215,6 +260,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 {!isSubmitting && <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />}
               </Button>
             </form>
+            </>
           )}
         </motion.div>
 
