@@ -483,11 +483,16 @@ class GitConnector(BaseConnector):
         self.source.total_files = total
         self.db.commit()
 
-        processed = 0
+        # O-075: parsed_files/progress werden NICHT hier gesetzt -- das würde nur
+        # zählen, was gelesen und in die Embedding-Pipeline eingereiht wurde,
+        # nicht was tatsächlich fertig embedded/gespeichert ist. Reines Einlesen
+        # ist schnell (lokaler Datenträger); sobald es durch ist, bliebe die
+        # Anzeige für den ganzen restlichen (oft langen) Embedding-Nachlauf
+        # eingefroren, obwohl im Hintergrund echt weitergearbeitet wird -- live
+        # am CardDemo-Import beobachtet. Die tatsächliche Fortschrittsmeldung
+        # sitzt jetzt in sync()s Abschluss-Verarbeitung (`for t in done:`), wo
+        # ein Dokument wirklich fertig ist.
         for path in deleted_paths:
-            processed += 1
-            self.source.parsed_files = processed
-            self._update_progress(processed, total, f"{processed} von {total} Dateien verarbeitet")
             yield Document(
                 title=os.path.basename(path),
                 content="",
@@ -514,9 +519,6 @@ class GitConnector(BaseConnector):
                 continue
 
             lang = classify_extension(path, extensions)
-            processed += 1
-            self.source.parsed_files = processed
-            self._update_progress(processed, total, f"{processed} von {total} Dateien verarbeitet")
             yield Document(
                 title=os.path.basename(path),
                 content=content,
@@ -587,6 +589,14 @@ class GitConnector(BaseConnector):
                         processed += 1
                         self.has_changes = True
                         self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                        # O-075: parsed_files/progress hier setzen, nicht beim
+                        # Einreihen (siehe fetch_documents()) -- das bildet ab,
+                        # wie viele Dateien wirklich fertig sind, statt nur
+                        # eingelesen, und friert dadurch nicht ein, während im
+                        # Hintergrund noch an den letzten (oft langsamen)
+                        # Dateien gearbeitet wird.
+                        self.source.parsed_files = processed
+                        self._update_progress(processed, self.source.total_files, f"{processed} von {self.source.total_files} Dateien fertig")
 
             if pending_tasks:
                 done, _ = await asyncio.wait(pending_tasks)
@@ -597,6 +607,8 @@ class GitConnector(BaseConnector):
                     processed += 1
                     self.has_changes = True
                     self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                    self.source.parsed_files = processed
+                    self._update_progress(processed, self.source.total_files, f"{processed} von {self.source.total_files} Dateien fertig")
 
             # Pass 2 (Plan §6.4, E-1): globale Kanten (CALL/COPY) über den
             # gesamten Sync-Lauf hinweg nachauflösen - erst jetzt sind alle in

@@ -336,3 +336,51 @@ async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_sess
         DocumentChunk.file_path == "PROG.CBL",
     ).all()
     assert len(chunks) == 0
+
+
+@pytest.mark.anyio
+async def test_git_connector_draining_fetch_documents_alone_does_not_move_progress(db_session, test_source):
+    """
+    Regression (O-075): parsed_files/progress used to be updated inside
+    fetch_documents() -- i.e. the moment a file was read off disk and queued
+    for embedding, not when it actually finished embedding and got saved.
+    Reading files from a local git worktree is fast; once fetch_documents()
+    drained, nothing updated these fields again for the rest of the (often
+    much longer) embedding tail. Live observed against a real CardDemo
+    import: the progress display froze at 89% for over an hour while
+    genuine embedding work continued in the background.
+
+    Draining fetch_documents() completely without ever completing an embed
+    must leave parsed_files/progress untouched -- they may only advance from
+    actual completions in sync()'s own processing loop (see the next test).
+    """
+    connector = GitConnector(test_source.id)
+    # Bound to the connector's own db session, matching how sync() itself
+    # loads self.source -- assigning the fixture's db_session-bound object
+    # directly here would make self.db.commit() inside fetch_documents() a
+    # no-op for it (different session, never part of that unit of work).
+    connector.source = connector.db.query(KnowledgeSource).filter(KnowledgeSource.id == test_source.id).first()
+
+    docs = [doc async for doc in connector.fetch_documents()]
+    assert len(docs) == 2  # PROG.CBL + README.md, from the git_remote fixture
+
+    db_session.refresh(test_source)
+    assert test_source.total_files == 2  # legitimately set during fetch_documents()
+    assert test_source.parsed_files == 0
+    assert test_source.progress == 0
+
+
+@pytest.mark.anyio
+async def test_git_connector_progress_advances_only_as_files_actually_complete(db_session, test_source):
+    """Complement to the test above: a full sync() must leave parsed_files
+    matching the true number of completed documents, driven by the
+    completion loop rather than the (now progress-silent) fetch_documents()."""
+    connector = GitConnector(test_source.id)
+    p1, p2, p3 = _patched_sync(connector)
+    with p1, p2, p3:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert test_source.parsed_files == test_source.total_files == 2
+    assert test_source.progress == 100
