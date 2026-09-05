@@ -384,3 +384,51 @@ async def test_git_connector_progress_advances_only_as_files_actually_complete(d
     assert test_source.sync_status == "completed"
     assert test_source.parsed_files == test_source.total_files == 2
     assert test_source.progress == 100
+
+
+@pytest.mark.anyio
+async def test_git_connector_skips_known_binary_formats_instead_of_embedding_garbage(db_session, test_source, git_remote):
+    """
+    Regression (O-074): GitConnector had no file-type filtering at all,
+    unlike folder.py/webdav.py's SUPPORTED_EXTENSIONS allowlist -- every
+    file in the repo was read with open(path, "r", errors="ignore") and fed
+    to the text embedding model, images included. Live verified against a
+    real CardDemo import: a PNG's raw bytes "decode" into control-character
+    garbage that still gets chunked and embedded, wasting Ollama capacity
+    and polluting the vector index with noise that can surface as a false
+    positive search result later. There is no image-understanding component
+    anywhere in the pipeline (only PDFs get an OCR fallback, see O-031) --
+    embedding a PNG can never produce anything meaningful.
+    """
+    _commit_file(git_remote, "diagrams/architecture.png", "not real PNG bytes, extension is what matters here", "add diagram")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3 = _patched_sync(connector)
+    with p1, p2, p3:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert "[SKIP] 'diagrams/architecture.png' ist ein Binärformat" in test_source.sync_log
+
+    # The .png must never reach the embedding pipeline -- no chunk, no
+    # SourceScanFile row (so a future sync can't mistake it for "already
+    # handled" either).
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "diagrams/architecture.png",
+    ).all()
+    assert len(chunks) == 0
+    scan_file = db_session.query(SourceScanFile).filter(
+        SourceScanFile.source_id == test_source.id,
+        SourceScanFile.file_path == "diagrams/architecture.png",
+    ).first()
+    assert scan_file is None
+
+    # The legitimate COBOL/Markdown files must still be processed normally --
+    # this must not turn into a blanket skip.
+    cobol_chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "PROG.CBL",
+    ).all()
+    assert len(cobol_chunks) >= 1

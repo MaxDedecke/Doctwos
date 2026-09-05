@@ -63,6 +63,31 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
 
 MAX_READ_BYTES = 2 * 1024 * 1024
 
+# O-074: anders als folder.py/webdav.py (SUPPORTED_EXTENSIONS-Allowlist) hatte
+# GitConnector gar keine Dateityp-Filterung -- jede Datei im Repo wurde mit
+# open(path, "r", errors="ignore") als Text gelesen, auch Bilder/Archive/
+# Binärformate. Ergebnis (live an einem echten Bestand nachvollzogen): die
+# Rohbytes "dekodieren" zu Steuerzeichen-Datenmüll, der dann durch bge-m3
+# geschickt wird -- verschwendet Rechenzeit UND verschmutzt den Vektorindex
+# mit Rauschen, das später als falscher Suchtreffer auftauchen kann. Diese
+# Sperrliste deckt bekannte Formate ab, die byteweise als Text gelesen
+# garantiert keinen sinnvollen Inhalt ergeben. PDF/DOCX/XLSX/PPTX sind
+# bewusst mit drin: hier fehlt (anders als bei folder.py/webdav.py/dem
+# lokalen Upload-Pfad) jede Extraktionsfunktion für dieses Format -- lieber
+# ehrlich überspringen als denselben Datenmüll erzeugen. Eine geteilte
+# Extraktion (analog zu O-031s extract_pdf_pages) wäre der bessere
+# Folgeschritt, kein Ersatz für diese Sperrliste.
+_SKIPPED_BINARY_EXTENSIONS = {
+    # Bilder
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tif", ".tiff",
+    # Archive/komprimierte Formate
+    ".zip", ".tar", ".gz", ".tgz", ".bz2", ".rar", ".7z", ".jar", ".war",
+    # Ausführbare/kompilierte Dateien
+    ".exe", ".dll", ".so", ".bin", ".class", ".pyc", ".o",
+    # Office-Binärformate ohne geteilte Extraktionsfunktion in diesem Connector
+    ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
+}
+
 # AP-4: diese beiden Klassifikationen bekommen eine echte Strukturanalyse
 # (parser/cobol/) statt des generischen CodeParser-Zeilenchunkings.
 _COBOL_LANGS = {"cobol", "copybook"}
@@ -503,6 +528,9 @@ class GitConnector(BaseConnector):
             )
 
         for path, content_hash in to_process:
+            if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
+                self._log(f"[SKIP] '{path}' ist ein Binärformat ohne Textextraktion, wird nicht embedded.")
+                continue
             full_path = os.path.join(wt, path)
             try:
                 file_size = os.path.getsize(full_path)
