@@ -7,8 +7,33 @@ from unittest.mock import patch, AsyncMock
 
 from db import SessionLocal
 from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
-from connectors.git import GitConnector
+from connectors.git import GitConnector, _looks_like_text
 import git_utils
+
+
+def test_looks_like_text_accepts_plain_ascii():
+    assert _looks_like_text(b"IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\n") is True
+
+
+def test_looks_like_text_accepts_empty_content():
+    assert _looks_like_text(b"") is True
+
+
+def test_looks_like_text_rejects_invalid_utf8():
+    """O-074: EBCDIC-Ziffern (0xF0-0xF4) sind ohne gültige UTF-8-Fortsetzungs-
+    bytes kein decodierbarer Text."""
+    assert _looks_like_text(bytes([0xF0, 0xF1, 0xF2, 0xF3, 0xF4] * 20)) is False
+
+
+def test_looks_like_text_rejects_control_character_heavy_utf8():
+    assert _looks_like_text(("\x01\x02\x03\x04\x05" * 100).encode("utf-8")) is False
+
+
+def test_looks_like_text_tolerates_occasional_control_characters():
+    """Ein paar vereinzelte Steuerzeichen in echtem Text (z. B. Form Feed in
+    alten COBOL-Quellen) dürfen nicht als Datenmüll fehlklassifiziert werden."""
+    text = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\n" * 20) + "\x0c"
+    assert _looks_like_text(text.encode("utf-8")) is True
 
 
 def _init_remote(path: str) -> None:
@@ -22,6 +47,15 @@ def _commit_file(repo: str, rel_path: str, content: str, message: str) -> None:
     os.makedirs(os.path.dirname(full), exist_ok=True)
     with open(full, "w") as f:
         f.write(content)
+    subprocess.run(["git", "-C", repo, "add", "."], check=True)
+    subprocess.run(["git", "-C", repo, "commit", "-m", message], check=True, capture_output=True)
+
+
+def _commit_binary_file(repo: str, rel_path: str, raw: bytes, message: str) -> None:
+    full = os.path.join(repo, rel_path)
+    os.makedirs(os.path.dirname(full), exist_ok=True)
+    with open(full, "wb") as f:
+        f.write(raw)
     subprocess.run(["git", "-C", repo, "add", "."], check=True)
     subprocess.run(["git", "-C", repo, "commit", "-m", message], check=True, capture_output=True)
 
@@ -441,6 +475,65 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
         DocumentChunk.file_path == "PROG.CBL",
     ).all()
     assert len(cobol_chunks) >= 1
+
+
+@pytest.mark.anyio
+async def test_git_connector_skips_non_utf8_content_despite_text_looking_extension(db_session, test_source, git_remote):
+    """
+    Regression (O-074, Ergänzung): eine reine Endungssperre erfasst eine
+    EBCDIC-Mainframe-Datei wie AWS.M2.CARDDEMO.ACCTDATA.PS nicht -- ".PS"
+    sieht wie eine normale Textdatei aus. Live beobachtet: der Byteinhalt
+    ist kein UTF-8 und "dekodiert" mit errors="ignore" zu genau demselben
+    Steuerzeichen-Datenmüll wie ein Bild. Eine EBCDIC-kodierte Ziffernfolge
+    fällt bereits beim strikten UTF-8-Decode durch (0xF0-0xF9 ohne gültige
+    Fortsetzungsbytes ergibt hier UnicodeDecodeError).
+    """
+    ebcdic_digits = bytes([0xF0, 0xF1, 0xF2, 0xF3, 0xF4] * 20)
+    _commit_file(git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", "placeholder", "add mainframe data file")
+    _commit_binary_file(git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", ebcdic_digits, "overwrite with EBCDIC bytes")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert "[SKIP] 'AWS.M2.CARDDEMO.ACCTDATA.PS' ist kein UTF-8-Text" in test_source.sync_log
+
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
+    ).all()
+    assert len(chunks) == 0
+    scan_file = db_session.query(SourceScanFile).filter(
+        SourceScanFile.source_id == test_source.id,
+        SourceScanFile.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
+    ).first()
+    assert scan_file is None
+
+
+@pytest.mark.anyio
+async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(db_session, test_source, git_remote):
+    """Auch valides UTF-8 kann Datenmüll sein -- z. B. ein binäres Format,
+    dessen Bytes zufällig als gültiges UTF-8 durchgehen, aber fast nur aus
+    Steuerzeichen besteht. Die Endungssperre allein greift hier nicht (neue
+    Endung), die Steuerzeichen-Quote schon."""
+    mostly_control = ("\x01\x02\x03\x04\x05" * 100).encode("utf-8")
+    _commit_binary_file(git_remote, "weird.dat", mostly_control, "add control-char-heavy file")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert "[SKIP] 'weird.dat' ist kein UTF-8-Text" in test_source.sync_log
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "weird.dat",
+    ).all()
+    assert len(chunks) == 0
 
 
 @pytest.mark.anyio

@@ -88,6 +88,34 @@ _SKIPPED_BINARY_EXTENSIONS = {
     ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
 }
 
+# O-074 (Ergänzung): eine reine Endungssperre erfasst z. B. eine EBCDIC-
+# Mainframe-Datei wie AWS.M2.CARDDEMO.ACCTDATA.PS nicht -- ".PS" sieht wie
+# eine normale Textdatei aus, der Byteinhalt ist aber kein UTF-8 und
+# "dekodiert" mit errors="ignore" zu genau demselben Steuerzeichen-Datenmüll
+# wie ein Bild (live an diesem Fund beobachtet, siehe O-072s Notiz zu
+# GitConnector._save_document_chunks). Anteil an nicht druckbaren
+# Steuerzeichen (Whitespace ausgenommen), ab dem eine ansonsten gültige
+# UTF-8-Datei als Datenmüll statt als Text gilt.
+_MAX_CONTROL_CHAR_RATIO = 0.05
+
+
+def _looks_like_text(raw: bytes) -> bool:
+    """True, wenn `raw` sinnvoll als Text embedd-bar ist: gültiges UTF-8
+    UND kein ungewöhnlich hoher Anteil an Steuerzeichen danach. EBCDIC (und
+    andere Nicht-UTF-8-Kodierungen) fallen bereits beim strikten Decode
+    durch; ein paar vereinzelte Steuerzeichen in echtem Text (z. B. Form
+    Feed in alten COBOL-Quellen) bleiben unter der Schwelle toleriert."""
+    if not raw:
+        return True
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    if not text:
+        return True
+    control_chars = sum(1 for ch in text if ch not in "\t\r\n" and (ord(ch) < 32 or ord(ch) == 127))
+    return control_chars / len(text) <= _MAX_CONTROL_CHAR_RATIO
+
 # AP-4: diese beiden Klassifikationen bekommen eine echte Strukturanalyse
 # (parser/cobol/) statt des generischen CodeParser-Zeilenchunkings.
 _COBOL_LANGS = {"cobol", "copybook"}
@@ -545,11 +573,15 @@ class GitConnector(BaseConnector):
                 self._log(f"[SKIP] '{path}' überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB.")
                 continue
             try:
-                with open(full_path, "r", errors="ignore") as f:
-                    content = f.read(MAX_READ_BYTES)
+                with open(full_path, "rb") as f:
+                    raw = f.read(MAX_READ_BYTES)
             except Exception as e:
                 self._log(f"Fehler beim Lesen von '{path}': {e}")
                 continue
+            if not _looks_like_text(raw):
+                self._log(f"[SKIP] '{path}' ist kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded.")
+                continue
+            content = raw.decode("utf-8")
 
             lang = classify_extension(path, extensions)
             yield Document(
