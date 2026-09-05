@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Loader2, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink, BookOpen, LayoutGrid, Info, Workflow, Link2, Search, Check, PanelRightClose, PanelRightOpen, ChevronUp, ChevronDown } from 'lucide-react';
+import { Loader2, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink, BookOpen, LayoutGrid, Info, Workflow, Link2, Search, Check, PanelRightClose, PanelRightOpen, ChevronUp, ChevronDown, AlertTriangle, Crosshair } from 'lucide-react';
 import { forceCollide, forceManyBody } from 'd3-force-3d';
 import { cn } from '@/lib/utils';
 import { resolveDsColor } from '@/lib/designTokens';
@@ -162,6 +162,16 @@ interface Props {
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
 }
 
+// A fresh `[]` literal as a default parameter value is a NEW array reference on
+// every render in which the caller omits the prop -- fine as a plain render
+// output, but the render-time "adjust state" comparison below (`prevFocusDeps.
+// projectEntities !== projectEntities`) relies on referential stability to ever
+// become false. With a literal default it never does, so it would fire on every
+// single render (an infinite render loop) whenever a caller doesn't pass
+// `projectEntities`. Every current caller happens to always pass it, so this was
+// latent until testing without every prop first exercised it (O-053 test work).
+const EMPTY_PROJECT_ENTITIES: any[] = [];
+
 /* ── Component ───────────────────────────────────────────────────────────────── */
 
 export function KnowledgeGraphView({
@@ -170,7 +180,7 @@ export function KnowledgeGraphView({
   selectedEntity,
   selectedFile,
   selectedDoc,
-  projectEntities = [],
+  projectEntities = EMPTY_PROJECT_ENTITIES,
   onEntitySelect,
   onFileSelect,
   onDocFocus,
@@ -184,11 +194,24 @@ export function KnowledgeGraphView({
   const [isLoading, setIsLoading] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  // Purely visual "soft focus": the full graph stays loaded, connected nodes/edges
-  // just render at full opacity while everything else is dimmed. No separate backend
-  // fetch/reload — the overview graph already carries every entity-doc and
-  // entity-entity link, so there's nothing a restricted dataset would add.
+  // Purely visual "soft focus": connected nodes/edges just render at full opacity
+  // while everything else is dimmed, without a separate backend fetch. Used to
+  // carry the comment "the overview already carries every link, so a restricted
+  // dataset wouldn't add anything" -- true before O-053, no longer: the overview
+  // is now capped (KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES) for large projects, so a
+  // node's real neighborhood can exceed what a dimmed-down view of the loaded
+  // (possibly truncated) overview shows. `loadNeighborhood` below is the actual
+  // fix for that case — a real GET /graph/focus fetch, independent of whatever
+  // got cut from the overview.
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+
+  // O-053: whether the currently loaded overview was capped server-side, and
+  // hard-focus state for "load this node's real neighborhood from the DB"
+  // (as opposed to the soft focus above, which only dims the already-loaded data).
+  const [overviewTruncation, setOverviewTruncation] = useState<{ shown: number; total: number } | null>(null);
+  const [viewMode, setViewMode] = useState<'overview' | 'neighborhood'>('overview');
+  const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
+  const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -239,6 +262,7 @@ export function KnowledgeGraphView({
   const loadOverview = useCallback(async () => {
     /** Loads all approved links of the repository from the backend. */
     setIsLoading(true);
+    setNeighborhoodError(null);
     try {
       const params = new URLSearchParams({ status: 'approved' });
       if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
@@ -247,6 +271,11 @@ export function KnowledgeGraphView({
       const nodes = data.nodes ?? [];
       setRawNodes(nodes);
       setRawEdges(data.edges ?? []);
+      setViewMode('overview');
+      // O-053: GET /graph caps at KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES for large
+      // projects and reports the true totals alongside the (possibly smaller)
+      // returned set -- surfaced as a banner, see truncatedOverviewNotice below.
+      setOverviewTruncation(data.truncated ? { shown: nodes.length, total: data.total_nodes ?? nodes.length } : null);
 
       // Auto-select document node if active
       if (selectedDoc) {
@@ -263,6 +292,47 @@ export function KnowledgeGraphView({
       setIsLoading(false);
     }
   }, [selectedProject, selectedDoc]);
+
+  const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
+    return node.project_id ?? selectedProject?.id ?? null;
+  }, [selectedProject]);
+
+  const loadNeighborhood = useCallback(async (node: GraphNode) => {
+    /**
+     * O-053: hard focus -- fetches this entity's actual one-hop neighborhood via
+     * GET /graph/focus (built for exactly this in backend/api/graph.py, never
+     * wired up in the frontend until now) instead of dimming whatever happens to
+     * be in the already-loaded (possibly truncated) overview. Only entities carry
+     * a project_id the backend endpoint can resolve visibility against; document
+     * nodes aren't supported here.
+     */
+    const entityDbId = extractEntityDbId(node.id);
+    const projectId = neighborhoodProjectId(node);
+    if (entityDbId === null || projectId === null) {
+      setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodUnavailable'));
+      return;
+    }
+    setIsLoadingNeighborhood(true);
+    setNeighborhoodError(null);
+    try {
+      const params = new URLSearchParams({ status: 'approved', project_id: String(projectId), entity_id: String(entityDbId) });
+      const res = await fetch(`${API_URL}/graph/focus?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setRawNodes(data.nodes ?? []);
+      setRawEdges(data.edges ?? []);
+      setViewMode('neighborhood');
+      setOverviewTruncation(null);
+      setSelectedNodeId(data.focus_id ?? node.id);
+      setSelectedEdgeId(null);
+      setFocusNodeId(null);
+    } catch (e) {
+      console.error('[KnowledgeGraph] neighborhood load failed', e);
+      setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodError'));
+    } finally {
+      setIsLoadingNeighborhood(false);
+    }
+  }, [neighborhoodProjectId, t]);
 
   const createManualLink = useCallback(async (sourceNode: GraphNode, targetNode: GraphNode) => {
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
@@ -826,6 +896,18 @@ export function KnowledgeGraphView({
               </button>
             )}
 
+            {selectedNode.type === 'entity' && neighborhoodProjectId(selectedNode) !== null && (
+              <button
+                onClick={() => loadNeighborhood(selectedNode)}
+                disabled={isLoadingNeighborhood}
+                title={t('knowledgeGraphView.loadNeighborhoodTitle')}
+                className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                  isLoadingNeighborhood ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
+                {isLoadingNeighborhood ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crosshair className="w-3 h-3" />}
+                {t('knowledgeGraphView.loadNeighborhood')}
+              </button>
+            )}
+
             <button
               onClick={() => { setIsLinkPickerOpen(o => !o); setLinkCreateError(null); }}
               className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
@@ -993,6 +1075,13 @@ export function KnowledgeGraphView({
 
         {/* Right: focus indicator + counts + controls */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {viewMode === 'neighborhood' && (
+            <button onClick={() => loadOverview()} title={t('knowledgeGraphView.backToOverview')}
+              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
+              <LayoutGrid className="w-3 h-3" />
+              {t('knowledgeGraphView.backToOverview')}
+            </button>
+          )}
           {focusNodeId && (
             <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')}
               className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
@@ -1048,6 +1137,20 @@ export function KnowledgeGraphView({
               <BookOpen className="w-10 h-10 opacity-25" />
               <p className="text-sm">{t('knowledgeGraphView.noApprovedLinks')}</p>
               <p className="text-xs opacity-60">{t('knowledgeGraphView.noApprovedLinksHint')}</p>
+            </div>
+          )}
+
+          {!isLoading && overviewTruncation && (
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400 max-w-[min(90%,28rem)]">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              <span>{t('knowledgeGraphView.truncatedOverviewNotice', { shown: overviewTruncation.shown, total: overviewTruncation.total })}</span>
+            </div>
+          )}
+
+          {neighborhoodError && (
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-[10px] text-ds-red-400">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              {neighborhoodError}
             </div>
           )}
 

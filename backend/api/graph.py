@@ -7,8 +7,12 @@ This module provides routes to prepare the networked data of the Doctus system a
 graphs (nodes and edges) for frontend visualization (Force-Graph, Mermaid).
 
 Endpoints:
-    GET /graph              — Full graph of a project (entities + documents)
-    GET /graph/focus        — 1-hop neighborhood of an entity (local focus)
+    GET /graph              — Full graph of a project (entities + documents),
+                              capped at KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
+                              nodes (O-053; highest-degree nodes kept first)
+    GET /graph/focus        — 1-hop neighborhood of an entity (local focus),
+                              wired up in the frontend since O-053 as the way
+                              to explore a capped/truncated overview further
     GET /graph/export/neo4j — Cypher export for external graph databases (Neo4j)
     GET /graph/export       — Neutral CSV/GraphML export (analogous to /callgraph/export)
 """
@@ -22,6 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
+from core import config as cfg
 from core.db_setup import get_db
 from models.database import CodeEntity, EntityDocLink, KnowledgeLink, Project, Team, User, KnowledgeSource, DocumentChunk
 from core.auth_dependency import get_current_user
@@ -207,7 +212,10 @@ def get_graph(
             CodeEntity.project_id == None
         ))
 
-    for entity in entity_query.all():
+    # Deterministische Reihenfolge -- Voraussetzung dafür, dass ein Kappen unten
+    # (O-053) bei wiederholten Aufrufen dieselbe Auswahl trifft statt bei jedem
+    # Laden andere Knoten zufällig zu verlieren.
+    for entity in entity_query.order_by(CodeEntity.id).all():
         eid = f"entity:{entity.id}"
         nodes[eid] = _entity_node(entity)
 
@@ -232,7 +240,7 @@ def get_graph(
             doc_query = doc_query.filter(gate)
 
     min_ids_subquery = doc_query.with_entities(func.min(DocumentChunk.id)).group_by(DocumentChunk.file_path).subquery()
-    distinct_docs = db.query(DocumentChunk).filter(DocumentChunk.id.in_(min_ids_subquery)).all()
+    distinct_docs = db.query(DocumentChunk).filter(DocumentChunk.id.in_(min_ids_subquery)).order_by(DocumentChunk.id).all()
     for chunk in distinct_docs:
         meta = chunk.metadata_json or {}
         title = meta.get("title") or chunk.file_path
@@ -302,7 +310,38 @@ def get_graph(
             "context": klink.context,
         })
 
-    return {"nodes": list(nodes.values()), "edges": edges}
+    return _capped_overview(nodes, edges)
+
+
+def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
+    """O-053: harter Deckel für die Übersicht -- ohne den würde ein großer Bestand
+    unbegrenzt viele Knoten an eine Kraftsimulation im Browser-Hauptthread
+    übergeben (Server-Antwortgröße, Rechenzeit im Tab, am Ende ein unlesbarer
+    "Wollknäuel"). Bevorzugt beim Kappen die am dichtesten verlinkten Knoten --
+    die Übersicht zeigt bewusst auch unverlinkte Entities (Inventarcharakter),
+    aber die sind beim Kappen der uninteressanteste Teil. `/graph/focus` bleibt
+    der Weg, um gezielt in einen bestimmten Bereich hineinzuzoomen, sobald
+    gekappt wurde.
+    """
+    total_nodes = len(nodes)
+    total_edges = len(edges)
+    limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
+    if total_nodes <= limit:
+        return {"nodes": list(nodes.values()), "edges": edges, "truncated": False,
+                "total_nodes": total_nodes, "total_edges": total_edges}
+
+    degree: dict[str, int] = {nid: 0 for nid in nodes}
+    for edge in edges:
+        if edge["source"] in degree:
+            degree[edge["source"]] += 1
+        if edge["target"] in degree:
+            degree[edge["target"]] += 1
+
+    kept_ids = set(sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))[:limit])
+    kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
+    kept_edges = [e for e in edges if e["source"] in kept_ids and e["target"] in kept_ids]
+    return {"nodes": kept_nodes, "edges": kept_edges, "truncated": True,
+            "total_nodes": total_nodes, "total_edges": total_edges}
 
 
 @router.get("/focus")

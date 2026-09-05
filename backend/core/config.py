@@ -33,6 +33,14 @@ def _positive_int_env(name: str, default: int) -> int:
 # grow without limit. Deployments can choose a stricter customer policy via env.
 MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90)
 
+# O-053: GET /graph (Knowledge-Graph-Übersicht) lädt sonst jede sichtbare Code-
+# Entity und jeden Dokument-Chunk unbegrenzt -- bei einem großen COBOL-Bestand
+# (Ziel-Skalierung laut CLAUDE.md Prinzip 4) sowohl ein Server- als auch ein
+# Client-Risiko (Kraftsimulation im Hauptthread). Analog zu callgraph.py's
+# MAX_NODES (F-066), aber mit höherem Deckel, da die Übersicht bewusst auch
+# unverlinkte Entities zeigt (Inventar-Charakter), nicht nur BFS-erreichte.
+KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env("KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000)
+
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
