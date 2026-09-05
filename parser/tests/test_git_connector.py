@@ -305,3 +305,34 @@ async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful
     ).all()
     assert len(chunks) >= 1
     assert all(c.embedding is not None for c in chunks)
+
+
+@pytest.mark.anyio
+async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_session, test_source):
+    """
+    Regression found live against a real CardDemo (AWS mainframe demo) import:
+    an EBCDIC data file's batch embed failed (logged), the per-chunk fallback
+    in reindex_chunks_preserving_links then failed for every one of its
+    chunks too -- and _save_document_chunks never passed on_embed_error,
+    unlike connectors/base.py's equivalent. The failure was completely
+    silent: the file still logged "'X' indexiert (0 Chunks)", indistinguishable
+    from a genuinely empty file like .gitkeep. A customer reporting "my file
+    isn't in search results" would have had nothing to go on.
+    """
+    connector = GitConnector(test_source.id)
+    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
+         patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
+         patch("connectors.git.get_embedding", AsyncMock(side_effect=ValueError("truncated response"))):
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert "Embedding-Fehler für 'PROG.CBL' (Chunk übersprungen): ValueError: truncated response" in test_source.sync_log
+
+    # Every chunk failed both attempts -- the file must not silently claim
+    # success while carrying zero actual content.
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "PROG.CBL",
+    ).all()
+    assert len(chunks) == 0

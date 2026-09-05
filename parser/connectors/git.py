@@ -279,6 +279,17 @@ class GitConnector(BaseConnector):
         async def embed_content(content):
             return await get_embedding(content, model=config.EMBED_MODEL)
 
+        def on_embed_error(chunk, e):
+            # Without this, a chunk that fails the per-chunk fallback embed
+            # inside reindex_chunks_preserving_links (get_embedding has no
+            # retry, unlike the batch path above) was dropped in complete
+            # silence -- the file still logged as "'X' indexiert (0 Chunks)",
+            # indistinguishable from a genuinely empty file like .gitkeep.
+            # Found via a real CardDemo import: an EBCDIC data file's batch
+            # embed failed (logged), the fallback then failed for every one
+            # of its chunks too, and none of that showed up anywhere.
+            self._log(f"Embedding-Fehler für '{doc['title']}' (Chunk übersprungen): {type(e).__name__}: {e}")
+
         path = doc["storage_key"]
         try:
             count = await reindex_chunks_preserving_links(
@@ -288,6 +299,7 @@ class GitConnector(BaseConnector):
                 chunks=chunks,
                 build_chunk=build_chunk,
                 embed_content=embed_content,
+                on_embed_error=on_embed_error,
             )
 
             # NF-004: SourceScanFile wird im selben Commit wie die Chunks
