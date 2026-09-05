@@ -441,3 +441,21 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
         DocumentChunk.file_path == "PROG.CBL",
     ).all()
     assert len(cobol_chunks) >= 1
+
+
+@pytest.mark.anyio
+async def test_git_connector_logs_embedding_start_per_file(db_session, test_source):
+    """
+    O-072: bis zu EMBED_CONCURRENCY Dateien werden gleichzeitig eingebettet,
+    aber bisher loggten git.py/base.py nur "fertig"/"Fehler" pro Datei --
+    aus dem Sync-Log allein liess sich nie ablesen, an welcher der noch
+    offenen Dateien gerade tatsaechlich gearbeitet wird.
+    """
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert "Embedding gestartet für 'PROG.CBL'." in test_source.sync_log
+    assert "Embedding gestartet für 'README.md'." in test_source.sync_log

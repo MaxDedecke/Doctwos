@@ -43,6 +43,7 @@ from models.database import DocumentChunk, JobCenterDismissal, KnowledgeSource, 
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin, require_admin, DEFAULT_TEAM_NAME
 from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
+from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)
@@ -153,7 +154,7 @@ def create_knowledge_source(
 
     # Einheitlicher Task für alle Web-Connector-Typen (Git/Confluence/Jira/WebDAV)
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "webdav", "git"):
-        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
+        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
 
     return serialize_source(db_source)
 
@@ -213,7 +214,7 @@ def sync_knowledge_source(
     assert_knowledge_source_visible(db_source, user, db)
 
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "folderwatch", "webdav", "git"):
-        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
+        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
     else:
         raise HTTPException(status_code=400, detail="Synchronisierung wird für diesen Quelltyp nicht unterstützt")
 
@@ -248,7 +249,8 @@ def reindex_knowledge_source(
     ).delete(synchronize_session=False)
     db.commit()
     send_tracked_task(
-        db, db_source, "process_knowledge_source", [db_source.id], {"force_reindex": True}
+        db, db_source, "process_knowledge_source", [db_source.id],
+        {"force_reindex": True, "trace_id": get_trace_id()},
     )
     return {"message": "Vollständige Neu-Analyse gestartet", "source_id": source_id}
 
@@ -625,7 +627,7 @@ def create_folder_watch_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
+    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
     return serialize_source(db_source)
 
 
@@ -657,7 +659,7 @@ def create_git_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id])
+    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
     return serialize_source(db_source)
 
 
@@ -709,7 +711,7 @@ async def upload_local_document(
     with open(file_dest, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    send_tracked_task(db, db_source, "process_local_document", [db_source.id, file_dest])
+    send_tracked_task(db, db_source, "process_local_document", [db_source.id, file_dest], {"trace_id": get_trace_id()})
     return serialize_source(db_source)
 
 

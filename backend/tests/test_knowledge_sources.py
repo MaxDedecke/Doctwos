@@ -150,7 +150,13 @@ def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
             response = client.post(f"/knowledge-sources/{source.id}/reindex")
 
         assert response.status_code == 200, response.text
-        assert calls == [("process_knowledge_source", [source.id], {"force_reindex": True})]
+        assert len(calls) == 1
+        task_name, args, kwargs = calls[0]
+        assert (task_name, args) == ("process_knowledge_source", [source.id])
+        # O-072: force_reindex bleibt, trace_id kommt neu dazu (verknüpft die
+        # Sync-Log-Zeilen dieses Laufs mit dem auslösenden Request).
+        assert kwargs["force_reindex"] is True
+        assert kwargs["trace_id"]
         db_session.refresh(source)
         assert source.sync_status == "pending"
         assert source.progress == 0

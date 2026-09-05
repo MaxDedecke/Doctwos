@@ -316,7 +316,7 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         source.last_error = source.last_error_detail = None
         source.parse_finished_at = None
         db.commit()
-        send_tracked_task(db, source, "process_knowledge_source", [source.id])
+        send_tracked_task(db, source, "process_knowledge_source", [source.id], trace)
         return {"message": "Job wiederaufgenommen", "key": f"source:{source.id}"}
 
     if kind == "link_builder":

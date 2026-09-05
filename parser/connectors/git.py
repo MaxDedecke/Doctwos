@@ -243,6 +243,11 @@ class GitConnector(BaseConnector):
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
+            # O-072: bis zu EMBED_CONCURRENCY Dateien laufen gleichzeitig,
+            # aber vorher loggte nur "fertig"/"Fehler" pro Datei -- aus dem
+            # Sync-Log allein ließ sich nie ablesen, an welcher Datei gerade
+            # tatsächlich gearbeitet wird, nur wie viele noch offen sind.
+            self._log(f"Embedding gestartet für '{doc['title']}'.")
             lang = doc.get("extra_meta", {}).get("language", "text")
 
             parse_result: ParseResult | None = None

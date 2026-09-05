@@ -127,23 +127,32 @@ app.conf.beat_schedule = {
 
 
 @app.task(name="process_local_document", bind=True)
-def process_local_document(task, source_id: int, file_path: str):
+def process_local_document(task, source_id: int, file_path: str, trace_id: str | None = None):
     """Celery-Task: Hochgeladenes lokales Dokument (PDF, Word, Text) parsen und einbetten."""
     _register_task_id(KnowledgeSource, source_id, task.request.id)
-    asyncio.run(process_local_document_async(source_id, file_path))
+    with trace_id_scope(trace_id):
+        asyncio.run(process_local_document_async(source_id, file_path))
     return {"status": "finished", "source_id": source_id}
 
 
 @app.task(name="process_knowledge_source", bind=True)
-def process_knowledge_source(task, source_id: int, force_reindex: bool = False):
+def process_knowledge_source(task, source_id: int, force_reindex: bool = False, trace_id: str | None = None):
     """
     Celery-Task: Wissensquelle synchronisieren (einheitlicher Task für alle Typen).
 
     Der passende Connector wird anhand von KnowledgeSource.type aus der
     ConnectorRegistry geladen. Neuen Typ unterstützen: nur registry.py anpassen.
+
+    trace_id (O-072): verknüpft die Sync-Log-Zeilen dieses Task-Laufs mit dem
+    ursprünglichen Backend-Request, der ihn ausgelöst hat (analog zu
+    compute_entity_links/compute_knowledge_links/generate_diagnostics_bundle,
+    die trace_id_scope() bereits nutzen) — ohne das war ein Kundenbericht
+    "meine Quelle hat nicht synchronisiert" nur über KnowledgeSource.sync_log
+    allein einzugrenzen.
     """
     _register_task_id(KnowledgeSource, source_id, task.request.id)
-    asyncio.run(process_knowledge_source_async(source_id, force_reindex=force_reindex))
+    with trace_id_scope(trace_id):
+        asyncio.run(process_knowledge_source_async(source_id, force_reindex=force_reindex))
     return {"status": "finished", "source_id": source_id}
 
 
