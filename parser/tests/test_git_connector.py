@@ -93,14 +93,18 @@ def _patched_sync(connector):
         patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
         patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])),
         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
+        # O-071: ohne Patch würde is_gpu_accelerated() bei jedem Testlauf einen
+        # echten Ollama-Aufruf versuchen; True haelt die bisherige volle
+        # EMBED_CONCURRENCY bei, damit diese Tests unveraendert bleiben.
+        patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
     )
 
 
 @pytest.mark.anyio
 async def test_git_connector_initial_sync(db_session, test_source):
     connector = GitConnector(test_source.id)
-    p1, p2, p3 = _patched_sync(connector)
-    with p1, p2, p3:
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
         await connector.sync()
 
     db_session.refresh(test_source)
@@ -127,8 +131,8 @@ async def test_git_connector_initial_sync(db_session, test_source):
 @pytest.mark.anyio
 async def test_git_connector_delta_sync_add_modify_delete(db_session, test_source, git_remote):
     connector1 = GitConnector(test_source.id)
-    p1, p2, p3 = _patched_sync(connector1)
-    with p1, p2, p3:
+    p1, p2, p3, p4 = _patched_sync(connector1)
+    with p1, p2, p3, p4:
         await connector1.sync()
 
     # Remote aendert sich: PROG.CBL modifiziert, README.md geloescht, NEW.CBL neu
@@ -137,8 +141,8 @@ async def test_git_connector_delta_sync_add_modify_delete(db_session, test_sourc
     _commit_file(git_remote, "NEW.CBL", "IDENTIFICATION DIVISION.\nPROGRAM-ID. NEW.\n", "add new")
 
     connector2 = GitConnector(test_source.id)
-    p1, p2, p3 = _patched_sync(connector2)
-    with p1, p2, p3:
+    p1, p2, p3, p4 = _patched_sync(connector2)
+    with p1, p2, p3, p4:
         await connector2.sync()
 
     db_session.refresh(test_source)
@@ -165,15 +169,16 @@ async def test_git_connector_delta_sync_add_modify_delete(db_session, test_sourc
 async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_session, test_source):
     """A forced run must parse and embed files even when the Git commit is unchanged."""
     connector = GitConnector(test_source.id)
-    first_batch, first_single, first_model = _patched_sync(connector)
-    with first_batch, first_single, first_model:
+    first_batch, first_single, first_model, first_gpu = _patched_sync(connector)
+    with first_batch, first_single, first_model, first_gpu:
         await connector.sync()
 
     embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
     connector = GitConnector(test_source.id)
     with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
          patch("connectors.git.get_embeddings_batch", embed_batch), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
+         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
         await connector.sync(force_reindex=True)
 
     assert embed_batch.await_count > 0
@@ -207,7 +212,8 @@ async def test_git_connector_resumes_via_content_hash(db_session, test_source, m
     embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
     with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
          patch("connectors.git.get_embeddings_batch", embed_batch), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
+         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
         await connector.sync()
 
     embedded_titles = [call.args[0] for call in embed_batch.call_args_list]
@@ -253,7 +259,8 @@ async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_r
             connector = GitConnector(src.id)
             with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
                  patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])), \
-                 patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+                 patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
+                 patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
                 await connector.sync()
 
         db_session.refresh(source_a)
@@ -290,7 +297,8 @@ async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful
     connector = GitConnector(test_source.id)
     with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
          patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
+         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
         await connector.sync()
 
     db_session.refresh(test_source)
@@ -322,7 +330,8 @@ async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_sess
     connector = GitConnector(test_source.id)
     with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
          patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
-         patch("connectors.git.get_embedding", AsyncMock(side_effect=ValueError("truncated response"))):
+         patch("connectors.git.get_embedding", AsyncMock(side_effect=ValueError("truncated response"))), \
+         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
         await connector.sync()
 
     db_session.refresh(test_source)
@@ -376,8 +385,8 @@ async def test_git_connector_progress_advances_only_as_files_actually_complete(d
     matching the true number of completed documents, driven by the
     completion loop rather than the (now progress-silent) fetch_documents()."""
     connector = GitConnector(test_source.id)
-    p1, p2, p3 = _patched_sync(connector)
-    with p1, p2, p3:
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
         await connector.sync()
 
     db_session.refresh(test_source)
@@ -403,8 +412,8 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
     _commit_file(git_remote, "diagrams/architecture.png", "not real PNG bytes, extension is what matters here", "add diagram")
 
     connector = GitConnector(test_source.id)
-    p1, p2, p3 = _patched_sync(connector)
-    with p1, p2, p3:
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
         await connector.sync()
 
     db_session.refresh(test_source)

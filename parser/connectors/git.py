@@ -41,7 +41,7 @@ from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import SessionLocal, REPOS_ROOT
 from models.database import CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
-from ollama_client import ensure_model_pulled, get_embeddings_batch, get_embedding
+from ollama_client import ensure_model_pulled, get_embeddings_batch, get_embedding, is_gpu_accelerated
 from code_parser import CodeParser
 from chunk_reindex import reindex_chunks_preserving_links
 from tasks.edge_resolver import resolve_global_edges
@@ -593,7 +593,20 @@ class GitConnector(BaseConnector):
             self._log(f"Stelle sicher, dass Embedding-Modell '{config.EMBED_MODEL}' bereit ist…")
             await ensure_model_pulled(config.EMBED_MODEL)
 
-            semaphore = asyncio.Semaphore(config.EMBED_CONCURRENCY)
+            # O-071: CPU-only-Ollama rechnet Batches intern sequentiell --
+            # EMBED_CONCURRENCY parallele Anfragen stauen sich dort nur und
+            # laufen in Timeout/Fallback-Schleifen. GPU-Installationen
+            # profitieren dagegen von echter Nebenläufigkeit, daher pro
+            # Sync-Start neu ermitteln statt pauschal zu drosseln.
+            if await is_gpu_accelerated(config.EMBED_MODEL):
+                embed_concurrency = config.EMBED_CONCURRENCY
+            else:
+                embed_concurrency = min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY)
+                self._log(
+                    f"Ollama läuft CPU-only — drossle Embedding-Nebenläufigkeit auf {embed_concurrency} "
+                    f"(statt {config.EMBED_CONCURRENCY})."
+                )
+            semaphore = asyncio.Semaphore(embed_concurrency)
             pending_tasks = set()
 
             async def doc_producer():

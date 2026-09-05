@@ -50,3 +50,11 @@ CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 # Plan §7.3/NF-004). Env-steuerbar, damit eine schwächere Ollama-Instanz
 # gedrosselt werden kann, ohne Code zu ändern.
 EMBED_CONCURRENCY: int = int(os.getenv("EMBED_CONCURRENCY", "20"))
+
+# O-071: EMBED_CONCURRENCY parallele Batch-Anfragen an eine CPU-only-Ollama-
+# Instanz stauen sich (die intern sequentiell rechnet), reißen den
+# EMBED_BATCH_TIMEOUT und fallen in den noch langsameren Einzel-Chunk-
+# Fallback -- selbstverschuldete Verlangsamung. GitConnector.sync() erkennt
+# CPU-only per ollama_client.is_gpu_accelerated() und drosselt dann auf
+# diesen Wert statt EMBED_CONCURRENCY.
+EMBED_CONCURRENCY_CPU_ONLY: int = int(os.getenv("EMBED_CONCURRENCY_CPU_ONLY", "2"))

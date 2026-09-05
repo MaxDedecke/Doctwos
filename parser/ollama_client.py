@@ -165,6 +165,38 @@ async def get_chat_json(prompt: str, model: str, timeout: float = 60.0, think: O
     return _parse_json_content(content)
 
 
+async def is_gpu_accelerated(model: str) -> bool:
+    """
+    O-071: ermittelt, ob `model` in Ollama gerade (teil-)GPU-beschleunigt
+    läuft, über Ollamas Laufzeit-Status `/api/ps` (Feld `size_vram` —
+    `0` heißt CPU-only, `>0` heißt (teil-)GPU-beschleunigt). Robuster als
+    eine reine Host-GPU-Prüfung bei der Installation
+    (scripts/lib/env-bootstrap.sh::gpu_ready_for_docker), weil es auch
+    erkennt, wenn GPU-Passthrough konfiguriert ist, das Modell aber z. B.
+    zu groß fürs VRAM ist und Ollama trotzdem auf CPU zurückfällt.
+
+    `/api/ps` liefert nur für bereits geladene Modelle eine size_vram-
+    Angabe; ein winziger Embed-Aufruf lädt `model` bei Bedarf zuerst
+    (billig, läuft nur einmal pro Sync-Start). Konservativer Fallback
+    (CPU-only annehmen) falls Ollama nicht antwortet oder das Feld fehlt.
+    """
+    try:
+        client = _get_client()
+        await client.post(
+            f"{OLLAMA_BASE_URL}/api/embed",
+            json={"model": model, "input": "warmup"},
+            timeout=EMBED_BATCH_TIMEOUT,
+        )
+        response = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=10.0)
+        response.raise_for_status()
+        for entry in response.json().get("models", []):
+            if entry.get("model") == model or entry.get("name") == model:
+                return entry.get("size_vram", 0) > 0
+    except (httpx.HTTPError, httpx.RequestError, ValueError, KeyError, TypeError) as e:
+        logger.warning(f"is_gpu_accelerated: Ollama-Status nicht auswertbar, nehme CPU-only an: {e}")
+    return False
+
+
 async def ensure_model_pulled(model: str):
     """
     Ensures that the required embedding model is available in Ollama.

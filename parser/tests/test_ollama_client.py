@@ -59,3 +59,65 @@ async def test_get_embeddings_batch_uses_configured_timeout(monkeypatch):
 @pytest.mark.anyio
 async def test_get_embeddings_batch_empty_returns_empty():
     assert await ollama_client.get_embeddings_batch([], model="bge-m3") == []
+
+
+def _fake_ps_client(models_response, post_raises=None):
+    fake_client = MagicMock()
+
+    async def fake_post(url, json, timeout):
+        if post_raises:
+            raise post_raises
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value={"embeddings": [[0.0]]})
+        return response
+
+    async def fake_get(url, timeout):
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value=models_response)
+        return response
+
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    fake_client.get = AsyncMock(side_effect=fake_get)
+    return fake_client
+
+
+@pytest.mark.anyio
+async def test_is_gpu_accelerated_true_when_size_vram_positive(monkeypatch):
+    """O-071: size_vram > 0 heißt (teil-)GPU-beschleunigt -- volle
+    EMBED_CONCURRENCY bleibt sinnvoll."""
+    fake_client = _fake_ps_client({"models": [{"model": "bge-m3", "size_vram": 12345}]})
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.is_gpu_accelerated("bge-m3") is True
+
+
+@pytest.mark.anyio
+async def test_is_gpu_accelerated_false_when_size_vram_zero(monkeypatch):
+    """size_vram == 0 heißt CPU-only -- Aufrufer muss drosseln (O-071)."""
+    fake_client = _fake_ps_client({"models": [{"model": "bge-m3", "size_vram": 0}]})
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.is_gpu_accelerated("bge-m3") is False
+
+
+@pytest.mark.anyio
+async def test_is_gpu_accelerated_false_when_model_not_listed(monkeypatch):
+    """Modell nicht in /api/ps (z. B. gerade wieder entladen) -- konservativer
+    CPU-only-Fallback statt Annahme von GPU-Beschleunigung."""
+    fake_client = _fake_ps_client({"models": []})
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.is_gpu_accelerated("bge-m3") is False
+
+
+@pytest.mark.anyio
+async def test_is_gpu_accelerated_false_when_ollama_unreachable(monkeypatch):
+    """/api/ps nicht erreichbar -- konservativer CPU-only-Fallback statt Absturz."""
+    import httpx
+
+    fake_client = _fake_ps_client({}, post_raises=httpx.ConnectError("no route"))
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.is_gpu_accelerated("bge-m3") is False
