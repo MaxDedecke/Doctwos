@@ -60,7 +60,9 @@ installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 ## 3. Node — Frontend (`frontend/package.json`, nur `dependencies`)
 
 Geprüft mit `license-checker --production` gegen
-`scripts/license_allowlist_node.txt`. 323 Pakete, vier Ausnahmen:
+`scripts/license_allowlist_node.txt`. 325 Pakete (05.09.2026: `@tanstack/react-virtual`
++ `@tanstack/virtual-core` für O-036 hinzugekommen, beide MIT, keine neue
+Ausnahme nötig), vier Ausnahmen:
 
 | Paket | Lizenz | Status | Begründung |
 |---|---|---|---|
