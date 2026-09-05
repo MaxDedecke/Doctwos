@@ -200,6 +200,7 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 - [Tech-Debt-Cleanup-Plan](TECH_DEBT_CLEANUP_PLAN.md) — Detailplanung für O-004/O-005
 - [Entscheidungslog](ENTSCHEIDUNGEN.md) — fachliche und technische Entscheidungen
+- [FAQ Konnektor-Modularität](FAQ_KONNEKTOR_MODULARITAET.md) — Frage-Antwort-Referenz zu O-042 für Vertriebs-/Kundengespräche
 
 ## Pflege
 
