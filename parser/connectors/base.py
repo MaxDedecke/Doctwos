@@ -179,7 +179,9 @@ class BaseConnector(ABC):
             return await get_embedding(content, model=config.EMBED_MODEL)
 
         def on_embed_error(chunk, e):
-            self._log(f"Embedding-Fehler für '{doc['title']}': {e}")
+            # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
+            # Exception-Typname macht die Meldung erst brauchbar.
+            self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
 
         count = await reindex_chunks_preserving_links(
             self.db,

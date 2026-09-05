@@ -162,3 +162,30 @@ async def test_folder_connector_skips_orphan_cleanup_on_empty_scan(db_session, t
     assert db_session.query(DocumentChunk).filter(
         DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == stale_path
     ).count() == 1
+
+
+@pytest.mark.anyio
+async def test_folder_connector_logs_exception_type_when_a_chunk_fails_to_embed(db_session, test_source, tmp_path):
+    """
+    Regression: on_embed_error logged "Embedding-Fehler für 'X': " with
+    nothing after the colon when the underlying exception's str() is empty
+    (e.g. httpx.TimeoutException) -- no clue what actually failed. Unlike
+    GitConnector (which retries a failed batch chunk-by-chunk), BaseConnector-
+    derived connectors like this one have no fallback beneath this single
+    embed attempt: a chunk that fails here is genuinely dropped.
+    """
+    file_a = tmp_path / "a.txt"
+    file_a.write_text("Hello from folder file A")
+
+    connector = FolderConnector(test_source.id)
+    connector.source = test_source
+    with patch("connectors.base.get_embedding", AsyncMock(side_effect=Exception())):
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert "Embedding-Fehler für 'a.txt': Exception:" in test_source.sync_log
+
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a)
+    ).all()
+    assert len(chunks) == 0

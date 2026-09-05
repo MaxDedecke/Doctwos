@@ -242,7 +242,13 @@ class GitConnector(BaseConnector):
                 try:
                     embeddings = await get_embeddings_batch(chunk_texts, model=config.EMBED_MODEL)
                 except Exception as e:
-                    self._log(f"Embedding-Fehler für '{doc['title']}': {e}")
+                    # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
+                    # Exception-Typname macht die Meldung erst brauchbar (sonst
+                    # nur "Embedding-Fehler für X: " ohne jeden Hinweis, was
+                    # schiefging). Datei ist trotzdem nicht verloren: chunks
+                    # bleiben ohne "embedding"-Feld, reindex_chunks_preserving_links
+                    # embedded sie unten einzeln nach (langsamer, aber vollständig).
+                    self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
 
             for chunk, embedding in zip(chunks, embeddings):
                 chunk["embedding"] = embedding

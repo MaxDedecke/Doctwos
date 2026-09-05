@@ -274,3 +274,34 @@ async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_r
         db_session.execute(text("DELETE FROM projects WHERE id IN (:a, :b)"), {"a": project_a, "b": project_b})
         db_session.execute(text("DELETE FROM teams WHERE id = :id"), {"id": team_id})
         db_session.commit()
+
+
+@pytest.mark.anyio
+async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful_error(db_session, test_source):
+    """
+    Regression: a failed batch embed (e.g. httpx.TimeoutException, whose
+    str() is often empty) used to log "Embedding-Fehler für 'X': " with
+    nothing after the colon -- no clue what actually went wrong. The file
+    itself was never lost (reindex_chunks_preserving_links falls back to
+    embedding chunks one at a time when they arrive without a precomputed
+    "embedding"), but the log gave no way to tell a real failure from this
+    expected, self-healing fallback path.
+    """
+    connector = GitConnector(test_source.id)
+    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
+         patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
+         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)):
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert "Embedding-Fehler für 'PROG.CBL': Exception:" in test_source.sync_log
+
+    # The fallback still embedded and saved every chunk -- a failed batch
+    # attempt must not silently drop a file's content.
+    chunks = db_session.query(DocumentChunk).filter(
+        DocumentChunk.source_id == test_source.id,
+        DocumentChunk.file_path == "PROG.CBL",
+    ).all()
+    assert len(chunks) >= 1
+    assert all(c.embedding is not None for c in chunks)
