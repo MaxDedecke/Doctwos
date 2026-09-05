@@ -1,6 +1,6 @@
 # Doctwos — Offene Entwicklungspunkte
 
-**Stand:** 05.09.2026 (O-044/O-036/O-053 erledigt, O-052/O-054 neu, O-055–O-062 neu — Regressionstest-Aufbau in Häppchen)
+**Stand:** 05.09.2026 (O-044/O-036/O-053 erledigt, O-052/O-054 neu, O-055–O-062 neu — Regressionstest-Aufbau in Häppchen, O-063–O-066 neu — Codequalitäts-Audit für die Repo-Übergabe)
 **Zweck:** Zentrale Liste für noch offene Änderungen, Abnahmen und Entscheidungen.
 
 O-029 bis O-036 stammen aus einem Abgleich des [Anforderungskatalogs](ANFORDERUNGSKATALOG.md)
@@ -81,6 +81,19 @@ Kritikalität und Komplexität, nicht nach ID.
 | O-060 | Frontend / Tests | `LinkManagerView.tsx` hat keinen Test — manuelles Verknüpfen/Bewerten von Quellen (DOC-F-081) ist ungetestet. | Component-Tests für Filterleiste, manuellen Picker und Linkkarten-Interaktionen. | Keine |
 | O-061 | Frontend / Tests | `PanelContentRenderer.tsx`/`SplitPaneWorkspace.tsx` (Routing, welcher Panel-Typ für Chat/Code/Dokument/Graph/Web/Callgraph/Link-Manager gerendert wird) hat keinen Test. | Component-Tests für die Zuordnung Panel-Konfiguration → gerenderter Inhalt. | Keine |
 | O-062 | Frontend / E2E | Nur 2 Playwright-Specs existieren (`login.spec.ts`, `accessibility.spec.ts`) — kein einziger End-to-End-Test für den eigentlichen Kernworkflow (Quelle anbinden → COBOL wird geparst → Chat-Frage stellen → Quellenverweis anklicken → Code-Ansicht öffnet an der richtigen Zeile). | Ersten goldenen-Pfad-E2E-Test gegen den laufenden Compose-Stack schreiben; deckt damit erstmals das Zusammenspiel aller Schichten (Parser, Backend, Frontend) in einem Testlauf ab, nicht nur isolierte Einheiten. | Keine |
+
+O-063 bis O-066 stammen aus einem Codequalitäts-Audit vom 05.09.2026 (Anlass:
+Repo-Übergabe in ca. einem Monat). Kommentierung ist kein Problem — 0
+TODO/FIXME/HACK-Marker im gesamten Code, Stichproben zeigen gezielte,
+nicht-triviale Kommentare genau dort, wo CLAUDE.md-Regel 5 sie verlangt. Die
+folgenden vier Punkte sind die tatsächlich gefundenen strukturellen Lücken.
+
+| ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
+|---|---|---|---|---|
+| O-063 | Frontend / Typsicherheit | `frontend/tsconfig.json` hat `"strict": false`. 274 `any`-Stellen auf ~19.800 Zeilen TS/TSX, konzentriert in genau den Dateien, die auch bei O-055/O-057/O-058/O-061 als ungetestet auffielen (`ChatView.tsx` 15, `SplitPaneWorkspace.tsx` 30, `KnowledgeGraphView.tsx` 35, `PanelContentRenderer.tsx` 14, `CallGraphView.tsx` 14, `useChatController.ts` 22, `usePanelNavigation.ts` 18) — schwache Typisierung und fehlende Tests treffen dieselben Risikostellen. | `strict: true` in einem Schritt umzuschalten würde vermutlich hunderte neue Fehler auf einmal aufreißen — stattdessen stufenweise vorgehen: einzelne Strict-Unterflags zuerst (`noImplicitAny`, dann `strictNullChecks`, …), oder Datei für Datei parallel zu den O-055ff-Testarbeiten, da dieselben Dateien ohnehin schon angefasst werden. | Keine |
+| O-064 | Backend+Parser / CI | Keine automatisierte Python-Codeprüfung: kein mypy (Typ-Hinweise werden nie geprüft, können unbemerkt veralten), kein ruff/black/flake8 (kein Lint, keine erzwungene Formatierung) — weder lokal noch in `.github/workflows/ci.yml`. Nur `pytest` läuft. | `ruff` (MIT, deckt Lint + Formatierung in einem Werkzeug ab, passt zu Prinzip 4 „keine schweren SDKs") als neuen CI-Schritt für `backend/` und `parser/` ergänzen; mypy optional nachziehen, falls Typabdeckung eine eigene Priorität werden soll. | Keine |
+| O-065 | Repository-Hygiene | `parser/spikes/antlr_cobol/` (22 MB, inkl. einer vollständigen Doppelung der 54.007-Zeilen generierten Parser-Datei) ist laut eigenem README bewusst als historisches Spike-Artefakt dokumentiert — "nichts hier läuft im Produktivimage, nichts hier wird noch importiert". Die Entscheidung, die es beantworten sollte, ist seit E-11 final getroffen. | Vor der Repo-Übergabe entscheiden: löschen (Entscheidung ist dokumentiert in `docs/ENTSCHEIDUNGEN.md` E-11, der Ordner selbst wird nicht mehr gebraucht) oder als separates Archiv-Repo auslagern, falls der Analyseweg für eine künftige Zweitsprache nochmal nachvollzogen werden soll. | Keine |
+| O-066 | Backend+Frontend / Struktur | Sehr große Einzeldateien: `frontend/components/SplitPaneWorkspace.tsx` (1633 Zeilen), `backend/api/chat.py` (1234), `frontend/components/LinkManagerView.tsx` (1120), `backend/api/projects.py` (977), `backend/api/knowledge_sources.py` (964), `frontend/app/page.tsx` (959, trotz Coding-Regel 1 „app/page.tsx bleibt schlank" und der O-004-Auslagerung). Größe allein ist kein Fehler — keine dieser Dateien wurde inhaltlich geprüft, ob eine Aufteilung tatsächlich sinnvoll wäre. | Jede Datei einzeln durchsehen: enthält sie mehrere trennbare Verantwortlichkeiten (aufteilen, analog zum O-004-Muster mit `frontend/hooks/`) oder ist die Länge durch echte Komplexität gerechtfertigt (belassen, Befund dokumentieren)? | Keine |
 
 ## Noch zu evaluieren
 
