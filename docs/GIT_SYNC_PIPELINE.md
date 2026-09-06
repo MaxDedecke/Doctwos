@@ -122,16 +122,34 @@ COBOL-Zweig laufen:**
 ### (2) Generisches Zeilenchunking — `parser/code_parser.py::CodeParser.chunk_file()`
 
 Für alles, was nicht COBOL/Copybook ist (Markdown, sonstiger Quellcode,
-Konfigurationsdateien, ...) — rein zeichenzahlbasiert, ohne jedes Verständnis
-der Dateistruktur:
+Konfigurationsdateien, ...) — im Kern zeichenzahlbasiert, ohne Verständnis der
+Dateistruktur (kein `boundary_lines`, das übergibt hier niemand: das ist nur
+für Confluence sinnvoll, siehe unten). Seit O-084/O-085 zwei generische
+Sicherheitsnetze, die für **jeden** Aufrufer von `chunk_file()` gelten, auch
+diesen hier:
 
 1. Zeilenweise Häppchen bis `chunk_size` Zeichen (Default 1000) packen, nie
-   mitten in einer Zeile abschneiden.
+   mitten in einer Zeile abschneiden — außer eine einzelne Zeile ist bereits
+   länger als `chunk_size` (O-085): dann wird nur diese eine Zeile an Satz-
+   oder Wortgrenzen in mehrere Teile zerlegt (Fallback: hartes Schneiden nach
+   Zeichen, falls kein Leerzeichen im gesamten Limit-Fenster vorkommt, z. B.
+   eine sehr lange URL).
 2. Vom Ende des gerade gepackten Chunks rückwärts `overlap_size` Zeichen
    (Default 150) mit in den **nächsten** Chunk übernehmen — Kontext bleibt an
    Chunk-Grenzen erhalten (z. B. eine Funktionssignatur, die sonst genau an
    der Schnittstelle landen würde).
 3. Wiederholen, bis die Datei durch ist.
+4. Am Ende: aufeinanderfolgende Chunks unterhalb von `min_chunk_size`
+   (Default 200 Zeichen) zu einem gemeinsamen Chunk zusammenlegen (O-084,
+   analog zu COBOLs Pending-Merge-Logik in (1), aber ohne Section-Grenze —
+   verhindert einen fast bedeutungslosen Winzling-Chunk, der sonst als
+   schwaches False-Positive im Vektorindex landen würde).
+
+Bei Confluence (`docs/CONFLUENCE_SYNC_PIPELINE.md`) kommt zusätzlich ein
+optionaler `boundary_lines`-Parameter dazu (O-083): ein neuer Chunk beginnt
+dort bevorzugt an einer erkannten Section-Überschrift statt ausschließlich an
+der `chunk_size`-Schwelle — hier im generischen Git-Pfad ungenutzt, weil kein
+anderer Sprachtyp strukturierte Abschnittsgrenzen liefert.
 
 Beide Chunking-Wege liefern dieselbe Rückgabeform (`content`, `start_line`,
 `end_line`, optionale `meta`) — der Rest der Pipeline (Embedding, Persistenz)
@@ -140,8 +158,11 @@ unterscheidet nicht, woher ein Chunk kommt.
 Quelle: `parser/connectors/git.py` (`sync`, `fetch_documents`,
 `_run_prepare_hooks`, `_embed_document`, `_save_document_chunks`,
 `_looks_like_text`), `parser/cobol/registry.py` (`STRUCTURE_PARSERS`,
-`ParserEntry`), `parser/ollama_client.py` (`is_gpu_accelerated`). Siehe
-`docs/OFFENE_ENTWICKLUNGSPUNKTE.md` O-071/O-072/O-074/O-075 sowie
-O-077/O-079 (Registry-Dispatch statt hartkodierter Sprachweiche) für die
+`ParserEntry`), `parser/code_parser.py` (`CodeParser.chunk_file`,
+`_merge_small_chunks`, `_split_oversized_line`), `parser/ollama_client.py`
+(`is_gpu_accelerated`). Siehe `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
+O-071/O-072/O-074/O-075 sowie O-077/O-079 (Registry-Dispatch statt
+hartkodierter Sprachweiche) und O-083/O-084/O-085 (section-bewusste
+Chunk-Grenzen, Winzling-Merge, Einzelzeilen-Split) für die
 Entstehungsgeschichte der einzelnen Bausteine; `docs/ADDING_A_LANGUAGE.md`
 (O-081) für eine zweite Sprache.

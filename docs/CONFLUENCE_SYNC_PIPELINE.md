@@ -53,7 +53,7 @@ flowchart TD
     subgraph PerDocGroup ["pro Dokument -- _process_document (sequentiell, KEINE Nebenlaeufigkeit)"]
         direction TB
         BoundaryCalc["_section_boundaries(line_sections)<br/>Zeilen, an denen die Section wechselt (O-083)<br/>nur wenn line_sections vorhanden (nur Confluence)"]
-        BoundaryCalc --> PerDoc["CodeParser.chunk_file<br/>generisches Zeilenchunking<br/>(siehe GIT_SYNC_PIPELINE.md, Punkt 2)<br/>boundary_lines: neuer Chunk bevorzugt an einer<br/>Section-Grenze, chunk_size bleibt Obergrenze (O-083)<br/>kein Overlap ueber eine solche Grenze hinweg"]
+        BoundaryCalc --> PerDoc["CodeParser.chunk_file<br/>generisches Zeilenchunking<br/>(siehe GIT_SYNC_PIPELINE.md, Punkt 2)<br/>boundary_lines: neuer Chunk bevorzugt an einer<br/>Section-Grenze, chunk_size bleibt Obergrenze (O-083)<br/>kein Overlap ueber eine solche Grenze hinweg<br/>uebergrosse Einzelzeile an Wort-/Satzgrenze gesplittet (O-085)<br/>Winzling-Chunks unterhalb min_chunk_size zusammengelegt,<br/>nicht ueber eine Section-Grenze hinweg (O-084)"]
         PerDoc --> SectionLookup["pro Chunk: line_sections[start_line-1]<br/>nachschlagen -&gt; chunk['meta']['section'] (O-082)"]
         SectionLookup --> Reindex["reindex_chunks_preserving_links<br/>JEDER Chunk neu embedded (get_embedding,<br/>Einzel-Request, kein Batch, kein Skip)<br/>Content-Fingerprint ordnet alte/neue Chunks<br/>einander zu -&gt; EntityDocLink-Status/chunk_id<br/>bei Uebereinstimmung uebernommen<br/>metadata_json erbt chunk['meta'] (z.B. section)"]
         Reindex --> LogDone["_log: 'X indexiert (N Chunks).'"]
@@ -105,10 +105,21 @@ flowchart TD
   `section`/`paragraph` bereits nutzt. Ein Chat-Zitat aus einer langen
   Confluence-Seite zeigt damit jetzt (sofern das Frontend es generisch mit
   ausliest) den Abschnitt statt nur den Seitentitel, und der Chunk selbst
-  enthält seltener Text aus zwei benachbarten Abschnitten gemischt. Bewusst
-  **nicht** mitgelöst: dichte Überschriftenfolgen (z. B. zwei Überschriften
-  ohne Fließtext dazwischen) können jetzt viele kleine Chunks erzeugen — kein
-  Sicherheitsnetz gegen Winzling-Chunks, das ist O-084, offen.
+  enthält seltener Text aus zwei benachbarten Abschnitten gemischt.
+- **Zwei generische Sicherheitsnetze in `chunk_file()` selbst (O-084/O-085),
+  gelten für jeden Aufrufer, nicht nur Confluence:** (1) O-085 — eine einzelne
+  Zeile über `chunk_size` (z. B. ein langer `<p>`-Absatz ohne internes
+  `<br/>`, den `_html_to_text()` in eine einzige durchgehende Zeile
+  umwandelt) wird an Satz- oder Wortgrenzen in mehrere Teile zerlegt statt
+  unverändert einen übergroßen Einzelchunk zu bilden (Fallback: hartes
+  Schneiden nach Zeichen, falls kein Leerzeichen im Limit-Fenster vorkommt).
+  (2) O-084 — aufeinanderfolgende Chunks unterhalb von `min_chunk_size`
+  (Default 200 Zeichen) werden zu einem gemeinsamen Chunk zusammengelegt,
+  löst genau das Problem, das O-083 durch häufigeres Schneiden an
+  Section-Grenzen verschärfen könnte (dichte Überschriftenfolgen ohne viel
+  Fließtext dazwischen). Das Zusammenlegen respektiert dieselben
+  `boundary_lines` wie das Schneiden — zwei Chunks aus unterschiedlichen
+  Sections werden nie gemischt, auch wenn beide winzig sind.
 - **Embedding läuft pro Chunk einzeln** (`get_embedding`, kein
   `get_embeddings_batch`) — sobald eine Seite den Delta-Check nicht besteht
   (also neu oder geändert ist), wird **jeder** ihrer Chunks frisch embedded,
@@ -127,7 +138,8 @@ flowchart TD
 
 Quelle: `parser/connectors/base.py` (`sync`, `_process_document`,
 `Document.line_sections`, `_section_boundaries`), `parser/code_parser.py`
-(`CodeParser.chunk_file`, Parameter `boundary_lines`),
+(`CodeParser.chunk_file`, Parameter `boundary_lines`/`min_chunk_size`,
+`_merge_small_chunks`, `_split_oversized_line`),
 `parser/connectors/confluence.py` (`fetch_documents`, `_build_document`,
 `_fetch_attachments`, `_html_to_text` liefert seit O-082 `(text,
 line_sections)`), `parser/chunk_reindex.py`
