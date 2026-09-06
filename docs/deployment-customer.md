@@ -17,7 +17,7 @@ Vor dem Termin abklären, sonst steht man vor Ort fest:
 | Mindestens ~25 GB freier Speicherplatz | BGE-M3, Docker-Images/Build-Cache und wachsende Datenbank/Repos; ein später aktiviertes Q4-LLM benötigt zusätzlich ~7,5 GB | `df -h /` |
 | Root- oder sudo-Zugriff auf dem Server | Für Docker-Installation und Firewall-Regeln nötig | — |
 | Internetzugang des Servers während der Installation | Docker-Images und KI-Modelle werden heruntergeladen (**Online-Pfad**). Ohne Internet: Air-Gapped-Pfad, siehe `DEPLOYMENT.md` | `curl -I https://github.com` sollte eine Antwort liefern |
-| Ein Identity Provider (IdP) für den Login, z.B. Keycloak, Microsoft Entra ID, Okta, Authentik | Doctus hat kein eigenes Login-System, sondern meldet sich über OIDC beim Kunden-IdP an. Ohne echten IdP kann man nur mit einem Test-Login (`testuser`/`testpass`) demonstrieren, siehe Abschnitt 8 | Vom Kunden-IT erfragen: **Issuer-URL**, **Client-ID**, **Client-Secret** |
+| *Optional:* ein Identity Provider (IdP), z.B. Keycloak, Microsoft Entra ID, Okta, Authentik | Doctus bringt eine eigene Anmeldung mit Nutzername und Passwort mit; beim ersten Start wird ein Administrator-Konto angelegt. Ein IdP ist der **zweite**, optionale Anmeldeweg (SSO) — sinnvoll, sobald der Kunde keine zweite Nutzerverwaltung pflegen will. Ohne IdP funktioniert Doctus vollständig, nur ohne SSO-Knopf | Falls SSO gewünscht, vom Kunden-IT erfragen: **Issuer-URL**, **Client-ID**, **Client-Secret** |
 | Wissen, ob der Zugriff nur aus dem lokalen Netzwerk (LAN) erfolgt oder auch von außen (Internet) erreichbar sein muss | Bestimmt, welche IP-Adresse man in Schritt 4 einträgt | Mit dem Kunden klären, bevor man anfängt |
 
 ### Faustregel für die Server-Größe
@@ -170,30 +170,39 @@ Angenommen, die ermittelte Adresse ist `192.168.1.50` — dann in `.env`:
 ```
 API_URL=http://192.168.1.50:8000
 FRONTEND_URL=http://192.168.1.50:3000
-OIDC_REDIRECT_URI=http://192.168.1.50:8000/auth/callback
 ```
 
-**Alle drei müssen dieselbe Adresse verwenden.** Das ist der Schritt, den man beim Testen von einem anderen Rechner aus als erstes falsch macht, wenn man `.env.example` unverändert lässt (dort steht überall `localhost`).
+**Beide müssen dieselbe Adresse verwenden.** Das ist der Schritt, den man beim Testen von einem anderen Rechner aus als erstes falsch macht, wenn man `.env.example` unverändert lässt (dort steht überall `localhost`).
 
-### 5.4 OIDC-Zugangsdaten des Kunden eintragen
+Eine eigene Variable für die OIDC-Redirect-URI gibt es **nicht** — Doctus bildet sie aus `API_URL` als `<API_URL>/auth/oidc/callback`, im Beispiel also `http://192.168.1.50:8000/auth/oidc/callback`. Genau diese Adresse muss beim IdP hinterlegt werden (Abschnitt 5.4).
+
+### 5.4 SSO einrichten (optional)
+
+Diesen Abschnitt überspringen, wenn der Kunde beim Passwort-Login bleibt — Doctus läuft dann vollständig, nur ohne SSO-Knopf auf der Anmeldeseite.
 
 Vom Kunden-IT-Team erfragt (oder Test-Setup aus Abschnitt 8 nutzen):
 
 ```
-OIDC_ISSUER_URL=<vom Kunden erhaltene Issuer-URL>
+OIDC_ISSUER=<vom Kunden erhaltene Issuer-URL>
 OIDC_CLIENT_ID=<vom Kunden erhaltene Client-ID>
 OIDC_CLIENT_SECRET=<vom Kunden erhaltenes Client-Secret>
 ```
 
-Zusätzlich beim Kunden-IdP registrieren (das muss der Kunde/dessen IT in ihrem IdP eintragen): die exakte `OIDC_REDIRECT_URI` aus 5.3 als **erlaubte Redirect-URI** für den Client.
+Die Variable heißt `OIDC_ISSUER` (nicht `OIDC_ISSUER_URL`). SSO ist erst aktiv, wenn **alle drei** Werte gesetzt sind; fehlt einer, bleibt es beim reinen Passwort-Login, ohne dass etwas kaputtgeht.
 
-### 5.5 Ersten Admin-Nutzer festlegen
+Zusätzlich beim Kunden-IdP registrieren (das muss der Kunde/dessen IT in ihrem IdP eintragen): `<API_URL>/auth/oidc/callback` aus 5.3 als **erlaubte Redirect-URI** für den Client. Stimmt sie nicht exakt, zeigt der IdP eine eigene Fehlerseite („Invalid parameter: redirect_uri"), nicht Doctus.
+
+### 5.5 Administrator-Konto
+
+Doctus legt beim ersten Start genau einen Administrator an — standardmäßig `admin`. Bleibt `BOOTSTRAP_SUPERUSER_PASSWORD` in der `.env` leer, erzeugt Doctus ein Passwort und zeigt es **einmalig** im Installer-Ausgabetext und im Startlog des Backends an. Dieses Passwort notieren; es wird beim ersten Login geändert.
 
 ```
-ADMIN_EMAILS=vorname.nachname@kundenfirma.de
+BOOTSTRAP_SUPERUSER=admin
+BOOTSTRAP_SUPERUSER_PASSWORD=
+BOOTSTRAP_SUPERUSER_EMAIL=vorname.nachname@kundenfirma.de
 ```
 
-Diese E-Mail-Adresse (muss mit der E-Mail aus dem IdP-Login übereinstimmen) bekommt beim ersten Login automatisch Admin-Rechte. Mehrere Adressen mit Komma trennen.
+Nutzer, die sich später über SSO anmelden, werden automatisch angelegt — immer als gewöhnliche Nutzer. Administrator-Rechte vergibt der Administrator selbst unter *Einstellungen > Nutzer*. Eine Variable, die Admin-Rechte anhand der E-Mail-Adresse vergibt, gibt es nicht.
 
 ---
 
@@ -251,7 +260,7 @@ Auf dem 8-GB-/4-vCPU-Host darf hier nur `bge-m3` erscheinen. Ein lokales Chat-/C
 
 ## 8. Kein Kunden-IdP verfügbar? Test-Login einrichten
 
-Für eine Demo oder ersten Funktionstest, bevor der Kunde seinen eigenen Identity Provider bereitstellt, liegt im Repo ein fertiges Test-Setup (Keycloak mit vorkonfiguriertem Nutzer). **Nur für Demos/Tests — niemals mit echten Kundendaten produktiv einsetzen**, da Passwort und Client-Secret öffentlich im Repository stehen.
+Für eine Demo **des SSO-Wegs**, bevor der Kunde seinen eigenen Identity Provider bereitstellt, liegt im Repo ein fertiges Test-Setup (Keycloak mit vorkonfiguriertem Nutzer). Nur dafür — für alles andere reicht der normale Passwort-Login aus Abschnitt 5.5. **Nur für Demos/Tests — niemals mit echten Kundendaten produktiv einsetzen**, da Passwort und Client-Secret öffentlich im Repository stehen.
 
 ```sh
 docker run -d --name test-keycloak -p 8080:8080 \
@@ -259,7 +268,6 @@ docker run -d --name test-keycloak -p 8080:8080 \
   -e KC_HOSTNAME=192.168.1.50 \
   -e KC_HTTP_ENABLED=true -e KC_HOSTNAME_STRICT_HTTPS=false \
   -v "$(pwd)/.github/keycloak:/opt/keycloak/data/import" \
-  -v "$(pwd)/.github/keycloak/themes/doctus:/opt/keycloak/themes/doctus" \
   quay.io/keycloak/keycloak:25.0 start-dev --import-realm
 ```
 
@@ -271,16 +279,17 @@ Ca. 30 Sekunden warten, dann prüfen ob Keycloak bereit ist:
 curl -sf http://192.168.1.50:8080/realms/doctus/.well-known/openid-configuration && echo "Keycloak bereit"
 ```
 
-Im Keycloak-Adminbereich (`http://192.168.1.50:8080`, Login `admin`/`admin`) unter *Clients → doctus-backend → Settings → Valid redirect URIs* die eigene `OIDC_REDIRECT_URI` (aus Schritt 5.3) ergänzen, falls sie nicht schon `http://192.168.1.50:8000/auth/callback` enthält.
+Im Keycloak-Adminbereich (`http://192.168.1.50:8080`, Login `admin`/`admin`) unter *Clients → doctus-backend → Settings → Valid redirect URIs* die eigene Callback-Adresse `http://192.168.1.50:8000/auth/oidc/callback` ergänzen. Die mitgelieferte Realm-Datei kennt nur `http://localhost:8000/auth/oidc/callback` und `http://127.0.0.1:8000/auth/oidc/callback`; Keycloak erlaubt keinen Platzhalter im Hostnamen, die eigene Adresse muss also von Hand dazu.
 
 In `.env` eintragen:
 
 ```
-OIDC_ISSUER_URL=http://192.168.1.50:8080/realms/doctus
+OIDC_ISSUER=http://192.168.1.50:8080/realms/doctus
 OIDC_CLIENT_ID=doctus-backend
 OIDC_CLIENT_SECRET=ci-only-keycloak-client-secret
-ADMIN_EMAILS=testuser@example.com
 ```
+
+Der Testnutzer `testuser` kommt als gewöhnlicher Nutzer an, nicht als Administrator — der Realm trägt keine Doctus-Rolle. Wer für die Demo Adminrechte braucht, meldet sich einmal mit dem Bootstrap-Konto aus 5.5 an und hebt `testuser` unter *Einstellungen > Nutzer* an.
 
 Ändern von `.env` wird erst nach folgendem Befehl wirksam (**nicht** `restart` verwenden — das liest `.env` nicht neu ein):
 
@@ -303,18 +312,18 @@ Doctus selbst liefert nur unverschlüsseltes HTTP (Port 3000/8000). Für eine ec
 - [ ] `docker compose ps` → alle 7 Container `Up`
 - [ ] `curl http://<server-adresse>:8000/health` → `{"status":"healthy"}`
 - [ ] Browser auf `http://<server-adresse>:3000` → Login-Seite erscheint, kein CORS-Fehler in der Browser-Konsole (F12)
-- [ ] Login mit Kunden-IdP oder Test-User erfolgreich, Startseite lädt
+- [ ] Login erfolgreich (Bootstrap-Konto aus 5.5, und falls eingerichtet zusätzlich der SSO-Weg), Startseite lädt
 - [ ] `.env` an einem sicheren Ort gesichert (enthält alle Geheimnisse — siehe Backup-Kapitel in `DEPLOYMENT.md`)
 
 ---
 
 ## Die 3 häufigsten Fehler (und wie man sie erkennt)
 
-1. **"Login-Button tut nichts" / Backend gibt 500 zurück auf `/auth/login`**
-   → `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` sind noch leer oder falsch. Prüfen mit `docker compose logs backend-api`.
+1. **Kein SSO-Knopf auf der Anmeldeseite**
+   → `OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` sind noch leer oder falsch; der Knopf erscheint nur, wenn alle drei gesetzt sind. Prüfen mit `docker compose exec backend-api env | grep OIDC`. Der Passwort-Login funktioniert davon unabhängig weiter.
 
 2. **Login beim IdP klappt, aber man landet danach auf einer Fehlerseite oder "Seite nicht erreichbar"**
-   → Irgendwo steht noch `localhost` statt der echten Server-Adresse (`API_URL`, `FRONTEND_URL` oder `OIDC_REDIRECT_URI` in `.env`, oder die Redirect-URI ist beim IdP nicht exakt gleich eingetragen). Alle vier Stellen müssen wortwörtlich übereinstimmen, inklusive `http://` vs. `https://`.
+   → Irgendwo steht noch `localhost` statt der echten Server-Adresse (`API_URL` oder `FRONTEND_URL` in `.env`), oder die daraus gebildete Redirect-URI `<API_URL>/auth/oidc/callback` ist beim IdP nicht exakt so eingetragen. Alle Stellen müssen wortwörtlich übereinstimmen, inklusive `http://` vs. `https://`. Meldet der IdP selbst „Invalid parameter: redirect_uri", fehlt genau dieser Eintrag beim Client.
 
 3. **`.env` geändert, aber nichts passiert**
    → `docker compose restart` reicht nicht. Immer `docker compose up -d` verwenden, damit die Container mit den neuen Werten neu erstellt werden.

@@ -1,0 +1,60 @@
+{
+  "realm": "doctus",
+  "enabled": true,
+  "displayName": "Doctus (Test-IdP)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "clients": [
+    {
+      "clientId": "doctus-backend",
+      "name": "Doctus Backend",
+      "description": "Nur fuer Demo-/Tests. Secret steht oeffentlich im Repo. Redirect-URIs decken nur localhost:8000 ab -- fuer andere Adressen <API_URL>/auth/oidc/callback ergaenzen.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "ci-only-keycloak-client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8000/auth/oidc/callback",
+        "http://127.0.0.1:8000/auth/oidc/callback"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr",
+        "basic"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "testuser@doctus.test",
+      "firstName": "Test",
+      "lastName": "Nutzer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testpass",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

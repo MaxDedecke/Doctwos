@@ -102,13 +102,13 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | DB credentials, used by both the `db` service and the backend/parser's `DATABASE_URL`. |
 | `API_URL` | Public URL the **frontend container** uses to reach the backend — read server-side at request time (`frontend/app/layout.tsx`), not baked into the image at build time. Set to whatever address the browser can reach the backend on. |
 | `MASTER_ENCRYPTION_KEY` | Fernet key encrypting `KnowledgeSource.token` **and** document/chat content (`DocumentChunk.content`, `ChatMessage.content`, `ComplianceAlert.source_passage`/`discrepancy_description` — every connector's parsed content: Git, Confluence, Jira, Notion, IFC, DWG, GAEB, uploads) at rest, see `backend/models/crypto_types.py`. Generate: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Rotating this key requires re-encrypting all existing tokens and content first** — there's no automatic migration for that; treat it as fixed once you have real customer data. Losing this key makes the entire database's stored content permanently unreadable, not just connector credentials — back it up accordingly (see Backup section below). |
-| `SESSION_SECRET_KEY` | Signs the app's own session cookie issued after OIDC login. Generate: `openssl rand -base64 32`. |
-| `OIDC_ISSUER_URL` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | From the customer's IdP. Issuer URL must serve `/.well-known/openid-configuration`. |
-| `OIDC_REDIRECT_URI` | Register this exact URI as an allowed redirect URI on the IdP client — typically `<API_URL>/auth/callback`. |
+| `SESSION_SECRET_KEY` | Signs the app's own session cookie, issued after either login path (local password or OIDC). Generate: `openssl rand -base64 32`. |
+| `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | **Optional** — SSO is a *second* login path next to the local password login (E-12), and it stays off until all three are set (`backend/core/config.py::oidc_enabled()`). From the customer's IdP; the issuer URL must serve `/.well-known/openid-configuration`. Note the name: `OIDC_ISSUER`, not `OIDC_ISSUER_URL`. |
+| *(no redirect-URI variable)* | The redirect URI is **derived**, not configured: `<API_URL>/auth/oidc/callback` (`backend/core/oidc.py::redirect_uri()`). Register exactly that string on the IdP client. Getting `API_URL` right is therefore what gets the redirect right. |
 | `FRONTEND_URL` | Used for CORS (`allow_origins`) — must be the exact origin the browser loads the frontend from. |
 | `LOG_LEVEL` | Backend log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO`. The parser worker's verbosity is set separately via `--loglevel` on its `celery` command (`parser/Dockerfile`), not by this var. |
 | `MCP_AUDIT_RETENTION_DAYS` | Retention period for redacted MCP tool-call audit entries, default `90`; visible to administrators under Settings > Logs. |
-| `ADMIN_EMAILS` | Comma-separated list, matched case-insensitively against the OIDC `email` claim. Grants admin: bypasses team-based visibility, manages teams/members. No separate admin-bootstrap UI — set this before first login for whoever should be the customer's first admin. |
+| `BOOTSTRAP_SUPERUSER` / `BOOTSTRAP_SUPERUSER_PASSWORD` / `BOOTSTRAP_SUPERUSER_EMAIL` | The first admin account, created once on first start (F-001). Leave the password empty and the backend generates one and prints it **once** into the startup log and the installer output (O-070). Admin = `User.role == "superuser"` (`backend/core/teams.py::is_admin`): bypasses team-based visibility, manages teams/members. Users arriving via SSO are always created with role `user`; an existing admin promotes them under Settings > Users. There is no env var that grants admin by email address. |
 
 ## TLS
 
@@ -123,21 +123,22 @@ your-doctus-domain.example.com {
 }
 ```
 
-Then set `FRONTEND_URL=https://your-doctus-domain.example.com`, `API_URL` to whatever address the frontend container reaches the backend on, and `OIDC_REDIRECT_URI` to the `https://` callback URL registered with the IdP.
+Then set `FRONTEND_URL=https://your-doctus-domain.example.com` and `API_URL` to the `https://` address the browser reaches the backend on — and, if SSO is in use, register `<API_URL>/auth/oidc/callback` with that same `https://` address on the IdP client.
 
-> **The #1 way a fresh install ends up with broken login:** `FRONTEND_URL`, `API_URL`, and `OIDC_REDIRECT_URI` all default to `localhost` in `.env.example`. That only works if the browser you're testing with runs on the *same machine* as the Docker host. As soon as you (or the customer) open Doctus from another machine against the server's IP/hostname, `localhost` in all three breaks differently but simultaneously: the frontend's API calls get CORS-rejected (`FRONTEND_URL` no longer matches the real browser origin), and the post-login redirect from the IdP goes nowhere (it's the *browser* navigating to `OIDC_REDIRECT_URI`, not the backend, so `http://localhost:8000/auth/callback` sends the browser to look for a server on its own machine). Set all three to the server's actual reachable address before the first real login attempt, not just `API_URL` — and remember `.env` edits need `docker compose up -d` (not `docker compose restart`) to actually take effect, since Compose only injects env vars at container creation.
+> **The #1 way a fresh install ends up with broken login:** `FRONTEND_URL` and `API_URL` both default to `localhost` in `.env.example`. That only works if the browser you're testing with runs on the *same machine* as the Docker host. As soon as you (or the customer) open Doctus from another machine against the server's IP/hostname, both break differently but simultaneously: the frontend's API calls get CORS-rejected (`FRONTEND_URL` no longer matches the real browser origin), and — with SSO in use — the post-login redirect from the IdP goes nowhere, because the redirect URI is derived from `API_URL` (`<API_URL>/auth/oidc/callback`) and it is the *browser*, not the backend, that navigates there. Set both to the server's actual reachable address before the first real login attempt, and re-register the derived callback URI on the IdP client — and remember `.env` edits need `docker compose up -d` (not `docker compose restart`) to actually take effect, since Compose only injects env vars at container creation.
 
 ## No IdP available yet? Throwaway Keycloak for testing
 
-For scoping/demo/smoke-testing a fresh install before the customer's real IdP is wired up, spin up a disposable Keycloak using the same realm CI uses (`.github/keycloak/doctus-realm.json` — a `doctus` realm with a `doctus-backend` client and a `testuser`/`testpass` user). **Test-only — never point this at real customer data; the client secret and user password are public in this repo.**
+You don't need an IdP at all to get a fresh install running: the **local password login is the primary path**, and the first start creates a superuser for you (see `BOOTSTRAP_SUPERUSER*` above). Set up the throwaway Keycloak below only when the point is to demo or smoke-test the *SSO* path itself.
 
-The realm sets `loginTheme: doctus`, a small custom theme (`.github/keycloak/themes/doctus/`) that skins Keycloak's login page to match the Doctus frontend (dark glass card, gradient button, logo — see `frontend/components/LoginView.tsx`) instead of stock Keycloak red, so a scoping demo doesn't visually context-switch between the two. It only affects this throwaway IdP; a customer's own IdP keeps its own branding. Mount it alongside the realm import:
+`.github/keycloak/doctus-realm.json` ships a `doctus` realm with a `doctus-backend` client and a `testuser`/`testpass` user. **Test-only — never point this at real customer data; the client secret and user password are public in this repo.**
+
+The login page keeps stock Keycloak branding — this is a throwaway IdP, not part of the product surface. Mount the realm and import it on start:
 
 ```sh
 docker run -d --name test-keycloak -p 8080:8080 \
   -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin \
   -v "$(pwd)/.github/keycloak:/opt/keycloak/data/import" \
-  -v "$(pwd)/.github/keycloak/themes/doctus:/opt/keycloak/themes/doctus" \
   quay.io/keycloak/keycloak:25.0 start-dev --import-realm
 ```
 
@@ -152,7 +153,7 @@ until curl -sf http://localhost:8080/realms/doctus/.well-known/openid-configurat
 Every URL below must use the **same** `<server-address>`, and it has to be reachable from two different places, not just one:
 
 - the **browser** you log in with (obviously), and
-- the **`backend-api` container itself** — it does its own server-to-server calls to `OIDC_ISSUER_URL` (OIDC discovery + the authorization-code→token exchange in `backend/core/oidc.py` / `backend/api/auth.py`), independent of whatever the browser can reach.
+- the **`backend-api` container itself** — it does its own server-to-server calls to `OIDC_ISSUER` (OIDC discovery + the authorization-code→token exchange in `backend/core/oidc.py` / `backend/api/auth.py`), independent of whatever the browser can reach.
 
 This is where `localhost` quietly breaks even when the browser *is* on the Docker host: `localhost` inside the `backend-api` container refers to the container itself, not your host, so the discovery call fails to connect. Pick based on your case:
 
@@ -161,7 +162,7 @@ This is where `localhost` quietly breaks even when the browser *is* on the Docke
 | Testing from a browser on a **different machine** than the Docker host (the common case) | The server's real LAN/public IP, e.g. `192.168.1.50` or `82.165.216.180` | The browser reaches it normally; the container reaches it too via hairpin NAT back through the host's own interface (verify with `docker exec doctus-backend python3 -c "import httpx; print(httpx.get('http://<server-address>:8080/realms/doctus/.well-known/openid-configuration').status_code)"` — expect `200`) |
 | Testing from a browser on the **same machine** as the Docker host | The Compose network's gateway IP, **not** `localhost` — find it with `docker network inspect doctus_default --format '{{(index .IPAM.Config 0).Gateway}}'` (typically `172.18.0.1`; project prefix may differ if you cloned into a differently-named folder) | That gateway IP is reachable both from the container (it's the container's default route to the host) and from the host itself (it's one of the host's own bridge interfaces) |
 
-Once you have it, register it on the Keycloak client — the realm file only ships `http://localhost:8000/auth/callback` / `http://localhost:3000` by default. Either click through the admin console (`http://<server-address>:8080`, admin/admin → Clients → `doctus-backend` → Settings → add to *Valid redirect URIs* / *Web origins*), or patch it in one shot via the admin API:
+Once you have it, register it on the Keycloak client — the realm file only ships `http://localhost:8000/auth/oidc/callback` and `http://127.0.0.1:8000/auth/oidc/callback` by default, and Keycloak does **not** accept a wildcard in the host part, so a different address has to be added explicitly. Either click through the admin console (`http://<server-address>:8080`, admin/admin → Clients → `doctus-backend` → Settings → add to *Valid redirect URIs* / *Web origins*), or patch it in one shot via the admin API:
 
 ```sh
 TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
@@ -174,7 +175,7 @@ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8080/admin/realms/do
   | python3 -c "
 import json, sys
 c = json.load(sys.stdin)
-c['redirectUris'] = list(set(c['redirectUris'] + ['http://<server-address>:8000/auth/callback']))
+c['redirectUris'] = list(set(c['redirectUris'] + ['http://<server-address>:8000/auth/oidc/callback']))
 c['webOrigins'] = list(set(c['webOrigins'] + ['http://<server-address>:3000']))
 json.dump(c, open('/tmp/kc-client.json', 'w'))
 "
@@ -185,16 +186,14 @@ curl -s -o /dev/null -w "%{http_code}\n" -X PUT -H "Authorization: Bearer $TOKEN
 Then set, using that same `<server-address>` consistently:
 
 ```
-OIDC_ISSUER_URL=http://<server-address>:8080/realms/doctus
+OIDC_ISSUER=http://<server-address>:8080/realms/doctus
 OIDC_CLIENT_ID=doctus-backend
 OIDC_CLIENT_SECRET=ci-only-keycloak-client-secret
-OIDC_REDIRECT_URI=http://<server-address>:8000/auth/callback
 API_URL=http://<server-address>:8000
 FRONTEND_URL=http://<server-address>:3000
-ADMIN_EMAILS=testuser@example.com
 ```
 
-`ADMIN_EMAILS` is what makes `testuser` an admin on first login (see the `.env` field reference above) — the realm doesn't carry any app-level role by itself, only the identity Doctus's backend then matches against this list. `docker compose up -d` to apply (Compose only injects env vars at container creation, so this step is required even though nothing in the images changed), then log in at `http://<server-address>:3000` as `testuser` / `testpass`.
+There is no redirect-URI variable: the backend derives it from `API_URL` as `<API_URL>/auth/oidc/callback`, which is why that exact string has to be on the client's *Valid redirect URIs* list. `testuser` arrives as a plain user, not an admin — the realm carries no app-level role, and Doctus creates every SSO account with role `user`. Promote it from the bootstrap superuser account under Settings > Users if the demo needs admin rights. `docker compose up -d` to apply (Compose only injects env vars at container creation, so this step is required even though nothing in the images changed), then log in at `http://<server-address>:3000` — the SSO button appears once `oidc_enabled()` is satisfied — as `testuser` / `testpass`.
 
 Firewall note: this throwaway Keycloak has its password and client secret sitting in plain sight in this repo. If `<server-address>` is a real public IP, don't leave port `8080` (or `3000`/`8000`) open to the internet longer than the demo needs — check `ufw status` / `iptables -L INPUT` before walking away from the box. The verified fresh-host run found UFW inactive; that was acceptable only for the short smoke test, not as a hand-off state. Replace this IdP and add TLS/firewall policy before real customer data is introduced.
 
@@ -348,9 +347,9 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 ## Troubleshooting
 
-**Login button does nothing / backend returns a 500 on `/auth/login`.** Check `docker compose logs backend-api` for `httpx.UnsupportedProtocol: Request URL is missing an 'http://' or 'https://' protocol` — that's `OIDC_ISSUER_URL` (and usually `OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` too) still blank in `.env`. The install scripts print a warning for this right after starting the stack (`check_env_ready` in `scripts/lib/env-bootstrap.sh`) — if you missed it scrolling past, that's the bug it's flagging. Fill in real IdP details (or see "No IdP available yet?" above), then `docker compose up -d` to apply.
+**No SSO button on the login page.** Expected whenever `OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` aren't all three set — the frontend shows the button based on `auth.ssoEnabled` from `GET /config/features`, which mirrors `oidc_enabled()`. The password login works regardless. Check the values with `docker compose exec backend-api env | grep OIDC`, then `docker compose up -d` (not `restart`) to apply changes.
 
-**Login redirects to the IdP fine, but never makes it back / browser console shows CORS errors / the post-login redirect tries to load `localhost`.** `FRONTEND_URL`, `API_URL`, and/or `OIDC_REDIRECT_URI` are still set to `localhost` while the browser is on a different machine than the Docker host — see the callout under "TLS" above. Set all three to the server's real address, update the redirect URI/web origin registered on the IdP client to match, then `docker compose up -d`.
+**SSO redirects to the IdP fine, but never makes it back / browser console shows CORS errors / the post-login redirect tries to load `localhost`.** `FRONTEND_URL` and/or `API_URL` are still set to `localhost` while the browser is on a different machine than the Docker host — see the callout under "TLS" above. Set both to the server's real address, register the resulting `<API_URL>/auth/oidc/callback` on the IdP client, then `docker compose up -d`. A rejected redirect URI shows up as the IdP's own error page ("Invalid parameter: redirect_uri"), not as a Doctus error.
 
 **Changed `.env` but nothing changed.** `docker compose restart` does not re-read `.env` — Compose only injects environment variables when a container is *created*. Use `docker compose up -d`, which recreates only the containers whose config actually changed.
 
