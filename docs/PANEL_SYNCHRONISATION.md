@@ -1,6 +1,6 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
-**Stand:** 06.09.2026
+**Stand:** 06.09.2026 (D-1 bis D-3 entschieden und umgesetzt; D-4 und D-5 offen)
 **Anlass:** [O-092](OFFENE_ENTWICKLUNGSPUNKTE.md) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
@@ -118,16 +118,16 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 |---|---|---|---|---|---|
 | PS-01 | A | `code` live vorhanden | Globale Auswahl gesetzt, Live-Panel übernimmt sie beim nächsten Render | wie Ist | ✅ |
 | PS-02 | A | kein `code`-Panel, < 4 Panels | `ensurePanelType('code')` öffnet ein Panel; es startet mit der *vorherigen* globalen Auswahl und korrigiert sich im selben Renderdurchlauf über die Sync-Regel | wie Ist (Selbstkorrektur ist Absicht, nicht Zufall — deshalb testen) | ✅ |
-| PS-03 | A | nur ein **eingefrorenes** `code`-Panel | `ensurePanelType` hält den Typ für vorhanden → kein neues Panel; das eingefrorene Panel synchronisiert nicht → **sichtbar passiert nichts, ohne jede Rückmeldung** | Neues Live-Panel öffnen (< 4) bzw. Hinweis | ⚠️ [D-1] |
-| PS-04 | A | 4 Panels offen, kein `code` | `addPanel` bricht an der Obergrenze stumm ab; globale Auswahl ändert sich trotzdem | Hinweis statt stiller Wirkungslosigkeit | ⚠️ [D-2] |
+| PS-03 | A | nur ein **eingefrorenes** `code`-Panel | Neues Live-Panel; das eingefrorene bleibt unberührt (`ensureLivePanelType`, D-1 umgesetzt 06.09.2026 — vorher galt der Typ als „vorhanden" und es passierte sichtbar nichts) | wie Ist | ✅ |
+| PS-04 | A | 4 Panels offen, kein `code` | `ensureLivePanelType` meldet `false` zurück, `page.tsx` zeigt einen Hinweis („Kein Platz für eine weitere Ansicht …"); die globale Auswahl bleibt gesetzt (D-2 umgesetzt 06.09.2026) | wie Ist | ✅ |
 | PS-05 | B | Ziel live vorhanden, Auslöser ist ein anderes Panel | Auswahl ins Live-Zielpanel **und** in die globale Auswahl | wie Ist | ✅ |
 | PS-06 | B | Ziel = Auslöserpanel selbst, live | Bleibt im eigenen Panel, globale Auswahl folgt | wie Ist | ✅ |
 | PS-07 | B | Ziel = Auslöserpanel selbst, **eingefroren** | Schreibt in das eingefrorene Panel, globale Auswahl bleibt unberührt, Panel-Historie wächst | wie Ist: Einfrieren schützt vor *fremder* Navigation, nicht vor Navigation im Panel selbst | ✅ (festgelegt) |
-| PS-08 | B | nur ein **eingefrorenes** Zielpanel, `preserveFrozenTarget=false` | Fällt auf das eingefrorene Panel zurück und **überschreibt dessen Auswahl** | Einfrieren schützt; neues Live-Panel bzw. Hinweis | ⚠️ [D-1] |
-| PS-09 | B | nur ein eingefrorenes Zielpanel, `preserveFrozenTarget=true` (Call-Graph) | Kein Rückfall; neues Panel (< 4) bzw. wirkungslos | wie Ist | ✅ |
+| PS-08 | B | nur ein **eingefrorenes** Zielpanel | Kein Rückfall mehr: neues Live-Panel bzw. Hinweis an der Obergrenze. `resolvePanelNavigationTarget` kennt eingefrorene Panels nicht mehr als Ziel (D-1 umgesetzt 06.09.2026) | wie Ist | ✅ |
+| PS-09 | B | dasselbe aus dem Call-Graph | Identisch zu PS-08. Der Sonderparameter `preserveFrozenTarget`, mit dem bisher nur der Call-Graph diesen Schutz hatte, ist mit D-1 entfallen — der Schutz gilt jetzt für alle Auslöser | wie Ist | ✅ |
 | PS-10 | B | Ziel fehlt, `openIfMissing=true`, < 4 Panels | Neues Live-Panel mit der Auswahl | wie Ist | ✅ |
 | PS-11 | B | Ziel fehlt, `openIfMissing=false` (Graph-Einfachklick) | Nichts passiert | wie Ist („nur anstupsen") | ✅ |
-| PS-12 | B | Ziel fehlt, `openIfMissing=true`, 4 Panels | Stumm ignoriert | Hinweis | ⚠️ [D-2] |
+| PS-12 | B | Ziel fehlt, `openIfMissing=true`, 4 Panels | Hinweis-Toast; `resolvePanelNavigationTarget` unterscheidet dafür `ignoreReason: no-space` von `no-matching-panel` (PS-11 bleibt still) | wie Ist | ✅ |
 
 ### 4.2 Dokument und Web-Origin öffnen
 
@@ -151,7 +151,7 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 | ID | Konstellation | Ist-Verhalten | Soll | Status |
 |---|---|---|---|---|
 | PS-20 | Gutter-Klick, Chat-Panel offen (live **oder** eingefroren) | `pinnedCode` ist globaler Zustand und erreicht das Chat-Panel unabhängig vom Einfrieren | wie Ist: Einfrieren betrifft die *Auswahl*, nicht den Chat-Pin | ✅ (festgelegt) |
-| PS-21 | Gutter-Klick, kein Chat-Panel, 4 Panels offen | Pin wird gesetzt, `ensurePanelType('chat')` bleibt wirkungslos → der Nutzer sieht seinen Pin nirgends | Hinweis | ⚠️ [D-2] |
+| PS-21 | Gutter-Klick, kein Chat-Panel, 4 Panels offen | Pin wird gesetzt **und** ein Hinweis gezeigt, damit der Nutzer weiß, warum er ihn nirgends sieht | wie Ist | ✅ |
 
 ### 4.5 Einfrieren, Historie, Panel-Verwaltung
 
@@ -169,45 +169,52 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 
 | ID | Konstellation | Ist-Verhalten | Soll | Status |
 |---|---|---|---|---|
-| PS-29 | Im Chat ein Dokument öffnen, während ein `callgraph`-Panel offen ist | `callgraph` synchronisiert **jede** Auswahl (Always-Sync-Liste); die Dokumentauswahl setzt `selectedEntity` auf `null` → der Call-Graph verliert seinen Fokus | Call-Graph-Fokus bei einer Auswahl ohne Entity behalten | ❓ [D-3] |
+| PS-29 | Im Chat ein Dokument öffnen, während ein `callgraph`-Panel offen ist | Der Call-Graph behält seinen Objektfokus: eine eingehende Auswahl ohne Entity wird für `callgraph`-Panels übersprungen (D-3 umgesetzt 06.09.2026) | wie Ist | ✅ |
 | PS-30 | `linkmanager`-Panel offen, Navigation an anderer Stelle | Synchronisiert nie (weder ein- noch ausgehend); der Link-Manager ist eine Insel | vorerst wie Ist | ❓ [D-5] |
 
 ---
 
 ## 5. Offene Festlegungen
 
-Diese fünf Zellen sind fachliche Entscheidungen, keine Fehler im engeren Sinn. Sie
-müssen entschieden sein, bevor die betroffenen Zeilen automatisiert werden — sonst
-zementieren die Tests einen Zustand, den niemand beschlossen hat.
+Diese Zellen sind fachliche Entscheidungen, keine Fehler im engeren Sinn. Sie müssen
+entschieden sein, bevor die betroffenen Zeilen automatisiert werden — sonst zementieren
+die Tests einen Zustand, den niemand beschlossen hat.
+
+**D-1 bis D-3 sind am 06.09.2026 entschieden und umgesetzt**; D-4 und D-5 sind noch
+offen, blockieren aber nichts.
 
 | ID | Frage | Betrifft | Vorschlag |
 |---|---|---|---|
-| **D-1** | Was gilt, wenn das einzige Panel des Zieltyps eingefroren ist? Heute widersprechen sich die Pfade: A tut **nichts** (PS-03), B **überschreibt** das eingefrorene Panel (PS-08). | PS-03, PS-08 | Einfrieren schützt in beiden Pfaden. Zielauflösung: Live-Panel → sonst neues Panel → sonst Hinweis. Das eingefrorene Panel wird nur von einem Klick **in ihm selbst** verändert (PS-07). |
-| **D-2** | Was passiert, wenn kein passendes Panel offen ist und die 4-Panel-Grenze erreicht ist? Heute: stiller Abbruch in allen drei Varianten. | PS-04, PS-12, PS-21 | Kurzer Hinweis („Kein Platz für eine weitere Ansicht — bitte ein Panel schließen"). Kein automatisches Umwidmen eines fremden Panels. |
-| **D-3** | Soll ein `callgraph`-Panel seinen Fokus verlieren, wenn anderswo ein Dokument geöffnet wird? | PS-29 | Nein — Fokus behalten, wenn die eingehende Auswahl keine Entity enthält. |
-| **D-4** | Soll die Historie eines Live-Panels die anderen Live-Panels mitziehen? | PS-25 | Ja (Ist-Zustand), aber bewusst festhalten: „Zurück" ist eine Bewegung der Arbeitssituation, nicht eines einzelnen Fensters. |
-| **D-5** | Bleibt der Link-Manager eine Insel? | PS-30 | Vorerst ja; „aus dem Link-Manager in die Code-Ansicht springen" als eigener Punkt, nicht als Teil dieser Aufräumarbeit. |
+| **D-1** ✅ | Was gilt, wenn das einzige Panel des Zieltyps eingefroren ist? (Vorher widersprüchlich: Pfad A tat **nichts**, Pfad B **überschrieb** das eingefrorene Panel.) | PS-03, PS-08, PS-09 | **Entschieden 06.09.2026: Einfrieren schützt in beiden Pfaden.** Zielauflösung: Live-Panel → sonst neues Panel → sonst Hinweis. Ein eingefrorenes Panel ändert nur ein Klick **in ihm selbst** (PS-07). Umgesetzt in `lib/panelNavigation.ts` und `useWorkspaceLayout::ensureLivePanelType`. |
+| **D-2** ✅ | Was passiert, wenn kein passendes Panel offen ist und die 4-Panel-Grenze erreicht ist? (Vorher: stiller Abbruch in allen drei Varianten.) | PS-04, PS-12, PS-21 | **Entschieden 06.09.2026: kurzer Hinweis** (`page.toast.noPanelSpace`), kein automatisches Umwidmen eines fremden Panels. `addPanel`/`ensurePanelType`/`ensureLivePanelType` melden den Fehlschlag als Rückgabewert. |
+| **D-3** ✅ | Soll ein `callgraph`-Panel seinen Fokus verlieren, wenn anderswo ein Dokument geöffnet wird? | PS-29 | **Entschieden 06.09.2026: nein** — Fokus behalten, wenn die eingehende Auswahl keine Entity enthält. Umgesetzt in der Sync-Regel in `useWorkspaceLayout`. |
+| **D-4** ❓ | Soll die Historie eines Live-Panels die anderen Live-Panels mitziehen? | PS-25 | Ja (Ist-Zustand), aber bewusst festhalten: „Zurück" ist eine Bewegung der Arbeitssituation, nicht eines einzelnen Fensters. |
+| **D-5** ❓ | Bleibt der Link-Manager eine Insel? | PS-30 | Vorerst ja; „aus dem Link-Manager in die Code-Ansicht springen" als eigener Punkt, nicht als Teil dieser Aufräumarbeit. |
 
 ---
 
 ## 6. Stand der Automatisierung
 
-`frontend/hooks/panelSyncMatrix.test.tsx` (27 Fälle) hält die Matrix fest:
+`frontend/hooks/panelSyncMatrix.test.tsx` (30 Fälle) hält die Matrix fest:
 
-- **21 Zeilen** mit ✅ sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
-  (die Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
+- **28 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
+  (dessen Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
   `usePanelNavigation`.
 - **PS-15** steht als `it.fails` drin: der Test formuliert das Soll („ein Klick =
   eine Ansicht") und ist heute erwartbar rot. Sobald [O-091] behoben ist, schlägt er
   an und muss in ein normales `it` gewandelt werden. Damit ist der Fehler
   reproduziert, ohne die Suite rot zu machen.
-- **5 `it.todo`** markieren die offenen Entscheidungen D-1 bis D-4. Sie werden
-  bewusst nicht ausformuliert, solange das Soll nicht entschieden ist.
+- **1 `it.todo`** bleibt für D-4 (Reichweite der Panel-Historie).
 
-Beim Schreiben der Tests hat sich eine Zeile der Matrix als falsch erwiesen: PS-23
-(„Auftauen verliert die Zeile") ist kein Fehler — die Render-Synchronisation holt die
-Zeile unmittelbar zurück. Die Zeile steht jetzt als ✅ in der Matrix, die zugehörige
-Entscheidung D-5 ist entfallen.
+Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
+
+- PS-23 („Auftauen verliert die Zeile") ist **kein** Fehler — die
+  Render-Synchronisation holt die Zeile unmittelbar zurück. Die zugehörige
+  Entscheidung ist entfallen.
+- PS-02 (ein frisch geöffnetes Panel startet mit der *vorherigen* Auswahl und
+  korrigiert sich erst über die Sync-Regel) war nirgends festgehalten und ist jetzt
+  eigens getestet — sonst sieht die nächste Änderung an `addPanel` wie ein
+  harmloser Aufräumschritt aus.
 
 ---
 

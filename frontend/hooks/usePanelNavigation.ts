@@ -17,6 +17,7 @@ type FileNavEntry = {
 
 interface PanelNavigationOptions {
   t: Translator;
+  showToast: (message: string, type?: string) => void;
   selectedProject: any | null;
   selectedSource: any | null;
   connectedSources: any[];
@@ -38,8 +39,9 @@ interface PanelNavigationOptions {
   setIsEditorMaximized: Setter<boolean>;
   isPanelHistoryNavRef: MutableRefObject<boolean>;
   isEditorNavigatingRef: MutableRefObject<boolean>;
-  addPanel: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => void;
-  ensurePanelType: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => void;
+  addPanel: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
+  ensurePanelType: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
+  ensureLivePanelType: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
   updatePanelEntitySelection: (index: number, entity: any) => void;
   handleFileSelect: (path: string | null, line?: number | null, sourceId?: number | string | null, projectOverride?: any | null) => Promise<void>;
   loadFileReferences: (filePath: string, entityName?: string | null, projectOverride?: any | null) => Promise<void>;
@@ -47,6 +49,7 @@ interface PanelNavigationOptions {
 
 export function usePanelNavigation({
   t,
+  showToast,
   selectedProject,
   selectedSource,
   connectedSources,
@@ -70,6 +73,7 @@ export function usePanelNavigation({
   isEditorNavigatingRef,
   addPanel,
   ensurePanelType,
+  ensureLivePanelType,
   updatePanelEntitySelection,
   handleFileSelect,
   loadFileReferences,
@@ -123,7 +127,6 @@ export function usePanelNavigation({
     line: number | null = null,
     sourceId: number | string | null = null,
     openIfMissing = true,
-    preserveFrozenTarget = false,
   ) => {
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
     const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
@@ -155,7 +158,6 @@ export function usePanelNavigation({
         panelConfigs,
         panelFrozen,
         openIfMissing,
-        preserveFrozenTarget,
       });
       if (resolution.shouldOpenNewPanel) {
         pinFileFocus(path, line, resolvedSourceId);
@@ -168,13 +170,15 @@ export function usePanelNavigation({
         setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
         return;
       }
-      if (resolution.ignored || resolution.targetIndex === null) return;
+      if (resolution.ignored || resolution.targetIndex === null) {
+        // D-2: an der Panel-Obergrenze verpufft der Klick sonst kommentarlos.
+        // Der "nur anstupsen"-Fall (openIfMissing=false) bleibt bewusst still.
+        if (resolution.ignoreReason === 'no-space') showToast(t('page.toast.noPanelSpace'), 'error');
+        return;
+      }
       targetIndex = resolution.targetIndex;
       setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
     }
-
-    // A Call-Graph click must not rewrite the graph's own frozen selection.
-    if (preserveFrozenTarget && panelFrozen[targetIndex]) return;
 
     pinFileFocus(path, line, resolvedSourceId);
 
@@ -219,22 +223,26 @@ export function usePanelNavigation({
         return next;
       });
     }
-  }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef]);
+  }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef, showToast, t]);
 
   const handleDocFocusRequest = useCallback((filePath: string, sourceId: number | string | null, openIfMissing = true) => {
     if (!sourceId) return;
-    if (!panelConfigs.includes('doc') && !openIfMissing) return;
+    const hasLiveDocPanel = panelConfigs.some((config, index) => config === 'doc' && !panelFrozen[index]);
+    if (!hasLiveDocPanel && !openIfMissing) return;
     const selectionOverride = {
       selectedFile: null,
       selectedDoc: { id: sourceId, name: filePath },
       selectedEntity: null,
     };
-    ensurePanelType('doc', selectionOverride);
+    if (!ensureLivePanelType('doc', selectionOverride)) {
+      showToast(t('page.toast.noPanelSpace'), 'error');
+      return;
+    }
     pinFileFocus(filePath, null, sourceId);
     setSelectedDoc({ id: sourceId, name: filePath });
     setSelectedFile(null);
     setSelectedLine(null);
-  }, [ensurePanelType, panelConfigs, pinFileFocus, setSelectedDoc, setSelectedFile, setSelectedLine]);
+  }, [ensureLivePanelType, panelConfigs, panelFrozen, pinFileFocus, setSelectedDoc, setSelectedFile, setSelectedLine, showToast, t]);
 
   const handleGutterClick = useCallback((panelIndex: number, lineNumber: number, lineContent: string) => {
     const selection = panelSelections[panelIndex];
@@ -260,13 +268,13 @@ export function usePanelNavigation({
       section: enclosingName('section'),
       paragraph: enclosingName('paragraph'),
     });
-    ensurePanelType('chat');
+    if (!ensurePanelType('chat')) showToast(t('page.toast.noPanelSpace'), 'error');
     setActiveMobileTab('chat');
     setTimeout(() => {
       const textarea = document.getElementById('chat-textarea') as HTMLTextAreaElement;
       if (textarea) textarea.focus();
     }, 150);
-  }, [ensurePanelType, panelSelections, projectEntities, selectedSource, setActiveMobileTab, setPinnedCode]);
+  }, [ensurePanelType, panelSelections, projectEntities, selectedSource, setActiveMobileTab, setPinnedCode, showToast, t]);
 
   const handleGutterAskEntity = useCallback((panelIndex: number, entity: any) => {
     if (!entity) return;
@@ -279,13 +287,13 @@ export function usePanelNavigation({
       section: entity.section ?? null,
       paragraph: entity.paragraph ?? null,
     });
-    ensurePanelType('chat');
+    if (!ensurePanelType('chat')) showToast(t('page.toast.noPanelSpace'), 'error');
     setActiveMobileTab('chat');
     setTimeout(() => {
       const textarea = document.getElementById('chat-textarea') as HTMLTextAreaElement;
       if (textarea) textarea.focus();
     }, 150);
-  }, [ensurePanelType, selectedSource, setActiveMobileTab, setPinnedCode]);
+  }, [ensurePanelType, selectedSource, setActiveMobileTab, setPinnedCode, showToast, t]);
 
   const handleEntitySelect = useCallback(async (entity: any, projectOverride: any = null) => {
     setSelectedEntity(entity);

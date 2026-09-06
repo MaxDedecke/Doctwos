@@ -35,8 +35,10 @@ function useNavigationHarness(options: HarnessOptions = {}) {
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
   const isPanelHistoryNavRef = useRef(false);
   const isEditorNavigatingRef = useRef(false);
-  const [addPanel] = useState(() => vi.fn());
-  const [ensurePanelType] = useState(() => vi.fn());
+  const [addPanel] = useState(() => vi.fn().mockReturnValue(true));
+  const [ensurePanelType] = useState(() => vi.fn().mockReturnValue(true));
+  const [ensureLivePanelType] = useState(() => vi.fn().mockReturnValue(true));
+  const [showToast] = useState(() => vi.fn());
   const [handleFileSelect] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [loadFileReferences] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [setPanelFocusObject] = useState(() => vi.fn());
@@ -44,6 +46,7 @@ function useNavigationHarness(options: HarnessOptions = {}) {
 
   const navigation = usePanelNavigation({
     t: (key) => key,
+    showToast,
     selectedProject: { id: 11, name: 'Demo' },
     selectedSource: null,
     connectedSources: [{ id: 8, type: 'local', name: 'manual.pdf' }],
@@ -67,6 +70,7 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     isEditorNavigatingRef,
     addPanel,
     ensurePanelType,
+    ensureLivePanelType,
     updatePanelEntitySelection,
     handleFileSelect,
     loadFileReferences,
@@ -76,6 +80,8 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     navigation,
     addPanel,
     ensurePanelType,
+    ensureLivePanelType,
+    showToast,
     panelSelections,
     panelHistory,
     selectedDoc,
@@ -139,7 +145,7 @@ describe('usePanelNavigation', () => {
       result.current.navigation.handleDocFocusRequest('manual.pdf', 8);
     });
 
-    expect(result.current.ensurePanelType).toHaveBeenCalledWith('doc', {
+    expect(result.current.ensureLivePanelType).toHaveBeenCalledWith('doc', {
       selectedFile: null,
       selectedDoc: { id: 8, name: 'manual.pdf' },
       selectedEntity: null,

@@ -33,7 +33,6 @@ type PanelContentRendererProps = {
     line?: number | null,
     sourceId?: number | string | null,
     openIfMissing?: boolean,
-    preserveFrozenTarget?: boolean,
   ) => Promise<void>;
   activeProfileId: string;
   setActiveProfileId: (value: string) => void;
@@ -153,7 +152,7 @@ export function PanelContentRenderer({
         theme={theme}
         focusedEntity={selection.selectedEntity}
         projectId={selectedProject?.id}
-        onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true, true)}
+        onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
       />
     );
   }

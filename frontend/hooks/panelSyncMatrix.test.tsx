@@ -71,7 +71,31 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.panelSelections[1].selectedFile).toBe('app/main.cbl');
   });
 
-  it.todo('PS-03: nur ein eingefrorenes Panel des Zieltyps -- Soll offen, siehe D-1');
+  it('PS-03: ein nur eingefrorenes Panel des Zieltyps gilt nicht als vorhanden -- es wird ein Live-Panel geöffnet (D-1)', () => {
+    const { result } = renderLayout();
+
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.togglePanelFreeze(1); });
+    act(() => {
+      result.current.setSelectedFile('app/main.cbl');
+      result.current.ensureLivePanelType('code');
+    });
+
+    expect(result.current.panelConfigs).toEqual(['chat', 'code', 'code']);
+    expect(result.current.panelFrozen).toEqual([false, true, false]);
+    // Das eingefrorene Panel bleibt unberührt, das neue zeigt die Auswahl.
+    expect(result.current.panelSelections[1].selectedFile).toBeNull();
+    expect(result.current.panelSelections[2].selectedFile).toBe('app/main.cbl');
+  });
+
+  it('PS-03: ensurePanelType (Chat-Pin) zählt ein eingefrorenes Panel weiterhin als vorhanden (PS-20)', () => {
+    const { result } = renderLayout();
+
+    act(() => { result.current.togglePanelFreeze(0); });
+    act(() => { result.current.ensurePanelType('chat'); });
+
+    expect(result.current.panelConfigs).toEqual(['chat']);
+  });
 
   it('PS-04: die Obergrenze von vier Panels hält, ein fünftes entsteht nicht', () => {
     const { result } = renderLayout();
@@ -85,7 +109,19 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.layoutMode).toBe('4-grid');
   });
 
-  it.todo('PS-04/PS-12/PS-21: Rückmeldung statt stillem Abbruch an der 4-Panel-Grenze -- siehe D-2');
+  it('PS-04: an der 4-Panel-Grenze meldet ensureLivePanelType den Fehlschlag zurück, statt still zu scheitern (D-2)', () => {
+    const { result } = renderLayout();
+
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.addPanel('doc'); });
+    act(() => { result.current.addPanel('graph'); });
+
+    let opened: boolean | undefined;
+    act(() => { opened = result.current.ensureLivePanelType('callgraph'); });
+
+    expect(opened).toBe(false);
+    expect(result.current.panelConfigs).toEqual(['chat', 'code', 'doc', 'graph']);
+  });
 
   it('PS-22: ein eingefrorenes Panel folgt der globalen Auswahl nicht mehr', () => {
     const { result } = renderLayout();
@@ -175,6 +211,29 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.panelSelections).toHaveLength(1);
     expect(result.current.selectedFile).toBe('app/main.cbl');
   });
+  it('PS-29: der Call-Graph behält seinen Objektfokus, wenn anderswo ein Dokument geöffnet wird (D-3)', () => {
+    const { result } = renderLayout();
+    const entity = { id: 5, name: 'CBACT01C', type: 'program', file_path: 'SRC/CBACT01C.cbl', start_line: 40 };
+
+    act(() => { result.current.addPanel('callgraph'); });
+    act(() => {
+      result.current.setSelectedFile('SRC/CBACT01C.cbl');
+      result.current.setSelectedEntity(entity);
+    });
+
+    expect(result.current.panelSelections[1].selectedEntity).toEqual(entity);
+
+    act(() => {
+      result.current.setSelectedFile(null);
+      result.current.setSelectedEntity(null);
+      result.current.setSelectedDoc({ id: 8, name: 'handbuch.pdf' });
+    });
+
+    expect(result.current.panelSelections[1].selectedEntity).toEqual(entity);
+    // Das Chat-Panel folgt der Dokumentauswahl wie bisher.
+    expect(result.current.panelSelections[0].selectedDoc).toEqual({ id: 8, name: 'handbuch.pdf' });
+  });
+
 
   it('PS-30: ein Link-Manager-Panel synchronisiert keine Datei-Auswahl', () => {
     const { result } = renderLayout();
@@ -211,8 +270,10 @@ function useNavigationHarness(options: HarnessOptions = {}) {
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
   const isPanelHistoryNavRef = useRef(false);
   const isEditorNavigatingRef = useRef(false);
-  const [addPanel] = useState(() => vi.fn());
-  const [ensurePanelType] = useState(() => vi.fn());
+  const [addPanel] = useState(() => vi.fn().mockReturnValue(true));
+  const [ensurePanelType] = useState(() => vi.fn().mockReturnValue(true));
+  const [ensureLivePanelType] = useState(() => vi.fn().mockReturnValue(true));
+  const [showToast] = useState(() => vi.fn());
   const [handleFileSelect] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [loadFileReferences] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [updatePanelEntitySelection] = useState(() => vi.fn());
@@ -220,6 +281,7 @@ function useNavigationHarness(options: HarnessOptions = {}) {
 
   const navigation = usePanelNavigation({
     t: (key) => key,
+    showToast,
     selectedProject: { id: 11, name: 'Demo' },
     selectedSource: null,
     connectedSources: options.connectedSources ?? [],
@@ -243,13 +305,14 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     isEditorNavigatingRef,
     addPanel,
     ensurePanelType,
+    ensureLivePanelType,
     updatePanelEntitySelection,
     handleFileSelect,
     loadFileReferences,
   });
 
   return {
-    navigation, addPanel, ensurePanelType, updatePanelEntitySelection, handleFileSelect,
+    navigation, addPanel, ensurePanelType, ensureLivePanelType, showToast, updatePanelEntitySelection, handleFileSelect,
     panelSelections, panelHistory, selectedFile, selectedDoc, selectedEntity, selectedLine,
     pinnedCode, activeMobileTab,
   };
@@ -296,7 +359,20 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     expect(result.current.panelHistory[1].past).toEqual([previous]);
   });
 
-  it.todo('PS-08: fremde Navigation auf ein nur eingefrorenes Zielpanel -- Soll offen, siehe D-1');
+  it('PS-08: ein Verweis aus dem Chat überschreibt ein eingefrorenes Code-Panel nicht mehr, sondern öffnet ein eigenes (D-1)', async () => {
+    const frozen: PanelSelection = { selectedFile: 'app/frozen.cbl', selectedDoc: null, selectedEntity: null, selectedLine: null };
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['chat', 'code'],
+      panelFrozen: [false, true],
+      panelSelections: [EMPTY, frozen],
+    }));
+
+    await act(async () => { await result.current.navigation.handlePanelFileSelect(0, 'app/target.cbl', 5); });
+
+    expect(result.current.addPanel).toHaveBeenCalledWith('code', expect.objectContaining({ selectedFile: 'app/target.cbl' }), false);
+    expect(result.current.panelSelections[1]).toEqual(frozen);
+    expect(result.current.selectedFile).toBeNull();
+  });
 
   it('PS-09: der Call-Graph überschreibt ein eingefrorenes Code-Panel nicht, sondern öffnet ein eigenes', async () => {
     const frozen: PanelSelection = { selectedFile: 'app/frozen.cbl', selectedDoc: null, selectedEntity: null, selectedLine: null };
@@ -307,8 +383,10 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     }));
 
     await act(async () => {
-      // Signatur wie in PanelContentRenderer: openIfMissing=true, preserveFrozenTarget=true
-      await result.current.navigation.handlePanelFileSelect(0, 'app/target.cbl', 5, null, true, true);
+      // Signatur wie in PanelContentRenderer (callgraph-Zweig): openIfMissing=true.
+      // Der frühere Sonderparameter preserveFrozenTarget ist mit D-1 entfallen --
+      // kein Pfad zielt mehr auf ein eingefrorenes Panel.
+      await result.current.navigation.handlePanelFileSelect(0, 'app/target.cbl', 5, null, true);
     });
 
     expect(result.current.addPanel).toHaveBeenCalledWith('code', expect.objectContaining({ selectedFile: 'app/target.cbl' }), false);
@@ -348,6 +426,18 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
 
     expect(result.current.addPanel).not.toHaveBeenCalled();
     expect(result.current.selectedFile).toBeNull();
+    // D-2: der Klick verpufft nicht mehr kommentarlos.
+    expect(result.current.showToast).toHaveBeenCalledWith('page.toast.noPanelSpace', 'error');
+  });
+
+  it('PS-11/PS-12: der bewusste "nur anstupsen"-Fall bleibt still', async () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['chat', 'graph'] }));
+
+    await act(async () => {
+      await result.current.navigation.handlePanelFileSelect(1, 'app/main.cbl', 4, null, false);
+    });
+
+    expect(result.current.showToast).not.toHaveBeenCalled();
   });
 
   it('PS-13: eine Dokumentendung landet im doc-Panel', async () => {
@@ -397,6 +487,7 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     const openedTypes = [
       ...result.current.addPanel.mock.calls.map((call: any[]) => call[0]),
       ...result.current.ensurePanelType.mock.calls.map((call: any[]) => call[0]),
+      ...result.current.ensureLivePanelType.mock.calls.map((call: any[]) => call[0]),
     ];
     expect(openedTypes).toHaveLength(1);
   });
@@ -435,5 +526,16 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     expect(result.current.activeMobileTab).toBe('chat');
   });
 
-  it.todo('PS-29: behält der Call-Graph seinen Fokus bei einer Dokumentauswahl? -- siehe D-3');
+  it('PS-21: fehlt an der Panel-Grenze das Chat-Panel, bekommt der Nutzer eine Rückmeldung (D-2)', () => {
+    const selection: PanelSelection = { selectedFile: 'app/main.cbl', selectedDoc: null, selectedEntity: null, selectedLine: null };
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['code', 'doc', 'graph', 'callgraph'],
+      panelSelections: [selection, EMPTY, EMPTY, EMPTY],
+    }));
+    result.current.ensurePanelType.mockReturnValue(false);
+
+    act(() => { result.current.navigation.handleGutterClick(0, 87, '           MOVE WS-A TO WS-B.'); });
+
+    expect(result.current.showToast).toHaveBeenCalledWith('page.toast.noPanelSpace', 'error');
+  });
 });

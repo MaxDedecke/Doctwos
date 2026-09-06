@@ -63,7 +63,8 @@
       "documentUploaded": "Document uploaded successfully and indexing started",
       "documentUploadFailed": "Error uploading document",
       "newChatStarted": "New chat started",
-      "feedbackFailed": "Could not save feedback"
+      "feedbackFailed": "Could not save feedback",
+      "noPanelSpace": "No room for another view — please close a panel first"
     },
     "confirmDialog": {
       "deleteProject": "Do you really want to delete the project \"{{name}}\"? All associated knowledge sources, chat history, and the Git connection (if any) will be deleted as well.",

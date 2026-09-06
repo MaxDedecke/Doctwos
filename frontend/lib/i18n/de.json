@@ -63,7 +63,8 @@
       "documentUploaded": "Dokument erfolgreich hochgeladen und Indizierung gestartet",
       "documentUploadFailed": "Fehler beim Hochladen des Dokuments",
       "newChatStarted": "Neuer Chat gestartet",
-      "feedbackFailed": "Feedback konnte nicht gespeichert werden"
+      "feedbackFailed": "Feedback konnte nicht gespeichert werden",
+      "noPanelSpace": "Kein Platz für eine weitere Ansicht — bitte zuerst ein Panel schließen"
     },
     "confirmDialog": {
       "deleteProject": "Möchtest du das Projekt \"{{name}}\" wirklich löschen? Alle zugehörigen Wissensquellen, der Chat-Verlauf und die Git-Anbindung (falls vorhanden) werden ebenfalls gelöscht.",

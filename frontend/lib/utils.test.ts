@@ -33,27 +33,34 @@ describe("normalizeInitialUserMessage", () => {
 });
 
 describe("resolvePanelNavigationTarget", () => {
-  it("uses a live matching panel before a frozen one", () => {
+  it("uses a live matching panel", () => {
     expect(resolvePanelNavigationTarget({
       targetType: "code",
       panelConfigs: ["code", "code"],
       panelFrozen: [true, false],
-    })).toEqual({ targetIndex: 1, shouldOpenNewPanel: false, ignored: false });
+    })).toEqual({ targetIndex: 1, shouldOpenNewPanel: false, ignored: false, ignoreReason: null });
   });
 
-  it("does not target a frozen code panel from the Call Graph", () => {
+  it("never targets a frozen panel, it opens a live one instead (D-1)", () => {
     expect(resolvePanelNavigationTarget({
       targetType: "code",
-      panelConfigs: ["callgraph", "code"],
-      panelFrozen: [true, true],
-      preserveFrozenTarget: true,
-    })).toEqual({ targetIndex: null, shouldOpenNewPanel: true, ignored: false });
+      panelConfigs: ["chat", "code"],
+      panelFrozen: [false, true],
+    })).toEqual({ targetIndex: null, shouldOpenNewPanel: true, ignored: false, ignoreReason: null });
+  });
 
+  it("reports the four-panel cap separately from the deliberate nudge-only case (D-2)", () => {
     expect(resolvePanelNavigationTarget({
       targetType: "code",
       panelConfigs: ["callgraph", "code", "doc", "chat"],
       panelFrozen: [true, true, false, false],
-      preserveFrozenTarget: true,
-    })).toEqual({ targetIndex: null, shouldOpenNewPanel: false, ignored: true });
+    })).toEqual({ targetIndex: null, shouldOpenNewPanel: false, ignored: true, ignoreReason: "no-space" });
+
+    expect(resolvePanelNavigationTarget({
+      targetType: "code",
+      panelConfigs: ["chat", "graph"],
+      panelFrozen: [false, false],
+      openIfMissing: false,
+    })).toEqual({ targetIndex: null, shouldOpenNewPanel: false, ignored: true, ignoreReason: "no-matching-panel" });
   });
 });

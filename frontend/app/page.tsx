@@ -198,7 +198,7 @@ function AppContent() {
     panelFocusObject, setPanelFocusObject, panelSelections,
     setPanelSelections, panelHistory, setPanelHistory, splitContainerRef,
     activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
-    closePanel, addPanel, ensurePanelType,
+    closePanel, addPanel, ensurePanelType, ensureLivePanelType,
     cellCls, handlePanelEntitySelect: updatePanelEntitySelection, goBackPanel, goForwardPanel,
     handleDividerMouseDown, handleGridResizePointerDown, handleThreeColLeftDividerPointerDown,
     handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot, buildWorkspaceSnapshot,
@@ -415,27 +415,32 @@ function AppContent() {
 
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(cleanPath, sourceId, connectedSources);
 
+    // ensureLivePanelType statt ensurePanelType: ein eingefrorenes Panel des
+    // Zieltyps zeigt diese Auswahl nicht an (D-1), taugt hier also nicht als
+    // "ist schon da". Der Rückgabewert meldet die Panel-Obergrenze (D-2).
+    let hasPanelForSelection = true;
     if (resolvedSourceId && (isWebOrigin || isDoc)) {
       if (isWebOrigin) {
         setSelectedDoc({ id: resolvedSourceId, name: cleanPath, isWebOrigin: true, url: cleanPath });
         setSelectedFile(null);
         setSelectedLine(null);
         setActiveRightTab('weborigin');
-        ensurePanelType('webview');
+        hasPanelForSelection = ensureLivePanelType('webview');
       } else {
         setSelectedDoc({ id: resolvedSourceId, name: cleanPath });
         setSelectedFile(null);
         setSelectedLine(null);
         setActiveRightTab('doc');
-        ensurePanelType('doc');
+        hasPanelForSelection = ensureLivePanelType('doc');
       }
     } else {
       setSelectedFile(cleanPath);
       setSelectedDoc(resolvedSourceId ? { id: resolvedSourceId, name: cleanPath } : null);
       setSelectedLine(line);
       setActiveRightTab('code');
-      ensurePanelType('code');
+      hasPanelForSelection = ensureLivePanelType('code');
     }
+    if (!hasPanelForSelection) showToast(t('page.toast.noPanelSpace'), "error");
     try {
       setIsLoadingFile(true);
       setFileContent("");
@@ -508,7 +513,7 @@ function AppContent() {
     } finally {
       setIsLoadingFile(false);
     }
-  }, [activeSessionId, connectedSources, ensurePanelType, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
+  }, [activeSessionId, connectedSources, ensureLivePanelType, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
 
   const {
     pinFileFocus,
@@ -522,6 +527,7 @@ function AppContent() {
     handleNavigateBack,
   } = usePanelNavigation({
     t,
+    showToast,
     selectedProject,
     selectedSource,
     connectedSources,
@@ -545,6 +551,7 @@ function AppContent() {
     isEditorNavigatingRef,
     addPanel,
     ensurePanelType,
+    ensureLivePanelType,
     updatePanelEntitySelection,
     handleFileSelect,
     loadFileReferences,

@@ -178,6 +178,10 @@ export function useWorkspaceLayout({
       const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
         || incomingType === null || incomingType === panelType;
       if (!shouldSync) return selection;
+      // D-3: der Call-Graph zeigt ein Objekt, keine Datei. Eine eingehende
+      // Auswahl ohne Objektbezug (Dokument, Webseite, geleerte Auswahl) würde
+      // ihn nur leeren -- er behält stattdessen seinen Fokus.
+      if (panelType === 'callgraph' && !selectedEntity) return selection;
       if (
         selection.selectedFile !== selectedFile ||
         selection.selectedDoc !== selectedDoc ||
@@ -244,10 +248,11 @@ export function useWorkspaceLayout({
     activePanelIndexRef.current = Math.max(0, index - 1);
   }, [panelConfigs.length]);
 
-  const addPanel = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
+  /** Returns false when the four-panel cap blocked the new panel (see D-2). */
+  const addPanel = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
     // React state from the current render is stale during same-tick bursts.
     // This counter makes the four-panel cap atomic until the next commit.
-    if (panelConfigs.length + pendingPanelCountRef.current >= 4) return;
+    if (panelConfigs.length + pendingPanelCountRef.current >= 4) return false;
     pendingPanelCountRef.current += 1;
     setPanelFrozen((previous) => [...previous, frozenOverride ?? false]);
     setPanelFocusObject((previous) => [...previous, null]);
@@ -259,6 +264,7 @@ export function useWorkspaceLayout({
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
+    return true;
   }, [panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
 
   useEffect(() => {
@@ -266,11 +272,29 @@ export function useWorkspaceLayout({
     pendingPanelCountRef.current = 0;
   }, [panelConfigs]);
 
-  const ensurePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => {
-    if (panelConfigs.includes(type) || pendingPanelTypesRef.current.has(type)) return;
+  /**
+   * Ensures a panel of this type exists at all. Returns false only when a panel
+   * was needed and the four-panel cap blocked it (see D-2).
+   */
+  const ensurePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
+    if (panelConfigs.includes(type) || pendingPanelTypesRef.current.has(type)) return true;
     pendingPanelTypesRef.current.add(type);
-    addPanel(type, selectionOverride, frozenOverride);
+    return addPanel(type, selectionOverride, frozenOverride);
   }, [addPanel, panelConfigs]);
+
+  /**
+   * Like ensurePanelType, but a frozen panel does not count as available:
+   * freezing protects a panel from foreign navigation (decision D-1 in
+   * docs/PANEL_SYNCHRONISATION.md), so a selection that has to be *shown*
+   * needs a live panel. The chat pin deliberately keeps using
+   * ensurePanelType -- a pin reaches a frozen chat panel as well (PS-20).
+   */
+  const ensureLivePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
+    const hasLivePanel = panelConfigs.some((config, index) => config === type && !panelFrozen[index]);
+    if (hasLivePanel || pendingPanelTypesRef.current.has(type)) return true;
+    pendingPanelTypesRef.current.add(type);
+    return addPanel(type, selectionOverride, frozenOverride);
+  }, [addPanel, panelConfigs, panelFrozen]);
 
   const cellCls = (expanded: string) => cn('h-full min-w-0 min-h-0', expanded);
 
@@ -618,6 +642,7 @@ export function useWorkspaceLayout({
     closePanel,
     addPanel,
     ensurePanelType,
+    ensureLivePanelType,
     cellCls,
     buildWorkspaceSnapshot,
     handlePanelEntitySelect,

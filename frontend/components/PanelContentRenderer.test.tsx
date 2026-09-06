@@ -184,14 +184,16 @@ describe('PanelContentRenderer', () => {
       expect(props.handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/UNTER.cbl', 20, '5');
     });
 
-    it('öffnet einen Call-Graph-Sprung auch in einem noch leeren, eingefrorenen Panel', () => {
+    it('öffnet einen Call-Graph-Sprung in einem eigenen Panel, statt ein eingefrorenes zu überschreiben', () => {
       const { props } = renderPanel({ contentType: 'callgraph' });
 
       captured['callgraph-view'].onFileSelect('src/UNTER.cbl', 20, 5);
 
-      // openIfMissing=true, preserveFrozenTarget=true -- ein Sprung aus dem
-      // Call-Graph darf ein Zielpanel aufmachen und dessen Fixierung behalten.
-      expect(props.handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/UNTER.cbl', 20, 5, true, true);
+      // openIfMissing=true -- ein Sprung aus dem Call-Graph darf ein Zielpanel
+      // aufmachen. Der frühere Zusatzparameter preserveFrozenTarget ist mit
+      // Entscheidung D-1 entfallen: seither zielt kein Pfad mehr auf ein
+      // eingefrorenes Panel (siehe docs/PANEL_SYNCHRONISATION.md).
+      expect(props.handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/UNTER.cbl', 20, 5, true);
     });
 
     it('übersetzt die Dokumentauswahl des Split-Pane in Name und Quellen-ID', () => {
