@@ -75,13 +75,17 @@ class Document(TypedDict):
                     werden können
         extra_meta  Beliebige Zusatz-Felder für metadata_json (page_id, issue_key, ...)
         line_sections
-                    O-082: optional, 1:1 mit den Zeilen von `content` (Index i
-                    beschreibt die für content-Zeile i+1 zuletzt gültige
-                    Überschrift). Nur vom Confluence-Connector befüllt, der als
-                    einziger strukturierte Section-Grenzen aus der Quelle
-                    kennt. Wird in _process_document() nach dem Chunking
-                    genutzt, um jedem Chunk seine Section als metadata_json
-                    beizugeben (analog zu meta["section"] bei COBOL).
+                    O-082/O-083: optional, 1:1 mit den Zeilen von `content`
+                    (Index i beschreibt die für content-Zeile i+1 zuletzt
+                    gültige Überschrift). Nur vom Confluence-Connector
+                    befüllt, der als einziger strukturierte Section-Grenzen
+                    aus der Quelle kennt. Dient zwei Zwecken in
+                    _process_document(): (1) jedem Chunk nach dem Chunking
+                    seine Section als metadata_json beizugeben (analog zu
+                    meta["section"] bei COBOL), (2) über
+                    _section_boundaries() bevorzugte Chunk-Schnittgrenzen an
+                    CodeParser.chunk_file() zu übergeben, statt ausschließlich
+                    nach Zeichenzahl zu schneiden.
     """
 
     title: str
@@ -91,6 +95,19 @@ class Document(TypedDict):
     storage_key: str
     extra_meta: dict
     line_sections: NotRequired[list[str | None]]
+
+
+def _section_boundaries(line_sections: list[str | None]) -> frozenset[int]:
+    """O-083: 1-basierte Zeilennummern, an denen line_sections gegenüber der
+    Vorzeile wechselt -- also die jeweils erste Zeile einer neuen Section
+    (typischerweise die Überschriftenzeile selbst). Wird
+    CodeParser.chunk_file() als bevorzugte, aber nicht harte Schnittgrenze
+    übergeben: chunk_size bleibt die Obergrenze, ein neuer Chunk beginnt aber
+    lieber hier als erst beim Erreichen der Zeichenzahl-Schwelle.
+    """
+    return frozenset(
+        i + 1 for i in range(1, len(line_sections)) if line_sections[i] != line_sections[i - 1]
+    )
 
 
 class BaseConnector(ABC):
@@ -167,12 +184,19 @@ class BaseConnector(ABC):
         """
         lang = doc.get("extra_meta", {}).get("language", "text")
         parser = CodeParser(lang)
-        chunks = parser.chunk_file(doc["content"], chunk_size=config.CHUNK_SIZE)
 
-        # O-082: reine Metadaten-Anreicherung, ändert die von chunk_file()
-        # gesetzten Chunk-Grenzen nicht. line_sections ist 1:1 mit den
-        # content-Zeilen indiziert, chunk["start_line"] ist 1-basiert.
+        # O-083: line_sections (nur Confluence) liefert nebenbei auch die
+        # bevorzugten Chunk-Schnittgrenzen -- ein neuer Chunk beginnt lieber an
+        # einer erkannten Section-Überschrift als ausschließlich an der
+        # Zeichenzahl-Schwelle. chunk_size bleibt die harte Obergrenze.
         line_sections = doc.get("line_sections")
+        boundary_lines = _section_boundaries(line_sections) if line_sections else None
+        chunks = parser.chunk_file(
+            doc["content"], chunk_size=config.CHUNK_SIZE, boundary_lines=boundary_lines
+        )
+
+        # O-082: reine Metadaten-Anreicherung. line_sections ist 1:1 mit den
+        # content-Zeilen indiziert, chunk["start_line"] ist 1-basiert.
         if line_sections:
             for chunk in chunks:
                 idx = chunk["start_line"] - 1

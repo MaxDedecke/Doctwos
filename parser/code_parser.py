@@ -15,7 +15,11 @@ class CodeParser:
         self.language_name = language_name
 
     def chunk_file(
-        self, content: str, chunk_size: int = 1000, overlap_size: int = 150
+        self,
+        content: str,
+        chunk_size: int = 1000,
+        overlap_size: int = 150,
+        boundary_lines: frozenset[int] | None = None,
     ) -> List[Dict]:
         """
         Splits the file content into logical text chunks of a given maximum character size,
@@ -25,6 +29,18 @@ class CodeParser:
             content: The raw text content of the file.
             chunk_size: Target size in characters for each chunk.
             overlap_size: Target size in characters for chunk overlap.
+            boundary_lines: O-083, optional. 1-based line numbers where a new
+                chunk should preferably start (e.g. Confluence-Section-
+                Überschriften, siehe connectors/base.py::_section_boundaries).
+                Bricht den aktuellen Chunk ab, sobald so eine Zeile erreicht
+                wird, auch wenn `chunk_size` noch nicht ausgeschöpft ist --
+                `chunk_size` bleibt die harte Obergrenze, ist aber nicht mehr
+                der einzige Auslöser. Kein Overlap über eine solche Grenze
+                hinweg (sonst würde der neue Chunk mit Text der alten Section
+                beginnen und die spätere section-Zuordnung über
+                chunk["start_line"] verfälschen). Nur Aufrufer, die
+                strukturierte Abschnittsgrenzen kennen, übergeben das -- ohne
+                Angabe unverändertes rein zeichenzahl-basiertes Verhalten.
 
         Returns:
             A list of dictionaries containing:
@@ -39,15 +55,20 @@ class CodeParser:
         chunks = []
         n = len(lines)
         i = 0
+        boundaries = boundary_lines or frozenset()
 
         while i < n:
             current_chunk_lines = []
             current_len = 0
             start_line = i + 1
+            cut_at_boundary = False
 
             j = i
             while j < n:
                 line = lines[j]
+                if current_len > 0 and (j + 1) in boundaries:
+                    cut_at_boundary = True
+                    break
                 if current_len > 0 and current_len + len(line) > chunk_size:
                     break
                 current_chunk_lines.append(line)
@@ -65,6 +86,10 @@ class CodeParser:
 
             if j == n:
                 break
+
+            if cut_at_boundary:
+                i = j
+                continue
 
             # Compute overlap to find next starting index
             overlap_len = 0

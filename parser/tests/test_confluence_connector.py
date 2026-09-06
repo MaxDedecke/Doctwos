@@ -207,14 +207,17 @@ async def test_confluence_connector_process_document_stores_section_metadata(
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
 
+    # Bewusst nur EINE Section über den ganzen Inhalt (kein Abschnittswechsel)
+    # -- dieser Test prüft ausschließlich die metadata_json-Anreicherung,
+    # nicht das section-bewusste Schneiden selbst (siehe O-083-Test unten).
     doc = {
         "title": "Runbook",
-        "content": "Setup\n\nSchritt 1.\n\nBetrieb\n\nSchritt 2.",
+        "content": "Setup\n\nSchritt 1.\n\nSchritt 2.",
         "url": "https://example.atlassian.net/spaces/DOCS/pages/123/Runbook",
         "source_type": "Confluence",
         "storage_key": "Runbook",
         "extra_meta": {"page_id": "123"},
-        "line_sections": ["Setup", "Setup", "Setup", "Setup", "Betrieb", "Betrieb", "Betrieb"],
+        "line_sections": ["Setup", "Setup", "Setup", "Setup", "Setup"],
     }
 
     with patch("connectors.base.get_embedding", AsyncMock(return_value=[0.0] * 1024)):
@@ -264,3 +267,40 @@ async def test_confluence_connector_process_document_without_sections_unaffected
         .one()
     )
     assert "section" not in chunk.metadata_json
+
+
+@pytest.mark.anyio
+async def test_confluence_connector_process_document_cuts_at_section_boundary(
+    db_session, test_source
+):
+    """O-083: zwei kurze Sections, die zusammen locker unter CHUNK_SIZE
+    passen, landen trotzdem als zwei getrennte Chunks -- die Section-Grenze
+    schneidet, bevor die Zeichenzahl-Schwelle das täte."""
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    doc = {
+        "title": "Runbook",
+        "content": "Setup\n\nKurzer Schritt.\n\nBetrieb\n\nNoch kürzer.",
+        "url": None,
+        "source_type": "Confluence",
+        "storage_key": "Runbook",
+        "extra_meta": {"page_id": "789"},
+        "line_sections": ["Setup", "Setup", "Setup", "Setup", "Betrieb", "Betrieb", "Betrieb"],
+    }
+
+    with patch("connectors.base.get_embedding", AsyncMock(return_value=[0.0] * 1024)):
+        await connector._process_document(doc)
+    connector.db.commit()
+
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "Runbook")
+        .order_by(DocumentChunk.start_line)
+        .all()
+    )
+    assert len(chunks) == 2
+    assert chunks[0].metadata_json["section"] == "Setup"
+    assert "Betrieb" not in chunks[0].content
+    assert chunks[1].metadata_json["section"] == "Betrieb"
+    assert "Setup" not in chunks[1].content
