@@ -27,10 +27,8 @@ import os
 import re
 from typing import List, Optional
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
@@ -43,24 +41,23 @@ from api.schemas import (
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, User
-from core.teams import get_visible_team_ids, assert_team_visible
+from core.teams import assert_team_visible, get_visible_team_ids
 from core.projects import (
     assert_knowledge_source_visible,
     assert_project_visible,
-    resolve_repository_id,
-    get_visible_project_ids,
-    build_document_chunk_code_gate,
-    get_globally_exposed_project_ids,
-    is_document_chunk_code_visible_in_context,
 )
-from services.graph_retrieval import expand_chunks_with_graph
 from services.chat_service import (
-    build_chat_prompt,
-    build_pinned_context,
     find_pinned_chunks,
+    hybrid_chunk_search,
     persist_assistant_message,
+    retrieve_chat_context,
     stream_agent_events,
+    stream_standard_rag_events,
 )
+
+# Compatibility imports for focused regression tests and downstream callers. The
+# implementation now lives in services.chat_service with the rest of retrieval.
+_hybrid_chunk_search = hybrid_chunk_search
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -138,63 +135,6 @@ _FILE_EXT_RE = re.compile(
 )
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
 _FILE_LINE_RE = re.compile(r"^(.+\.\w+):(\d+)(?:-\d+)?$")
-_PAGE_QUERY_RE = re.compile(r"(?:seite|page|s\.)\s*(\d+)", re.IGNORECASE)
-_SECTION_NUMBER_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){1,4}\b")
-# Bound on how many candidate rows the section-number match decrypts+scans in Python (see
-# _hybrid_chunk_search below) -- most callers already scope base_query to one source/project,
-# but the "Allgemein" (no project selected) chat mode can hand in an unscoped query.
-_SECTION_MATCH_SCAN_LIMIT = 3000
-
-
-def _hybrid_chunk_search(
-    base_query, query_embedding: list, query_text: str, limit: int
-) -> List[DocumentChunk]:
-    """
-    Pure cosine-similarity search misses exact numeric references -- a page number
-    or a section heading like "1.4.3" carries almost no semantic embedding signal,
-    so the chunk that literally contains it often doesn't make the vector top-k
-    even though it exists in the document. `base_query` is a DocumentChunk query
-    already scoped to the right source/project; this layers an exact page match
-    and a keyword lookup for a section-number-shaped token on top of it before
-    falling back to (and topping up with) the normal vector search.
-    """
-    picked: List[DocumentChunk] = []
-    picked_ids = set()
-
-    def _add_all(rows):
-        for r in rows:
-            if r.id not in picked_ids:
-                picked_ids.add(r.id)
-                picked.append(r)
-
-    page_match = _PAGE_QUERY_RE.search(query_text)
-    if page_match:
-        page_no = int(page_match.group(1))
-        _add_all(
-            base_query.filter(DocumentChunk.metadata_json["page"].as_integer() == page_no)
-            .limit(limit)
-            .all()
-        )
-
-    if len(picked) < limit:
-        section_match = _SECTION_NUMBER_RE.search(query_text)
-        if section_match:
-            # DocumentChunk.content is Fernet-encrypted at rest (EncryptedString), so this can no
-            # longer be a SQL ILIKE -- decrypt candidates in Python instead, bounded by
-            # _SECTION_MATCH_SCAN_LIMIT.
-            needle = section_match.group(0)
-            candidates = base_query.limit(_SECTION_MATCH_SCAN_LIMIT).all()
-            matches = [c for c in candidates if needle in (c.content or "")]
-            _add_all(matches[: limit - len(picked)])
-
-    if len(picked) < limit:
-        _add_all(
-            base_query.order_by(DocumentChunk.embedding.cosine_distance(query_embedding))
-            .limit(limit - len(picked))
-            .all()
-        )
-
-    return picked
 
 
 def _find_pinned_chunks(
@@ -208,30 +148,6 @@ def _find_pinned_chunks(
     # Kept as a compatibility seam for focused regression tests.  New code uses
     # the service directly so the router no longer owns retrieval details.
     return find_pinned_chunks(db, project_id, source_id, file_path, line)
-
-
-def _gate_graph_neighbors(
-    db: Session, chunks: List[DocumentChunk], requesting_project_id: Optional[int]
-) -> List[DocumentChunk]:
-    """Filters graph-expanded chunks (see expand_chunks_with_graph) against the same
-    per-project code-visibility opt-in used in graph.py/search.py. CALL/COPY edges are
-    resolved globally (E-1 in docs/ENTSCHEIDUNGEN.md), so a neighbor chunk pulled in via
-    graph expansion can belong to a DIFFERENT project than the one the initial vector
-    search was scoped to -- this closes that leak regardless of which chat branch ran.
-    No-op for non-Git-sourced chunks (documentation stays cross-project as designed)."""
-    return [
-        c for c in chunks if is_document_chunk_code_visible_in_context(c, requesting_project_id, db)
-    ]
-
-
-def _chunk_header(r: DocumentChunk) -> str:
-    page = (r.metadata_json or {}).get("page")
-    location = (
-        f"Seite {page}, Zeile {r.start_line}-{r.end_line}"
-        if page
-        else f"Zeile {r.start_line}-{r.end_line}"
-    )
-    return f"{r.file_path} ({location})"
 
 
 _TITLE_SUFFIX_RE = re.compile(r"^(.+):(\d+)(?:-\d+)?$")
@@ -478,280 +394,23 @@ async def chat(
 
         async def inner_generator():
             nonlocal answer, sources, agent_steps
-            results = []
-            context = ""
-            pinned_context = ""
-            pinned_chunks: List[DocumentChunk] = []
-            multi_project_names = []
-
-            # Git sources use one worktree per source. Keep the source from the
-            # focused entity authoritative even when the selected chat source is stale.
-            resolved_repo_id = (
-                resolve_repository_id(request.project_id, db) if request.project_id else None
-            )
-            focused_source_id = request.pinned_source_id or request.source_id or resolved_repo_id
-            if request.pinned_source_id:
-                focused_source = (
-                    db.query(KnowledgeSource)
-                    .filter(
-                        KnowledgeSource.id == request.pinned_source_id,
-                        KnowledgeSource.type == "Git",
-                    )
-                    .first()
-                )
-                if focused_source and (
-                    request.project_id is None or focused_source.project_id == request.project_id
-                ):
-                    resolved_repo_id = focused_source.id
-
-            team_ids = get_visible_team_ids(user, db)
-            q_global = db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id.is_(None))
-            if team_ids is not None:
-                q_global = q_global.filter(KnowledgeSource.team_id.in_(team_ids))
-            global_source_ids = q_global.all()
-
-            # Retrieval always runs, even with no project/source selected — in "Allgemein"
-            # mode we now search every project the user can see (see the `else` branch
-            # below), not just sources with no project at all, so there's no cheap
-            # upfront check left that would make skipping worthwhile.
-            if True:
-                try:
-                    query_text = request.message
-                    if cfg.OLLAMA_EMBED_MODEL.startswith(
-                        "nomic-embed-text"
-                    ) and not query_text.startswith("search_query:"):
-                        query_text = f"search_query: {query_text}"
-                    async with httpx.AsyncClient(timeout=60.0) as embed_client:
-                        resp = await embed_client.post(
-                            f"{cfg.OLLAMA_BASE_URL}/api/embeddings",
-                            json={"model": cfg.OLLAMA_EMBED_MODEL, "prompt": query_text},
-                        )
-                        query_embedding = resp.json()["embedding"]
-
-                    if request.source_id:
-                        base_query = db.query(DocumentChunk).filter(
-                            DocumentChunk.source_id == request.source_id
-                        )
-                        results = _hybrid_chunk_search(base_query, query_embedding, query_text, 4)
-                        results = expand_chunks_with_graph(db, results)
-                        results = _gate_graph_neighbors(db, results, request.project_id)
-                        context = "\n\n".join(
-                            [
-                                f'<untrusted_source path="{r.file_path}">\nFile: {_chunk_header(r)}\n{r.content}\n</untrusted_source>'
-                                for r in results
-                            ]
-                        )
-
-                    elif request.project_id:
-                        # Chunks come from two structurally different pipelines: ones parsed
-                        # straight out of a cloned git repo (project_id set, source_id left
-                        # NULL -- see parser/tasks/repository.py) vs. ones parsed by a
-                        # KnowledgeSource connector (FolderWatch/IFC/DWG/Confluence/...),
-                        # which always have source_id set. A KnowledgeSource can itself
-                        # belong to this exact project or be genuinely global/cross-project
-                        # -- those are not the same thing, so they get their own bucket
-                        # instead of both being dumped into "out-of-scope global": for an
-                        # AEC project whose content is 100% KnowledgeSource-backed (no git
-                        # repo at all), lumping its own documents in with truly-global ones
-                        # both mislabels them and starves them down to a shared 2-chunk cap.
-                        project_source_ids = [
-                            s.id
-                            for s in db.query(KnowledgeSource.id)
-                            .filter(KnowledgeSource.project_id == request.project_id)
-                            .all()
-                        ]
-                        global_ids = [g.id for g in global_source_ids]
-
-                        repo_base_query = db.query(DocumentChunk).filter(
-                            DocumentChunk.project_id == request.project_id,
-                            DocumentChunk.source_id.is_(None),
-                        )
-                        repo_results = _hybrid_chunk_search(
-                            repo_base_query, query_embedding, query_text, 4
-                        )
-                        repo_results = expand_chunks_with_graph(db, repo_results)
-                        # CALL/COPY-Nachbarn werden global aufgelöst (E-1) und können daher aus
-                        # einem ANDEREN, nicht für "Allgemein" freigegebenen Projekt stammen, auch
-                        # wenn der Ausgangs-Treffer sauber auf request.project_id gescoped war.
-                        repo_results = _gate_graph_neighbors(db, repo_results, request.project_id)
-
-                        project_source_results = []
-                        if project_source_ids:
-                            project_source_base_query = db.query(DocumentChunk).filter(
-                                DocumentChunk.source_id.in_(project_source_ids)
-                            )
-                            project_source_results = _hybrid_chunk_search(
-                                project_source_base_query, query_embedding, query_text, 4
-                            )
-                            project_source_results = expand_chunks_with_graph(
-                                db, project_source_results
-                            )
-                            project_source_results = _gate_graph_neighbors(
-                                db, project_source_results, request.project_id
-                            )
-
-                        global_results = []
-                        if global_ids:
-                            global_base_query = db.query(DocumentChunk).filter(
-                                DocumentChunk.source_id.in_(global_ids)
-                            )
-                            global_results = _hybrid_chunk_search(
-                                global_base_query, query_embedding, query_text, 2
-                            )
-                            global_results = expand_chunks_with_graph(db, global_results)
-                            global_results = _gate_graph_neighbors(
-                                db, global_results, request.project_id
-                            )
-
-                        results = repo_results + project_source_results + global_results
-
-                        context_parts = []
-                        if repo_results:
-                            context_parts.append("--- IN-SCOPE REPOSITORY FILES ---")
-                            for r in repo_results:
-                                context_parts.append(
-                                    f'<untrusted_source path="{r.file_path}">\n'
-                                    f"File: {_chunk_header(r)}\n"
-                                    f"{r.content}\n"
-                                    f"</untrusted_source>"
-                                )
-                        if project_source_results:
-                            context_parts.append("--- IN-SCOPE PROJECT KNOWLEDGE SOURCES ---")
-                            for r in project_source_results:
-                                context_parts.append(
-                                    f'<untrusted_source path="{r.file_path}">\n'
-                                    f"Source Document: {_chunk_header(r)}\n"
-                                    f"{r.content}\n"
-                                    f"</untrusted_source>"
-                                )
-                        if global_results:
-                            context_parts.append("--- OUT-OF-SCOPE GLOBAL KNOWLEDGE SOURCES ---")
-                            for r in global_results:
-                                context_parts.append(
-                                    f'<untrusted_source path="{r.file_path}">\n'
-                                    f"Source Document: {_chunk_header(r)}\n"
-                                    f"{r.content}\n"
-                                    f"</untrusted_source>"
-                                )
-                        context = "\n\n".join(context_parts)
-
-                    else:
-                        # "Allgemein" (kein Projekt gewählt): über alle für den Nutzer
-                        # sichtbaren Projekte hinweg suchen, nicht nur über Quellen ohne
-                        # Projekt — die Knowledge-Graph-Ansicht zeigt in diesem Modus
-                        # bereits alle sichtbaren Projekte als ein Netz, das Retrieval
-                        # soll dieselbe Sicht widerspiegeln, statt fast immer leer zu
-                        # bleiben. ABER: echte Repo-Quelldateien (Code-Analyse-Inhalt) sind
-                        # projektspezifisch und dürfen hier nur auftauchen, wenn das jeweilige
-                        # Projekt explizit dafür freigegeben ist (Project.expose_code_analysis_
-                        # globally) — dasselbe Opt-in-Gate wie in graph.py/search.py, bisher hier
-                        # fehlend. Echte Wissensquellen (Confluence/Jira/Upload) bleiben davon
-                        # unberührt projektübergreifend durchsuchbar, siehe build_document_chunk_code_gate.
-                        visible_project_ids = get_visible_project_ids(user, db)
-                        global_ids = [g.id for g in global_source_ids]
-
-                        exposed_project_ids = get_globally_exposed_project_ids(db)
-                        if visible_project_ids is not None:
-                            exposed_project_ids = [
-                                pid for pid in exposed_project_ids if pid in visible_project_ids
-                            ]
-                        elif team_ids is not None:
-                            team_project_ids = {
-                                p[0]
-                                for p in db.query(Project.id)
-                                .filter(Project.team_id.in_(team_ids))
-                                .all()
-                            }
-                            exposed_project_ids = [
-                                pid for pid in exposed_project_ids if pid in team_project_ids
-                            ]
-                        code_gate = build_document_chunk_code_gate(db, exposed_project_ids)
-
-                        results = []
-                        if visible_project_ids is None:
-                            base_query = db.query(DocumentChunk)
-                            if code_gate is not None:
-                                base_query = base_query.filter(code_gate)
-                            results = _hybrid_chunk_search(
-                                base_query, query_embedding, query_text, 6
-                            )
-                            results = expand_chunks_with_graph(db, results)
-                        else:
-                            scope_filters = []
-                            if visible_project_ids:
-                                scope_filters.append(
-                                    DocumentChunk.project_id.in_(visible_project_ids)
-                                )
-                            if global_ids:
-                                scope_filters.append(DocumentChunk.source_id.in_(global_ids))
-                            if scope_filters:
-                                base_query = db.query(DocumentChunk).filter(or_(*scope_filters))
-                                if code_gate is not None:
-                                    base_query = base_query.filter(code_gate)
-                                results = _hybrid_chunk_search(
-                                    base_query, query_embedding, query_text, 6
-                                )
-                                results = expand_chunks_with_graph(db, results)
-
-                        # Post-Filter nach der Graph-Expansion: CALL/COPY-Nachbarn werden global
-                        # aufgelöst (E-1) und können trotz des SQL-Gates oben einen Chunk aus
-                        # einem nicht freigegebenen Projekt nachziehen.
-                        results = _gate_graph_neighbors(db, results, None)
-
-                        result_project_ids = sorted(
-                            {r.project_id for r in results if r.project_id is not None}
-                        )
-                        projects_by_id = {}
-                        if result_project_ids:
-                            projects_by_id = {
-                                p.id: p.name
-                                for p in db.query(Project)
-                                .filter(Project.id.in_(result_project_ids))
-                                .all()
-                            }
-                        multi_project_names = sorted(set(projects_by_id.values()))
-
-                        context_parts = []
-                        for r in results:
-                            tag = (
-                                f"Projekt: {projects_by_id[r.project_id]}"
-                                if r.project_id in projects_by_id
-                                else "Global"
-                            )
-                            context_parts.append(
-                                f'<untrusted_source path="{r.file_path}">\n'
-                                f"[{tag}] File: {_chunk_header(r)}\n"
-                                f"{r.content}\n"
-                                f"</untrusted_source>"
-                            )
-                        context = "\n\n".join(context_parts)
-                except Exception as e:
-                    logger.error(f"Fehler beim Kontext-Retrieval: {e}")
-
-                if request.pinned_file:
-                    pinned_chunks = find_pinned_chunks(
-                        db, request.project_id, focused_source_id,
-                        request.pinned_file, request.pinned_line,
-                    )
-
-            # Pins use the same service whether they point at indexed COBOL, a
-            # worktree file during first sync, or a non-file view object.
-            pinned_context = build_pinned_context(
+            retrieval = await retrieve_chat_context(
+                db=db,
+                user=user,
+                project_id=request.project_id,
+                source_id=request.source_id,
+                pinned_source_id=request.pinned_source_id,
                 pinned_file=request.pinned_file,
                 pinned_line=request.pinned_line,
                 pinned_label=request.pinned_label,
-                pinned_context=request.pinned_context,
-                pinned_chunks=pinned_chunks,
-                repository_id=resolved_repo_id,
-            )
-
-            prompt = build_chat_prompt(
-                context=context,
-                pinned_context=pinned_context,
+                focused_context=request.pinned_context,
                 message=request.message,
-                pinned_file=request.pinned_file,
-                multi_project_names=multi_project_names,
             )
+            results = retrieval.results
+            prompt = retrieval.prompt
+            pinned_chunks = retrieval.pinned_chunks
+            resolved_repo_id = retrieval.resolved_repo_id
+            focused_source_id = retrieval.focused_source_id
 
             provider = (request.llm_provider or "ollama").lower()
 
@@ -844,6 +503,7 @@ async def chat(
             answer = ""
             agent_ran = False
             mcp_clients = []
+            team_ids = get_visible_team_ids(user, db)
 
             try:
                 if request.source_id:
@@ -892,9 +552,7 @@ async def chat(
                         db=db,
                         mcp_clients=mcp_clients,
                         ollama_base_url=cfg.OLLAMA_BASE_URL,
-                        history=[
-                            {"role": m.role, "content": m.content} for m in history_messages
-                        ],
+                        history=[{"role": m.role, "content": m.content} for m in history_messages],
                         project_id=request.project_id,
                         user_id=user.id,
                         session_id=session_id,
@@ -927,151 +585,22 @@ async def chat(
                     except Exception:
                         pass
 
-            # Standard-RAG Fallback wenn kein Agent läuft oder Agent fehlgeschlagen ist
             if not agent_ran:
-                try:
-                    if provider in ("openai", "ollama"):
-                        is_ollama = provider == "ollama"
-                        if is_ollama:
-                            url = f"{cfg.OLLAMA_BASE_URL}/v1/chat/completions"
-                            headers = {"Content-Type": "application/json"}
-                            model_to_use = cfg.resolve_ollama_model(request.llm_model)
-                            payload = {
-                                "model": model_to_use,
-                                "messages": [
-                                    {"role": "system", "content": full_system_prompt_for_chat}
-                                ],
-                                "temperature": request.temperature
-                                if request.temperature is not None
-                                else 0.7,
-                                "stream": True,
-                            }
-                        else:
-                            base = request.llm_base_url or "https://api.openai.com/v1"
-                            base = base.rstrip("/")
-                            url = (
-                                base if "/chat/completions" in base else f"{base}/chat/completions"
-                            )
-                            headers = {"Content-Type": "application/json"}
-                            if request.llm_api_key:
-                                headers["Authorization"] = f"Bearer {request.llm_api_key}"
-                            model_to_use = request.llm_model or "gpt-4o"
-                            payload = {
-                                "model": model_to_use,
-                                "messages": [
-                                    {"role": "system", "content": full_system_prompt_for_chat}
-                                ],
-                                "stream": True,
-                            }
-                            if cfg.openai_model_supports_custom_temperature(model_to_use):
-                                payload["temperature"] = (
-                                    request.temperature if request.temperature is not None else 0.7
-                                )
-
-                        for h_msg in history_messages:
-                            payload["messages"].append(
-                                {"role": h_msg.role, "content": h_msg.content}
-                            )
-                        payload["messages"].append({"role": "user", "content": prompt})
-
-                        async with httpx.AsyncClient(timeout=120.0) as client:
-                            async with client.stream(
-                                "POST", url, json=payload, headers=headers
-                            ) as resp:
-                                resp.raise_for_status()
-                                async for line in resp.aiter_lines():
-                                    if not line.strip():
-                                        continue
-                                    if line.startswith("data: "):
-                                        data_str = line[6:].strip()
-                                        if data_str == "[DONE]":
-                                            break
-                                        try:
-                                            chunk = json.loads(data_str)
-                                            if not chunk.get("choices"):
-                                                continue
-                                            delta = chunk["choices"][0].get("delta", {})
-                                            content = delta.get("content")
-                                            if content:
-                                                answer += content
-                                                yield f"data: {json.dumps({'type': 'content_chunk', 'content': content})}\n\n"
-                                        except Exception as e:
-                                            logger.error(
-                                                f"Fehler beim Parsen des Stream-Chunks: {e}"
-                                            )
-
-                    elif provider == "gemini":
-                        model_name = request.llm_model or "gemini-1.5-flash"
-                        key = request.llm_api_key or ""
-                        full_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={key}"
-                        gemini_contents = []
-                        for h_msg in history_messages:
-                            g_role = "user" if h_msg.role == "user" else "model"
-                            gemini_contents.append(
-                                {"role": g_role, "parts": [{"text": h_msg.content}]}
-                            )
-                        gemini_contents.append({"role": "user", "parts": [{"text": prompt}]})
-                        payload = {
-                            "contents": gemini_contents,
-                            "generationConfig": {
-                                "temperature": request.temperature
-                                if request.temperature is not None
-                                else 0.7
-                            },
-                        }
-                        if full_system_prompt_for_chat:
-                            payload["systemInstruction"] = {
-                                "parts": [{"text": full_system_prompt_for_chat}]
-                            }
-                        async with httpx.AsyncClient(timeout=120.0) as client:
-                            resp = await client.post(
-                                full_url, json=payload, headers={"Content-Type": "application/json"}
-                            )
-                            resp.raise_for_status()
-                            answer = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                            yield f"data: {json.dumps({'type': 'content_chunk', 'content': answer})}\n\n"
-
-                    elif provider == "anthropic":
-                        model_name = request.llm_model or "claude-3-5-sonnet-20241022"
-                        headers = {
-                            "Content-Type": "application/json",
-                            "x-api-key": request.llm_api_key or "",
-                            "anthropic-version": "2023-06-01",
-                        }
-                        anthropic_messages = [
-                            {"role": m.role, "content": m.content} for m in history_messages
-                        ]
-                        anthropic_messages.append({"role": "user", "content": prompt})
-                        payload = {
-                            "model": model_name,
-                            "max_tokens": 4096,
-                            "messages": anthropic_messages,
-                            "temperature": request.temperature
-                            if request.temperature is not None
-                            else 0.7,
-                        }
-                        if full_system_prompt_for_chat:
-                            payload["system"] = full_system_prompt_for_chat
-                        async with httpx.AsyncClient(timeout=120.0) as client:
-                            resp = await client.post(
-                                "https://api.anthropic.com/v1/messages",
-                                json=payload,
-                                headers=headers,
-                            )
-                            resp.raise_for_status()
-                            answer = resp.json()["content"][0]["text"]
-                            yield f"data: {json.dumps({'type': 'content_chunk', 'content': answer})}\n\n"
-
-                    yield f"data: {json.dumps({'type': 'turn_completed', 'has_tool_calls': False})}\n\n"
-                    yield f"data: {json.dumps({'type': 'answer', 'content': answer, 'agent_steps': []})}\n\n"
-
-                except Exception as e:
-                    error_detail = (
-                        f"Fehler bei der Kommunikation mit dem LLM-Provider ({provider}): {str(e)}"
-                    )
-                    logger.error(error_detail)
-                    yield f"data: {json.dumps({'type': 'error', 'error': error_detail})}\n\n"
-                    return
+                async for event in stream_standard_rag_events(
+                    provider=provider,
+                    model=request.llm_model,
+                    api_key=request.llm_api_key,
+                    base_url=request.llm_base_url,
+                    temperature=request.temperature,
+                    system_prompt=full_system_prompt_for_chat,
+                    history=history_messages,
+                    prompt=prompt,
+                ):
+                    if event["type"] == "answer":
+                        answer = event["content"]
+                    yield f"data: {json.dumps(event)}\n\n"
+                    if event["type"] == "error":
+                        return
 
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):
