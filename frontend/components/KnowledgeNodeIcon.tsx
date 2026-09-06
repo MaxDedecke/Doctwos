@@ -1,5 +1,10 @@
-import React from 'react';
 import { Code2, FileText, Globe2 } from 'lucide-react';
+
+interface IconNode {
+  node_type?: unknown; type?: unknown; kind?: unknown; entity_type?: unknown; entityType?: unknown;
+  source_type?: unknown; sourceType?: unknown; url?: unknown; node_url?: unknown; nodeUrl?: unknown;
+  node_meta?: Record<string, unknown> | null; meta?: Record<string, unknown> | null; file_path?: string; x?: number; y?: number;
+}
 
 export type KnowledgeNodeIconKind = 'code' | 'document' | 'web';
 
@@ -23,7 +28,7 @@ function textValue(value: unknown): string {
  * link-manager and reference lists. The metadata names intentionally cover
  * both API responses and the small view-specific wrapper objects.
  */
-export function getKnowledgeNodeIconKind(node: any): KnowledgeNodeIconKind {
+export function getKnowledgeNodeIconKind(node: IconNode | null | undefined): KnowledgeNodeIconKind {
   if (!node) return 'document';
 
   const nodeType = textValue(node.node_type || node.type || node.kind);
@@ -59,7 +64,7 @@ export function getKnowledgeNodeIconKind(node: any): KnowledgeNodeIconKind {
 }
 
 interface KnowledgeNodeIconProps {
-  node: any;
+  node: IconNode | null | undefined;
   className?: string;
   title?: string;
 }
@@ -71,10 +76,10 @@ export function KnowledgeNodeIcon({ node, className, title }: KnowledgeNodeIconP
 }
 
 /** Draw the same icon family inside a force-graph canvas node. */
-export function drawKnowledgeNodeIcon(node: any, ctx: CanvasRenderingContext2D, globalScale: number) {
+export function drawKnowledgeNodeIcon(node: IconNode | null | undefined, ctx: CanvasRenderingContext2D, globalScale: number) {
   const kind = getKnowledgeNodeIconKind(node);
-  const x = node.x ?? 0;
-  const y = node.y ?? 0;
+  const x = node?.x ?? 0;
+  const y = node?.y ?? 0;
   const size = Math.max(5, Math.min(8, 7 / Math.max(globalScale, 0.01)));
   const strokeWidth = Math.max(0.7, 1.1 / Math.max(globalScale, 0.01));
 

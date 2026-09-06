@@ -1,3 +1,4 @@
+import type { ChatMetadata, ChatReference } from '@/types/domain';
 export type FocusId = number | string | null;
 
 export interface ChatFocusProject {
@@ -27,13 +28,13 @@ export interface ChatTurnFocus {
   pinned: ChatPinnedFocus | null;
 }
 
-type MessageMetadata = Record<string, any> | null | undefined;
+type MessageMetadata = ChatMetadata | null | undefined;
 
-function normalizePinnedFocus(value: any, fallback?: any): ChatPinnedFocus | null {
+function normalizePinnedFocus(value?: ChatMetadata['pinned'], fallback?: ChatReference): ChatPinnedFocus | null {
   if (!value?.filepath && !fallback?.file) return null;
 
   return {
-    filepath: value?.filepath || fallback?.file,
+    filepath: value?.filepath || fallback?.file || '',
     line: value?.line ?? fallback?.line ?? 0,
     label: value?.label ?? null,
     context: value?.context ?? null,
@@ -46,8 +47,8 @@ function normalizePinnedFocus(value: any, fallback?: any): ChatPinnedFocus | nul
 
 /** Creates the immutable focus snapshot used by one chat turn. */
 export function createChatTurnFocus(
-  selectedProject: any | null,
-  selectedSource: any | null,
+  selectedProject: ChatFocusProject | null,
+  selectedSource: ChatFocusSource | null,
   pinnedCode: ChatPinnedFocus | null,
 ): ChatTurnFocus {
   return {
@@ -58,7 +59,7 @@ export function createChatTurnFocus(
 }
 
 /** Reads the canonical focus and supports messages saved before O-019. */
-export function getChatTurnFocus(message: any): ChatTurnFocus {
+export function getChatTurnFocus(message: { metadata?: ChatMetadata } | null | undefined): ChatTurnFocus {
   const metadata: MessageMetadata = message?.metadata;
   const canonical = metadata?.focus;
   const legacyRef = metadata?.refs?.[0];
@@ -80,7 +81,7 @@ export function getChatTurnFocus(message: any): ChatTurnFocus {
 }
 
 /** Keeps the legacy metadata fields while making the shared snapshot explicit. */
-export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: Record<string, any> = {}) {
+export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: ChatMetadata = {}): ChatMetadata {
   const pinned = focus.pinned;
   const refs = pinned && pinned.line !== null && pinned.line !== undefined
       ? [{

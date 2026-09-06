@@ -1,3 +1,4 @@
+import type { CodeEntity } from '@/types/domain';
 /**
  * O-060: `LinkManagerView.tsx` hatte keinen Test -- das manuelle Verknüpfen und
  * Bewerten von Quellen (DOC-F-081) war damit vollständig ungeprüft, obwohl es
@@ -24,7 +25,7 @@ vi.mock('./TopicsPanel', () => ({ TopicsPanel: () => <div data-testid="topics-pa
 const PROJECT = { id: 3, name: 'Rentenkasse' };
 
 type EntityLink = {
-  id: number; entity_id: number; entity?: any; doc_title: string; doc_url: string | null;
+  id: number; entity_id: number; entity?: CodeEntity; doc_title: string; doc_url: string | null;
   source_type: string | null; score: number | null; link_type: string; status: string;
   context: string | null; created_by: string;
 };
@@ -46,7 +47,7 @@ function entityLink(overrides: Partial<EntityLink> = {}): EntityLink {
   };
 }
 
-function knowledgeLink(overrides: Record<string, any> = {}) {
+function knowledgeLink(overrides: Record<string, unknown> = {}) {
   return {
     id: 50,
     source_a: { type: 'document', title: 'Fachkonzept', url: null, source_type: 'Confluence' },
@@ -63,19 +64,19 @@ function knowledgeLink(overrides: Record<string, any> = {}) {
 interface Routes {
   entityLinks?: EntityLink[];
   entityCounts?: { pending: number; approved: number; rejected: number };
-  knowledgeLinks?: any[];
-  entities?: any[];
-  docSearch?: any[];
+  knowledgeLinks?: ReturnType<typeof knowledgeLink>[];
+  entities?: Array<Omit<CodeEntity, 'id' | 'start_line'> & { id: number | string; start_line?: number }>;
+  docSearch?: Array<{ title: string; url?: string | null; source_type?: string | null }>;
   patchOk?: boolean;
   postOk?: boolean;
   postError?: string;
-  llmReview?: any;
+  llmReview?: { score?: number; context?: string; detail?: string };
   llmReviewOk?: boolean;
 }
 
 /** fetch-Stub, der die Endpunkte der Ansicht nach URL + Methode beantwortet. */
 function stubFetch(routes: Routes = {}) {
-  const json = (body: any, ok = true, status = 200) => ({ ok, status, json: async () => body });
+  const json = (body: unknown, ok = true, status = 200) => ({ ok, status, json: async () => body });
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = (init?.method || 'GET').toUpperCase();
 
@@ -104,7 +105,7 @@ function renderView(props: Partial<React.ComponentProps<typeof LinkManagerView>>
   const showToast = vi.fn();
   const view = render(
     <LanguageProvider>
-      <LinkManagerView selectedProject={PROJECT} theme="dark" showToast={showToast} {...(props as any)} />
+      <LinkManagerView selectedProject={PROJECT} theme="dark" showToast={showToast} {...(props)} />
     </LanguageProvider>
   );
   return { ...view, showToast };
@@ -113,13 +114,13 @@ function renderView(props: Partial<React.ComponentProps<typeof LinkManagerView>>
 /** Die URLs aller Aufrufe, die zu Methode und Fragment passen. */
 function calls(fetchMock: ReturnType<typeof stubFetch>, fragment: string, method = 'GET'): string[] {
   return fetchMock.mock.calls
-    .filter(([url, init]: any[]) => String(url).includes(fragment) && ((init?.method || 'GET').toUpperCase() === method))
-    .map(([url]: any[]) => String(url));
+    .filter(([url, init]) => String(url).includes(fragment) && ((init?.method || 'GET').toUpperCase() === method))
+    .map(([url]) => String(url));
 }
 
-function bodyOf(fetchMock: ReturnType<typeof stubFetch>, fragment: string, method: string): any {
+function bodyOf(fetchMock: ReturnType<typeof stubFetch>, fragment: string, method: string): Record<string, unknown> {
   const call = [...fetchMock.mock.calls].reverse()
-    .find(([url, init]: any[]) => String(url).includes(fragment) && (init?.method || '').toUpperCase() === method);
+    .find(([url, init]) => String(url).includes(fragment) && (init?.method || '').toUpperCase() === method);
   return JSON.parse(String((call![1] as RequestInit).body));
 }
 

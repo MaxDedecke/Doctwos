@@ -3,7 +3,7 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { API_URL } from '@/app/services/api';
+import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export const LayoutSettingsTab: React.FC = () => {
     const params = new URLSearchParams({ status: 'approved' });
     if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
     try {
-      const res = await fetch(`${API_URL}/graph/export/neo4j?${params}`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/graph/export/neo4j?${params}`);
       if (!res.ok) throw new Error(`Export fehlgeschlagen (${res.status})`);
       const data = await res.json();
       const blob = new Blob([data.cypher], { type: 'text/plain' });
@@ -70,7 +70,7 @@ export const LayoutSettingsTab: React.FC = () => {
     const params = new URLSearchParams({ status: 'approved', format });
     if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
     try {
-      const res = await fetch(`${API_URL}/graph/export?${params}`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/graph/export?${params}`);
       if (!res.ok) throw new Error(`Export fehlgeschlagen (${res.status})`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

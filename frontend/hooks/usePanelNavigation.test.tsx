@@ -1,3 +1,4 @@
+import type { CodeEntity, WorkspaceDocument, KnowledgeSource } from '@/types/domain';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useRef, useState } from 'react';
@@ -14,7 +15,7 @@ type HarnessOptions = {
 
 type FileNavEntry = {
   file: string | null;
-  doc: any | null;
+  doc: WorkspaceDocument | null;
   tab: 'code' | 'doc' | 'weborigin' | 'graph';
 };
 
@@ -26,9 +27,9 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     selectedLine: null,
   }]);
   const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>(options.panelHistory ?? [{ past: [], future: [] }]);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<WorkspaceDocument | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<CodeEntity | null>(null);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [fileNavStack, setFileNavStack] = useState<FileNavEntry[]>([]);
   const [pinnedCode, setPinnedCode] = useState<PinnedCode | null>(null);

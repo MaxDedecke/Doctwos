@@ -1,3 +1,4 @@
+import { axiosResponse } from '@/test/http';
 /**
  * Regressionstests für O-029: der 3-Spalten-Layout-Modus bekommt zwei
  * ziehbare Teiler (analog zum bestehenden 2-Panel-Split und 4-grid-Kreuzgriff
@@ -172,7 +173,7 @@ describe('useWorkspaceLayout snapshot autosave cache sync', () => {
 
   it('patches the matching cached session entry with the freshly saved snapshot once the debounce fires', async () => {
     vi.useFakeTimers();
-    const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+    const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue(axiosResponse({}));
     const setSessions = vi.fn();
 
     const { rerender } = renderHook(
@@ -216,7 +217,7 @@ describe('useWorkspaceLayout snapshot autosave cache sync', () => {
 
   it('does not touch the session cache when no setSessions was provided', async () => {
     vi.useFakeTimers();
-    vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+    vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue(axiosResponse({}));
 
     const { rerender } = renderHook(
       (props: { activeSessionId: number | null }) => useWorkspaceLayout({

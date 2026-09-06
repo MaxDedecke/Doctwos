@@ -1,10 +1,7 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
 
-import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, KeyRound, Lock, Unlock, UserX, UserCheck, Copy, ShieldCheck } from 'lucide-react';
-import { cn, copyToClipboard } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn, copyToClipboard } from "@/lib/utils";
+import { Copy, KeyRound, Loader2, Lock, Plus, ShieldCheck, Unlock, UserCheck, UserX } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 // Nutzerverwaltung (F-004), Admin-only — Gegenstück zu backend/api/users.py.
 // Ein neu vergebenes Passwort kommt genau einmal aus dem Backend zurück und lebt
@@ -81,9 +82,9 @@ export const UsersSettingsTab: React.FC = () => {
       setNewRole('user');
       showToast(t('settings.toast.userCreated'), "success");
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.userCreateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userCreateFailed'), "error");
     } finally {
       setIsCreating(false);
     }
@@ -97,9 +98,9 @@ export const UsersSettingsTab: React.FC = () => {
       setIssuedPassword({ username: user.username, password: res.data.initial_password });
       showToast(t('settings.toast.passwordReset'), "success");
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.passwordResetFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.passwordResetFailed'), "error");
     } finally {
       setBusyUserId(null);
     }
@@ -112,9 +113,9 @@ export const UsersSettingsTab: React.FC = () => {
       await api.updateUser(user.id, { is_active: !user.is_active });
       showToast(user.is_active ? t('settings.toast.userDeactivated') : t('settings.toast.userActivated'), "success");
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
     } finally {
       setBusyUserId(null);
     }
@@ -126,9 +127,9 @@ export const UsersSettingsTab: React.FC = () => {
       await api.unlockUser(user.id);
       showToast(t('settings.toast.userUnlocked'), "success");
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
     } finally {
       setBusyUserId(null);
     }
@@ -141,9 +142,9 @@ export const UsersSettingsTab: React.FC = () => {
       await api.updateUser(user.id, { role });
       showToast(t('settings.toast.userRoleChanged'), "success");
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
     } finally {
       setBusyUserId(null);
     }

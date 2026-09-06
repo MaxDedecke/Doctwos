@@ -1,15 +1,19 @@
-import { useCallback } from 'react';
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
 import { api } from '@/app/services/api';
-import { copyToClipboard } from '@/lib/utils';
-import { normalizeInitialUserMessage } from '@/lib/chatMessage';
+import type { LlmProfile } from '@/hooks/useAiSettings';
+import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import {
   chatFocusRequestFields,
   createChatMetadata,
   createChatTurnFocus,
   getChatTurnFocus,
 } from '@/lib/chatFocus';
+import { normalizeInitialUserMessage } from '@/lib/chatMessage';
+import { parseChatStreamEvent } from '@/lib/chatStream';
+import { copyToClipboard } from '@/lib/utils';
+import type { AgentStep, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
+import { usePathname, useRouter } from 'next/navigation';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import { useCallback } from 'react';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Toast = (message: string, type?: string) => void;
@@ -20,28 +24,28 @@ interface ChatControllerOptions {
   ignoreUrlSyncRef: MutableRefObject<boolean>;
   activeSessionId: number | null;
   setActiveSessionId: Dispatch<SetStateAction<number | null>>;
-  chatMessages: any[];
-  setChatMessages: Dispatch<SetStateAction<any[]>>;
+  chatMessages: ChatMessage[];
+  setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   currentMessage: string;
   setCurrentMessage: Dispatch<SetStateAction<string>>;
   isLoading: boolean;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
-  setSessions: Dispatch<SetStateAction<any[]>>;
-  selectedProject: any | null;
-  selectedSource: any | null;
-  setSelectedSource: Dispatch<SetStateAction<any | null>>;
-  pinnedCode: any;
+  setSessions: Dispatch<SetStateAction<ChatSession[]>>;
+  selectedProject: Project | null;
+  selectedSource: KnowledgeSource | null;
+  setSelectedSource: Dispatch<SetStateAction<KnowledgeSource | null>>;
+  pinnedCode: ChatPinnedFocus | null;
   branch: string;
   temperature: number;
   systemPrompt: string;
   activeProfileId: string;
-  llmProfiles: any[];
-  projects: any[];
-  connectedSources: any[];
-  handleProjectSelect: (project: any | null) => void | Promise<void>;
-  restoreWorkspaceSnapshot: (snapshot: any) => void;
+  llmProfiles: LlmProfile[];
+  projects: Project[];
+  connectedSources: KnowledgeSource[];
+  handleProjectSelect: (project: Project | null) => void | Promise<void>;
+  restoreWorkspaceSnapshot: (snapshot: WorkspaceSnapshot) => void;
   resetChatSession: () => void;
-  buildWorkspaceSnapshot: () => any;
+  buildWorkspaceSnapshot: () => WorkspaceSnapshot;
 }
 
 export function useChatController({
@@ -156,11 +160,10 @@ export function useChatController({
   // Shared SSE consumer for both a fresh send and a retry/regenerate. The
   // caller prepares the target assistant slot; this function only consumes the
   // stream and applies events to that slot.
-  const runChatStream = useCallback(async (requestBody: any, targetIndex: number) => {
+  const runChatStream = useCallback(async (requestBody: ChatRequest, targetIndex: number) => {
     try {
-      const response = await fetch('/api/chat', {
+      const response = await api.fetch('/api/chat', {
         method: 'POST',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -178,7 +181,7 @@ export function useChatController({
       }
 
       let buffer = '';
-      let accumulatedSteps: any[] = [];
+      let accumulatedSteps: AgentStep[] = [];
       let currentThought = '';
 
       while (true) {
@@ -195,7 +198,11 @@ export function useChatController({
           if (message.startsWith('data: ')) {
             const jsonStr = message.substring(6);
             try {
-              const data = JSON.parse(jsonStr);
+              const data = parseChatStreamEvent(jsonStr);
+              if (!data) {
+                boundary = buffer.indexOf('\n\n');
+                continue;
+              }
 
               if (data.type === 'session') {
                 const newSessionId = data.session_id;
@@ -210,9 +217,9 @@ export function useChatController({
                     uuid: newSessionUuid,
                     title: data.session_title || (requestBody.message.length > 28 ? requestBody.message.substring(0, 25) + '...' : requestBody.message),
                     project_id: requestBody.project_id ?? null,
-                    project: requestFocus?.project ?? selectedProject,
+                    project: requestFocus?.project?.id != null ? { id: Number(requestFocus.project.id), name: requestFocus.project.name || '' } : selectedProject,
                     source_id: requestBody.source_id ?? null,
-                    source: requestFocus?.source ?? selectedSource,
+                    source: requestFocus?.source?.id != null ? { id: requestFocus.source.id, name: requestFocus.source.name || '' } : selectedSource,
                   };
                   setSessions(prev => [newSession, ...prev]);
 
@@ -343,10 +350,10 @@ export function useChatController({
           boundary = buffer.indexOf('\n\n');
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       let errMsgText = t('page.error.chatFetchFailed');
-      if (error?.message) {
+      if (error instanceof Error && error.message) {
         errMsgText = t('page.error.chatFetchFailedWithMessage', { message: error.message });
       }
       setChatMessages(prev => {
@@ -363,8 +370,8 @@ export function useChatController({
     }
   }, [activeSessionId, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
-  const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: Record<string, any>) => {
-    const isFirstUserMessage = !chatMessages.some((message: any) => message.role === 'user');
+  const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
+    const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');
     const msgToSend = normalizeInitialUserMessage(
       (overrideMsg || currentMessage).trim(),
       isFirstUserMessage
@@ -373,14 +380,14 @@ export function useChatController({
 
     const userMsgContent = msgToSend;
     const turnFocus = createChatTurnFocus(selectedProject, selectedSource, pinnedCode);
-    const newUserMsg = {
+    const newUserMsg: ChatMessage = {
       role: 'user',
       content: userMsgContent,
       metadata: createChatMetadata(turnFocus, extraMetadata),
     };
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
-    const assistantPlaceholder = {
+    const assistantPlaceholder: ChatMessage = {
       role: 'assistant',
       content: '',
       sources: [],
@@ -409,19 +416,19 @@ export function useChatController({
       llm_model: activeProfile?.model || undefined,
       llm_api_key: activeProfile?.apiKey || undefined,
       llm_base_url: activeProfile?.baseUrl || undefined,
-      metadata: newUserMsg.metadata
+      metadata: newUserMsg.metadata || {}
     }, targetIndex);
   }, [activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 
   const handleRetryMessage = useCallback(async (index: number) => {
     if (isLoading) return;
-    const assistantMsg: any = chatMessages[index];
-    const userMsg: any = chatMessages[index - 1];
+    const assistantMsg = chatMessages[index];
+    const userMsg = chatMessages[index - 1];
     if (!assistantMsg || assistantMsg.role !== 'assistant' || !assistantMsg.id) return;
     if (!userMsg || userMsg.role !== 'user') return;
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
-    const retryPlaceholder = {
+    const retryPlaceholder: ChatMessage = {
       role: 'assistant',
       content: '',
       sources: [],
@@ -457,7 +464,7 @@ export function useChatController({
     }, index);
   }, [activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
 
-  const handleSessionSelect = useCallback(async (session: any) => {
+  const handleSessionSelect = useCallback(async (session: ChatSession) => {
     ignoreUrlSyncRef.current = true;
     setActiveSessionId(session.id);
 
@@ -468,10 +475,10 @@ export function useChatController({
     }
 
     if (session.project) {
-      const matchedProject = projects && projects.find((p: any) => p.id === session.project.id);
+      const matchedProject = projects && projects.find((p) => p.id === session.project?.id);
       handleProjectSelect(matchedProject || session.project);
     } else if (session.project_id && projects && projects.length > 0) {
-      const matchedProject = projects.find((p: any) => p.id === session.project_id);
+      const matchedProject = projects.find((p) => p.id === session.project_id);
       if (matchedProject) {
         handleProjectSelect(matchedProject);
       }
@@ -480,7 +487,7 @@ export function useChatController({
     if (session.source) {
       setSelectedSource(session.source);
     } else if (session.source_id && connectedSources && connectedSources.length > 0) {
-      const matchedSource = connectedSources.find((s: any) => s.id === session.source_id);
+      const matchedSource = connectedSources.find((s) => s.id === session.source_id);
       if (matchedSource) {
         setSelectedSource(matchedSource);
       } else {
@@ -493,11 +500,11 @@ export function useChatController({
     const snap = session.snapshot_json;
     if (snap) {
       if (!session.project && !session.project_id && snap.selectedProjectId && projects && projects.length > 0) {
-        const matchedProject = projects.find((p: any) => p.id === snap.selectedProjectId);
+        const matchedProject = projects.find((p) => p.id === snap.selectedProjectId);
         if (matchedProject) handleProjectSelect(matchedProject);
       }
       if (!session.source && !session.source_id && snap.selectedSourceId && connectedSources && connectedSources.length > 0) {
-        const matchedSource = connectedSources.find((s: any) => s.id === snap.selectedSourceId);
+        const matchedSource = connectedSources.find((s) => s.id === snap.selectedSourceId);
         if (matchedSource) setSelectedSource(matchedSource);
       }
 
@@ -507,7 +514,7 @@ export function useChatController({
     try {
       const res = await api.getChatMessages(session.id);
       let hasUserMessage = false;
-      const formatted = res.data.map((message: any) => {
+      const formatted = res.data.map((message) => {
         const isFirstUserMessage = message.role === 'user' && !hasUserMessage;
         if (message.role === 'user') hasUserMessage = true;
 

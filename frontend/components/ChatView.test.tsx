@@ -1,3 +1,4 @@
+import { axiosResponse } from '@/test/http';
 /**
  * O-055: ChatView.tsx -- die eigentliche Chat-Oberfläche, das Kernprodukt --
  * hatte keinen einzigen Test. Deckt die in O-055 genannten Bereiche ab:
@@ -10,12 +11,12 @@
  * also: die passenden Handler-Props werden mit den richtigen Argumenten
  * aufgerufen, nicht dass irgendein Netzwerk-Request stattfindet.
  */
-import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { ChatView } from './ChatView';
 import { api } from '@/app/services/api';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ChatView } from './ChatView';
 
 vi.mock('@/app/services/api', () => ({
   api: {
@@ -23,7 +24,7 @@ vi.mock('@/app/services/api', () => ({
   },
 }));
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof ChatView>> = {}) {
+function makeProps(overrides: Partial<React.ComponentProps<typeof ChatView>> = {}): React.ComponentProps<typeof ChatView> {
   return {
     theme: 'dark',
     isSidebarOpen: true,
@@ -31,7 +32,7 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof ChatView>> = {
     onProjectSelect: vi.fn(),
     pinnedCode: null,
     setPinnedCode: vi.fn(),
-    chatMessages: [] as any[],
+    chatMessages: [],
     currentMessage: '',
     setCurrentMessage: vi.fn(),
     isLoading: false,
@@ -42,7 +43,7 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof ChatView>> = {
     handleFileSelect: vi.fn(),
     activeProfileId: 'p1',
     setActiveProfileId: vi.fn(),
-    llmProfiles: [{ id: 'p1', name: 'Mistral', model: 'mistral-nemo' }],
+    llmProfiles: [{ id: 'p1', name: 'Mistral', model: 'mistral-nemo', provider: 'ollama' }],
     showToast: vi.fn(),
     selectedFile: null,
     selectedDoc: null,
@@ -59,7 +60,7 @@ function renderChat(overrides: Partial<React.ComponentProps<typeof ChatView>> = 
   const props = makeProps(overrides);
   const view = render(
     <LanguageProvider>
-      <ChatView {...(props as any)} />
+      <ChatView {...(props)} />
     </LanguageProvider>
   );
   return { ...view, props };
@@ -72,7 +73,7 @@ describe('ChatView', () => {
 
   describe('leerer Zustand', () => {
     it('zeigt die Vorschlagskarten, solange kein Chatverlauf existiert', async () => {
-      vi.mocked(api.getTypingStatement).mockResolvedValue({ data: { statement: 'Testansage' } } as any);
+      vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'Testansage' }));
 
       renderChat();
 
@@ -102,7 +103,7 @@ describe('ChatView', () => {
     });
 
     it('das Projekt-Onboarding-Vorschlagsfeld ist ohne ausgewähltes Projekt deaktiviert und zeigt einen Hinweis-Toast', async () => {
-      vi.mocked(api.getTypingStatement).mockResolvedValue({ data: { statement: 'x' } } as any);
+      vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
       const showToast = vi.fn();
 
       renderChat({ selectedProject: null, showToast });
@@ -112,7 +113,7 @@ describe('ChatView', () => {
     });
 
     it('ein Vorschlag mit Rückfrage ("clarify") übernimmt den Textbaustein und stellt die Rückfrage als Assistenten-Hinweis', async () => {
-      vi.mocked(api.getTypingStatement).mockResolvedValue({ data: { statement: 'x' } } as any);
+      vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
       const addAssistantHint = vi.fn();
       const setCurrentMessage = vi.fn();
 
@@ -128,10 +129,10 @@ describe('ChatView', () => {
   describe('Nachrichten rendern', () => {
     it('rendert Nutzer- und Assistentennachrichten inklusive Markdown (fett, Codeblock)', () => {
       const chatMessages = [
-        { id: 1, role: 'user', content: 'Was macht DISPATCHER.cbl?' },
+        { id: 1, role: 'user' as const, content: 'Was macht DISPATCHER.cbl?' },
         {
           id: 2,
-          role: 'assistant',
+          role: 'assistant' as const,
           content: 'Das ist **wichtig**:\n\n```cobol\nMOVE 1 TO WS-FLAG.\n```',
         },
       ];
@@ -148,7 +149,7 @@ describe('ChatView', () => {
       const chatMessages = [
         {
           id: 1,
-          role: 'user',
+          role: 'user' as const,
           content: 'Zeig mir das',
           metadata: { refs: [{ file: 'src/DISPATCHER.cbl', line: 42, source_id: '7' }] },
         },
@@ -166,7 +167,7 @@ describe('ChatView', () => {
       const chatMessages = [
         {
           id: 2,
-          role: 'assistant',
+          role: 'assistant' as const,
           content: 'Antwort.',
           sources: [{ file: 'src/DISPATCHER.cbl', lines: [10, 20], source_id: '7' }],
         },
@@ -182,7 +183,7 @@ describe('ChatView', () => {
 
     it('zeigt das Modell-Badge einer Assistentenantwort', () => {
       const chatMessages = [
-        { id: 2, role: 'assistant', content: 'Antwort.', metadata: { model: 'mistral-nemo' } },
+        { id: 2, role: 'assistant' as const, content: 'Antwort.', metadata: { model: 'mistral-nemo', provider: 'ollama' } },
       ];
 
       renderChat({ chatMessages });
@@ -194,8 +195,8 @@ describe('ChatView', () => {
   describe('Streaming-Anzeige', () => {
     it('zeigt einen Ladeindikator, solange die letzte Assistentennachricht noch keinen Inhalt hat', () => {
       const chatMessages = [
-        { id: 1, role: 'user', content: 'Frage' },
-        { id: 2, role: 'assistant', content: '' },
+        { id: 1, role: 'user' as const, content: 'Frage' },
+        { id: 2, role: 'assistant' as const, content: '' },
       ];
 
       renderChat({ chatMessages, isLoading: true });
@@ -205,7 +206,7 @@ describe('ChatView', () => {
 
     it('zeigt "Agent arbeitet..." statt der Aktionsleiste, solange die letzte Antwort noch streamt', () => {
       const chatMessages = [
-        { id: 2, role: 'assistant', content: 'Teilantwort...' },
+        { id: 2, role: 'assistant' as const, content: 'Teilantwort...' },
       ];
 
       renderChat({ chatMessages, isLoading: true });
@@ -217,7 +218,7 @@ describe('ChatView', () => {
 
     it('zeigt die Aktionsleiste (Copy/Feedback/Retry), sobald die Antwort fertig ist', () => {
       const chatMessages = [
-        { id: 2, role: 'assistant', content: 'Fertige Antwort.' },
+        { id: 2, role: 'assistant' as const, content: 'Fertige Antwort.' },
       ];
 
       renderChat({ chatMessages, isLoading: false });
@@ -233,8 +234,8 @@ describe('ChatView', () => {
     it('ruft handleRetryMessage mit dem Nachrichtenindex auf', () => {
       const handleRetryMessage = vi.fn();
       const chatMessages = [
-        { id: 1, role: 'user', content: 'Frage' },
-        { id: 2, role: 'assistant', content: 'Antwort.' },
+        { id: 1, role: 'user' as const, content: 'Frage' },
+        { id: 2, role: 'assistant' as const, content: 'Antwort.' },
       ];
 
       renderChat({ chatMessages, handleRetryMessage });
@@ -245,7 +246,7 @@ describe('ChatView', () => {
     });
 
     it('deaktiviert Retry, solange noch geladen wird', () => {
-      const chatMessages = [{ id: 2, role: 'assistant', content: 'Antwort.' }];
+      const chatMessages = [{ id: 2, role: 'assistant' as const, content: 'Antwort.' }];
 
       renderChat({ chatMessages, isLoading: true });
 
@@ -255,8 +256,8 @@ describe('ChatView', () => {
       // *abgeschlossenen* vorherigen Nachricht abgesichert, dass ein bereits
       // fertiger Retry-Button gesperrt bleibt, wenn eine andere Nachricht lädt.
       const chatMessagesTwo = [
-        { id: 1, role: 'assistant', content: 'Ältere fertige Antwort.' },
-        { id: 2, role: 'assistant', content: '', metadata: { agent_steps: [] } },
+        { id: 1, role: 'assistant' as const, content: 'Ältere fertige Antwort.' },
+        { id: 2, role: 'assistant' as const, content: '', metadata: { agent_steps: [] } },
       ];
       const handleRetryMessage = vi.fn();
       renderChat({ chatMessages: chatMessagesTwo, isLoading: true, handleRetryMessage });
@@ -270,7 +271,7 @@ describe('ChatView', () => {
 
     it('ruft handleFeedback mit Nachrichten-ID und "up"/"down" auf', () => {
       const handleFeedback = vi.fn();
-      const chatMessages = [{ id: 42, role: 'assistant', content: 'Antwort.' }];
+      const chatMessages = [{ id: 42, role: 'assistant' as const, content: 'Antwort.' }];
 
       renderChat({ chatMessages, handleFeedback });
 
@@ -283,7 +284,7 @@ describe('ChatView', () => {
 
     it('deaktiviert Feedback-Buttons für Nachrichten ohne ID (noch nicht persistiert)', () => {
       const handleFeedback = vi.fn();
-      const chatMessages = [{ role: 'assistant', content: 'Antwort ohne ID.' }];
+      const chatMessages = [{ role: 'assistant' as const, content: 'Antwort ohne ID.' }];
 
       renderChat({ chatMessages, handleFeedback });
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from 'react';
+import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageSquare, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useRef } from 'react';
 
 // Grobe Zeilenhöhe (px-3 py-2 + Icon) -- vom Virtualizer nur als Startschätzung
 // gebraucht, `measureElement` gleicht danach an die tatsächliche Höhe an.
@@ -12,7 +12,7 @@ const ESTIMATED_ROW_HEIGHT = 40;
 export interface SidebarSession {
   id: number;
   title: string;
-  [key: string]: unknown;
+
 }
 
 interface VirtualizedSessionListProps {

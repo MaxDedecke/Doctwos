@@ -1,11 +1,14 @@
 "use client";
+import type { LlmProfile } from '@/hooks/useAiSettings';
+import type { ChatPinnedFocus } from '@/lib/chatFocus';
+import type { ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
-import React from 'react';
-import { ChatView } from '@/components/ChatView';
 import { CallGraphView } from '@/components/CallGraphView';
+import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
 import type { PanelSelection } from '@/lib/panelHistory';
+import React from 'react';
 
 type PanelTab = 'code' | 'doc' | 'weborigin' | 'graph';
 
@@ -15,15 +18,15 @@ type PanelContentRendererProps = {
   selection: PanelSelection;
   theme: string;
   isSidebarOpen: boolean;
-  selectedProject: any | null;
-  handleProjectSelect: (project: any | null) => void | Promise<void>;
-  pinnedCode: any;
-  setPinnedCode: (code: any) => void;
-  chatMessages: any[];
+  selectedProject: Project | null;
+  handleProjectSelect: (project: Project | null) => void | Promise<void>;
+  pinnedCode: ChatPinnedFocus | null;
+  setPinnedCode: (code: ChatPinnedFocus | null) => void;
+  chatMessages: ChatMessage[];
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   isLoading: boolean;
-  handleSendChat: (overrideMessage?: string, extraMetadata?: Record<string, any>) => void;
+  handleSendChat: (overrideMessage?: string, extraMetadata?: ChatMetadata) => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
@@ -36,11 +39,11 @@ type PanelContentRendererProps = {
   ) => Promise<void>;
   activeProfileId: string;
   setActiveProfileId: (value: string) => void;
-  llmProfiles: any[];
+  llmProfiles: LlmProfile[];
   showToast: (message: string, type?: string) => void;
-  selectedSource: any | null;
-  setSelectedSource: (source: any | null) => void;
-  connectedSources: any[];
+  selectedSource: KnowledgeSource | null;
+  setSelectedSource: (source: KnowledgeSource | null) => void;
+  connectedSources: KnowledgeSource[];
   activeLlmModel: string;
   activeEmbeddingModel: string;
   editorFontSize: number;
@@ -50,16 +53,16 @@ type PanelContentRendererProps = {
   setIsReferencesDropdownOpen: (open: boolean) => void;
   referencesTab: 'code' | 'docs';
   setReferencesTab: (tab: 'code' | 'docs') => void;
-  handlePanelEntitySelect: (index: number, entity: any) => Promise<void> | void;
+  handlePanelEntitySelect: (index: number, entity: CodeEntity) => Promise<void> | void;
   handleGutterClick: (index: number, lineNumber: number, lineContent: string) => void;
-  handleGutterAskEntity: (index: number, entity: any) => void;
-  projectEntities: any[];
-  fileNavStack: Array<{ file: string | null; doc: any | null; tab: PanelTab }>;
+  handleGutterAskEntity: (index: number, entity: CodeEntity) => void;
+  projectEntities: CodeEntity[];
+  fileNavStack: Array<{ file: string | null; doc: WorkspaceDocument | null; tab: PanelTab }>;
   handleNavigateBack: () => Promise<void> | void;
   handleDocFocusRequest: (filePath: string, sourceId: number | string | null) => void;
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
   chatEndRef: React.RefObject<HTMLDivElement>;
-  currentUser: any | null;
+  currentUser: User | null;
 };
 
 /**

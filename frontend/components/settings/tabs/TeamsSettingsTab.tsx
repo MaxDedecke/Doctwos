@@ -1,10 +1,8 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
+import type { Team, User } from '@/types/domain';
 
-import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, Check, X, ChevronRight, Users, Edit, Trash2, UserPlus } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { Check, ChevronRight, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'teams'-Tab (Admin-only; docs/TECH_DEBT_CLEANUP_PLAN.md
 // §5, Schritt 2). Vollständig eigenständig: teams-Zustand, refreshTeams (inkl. der
@@ -25,8 +27,8 @@ export const TeamsSettingsTab: React.FC = () => {
   const { t } = useLanguage();
   const { theme, showToast } = useSettings();
 
-  const [teams, setTeams] = useState<any[]>([]);
-  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
@@ -34,7 +36,7 @@ export const TeamsSettingsTab: React.FC = () => {
   const [addMemberUserId, setAddMemberUserId] = useState<string>("");
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editTeamNameInput, setEditTeamNameInput] = useState("");
-  const [teamMembers, setTeamMembers] = useState<Record<number, any[]>>({});
+  const [teamMembers, setTeamMembers] = useState<Record<number, User[]>>({});
 
   const refreshTeams = async () => {
     setIsLoadingTeams(true);
@@ -86,15 +88,15 @@ export const TeamsSettingsTab: React.FC = () => {
       setNewTeamName("");
       showToast(t('settings.toast.teamCreated'), "success");
       await refreshTeams();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.teamCreateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamCreateFailed'), "error");
     } finally {
       setIsCreatingTeam(false);
     }
   };
 
-  const handleStartRenameTeam = (team: any) => {
+  const handleStartRenameTeam = (team: Team) => {
     setEditingTeamId(team.id);
     setEditTeamNameInput(team.name);
   };
@@ -106,9 +108,9 @@ export const TeamsSettingsTab: React.FC = () => {
       setEditingTeamId(null);
       showToast(t('settings.toast.teamRenamed'), "success");
       await refreshTeams();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.teamRenameFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamRenameFailed'), "error");
     }
   };
 
@@ -119,9 +121,9 @@ export const TeamsSettingsTab: React.FC = () => {
       showToast(t('settings.toast.teamDeleted', { name: teamName }), "success");
       if (expandedTeamId === teamId) setExpandedTeamId(null);
       await refreshTeams();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.teamDeleteFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamDeleteFailed'), "error");
     }
   };
 
@@ -132,9 +134,9 @@ export const TeamsSettingsTab: React.FC = () => {
       setAddMemberUserId("");
       showToast(t('settings.toast.memberAdded'), "success");
       await refreshTeamMembers(teamId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.memberAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error");
     }
   };
 
@@ -143,9 +145,9 @@ export const TeamsSettingsTab: React.FC = () => {
       await api.removeTeamMember(teamId, userId);
       showToast(t('settings.toast.memberRemoved'), "success");
       await refreshTeamMembers(teamId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.memberRemoveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error");
     }
   };
 
@@ -193,11 +195,11 @@ export const TeamsSettingsTab: React.FC = () => {
             {t('settings.teams.empty')}
           </div>
         ) : (
-          teams.map((team: any) => {
+          teams.map((team: Team) => {
             const isExpanded = expandedTeamId === team.id;
             const members = teamMembers[team.id] || [];
-            const memberIds = new Set(members.map((m: any) => m.id));
-            const availableUsers = allUsers.filter((u: any) => !memberIds.has(u.id));
+            const memberIds = new Set(members.map((m) => m.id));
+            const availableUsers = allUsers.filter((u) => !memberIds.has(u.id));
             return (
               <div
                 key={team.id}
@@ -278,7 +280,7 @@ export const TeamsSettingsTab: React.FC = () => {
                           {t('settings.teams.noMembers')}
                         </div>
                       ) : (
-                        members.map((member: any) => (
+                        members.map((member) => (
                           <div
                             key={member.id}
                             className={cn(
@@ -311,7 +313,7 @@ export const TeamsSettingsTab: React.FC = () => {
                             <SelectValue placeholder={t('settings.teams.addMemberPlaceholder')} />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableUsers.map((u: any) => (
+                            {availableUsers.map((u) => (
                               <SelectItem key={u.id} value={String(u.id)}>{u.name || u.email}</SelectItem>
                             ))}
                           </SelectContent>

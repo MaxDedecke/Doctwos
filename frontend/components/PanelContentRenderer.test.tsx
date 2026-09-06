@@ -1,3 +1,7 @@
+import type { ChatView } from './ChatView';
+import type { CallGraphView } from './CallGraphView';
+import type { LinkManagerView } from './LinkManagerView';
+import type { SplitPaneWorkspace } from './SplitPaneWorkspace';
 /**
  * O-061 (Teil 1): die Zuordnung Panel-Konfiguration → gerenderter Inhalt war
  * ungetestet. `PanelContentRenderer` ist die Weiche: aus dem `contentType`
@@ -18,10 +22,22 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PanelContentRenderer } from './PanelContentRenderer';
 
-const captured: Record<string, any> = {};
+type CapturedProps = {
+  'chat-view': React.ComponentProps<typeof ChatView>;
+  'callgraph-view': React.ComponentProps<typeof CallGraphView>;
+  'linkmanager-view': React.ComponentProps<typeof LinkManagerView>;
+  'split-pane': React.ComponentProps<typeof SplitPaneWorkspace>;
+};
+const captured: Partial<CapturedProps> = {};
 
-function stub(name: string) {
-  const Stub = (props: any) => {
+function getCaptured<K extends keyof CapturedProps>(name: K): CapturedProps[K] {
+  const props = captured[name];
+  if (!props) throw new Error(`No props captured for ${name}`);
+  return props;
+}
+
+function stub<K extends keyof CapturedProps>(name: K) {
+  const Stub = (props: CapturedProps[K]) => {
     captured[name] = props;
     return <div data-testid={name} />;
   };
@@ -37,11 +53,11 @@ vi.mock('@/components/SplitPaneWorkspace', () => ({ SplitPaneWorkspace: stub('sp
 const SELECTION = {
   selectedFile: 'src/ZAHLUNG.cbl',
   selectedDoc: { id: 9, name: 'Handbuch.pdf' },
-  selectedEntity: { id: 42, name: 'ZAHLUNG', source_id: 5 },
+  selectedEntity: { id: 42, name: 'ZAHLUNG', source_id: 5, file_path: 'src/ZAHLUNG.cbl', start_line: 12 },
   selectedLine: 12,
 };
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof PanelContentRenderer>> = {}) {
+function makeProps(overrides: Partial<React.ComponentProps<typeof PanelContentRenderer>> = {}): React.ComponentProps<typeof PanelContentRenderer> {
   return {
     index: 2,
     contentType: 'chat',
@@ -63,7 +79,7 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof PanelContentRe
     handlePanelFileSelect: vi.fn(),
     activeProfileId: 'p1',
     setActiveProfileId: vi.fn(),
-    llmProfiles: [{ id: 'p1', name: 'Mistral', model: 'mistral-nemo' }],
+    llmProfiles: [{ id: 'p1', name: 'Mistral', model: 'mistral-nemo', provider: 'ollama' }],
     showToast: vi.fn(),
     selectedSource: null,
     setSelectedSource: vi.fn(),
@@ -86,20 +102,20 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof PanelContentRe
     handleDocFocusRequest: vi.fn(),
     layoutMode: '4-grid' as const,
     chatEndRef: React.createRef<HTMLDivElement>(),
-    currentUser: { is_admin: true },
+    currentUser: { id: 1, username: 'admin', is_admin: true },
     ...overrides,
   };
 }
 
 function renderPanel(overrides: Partial<React.ComponentProps<typeof PanelContentRenderer>> = {}) {
   const props = makeProps(overrides);
-  const view = render(<PanelContentRenderer {...(props as any)} />);
+  const view = render(<PanelContentRenderer {...(props)} />);
   return { ...view, props };
 }
 
 describe('PanelContentRenderer', () => {
   beforeEach(() => {
-    for (const key of Object.keys(captured)) delete captured[key];
+    for (const key of Object.keys(captured)) delete captured[key as keyof CapturedProps];
   });
 
   describe('Panel-Typ → Ansicht', () => {
@@ -114,16 +130,16 @@ describe('PanelContentRenderer', () => {
       renderPanel({ contentType: 'callgraph' });
 
       expect(screen.getByTestId('callgraph-view')).toBeTruthy();
-      expect(captured['callgraph-view'].focusedEntity).toBe(SELECTION.selectedEntity);
-      expect(captured['callgraph-view'].projectId).toBe(3);
+      expect(getCaptured('callgraph-view').focusedEntity).toBe(SELECTION.selectedEntity);
+      expect(getCaptured('callgraph-view').projectId).toBe(3);
     });
 
     it('rendert für "linkmanager" den Link-Manager samt Nutzerrolle', () => {
       renderPanel({ contentType: 'linkmanager' });
 
       expect(screen.getByTestId('linkmanager-view')).toBeTruthy();
-      expect(captured['linkmanager-view'].currentUser).toEqual({ is_admin: true });
-      expect(captured['linkmanager-view'].selectedProject).toEqual(expect.objectContaining({ id: 3 }));
+      expect(getCaptured('linkmanager-view').currentUser).toEqual({ id: 1, username: 'admin', is_admin: true });
+      expect(getCaptured('linkmanager-view').selectedProject).toEqual(expect.objectContaining({ id: 3 }));
     });
 
     it.each([
@@ -135,43 +151,43 @@ describe('PanelContentRenderer', () => {
       renderPanel({ contentType });
 
       expect(screen.getByTestId('split-pane')).toBeTruthy();
-      expect(captured['split-pane'].activeRightTab).toBe(expectedTab);
+      expect(getCaptured('split-pane').activeRightTab).toBe(expectedTab);
     });
 
     it('fällt bei einem unbekannten Panel-Typ auf die Code-Ansicht zurück', () => {
       renderPanel({ contentType: 'gibtsnicht' });
 
       expect(screen.getByTestId('split-pane')).toBeTruthy();
-      expect(captured['split-pane'].activeRightTab).toBe('code');
+      expect(getCaptured('split-pane').activeRightTab).toBe('code');
     });
 
     it('reicht die Auswahl des Panels an den Split-Pane durch', () => {
       renderPanel({ contentType: 'code' });
 
-      expect(captured['split-pane'].selectedFile).toBe('src/ZAHLUNG.cbl');
-      expect(captured['split-pane'].selectedDoc).toEqual({ id: 9, name: 'Handbuch.pdf' });
-      expect(captured['split-pane'].selectedEntity).toBe(SELECTION.selectedEntity);
-      expect(captured['split-pane'].selectedLine).toBe(12);
+      expect(getCaptured('split-pane').selectedFile).toBe('src/ZAHLUNG.cbl');
+      expect(getCaptured('split-pane').selectedDoc).toEqual({ id: 9, name: 'Handbuch.pdf' });
+      expect(getCaptured('split-pane').selectedEntity).toBe(SELECTION.selectedEntity);
+      expect(getCaptured('split-pane').selectedLine).toBe(12);
     });
   });
 
   describe('typabhängig durchgereichte Props', () => {
     it('gibt den Layoutmodus nur an das Graph-Panel weiter', () => {
       const { unmount } = renderPanel({ contentType: 'graph' });
-      expect(captured['split-pane'].layoutMode).toBe('4-grid');
+      expect(getCaptured('split-pane').layoutMode).toBe('4-grid');
       unmount();
 
       renderPanel({ contentType: 'code' });
-      expect(captured['split-pane'].layoutMode).toBeUndefined();
+      expect(getCaptured('split-pane').layoutMode).toBeUndefined();
     });
 
     it('nimmt dem Webview-Panel den Dokument-Fokus-Handler', () => {
       const { unmount, props } = renderPanel({ contentType: 'doc' });
-      expect(captured['split-pane'].onDocFocus).toBe(props.handleDocFocusRequest);
+      expect(getCaptured('split-pane').onDocFocus).toBe(props.handleDocFocusRequest);
       unmount();
 
       renderPanel({ contentType: 'webview' });
-      expect(captured['split-pane'].onDocFocus).toBeUndefined();
+      expect(getCaptured('split-pane').onDocFocus).toBeUndefined();
     });
   });
 
@@ -179,7 +195,7 @@ describe('PanelContentRenderer', () => {
     it('bindet die Dateiauswahl der Chat-Ansicht an das eigene Panel', () => {
       const { props } = renderPanel({ contentType: 'chat' });
 
-      captured['chat-view'].handleFileSelect('src/UNTER.cbl', 20, '5');
+      getCaptured('chat-view').handleFileSelect('src/UNTER.cbl', 20, '5');
 
       expect(props.handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/UNTER.cbl', 20, '5');
     });
@@ -187,7 +203,7 @@ describe('PanelContentRenderer', () => {
     it('öffnet einen Call-Graph-Sprung in einem eigenen Panel, statt ein eingefrorenes zu überschreiben', () => {
       const { props } = renderPanel({ contentType: 'callgraph' });
 
-      captured['callgraph-view'].onFileSelect('src/UNTER.cbl', 20, 5);
+      getCaptured('callgraph-view').onFileSelect('src/UNTER.cbl', 20, 5);
 
       // openIfMissing=true -- ein Sprung aus dem Call-Graph darf ein Zielpanel
       // aufmachen. Der frühere Zusatzparameter preserveFrozenTarget ist mit
@@ -199,7 +215,7 @@ describe('PanelContentRenderer', () => {
     it('übersetzt die Dokumentauswahl des Split-Pane in Name und Quellen-ID', () => {
       const { props } = renderPanel({ contentType: 'doc' });
 
-      captured['split-pane'].setSelectedDoc({ id: 9, name: 'Handbuch.pdf' });
+      getCaptured('split-pane').setSelectedDoc({ id: 9, name: 'Handbuch.pdf' });
 
       expect(props.handlePanelFileSelect).toHaveBeenCalledWith(2, 'Handbuch.pdf', null, 9);
     });
@@ -207,8 +223,8 @@ describe('PanelContentRenderer', () => {
     it('räumt eine abgewählte Datei über denselben Weg ab', () => {
       const { props } = renderPanel({ contentType: 'code' });
 
-      captured['split-pane'].setSelectedFile(null);
-      captured['split-pane'].setSelectedDoc(null);
+      getCaptured('split-pane').setSelectedFile(null);
+      getCaptured('split-pane').setSelectedDoc(null);
 
       expect(props.handlePanelFileSelect).toHaveBeenNthCalledWith(1, 2, null);
       expect(props.handlePanelFileSelect).toHaveBeenNthCalledWith(2, 2, null, null, null);
@@ -217,13 +233,13 @@ describe('PanelContentRenderer', () => {
     it('bindet Gutter-Klicks und Entity-Auswahl an das eigene Panel', () => {
       const { props } = renderPanel({ contentType: 'code' });
 
-      captured['split-pane'].handleEntitySelect({ id: 42 });
-      captured['split-pane'].onGutterClick(7, 'MOVE A TO B');
-      captured['split-pane'].onGutterAskEntity({ id: 42 });
+      getCaptured('split-pane').handleEntitySelect!(SELECTION.selectedEntity);
+      getCaptured('split-pane').onGutterClick!(7, 'MOVE A TO B');
+      getCaptured('split-pane').onGutterAskEntity!(SELECTION.selectedEntity);
 
-      expect(props.handlePanelEntitySelect).toHaveBeenCalledWith(2, { id: 42 });
+      expect(props.handlePanelEntitySelect).toHaveBeenCalledWith(2, SELECTION.selectedEntity);
       expect(props.handleGutterClick).toHaveBeenCalledWith(2, 7, 'MOVE A TO B');
-      expect(props.handleGutterAskEntity).toHaveBeenCalledWith(2, { id: 42 });
+      expect(props.handleGutterAskEntity).toHaveBeenCalledWith(2, SELECTION.selectedEntity);
     });
   });
 });

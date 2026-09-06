@@ -1,27 +1,29 @@
 "use client";
+import type { CodeEntity } from '@/types/domain';
+import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Download, FileCode, Loader2, Maximize2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
-import { API_URL } from '@/app/services/api';
-import { cn } from '@/lib/utils';
+import { api, API_URL } from '@/app/services/api';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
+import { AlertTriangle, Download, FileCode, Loader2, Maximize2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
-type CallNode = {
+export type CallNode = {
   id: string;
   entityId?: number;
   name: string;
   type: string;
   file_path?: string;
-  start_line?: number;
-  source_id?: number | null;
+  start_line?: number | null;
+  source_id?: number | string | null;
   unresolved?: boolean;
   x?: number;
   y?: number;
 };
 
-type CallEdge = {
+export type CallEdge = {
   id: string;
   source: string | CallNode;
   target: string | CallNode;
@@ -39,7 +41,7 @@ const EDGE_COLORS: Record<string, string> = {
 
 interface Props {
   theme: string;
-  focusedEntity: any | null;
+  focusedEntity: Pick<CodeEntity, 'id' | 'name'> | null;
   onFileSelect: (path: string, line?: number | null, sourceId?: number | string | null) => void;
   // Aktuell ausgewähltes Projekt (Workspace-weit) -- als Projekt-Kontext an
   // /callgraph/focus|export mitgeschickt, damit ein Fokus auf eine eigene
@@ -53,8 +55,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   const { t } = useLanguage();
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<any>(null);
-  const [ForceGraph, setForceGraph] = useState<any>(null);
+  const graphRef = useRef<ForceGraphMethods<CallNode, CallEdge> | undefined>(undefined);
+  const [ForceGraph, setForceGraph] = useState<React.ComponentType<ForceGraphProps<CallNode, CallEdge> & { ref?: React.MutableRefObject<ForceGraphMethods<CallNode, CallEdge> | undefined> }> | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hops, setHops] = useState(1);
   const [graph, setGraph] = useState<{ nodes: CallNode[]; edges: CallEdge[] }>({ nodes: [], edges: [] });
@@ -86,20 +88,20 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     setError(null);
     try {
       const projectParam = projectId ? `&project_id=${projectId}` : '';
-      const response = await fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}`, { credentials: 'include' });
+      const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      const nodes: CallNode[] = (data.nodes || []).map((node: any) => ({
+      const data: { nodes: CodeEntity[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: CallEdge['type']; resolution: string }>; truncated?: boolean } = await response.json();
+      const nodes: CallNode[] = (data.nodes || []).map((node) => ({
         id: `entity:${node.id}`,
         entityId: node.id,
         name: node.name,
-        type: node.type,
+        type: node.type || 'entity',
         file_path: node.file_path,
         start_line: node.start_line,
         source_id: node.source_id,
       }));
       const known = new Set(nodes.map(node => node.id));
-      const edges: CallEdge[] = (data.edges || []).map((edge: any) => {
+      const edges: CallEdge[] = (data.edges || []).map((edge) => {
         let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
         if (!known.has(target)) {
           nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
@@ -116,14 +118,11 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
       setGraph({ nodes, edges });
       setTruncated(Boolean(data.truncated));
       setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
-    } catch (err: any) {
-      setError(err?.message || t('callGraphView.loadError'));
+    } catch (err) {
+      setError((err instanceof Error ? err.message : undefined) || t('callGraphView.loadError'));
     } finally {
       setLoading(false);
     }
-    // focusedEntity is typed `any`, so the compiler can't narrow the
-    // dependency to `.id` on its own — depend on the whole reference to
-    // match what it infers.
   }, [focusedEntity, hops, projectId, t]);
 
   useEffect(() => {
@@ -146,7 +145,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
     if (!focusedEntity?.id) return;
     const projectParam = projectId ? `&project_id=${projectId}` : '';
-    const response = await fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}`, { credentials: 'include' });
+    const response = await api.fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}`);
     if (!response.ok) return setError(t('callGraphView.exportError', { status: response.status }));
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -186,14 +185,14 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
           width={dimensions.width}
           height={dimensions.height}
           backgroundColor={resolveDsColor(isDark ? 'rgb(var(--ds-neutral-950))' : 'rgb(var(--ds-white))')}
-          nodeLabel={(node: any) => `${node.name} (${node.type})`}
-          nodeColor={(node: any) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
-          nodeVal={(node: any) => node.entityId === focusedEntity.id ? 7 : 4}
+          nodeLabel={(node: CallNode) => `${node.name} (${node.type})`}
+          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
+          nodeVal={(node: CallNode) => node.entityId === focusedEntity.id ? 7 : 4}
           nodeCanvasObjectMode={() => 'replace'}
-          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          nodeCanvasObject={(node: CallNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
             const radius = node.entityId === focusedEntity.id ? 8 : 7;
             ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+            ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
             ctx.fillStyle = node.unresolved
               ? resolveDsColor('rgb(var(--ds-warning-base))')
               : node.entityId === focusedEntity.id
@@ -209,16 +208,16 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
               ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-              ctx.fillText(truncated, node.x, node.y + radius + 2 / globalScale);
+              ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 2 / globalScale);
             }
           }}
-          linkColor={(edge: any) => resolveDsColor(edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : 'rgb(var(--ds-warning-base))')}
+          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : 'rgb(var(--ds-warning-base))')}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
-          linkLineDash={(edge: any) => edge.resolution === 'resolved' ? null : [4, 3]}
-          linkLabel={(edge: any) => `${edge.type} · ${edge.resolution}`}
-          onNodeClick={(node: any) => { if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id); }}
+          linkLineDash={(edge: CallEdge) => edge.resolution === 'resolved' ? null : [4, 3]}
+          linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.resolution}`}
+          onNodeClick={(node: CallNode) => { if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id); }}
         />}
       </div>
     </div>

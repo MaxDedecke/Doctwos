@@ -1,3 +1,4 @@
+import { axiosResponse } from '@/test/http';
 /**
  * O-056: `Sidebar.tsx` hatte nach dem O-036-Umbau nur für die ausgelagerten
  * Unterkomponenten (`VirtualizedSessionList`, `FileTreeList`,
@@ -14,12 +15,12 @@
  * würde keine einzige Zeile rendern (gleiches Vorgehen wie in
  * `sidebar/VirtualizedSessionList.test.tsx`).
  */
-import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { Sidebar } from './Sidebar';
 import { api } from '@/app/services/api';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Sidebar } from './Sidebar';
 
 vi.mock('@/app/services/api', () => ({
   api: {
@@ -34,14 +35,14 @@ function setWindowWidth(width: number) {
   Object.defineProperty(window, 'innerWidth', { value: width, configurable: true, writable: true });
 }
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}) {
+function makeProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}): React.ComponentProps<typeof Sidebar> {
   return {
     theme: 'dark',
     isSidebarOpen: true,
     setIsSidebarOpen: vi.fn(),
     backendStatus: 'online',
     startNewChat: vi.fn(),
-    sessions: [] as any[],
+    sessions: [],
     activeSessionId: null,
     handleSessionSelect: vi.fn(),
     handleRemoveSession: vi.fn(),
@@ -50,7 +51,7 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof Sidebar>> = {}
     selectedDoc: null,
     handleFileSelect: vi.fn(),
     handleLogout: vi.fn(),
-    connectedSources: [] as any[],
+    connectedSources: [],
     pinnedSourceIds: [] as number[],
     currentUser: null,
     ...overrides,
@@ -61,7 +62,7 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof Sidebar>> 
   const props = makeProps(overrides);
   const view = render(
     <LanguageProvider>
-      <Sidebar {...(props as any)} />
+      <Sidebar {...(props)} />
     </LanguageProvider>
   );
   return { ...view, props };
@@ -74,7 +75,7 @@ function sectionCount(headline: string): string {
 }
 
 function filesResponse(files: string[]) {
-  return { data: { files } } as any;
+  return axiosResponse({ files });
 }
 
 describe('Sidebar', () => {
@@ -252,9 +253,9 @@ describe('Sidebar', () => {
     });
 
     it('zeigt während des Ladens einen Ladehinweis', async () => {
-      let resolveFiles: (value: unknown) => void = () => {};
+      let resolveFiles: (value: ReturnType<typeof filesResponse>) => void = () => {};
       vi.mocked(api.getKnowledgeSourceFiles).mockReturnValue(
-        new Promise(resolve => { resolveFiles = resolve; }) as any
+        new Promise(resolve => { resolveFiles = resolve; })
       );
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
@@ -277,8 +278,8 @@ describe('Sidebar', () => {
     });
 
     it('hält immer nur eine Quelle gleichzeitig offen', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockImplementation((id: number) =>
-        Promise.resolve(filesResponse([id === 7 ? 'src/MAIN.cbl' : 'src/OTHER.cbl'])) as any
+      vi.mocked(api.getKnowledgeSourceFiles).mockImplementation((id: number | string) =>
+        Promise.resolve(filesResponse([id === 7 ? 'src/MAIN.cbl' : 'src/OTHER.cbl']))
       );
 
       renderSidebar({ connectedSources: [gitSource, secondSource], pinnedSourceIds: [7, 8] });

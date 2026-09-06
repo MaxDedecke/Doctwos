@@ -1,15 +1,24 @@
 "use client";
+import type { DiagnosticsRun, KnowledgeSource, McpAuditEntry } from '@/types/domain';
 
-import React, { useState, useEffect } from 'react';
-import {
-  Download, Loader2, FileText, Activity, CheckCircle2,
-  AlertTriangle, ClipboardList, Terminal, RefreshCw, ShieldCheck, Clock3,
-} from 'lucide-react';
-import { cn, copyToClipboard } from "@/lib/utils";
 import { api, API_URL } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn, copyToClipboard } from "@/lib/utils";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Download,
+  FileText,
+  Loader2,
+  RefreshCw, ShieldCheck,
+  Terminal,
+} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'logs'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
 // Schritt 2). Logs-lokaler Zustand (activeLogSource, refreshingLogs, diagnostics*),
@@ -28,11 +37,11 @@ export const LogsSettingsTab: React.FC = () => {
     showToast,
   } = useSettings();
 
-  const [activeLogSource, setActiveLogSource] = useState<any | null>(null);
+  const [activeLogSource, setActiveLogSource] = useState<KnowledgeSource | null>(null);
   const [refreshingLogs, setRefreshingLogs] = useState<boolean>(false);
-  const [diagnosticsRun, setDiagnosticsRun] = useState<any | null>(null);
+  const [diagnosticsRun, setDiagnosticsRun] = useState<DiagnosticsRun | null>(null);
   const [diagnosticsGenerating, setDiagnosticsGenerating] = useState<boolean>(false);
-  const [mcpAuditEntries, setMcpAuditEntries] = useState<any[]>([]);
+  const [mcpAuditEntries, setMcpAuditEntries] = useState<McpAuditEntry[]>([]);
   const [mcpAuditRetentionDays, setMcpAuditRetentionDays] = useState<number | null>(null);
   const [mcpAuditLoading, setMcpAuditLoading] = useState<boolean>(false);
 
@@ -42,7 +51,7 @@ export const LogsSettingsTab: React.FC = () => {
       const res = await api.getKnowledgeSources();
       setConnectedSources(res.data);
       if (activeLogSource) {
-        const updatedSource = res.data.find((s: any) => s.id === activeLogSource.id);
+        const updatedSource = res.data.find((s) => s.id === activeLogSource?.id);
         if (updatedSource) {
           setActiveLogSource(updatedSource);
         }
@@ -312,7 +321,7 @@ export const LogsSettingsTab: React.FC = () => {
               {t('settings.logsTab.noSourcesConfigured')}
             </p>
           ) : (
-            connectedSources.map((src: any) => {
+            connectedSources.map((src) => {
               const status = src.sync_status || 'pending';
               let statusLabel = t('settings.logsTab.statusPending');
               let statusColorClass = theme === 'dark'
@@ -326,7 +335,7 @@ export const LogsSettingsTab: React.FC = () => {
                 statusIcon = (
                   <div className="flex items-center gap-1.5">
                     <Loader2 className="w-3 h-3 animate-spin shrink-0 text-ds-blue-500" />
-                    {src.progress > 0 && <span className="font-bold text-[9px]">{src.progress}%</span>}
+                    {(src.progress ?? 0) > 0 && <span className="font-bold text-[9px]">{src.progress}%</span>}
                   </div>
                 );
               } else if (status === 'completed') {
@@ -393,7 +402,7 @@ export const LogsSettingsTab: React.FC = () => {
                       disabled={status === 'syncing'}
                       onClick={async () => {
                         try {
-                          await api.syncKnowledgeSource(src.id);
+                          await api.syncKnowledgeSource(Number(src.id));
                           showToast(t('settings.logsTab.syncStartedToast'), "success");
                           refreshKnowledgeSources();
                         } catch (err) {

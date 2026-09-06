@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Database, Cpu, Terminal, Sliders, Layers, Users, UserCog } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Cpu, Database, Layers, Sliders, Terminal, UserCog, Users } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFeatures } from '@/lib/FeaturesContext';
 import { useSettings } from '@/components/settings/SettingsContext';
-import { LayoutSettingsTab } from '@/components/settings/tabs/LayoutSettingsTab';
 import { AiSettingsTab } from '@/components/settings/tabs/AiSettingsTab';
-import { ProjectSetupTab } from '@/components/settings/tabs/ProjectSetupTab';
-import { LogsSettingsTab } from '@/components/settings/tabs/LogsSettingsTab';
-import { TeamsSettingsTab } from '@/components/settings/tabs/TeamsSettingsTab';
-import { UsersSettingsTab } from '@/components/settings/tabs/UsersSettingsTab';
 import { GitSetupTab } from '@/components/settings/tabs/GitSetupTab';
+import { LayoutSettingsTab } from '@/components/settings/tabs/LayoutSettingsTab';
+import { LogsSettingsTab } from '@/components/settings/tabs/LogsSettingsTab';
+import { ProjectSetupTab } from '@/components/settings/tabs/ProjectSetupTab';
+import { ProjectsTab } from '@/components/settings/tabs/ProjectsTab';
 import { SourcesSetupTab } from '@/components/settings/tabs/SourcesSetupTab';
 import { SourcesTab } from '@/components/settings/tabs/SourcesTab';
-import { ProjectsTab } from '@/components/settings/tabs/ProjectsTab';
+import { TeamsSettingsTab } from '@/components/settings/tabs/TeamsSettingsTab';
+import { UsersSettingsTab } from '@/components/settings/tabs/UsersSettingsTab';
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useFeatures } from '@/lib/FeaturesContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
 
 interface SettingsModalProps {
   // Modal-Lebenszyklus bleibt Prop (gehört dem Parent). Der restliche Settings-
@@ -127,7 +127,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       key={tab.id}
                       type="button"
                       id={`settings-tab-btn-${tab.id}`}
-                      onClick={() => setSettingsTab(tab.id as any)}
+                      onClick={() => setSettingsTab(tab.id as typeof settingsTab)}
                       className={cn(
                         "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-left whitespace-nowrap shrink-0",
                         settingsTab === tab.id

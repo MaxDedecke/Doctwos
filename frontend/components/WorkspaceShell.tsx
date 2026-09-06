@@ -1,7 +1,8 @@
-import React from 'react';
-import { Code, MessageSquare, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { WorkspaceDocument } from '@/types/domain';
+import { Code, MessageSquare, Network } from 'lucide-react';
+import React from 'react';
 
 type MobileTab = 'chat' | 'editor' | 'graph';
 type LayoutMode = '1-pane' | 'split' | '3-col' | '4-grid';
@@ -11,7 +12,7 @@ interface WorkspaceShellProps {
   t: (key: string, values?: Record<string, string | number>) => string;
   isMobile: boolean;
   selectedFile: string | null;
-  selectedDoc: any | null;
+  selectedDoc: WorkspaceDocument | null;
   activeRightTab: 'code' | 'doc' | 'weborigin' | 'graph';
   setActiveRightTab: (tab: 'code' | 'doc' | 'weborigin' | 'graph') => void;
   activeMobileTab: MobileTab;

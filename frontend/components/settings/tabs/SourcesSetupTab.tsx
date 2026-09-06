@@ -1,12 +1,13 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
 
-import React, { useState } from 'react';
-import { Loader2, ClipboardList, Wrench, Folder, Building2, Plus, Send } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { Folder, Loader2, Plus, Send } from 'lucide-react';
+import React, { useState } from 'react';
 import { GitSetupTab } from './GitSetupTab';
 
 // Aus SettingsModal herausgelöster 'sources-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
@@ -82,9 +83,9 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       setConnectedSources(prev => [...prev, res.data]);
       showToast(t('settings.toast.sourceConnected', { type: activeSourceType }), "success");
       onDone();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.sourceConnectFailed', { type: activeSourceType }), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: activeSourceType }), "error");
     } finally {
       setIsConnectingSource(false);
     }
@@ -134,10 +135,10 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         setSourceConnError(res.data.message || t('settings.toast.connectionFailed'));
         showToast(res.data.message || t('settings.toast.connectionFailed'), "error");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setSourceConnStatus('error');
-      setSourceConnError(err.response?.data?.detail || t('settings.toast.networkTestError'));
+      setSourceConnError(apiErrorDetail(err) || t('settings.toast.networkTestError'));
       showToast(t('settings.toast.connectionFailed'), "error");
     } finally {
       setIsTestingSourceConn(false);
@@ -159,9 +160,9 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       setConnectedSources(prev => [...prev, res.data]);
       showToast(t('settings.toast.documentUploaded'), "success");
       onDone();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.documentUploadFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.documentUploadFailed'), "error");
     } finally {
       setIsUploading(false);
       setSelectedUploadFile(null);
@@ -182,8 +183,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       setFolderPath("/watched");
       setFolderName("");
       onDone();
-    } catch (err: any) {
-      showToast(err?.response?.data?.detail || t('settings.toast.sourceConnectFailed', { type: t('settings.sourcesTab.types.folderwatch.name') }), "error");
+    } catch (err) {
+      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: t('settings.sourcesTab.types.folderwatch.name') }), "error");
     } finally {
       setIsConnectingFolder(false);
     }
@@ -283,7 +284,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
             <div className="space-y-1.5">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.sourcesSetup.selectFileTitle')}</h5>
               <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
-                {t('settings.sourcesSetup.selectFileDesc', { project: selectedSourceRepoId === 'all' ? t('settings.sourcesTab.global') : (projects.find((p: any) => p.id.toString() === selectedSourceRepoId)?.name || '') })}
+                {t('settings.sourcesSetup.selectFileDesc', { project: selectedSourceRepoId === 'all' ? t('settings.sourcesTab.global') : (projects.find((p) => p.id.toString() === selectedSourceRepoId)?.name || '') })}
               </p>
             </div>
 

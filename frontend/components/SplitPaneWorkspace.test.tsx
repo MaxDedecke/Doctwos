@@ -1,3 +1,5 @@
+import type { EditorProps, OnMount } from '@monaco-editor/react';
+import type { KnowledgeGraphView } from './KnowledgeGraphView';
 /**
  * O-061 (Teil 2): `SplitPaneWorkspace` entscheidet als zweite Stufe der
  * Panel-Weiche, welcher Inhalt im rechten Bereich landet -- Graph-Ansicht,
@@ -11,13 +13,13 @@
  * `fileContent`/`fileContentFormat`-Props herein, die im Bauteil Vorrang vor
  * dem selbst geladenen Zustand haben.
  */
-import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SplitPaneWorkspace } from './SplitPaneWorkspace';
 
-const graphProps: Record<string, any> = {};
+const graphProps: Partial<React.ComponentProps<typeof KnowledgeGraphView>> = {};
 
 // Der Editor meldet sich -- wie das echte Monaco -- erst NACH dem ersten
 // Render über `onMount` zurück. Genau dieses Timing ist der Kern des
@@ -45,7 +47,7 @@ const monacoStub = {
   Range: class {},
 };
 
-function MonacoStub(props: any) {
+function MonacoStub(props: EditorProps) {
   // Bewusst per setTimeout und nicht im Effekt: React fuehrt Kind-Effekte VOR
   // Eltern-Effekten aus, ein onMount im Effekt waere also schon fertig, bevor
   // der Sprung-Effekt der Werkbank ueberhaupt laeuft -- und wuerde das echte
@@ -61,16 +63,16 @@ function MonacoStub(props: any) {
   React.useEffect(() => {
     if (mountedRef.current) return;
     mountedRef.current = true;
-    const timer = setTimeout(() => onMountRef.current?.(editorStub, monacoStub), 0);
+    const timer = setTimeout(() => onMountRef.current?.(editorStub as unknown as Parameters<OnMount>[0], monacoStub as unknown as Parameters<OnMount>[1]), 0);
     return () => clearTimeout(timer);
   }, []);
   return <div data-testid="monaco-editor" data-language={props.defaultLanguage}>{props.value}</div>;
 }
 
-vi.mock('@monaco-editor/react', () => ({ default: (props: any) => <MonacoStub {...props} /> }));
+vi.mock('@monaco-editor/react', () => ({ default: (props: EditorProps) => <MonacoStub {...props} /> }));
 
 vi.mock('./KnowledgeGraphView', () => ({
-  KnowledgeGraphView: (props: any) => {
+  KnowledgeGraphView: (props: React.ComponentProps<typeof KnowledgeGraphView>) => {
     Object.assign(graphProps, props);
     return <div data-testid="knowledge-graph" />;
   },
@@ -86,7 +88,7 @@ vi.mock('@/app/services/api', () => ({
   },
 }));
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof SplitPaneWorkspace>> = {}) {
+function makeProps(overrides: Partial<React.ComponentProps<typeof SplitPaneWorkspace>> = {}): React.ComponentProps<typeof SplitPaneWorkspace> {
   return {
     theme: 'dark',
     selectedFile: null,
@@ -126,7 +128,7 @@ function renderWorkspace(overrides: Partial<React.ComponentProps<typeof SplitPan
   const props = makeProps(overrides);
   const view = render(
     <LanguageProvider>
-      <SplitPaneWorkspace {...(props as any)} />
+      <SplitPaneWorkspace {...(props)} />
     </LanguageProvider>
   );
   return { ...view, props };
@@ -134,7 +136,7 @@ function renderWorkspace(overrides: Partial<React.ComponentProps<typeof SplitPan
 
 describe('SplitPaneWorkspace', () => {
   afterEach(() => {
-    for (const key of Object.keys(graphProps)) delete graphProps[key];
+    for (const key of Object.keys(graphProps)) delete graphProps[key as keyof typeof graphProps];
     editorStub.revealLineInCenter.mockClear();
     editorStub.setPosition.mockClear();
     vi.clearAllMocks();
@@ -257,9 +259,9 @@ describe('SplitPaneWorkspace', () => {
       ['code', 'Code-Datei wird geladen...'],
       ['weborigin', 'Web-Originalquelle wird geladen...'],
       ['doc', 'Dokument wird geladen...'],
-    ])('%s: benennt beim Laden die richtige Inhaltsart', (tab, label) => {
+    ] as const)('%s: benennt beim Laden die richtige Inhaltsart', (tab, label) => {
       renderWorkspace({
-        activeRightTab: tab as any,
+        activeRightTab: tab,
         selectedFile: 'src/ZAHLUNG.cbl',
         selectedDoc: { id: 9, name: 'Handbuch.md' },
         isLoadingFile: true,
@@ -275,13 +277,13 @@ describe('SplitPaneWorkspace', () => {
       const { props } = renderWorkspace({
         activeRightTab: 'graph',
         selectedFile: 'src/ZAHLUNG.cbl',
-        selectedEntity: { id: 42 },
+        selectedEntity: { id: 42, name: 'ZAHLUNG', file_path: 'src/ZAHLUNG.cbl', start_line: 1 },
         layoutMode: '4-grid',
         onDocFocus: vi.fn(),
       });
 
       expect(graphProps.selectedProject).toEqual(expect.objectContaining({ id: 3 }));
-      expect(graphProps.selectedEntity).toEqual({ id: 42 });
+      expect(graphProps.selectedEntity).toEqual(props.selectedEntity);
       expect(graphProps.selectedFile).toBe('src/ZAHLUNG.cbl');
       expect(graphProps.layoutMode).toBe('4-grid');
       expect(graphProps.onFileSelect).toBe(props.handleFileSelect);

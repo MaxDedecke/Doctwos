@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { API_URL } from '@/app/services/api';
+import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -150,7 +150,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
   const fetchTopics = useCallback(async () => {
     setIsLoadingTopics(true);
     try {
-      const res = await fetch(`${API_URL}/topics`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/topics`);
       const data = await res.json();
       setTopics(data);
     } catch { /* silent */ }
@@ -160,7 +160,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
   const fetchNodes = useCallback(async (topicId: number) => {
     setIsLoadingNodes(true);
     try {
-      const res = await fetch(`${API_URL}/topics/${topicId}/nodes`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/topics/${topicId}/nodes`);
       setNodes(await res.json());
     } catch { /* silent */ }
     finally { setIsLoadingNodes(false); }
@@ -193,7 +193,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
       setIsSearching(true);
       try {
         const params = new URLSearchParams({ q: addNodeSearch, types: addNodeType });
-        const res = await fetch(`${API_URL}/topics/search-nodes?${params}`, { credentials: 'include' });
+        const res = await api.fetch(`${API_URL}/topics/search-nodes?${params}`);
         setSearchResults(await res.json());
       } catch { /* silent */ }
       finally { setIsSearching(false); }
@@ -218,9 +218,8 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     setIsCreating(true);
     setCreateError('');
     try {
-      const res = await fetch(`${API_URL}/topics`, {
+      const res = await api.fetch(`${API_URL}/topics`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || null, color: newColor }),
       });
@@ -235,7 +234,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
   };
 
   const deleteTopic = async (topicId: number) => {
-    await fetch(`${API_URL}/topics/${topicId}`, { method: 'DELETE', credentials: 'include' });
+    await api.fetch(`${API_URL}/topics/${topicId}`, { method: 'DELETE' });
     setTopics(prev => prev.filter(t => t.id !== topicId));
     if (selectedTopicId === topicId) setSelectedTopicId(null);
   };
@@ -251,9 +250,8 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     if (!selectedTopicId || !editName.trim()) return;
     setIsSavingEdit(true);
     try {
-      const res = await fetch(`${API_URL}/topics/${selectedTopicId}`, {
+      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}`, {
         method: 'PATCH',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() || null, color: editColor }),
       });
@@ -268,9 +266,8 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     if (!selectedTopicId) return;
     setAddNodeError('');
     try {
-      const res = await fetch(`${API_URL}/topics/${selectedTopicId}/nodes`, {
+      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           node_type: result.node_type,
@@ -292,7 +289,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
 
   const detachNode = async (nodeId: number) => {
     if (!selectedTopicId) return;
-    await fetch(`${API_URL}/topics/${selectedTopicId}/nodes/${nodeId}`, { method: 'DELETE', credentials: 'include' });
+    await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes/${nodeId}`, { method: 'DELETE' });
     setNodes(prev => prev.filter(n => n.id !== nodeId));
     setTopics(prev => prev.map(t => t.id === selectedTopicId ? { ...t, node_count: Math.max(0, t.node_count - 1) } : t));
   };

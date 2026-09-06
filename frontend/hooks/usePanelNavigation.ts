@@ -1,39 +1,41 @@
-import { useCallback } from 'react';
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { api } from '@/app/services/api';
 import { appendPanelHistory, type PanelHistoryEntry, type PanelSelection } from '@/lib/panelHistory';
 import { resolvePanelNavigationTarget } from '@/lib/panelNavigation';
 import { resolveReferenceTarget } from '@/lib/referenceTarget';
 import { getSelectionViewType } from '@/lib/workspaceSelection';
+import type { CodeEntity, FocusObject, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import { isAxiosError } from 'axios';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
+import { useCallback } from 'react';
 import type { PinnedCode } from './useWorkspaceLayout';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Setter<T> = Dispatch<SetStateAction<T>>;
 type FileNavEntry = {
   file: string | null;
-  doc: any | null;
+  doc: WorkspaceDocument | null;
   tab: 'code' | 'doc' | 'weborigin' | 'graph';
 };
 
 interface PanelNavigationOptions {
   t: Translator;
   showToast: (message: string, type?: string) => void;
-  selectedProject: any | null;
-  selectedSource: any | null;
-  connectedSources: any[];
-  projectEntities: any[];
+  selectedProject: Project | null;
+  selectedSource: KnowledgeSource | null;
+  connectedSources: KnowledgeSource[];
+  projectEntities: CodeEntity[];
   panelConfigs: string[];
   panelFrozen: boolean[];
   panelSelections: PanelSelection[];
   fileNavStack: FileNavEntry[];
   setPinnedCode: Setter<PinnedCode | null>;
-  setPanelFocusObject: Setter<Array<any | null>>;
+  setPanelFocusObject: Setter<Array<FocusObject | null>>;
   setPanelSelections: Setter<PanelSelection[]>;
   setPanelHistory: Setter<PanelHistoryEntry[]>;
   setActiveMobileTab: Setter<'chat' | 'editor' | 'graph'>;
-  setSelectedDoc: Setter<any | null>;
+  setSelectedDoc: Setter<WorkspaceDocument | null>;
   setSelectedFile: Setter<string | null>;
-  setSelectedEntity: Setter<any | null>;
+  setSelectedEntity: Setter<CodeEntity | null>;
   setSelectedLine: Setter<number | null>;
   setFileNavStack: Setter<FileNavEntry[]>;
   setIsEditorMaximized: Setter<boolean>;
@@ -42,9 +44,9 @@ interface PanelNavigationOptions {
   addPanel: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
   ensurePanelType: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
   ensureLivePanelType: (type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean) => boolean;
-  updatePanelEntitySelection: (index: number, entity: any) => void;
-  handleFileSelect: (path: string | null, line?: number | null, sourceId?: number | string | null, projectOverride?: any | null) => Promise<void>;
-  loadFileReferences: (filePath: string, entityName?: string | null, projectOverride?: any | null) => Promise<void>;
+  updatePanelEntitySelection: (index: number, entity: CodeEntity) => void;
+  handleFileSelect: (path: string | null, line?: number | null, sourceId?: number | string | null, projectOverride?: Project | null) => Promise<void>;
+  loadFileReferences: (filePath: string, entityName?: string | null, projectOverride?: Project | null) => Promise<void>;
 }
 
 export function usePanelNavigation({
@@ -83,11 +85,11 @@ export function usePanelNavigation({
     setPinnedCode({ filepath: path, line: line ?? 0, sourceId });
   }, [setPinnedCode]);
 
-  const pinEntityFocus = useCallback((entity: any) => {
+  const pinEntityFocus = useCallback((entity: CodeEntity) => {
     if (!entity) return;
     setPinnedCode({
       filepath: entity.file_path,
-      line: entity.start_line,
+      line: entity.start_line ?? 0,
       label: entity.name,
       sourceId: entity.source_id ?? null,
       program: entity.program ?? null,
@@ -96,7 +98,7 @@ export function usePanelNavigation({
     });
   }, [setPinnedCode]);
 
-  const handleObjectFocus = useCallback((object: any, panelIndex: number) => {
+  const handleObjectFocus = useCallback((object: FocusObject, panelIndex: number) => {
     if (!object) return;
     setPanelFocusObject(previous => {
       const next = [...previous];
@@ -116,7 +118,7 @@ export function usePanelNavigation({
     if (textarea) textarea.focus();
   }, [panelSelections, setPanelFocusObject, setPinnedCode, t]);
 
-  const handlePanelEntitySelect = useCallback(async (index: number, entity: any) => {
+  const handlePanelEntitySelect = useCallback(async (index: number, entity: CodeEntity) => {
     pinEntityFocus(entity);
     updatePanelEntitySelection(index, entity);
   }, [pinEntityFocus, updatePanelEntitySelection]);
@@ -130,11 +132,11 @@ export function usePanelNavigation({
   ) => {
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
     const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
-      ? { id: resolvedSourceId, name: path, ...(isWebOrigin ? { isWebOrigin: true, url: path } : {}) }
+      ? { id: resolvedSourceId, name: path || '', ...(isWebOrigin ? { isWebOrigin: true, url: path || undefined } : {}) }
       : null;
     const targetType = getSelectionViewType(path, targetDoc);
     let focusedEntity = path && !targetDoc
-      ? projectEntities.find((entity: any) =>
+      ? projectEntities.find((entity: CodeEntity) =>
           entity.file_path === path &&
           (!resolvedSourceId || Number(entity.source_id) === Number(resolvedSourceId)) &&
           (entity.type === 'program' || entity.type === 'copybook')) || null
@@ -146,8 +148,8 @@ export function usePanelNavigation({
     if (path && resolvedSourceId && !isWebOrigin && !targetDoc) {
       try {
         focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path, selectedProject?.id)).data;
-      } catch (error: any) {
-        if (error?.response?.status !== 404) console.error('Failed to resolve code focus:', error);
+      } catch (error) {
+        if (!isAxiosError(error) || error.response?.status !== 404) console.error('Failed to resolve code focus:', error);
       }
     }
 
@@ -249,15 +251,15 @@ export function usePanelNavigation({
     const filepath = selection?.selectedFile;
     if (!filepath) return;
 
-    const enclosingEntities = projectEntities.filter((candidate: any) =>
+    const enclosingEntities = projectEntities.filter((candidate) =>
       candidate.file_path === filepath &&
-      candidate.start_line <= lineNumber &&
-      candidate.end_line >= lineNumber
+      candidate.start_line != null && candidate.start_line <= lineNumber &&
+      (candidate.end_line ?? candidate.start_line) >= lineNumber
     );
     const entity = selection?.selectedEntity || enclosingEntities[0];
     const enclosingName = (type: string) => enclosingEntities
-      .filter((candidate: any) => candidate.type === type)
-      .sort((a: any, b: any) => (a.end_line - a.start_line) - (b.end_line - b.start_line))[0]?.name || null;
+      .filter((candidate) => candidate.type === type)
+      .sort((a, b) => ((a.end_line ?? a.start_line ?? 0) - (a.start_line ?? 0)) - ((b.end_line ?? b.start_line ?? 0) - (b.start_line ?? 0)))[0]?.name || null;
     setPinnedCode({
       filepath,
       line: lineNumber,
@@ -276,11 +278,11 @@ export function usePanelNavigation({
     }, 150);
   }, [ensurePanelType, panelSelections, projectEntities, selectedSource, setActiveMobileTab, setPinnedCode, showToast, t]);
 
-  const handleGutterAskEntity = useCallback((panelIndex: number, entity: any) => {
+  const handleGutterAskEntity = useCallback((panelIndex: number, entity: CodeEntity) => {
     if (!entity) return;
     setPinnedCode({
       filepath: entity.file_path,
-      line: entity.start_line,
+      line: entity.start_line ?? 0,
       label: entity.name,
       sourceId: entity.source_id ?? selectedSource?.id ?? null,
       program: entity.program ?? null,
@@ -295,7 +297,7 @@ export function usePanelNavigation({
     }, 150);
   }, [ensurePanelType, selectedSource, setActiveMobileTab, setPinnedCode, showToast, t]);
 
-  const handleEntitySelect = useCallback(async (entity: any, projectOverride: any = null) => {
+  const handleEntitySelect = useCallback(async (entity: CodeEntity, projectOverride: Project | null = null) => {
     setSelectedEntity(entity);
     pinEntityFocus(entity);
     loadFileReferences(entity.file_path, entity.name, projectOverride);

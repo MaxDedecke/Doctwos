@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/app/services/api';
+import type { FileReference, KnowledgeSource, Project } from '@/types/domain';
+import { useCallback, useEffect, useState } from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 type Toast = (message: string, type?: string) => void;
 
 interface UseKnowledgeSourcesOptions {
   isLoggedIn: boolean;
-  selectedProject: any | null;
+  selectedProject: Project | null;
   t: Translate;
   showToast: Toast;
 }
@@ -22,14 +23,14 @@ export function useKnowledgeSources({
   t,
   showToast,
 }: UseKnowledgeSourcesOptions) {
-  const [selectedSource, setSelectedSource] = useState<any | null>(null);
+  const [selectedSource, setSelectedSource] = useState<KnowledgeSource | null>(null);
   const [selectedSourceRepoId, setSelectedSourceRepoId] = useState('all');
-  const [fileReferences, setFileReferences] = useState<any[]>([]);
+  const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
   const [isReferencesDropdownOpen, setIsReferencesDropdownOpen] = useState(false);
   const [referencesTab, setReferencesTab] = useState<'code' | 'docs'>('code');
   const [activeSourceType, setActiveSourceType] = useState<string | null>(null);
-  const [connectedSources, setConnectedSources] = useState<any[]>([
+  const [connectedSources, setConnectedSources] = useState<KnowledgeSource[]>([
     { id: 'conf-init', type: 'Confluence', name: t('page.demoSourceName'), repoId: 'all', spaces: ['ENG', 'PROD'] },
   ]);
   const [pinnedSourceIds, setPinnedSourceIds] = useState<number[]>(() => {
@@ -54,7 +55,7 @@ export function useKnowledgeSources({
         // reseeded since the preference was written. Remove stale pins so the
         // four-source limit reflects actual sources.
         setPinnedSourceIds((previous) => {
-          const valid = previous.filter((id) => res.data.some((source: any) => source.id === id));
+          const valid = previous.filter((id) => res.data.some((source: KnowledgeSource) => source.id === id));
           if (valid.length !== previous.length) {
             localStorage.setItem('pinnedSourceIds', JSON.stringify(valid));
           }
@@ -81,7 +82,7 @@ export function useKnowledgeSources({
     });
   }, [showToast, t]);
 
-  const loadFileReferences = useCallback(async (filePath: string, entityName: string | null = null, projectOverride: any | null = null) => {
+  const loadFileReferences = useCallback(async (filePath: string, entityName: string | null = null, projectOverride: Project | null = null) => {
     const project = projectOverride || selectedProject;
     if (!project) return;
     setIsLoadingReferences(true);

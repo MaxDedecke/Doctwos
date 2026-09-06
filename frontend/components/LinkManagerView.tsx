@@ -1,12 +1,7 @@
 "use client";
+import type { LlmProfile } from '@/hooks/useAiSettings';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  X, Check, Ban, Link2, Plus, RefreshCw, ExternalLink,
-  Search, Loader2, AlertCircle, FileCode, Info, CheckCircle2,
-  Tag, BookOpen, Network, ArrowLeft, Cpu, FolderKanban, Percent, Sparkles,
-} from 'lucide-react';
+import { api, API_URL } from '@/app/services/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
@@ -15,13 +10,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import { API_URL } from '@/app/services/api';
-import { TopicsPanel } from './TopicsPanel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Ban,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  Cpu,
+  ExternalLink,
+  FileCode,
+  FolderKanban,
+  Info,
+  Link2,
+  Loader2,
+  Network,
+  Percent,
+  Plus, RefreshCw,
+  Search,
+  Sparkles,
+  Tag,
+  X,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { TopicsPanel } from './TopicsPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface PickerDocument { title: string; url?: string | null; source_type?: string | null }
+interface PickerEntity { id: string | number; name: string; file_path: string; type?: string; start_line?: number }
 
 interface EntityDocLink {
   id: number;
@@ -61,7 +82,7 @@ interface LinkManagerViewProps {
   selectedProject: { id: number; name: string } | null;
   theme: string;
   currentUser?: { is_admin?: boolean } | null;
-  llmProfiles?: any[];
+  llmProfiles?: LlmProfile[];
   activeProfileId?: string;
   setActiveProfileId?: (val: string) => void;
   showToast?: (msg: string, type: 'success' | 'error') => void;
@@ -163,19 +184,19 @@ export function LinkManagerView({
 
   // Manual link form state
   const [manualKind, setManualKind] = useState<'entity' | 'knowledge' | null>(null);
-  const [entities, setEntities] = useState<any[]>([]);
+  const [entities, setEntities] = useState<PickerEntity[]>([]);
   const [entitySearchInput, setEntitySearchInput] = useState('');
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
-  const [selectedEntityObj, setSelectedEntityObj] = useState<any | null>(null);
+  const [selectedEntityObj, setSelectedEntityObj] = useState<PickerEntity | null>(null);
   const [docSearchQuery, setDocSearchQuery] = useState('');
-  const [docResults, setDocResults] = useState<any[]>([]);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
+  const [docResults, setDocResults] = useState<PickerDocument[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<PickerDocument | null>(null);
   const [docAQuery, setDocAQuery] = useState('');
-  const [docAResults, setDocAResults] = useState<any[]>([]);
-  const [selectedDocA, setSelectedDocA] = useState<any | null>(null);
+  const [docAResults, setDocAResults] = useState<PickerDocument[]>([]);
+  const [selectedDocA, setSelectedDocA] = useState<PickerDocument | null>(null);
   const [docBQuery, setDocBQuery] = useState('');
-  const [docBResults, setDocBResults] = useState<any[]>([]);
-  const [selectedDocB, setSelectedDocB] = useState<any | null>(null);
+  const [docBResults, setDocBResults] = useState<PickerDocument[]>([]);
+  const [selectedDocB, setSelectedDocB] = useState<PickerDocument | null>(null);
   const [manualDescription, setManualDescription] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
   const [manualError, setManualError] = useState('');
@@ -256,7 +277,7 @@ export function LinkManagerView({
     try {
       const params = new URLSearchParams({ status: tab });
       if (minScore > 0) params.set('min_score', String(minScore / 100));
-      const res = await fetch(`${API_URL}/projects/${projectId}/link-recommendations?${params}`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/projects/${projectId}/link-recommendations?${params}`);
       const data = await res.json();
       setEntityLinks(data.links || []);
       setEntityCounts(data.counts || { pending: 0, approved: 0, rejected: 0 });
@@ -270,10 +291,10 @@ export function LinkManagerView({
     try {
       const scoreParam = minScore > 0 ? `&min_score=${minScore / 100}` : '';
       const [listRes, pRes, aRes, rRes] = await Promise.all([
-        fetch(`${API_URL}/knowledge-links?status=${tab}${scoreParam}`, { credentials: 'include' }),
-        fetch(`${API_URL}/knowledge-links?status=pending${scoreParam}`, { credentials: 'include' }),
-        fetch(`${API_URL}/knowledge-links?status=approved${scoreParam}`, { credentials: 'include' }),
-        fetch(`${API_URL}/knowledge-links?status=rejected${scoreParam}`, { credentials: 'include' }),
+        api.fetch(`${API_URL}/knowledge-links?status=${tab}${scoreParam}`),
+        api.fetch(`${API_URL}/knowledge-links?status=pending${scoreParam}`),
+        api.fetch(`${API_URL}/knowledge-links?status=approved${scoreParam}`),
+        api.fetch(`${API_URL}/knowledge-links?status=rejected${scoreParam}`),
       ]);
       const [list, p, a, r] = await Promise.all([listRes.json(), pRes.json(), aRes.json(), rRes.json()]);
       setKnowledgeLinks(list || []);
@@ -294,7 +315,7 @@ export function LinkManagerView({
 
   useEffect(() => {
     if (projectId && manualKind === 'entity' && entities.length === 0) {
-      fetch(`${API_URL}/projects/${projectId}/entities`, { credentials: 'include' })
+      api.fetch(`${API_URL}/projects/${projectId}/entities`)
         .then(r => r.json()).then(setEntities).catch(() => {});
     }
   }, [projectId, manualKind, entities.length]);
@@ -305,7 +326,7 @@ export function LinkManagerView({
       return;
     }
     const timeout = setTimeout(() => {
-      fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docSearchQuery)}`, { credentials: 'include' })
+      api.fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docSearchQuery)}`)
         .then(r => r.json()).then(setDocResults).catch(() => {});
     }, 300);
     return () => clearTimeout(timeout);
@@ -317,7 +338,7 @@ export function LinkManagerView({
       return;
     }
     const timeout = setTimeout(() => {
-      fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docAQuery)}`, { credentials: 'include' })
+      api.fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docAQuery)}`)
         .then(r => r.json()).then(setDocAResults).catch(() => {});
     }, 300);
     return () => clearTimeout(timeout);
@@ -329,7 +350,7 @@ export function LinkManagerView({
       return;
     }
     const timeout = setTimeout(() => {
-      fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docBQuery)}`, { credentials: 'include' })
+      api.fetch(`${API_URL}/projects/${projectId}/doc-chunks/search?q=${encodeURIComponent(docBQuery)}`)
         .then(r => r.json()).then(setDocBResults).catch(() => {});
     }, 300);
     return () => clearTimeout(timeout);
@@ -356,9 +377,9 @@ export function LinkManagerView({
     const confidenceParam = `min_confidence=${minConfidence}`;
     await Promise.all([
       projectId
-        ? fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}`, { method: 'POST', credentials: 'include' }).catch(() => {})
+        ? api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}`, { method: 'POST' }).catch(() => {})
         : Promise.resolve(),
-      fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}`, { method: 'POST', credentials: 'include' }).catch(() => {}),
+      api.fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}`, { method: 'POST' }).catch(() => {}),
     ]);
 
     const poll = async (attempt: number) => {
@@ -385,7 +406,7 @@ export function LinkManagerView({
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
     let ok = false;
     try {
-      const res = await fetch(url, {
+      const res = await api.fetch(url, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -425,7 +446,7 @@ export function LinkManagerView({
     const results = await Promise.all(targets.map(async link => {
       const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
       try {
-        const res = await fetch(url, {
+        const res = await api.fetch(url, {
           method: 'PATCH',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -467,7 +488,7 @@ export function LinkManagerView({
       ? `${API_URL}/entity-doc-links/${link.rawId}/llm-review`
       : `${API_URL}/knowledge-links/${link.rawId}/llm-review`;
     try {
-      const res = await fetch(url, {
+      const res = await api.fetch(url, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -509,7 +530,7 @@ export function LinkManagerView({
     if (context === (link.context || '')) return;
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
     try {
-      const res = await fetch(url, {
+      const res = await api.fetch(url, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -527,7 +548,7 @@ export function LinkManagerView({
 
   const deleteLink = async (link: UnifiedLink) => {
     const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
-    await fetch(url, { method: 'DELETE', credentials: 'include' });
+    await api.fetch(url, { method: 'DELETE' });
     if (link.kind === 'entity') {
       setEntityLinks(prev => prev.filter(l => l.id !== link.rawId));
       setEntityCounts(prev => ({ ...prev, [tab]: Math.max(0, prev[tab as keyof LinkCounts] - 1) }));
@@ -558,7 +579,7 @@ export function LinkManagerView({
     try {
       if (manualKind === 'entity') {
         if (!projectId || !selectedEntityId || !selectedDoc) return;
-        const res = await fetch(`${API_URL}/projects/${projectId}/link-recommendations`, {
+        const res = await api.fetch(`${API_URL}/projects/${projectId}/link-recommendations`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -571,7 +592,7 @@ export function LinkManagerView({
         fetchEntityLinks();
       } else if (manualKind === 'knowledge') {
         if (!selectedDocA || !selectedDocB) return;
-        const res = await fetch(`${API_URL}/knowledge-links`, {
+        const res = await api.fetch(`${API_URL}/knowledge-links`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -650,7 +671,7 @@ export function LinkManagerView({
 
   // ── Doc picker sub-render (reused for entity-doc and doc-doc forms) ────────
 
-  const renderDocPicker = (query: string, setQuery: (v: string) => void, results: any[], selected: any | null, setSelected: (v: any | null) => void) => (
+  const renderDocPicker = (query: string, setQuery: (v: string) => void, results: PickerDocument[], selected: PickerDocument | null, setSelected: (v: PickerDocument | null) => void) => (
     selected ? (
       <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-white border-ds-zinc-300')}>
         <KnowledgeNodeIcon
@@ -676,7 +697,7 @@ export function LinkManagerView({
           className={cn('w-full text-xs rounded-md px-2.5 py-1.5 border focus:outline-none', inputCls)} />
         {results.length > 0 && (
           <div className={cn('absolute top-full mt-1 left-0 right-0 border rounded-md shadow-lg z-20 max-h-44 overflow-y-auto', dropdownBg)}>
-            {results.map((doc: any, i: number) => (
+            {results.map((doc, i) => (
               <button key={i}
                 onClick={() => { setSelected(doc); setQuery(doc.title); }}
                 className={cn('w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b last:border-0', dropItem, divider)}>
@@ -760,7 +781,7 @@ export function LinkManagerView({
                 value={activeProfileId}
                 onValueChange={(val) => {
                   setActiveProfileId(val);
-                  const selectedProf = llmProfiles.find((p: any) => p.id === val);
+                  const selectedProf = llmProfiles.find((p) => p.id === val);
                   if (selectedProf && showToast) {
                     showToast(t('chatView.modelSwitchedToast', { name: selectedProf.name }), 'success');
                   }
@@ -774,7 +795,7 @@ export function LinkManagerView({
                   <SelectValue placeholder={t('chatView.selectModel')} />
                 </SelectTrigger>
                 <SelectContent className={isDark ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-800'}>
-                  {llmProfiles.map((prof: any) => (
+                  {llmProfiles.map((prof) => (
                     <SelectItem key={prof.id} value={prof.id} className="text-xs">{prof.name} ({prof.model})</SelectItem>
                   ))}
                 </SelectContent>

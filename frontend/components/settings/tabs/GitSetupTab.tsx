@@ -1,13 +1,7 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
 
-import React, { useState } from 'react';
-import {
-  Check, X, Github, Activity, Database, Globe, ChevronRight, ChevronLeft,
-  Loader2, Search, GitBranch, Sparkles,
-} from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +12,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import {
+  Activity,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  GitBranch,
+  Github,
+  Globe,
+  Loader2, Search,
+  Sparkles,
+  X,
+} from 'lucide-react';
+import React, { useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'git-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
 // §5, Schritt 2). Der 5-schrittige Git-Anbindungs-Wizard kann eine Quelle entweder
@@ -25,6 +35,8 @@ import {
 // Wissensquelle anlegen. Alle Wizard-States/Handler sind lokal; targetProjectId
 // kommt als Prop, die Navigation zurück über onDone. Der lokale State wird beim
 // Verlassen (Unmount) ohnehin zurückgesetzt.
+interface ConnectorRepository { full_name: string; name: string; description?: string | null; url?: string; clone_url: string; default_branch?: string; private?: boolean }
+
 interface GitSetupTabProps {
   targetProjectId: number | null;
   onDone: () => void;
@@ -55,7 +67,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'success' | 'error' | null>(null);
   const [connectionError, setConnectionError] = useState("");
-  const [fetchedRepos, setFetchedRepos] = useState<any[]>([]);
+  const [fetchedRepos, setFetchedRepos] = useState<ConnectorRepository[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [repoSearchQuery, setRepoSearchQuery] = useState("");
   const [selectedRepoFullName, setSelectedRepoFullName] = useState("");
@@ -162,10 +174,10 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           showToast(t('settings.toast.connectionFailed'), "error");
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setConnectionStatus('error');
-      setConnectionError(err.response?.data?.detail || t('settings.toast.networkTestError'));
+      setConnectionError(apiErrorDetail(err) || t('settings.toast.networkTestError'));
       showToast(t('settings.toast.connectionFailed'), "error");
     } finally {
       setIsTestingConnection(false);
@@ -177,7 +189,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
     setIsLoadingBranches(true);
     setFetchedBranches([]);
 
-    const selected = fetchedRepos.find((r: any) => r.full_name === fullName);
+    const selected = fetchedRepos.find((r) => r.full_name === fullName);
     if (selected) {
       setNewRepoName(selected.name);
       setNewRepoUrl(selected.clone_url);
@@ -239,14 +251,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
     }
   };
 
-  const handleWizardSubmit = async (e: any) => {
+  const handleWizardSubmit = async (e: React.FormEvent) => {
     if (e) e.preventDefault();
 
     let cloneUrl = newRepoUrl;
     let repoName = newRepoName;
 
     if (repoType !== 'public') {
-      const selected = fetchedRepos.find((r: any) => r.full_name === selectedRepoFullName);
+      const selected = fetchedRepos.find((r) => r.full_name === selectedRepoFullName);
       if (selected) {
         cloneUrl = selected.clone_url;
         repoName = selected.name;
@@ -274,9 +286,9 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       setProjects(projectsRes.data);
       setWizardStep(5);
       showToast(t('settings.toast.repoAdded'), "success");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.repoAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.repoAddFailed'), "error");
     }
   };
 
@@ -634,11 +646,11 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               ) : (
                 <div className="space-y-1">
                   {fetchedRepos
-                    .filter((r: any) =>
+                    .filter((r) =>
                       r.name.toLowerCase().includes(repoSearchQuery.toLowerCase()) ||
                       r.full_name.toLowerCase().includes(repoSearchQuery.toLowerCase())
                     )
-                    .map((r: any) => {
+                    .map((r) => {
                       const isSelected = selectedRepoFullName === r.full_name;
                       return (
                         <button
@@ -797,7 +809,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
               <Button
                 type="button"
-                disabled={teamGateBlocking}
+                disabled={Boolean(teamGateBlocking)}
                 onClick={handleWizardSubmit}
                 className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-ds-indigo-600/10"
               >

@@ -1,80 +1,80 @@
 "use client";
+import type { LlmProfile } from '@/hooks/useAiSettings';
+import type { ChatPinnedFocus } from '@/lib/chatFocus';
+import type { ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 
-import React from 'react';
-import Image from 'next/image';
-import {
-  MessageSquare,
-  Code,
-  Send,
-  Database,
-  Sparkles,
-  Folder,
-  X,
-  Loader2,
-  Cpu,
-  GitBranch,
-  Globe2,
-  History,
-  BookOpen,
-  Copy,
-  ThumbsUp,
-  ThumbsDown,
-  RotateCcw,
-  Plus,
-  Check,
-  ArrowRight
-} from 'lucide-react';
+import { api } from '@/app/services/api';
+import { DoctusIcon } from "@/components/Logo";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { MarkdownContent } from "@/components/MarkdownContent";
-import { AgentSteps } from "./AgentSteps";
-import { cn, copyToClipboard } from "@/lib/utils";
-import { DoctusIcon } from "@/components/Logo";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger
+} from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { api } from '@/app/services/api';
+import { cn, copyToClipboard } from "@/lib/utils";
+import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  Code,
+  Copy,
+  Cpu,
+  Database,
+  Folder,
+  GitBranch,
+  Globe2,
+  History,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Send,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  X
+} from 'lucide-react';
+import Image from 'next/image';
+import React from 'react';
+import { AgentSteps } from "./AgentSteps";
 
 interface ChatViewProps {
   theme: string;
   isSidebarOpen: boolean;
-  selectedProject: any;
-  onProjectSelect: (project: any | null) => void | Promise<void>;
-  pinnedCode: any;
-  setPinnedCode: (code: any) => void;
-  chatMessages: any[];
+  selectedProject: Project | null;
+  onProjectSelect: (project: Project | null) => void | Promise<void>;
+  pinnedCode: ChatPinnedFocus | null;
+  setPinnedCode: (code: ChatPinnedFocus | null) => void;
+  chatMessages: ChatMessage[];
   currentMessage: string;
   setCurrentMessage: (msg: string) => void;
   isLoading: boolean;
-  handleSendChat: (overrideMsg?: string, extraMetadata?: Record<string, any>) => void;
+  handleSendChat: (overrideMsg?: string, extraMetadata?: ChatMetadata) => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
   handleFileSelect: (path: string, line?: number, sourceId?: string) => void;
   activeProfileId: string;
   setActiveProfileId: (val: string) => void;
-  llmProfiles: any[];
+  llmProfiles: LlmProfile[];
   showToast: (msg: string, type: "success" | "error") => void;
-  selectedFile: any;
-  selectedDoc: any;
+  selectedFile: string | null;
+  selectedDoc: WorkspaceDocument | null;
   splitClasses: { chat: string; editor: string };
   chatEndRef: React.RefObject<HTMLDivElement>;
-  selectedSource: any;
-  setSelectedSource: (source: any) => void;
-  connectedSources: any[];
+  selectedSource: KnowledgeSource | null;
+  setSelectedSource: (source: KnowledgeSource | null) => void;
+  connectedSources: KnowledgeSource[];
 }
 
 export function ChatView({
@@ -172,7 +172,7 @@ export function ChatView({
   const [isDetectingLph, setIsDetectingLph] = React.useState(false);
 
   React.useEffect(() => {
-    const API_URL = (typeof window !== "undefined" && (window as any).__DOCTUS_API_URL__) || "http://localhost:8000";
+    const API_URL = (typeof window !== "undefined" && window.__DOCTUS_API_URL__) || "http://localhost:8000";
     (async () => {
       if (!selectedFile) {
         setDetectedLph(null);
@@ -181,10 +181,9 @@ export function ChatView({
       }
       setIsDetectingLph(true);
       try {
-        const res = await fetch(`${API_URL}/aec/hoai/detect-lph`, {
+        const res = await api.fetch(`${API_URL}/aec/hoai/detect-lph`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify({ file_path: selectedFile, project_id: selectedProject?.id ?? null })
         });
         if (res.ok) {
@@ -212,7 +211,7 @@ export function ChatView({
     });
   }, [connectedSources, selectedProject]);
 
-  const handleSourceFocusChange = (source: any | null) => {
+  const handleSourceFocusChange = (source: KnowledgeSource | null) => {
     setSelectedSource(source);
   };
 
@@ -438,15 +437,15 @@ export function ChatView({
                                 </div>
                               )}
                               {(m.metadata.refs?.length ? m.metadata.refs : (m.metadata.pinned ? [{
-                                file: m.metadata.pinned.filepath,
-                                line: m.metadata.pinned.line,
+                                file: m.metadata.pinned.filepath || '',
+                                line: m.metadata.pinned.line ?? 0,
                                 label: m.metadata.pinned.label,
                                 source_id: m.metadata.pinned.source_id
-                              }] : [])).map((ref: any, refIndex: number) => {
-                                const pinned = m.metadata.focus?.pinned || m.metadata.pinned;
+                              }] : [])).map((ref, refIndex) => {
+                                const pinned = m.metadata?.focus?.pinned || m.metadata?.pinned;
                                 const label = ref.label || (
                                   pinned?.filepath === ref.file && pinned?.line === ref.line
-                                    ? pinned.label
+                                    ? pinned?.label
                                     : null
                                 );
                                 const location = `${ref.file.split('/').pop()}:${ref.line}`;
@@ -504,25 +503,25 @@ export function ChatView({
                               theme === 'dark' ? "border-ds-zinc-800/50" : "border-ds-zinc-200"
                             )}>
                               <span className="text-[10px] text-ds-zinc-500 font-bold uppercase tracking-wider">{t('chatView.referencedSources')}</span>
-                              {m.sources.map((src: { file: string; lines: number[]; source_id?: string }, sIdx: number) => {
+                              {m.sources.map((src, sIdx) => {
                                 const filename = src.file.split('/').pop();
                                 return (
                                   <button
                                     type="button"
                                     key={sIdx}
                                     id={`chat-source-link-${sIdx}`}
-                                    onClick={() => handleFileSelect(src.file, src.lines && src.lines[0], src.source_id)}
+                                    onClick={() => handleFileSelect(src.file, src.lines?.[0] ?? undefined, src.source_id != null ? String(src.source_id) : undefined)}
                                     className={cn(
                                       "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all shadow-inner font-medium cursor-pointer whitespace-nowrap max-w-full",
                                       theme === 'dark'
                                         ? "bg-ds-zinc-900/80 border-ds-zinc-800 hover:border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-200"
                                         : "bg-ds-zinc-100/50 border-ds-zinc-200 hover:border-ds-zinc-300 text-ds-zinc-600 hover:text-ds-zinc-900"
                                     )}
-                                    title={t('chatView.sourceFileTitle', { file: src.file, lines: src.lines.join('-') })}
+                                    title={t('chatView.sourceFileTitle', { file: src.file, lines: src.lines?.join('-') || '' })}
                                   >
                                     <Folder className="w-3 h-3 text-ds-indigo-400 shrink-0" />
                                     <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
-                                    <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{src.lines.join('-')}</span>
+                                    <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{src.lines?.join('-') || ''}</span>
                                   </button>
                                 );
                               })}
@@ -559,7 +558,7 @@ export function ChatView({
                                       ? "text-ds-emerald-500"
                                       : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")
                                   )}
-                                  onClick={() => handleFeedback(m.id, 'up')}
+                                  onClick={() => m.id && handleFeedback(m.id, 'up')}
                                 >
                                   <ThumbsUp className="w-3.5 h-3.5" fill={m.feedback === 'up' ? "currentColor" : "none"} />
                                 </Button>
@@ -576,7 +575,7 @@ export function ChatView({
                                       ? "text-ds-red-500"
                                       : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")
                                   )}
-                                  onClick={() => handleFeedback(m.id, 'down')}
+                                  onClick={() => m.id && handleFeedback(m.id, 'down')}
                                 >
                                   <ThumbsDown className="w-3.5 h-3.5" fill={m.feedback === 'down' ? "currentColor" : "none"} />
                                 </Button>
@@ -771,7 +770,7 @@ export function ChatView({
                         {t('chatView.noKnowledgeSource')}
                       </DropdownMenuItem>
                       {filteredSources && filteredSources.length > 0 ? (
-                        filteredSources.map((src: any) => (
+                        filteredSources.map((src) => (
                           <DropdownMenuItem
                             key={src.id}
                             className="text-xs gap-2"

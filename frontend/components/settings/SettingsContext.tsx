@@ -1,4 +1,6 @@
 "use client";
+import type { LlmProfile } from '@/hooks/useAiSettings';
+import type { KnowledgeSource, Project, ProjectStats, User } from '@/types/domain';
 
 import React, { createContext, useContext } from 'react';
 
@@ -11,11 +13,11 @@ import React, { createContext, useContext } from 'react';
 export interface SettingsContextValue {
   theme: string;
   setTheme: (theme: string) => void;
-  projects: any[];
-  setProjects: React.Dispatch<React.SetStateAction<any[]>>;
-  selectedProject: any | null;
-  setSelectedProject: React.Dispatch<React.SetStateAction<any | null>>;
-  setFiles: React.Dispatch<React.SetStateAction<any[]>>;
+  projects: Project[];
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
+  selectedProject: Project | null;
+  setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
+  setFiles: React.Dispatch<React.SetStateAction<string[]>>;
   showToast: (msg: string, type: 'success' | 'error') => void;
   backendStatus: string;
 
@@ -29,8 +31,8 @@ export interface SettingsContextValue {
   setTemperature: (temp: number) => void;
   systemPrompt: string;
   setSystemPrompt: (prompt: string) => void;
-  llmProfiles: any[];
-  setLlmProfiles: React.Dispatch<React.SetStateAction<any[]>>;
+  llmProfiles: LlmProfile[];
+  setLlmProfiles: React.Dispatch<React.SetStateAction<LlmProfile[]>>;
   activeProfileId: string;
   setActiveProfileId: (id: string) => void;
 
@@ -47,13 +49,13 @@ export interface SettingsContextValue {
   setWorkspaceSplit: (split: string) => void;
 
   // Wissensquellen
-  connectedSources: any[];
-  setConnectedSources: React.Dispatch<React.SetStateAction<any[]>>;
-  projectStats: Record<number, any>;
+  connectedSources: KnowledgeSource[];
+  setConnectedSources: React.Dispatch<React.SetStateAction<KnowledgeSource[]>>;
+  projectStats: Record<number, ProjectStats>;
   pinnedSourceIds: number[];
   togglePinSource: (sourceId: number) => void;
 
-  currentUser: any | null;
+  currentUser: User | null;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);

@@ -1,32 +1,26 @@
 "use client";
+import type { KnowledgeSource, Project, SearchResult } from '@/types/domain';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Search, X, Loader2, FileCode, FileText, Folder, Database, Menu, Network, Settings, Sun, Moon, Plus, ChevronDown, Filter, Share2, Save } from 'lucide-react';
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { api } from "@/app/services/api";
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFeatures } from '@/lib/FeaturesContext';
-import { DoctusIcon } from './Logo';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { ChevronDown, Database, FileCode, FileText, Filter, Folder, Loader2, Menu, Moon, Network, Plus, Save, Search, Settings, Share2, Sun, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { JobCenter } from './JobCenter';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { DoctusIcon } from './Logo';
 import { SaveSessionDialog } from './SaveSessionDialog';
 
-interface SearchResult {
-  node_type: string;
-  node_id: number;
-  node_label: string;
-  node_url: string | null;
-  node_meta: Record<string, any>;
-}
+
 
 interface GlobalSearchProps {
   theme: string;
   setTheme: (theme: string) => void;
-  projects: any[];
-  connectedSources: any[];
+  projects: Project[];
+  connectedSources: KnowledgeSource[];
   onSelectResult: (result: SearchResult) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (val: boolean) => void;
@@ -34,8 +28,8 @@ interface GlobalSearchProps {
   onOpenGraphView: () => void;
   panelConfigs: string[];
   onAddPanel: (type: string) => void;
-  selectedProject: any;
-  onProjectSelect: (project: any) => void;
+  selectedProject: Project | null;
+  onProjectSelect: (project: Project | null) => void;
   onShareChat: () => void | Promise<void>;
   // O-038: nur true, wenn der Chat noch leer ist UND eine zweite View offen ist --
   // sonst ist ein reiner Graph-/Code-View-Befund ohne Chat-Nutzung nicht teil-/
@@ -54,7 +48,7 @@ interface GlobalSearchProps {
 const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager'] as const;
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
-const GROUP_ICONS: Record<string, any> = {
+const GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   entity: FileCode,
   document: FileText,
   project: Folder,

@@ -6,7 +6,6 @@ Verwaltet Projekte, Git-Verbindungen, Projekt-Mitglieder und Zugriffsanfragen.
 """
 
 import os
-import re
 import shutil
 import logging
 import random
@@ -41,11 +40,22 @@ from api.schemas import (
 )
 from api.serializers import serialize_project, serialize_source
 from core.config import celery_app
+from services.reference_search import refs_for_document, refs_for_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 REPOS_ROOT = "/repos"  # Oder config-wert falls definiert
+
+
+# Kept as private API aliases for the focused regression tests that predate the
+# extraction. Route code has no dependency on the text-search implementation.
+def _refs_for_document(project_id, file_path, base_name, db) -> list[dict]:
+    return refs_for_document(project_id, file_path, base_name, db)
+
+
+def _refs_for_file(project_id, file_path, base_name, db) -> list[dict]:
+    return refs_for_file(project_id, file_path, base_name, db)
 
 
 def _default_team_id(db: Session) -> int:
@@ -993,94 +1003,3 @@ def remove_project_member(
     db.commit()
 
     return {"message": "Mitglied erfolgreich entfernt"}
-
-
-# ── Interne Referenz-Such-Helfer ──────────────────────────────────────────────
-
-
-def _ilike_to_regex(pattern: str) -> "re.Pattern":
-    """Übersetzt ein SQL-ILIKE-'%...%'-Pattern in eine gleichwertige case-insensitive Regex.
-    Nötig weil DocumentChunk.content jetzt at rest Fernet-verschlüsselt ist (EncryptedString)
-    und sich nicht mehr per SQL ILIKE filtern lässt -- der Match läuft stattdessen in Python
-    nach dem Entschlüsseln."""
-    return re.compile(
-        ".*".join(re.escape(part) for part in pattern.split("%")), re.IGNORECASE | re.DOTALL
-    )
-
-
-def _refs_for_document(project_id, file_path, base_name, db) -> list[dict]:
-    """Findet Code-Stellen, die ein Dokument (PDF, Word, ...) erwähnen."""
-    patterns = [_ilike_to_regex(f"%{base_name}%"), _ilike_to_regex(f"%{file_path}%")]
-    candidates = (
-        db.query(DocumentChunk)
-        .filter(
-            DocumentChunk.project_id == project_id,
-            DocumentChunk.source_id.is_(None),
-        )
-        .all()
-    )
-    results = [c for c in candidates if any(p.search(c.content or "") for p in patterns)]
-    return _extract_line_refs(
-        results, lambda line: base_name.upper() in line.upper() or file_path.upper() in line.upper()
-    )
-
-
-def _refs_for_file(project_id, file_path, base_name, db) -> list[dict]:
-    """Findet alle Stellen, die per Text-Grep (import/from/require/COPY-Muster) auf diese Datei verweisen."""
-    ref_list: list[dict] = []
-    seen: set = set()
-
-    patterns = [
-        _ilike_to_regex(p)
-        for p in (
-            f'%COPY%"{base_name}"%',
-            f"%COPY%'{base_name}'%",
-            f"%COPY% {base_name}%",
-            f"%import %{base_name}%",
-            f"%from %{base_name}%",
-            f'%from %"{base_name}"%',
-            f"%from %'{base_name}'%",
-            f'%require(%"{base_name}"%',
-            f"%require(%'{base_name}'%",
-        )
-    ]
-    candidates = (
-        db.query(DocumentChunk)
-        .filter(
-            DocumentChunk.project_id == project_id,
-            DocumentChunk.file_path != file_path,
-        )
-        .all()
-    )
-    results = [c for c in candidates if any(p.search(c.content or "") for p in patterns)]
-    for ref in _extract_line_refs(
-        results,
-        lambda line: (
-            base_name.upper() in line.upper()
-            and any(x in line.upper() for x in ["COPY", "IMPORT", "FROM", "REQUIRE"])
-        ),
-    ):
-        key = (ref["file_path"], ref["line"])
-        if key not in seen:
-            seen.add(key)
-            ref_list.append(ref)
-
-    return ref_list
-
-
-def _extract_line_refs(chunks, line_predicate) -> list[dict]:
-    result = []
-    seen = set()
-    for chunk in chunks:
-        lines = chunk.content.splitlines()
-        matching = [chunk.start_line + i for i, line in enumerate(lines) if line_predicate(line)]
-        for line_num in matching or [chunk.start_line]:
-            key = (chunk.file_path, line_num)
-            if key not in seen:
-                seen.add(key)
-                idx = line_num - chunk.start_line
-                preview = (
-                    lines[idx].strip() if 0 <= idx < len(lines) else chunk.content[:60].strip()
-                )
-                result.append({"file_path": chunk.file_path, "line": line_num, "preview": preview})
-    return result

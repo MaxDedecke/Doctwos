@@ -1,3 +1,4 @@
+import type { KnowledgeSource } from '@/types/domain';
 import { DOC_FILE_RE } from './workspaceSelection';
 
 /**
@@ -7,8 +8,8 @@ import { DOC_FILE_RE } from './workspaceSelection';
  */
 export function resolveReferenceTarget(
   path: string | null,
-  sourceId: any,
-  connectedSources: any[] | null,
+  sourceId: number | string | null | undefined,
+  connectedSources: KnowledgeSource[] | null,
 ) {
   const cleanPath = path ? path.split('#')[0] : null;
   let resolvedSourceId = sourceId;
@@ -24,7 +25,7 @@ export function resolveReferenceTarget(
     const matchedSource = connectedSources.find((source) => {
       if (source.type?.toLowerCase() !== 'local') return false;
       const sourceFilename = source.name?.toLowerCase();
-      const spacesFilename = source.spaces?.filename?.toLowerCase();
+      const spacesFilename = (!Array.isArray(source.spaces) ? source.spaces?.filename?.toLowerCase() : undefined);
       return sourceFilename === cleanClickedFilename || spacesFilename === cleanClickedFilename ||
         sourceFilename === clickedFilename || spacesFilename === clickedFilename;
     });

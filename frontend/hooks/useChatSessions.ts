@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/app/services/api';
+import type { ChatMessage, ChatSession } from '@/types/domain';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UseChatSessionsOptions {
   isLoggedIn: boolean;
@@ -14,10 +15,10 @@ interface UseChatSessionsOptions {
  * this single state owner.
  */
 export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOptions) {
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isSessionsLoaded, setIsSessionsLoaded] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
 
@@ -35,9 +36,9 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
    * if persistence fails. This is a chat-session concern rather than page UI.
    */
   const handleFeedback = useCallback(async (messageId: number, feedback: 'up' | 'down') => {
-    const current = chatMessages.find((message: any) => message.id === messageId)?.feedback ?? null;
+    const current = chatMessages.find((message) => message.id === messageId)?.feedback ?? null;
     const nextValue = current === feedback ? null : feedback;
-    setChatMessages((previous) => previous.map((message: any) =>
+    setChatMessages((previous) => previous.map((message) =>
       message.id === messageId ? { ...message, feedback: nextValue } : message
     ));
 
@@ -45,7 +46,7 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
       await api.updateChatMessageFeedback(messageId, nextValue);
     } catch (error) {
       console.error(error);
-      setChatMessages((previous) => previous.map((message: any) =>
+      setChatMessages((previous) => previous.map((message) =>
         message.id === messageId ? { ...message, feedback: current } : message
       ));
       showToast(t('page.toast.feedbackFailed'), 'error');

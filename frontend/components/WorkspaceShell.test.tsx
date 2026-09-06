@@ -19,7 +19,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceShell } from './WorkspaceShell';
 
-function makeProps(overrides: Partial<React.ComponentProps<typeof WorkspaceShell>> = {}) {
+function makeProps(overrides: Partial<React.ComponentProps<typeof WorkspaceShell>> = {}): React.ComponentProps<typeof WorkspaceShell> {
   return {
     theme: 'dark',
     t: (key: string) => key,
@@ -51,7 +51,7 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof WorkspaceShell
 
 function renderShell(overrides: Partial<React.ComponentProps<typeof WorkspaceShell>> = {}) {
   const props = makeProps(overrides);
-  const view = render(<WorkspaceShell {...(props as any)} />);
+  const view = render(<WorkspaceShell {...(props)} />);
   return { ...view, props };
 }
 

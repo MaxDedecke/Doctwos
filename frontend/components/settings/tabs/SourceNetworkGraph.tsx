@@ -1,14 +1,15 @@
 "use client";
+import type { KnowledgeSource } from '@/types/domain';
 
-import React from 'react';
-import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Waypoints } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { DoctusIcon } from '@/components/Logo';
-import { getConnectorMetadata } from '@/lib/sourceConnectors';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getConnectorMetadata } from '@/lib/sourceConnectors';
+import { cn } from "@/lib/utils";
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, Waypoints } from 'lucide-react';
+import React from 'react';
 
 interface SourceNetworkGraphProps {
-  sources: any[];
+  sources: KnowledgeSource[];
   theme: string;
   scopeLabel: string;
 }

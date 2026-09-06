@@ -1,3 +1,4 @@
+import { axiosResponse } from '@/test/http';
 /**
  * O-059: `JobCenter.tsx` hatte keinen Test -- Job-Liste, die vier Aktionen
  * (Wiederaufnehmen/Neu anstoßen/Stoppen/Entfernen) und vor allem das
@@ -10,12 +11,12 @@
  * den ersten Abruf und prüfen Nachlade-Verhalten über die Aktionen, statt die
  * Uhr vorzustellen -- so bleibt jeder Fall unabhängig vom Poll-Takt.
  */
-import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { JobCenter } from './JobCenter';
 import { api } from '@/app/services/api';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { JobCenter } from './JobCenter';
 
 vi.mock('@/app/services/api', () => ({
   api: {
@@ -47,7 +48,7 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 }
 
 function stubJobs(jobs: Job[], activeCount = 0) {
-  vi.mocked(api.getJobs).mockResolvedValue({ data: { jobs, active_count: activeCount } } as any);
+  vi.mocked(api.getJobs).mockResolvedValue(axiosResponse({ jobs, active_count: activeCount }));
 }
 
 const ADMIN = { is_admin: true };
@@ -56,7 +57,7 @@ const USER = { is_admin: false };
 function renderJobCenter(props: Partial<React.ComponentProps<typeof JobCenter>> = {}) {
   return render(
     <LanguageProvider>
-      <JobCenter theme="dark" currentUser={USER} {...(props as any)} />
+      <JobCenter theme="dark" currentUser={USER} {...(props)} />
     </LanguageProvider>
   );
 }
@@ -71,7 +72,7 @@ async function openPanel(props: Partial<React.ComponentProps<typeof JobCenter>> 
 
 /** Ein abgelehnter axios-Aufruf, so wie die Komponente ihn auswertet. */
 function apiError(detail?: string) {
-  return Object.assign(new Error('request failed'), { response: { status: 400, data: detail ? { detail } : {} } });
+  return Object.assign(new Error('request failed'), { isAxiosError: true, response: { status: 400, data: detail ? { detail } : {} } });
 }
 
 describe('JobCenter', () => {
@@ -237,7 +238,7 @@ describe('JobCenter', () => {
   describe('Aktionen', () => {
     it('nimmt einen Job wieder auf und lädt danach neu', async () => {
       stubJobs([makeJob({ status: 'failed', can_resume: true })]);
-      vi.mocked(api.resumeJob).mockResolvedValue({} as any);
+      vi.mocked(api.resumeJob).mockResolvedValue(axiosResponse({}));
 
       await openPanel({ currentUser: USER });
       const before = vi.mocked(api.getJobs).mock.calls.length;
@@ -250,7 +251,7 @@ describe('JobCenter', () => {
 
     it('stößt einen Job als Admin neu an und lädt danach neu', async () => {
       stubJobs([makeJob({ status: 'failed', can_start: true })]);
-      vi.mocked(api.startJob).mockResolvedValue({} as any);
+      vi.mocked(api.startJob).mockResolvedValue(axiosResponse({}));
 
       await openPanel({ currentUser: ADMIN });
       const before = vi.mocked(api.getJobs).mock.calls.length;
@@ -263,7 +264,7 @@ describe('JobCenter', () => {
 
     it('stoppt einen laufenden Job als Admin und lädt danach neu', async () => {
       stubJobs([makeJob({ status: 'running', can_stop: true })]);
-      vi.mocked(api.stopJob).mockResolvedValue({} as any);
+      vi.mocked(api.stopJob).mockResolvedValue(axiosResponse({}));
 
       await openPanel({ currentUser: ADMIN });
       const before = vi.mocked(api.getJobs).mock.calls.length;
@@ -276,7 +277,7 @@ describe('JobCenter', () => {
 
     it('entfernt einen Job aus der Liste, ohne dafür neu zu laden', async () => {
       stubJobs([makeJob({ status: 'completed', can_delete: true })]);
-      vi.mocked(api.deleteJob).mockResolvedValue({} as any);
+      vi.mocked(api.deleteJob).mockResolvedValue(axiosResponse({}));
 
       await openPanel({ currentUser: ADMIN });
       await screen.findByText('COBOL-Repo synchronisieren');
@@ -316,7 +317,7 @@ describe('JobCenter', () => {
     it('sperrt den Knopf, solange die Aktion läuft', async () => {
       stubJobs([makeJob({ status: 'failed', can_start: true })]);
       let finish: () => void = () => {};
-      vi.mocked(api.startJob).mockReturnValue(new Promise(resolve => { finish = () => resolve({} as any); }) as any);
+      vi.mocked(api.startJob).mockReturnValue(new Promise(resolve => { finish = () => resolve(axiosResponse({})); }));
 
       await openPanel({ currentUser: ADMIN });
       // jest-dom-Matcher stehen im Typecheck nicht zur Verfuegung
@@ -344,7 +345,7 @@ describe('JobCenter', () => {
 
     it('schweigt bei einem 401, weil dann nur die Sitzung abgelaufen ist', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(api.getJobs).mockRejectedValue(Object.assign(new Error('unauthorized'), { response: { status: 401 } }));
+      vi.mocked(api.getJobs).mockRejectedValue(Object.assign(new Error('unauthorized'), { isAxiosError: true, response: { status: 401 } }));
 
       renderJobCenter();
 

@@ -1,14 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ChevronLeft, Loader2, Plus } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
 import {
   Select,
   SelectContent,
@@ -16,6 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { ChevronLeft, Loader2, Plus } from 'lucide-react';
+import React, { useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'project-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
 // §5, Schritt 2). Die new-project-Formularzustände und handleCreateProject lagen zuvor
@@ -55,7 +55,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
       });
       const projectsRes = await api.getProjects();
       setProjects(projectsRes.data);
-      const created = projectsRes.data.find((p: any) => p.id === res.data.id);
+      const created = projectsRes.data.find((p) => p.id === res.data.id);
       if (created) setSelectedProject(created);
       setNewProjectName("");
       setNewProjectDescription("");
@@ -146,7 +146,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
                 <SelectValue placeholder={t('settings.projects.teamPlaceholderDefault')} />
               </SelectTrigger>
               <SelectContent>
-                {currentUser.teams.map((team: any) => (
+                {currentUser?.teams?.map((team) => (
                   <SelectItem key={team.id} value={String(team.id)}>{team.name}</SelectItem>
                 ))}
               </SelectContent>

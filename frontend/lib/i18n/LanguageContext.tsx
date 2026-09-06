@@ -1,18 +1,19 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useSyncExternalStore } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from 'react';
 import de from './de.json';
 import en from './en.json';
 
 export type Language = 'de' | 'en';
 
-const DICTIONARIES: Record<Language, any> = { de, en };
+type Dictionary = { [key: string]: string | Dictionary };
+const DICTIONARIES: Record<Language, Dictionary> = { de, en };
 const STORAGE_KEY = 'doctus-language';
 
-function resolveKey(dict: any, key: string): string | undefined {
-  let node = dict;
+function resolveKey(dict: Dictionary, key: string): string | undefined {
+  let node: string | Dictionary = dict;
   for (const part of key.split('.')) {
-    if (node == null) return undefined;
+    if (node == null || typeof node === 'string') return undefined;
     node = node[part];
   }
   return typeof node === 'string' ? node : undefined;

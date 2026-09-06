@@ -1,7 +1,8 @@
+import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
 export type PanelSelection = {
   selectedFile: string | null;
-  selectedDoc: any | null;
-  selectedEntity: any | null;
+  selectedDoc: WorkspaceDocument | null;
+  selectedEntity: CodeEntity | null;
   selectedLine: number | null;
 };
 

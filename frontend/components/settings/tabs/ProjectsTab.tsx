@@ -1,14 +1,10 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
+import type { DiscoverableProject, Project, ProjectAccessRequest, ProjectMember, User } from '@/types/domain';
 
-import React, { useState, useEffect } from 'react';
-import { Check, CheckCircle2, Database, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
 import {
   Select,
   SelectContent,
@@ -16,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { Check, CheckCircle2, Database, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'projects'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
 // §5, Schritt 2 — letzter Tab). Der Tab kapselt sein gesamtes lokales Domänen-
@@ -52,12 +54,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
   // Project members / access-requests local states
   const [expandedProjectMembersId, setExpandedProjectMembersId] = useState<number | null>(null);
-  const [projectMembers, setProjectMembers] = useState<Record<number, any[]>>({});
-  const [projectMemberCandidates, setProjectMemberCandidates] = useState<Record<number, any[]>>({});
-  const [projectAccessRequests, setProjectAccessRequests] = useState<Record<number, any[]>>({});
+  const [projectMembers, setProjectMembers] = useState<Record<number, ProjectMember[]>>({});
+  const [projectMemberCandidates, setProjectMemberCandidates] = useState<Record<number, User[]>>({});
+  const [projectAccessRequests, setProjectAccessRequests] = useState<Record<number, ProjectAccessRequest[]>>({});
   const [addProjectMemberUserId, setAddProjectMemberUserId] = useState<string>("");
   const [addProjectMemberRole, setAddProjectMemberRole] = useState<'admin' | 'member'>("member");
-  const [discoverableProjects, setDiscoverableProjects] = useState<any[]>([]);
+  const [discoverableProjects, setDiscoverableProjects] = useState<DiscoverableProject[]>([]);
   const [isLoadingDiscoverable, setIsLoadingDiscoverable] = useState(false);
   const [requestingAccessProjectId, setRequestingAccessProjectId] = useState<number | null>(null);
 
@@ -67,11 +69,11 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
   const [isCompletingProject, setIsCompletingProject] = useState(false);
   const [pendingAccessProjectIds, setPendingAccessProjectIds] = useState<Set<number>>(new Set());
 
-  const isProjectAdmin = (project: any): boolean => {
+  const isProjectAdmin = (project: Project): boolean => {
     if (!project) return false;
     if (currentUser?.is_admin) return true;
     if (project.creator_id === currentUser?.id) return true;
-    const own = (projectMembers[project.id] || []).find((m: any) => m.user_id === currentUser?.id);
+    const own = (projectMembers[project.id] || []).find((m) => m.user_id === currentUser?.id);
     return own?.role === 'admin';
   };
 
@@ -107,7 +109,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     }
   };
 
-  const handleToggleProjectMembersExpand = async (project: any) => {
+  const handleToggleProjectMembersExpand = async (project: Project) => {
     if (expandedProjectMembersId === project.id) {
       setExpandedProjectMembersId(null);
       return;
@@ -116,7 +118,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     setAddProjectMemberUserId("");
     const members = projectMembers[project.id] || await refreshProjectMembers(project.id);
     const admin = currentUser?.is_admin || project.creator_id === currentUser?.id
-      || (members || []).find((m: any) => m.user_id === currentUser?.id)?.role === 'admin';
+      || (members || []).find((m) => m.user_id === currentUser?.id)?.role === 'admin';
     if (admin) {
       await Promise.all([
         refreshProjectAccessRequests(project.id),
@@ -133,9 +135,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       setAddProjectMemberRole("member");
       showToast(t('settings.toast.memberAdded'), "success");
       await refreshProjectMembers(projectId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.memberAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error");
     }
   };
 
@@ -144,9 +146,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       await api.updateProjectMemberRole(projectId, userId, role);
       showToast(t('settings.projects.members.roleChanged'), "success");
       await refreshProjectMembers(projectId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.projects.members.roleChangeFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.projects.members.roleChangeFailed'), "error");
     }
   };
 
@@ -155,9 +157,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       await api.removeProjectMember(projectId, userId);
       showToast(t('settings.toast.memberRemoved'), "success");
       await refreshProjectMembers(projectId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.memberRemoveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error");
     }
   };
 
@@ -167,9 +169,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       showToast(status === 'approved' ? t('settings.toast.accessRequestApproved') : t('settings.toast.accessRequestRejected'), "success");
       await refreshProjectAccessRequests(projectId);
       if (status === 'approved') await refreshProjectMembers(projectId);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.accessRequestResolveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestResolveFailed'), "error");
     }
   };
 
@@ -205,16 +207,16 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       } else if (res.data?.status === 'approved') {
         await refreshDiscoverableProjects();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.accessRequestFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestFailed'), "error");
     } finally {
       setRequestingAccessProjectId(null);
     }
   };
 
 
-  const handleProjectSelect = async (project: any) => {
+  const handleProjectSelect = async (project: Project) => {
     setSelectedProject(project);
     showToast(t('settings.toast.projectFocused', { name: project.name }), "success");
     try {
@@ -263,7 +265,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
     });
   };
 
-  const handleConfirmCompleteProject = async (project: any) => {
+  const handleConfirmCompleteProject = async (project: Project) => {
     setIsCompletingProject(true);
     try {
       await api.completeProject(project.id, { promote_source_ids: Array.from(promoteSourceIds) });
@@ -277,9 +279,9 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       setCompletingProjectId(null);
       setPromoteSourceIds(new Set());
       showToast(t('settings.toast.projectCompleted', { name: project.name }), "success");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      showToast(err?.response?.data?.detail || t('settings.toast.projectCompleteFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.projectCompleteFailed'), "error");
     } finally {
       setIsCompletingProject(false);
     }
@@ -589,8 +591,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             >
                                               <input
                                                 type="checkbox"
-                                                checked={promoteSourceIds.has(src.id)}
-                                                onChange={() => togglePromoteSource(src.id)}
+                                                checked={promoteSourceIds.has(Number(src.id))}
+                                                onChange={() => togglePromoteSource(Number(src.id))}
                                                 className="accent-indigo-600"
                                               />
                                               <Database className="w-3 h-3 text-ds-indigo-500 shrink-0" />
@@ -639,7 +641,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             {t('settings.projects.members.empty')}
                                           </div>
                                         ) : (
-                                          (projectMembers[project.id] || []).map((member: any) => (
+                                          (projectMembers[project.id] || []).map((member) => (
                                             <div
                                               key={member.id}
                                               className={cn(
@@ -657,7 +659,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                   </span>
                                                 ) : isProjectAdmin(project) && project.creator_id !== member.user_id ? (
                                                   <Select
-                                                    value={member.role === 'admin' ? 'admin' : 'member'}
+                                                    value={member.role}
                                                     onValueChange={(value) => handleUpdateProjectMemberRole(project.id, member.user_id, value as 'admin' | 'member')}
                                                   >
                                                     <SelectTrigger className="h-6 text-[9px] font-bold uppercase px-1.5 w-auto gap-1">
@@ -670,7 +672,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                   </Select>
                                                 ) : (
                                                   <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
-                                                    {member.role === 'admin' ? t('settings.projects.members.roleAdmin') : t('settings.projects.members.roleMember')}
+                                                    {t('settings.projects.members.roleMember')}
                                                   </span>
                                                 )}
                                                 {isProjectAdmin(project) && project.creator_id !== member.user_id && (
@@ -692,8 +694,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                       </div>
 
                                       {isProjectAdmin(project) && (() => {
-                                        const memberIds = new Set((projectMembers[project.id] || []).map((m: any) => m.user_id));
-                                        const availableUsers = (projectMemberCandidates[project.id] || []).filter((u: any) => !memberIds.has(u.id));
+                                        const memberIds = new Set((projectMembers[project.id] || []).map((m) => m.user_id));
+                                        const availableUsers = (projectMemberCandidates[project.id] || []).filter((u) => !memberIds.has(u.id));
                                         return availableUsers.length > 0 ? (
                                           <div className="flex items-center gap-2">
                                             <Select value={addProjectMemberUserId} onValueChange={setAddProjectMemberUserId}>
@@ -701,7 +703,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                 <SelectValue placeholder={t('settings.projects.members.addMemberPlaceholder')} />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                {availableUsers.map((u: any) => (
+                                                {availableUsers.map((u) => (
                                                   <SelectItem key={u.id} value={String(u.id)}>{u.name || u.email}</SelectItem>
                                                 ))}
                                               </SelectContent>
@@ -733,7 +735,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                             {t('settings.projects.members.pendingRequests')}
                                           </div>
-                                          {(projectAccessRequests[project.id] || []).map((req: any) => (
+                                          {(projectAccessRequests[project.id] || []).map((req) => (
                                             <div
                                               key={req.id}
                                               className={cn(
@@ -786,8 +788,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         {connectedSources.filter(src => src.project_id === project.id).map((src) => {
                                           const spacesText = Array.isArray(src.spaces)
                                             ? src.spaces.join(', ')
-                                            : (src.spaces && typeof src.spaces === 'object' && (src.spaces as any).filename
-                                                ? (src.spaces as any).filename
+                                            : (src.spaces && typeof src.spaces === 'object' && (!Array.isArray(src.spaces) ? src.spaces?.filename : undefined)
+                                                ? (!Array.isArray(src.spaces) ? src.spaces?.filename : undefined)
                                                 : '');
                                           return (
                                             <span
@@ -824,7 +826,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                 <Loader2 className="w-4 h-4 animate-spin text-ds-zinc-500" />
                               </div>
                             ) : (
-                              discoverableProjects.map((project: any) => (
+                              discoverableProjects.map((project) => (
                                 <div
                                   key={project.id}
                                   className={cn(

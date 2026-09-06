@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/app/services/api';
+import type { CodeEntity, Project, ProjectStats } from '@/types/domain';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 type Toast = (message: string, type?: string) => void;
@@ -21,12 +22,12 @@ interface UseProjectsOptions {
  * domains.
  */
 export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UseProjectsOptions) {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  const [files, setFiles] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
   const [branch, setBranch] = useState('main');
-  const [projectEntities, setProjectEntities] = useState<any[]>([]);
-  const [projectStats, setProjectStats] = useState<Record<number, any>>({});
+  const [projectEntities, setProjectEntities] = useState<CodeEntity[]>([]);
+  const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
   const [backendStatus, setBackendStatus] = useState('connecting');
 
   const projectsRef = useRef(projects);
@@ -91,7 +92,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
         const currentSelectedProject = selectedProjectRef.current;
 
         currentProjects.forEach((oldProject) => {
-          const newProject = updatedProjects.find((project: any) => project.id === oldProject.id);
+          const newProject = updatedProjects.find((project: Project) => project.id === oldProject.id);
           if (!newProject || oldProject.status === newProject.status) return;
 
           if (newProject.status === 'completed') {
@@ -141,7 +142,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
    * Select a project and load its file list. Session reset decisions stay in
    * the page because they cross the project/chat/workspace domain boundary.
    */
-  const selectProject = useCallback(async (project: any | null) => {
+  const selectProject = useCallback(async (project: Project | null) => {
     if (!project) {
       setSelectedProject(null);
       setFiles([]);

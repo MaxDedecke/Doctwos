@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Check, Layers, BookOpen, Code } from 'lucide-react';
-import { cn, copyToClipboard } from "@/lib/utils";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn, copyToClipboard } from "@/lib/utils";
+import { BookOpen, Check, Code, Layers } from 'lucide-react';
+import React, { useState } from 'react';
 
 interface CodeBlockProps {
   language: string;
@@ -75,7 +75,8 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) =
  */
 export interface KnownSource {
   file: string;
-  source_id?: string | null;
+  lines?: Array<number | null>;
+  source_id?: number | string | null;
 }
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -114,7 +115,7 @@ const renderPlainKnownSources = (
       <button
         type="button"
         key={`${keyPrefix}-plain-${idx++}`}
-        onClick={() => onFileClick(title, line, knownSource?.source_id ?? undefined)}
+        onClick={() => onFileClick(title, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
         className={cn(
           "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
           theme === 'dark'
@@ -198,7 +199,7 @@ const parseTextSegment = (
             key={`${keyPrefix}-${i}`}
             type="button"
             id={`file-link-${codeVal.replace(/[^a-zA-Z0-9]/g, "-")}`}
-            onClick={() => onFileClick(filePath, line, knownSource?.source_id ?? undefined)}
+            onClick={() => onFileClick(filePath, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
             className={cn(
               "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
               theme === 'dark'

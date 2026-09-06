@@ -1,8 +1,17 @@
-import React from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
+import { cn } from '@/lib/utils';
+import type { FocusObject, Project } from '@/types/domain';
 import {
   BookOpen,
-  Braces,
   Box,
+  Braces,
   ChevronLeft,
   ChevronRight,
   Globe,
@@ -11,15 +20,7 @@ import {
   Terminal,
   X,
 } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
+import React from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -27,10 +28,10 @@ interface PanelRendererProps {
   index: number;
   contentType: string;
   selection: PanelSelection;
-  focusObject: any | null;
+  focusObject: FocusObject | null;
   theme: string;
   t: Translate;
-  selectedProject: any | null;
+  selectedProject: Project | null;
   panelFrozen: boolean;
   panelCount: number;
   panelHistory?: PanelHistoryEntry;
@@ -152,7 +153,7 @@ function historyButtonClass(theme: string) {
   );
 }
 
-function getPanelFocusInfo(focusObject: any | null, selection: PanelSelection, t: Translate) {
+function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate) {
   if (focusObject) return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: 'text-ds-purple-400' };
   if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: selection.selectedEntity.type || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedDoc) {

@@ -1,28 +1,26 @@
 "use client";
+import type { ChatSession, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Plus,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  X,
-  Loader2,
-  LogOut,
-  Database,
-  Pin,
-} from 'lucide-react';
+import { api } from '@/app/services/api';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
-import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useFeatures } from '@/lib/FeaturesContext';
-import { api } from '@/app/services/api';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  LogOut,
+  Plus,
+  X
+} from 'lucide-react';
+import Image from 'next/image';
+import React, { useCallback, useEffect, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
-import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
 import { FileTreeList } from './sidebar/FileTreeList';
+import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
 
 interface SidebarProps {
   theme: string;
@@ -30,16 +28,16 @@ interface SidebarProps {
   setIsSidebarOpen: (val: boolean) => void;
   backendStatus: string;
   startNewChat: () => void;
-  sessions: any[];
+  sessions: ChatSession[];
   activeSessionId: number | null;
-  handleSessionSelect: (session: any) => void;
+  handleSessionSelect: (session: ChatSession) => void;
   handleRemoveSession: (id: number, e: React.MouseEvent) => void;
-  selectedProject: any;
+  selectedProject: Project | null;
   selectedFile: string | null;
-  selectedDoc: any | null;
+  selectedDoc: WorkspaceDocument | null;
   handleFileSelect: (path: string, line?: number, sourceId?: string) => void;
   handleLogout: () => void;
-  connectedSources: any[];
+  connectedSources: KnowledgeSource[];
   pinnedSourceIds: number[];
   currentUser?: { name?: string | null; username?: string; email?: string | null; role?: string } | null;
 }
@@ -249,7 +247,7 @@ export function Sidebar({
                     const matchesProject = selectedProject
                       ? (src.project_id === selectedProject.id || !src.project_id)
                       : !src.project_id;
-                    return matchesProject && pinnedSourceIds.includes(src.id);
+                    return matchesProject && pinnedSourceIds.includes(Number(src.id));
                   })
                   .slice(0, 4);
 
@@ -284,7 +282,7 @@ export function Sidebar({
                           pinnedSources.map(source => {
                             const isLocal = source.type?.toLowerCase() === 'local';
                             const isExpanded = expandedFolderId === source.id;
-                            const filesList = sourceFiles[source.id] || [];
+                            const filesList = sourceFiles[Number(source.id)] || [];
                             const isLoadingFiles = loadingSourceId === source.id;
                             const isSelected = isLocal && selectedDoc?.id === source.id;
 
@@ -302,7 +300,7 @@ export function Sidebar({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      handleFileSelect(source.name, undefined, String(source.id));
+                                      handleFileSelect(source.name, undefined, String(Number(source.id)));
                                       if (typeof window !== 'undefined' && window.innerWidth < 768) {
                                         setIsSidebarOpen(false);
                                       }
@@ -347,9 +345,9 @@ export function Sidebar({
                                     if (isExpanded) {
                                       setExpandedFolderId(null);
                                     } else {
-                                      setExpandedFolderId(source.id);
-                                      if (!sourceFiles[source.id]) {
-                                        loadSourceFiles(source.id);
+                                      setExpandedFolderId(Number(source.id));
+                                      if (!sourceFiles[Number(source.id)]) {
+                                        loadSourceFiles(Number(source.id));
                                       }
                                     }
                                   }}
@@ -395,7 +393,7 @@ export function Sidebar({
                                     ) : (
                                       <FileTreeList
                                         filesList={filesList}
-                                        sourceId={source.id}
+                                        sourceId={Number(source.id)}
                                         sourceType={source.type}
                                         selectedFile={selectedFile}
                                         collapsedFolders={collapsedFolders}

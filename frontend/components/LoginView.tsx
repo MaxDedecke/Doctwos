@@ -1,13 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { api, API_URL } from '@/app/services/api';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { DoctusIcon, DoctusWordmark } from './Logo';
-import { api, API_URL } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { apiErrorDetail } from '@/lib/apiError';
 import { getFeatures } from '@/lib/features';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { isAxiosError } from 'axios';
+import { motion } from 'framer-motion';
+import { ArrowRight, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { DoctusIcon, DoctusWordmark } from './Logo';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -67,14 +69,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
       } else {
         window.location.reload();
       }
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err) {
+      const status = isAxiosError(err) ? err.response?.status : undefined;
       if (status === 401) setError(t('loginView.invalidCredentials'));
       else if (status === 423) {
         // Restzeit steht im Retry-After-Header (Sekunden). Sie kommt bewusst von
         // dort und nicht aus dem detail-Text: der ist serverseitig deutsch, die
         // Oberfläche kann englisch sein.
-        const retryAfter = Number(err?.response?.headers?.['retry-after']);
+        const retryAfter = Number(isAxiosError(err) ? err.response?.headers?.['retry-after'] : undefined);
         setError(retryAfter > 0
           ? t('loginView.lockedFor', { minutes: String(Math.max(1, Math.ceil(retryAfter / 60))) })
           : t('loginView.locked'));
@@ -102,8 +104,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
       await api.changePassword(password, newPassword);
       if (onAuthenticated) onAuthenticated();
       else window.location.reload();
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || t('loginView.genericError'));
+    } catch (err) {
+      setError(apiErrorDetail(err) || t('loginView.genericError'));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,3 +1,4 @@
+import type { KnowledgeSource, SearchResult } from '@/types/domain';
 /**
  * O-062: erster End-to-End-Test für den eigentlichen Kernworkflow. Bisher gab
  * es nur `login.spec.ts` und `accessibility.spec.ts` -- kein einziger Test lief
@@ -142,21 +143,21 @@ async function ingestFixtureSource(request: APIRequestContext): Promise<number> 
 
   // Der Sync läuft asynchron im parser-worker -- hier wird auf den Endzustand
   // gewartet, nicht auf eine feste Zeit.
-  let last: any = null;
+  const last: { current?: KnowledgeSource & { parsed_files?: number } } = {};
   await expect
     .poll(
       async () => {
         const listResp = await request.get(`${API_URL}/knowledge-sources?project_id=${project.id}`);
-        const sources = await listResp.json();
-        last = sources.find((s: any) => s.id === source.id);
-        return last?.sync_status;
+        const sources: Array<KnowledgeSource & { parsed_files?: number }> = await listResp.json();
+        last.current = sources.find((s) => s.id === source.id);
+        return last.current?.sync_status;
       },
       { timeout: 180_000, intervals: [2_000], message: "Git-Sync des Fixture-Repos wurde nicht fertig" }
     )
     .toBe("completed");
 
-  expect(last?.last_error, `Sync meldete einen Fehler: ${last?.last_error}`).toBeFalsy();
-  expect(last?.parsed_files, "Der Parser hat keine Datei verarbeitet").toBeGreaterThan(0);
+  expect(last.current?.last_error, `Sync meldete einen Fehler: ${last.current?.last_error}`).toBeFalsy();
+  expect(last.current?.parsed_files, "Der Parser hat keine Datei verarbeitet").toBeGreaterThan(0);
 
   return project.id;
 }
@@ -172,23 +173,23 @@ test("goldener Pfad: COBOL-Quelle anbinden, parsen, suchen und an der richtigen 
 
   // Der Parser muss die Objekte auch wirklich persistiert haben -- die Suche
   // ist der erste Punkt, an dem Backend und Datenbank das gemeinsam bezeugen.
-  let hit: any = null;
+  const hit: { current?: SearchResult } = {};
   await expect
     .poll(
       async () => {
         const resp = await page.request.get(
           `${API_URL}/search?q=${encodeURIComponent(FIXTURE_ENTITY)}&project_id=${projectId}&limit=5`
         );
-        const body = await resp.json();
-        hit = (body.results || []).find((r: any) => r.node_label === FIXTURE_ENTITY && r.node_type === "entity");
-        return Boolean(hit);
+        const body: { results?: SearchResult[] } = await resp.json();
+        hit.current = (body.results || []).find((r) => r.node_label === FIXTURE_ENTITY && r.node_type === "entity");
+        return Boolean(hit.current);
       },
       { timeout: 120_000, intervals: [2_000], message: "Der Parser hat das COBOL-Objekt nicht indiziert" }
     )
     .toBe(true);
 
-  expect(hit.node_meta.file_path).toBe(FIXTURE_FILE);
-  expect(hit.node_meta.start_line).toBe(FIXTURE_LINE);
+  expect(hit.current?.node_meta.file_path).toBe(FIXTURE_FILE);
+  expect(hit.current?.node_meta.start_line).toBe(FIXTURE_LINE);
 
   // Ab hier nur noch Oberfläche: Projekt wählen, suchen, Treffer anklicken,
   // Code-Ansicht prüfen.
@@ -198,7 +199,7 @@ test("goldener Pfad: COBOL-Quelle anbinden, parsen, suchen und an der richtigen 
   await expect(page.locator("#global-search-input")).toBeVisible({ timeout: 15_000 });
   await page.locator("#global-search-input").fill(FIXTURE_ENTITY);
 
-  const result = page.locator(`#global-search-result-entity-${hit.node_id}`);
+  const result = page.locator(`#global-search-result-entity-${hit.current?.node_id}`);
   await expect(result).toBeVisible({ timeout: 15_000 });
   await result.click();
 

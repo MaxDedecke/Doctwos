@@ -1,3 +1,4 @@
+import { axiosResponse } from '@/test/http';
 /**
  * Regressionstest für O-038: das Speicher-Icon in der Header-Bar erscheint nur,
  * wenn der Chat leer ist UND eine zweite View offen ist -- sonst ist ein reiner
@@ -45,7 +46,7 @@ describe('GlobalSearch save-session-without-chat button', () => {
   });
 
   it('is hidden when the chat has messages or only one view is open', () => {
-    vi.spyOn(api, 'getJobs').mockResolvedValue({ data: { jobs: [], active_count: 0 } } as any);
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ canSaveSessionWithoutChat: false });
     // LanguageProvider defaults to German (see LanguageContext.tsx) -- assert
     // on the real de.json string, not the translation key.
@@ -53,7 +54,7 @@ describe('GlobalSearch save-session-without-chat button', () => {
   });
 
   it('appears when the chat is empty and a second view is open, and opens the naming dialog', () => {
-    vi.spyOn(api, 'getJobs').mockResolvedValue({ data: { jobs: [], active_count: 0 } } as any);
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ canSaveSessionWithoutChat: true });
 
     const button = screen.getByTitle('Sitzung speichern (Chat wurde noch nicht benutzt)');
@@ -64,7 +65,7 @@ describe('GlobalSearch save-session-without-chat button', () => {
   });
 
   it('calls onSaveSessionWithoutChat with the trimmed title when confirmed', async () => {
-    vi.spyOn(api, 'getJobs').mockResolvedValue({ data: { jobs: [], active_count: 0 } } as any);
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     const onSaveSessionWithoutChat = vi.fn().mockResolvedValue(undefined);
     renderGlobalSearch({ canSaveSessionWithoutChat: true, onSaveSessionWithoutChat });
 
@@ -83,7 +84,7 @@ describe('GlobalSearch save-session-without-chat button', () => {
   // nicht erneut den Namens-Dialog öffnen (das würde eine zweite Sitzung
   // anlegen) -- stattdessen wird direkt aktualisiert.
   it('updates the existing session directly instead of reopening the dialog when one is already active', () => {
-    vi.spyOn(api, 'getJobs').mockResolvedValue({ data: { jobs: [], active_count: 0 } } as any);
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     const onSaveSessionWithoutChat = vi.fn();
     const onUpdateSessionSnapshot = vi.fn();
     renderGlobalSearch({

@@ -1,36 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import type { CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocument } from '@/types/domain';
 import Editor from '@monaco-editor/react';
-import type { editor as MonacoEditor } from 'monaco-editor';
 import { AnimatePresence } from 'framer-motion';
+import type { editor as MonacoEditor } from 'monaco-editor';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
-  Terminal,
-  Link2,
-  Layers,
-  X,
   BookOpen,
-  Activity,
-  ExternalLink,
-  Loader2,
-  Code,
-  Globe,
-  Network,
-  Download,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  ExternalLink,
+  Globe,
+  Layers,
+  Link2,
+  Loader2,
+  Sparkles,
+  Terminal,
+  X
 } from 'lucide-react';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { MarkdownContent } from "@/components/MarkdownContent";
-import { cn } from "@/lib/utils";
-import { sanitizeHtml } from "@/lib/sanitize";
 import { api, API_URL } from '@/app/services/api';
+import { MarkdownContent } from "@/components/MarkdownContent";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { sanitizeHtml } from "@/lib/sanitize";
+import { cn } from "@/lib/utils";
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
 
@@ -67,42 +62,42 @@ const detectLanguage = (filename: string | null) => {
 
 interface SplitPaneWorkspaceProps {
   theme: string;
-  selectedFile: any | null;
-  selectedDoc: any | null;
+  selectedFile: string | null;
+  selectedDoc: WorkspaceDocument | null;
   activeRightTab: 'code' | 'doc' | 'weborigin' | 'graph';
   setActiveRightTab: (tab: 'code' | 'doc' | 'weborigin' | 'graph') => void;
-  selectedProject?: any | null;
+  selectedProject?: Project | null;
   isEditorMaximized: boolean;
   setIsEditorMaximized: (max: boolean) => void;
-  setSelectedFile: (file: any | null) => void;
-  setSelectedDoc: (doc: any | null) => void;
+  setSelectedFile: (file: string | null) => void;
+  setSelectedDoc: (doc: WorkspaceDocument | null) => void;
   fileContent?: string;
   fileContentFormat?: string;
   handleFileSelect: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void>;
   isLoadingFile?: boolean;
 
   // Monaco ref passed from parent to allow scrolling & decorations from page.tsx
-  editorRef?: React.MutableRefObject<any>;
+  editorRef?: React.MutableRefObject<MonacoEditor.IStandaloneCodeEditor | null>;
 
   // References Tab Props
-  fileReferences?: any[];
+  fileReferences?: FileReference[];
   isLoadingReferences?: boolean;
   isReferencesDropdownOpen: boolean;
   setIsReferencesDropdownOpen: (open: boolean) => void;
   referencesTab: 'code' | 'docs';
   setReferencesTab: (tab: 'code' | 'docs') => void;
-  selectedEntity: any | null;
+  selectedEntity: CodeEntity | null;
   splitClasses: { chat: string; editor: string };
   activeLlmModel: string;
   activeEmbeddingModel: string;
   editorFontSize: number;
   editorFontFamily: string;
   editorMinimap: boolean;
-  projectEntities?: any[];
-  handleEntitySelect?: (ent: any) => Promise<void> | void;
+  projectEntities?: CodeEntity[];
+  handleEntitySelect?: (ent: CodeEntity) => Promise<void> | void;
   onGutterClick?: (lineNumber: number, lineContent: string) => void;
-  onGutterAskEntity?: (entity: any) => void;
-  fileNavStack?: Array<{file: string|null, doc: any|null, tab: string}>;
+  onGutterAskEntity?: (entity: CodeEntity) => void;
+  fileNavStack?: Array<{file: string|null, doc: WorkspaceDocument|null, tab: string}>;
   onNavigateBack?: () => void;
   selectedLine?: number | null;
   onDocFocus?: (filePath: string, sourceId: number | string | null) => void;
@@ -155,10 +150,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [cursorColumn, setCursorColumn] = useState<number>(1);
   const [editorContentLeft, setEditorContentLeft] = useState<number>(53);
   const [isReferencesModalMode, setIsReferencesModalMode] = useState<boolean>(false);
-  const [focusedRefNode, setFocusedRefNode] = useState<any | null>(null);
-  const [focusedRefReferences, setFocusedRefReferences] = useState<any[]>([]);
+  const [focusedRefNode, setFocusedRefNode] = useState<FileReference | null>(null);
+  const [focusedRefReferences, setFocusedRefReferences] = useState<FileReference[]>([]);
   const [isLoadingFocusedRefRefs, setIsLoadingFocusedRefRefs] = useState<boolean>(false);
-  const [entityNeighborGroups, setEntityNeighborGroups] = useState<Record<string, any[]>>({});
+  const [entityNeighborGroups, setEntityNeighborGroups] = useState<Record<string, EntityNeighbor[]>>({});
   const [isLoadingEntityNeighbors, setIsLoadingEntityNeighbors] = useState(false);
 
   // Bumped from handleEditorDidMountLocal so the effects below also re-run once
@@ -170,7 +165,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
-  const [localFileReferences, setLocalFileReferences] = useState<any[]>([]);
+  const [localFileReferences, setLocalFileReferences] = useState<FileReference[]>([]);
   const [localIsLoadingReferences, setLocalIsLoadingReferences] = useState<boolean>(false);
 
   const contentToUse = fileContent !== undefined ? fileContent : localFileContent;
@@ -226,7 +221,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     'DOC:out': t('splitPane.neighborGroupLabels.docOut'),
   };
 
-  const localEditorRef = useRef<any>(null);
+  const localEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const activeEditorRef = editorRef || localEditorRef;
 
   // Local file loading effect — the graph pane renders KnowledgeGraphView straight
@@ -259,7 +254,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       setLocalIsLoadingFile(true);
       setLocalFileContent("");
       try {
-        if (isDoc) {
+        if (isDoc && selectedDoc && docId != null) {
           const isWeb = selectedDoc.isWebOrigin ||
             (selectedDoc.type?.toLowerCase() === 'confluence' ||
              selectedDoc.type?.toLowerCase() === 'jira' ||
@@ -391,10 +386,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     // Entity-Dekorations-Effekt weiter unten).
   }, [selectedLine, selectedFile, activeEditorRef, editorMountTick, contentToUse]);
 
-  const handleReferenceItemClick = async (refItem: any) => {
+  const handleReferenceItemClick = async (refItem: FileReference) => {
     setFocusedRefNode(refItem);
     setIsLoadingFocusedRefRefs(true);
     try {
+      if (!selectedProject) return;
       const res = await api.getProjectReferences(selectedProject.id, refItem.file_path);
       setFocusedRefReferences(res.data || []);
     } catch (err) {
@@ -406,7 +402,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   };
 
   const rulerRef = useRef<HTMLDivElement>(null);
-  const monacoRef = useRef<any>(null);
+  const monacoRef = useRef<typeof import('monaco-editor') | null>(null);
   const handleEntitySelectRef = useRef(handleEntitySelect);
   const onGutterClickRef = useRef(onGutterClick);
   const onGutterAskEntityRef = useRef(onGutterAskEntity);
@@ -421,13 +417,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     y: number;
     lineNumber: number;
     lineContent: string;
-    entity: any | null;
+    entity: CodeEntity | null;
   } | null>(null);
   const gutterMenuRef = useRef<HTMLDivElement>(null);
   const [entityMenu, setEntityMenu] = useState<{
     x: number;
     y: number;
-    entity: any;
+    entity: CodeEntity;
   } | null>(null);
   const entityMenuRef = useRef<HTMLDivElement>(null);
 
@@ -504,21 +500,21 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     const monaco = monacoRef.current;
     if (!editor || !monaco || !selectedFile || !projectEntities) return;
 
-    const fileEntities = projectEntities.filter((ent: any) => ent.file_path === selectedFile);
+    const fileEntities = projectEntities.filter((ent: CodeEntity) => ent.file_path === selectedFile);
     const model = editor.getModel();
     if (!model) return;
 
-    const newDecorations: any[] = [];
+    const newDecorations: MonacoEditor.IModelDeltaDecoration[] = [];
     // Entities usually carry a stable id, but selections coming from places
     // that only pass a lightweight { file_path, start_line, name } shape
     // (e.g. search results) don't — fall back to that triple so the focused
     // object still gets recognized as "selected" instead of silently
     // matching nothing.
     const selectedKey = selectedEntity
-      ? (selectedEntity.id ?? `${selectedEntity.file_path}:${selectedEntity.start_line}:${selectedEntity.name}`)
+      ? (selectedEntity.id ?? `${selectedEntity.file_path}:${selectedEntity.start_line}:${selectedEntity?.name}`)
       : null;
 
-    fileEntities.forEach((ent: any) => {
+    fileEntities.forEach((ent: CodeEntity) => {
       const lineNum = ent.start_line;
       if (!lineNum || lineNum > model.getLineCount()) return;
 
@@ -559,7 +555,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           },
           glyphMarginClassName: 'doctus-entity-glyph-margin',
           glyphMarginHoverMessage: {
-            value: t('splitPane.codeObjectHover', { name: ent.name, type: ent.type })
+            value: t('splitPane.codeObjectHover', { name: ent.name, type: ent.type || 'entity' })
           }
         }
       });
@@ -685,7 +681,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
     let hoveredLineDecorations: string[] = [];
 
-    editor.onMouseMove((e: any) => {
+    editor.onMouseMove((e) => {
       const position = e.target.position;
       const lineNumber = position?.lineNumber;
       if (lineNumber) {
@@ -711,7 +707,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       hoveredLineDecorations = [];
     });
 
-    editor.onDidScrollChange((e: any) => {
+    editor.onDidScrollChange((e) => {
       if (e.scrollLeft !== undefined && rulerRef.current) {
         rulerRef.current.style.transform = `translateX(-${e.scrollLeft}px)`;
       }
@@ -724,7 +720,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       }
     });
 
-    editor.onDidChangeCursorPosition((e: any) => {
+    editor.onDidChangeCursorPosition((e) => {
       setCursorColumn(e.position.column);
     });
 
@@ -734,7 +730,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       }
     });
 
-    editor.onMouseDown((e: any) => {
+    editor.onMouseDown((e) => {
       const position = e.target.position;
       if (!position) return;
 
@@ -742,7 +738,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       const column = position.column;
 
       const fileEntities = (projectEntitiesRef.current || []).filter(
-        (ent: any) => ent.file_path === selectedFileRef.current
+        (ent: CodeEntity) => ent.file_path === selectedFileRef.current
       );
 
       // Gutter click detection: type 2 (glyph margin), type 3 (line numbers), type 4 (line decorations)
@@ -754,7 +750,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       // name starts at column 1 (common for un-indented COBOL paragraphs/
       // sections) and hijack the gutter menu below.
       if (!isGutterClick) {
-        const clickedEntity = fileEntities.find((ent: any) => {
+        const clickedEntity = fileEntities.find((ent: CodeEntity) => {
           if (ent.start_line !== lineNumber) return false;
 
           const model = editor.getModel();
@@ -787,8 +783,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         // Smallest enclosing entity (paragraph/section/program …) wins — it's
         // the most specific "code object" for this line.
         const enclosingEntity = fileEntities
-          .filter((ent: any) => ent.start_line <= lineNumber && ent.end_line >= lineNumber)
-          .sort((a: any, b: any) => (a.end_line - a.start_line) - (b.end_line - b.start_line))[0] || null;
+          .filter((ent: CodeEntity) => ent.start_line != null && ent.start_line <= lineNumber && (ent.end_line ?? ent.start_line) >= lineNumber)
+          .sort((a, b) => ((a.end_line ?? a.start_line ?? 0) - (a.start_line ?? 0)) - ((b.end_line ?? b.start_line ?? 0) - (b.start_line ?? 0)))[0] || null;
         const native = e.event?.browserEvent;
         setGutterMenu({
           x: native?.clientX ?? e.event?.posx ?? 0,
@@ -804,7 +800,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const exportNeo4j = async () => {
     const params = new URLSearchParams({ status: 'approved' });
     if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
-    const res = await fetch(`${API_URL}/graph/export/neo4j?${params}`);
+    const res = await api.fetch(`${API_URL}/graph/export/neo4j?${params}`);
     const data = await res.json();
     const blob = new Blob([data.cypher], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -1023,7 +1019,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         Object.keys(entityNeighborGroups).length === 0 ? (
                           <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
                             <Layers className="w-8 h-8 text-ds-zinc-650 opacity-50" />
-                            <span>{t('splitPane.noDirectReferencesFor', { name: selectedEntity.name })}</span>
+                            <span>{t('splitPane.noDirectReferencesFor', { name: selectedEntity?.name || '' })}</span>
                           </div>
                         ) : (
                           <div className="py-2">
@@ -1035,7 +1031,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                 >
                                   {neighborGroupLabels[group] || group.replace(':', ' · ')}
                                 </h3>
-                                {neighbors.map((neighbor: any) => {
+                                {neighbors.map((neighbor) => {
                                   const entity = neighbor.entity;
                                   const document = neighbor.document;
                                   const canOpen = !!entity || !!document?.file_path;
@@ -1578,7 +1574,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         {gutterMenu.entity && (
           <button
             onClick={() => {
-              onGutterAskEntityRef.current?.(gutterMenu.entity);
+              if (gutterMenu.entity) onGutterAskEntityRef.current?.(gutterMenu.entity);
               setGutterMenu(null);
             }}
             className={cn(

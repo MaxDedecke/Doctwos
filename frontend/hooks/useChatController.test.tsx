@@ -1,7 +1,9 @@
-import { act, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useState } from 'react';
+import { axiosResponse } from '@/test/http';
 import { api } from '@/app/services/api';
+import type { ChatMessage, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
+import { act, renderHook } from '@testing-library/react';
+import { useState } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatController } from './useChatController';
 
 const routerPush = vi.hoisted(() => vi.fn());
@@ -11,40 +13,31 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush }),
 }));
 
-type HarnessOverrides = {
-  activeSessionId?: number | null;
-  chatMessages?: any[];
-  currentMessage?: string;
-  isLoading?: boolean;
-  selectedProject?: any | null;
-  selectedSource?: any | null;
-  pinnedCode?: any;
-  handleProjectSelect?: any;
-  restoreWorkspaceSnapshot?: any;
-  resetChatSession?: any;
-  showToast?: any;
-  buildWorkspaceSnapshot?: any;
-  sessions?: any[];
-};
+type ControllerOptions = Parameters<typeof useChatController>[0];
+type HarnessOverrides = Partial<Pick<ControllerOptions,
+  'activeSessionId' | 'chatMessages' | 'currentMessage' | 'isLoading' |
+  'selectedProject' | 'selectedSource' | 'pinnedCode' | 'handleProjectSelect' |
+  'restoreWorkspaceSnapshot' | 'resetChatSession' | 'showToast' | 'buildWorkspaceSnapshot'
+>> & { sessions?: ChatSession[] };
 
 function useControllerHarness(overrides: HarnessOverrides = {}) {
   const [activeSessionId, setActiveSessionId] = useState<number | null>(overrides.activeSessionId ?? null);
-  const [chatMessages, setChatMessages] = useState<any[]>(overrides.chatMessages ?? []);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(overrides.chatMessages ?? []);
   const [currentMessage, setCurrentMessage] = useState(overrides.currentMessage ?? '');
   const [isLoading, setIsLoading] = useState(overrides.isLoading ?? false);
-  const [sessions, setSessions] = useState<any[]>(overrides.sessions ?? []);
-  const [selectedSource, setSelectedSource] = useState<any | null>(overrides.selectedSource ?? null);
+  const [sessions, setSessions] = useState<ChatSession[]>(overrides.sessions ?? []);
+  const [selectedSource, setSelectedSource] = useState<KnowledgeSource | null>(overrides.selectedSource ?? null);
   const selectedProject = overrides.selectedProject ?? { id: 11, name: 'Demo' };
   // Lazy useState initializers (not a plain `overrides.X ?? vi.fn()`) so the
   // mock identity is stable across re-renders -- a handler under test here
   // can itself trigger a state update (e.g. setSessions), and asserting on
   // `result.current.showToast` after that re-render must still see the same
   // mock instance the callback actually closed over, not a freshly recreated one.
-  const [handleProjectSelect] = useState(() => (overrides.handleProjectSelect ?? vi.fn()) as (project: any) => void | Promise<void>);
-  const [restoreWorkspaceSnapshot] = useState(() => (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: any) => void);
+  const [handleProjectSelect] = useState(() => (overrides.handleProjectSelect ?? vi.fn()) as (project: Project | null) => void | Promise<void>);
+  const [restoreWorkspaceSnapshot] = useState(() => (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: WorkspaceSnapshot) => void);
   const [resetChatSession] = useState(() => (overrides.resetChatSession ?? vi.fn()) as () => void);
   const [showToast] = useState(() => (overrides.showToast ?? vi.fn()) as (message: string, type?: string) => void);
-  const [buildWorkspaceSnapshot] = useState(() => (overrides.buildWorkspaceSnapshot ?? vi.fn(() => ({ panelConfigs: ['chat', 'graph'] }))) as () => any);
+  const [buildWorkspaceSnapshot] = useState(() => (overrides.buildWorkspaceSnapshot ?? vi.fn(() => ({ panelConfigs: ['chat', 'graph'] }))) as () => WorkspaceSnapshot);
 
   const controller = useChatController({
     t: (key, vars) => vars ? `${key}:${JSON.stringify(vars)}` : key,
@@ -68,7 +61,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
     systemPrompt: 'system',
     activeProfileId: 'ollama-default',
     llmProfiles: [{ id: 'ollama-default', name: 'Ollama', provider: 'ollama', model: 'qwen' }],
-    projects: [selectedProject],
+    projects: selectedProject ? [selectedProject] : [],
     connectedSources: [{ id: 8, name: 'Docs', type: 'local' }],
     handleProjectSelect,
     restoreWorkspaceSnapshot,
@@ -91,7 +84,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
   };
 }
 
-function streamResponse(events: Array<Record<string, any>>) {
+function streamResponse(events: Array<Record<string, unknown>>) {
   const encoder = new TextEncoder();
   const payload = `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\n`;
   const chunks: Uint8Array[] = [encoder.encode(payload)];
@@ -148,6 +141,23 @@ describe('useChatController', () => {
       content: 'Hallo Welt',
     });
     expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-42');
+  });
+
+  it('continues after malformed frames and preserves document sources without line numbers', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'content_chunk', content: { invalid: true } },
+      { type: 'future_event' },
+      { type: 'content_chunk', content: 'Valid answer' },
+      { type: 'sources', sources: [{ file: 'manual.pdf', source_id: 8, lines: [null, null] }] },
+      { type: 'message_saved', message_id: 9 },
+    ])));
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Explain' }));
+    await act(async () => { await result.current.controller.handleSendChat(); });
+    expect(result.current.chatMessages[1]).toMatchObject({
+      id: 9, content: 'Valid answer',
+      sources: [{ file: 'manual.pdf', source_id: 8, lines: [null, null] }],
+    });
+    expect(result.current.isLoading).toBe(false);
   });
 
   it('sends the currently focused code object with the chat turn', async () => {
@@ -244,12 +254,10 @@ describe('useChatController', () => {
   });
 
   it('loads a session, restores its workspace and normalizes its first message', async () => {
-    vi.spyOn(api, 'getChatMessages').mockResolvedValue({
-      data: [
+    vi.spyOn(api, 'getChatMessages').mockResolvedValue(axiosResponse([
         { id: 1, role: 'user', content: '0 Wer bist du ?', metadata_json: { refs: [] } },
         { id: 2, role: 'assistant', content: 'Ich bin Doctus.', sources_json: [] },
-      ],
-    } as any);
+      ]));
     const handleProjectSelect = vi.fn();
     const restoreWorkspaceSnapshot = vi.fn();
     const { result } = renderHook(() => useControllerHarness({
@@ -282,8 +290,8 @@ describe('useChatController', () => {
   describe('handleSaveSessionWithoutChat', () => {
     it('creates a session via the API, saves its snapshot immediately, activates it, and lists it', async () => {
       const newSession = { id: 55, uuid: 'chat-55', title: 'Graph-Befund', project_id: 11, source_id: null };
-      vi.spyOn(api, 'createChatSession').mockResolvedValue({ data: newSession } as any);
-      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+      vi.spyOn(api, 'createChatSession').mockResolvedValue(axiosResponse(newSession));
+      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue(axiosResponse({}));
       const { result } = renderHook(() => useControllerHarness());
 
       await act(async () => {
@@ -337,7 +345,7 @@ describe('useChatController', () => {
   describe('handleUpdateSessionSnapshot', () => {
     it('saves the current snapshot into the already-active session, without creating a new one', async () => {
       const createSpy = vi.spyOn(api, 'createChatSession');
-      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+      const updateSnapshotSpy = vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue(axiosResponse({}));
       const { result } = renderHook(() => useControllerHarness({
         activeSessionId: 55,
         buildWorkspaceSnapshot: () => ({ panelConfigs: ['chat', 'graph', 'code'] }),
@@ -353,7 +361,7 @@ describe('useChatController', () => {
     });
 
     it('updates the matching cached session entry with the newly saved snapshot', async () => {
-      vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue({} as any);
+      vi.spyOn(api, 'updateChatSessionSnapshot').mockResolvedValue(axiosResponse({}));
       const { result } = renderHook(() => useControllerHarness({
         activeSessionId: 55,
         sessions: [{ id: 55, title: 'Graph-Befund', snapshot_json: { panelConfigs: ['chat', 'graph'] } }, { id: 9, title: 'Andere Sitzung' }],

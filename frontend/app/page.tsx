@@ -1,61 +1,39 @@
 "use client";
+import type { PanelSelection } from '@/lib/panelHistory';
+import type { ChatSession, Project, SearchResult, User } from '@/types/domain';
+import type { editor as MonacoEditor } from 'monaco-editor';
 
-import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Folder,
-  Send,
-  Menu,
-  History,
-  Database,
-  Search,
-  MoreVertical,
-  Layers,
-  Sparkles,
-  HelpCircle,
-  Clock,
-  FileText,
-  FileCode,
-  Trash2,
-  Download,
-  X,
   Check,
-  ExternalLink,
   Loader2,
-  Activity,
-  Github,
-  LogOut,
-  Key,
-  GitBranch,
+  X
 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { resolveReferenceTarget } from "@/lib/referenceTarget";
-import { api } from './services/api';
-import { SettingsModal } from "@/components/SettingsModal";
-import { SettingsProvider } from "@/components/settings/SettingsContext";
-import { PanelRenderer } from "@/components/PanelRenderer";
-import { WorkspaceShell } from "@/components/WorkspaceShell";
-import { LoginView } from "@/components/LoginView";
-import { Sidebar } from "@/components/Sidebar";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { LoginView } from "@/components/LoginView";
 import { PanelContentRenderer } from "@/components/PanelContentRenderer";
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Suspense } from 'react';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
-import { useProjects } from '@/hooks/useProjects';
-import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
-import { useChatSessions } from '@/hooks/useChatSessions';
-import { useChatController } from '@/hooks/useChatController';
-import { usePanelNavigation } from '@/hooks/usePanelNavigation';
-import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
+import { PanelRenderer } from "@/components/PanelRenderer";
+import { SettingsModal } from "@/components/SettingsModal";
+import { Sidebar } from "@/components/Sidebar";
+import { WorkspaceShell } from "@/components/WorkspaceShell";
+import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useAiSettings } from '@/hooks/useAiSettings';
+import { useChatController } from '@/hooks/useChatController';
+import { useChatSessions } from '@/hooks/useChatSessions';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
+import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
+import { usePanelNavigation } from '@/hooks/usePanelNavigation';
+import { useProjects } from '@/hooks/useProjects';
+import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
+import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { resolveReferenceTarget } from "@/lib/referenceTarget";
+import { cn } from "@/lib/utils";
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import { api } from './services/api';
 
 const MemoSettingsModal = React.memo(SettingsModal);
 const MemoGlobalSearch = React.memo(GlobalSearch);
@@ -72,7 +50,7 @@ function AppContent() {
   // --- Authentication States ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoginInitialized, setIsLoginInitialized] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
     // Session läuft über eine httpOnly-Cookie (lokale Anmeldung, siehe backend/api/auth.py)
@@ -107,7 +85,7 @@ function AppContent() {
     }
   }, []);
 
-  const [toast, setToast] = useState<any | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
 
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -147,7 +125,7 @@ function AppContent() {
   // component state) but is needed by the URL-sync effect above its own
   // declaration — kept fresh via ref/effect rather than moved, same "latest
   // ref" pattern as projectsRef/selectedProjectRef below.
-  const handleSessionSelectRef = useRef<(session: any) => void>(() => {});
+  const handleSessionSelectRef = useRef<(session: ChatSession) => void>(() => {});
   const showToast = useCallback((message: string, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 6000);
@@ -211,7 +189,7 @@ function AppContent() {
 
   // Source state and loading live in useKnowledgeSources.
 
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
 
   // Mobile-tab synchronization lives in useWorkspaceLayout.
 
@@ -389,7 +367,7 @@ function AppContent() {
 
   // File-reference loading lives in useKnowledgeSources.
 
-  const handleFileSelect = useCallback(async (path: string | null, line: number | null = null, sourceId: string | number | null = null, projectOverride: { id: number; repo_id?: number | null } | null = null) => {
+  const handleFileSelect = useCallback(async (path: string | null, line: number | null = null, sourceId: string | number | null = null, projectOverride: Project | null = null) => {
     if (!path) return;
     // Chunks einer Datei liegen unter "<pfad>#<suffix>" — für die Dateiauswahl
     // zählt nur der Pfad davor.
@@ -467,6 +445,7 @@ function AppContent() {
         // eigenen "/repositories/.../file-content"-Endpunkt, der Git-Worktree
         // wird über den Knowledge-Source-Content-Endpunkt gelesen (siehe
         // get_knowledge_source_content in backend/api/knowledge_sources.py).
+        if (!project?.repo_id) throw new Error('No source selected for file content');
         const res = await api.getKnowledgeSourceContent(project.repo_id, cleanPath);
         content = res.data.content;
         setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
@@ -558,13 +537,13 @@ function AppContent() {
     loadFileReferences,
   });
 
-  const handleSearchResultSelect = useCallback(async (result: any) => {
+  const handleSearchResultSelect = useCallback(async (result: SearchResult) => {
     const meta = result.node_meta || {};
     const targetProjectId = result.node_type === 'project' ? result.node_id : meta.project_id;
 
     let targetProject = selectedProject;
     if (targetProjectId && targetProjectId !== selectedProject?.id) {
-      const found = projects.find((p: any) => p.id === targetProjectId);
+      const found = projects.find((p) => p.id === targetProjectId);
       if (found) {
         await handleProjectSelect(found);
         targetProject = found;
@@ -574,8 +553,8 @@ function AppContent() {
     if (result.node_type === 'entity') {
       await handleEntitySelect({
         id: result.node_id,
-        file_path: meta.file_path,
-        start_line: meta.start_line,
+        file_path: meta.file_path || result.node_label,
+        start_line: meta.start_line ?? 1,
         name: result.node_label,
         type: meta.type,
         source_id: meta.source_id,
@@ -700,7 +679,7 @@ function AppContent() {
 
   // Divider interaction lives in useWorkspaceLayout.
 
-  const renderPanelContent = (index: number, contentType: string, selection: any) => (
+  const renderPanelContent = (index: number, contentType: string, selection: PanelSelection) => (
     <PanelContentRenderer
       index={index}
       contentType={contentType}

@@ -1,11 +1,13 @@
 "use client";
+import { apiErrorDetail } from '@/lib/apiError';
+import { isAxiosError } from 'axios';
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Loader2, Play, RefreshCw, Square, X } from "lucide-react";
 import { api } from "@/app/services/api";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { cn } from "@/lib/utils";
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, Loader2, Play, RefreshCw, Square, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Job = {
   key: string; kind: string; id: number; label: string; status: string;
@@ -40,8 +42,8 @@ export function JobCenter({
       const response = await api.getJobs(projectId);
       setJobs(response.data.jobs || []);
       setActiveCount(response.data.active_count || 0);
-    } catch (error: any) {
-      if (error?.response?.status !== 401) console.error("Job center refresh failed", error);
+    } catch (error) {
+      if ((!isAxiosError(error) || error.response?.status !== 401)) console.error("Job center refresh failed", error);
     }
   }, [projectId]);
 
@@ -68,8 +70,8 @@ export function JobCenter({
     try {
       await api.resumeJob(job.kind, job.id);
       await refresh();
-    } catch (error: any) {
-      setActionError(error?.response?.data?.detail || t("jobCenter.actionFailed"));
+    } catch (error) {
+      setActionError(apiErrorDetail(error) || t("jobCenter.actionFailed"));
     } finally {
       setResuming(null);
     }
@@ -81,8 +83,8 @@ export function JobCenter({
     try {
       await api.startJob(job.kind, job.id);
       await refresh();
-    } catch (error: any) {
-      setActionError(error?.response?.data?.detail || t("jobCenter.actionFailed"));
+    } catch (error) {
+      setActionError(apiErrorDetail(error) || t("jobCenter.actionFailed"));
     } finally {
       setStarting(null);
     }
@@ -94,8 +96,8 @@ export function JobCenter({
     try {
       await api.deleteJob(job.kind, job.id);
       setJobs(previous => previous.filter(item => item.key !== job.key));
-    } catch (error: any) {
-      setActionError(error?.response?.data?.detail || t("jobCenter.actionFailed"));
+    } catch (error) {
+      setActionError(apiErrorDetail(error) || t("jobCenter.actionFailed"));
     } finally {
       setRemoving(null);
     }
@@ -107,8 +109,8 @@ export function JobCenter({
     try {
       await api.stopJob(job.kind, job.id);
       await refresh();
-    } catch (error: any) {
-      setActionError(error?.response?.data?.detail || t("jobCenter.actionFailed"));
+    } catch (error) {
+      setActionError(apiErrorDetail(error) || t("jobCenter.actionFailed"));
     } finally {
       setStopping(null);
     }

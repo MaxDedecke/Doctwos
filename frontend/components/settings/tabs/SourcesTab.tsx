@@ -1,25 +1,36 @@
 "use client";
 
-import React from 'react';
-import {
-  GitBranch, RefreshCw, RefreshCcw, Link2, Loader2, Database, Layers,
-  FileText, Code, Folder, Building2, Wrench, ClipboardList, Download, Pin, Trash2,
-  Plus, Info, Calendar, AlertCircle, CheckCircle2
-} from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api, API_URL } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFeatures } from '@/lib/FeaturesContext';
 import { useSettings } from '@/components/settings/SettingsContext';
-import { getConnectorMetadata } from '@/lib/sourceConnectors';
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SelectTrigger
 } from "@/components/ui/select";
+import { useFeatures } from '@/lib/FeaturesContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getConnectorMetadata } from '@/lib/sourceConnectors';
+import { cn } from "@/lib/utils";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Code,
+  Database,
+  Download,
+  Folder,
+  GitBranch,
+  Info,
+  Layers,
+  Loader2,
+  Pin,
+  Plus,
+  RefreshCcw,
+  RefreshCw,
+  Trash2
+} from 'lucide-react';
+import React from 'react';
 import { SourceNetworkGraph } from './SourceNetworkGraph';
 
 interface SourcesTabProps {
@@ -162,8 +173,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
   // Sort pinned sources first
   const sortedSources = [...filteredSources].sort((a, b) => {
-    const aPinned = pinnedSourceIds.includes(a.id) ? 1 : 0;
-    const bPinned = pinnedSourceIds.includes(b.id) ? 1 : 0;
+    const aPinned = pinnedSourceIds.includes(Number(a.id)) ? 1 : 0;
+    const bPinned = pinnedSourceIds.includes(Number(b.id)) ? 1 : 0;
     return bPinned - aPinned;
   });
 
@@ -172,7 +183,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
   // zusätzlichen Auswahl-Kontrollpunkt bereits abgedeckt.
   const networkScopeLabel = selectedSourceRepoId === "all"
     ? t('settings.sourcesTab.allProjects')
-    : projects.find((p: any) => p.id.toString() === selectedSourceRepoId)?.name || t('settings.sourcesTab.selectProjectPlaceholder');
+    : projects.find((p) => p.id.toString() === selectedSourceRepoId)?.name || t('settings.sourcesTab.selectProjectPlaceholder');
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 w-full min-w-0">
@@ -210,7 +221,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                 <span className="truncate">
                   {selectedSourceRepoId === "all"
                     ? t('settings.sourcesTab.allProjects')
-                    : projects.find((p: any) => p.id.toString() === selectedSourceRepoId)?.name || t('settings.sourcesTab.selectProjectPlaceholder')}
+                    : projects.find((p) => p.id.toString() === selectedSourceRepoId)?.name || t('settings.sourcesTab.selectProjectPlaceholder')}
                 </span>
               </div>
             </SelectTrigger>
@@ -218,7 +229,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
               <SelectItem value="all" className="text-xs">
                 {t('settings.sourcesTab.allProjects')}
               </SelectItem>
-              {projects.map((project: any) => (
+              {projects.map((project) => (
                 <SelectItem key={project.id} value={project.id.toString()} disabled={!!project.url && project.status !== 'completed'} className="text-xs">
                   {project.name} {project.url && project.status !== 'completed' ? `(${project.status === 'parsing' ? (project.progress_message || t('settings.sourcesTab.analyzingShort', { percent: project.progress || 0 })) : t('settings.sourcesTab.projectPendingStatus')})` : ''}
                 </SelectItem>
@@ -260,8 +271,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {sortedSources.map((inst) => {
               const meta = getConnectorMetadata(inst.type);
-              const isPinned = pinnedSourceIds.includes(inst.id);
-              const project = projects.find((p: any) => p.id === inst.project_id);
+              const isPinned = pinnedSourceIds.includes(Number(inst.id));
+              const project = projects.find((p) => p.id === inst.project_id);
 
               return (
                 <div
@@ -339,11 +350,11 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <span className={cn("font-bold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-800")}>{project.name}</span>
                         </div>
                       )}
-                      {inst.type?.toLowerCase() === 'git' && (inst.branch || inst.spaces?.branch) && (
+                      {inst.type?.toLowerCase() === 'git' && (inst.branch || (!Array.isArray(inst.spaces) ? inst.spaces?.branch : undefined)) && (
                         <div className="flex items-center gap-1.5">
                           <GitBranch className="w-3.5 h-3.5 opacity-60" />
                           <span className="opacity-50">{t('settings.sourcesTab.branchLabelColon')}</span>
-                          <span className="font-mono text-sm font-bold">{inst.branch || inst.spaces.branch}</span>
+                          <span className="font-mono text-sm font-bold">{inst.branch || (!Array.isArray(inst.spaces) ? inst.spaces?.branch : undefined)}</span>
                         </div>
                       )}
 
@@ -373,7 +384,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <span className="text-ds-blue-400 font-bold truncate max-w-[80%]">
                             {inst.progress_message || t('settings.sourcesTab.processingFallback')}
                           </span>
-                          {inst.progress > 0 && (
+                          {(inst.progress ?? 0) > 0 && (
                             <span className="text-ds-blue-400 font-extrabold">{inst.progress}%</span>
                           )}
                         </div>
@@ -505,7 +516,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          togglePinSource(inst.id);
+                          togglePinSource(Number(inst.id));
                         }}
                         className={cn(
                           "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
@@ -523,7 +534,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteSource(inst.id);
+                          handleDeleteSource(Number(inst.id));
                         }}
                         className={cn(
                           "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",

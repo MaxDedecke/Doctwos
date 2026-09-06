@@ -1,11 +1,7 @@
 "use client";
+import type { LlmProfile } from '@/hooks/useAiSettings';
 
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
-import { cn } from "@/lib/utils";
 import { api } from '@/app/services/api';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { useFeatures } from '@/lib/FeaturesContext';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useFeatures } from '@/lib/FeaturesContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from "@/lib/utils";
+import { Edit, Plus, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'ai'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
 // Schritt 2). Die LLM-Profil-Formularzustände lagen zuvor auf Modal-Ebene, wurden
@@ -56,7 +57,7 @@ export const AiSettingsTab: React.FC = () => {
     setShowProfileForm(true);
   };
 
-  const handleStartEditProfile = (prof: any) => {
+  const handleStartEditProfile = (prof: LlmProfile) => {
     setEditingProfileId(prof.id);
     setProfileNameInput(prof.name);
     setProfileProviderInput(prof.provider);

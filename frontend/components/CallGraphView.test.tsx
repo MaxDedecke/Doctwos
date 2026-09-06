@@ -1,3 +1,4 @@
+import type { CallNode, CallEdge } from './CallGraphView';
 /**
  * O-058: `CallGraphView.tsx` hatte keinen Test -- Fokus-Laden über
  * `/callgraph/focus`, die Hops-Auswahl, die drei Export-Knöpfe
@@ -17,19 +18,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { CallGraphView } from './CallGraphView';
 
-const ForceGraph2DStub = React.forwardRef((props: any, ref: any) => {
+type GraphStubProps = { graphData: { nodes: CallNode[]; links: CallEdge[] }; onNodeClick: (node: CallNode) => void };
+const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     zoom: () => 1,
     zoomToFit: () => {},
   }));
   return (
     <div data-testid="force-graph-stub">
-      {props.graphData.nodes.map((node: any) => (
+      {props.graphData.nodes.map((node) => (
         <button key={node.id} data-testid={`node-${node.id}`} onClick={() => props.onNodeClick(node)}>
           {node.name}
         </button>
       ))}
-      {props.graphData.links.map((link: any) => (
+      {props.graphData.links.map((link) => (
         <span key={link.id} data-testid={`link-${link.id}`} />
       ))}
     </div>
@@ -45,7 +47,7 @@ class ResizeObserverStub {
   private cb: ResizeObserverCallback;
   constructor(cb: ResizeObserverCallback) { this.cb = cb; }
   observe() {
-    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as any, this as unknown as ResizeObserver));
+    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver));
   }
   unobserve() {}
   disconnect() {}
@@ -67,7 +69,7 @@ type FetchStub = ReturnType<typeof vi.fn>;
 
 /** fetch-Stub, der Fokus- und Export-Aufrufe getrennt beantwortet. */
 function stubFetch(options: {
-  focus?: any;
+  focus?: unknown;
   focusOk?: boolean;
   focusStatus?: number;
   exportOk?: boolean;
@@ -79,13 +81,13 @@ function stubFetch(options: {
         ok: options.exportOk !== false,
         status: options.exportStatus ?? 200,
         blob: async () => new Blob(['export']),
-      } as any;
+      };
     }
     return {
       ok: options.focusOk !== false,
       status: options.focusStatus ?? 200,
       json: async () => options.focus ?? FOCUS_RESPONSE,
-    } as any;
+    };
   });
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
@@ -95,7 +97,7 @@ function renderView(props: Partial<React.ComponentProps<typeof CallGraphView>> =
   const onFileSelect = vi.fn();
   const view = render(
     <LanguageProvider>
-      <CallGraphView theme="dark" focusedEntity={ENTITY} onFileSelect={onFileSelect} {...(props as any)} />
+      <CallGraphView theme="dark" focusedEntity={ENTITY} onFileSelect={onFileSelect} {...(props)} />
     </LanguageProvider>
   );
   return { ...view, onFileSelect };
@@ -309,8 +311,8 @@ describe('CallGraphView', () => {
 
     afterEach(() => {
       anchorClick.mockRestore();
-      delete (URL as any).createObjectURL;
-      delete (URL as any).revokeObjectURL;
+      Reflect.deleteProperty(URL, 'createObjectURL');
+      Reflect.deleteProperty(URL, 'revokeObjectURL');
     });
 
     it('bietet alle drei Formate an', async () => {

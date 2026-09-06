@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
 import { api } from '@/app/services/api';
 import {
   appendPanelHistory,
@@ -8,7 +6,7 @@ import {
   type PanelHistoryEntry,
   type PanelSelection,
 } from '@/lib/panelHistory';
-import { getSelectionViewType } from '@/lib/workspaceSelection';
+import { cn } from '@/lib/utils';
 import {
   clampPercentBetween,
   clampWorkspacePercent,
@@ -16,14 +14,17 @@ import {
   pointerToPercent,
   pointerToWorkspacePercent,
 } from '@/lib/workspaceResize';
-import { cn } from '@/lib/utils';
+import { getSelectionViewType } from '@/lib/workspaceSelection';
+import type { ChatSession, CodeEntity, FocusObject, KnowledgeSource, Project, WorkspaceDocument, WorkspaceSnapshot } from '@/types/domain';
+import type { Dispatch, SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 interface UseWorkspaceLayoutOptions {
   activeSessionId: number | null;
-  selectedProject: any | null;
-  selectedSource: any | null;
+  selectedProject: Project | null;
+  selectedSource: KnowledgeSource | null;
   t: Translate;
   // Optional: keeps the sidebar's cached session list in sync with what the
   // debounced snapshot autosave below actually persists. Without this, a
@@ -31,14 +32,14 @@ interface UseWorkspaceLayoutOptions {
   // whatever snapshot_json happened to be cached at select-time -- stale or
   // entirely missing (see O-038 follow-up fix). Optional so existing/test
   // callers that never touch the session list don't need to wire it up.
-  setSessions?: Dispatch<SetStateAction<any[]>>;
+  setSessions?: Dispatch<SetStateAction<ChatSession[]>>;
 }
 
 export interface PinnedCode {
   filepath: string;
   line: number;
-  label?: string;
-  context?: string;
+  label?: string | null;
+  context?: string | null;
   sourceId?: number | string | null;
   program?: string | null;
   section?: string | null;
@@ -63,7 +64,7 @@ export function useWorkspaceLayout({
   const [isMobile, setIsMobile] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<{ id: string | number; name: string; url?: string; isWebOrigin?: boolean; type?: string } | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<WorkspaceDocument | null>(null);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [activeRightTab, setActiveRightTab] = useState<'code' | 'doc' | 'weborigin' | 'graph'>('code');
   const [fileContent, setFileContent] = useState('');
@@ -83,13 +84,13 @@ export function useWorkspaceLayout({
   const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
   const [fileNavStack, setFileNavStack] = useState<Array<{
     file: string | null;
-    doc: any | null;
+    doc: WorkspaceDocument | null;
     tab: 'code' | 'doc' | 'weborigin' | 'graph';
   }>>([]);
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<CodeEntity | null>(null);
   const [pinnedCode, setPinnedCode] = useState<PinnedCode | null>(null);
   const [panelFrozen, setPanelFrozen] = useState<boolean[]>([false]);
-  const [panelFocusObject, setPanelFocusObject] = useState<Array<any | null>>([null]);
+  const [panelFocusObject, setPanelFocusObject] = useState<Array<FocusObject | null>>([null]);
   const [panelSelections, setPanelSelections] = useState<PanelSelection[]>([EMPTY_PANEL_SELECTION]);
   const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>([{ past: [], future: [] }]);
   const [activePanelIndex, setActivePanelIndex] = useState(0);
@@ -298,7 +299,7 @@ export function useWorkspaceLayout({
 
   const cellCls = (expanded: string) => cn('h-full min-w-0 min-h-0', expanded);
 
-  const handlePanelEntitySelect = useCallback((index: number, entity: any) => {
+  const handlePanelEntitySelect = useCallback((index: number, entity: CodeEntity) => {
     const previousSelection = panelSelections[index];
     setPanelSelections((previous) => {
       const next = [...previous];
@@ -385,7 +386,7 @@ export function useWorkspaceLayout({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [activeMobileTab, activePanelIndex, isMobile, panelConfigs, panelHistory, panelSelections, panelFrozen, goBackPanel, goForwardPanel]);
 
-  const buildWorkspaceSnapshot = () => ({
+  const buildWorkspaceSnapshot = (): WorkspaceSnapshot => ({
     panelConfigs,
     panelSelections,
     panelFocusObject,
@@ -529,7 +530,7 @@ export function useWorkspaceLayout({
     document.body.style.userSelect = 'none';
   }, [threeColLeftPercent]);
 
-  const restoreWorkspaceSnapshot = useCallback((snapshot: any) => {
+  const restoreWorkspaceSnapshot = useCallback((snapshot: WorkspaceSnapshot) => {
     isRestoringSnapshotRef.current = true;
     const restoredSelections = Array.isArray(snapshot.panelSelections) && snapshot.panelSelections.length > 0
       ? snapshot.panelSelections

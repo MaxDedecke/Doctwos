@@ -1,12 +1,14 @@
 "use client";
+import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
+import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Loader2, ZoomIn, ZoomOut, Maximize2, RefreshCw, X, ExternalLink, BookOpen, LayoutGrid, Info, Workflow, Link2, Search, Check, PanelRightClose, PanelRightOpen, ChevronUp, ChevronDown, AlertTriangle, Crosshair } from 'lucide-react';
-import { forceCollide, forceManyBody } from 'd3-force-3d';
-import { cn } from '@/lib/utils';
+import { api, API_URL } from '@/app/services/api';
 import { resolveDsColor } from '@/lib/designTokens';
-import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
+import { forceCollide, forceManyBody } from 'd3-force-3d';
+import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
@@ -27,7 +29,7 @@ export const UNIFIED_NODE_TYPES: Record<string, { labelDe: string; labelEn: stri
   document:   { labelDe: 'Sonstige Dokumente', labelEn: 'Other Documents', color: 'rgb(var(--ds-neutral-300))' }, // Light Gray
 };
 
-export function getNodeType(node: any): string {
+export function getNodeType(node: GraphNode): string {
   if (!node) return 'document';
 
   // 1. Code entities
@@ -53,12 +55,12 @@ export function getNodeType(node: any): string {
   return 'document';
 }
 
-export function nodeColor(node: any): string {
+export function nodeColor(node: GraphNode): string {
   const type = getNodeType(node);
   return UNIFIED_NODE_TYPES[type]?.color ?? 'rgb(var(--ds-neutral-300))';
 }
 
-function nodeTypeKey(node: any): string {
+function nodeTypeKey(node: GraphNode): string {
   return getNodeType(node);
 }
 
@@ -66,7 +68,7 @@ function nodeTypeKey(node: any): string {
 // always matches what's actually painted — a mismatch would leave nodes
 // either overlapping (radius too small) or spaced needlessly far apart
 // (radius too large).
-function nodeRadius(node: any): number {
+function nodeRadius(node: GraphNode): number {
   return node?.type === 'entity' ? 8 : 7;
 }
 
@@ -120,7 +122,7 @@ function extractEntityDbId(id: unknown): number | null {
 
 /* ── Types ───────────────────────────────────────────────────────────────────── */
 
-interface GraphNode {
+export interface GraphNode {
   id: string;
   type: 'entity' | 'document' | 'copybook' | 'external';
   label: string;
@@ -136,7 +138,7 @@ interface GraphNode {
   y?: number;
 }
 
-interface GraphEdge {
+export interface GraphEdge {
   id: string;
   source: string | GraphNode;
   target: string | GraphNode;
@@ -148,11 +150,11 @@ interface GraphEdge {
 interface Props {
   theme: string;
   selectedProject: { id: number; name: string } | null;
-  selectedEntity?: any | null;
+  selectedEntity?: CodeEntity | null;
   selectedFile?: string | null;
-  selectedDoc?: any | null;
-  projectEntities?: any[];
-  onEntitySelect?: (ent: any) => Promise<void> | void;
+  selectedDoc?: WorkspaceDocument | null;
+  projectEntities?: CodeEntity[];
+  onEntitySelect?: (ent: CodeEntity) => Promise<void> | void;
   onFileSelect?: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void> | void;
   // Opens (or navigates an already-open) document panel for a plain document/PDF node.
   onDocFocus?: (filePath: string, sourceId: number | string | null, openIfMissing?: boolean) => void;
@@ -170,7 +172,7 @@ interface Props {
 // single render (an infinite render loop) whenever a caller doesn't pass
 // `projectEntities`. Every current caller happens to always pass it, so this was
 // latent until testing without every prop first exercised it (O-053 test work).
-const EMPTY_PROJECT_ENTITIES: any[] = [];
+const EMPTY_PROJECT_ENTITIES: CodeEntity[] = [];
 
 /* ── Component ───────────────────────────────────────────────────────────────── */
 
@@ -222,9 +224,9 @@ export function KnowledgeGraphView({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const graphRef = useRef<any>(null);
+  const graphRef = useRef<ForceGraphMethods<GraphNode, GraphEdge> | undefined>(undefined);
 
-  const [ForceGraphComponent, setForceGraphComponent] = useState<any>(null);
+  const [ForceGraphComponent, setForceGraphComponent] = useState<React.ComponentType<ForceGraphProps<GraphNode, GraphEdge> & { ref?: React.MutableRefObject<ForceGraphMethods<GraphNode, GraphEdge> | undefined> }> | null>(null);
 
   useEffect(() => {
     import('react-force-graph-2d').then((mod) => {
@@ -266,8 +268,8 @@ export function KnowledgeGraphView({
     try {
       const params = new URLSearchParams({ status: 'approved' });
       if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
-      const res = await fetch(`${API_URL}/graph?${params}`, { credentials: 'include' });
-      const data = await res.json();
+      const res = await api.fetch(`${API_URL}/graph?${params}`);
+      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       const nodes = data.nodes ?? [];
       setRawNodes(nodes);
       setRawEdges(data.edges ?? []);
@@ -279,7 +281,7 @@ export function KnowledgeGraphView({
 
       // Auto-select document node if active
       if (selectedDoc) {
-        const docNode = nodes.find((n: any) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
+        const docNode = nodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
         if (docNode) setSelectedNodeId(docNode.id);
         else setSelectedNodeId(null);
       } else {
@@ -316,9 +318,9 @@ export function KnowledgeGraphView({
     setNeighborhoodError(null);
     try {
       const params = new URLSearchParams({ status: 'approved', project_id: String(projectId), entity_id: String(entityDbId) });
-      const res = await fetch(`${API_URL}/graph/focus?${params}`, { credentials: 'include' });
+      const res = await api.fetch(`${API_URL}/graph/focus?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
       setViewMode('neighborhood');
@@ -349,9 +351,8 @@ export function KnowledgeGraphView({
     setIsCreatingLink(true);
     setLinkCreateError(null);
     try {
-      const res = await fetch(`${API_URL}/knowledge-links`, {
+      const res = await api.fetch(`${API_URL}/knowledge-links`, {
         method: 'POST',
-        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source_a_type: a.type, source_a_entity_id: a.entity_id, source_a_title: a.title, source_a_url: a.url, source_a_source_type: a.source_type,
@@ -465,18 +466,30 @@ export function KnowledgeGraphView({
         setSelectedNodeId(`entity:${entId}`);
       }
     } else if (selectedDoc) {
-      const docNode = rawNodes.find((n: any) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
+      const docNode = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
       if (docNode) setSelectedNodeId(docNode.id);
     } else if (selectedFile) {
-      const fileNode = rawNodes.find((n: any) => n.id === `doc:${selectedFile}` || n.label === selectedFile || n.url === selectedFile);
+      const fileNode = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedFile}` || n.label === selectedFile || n.url === selectedFile);
       if (fileNode) {
         setSelectedNodeId(fileNode.id);
       } else {
-        const entNode = rawNodes.find((n: any) => n.type === 'entity' && n.file_path === selectedFile);
+        const entNode = rawNodes.find((n: GraphNode) => n.type === 'entity' && n.file_path === selectedFile);
         if (entNode) setSelectedNodeId(entNode.id);
       }
     }
   }
+
+  // Filtered data for the graph
+  const filteredData = useMemo(() => {
+    const visibleNodes = rawNodes.filter(n => !hiddenNodeTypes.has(nodeTypeKey(n)));
+    const visibleIds = new Set(visibleNodes.map(n => n.id));
+    const visibleEdges = rawEdges.filter(e => {
+      const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
+      const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
+      return !hiddenLinkTypes.has(e.link_type) && visibleIds.has(src) && visibleIds.has(tgt);
+    });
+    return { nodes: visibleNodes, links: visibleEdges };
+  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes]);
 
   // Camera centering on node/edge selection
   useEffect(() => {
@@ -490,8 +503,8 @@ export function KnowledgeGraphView({
       } else {
         const timer = setTimeout(() => {
           if (!graphRef.current) return;
-          const currentNodes = graphRef.current.graphData().nodes;
-          const found = currentNodes.find((n: any) => n.id === selectedNodeId);
+          const currentNodes = filteredData.nodes;
+          const found = currentNodes.find((n: GraphNode) => n.id === selectedNodeId);
           if (found && found.x !== undefined && found.y !== undefined) {
             graphRef.current.centerAt(found.x, found.y, 800);
             graphRef.current.zoom(2.0, 800);
@@ -502,8 +515,8 @@ export function KnowledgeGraphView({
     } else if (selectedEdgeId) {
       const edge = rawEdges.find(e => e.id === selectedEdgeId);
       if (edge) {
-        const srcId = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
-        const tgtId = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
+        const srcId = typeof edge.source === 'object' ? edge.source.id : edge.source;
+        const tgtId = typeof edge.target === 'object' ? edge.target.id : edge.target;
 
         const srcNode = rawNodes.find(n => n.id === srcId);
         const tgtNode = rawNodes.find(n => n.id === tgtId);
@@ -516,14 +529,14 @@ export function KnowledgeGraphView({
         } else {
           const timer = setTimeout(() => {
             if (!graphRef.current) return;
-            const currentNodes = graphRef.current.graphData().nodes;
-            const currentEdges = graphRef.current.graphData().links;
-            const foundEdge = currentEdges.find((e: any) => e.id === selectedEdgeId);
+            const currentNodes = filteredData.nodes;
+            const currentEdges = filteredData.links;
+            const foundEdge = currentEdges.find((e: GraphEdge) => e.id === selectedEdgeId);
             if (foundEdge) {
               const sId = typeof foundEdge.source === 'object' ? foundEdge.source.id : foundEdge.source;
               const tId = typeof foundEdge.target === 'object' ? foundEdge.target.id : foundEdge.target;
-              const sNode = currentNodes.find((n: any) => n.id === sId);
-              const tNode = currentNodes.find((n: any) => n.id === tId);
+              const sNode = currentNodes.find((n: GraphNode) => n.id === sId);
+              const tNode = currentNodes.find((n: GraphNode) => n.id === tId);
               if (sNode && tNode && sNode.x !== undefined && sNode.y !== undefined && tNode.x !== undefined && tNode.y !== undefined) {
                 const centerX = (sNode.x + tNode.x) / 2;
                 const centerY = (sNode.y + tNode.y) / 2;
@@ -536,7 +549,7 @@ export function KnowledgeGraphView({
         }
       }
     }
-  }, [selectedNodeId, selectedEdgeId, rawNodes, rawEdges]);
+  }, [selectedNodeId, selectedEdgeId, rawNodes, rawEdges, filteredData]);
 
   // Available node/link types for filter chips
   const nodeTypes = useMemo(() => {
@@ -550,18 +563,6 @@ export function KnowledgeGraphView({
     rawEdges.forEach(e => s.add(e.link_type));
     return Array.from(s);
   }, [rawEdges]);
-
-  // Filtered data for the graph
-  const filteredData = useMemo(() => {
-    const visibleNodes = rawNodes.filter(n => !hiddenNodeTypes.has(nodeTypeKey(n)));
-    const visibleIds = new Set(visibleNodes.map(n => n.id));
-    const visibleEdges = rawEdges.filter(e => {
-      const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
-      const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-      return !hiddenLinkTypes.has(e.link_type) && visibleIds.has(src) && visibleIds.has(tgt);
-    });
-    return { nodes: visibleNodes, links: visibleEdges };
-  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes]);
 
   // Tune the force simulation whenever the visible node/link set changes. The
   // library's defaults (charge -30, no collision force) are tuned for small
@@ -582,7 +583,7 @@ export function KnowledgeGraphView({
     const nodeCount = filteredData.nodes.length;
     if (nodeCount === 0) return;
 
-    graphRef.current.d3Force('collide', forceCollide((n: any) => nodeRadius(n) + 10).iterations(2));
+    graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => nodeRadius(n) + 10).iterations(2));
 
     const chargeStrength = -Math.min(260, 40 + nodeCount * 0.6);
     graphRef.current.d3Force('charge', forceManyBody().strength(chargeStrength).distanceMax(600));
@@ -603,7 +604,7 @@ export function KnowledgeGraphView({
   const focusNeighborIds = useMemo(() => {
     if (focusNodeId) {
       const ids = new Set<string>([focusNodeId]);
-      filteredData.links.forEach((l: any) => {
+      filteredData.links.forEach((l: GraphEdge) => {
         const src = typeof l.source === 'object' ? l.source.id : l.source;
         const tgt = typeof l.target === 'object' ? l.target.id : l.target;
         if (src === focusNodeId) ids.add(tgt);
@@ -612,19 +613,19 @@ export function KnowledgeGraphView({
       return ids;
     }
     if (selectedEdgeId) {
-      const edge = filteredData.links.find((l: any) => l.id === selectedEdgeId);
+      const edge = filteredData.links.find((l: GraphEdge) => l.id === selectedEdgeId);
       if (!edge) return null;
       const src = typeof edge.source === 'object' ? edge.source.id : edge.source;
       const tgt = typeof edge.target === 'object' ? edge.target.id : edge.target;
       return new Set<string>([src, tgt]);
     }
     return null;
-  }, [focusNodeId, selectedEdgeId, filteredData.links]);
+  }, [focusNodeId, selectedEdgeId, filteredData]);
 
   // Only links touching focusNodeId itself stay colored — a link between two of its
   // neighbors (but not the focus node) still dims, matching the dimmed-node set above.
   // For an edge-driven soft focus, only that single edge stays colored.
-  const isLinkTouchingFocus = useCallback((l: any) => {
+  const isLinkTouchingFocus = useCallback((l: GraphEdge) => {
     if (focusNodeId) {
       const src = typeof l.source === 'object' ? l.source.id : l.source;
       const tgt = typeof l.target === 'object' ? l.target.id : l.target;
@@ -667,7 +668,7 @@ export function KnowledgeGraphView({
   }, [rawNodes, selectedNode, linkPickerQuery]);
 
   // Canvas node drawing — Neo4j style circles with labels
-  const drawNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+  const drawNode = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const r = nodeRadius(node);
     const isSelected = node.id === selectedNodeId;
     const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
@@ -678,7 +679,7 @@ export function KnowledgeGraphView({
 
     if (isSelected) {
       ctx.beginPath();
-      ctx.arc(node.x, node.y, r + 4, 0, 2 * Math.PI);
+      ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, 2 * Math.PI);
       ctx.save();
       ctx.globalAlpha *= 0.2;
       ctx.fillStyle = color;
@@ -687,7 +688,7 @@ export function KnowledgeGraphView({
     }
 
     ctx.beginPath();
-    ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+    ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI);
     ctx.fillStyle = color;
     ctx.fill();
     drawKnowledgeNodeIcon(node, ctx, globalScale);
@@ -707,7 +708,7 @@ export function KnowledgeGraphView({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-      ctx.fillText(truncated, node.x, node.y + r + 2 / globalScale);
+      ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + r + 2 / globalScale);
     }
     ctx.restore();
   }, [selectedNodeId, isDark, focusNeighborIds]);
@@ -832,13 +833,13 @@ export function KnowledgeGraphView({
             <p className={cn('text-[10px] font-medium mb-2', textMuted)}>{t('knowledgeGraphView.connectionsLabel')}</p>
             <div className="space-y-0.5">
               {filteredData.links
-                .filter((l: any) => {
+                .filter((l: GraphEdge) => {
                   const s = typeof l.source === 'object' ? l.source.id : l.source;
                   const t = typeof l.target === 'object' ? l.target.id : l.target;
                   return s === selectedNode.id || t === selectedNode.id;
                 })
                 .slice(0, 10)
-                .map((l: any, i: number) => {
+                .map((l: GraphEdge, i: number) => {
                   const src = resolveNode(l.source);
                   const tgt = resolveNode(l.target);
                   const other = src?.id === selectedNode.id ? tgt : src;
@@ -864,8 +865,9 @@ export function KnowledgeGraphView({
                   onEntitySelect?.({
                     name: selectedNode.label,
                     type: selectedNode.entity_type,
-                    file_path: selectedNode.file_path,
-                    start_line: selectedNode.start_line,
+                    id: extractEntityDbId(selectedNode.id) ?? undefined,
+                    file_path: selectedNode.file_path || '',
+                    start_line: selectedNode.start_line ?? 1,
                   });
                 }}
                 className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
@@ -1170,21 +1172,21 @@ export function KnowledgeGraphView({
               backgroundColor={graphBg}
               nodeCanvasObject={drawNode}
               nodeCanvasObjectMode={() => 'replace'}
-              nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
+              nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(node.x, node.y, 10, 0, 2 * Math.PI);
+                ctx.arc(node.x ?? 0, node.y ?? 0, 10, 0, 2 * Math.PI);
                 ctx.fill();
               }}
-              linkColor={(l: any) => {
+              linkColor={(l: GraphEdge) => {
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-500))');
               }}
-              linkWidth={(l: any) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
-              linkDirectionalArrowLength={(l: any) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
+              linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
+              linkDirectionalArrowLength={(l: GraphEdge) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
               linkDirectionalArrowRelPos={1}
-              linkCurvature={(l: any) => l.id.startsWith('kl:') ? 0.12 : 0}
-              onNodeClick={(node: any) => {
+              linkCurvature={(l: GraphEdge) => l.id.startsWith('kl:') ? 0.12 : 0}
+              onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
                 if (node.type === 'entity') {
@@ -1203,8 +1205,9 @@ export function KnowledgeGraphView({
                     onEntitySelect({
                       name: node.label,
                       type: node.entity_type,
-                      file_path: node.file_path,
-                      start_line: node.start_line,
+                      id: extractEntityDbId(node.id) ?? undefined,
+                      file_path: node.file_path || '',
+                      start_line: node.start_line ?? 1,
                     });
                   }
                 } else if (node.type === 'document' || node.type === 'external') {
@@ -1214,7 +1217,7 @@ export function KnowledgeGraphView({
                   onDocFocus?.(pathVal, sourceIdVal, false);
                 }
               }}
-              onLinkClick={(link: any) => {
+              onLinkClick={(link: GraphEdge) => {
                 // Eine Kante wählt nur sich selbst aus (zeigt die Edge-Detailkarte) und
                 // öffnet KEINE Code-/Dokument-Ansicht — das war zuvor fälschlich an das
                 // bevorzugte Endpunkt-Node der Kante gekoppelt.

@@ -1,3 +1,4 @@
+import type { GraphNode, GraphEdge } from './KnowledgeGraphView';
 /**
  * O-053: GET /graph (Knowledge-Graph-Übersicht) lud bisher jede sichtbare
  * Code-Entity und jeden Dokument-Chunk unbegrenzt. Diese Tests decken die
@@ -17,18 +18,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 
-const ForceGraph2DStub = React.forwardRef((props: any, ref: any) => {
+const centerAt = vi.fn();
+
+type GraphStubProps = { graphData: { nodes: GraphNode[]; links: GraphEdge[] }; onNodeClick: (node: GraphNode) => void };
+const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     zoom: () => 1,
-    centerAt: () => {},
+    centerAt,
     d3Force: () => undefined,
     d3ReheatSimulation: () => {},
     zoomToFit: () => {},
-    graphData: () => ({ nodes: props.graphData.nodes, links: props.graphData.links }),
   }));
   return (
     <div data-testid="force-graph-stub">
-      {props.graphData.nodes.map((node: any) => (
+      {props.graphData.nodes.map((node) => (
         <button key={node.id} data-testid={`node-${node.id}`} onClick={() => props.onNodeClick(node)}>
           {node.label}
         </button>
@@ -49,7 +52,7 @@ class ResizeObserverStub {
   private cb: ResizeObserverCallback;
   constructor(cb: ResizeObserverCallback) { this.cb = cb; }
   observe() {
-    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as any, this as unknown as ResizeObserver));
+    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver));
   }
   unobserve() {}
   disconnect() {}
@@ -65,12 +68,27 @@ function renderGraph() {
 
 describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', () => {
   beforeEach(() => {
+    centerAt.mockClear();
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it('centers a selected node once simulation coordinates arrive, without a graphData ref method', async () => {
+    const node: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG1' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [node], edges: [] }),
+    }));
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-entity:1'));
+    // The force simulation mutates these same objects after the initial selection.
+    node.x = 12;
+    node.y = 34;
+    await waitFor(() => expect(centerAt).toHaveBeenCalledWith(12, 34, 800));
   });
 
   it('shows a truncation notice with the true totals when the backend caps the overview', async () => {

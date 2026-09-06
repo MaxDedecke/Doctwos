@@ -1,3 +1,5 @@
+import type { CodeEntity, WorkspaceDocument, KnowledgeSource } from '@/types/domain';
+import { axiosResponse } from '@/test/http';
 /**
  * O-092 — Regressionstests zur Soll-Matrix der Panel-Synchronisation.
  *
@@ -276,8 +278,8 @@ type HarnessOptions = {
   panelConfigs?: string[];
   panelFrozen?: boolean[];
   panelSelections?: PanelSelection[];
-  connectedSources?: any[];
-  projectEntities?: any[];
+  connectedSources?: KnowledgeSource[];
+  projectEntities?: CodeEntity[];
 };
 
 function useNavigationHarness(options: HarnessOptions = {}) {
@@ -288,8 +290,8 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     (options.panelConfigs ?? ['chat']).map(() => ({ past: [], future: [] }))
   );
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<WorkspaceDocument | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<CodeEntity | null>(null);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [pinnedCode, setPinnedCode] = useState<PinnedCode | null>(null);
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
@@ -345,7 +347,7 @@ function useNavigationHarness(options: HarnessOptions = {}) {
 
 describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)', () => {
   beforeEach(() => {
-    vi.mocked(api.resolveEntity).mockResolvedValue({ data: null } as any);
+    vi.mocked(api.resolveEntity).mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
   });
 
   it('PS-05: ein Verweis aus dem Chat landet im offenen Live-Code-Panel und in der globalen Auswahl', async () => {
@@ -510,9 +512,9 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     });
 
     const openedTypes = [
-      ...result.current.addPanel.mock.calls.map((call: any[]) => call[0]),
-      ...result.current.ensurePanelType.mock.calls.map((call: any[]) => call[0]),
-      ...result.current.ensureLivePanelType.mock.calls.map((call: any[]) => call[0]),
+      ...result.current.addPanel.mock.calls.map((call) => call[0]),
+      ...result.current.ensurePanelType.mock.calls.map((call) => call[0]),
+      ...result.current.ensureLivePanelType.mock.calls.map((call) => call[0]),
     ];
     expect(openedTypes).toHaveLength(1);
   });

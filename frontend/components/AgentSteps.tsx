@@ -1,29 +1,23 @@
 "use client";
+import type { AgentStep } from '@/types/domain';
 
-import React, { useState } from 'react';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
 import {
+  Brain,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Brain,
-  Terminal,
   Database,
-  Search,
-  FileCode,
-  CheckCircle2,
   Eye,
-  EyeOff
+  EyeOff,
+  FileCode,
+  Search,
+  Terminal
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useState } from 'react';
 
-interface AgentStep {
-    type: "thought" | "tool_call" | "tool_result";
-    content?: string;
-    name?: string;
-    arguments?: any;
-    result?: string;
-    id?: string;
-}
+
 
 interface AgentStepsProps {
     steps: AgentStep[];
