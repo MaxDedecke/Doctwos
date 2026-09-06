@@ -5,7 +5,7 @@ E-11/Phase 3: Baut aus den bereits maskierten LogicalLines (Ausgabe von
 embedded.mask(), F-034) einen ANTLR-Parse-Tree für divisions.py/
 data_division.py. Ersetzt lexer.py NICHT — lexer.py bleibt für procedure.py/
 copybook.py/xref.py aktiv, die weiterhin auf dem flachen Token-Strom arbeiten
-(unverändert, siehe parser/spikes/antlr_cobol/README.md Empfehlung).
+(unverändert, siehe docs/ENTSCHEIDUNGEN.md E-11).
 
 Zwei Dinge muss die Hauptgrammatik (`_antlr/Cobol85Parser.py`) bekommen, die
 sie laut Spike (Kernfrage 1-3) NICHT selbst kann:

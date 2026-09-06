@@ -5,8 +5,6 @@ force-exclude = true
 extend-exclude = [
     # Generated from the upstream grammar; regenerate instead of editing.
     "parser/cobol/_antlr",
-    # Historical experiment, not part of the application (O-065).
-    "parser/spikes",
 ]
 
 [lint]

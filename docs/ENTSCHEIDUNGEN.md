@@ -481,7 +481,8 @@ auf Basis der Spike-Ergebnisse (Go/No-Go-Kriterien dort dokumentiert). Bei
 No-Go: Ergebnis als Ergänzung zu diesem Eintrag festhalten, CLAUDE.md
 Prinzip 3 bleibt/wird wieder uneingeschränkt formuliert.
 
-**Fundstelle.** CLAUDE.md Architekturprinzip 3, `parser/spikes/antlr_cobol/README.md`.
+**Fundstelle.** CLAUDE.md Architekturprinzip 3; historischer Spike-Bericht:
+`git show 2d0a96706158f69a030c5b83c619c70cd108466b:parser/spikes/antlr_cobol/README.md`.
 
 **Nachtrag Phase 3 (11.08.2026): umgesetzt, ohne Engine-Flag.** Der
 ursprünglich skizzierte Parallelbetrieb mit Feature-Flag
@@ -510,6 +511,14 @@ einmalige ANTLR-Full-Context-Fallback nicht die erste echte Anfrage
 verzögert. COPY- und EXEC-Block-Maskierung für die Grammatik (`antlr_bridge.
 mask_for_grammar()`) sind der im Spike vorhergesagte kleine Zusatzschritt.
 Phase 4 (Zweitsprache) bleibt unbeauftragt.
+
+**Nachtrag O-065 (06.09.2026):** Der historische Spike wurde aus dem
+aktuellen Arbeitsbaum entfernt. Analyse, Vergleichsskript und generierte
+Duplikate bleiben über die Git-Historie am oben genannten Commit abrufbar.
+Die weiterhin benötigten Grammatikquellen und der MIT-Lizenztext wurden
+byte-identisch nach `parser/cobol/grammar/` verschoben; dort steht auch die
+Anleitung zur Neugenerierung mit ANTLR 4.13.2. Der produktive Parser unter
+`parser/cobol/_antlr/` bleibt unverändert.
 
 ---
 

@@ -150,7 +150,7 @@ CI runs both checks in the `python-quality` job. Run `python -m ruff format
 backend parser` to apply formatting locally. `ruff.toml` pins the tool version,
 targets Python 3.11, and enables import/statement checks (`E4`, `E7`, `E9`)
 and Pyflakes (`F`). Tests and migrations are included. Generated ANTLR sources
-and the historical parser spike are excluded; router imports after logging
+are excluded; router imports after logging
 setup in `backend/main.py` have a specific `E402` exception. Ruff does not
 replace pytest or provide mypy-style type checking.
 
