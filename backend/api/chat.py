@@ -54,6 +54,13 @@ from core.projects import (
     is_document_chunk_code_visible_in_context,
 )
 from services.graph_retrieval import expand_chunks_with_graph
+from services.chat_service import (
+    build_chat_prompt,
+    build_pinned_context,
+    find_pinned_chunks,
+    persist_assistant_message,
+    stream_agent_events,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
@@ -198,17 +205,9 @@ def _find_pinned_chunks(
     line: Optional[int],
 ) -> List[DocumentChunk]:
     """Load chunks covering the explicitly focused file/line before semantic search."""
-    query = db.query(DocumentChunk).filter(DocumentChunk.file_path == file_path)
-    if project_id is not None:
-        query = query.filter(DocumentChunk.project_id == project_id)
-    if source_id is not None:
-        query = query.filter(DocumentChunk.source_id == source_id)
-    if line is not None and line > 0:
-        query = query.filter(
-            or_(DocumentChunk.start_line.is_(None), DocumentChunk.start_line <= line),
-            or_(DocumentChunk.end_line.is_(None), DocumentChunk.end_line >= line),
-        )
-    return query.order_by(DocumentChunk.start_line.asc().nullslast()).limit(3).all()
+    # Kept as a compatibility seam for focused regression tests.  New code uses
+    # the service directly so the router no longer owns retrieval details.
+    return find_pinned_chunks(db, project_id, source_id, file_path, line)
 
 
 def _gate_graph_neighbors(
@@ -335,6 +334,13 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
 async def chat(
     request: ChatRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
+    """Run one authenticated chat turn and return its SSE event stream.
+
+    The stream starts with session metadata, forwards model/tool events and ends
+    with resolved sources plus the persisted assistant-message identifier.  The
+    route owns authorization and session lifecycle; chat transformations live in
+    :mod:`services.chat_service`.
+    """
     requested_provider = (request.llm_provider or "ollama").lower()
     if requested_provider in cfg.CLOUD_LLM_PROVIDERS and not cfg.cloud_llm_allowed():
         raise HTTPException(
@@ -723,135 +729,29 @@ async def chat(
                     logger.error(f"Fehler beim Kontext-Retrieval: {e}")
 
                 if request.pinned_file:
-                    pinned_chunks = _find_pinned_chunks(
-                        db,
-                        request.project_id,
-                        focused_source_id,
-                        request.pinned_file,
-                        request.pinned_line,
+                    pinned_chunks = find_pinned_chunks(
+                        db, request.project_id, focused_source_id,
+                        request.pinned_file, request.pinned_line,
                     )
-                    if pinned_chunks:
-                        chunk_context = "\n\n".join(
-                            f"File: {_chunk_header(chunk)}\n{chunk.content}"
-                            for chunk in pinned_chunks
-                        )
-                        pinned_context = (
-                            "The user explicitly focused the following code object/file and asks about this "
-                            "context first:\n"
-                            f'<untrusted_pinned_code path="{request.pinned_file}">\n'
-                            f"Focused object: {request.pinned_label or request.pinned_file}\n"
-                            f"{chunk_context}\n"
-                            f"</untrusted_pinned_code>\n\n"
-                        )
-                    elif resolved_repo_id:
-                        # The database chunk may be unavailable during a first sync;
-                        # fall back to the checked-out source file in that case.
-                        from agent import get_repo_path
 
-                        full_path = get_repo_path(resolved_repo_id, request.pinned_file)
-                    else:
-                        full_path = None
-                    if not pinned_chunks and full_path and os.path.exists(full_path):
-                        try:
-                            with open(full_path, "r", errors="ignore") as f:
-                                lines = f.readlines()
-                            if request.pinned_line:
-                                line_no = request.pinned_line
-                                start = max(1, line_no - 15)
-                                end = min(len(lines), line_no + 15)
-                                location_note = (
-                                    f"Line: {line_no}\nCode snippet (lines {start}-{end}):"
-                                )
-                            else:
-                                # Entities without a text-line position (e.g. IFC/BIM spaces,
-                                # parsed from structural relationships rather than line offsets)
-                                # fall back to the file as a whole, capped to stay cheap.
-                                start, end = 1, min(len(lines), 500)
-                                location_note = (
-                                    "File content:"
-                                    if end == len(lines)
-                                    else f"File content (first {end} lines):"
-                                )
-                            code_snippet = "".join(
-                                [f"{i}: {lines[i - 1]}" for i in range(start, end + 1)]
-                            )
-                            pinned_context = (
-                                f"The user explicitly focused the following code object/file and asks about this "
-                                f"context first:\n"
-                                f'<untrusted_pinned_file path="{request.pinned_file}">\n'
-                                f"Focused object: {request.pinned_label or request.pinned_file}\n"
-                                f"File: {request.pinned_file}\n{location_note}\n{code_snippet}\n"
-                                f"</untrusted_pinned_file>\n\n"
-                            )
-                        except Exception as e:
-                            logger.error(f"Fehler beim Lesen des gepinnten Files: {e}")
+            # Pins use the same service whether they point at indexed COBOL, a
+            # worktree file during first sync, or a non-file view object.
+            pinned_context = build_pinned_context(
+                pinned_file=request.pinned_file,
+                pinned_line=request.pinned_line,
+                pinned_label=request.pinned_label,
+                pinned_context=request.pinned_context,
+                pinned_chunks=pinned_chunks,
+                repository_id=resolved_repo_id,
+            )
 
-            # A focused view object (e.g. a BIM/CAD component) has no file/line but ships a
-            # textual description; surface it to the LLM even without repo/source retrieval.
-            if request.pinned_context:
-                pinned_context = (
-                    "The user has focused the following object to ask a question about it:\n"
-                    f"<untrusted_focused_object>\n"
-                    f"{request.pinned_context}\n"
-                    f"</untrusted_focused_object>\n\n"
-                ) + pinned_context
-
-            if context or pinned_context:
-                out_of_scope_note = ""
-                if "--- OUT-OF-SCOPE GLOBAL KNOWLEDGE SOURCES ---" in context:
-                    out_of_scope_note = (
-                        "Instruction: The user is focused on this project. Please prioritize answering based on "
-                        "'IN-SCOPE REPOSITORY FILES' and 'IN-SCOPE PROJECT KNOWLEDGE SOURCES' -- both belong to "
-                        "this project. Only if the answer is not found there, you may refer to the 'OUT-OF-SCOPE "
-                        "GLOBAL KNOWLEDGE SOURCES' but clearly state in your response that this information comes "
-                        "from an out-of-scope global source.\n\n"
-                    )
-                scope_ambiguous_note = ""
-                if len(multi_project_names) > 1:
-                    scope_ambiguous_note = (
-                        "Instruction: No specific project is currently selected, and the context above spans "
-                        f"multiple different projects ({', '.join(multi_project_names)}) — each block is labeled "
-                        "with its project (or 'Global'). If the question is specific to one project rather than a "
-                        "genuine cross-project question, do NOT blend or guess between projects. Instead, ask the "
-                        "user which project they mean and to switch to that project's scope, and withhold a "
-                        "definitive answer until they do.\n\n"
-                    )
-                pinned_priority_note = ""
-                if request.pinned_file:
-                    pinned_priority_note = (
-                        "Instruction: The user explicitly selected a code object in the pinned file. Treat the "
-                        "pinned code as the primary subject of the answer. Use other retrieved files only as "
-                        "supporting context for direct references; never replace the focused object with an "
-                        "unrelated semantically similar file or answer about that file instead. If the pinned "
-                        "context is insufficient, say so clearly.\n\n"
-                    )
-                citation_note = (
-                    "Instruction: When a specific file actually informed your answer, cite it inline in backticks "
-                    "as `path/to/file.ext:line` (e.g. `payroll.cbl:120`) using exactly ONE integer line number — "
-                    "never a range like `120-140`. If the relevant context block spans several lines (e.g. `Zeile "
-                    "12-40`), cite only the first number of that range (e.g. `document.pdf:12`). Only cite files "
-                    "that genuinely contributed to the answer — not every file shown in the context above. Each "
-                    "context block's header may state a page number (e.g. `document.pdf (Seite 3, Zeile 12-40)`) — "
-                    "if the user asks what is on a specific page or in a specific section, use that header to "
-                    "answer, and mention the page number in your reply (in prose, not as part of the citation). "
-                    "If no context block covers the page/section asked about, say so plainly instead of guessing. "
-                    "Knowledge-source pages without a file extension (e.g. Confluence pages) are cited "
-                    "the same way, in backticks, using their EXACT title as shown in the context block's header — "
-                    "without a line number, e.g. `Brandschutz in der Praxis: Standards & Workflow`. If your answer "
-                    "contains a Markdown table, the same citation rule applies inside table cells too — keep the "
-                    "backticks there as well, even though the cell is already delimited by `|` characters.\n\n"
-                )
-                prompt = (
-                    "Context:\n"
-                    "<untrusted_context>\n"
-                    f"{pinned_context}{context}\n"
-                    "</untrusted_context>\n\n"
-                    f"{out_of_scope_note}{scope_ambiguous_note}{pinned_priority_note}{citation_note}"
-                    f"Question: {request.message}\n"
-                    f"Answer:"
-                )
-            else:
-                prompt = request.message
+            prompt = build_chat_prompt(
+                context=context,
+                pinned_context=pinned_context,
+                message=request.message,
+                pinned_file=request.pinned_file,
+                multi_project_names=multi_project_names,
+            )
 
             provider = (request.llm_provider or "ollama").lower()
 
@@ -978,11 +878,9 @@ async def chat(
                 mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
 
                 if request.project_id or mcp_clients:
-                    from agent import run_agent_loop
-
                     agent_ran = True
                     agent_sources = []
-                    async for event in run_agent_loop(
+                    async for event in stream_agent_events(
                         provider=provider,
                         model_name=request.llm_model,
                         api_key=request.llm_api_key,
@@ -990,17 +888,17 @@ async def chat(
                         system_prompt=full_system_prompt_for_chat,
                         prompt=prompt,
                         temperature=request.temperature,
-                        repo_id=resolved_repo_id,
-                        db_session=db,
+                        repository_id=resolved_repo_id,
+                        db=db,
                         mcp_clients=mcp_clients,
                         ollama_base_url=cfg.OLLAMA_BASE_URL,
-                        chat_history=[
+                        history=[
                             {"role": m.role, "content": m.content} for m in history_messages
                         ],
                         project_id=request.project_id,
-                        audit_user_id=user.id,
-                        audit_chat_session_id=session_id,
-                        audit_chat_message_id=user_msg.id,
+                        user_id=user.id,
+                        session_id=session_id,
+                        user_message_id=user_msg.id,
                     ):
                         if event["type"] == "answer":
                             answer = event["content"]
@@ -1180,24 +1078,17 @@ async def chat(
                 sources.insert(0, pinned_source)
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
-            if old_assistant_msg:
-                db.delete(old_assistant_msg)
-
-            assistant_msg = ChatMessage(
+            assistant_msg = persist_assistant_message(
+                db=db,
                 session_id=session_id,
-                role="assistant",
-                content=answer,
-                sources_json=sources,
-                metadata_json={
-                    "model": request.llm_model
-                    or (cfg.OLLAMA_LLM_MODEL if provider == "ollama" else "default"),
-                    "provider": provider,
-                    "agent_steps": agent_steps,
-                },
+                answer=answer,
+                sources=sources,
+                model=request.llm_model
+                or (cfg.OLLAMA_LLM_MODEL if provider == "ollama" else "default"),
+                provider=provider,
+                agent_steps=agent_steps,
+                previous_message=old_assistant_msg,
             )
-            db.add(assistant_msg)
-            db.commit()
-            db.refresh(assistant_msg)
             yield f"data: {json.dumps({'type': 'message_saved', 'message_id': assistant_msg.id})}\n\n"
 
         # Wrap the generator to inject heartbeats
