@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 
@@ -5,6 +6,7 @@ import pytest
 from sqlalchemy import text
 from unittest.mock import patch, AsyncMock
 
+from cobol.model import Chunk, ParseResult
 from db import SessionLocal
 from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import GitConnector, _looks_like_text
@@ -659,3 +661,71 @@ async def test_git_connector_logs_embedding_start_per_file(db_session, test_sour
     db_session.refresh(test_source)
     assert "Embedding gestartet für 'PROG.CBL'." in test_source.sync_log
     assert "Embedding gestartet für 'README.md'." in test_source.sync_log
+
+
+@pytest.mark.anyio
+async def test_git_connector_dispatches_via_structure_parser_registry():
+    """O-077: der Dispatch von Sprache -> Struktur-Parser läuft über
+    connectors.git.STRUCTURE_PARSERS (cobol/registry.py), eine kleine Registry
+    statt der vormaligen hartkodierten `if lang in {"cobol", "copybook"}`-
+    Weiche. Das hier haengt einen Fake-"Sprache"-Eintrag in genau diese
+    Registry ein und beweist so, dass der Dispatch-Mechanismus selbst fuer
+    JEDE registrierte Sprache greift -- ohne eine zweite echte Sprache
+    vorzutaeuschen oder zu bauen (siehe docs/OFFENE_ENTWICKLUNGSPUNKTE.md
+    O-077, das bewusst gegen eine neue `parser/languages/`-Vorrats-
+    Abstraktion entscheidet)."""
+    connector = GitConnector(source_id=-1)
+    calls = []
+
+    def fake_parse(text_, path, copybook_index=None):
+        calls.append((text_, path, copybook_index))
+        return ParseResult(
+            program_name="FAKE",
+            path=path,
+            source_format="free",
+            chunks=[Chunk(content=text_, start_line=1, end_line=1, meta={"fake": True})],
+        )
+
+    doc = {
+        "title": "fake.xyz",
+        "content": "fake source",
+        "url": "fake://fake.xyz",
+        "source_type": "Git",
+        "storage_key": "fake.xyz",
+        "extra_meta": {"language": "fakelang"},
+    }
+
+    with patch("connectors.git.STRUCTURE_PARSERS", {"fakelang": fake_parse}), patch(
+        "connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])
+    ):
+        _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
+
+    assert calls == [("fake source", "fake.xyz", connector._copybook_index)]
+    assert parse_result is not None and parse_result.program_name == "FAKE"
+    assert len(chunks) == 1
+    assert chunks[0]["content"] == "fake source"
+    assert chunks[0]["start_line"] == 1
+    assert chunks[0]["end_line"] == 1
+    assert chunks[0]["meta"] == {"fake": True}
+
+
+@pytest.mark.anyio
+async def test_git_connector_falls_back_to_generic_chunking_for_unregistered_languages():
+    """Gegenstück zum Test oben: eine Sprache ohne Registry-Eintrag (z. B.
+    "text") nimmt weiterhin den generischen CodeParser-Pfad, nicht den
+    Struktur-Parser-Zweig."""
+    connector = GitConnector(source_id=-1)
+    doc = {
+        "title": "readme.md",
+        "content": "# hi\n",
+        "url": "fake://readme.md",
+        "source_type": "Git",
+        "storage_key": "readme.md",
+        "extra_meta": {"language": "text"},
+    }
+
+    with patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])):
+        _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
+
+    assert parse_result is None
+    assert chunks and chunks[0]["content"].strip() == "# hi"

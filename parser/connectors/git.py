@@ -36,7 +36,8 @@ import git_utils
 from cobol.model import ParseResult
 from cobol import copybook
 from cobol.copybook import CopybookIndex
-from cobol.parse import parse_copybook, parse_program
+from cobol.parse import parse_copybook
+from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
@@ -150,9 +151,9 @@ def _looks_like_text(raw: bytes) -> bool:
     return control_chars / len(text) <= _MAX_CONTROL_CHAR_RATIO
 
 
-# AP-4: diese beiden Klassifikationen bekommen eine echte Strukturanalyse
-# (parser/cobol/) statt des generischen CodeParser-Zeilenchunkings.
-_COBOL_LANGS = {"cobol", "copybook"}
+# AP-4: Sprachen mit einem Eintrag in STRUCTURE_PARSERS (O-077) bekommen eine
+# echte Strukturanalyse (parser/cobol/) statt des generischen CodeParser-
+# Zeilenchunkings.
 
 
 def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookIndex:
@@ -302,12 +303,6 @@ class GitConnector(BaseConnector):
         # COPY-Auflösung.
         self._copybook_index: CopybookIndex = CopybookIndex()
 
-    def _parse_cobol(self, doc: Document, lang: str) -> ParseResult:
-        path = doc["storage_key"]
-        if lang == "copybook":
-            return parse_copybook(doc["content"], path, copybook_index=self._copybook_index)
-        return parse_program(doc["content"], path, self._copybook_index)
-
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
             # O-072: bis zu EMBED_CONCURRENCY Dateien laufen gleichzeitig,
@@ -318,13 +313,17 @@ class GitConnector(BaseConnector):
             lang = doc.get("extra_meta", {}).get("language", "text")
 
             parse_result: ParseResult | None = None
-            if lang in _COBOL_LANGS and not doc["extra_meta"].get("deleted"):
-                # F-020…034: COBOL-bewusste Struktur statt generischem
-                # Zeilenchunking - parse_program()/parse_copybook() sind rein
+            parse_fn = STRUCTURE_PARSERS.get(lang)
+            if parse_fn is not None and not doc["extra_meta"].get("deleted"):
+                # F-020…034: struktur-bewusstes Parsen statt generischem
+                # Zeilenchunking - parse_program()/parse_copybook() (und jeder
+                # weitere STRUCTURE_PARSERS-Eintrag, O-077) sind rein
                 # in-memory (E-6), deshalb in einen Thread ausgelagert wie
                 # das generische Chunking auch (CPU-gebunden, würde sonst den
                 # Event-Loop blockieren).
-                parse_result = await asyncio.to_thread(self._parse_cobol, doc, lang)
+                parse_result = await asyncio.to_thread(
+                    parse_fn, doc["content"], doc["storage_key"], copybook_index=self._copybook_index
+                )
                 chunks = [
                     {
                         "content": c.content,
