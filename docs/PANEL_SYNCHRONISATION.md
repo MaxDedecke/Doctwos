@@ -1,6 +1,6 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
-**Stand:** 06.09.2026 (D-1 bis D-3 entschieden und umgesetzt; D-4 und D-5 offen)
+**Stand:** 06.09.2026 (D-1 bis D-4 entschieden, D-1 bis D-3 mit Codeänderung; offen ist nur D-5)
 **Anlass:** [O-092](OFFENE_ENTWICKLUNGSPUNKTE.md) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
@@ -160,7 +160,7 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 | PS-22 | Panel einfrieren | Panel behält seine Auswahl und folgt der globalen nicht mehr | wie Ist | ✅ |
 | PS-23 | Panel auftauen | Panel übernimmt die globale Auswahl **samt Zeile**. `togglePanelFreeze` setzt `selectedLine` zwar hart auf `null`, die unmittelbar folgende Render-Synchronisation schreibt die globale Zeile aber zurück — das `null` ist redundant, nicht schädlich (beim Schreiben der Tests nachgewiesen; zuerst als Fehler notiert) | wie Ist | ✅ |
 | PS-24 | „Wissensgraph öffnen" aus dem Menü | Legt das Graph-Panel **eingefroren** an bzw. friert ein bestehendes ein und leert dessen Auswahl | wie Ist (bewusst: der Graph soll nicht bei jedem Klick woanders hinspringen) | ✅ |
-| PS-25 | Historie zurück/vor (Alt+←/→) in einem **Live**-Panel | Setzt die Panel-Auswahl **und** die globale Auswahl → alle anderen Live-Panels ziehen nach | wie Ist | ❓ [D-4] |
+| PS-25 | Historie zurück/vor (Alt+←/→) in einem **Live**-Panel | Setzt die Panel-Auswahl **und** die globale Auswahl → alle anderen **Live**-Panels ziehen nach, eingefrorene bleiben stehen | wie Ist (D-4 entschieden 06.09.2026) | ✅ |
 | PS-26 | Historie in einem **eingefrorenen** Panel | Bleibt lokal | wie Ist | ✅ |
 | PS-27 | Panel-Typ im Kopf wechseln | Auswahl des Panels bleibt, Fokus-Objekt und Panel-Historie werden geleert; ein Live-Panel zieht sich anschließend über die Sync-Regel die passende globale Auswahl | wie Ist | ✅ |
 | PS-28 | Panel schließen | Slot samt Auswahl/Historie entfernt, globale Auswahl bleibt bestehen | wie Ist | ✅ |
@@ -180,15 +180,15 @@ Diese Zellen sind fachliche Entscheidungen, keine Fehler im engeren Sinn. Sie m�
 entschieden sein, bevor die betroffenen Zeilen automatisiert werden — sonst zementieren
 die Tests einen Zustand, den niemand beschlossen hat.
 
-**D-1 bis D-3 sind am 06.09.2026 entschieden und umgesetzt**; D-4 und D-5 sind noch
-offen, blockieren aber nichts.
+**D-1 bis D-4 sind am 06.09.2026 entschieden** (D-1 bis D-3 mit Codeänderung, D-4
+bestätigt den Ist-Zustand); offen ist nur noch D-5.
 
 | ID | Frage | Betrifft | Vorschlag |
 |---|---|---|---|
 | **D-1** ✅ | Was gilt, wenn das einzige Panel des Zieltyps eingefroren ist? (Vorher widersprüchlich: Pfad A tat **nichts**, Pfad B **überschrieb** das eingefrorene Panel.) | PS-03, PS-08, PS-09 | **Entschieden 06.09.2026: Einfrieren schützt in beiden Pfaden.** Zielauflösung: Live-Panel → sonst neues Panel → sonst Hinweis. Ein eingefrorenes Panel ändert nur ein Klick **in ihm selbst** (PS-07). Umgesetzt in `lib/panelNavigation.ts` und `useWorkspaceLayout::ensureLivePanelType`. |
 | **D-2** ✅ | Was passiert, wenn kein passendes Panel offen ist und die 4-Panel-Grenze erreicht ist? (Vorher: stiller Abbruch in allen drei Varianten.) | PS-04, PS-12, PS-21 | **Entschieden 06.09.2026: kurzer Hinweis** (`page.toast.noPanelSpace`), kein automatisches Umwidmen eines fremden Panels. `addPanel`/`ensurePanelType`/`ensureLivePanelType` melden den Fehlschlag als Rückgabewert. |
 | **D-3** ✅ | Soll ein `callgraph`-Panel seinen Fokus verlieren, wenn anderswo ein Dokument geöffnet wird? | PS-29 | **Entschieden 06.09.2026: nein** — Fokus behalten, wenn die eingehende Auswahl keine Entity enthält. Umgesetzt in der Sync-Regel in `useWorkspaceLayout`. |
-| **D-4** ❓ | Soll die Historie eines Live-Panels die anderen Live-Panels mitziehen? | PS-25 | Ja (Ist-Zustand), aber bewusst festhalten: „Zurück" ist eine Bewegung der Arbeitssituation, nicht eines einzelnen Fensters. |
+| **D-4** ✅ | Soll die Historie eines Live-Panels die anderen Live-Panels mitziehen? | PS-25, PS-26 | **Entschieden 06.09.2026: ja, alle Live-Panels ziehen mit, eingefrorene nicht.** „Zurück" ist eine Bewegung der Arbeitssituation, nicht eines einzelnen Fensters; das Einfrieren ist der Ausstieg aus dieser Bewegung. Entspricht dem Ist-Zustand, ist jetzt als PS-25 getestet. |
 | **D-5** ❓ | Bleibt der Link-Manager eine Insel? | PS-30 | Vorerst ja; „aus dem Link-Manager in die Code-Ansicht springen" als eigener Punkt, nicht als Teil dieser Aufräumarbeit. |
 
 ---
@@ -197,14 +197,15 @@ offen, blockieren aber nichts.
 
 `frontend/hooks/panelSyncMatrix.test.tsx` (30 Fälle) hält die Matrix fest:
 
-- **28 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
+- **29 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
   (dessen Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
   `usePanelNavigation`.
 - **PS-15** steht als `it.fails` drin: der Test formuliert das Soll („ein Klick =
   eine Ansicht") und ist heute erwartbar rot. Sobald [O-091] behoben ist, schlägt er
   an und muss in ein normales `it` gewandelt werden. Damit ist der Fehler
   reproduziert, ohne die Suite rot zu machen.
-- **1 `it.todo`** bleibt für D-4 (Reichweite der Panel-Historie).
+- **Kein `it.todo`** mehr offen: D-4 ist entschieden und als PS-25 ausformuliert. Für
+  D-5 (Link-Manager) gibt es nichts zu testen, solange er bewusst keine Navigation hat.
 
 Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
 

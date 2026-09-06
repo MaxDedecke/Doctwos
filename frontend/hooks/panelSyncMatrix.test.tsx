@@ -157,7 +157,32 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.panelSelections[1].selectedLine).toBe(42);
   });
 
-  it.todo('PS-25: zieht die Historie eines Live-Panels die anderen mit? -- siehe D-4');
+  it('PS-25: die Historie eines Live-Panels nimmt alle anderen Live-Panels mit -- eingefrorene nicht (D-4)', () => {
+    const { result } = renderLayout();
+    const older: PanelSelection = { selectedFile: 'app/older.cbl', selectedDoc: null, selectedEntity: null, selectedLine: null };
+
+    // 0 = chat (live), 1 = code (live, navigiert), 2 = code (eingefroren)
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.setSelectedFile('app/current.cbl'); });
+    act(() => { result.current.togglePanelFreeze(2); });
+    act(() => {
+      result.current.setPanelHistory((previous) => {
+        const next = [...previous];
+        next[1] = { past: [older], future: [] };
+        return next;
+      });
+    });
+
+    act(() => { result.current.goBackPanel(1); });
+
+    // "Zurück" bewegt die Arbeitssituation, nicht nur ein Fenster:
+    expect(result.current.selectedFile).toBe('app/older.cbl');
+    expect(result.current.panelSelections[0].selectedFile).toBe('app/older.cbl');
+    expect(result.current.panelSelections[1].selectedFile).toBe('app/older.cbl');
+    // ... das eingefrorene Panel bleibt stehen.
+    expect(result.current.panelSelections[2].selectedFile).toBe('app/current.cbl');
+  });
 
   it('PS-26: die Historie eines eingefrorenen Panels bleibt lokal', () => {
     const { result } = renderLayout();
