@@ -2,6 +2,56 @@
 # Shared by install.sh and install-offline.sh. Source it, then call bootstrap_env.
 set -e
 
+# Only inspect this invocation's startup logs: an update must not redisplay an
+# old bootstrap password. Keep log contents in a subshell, never in temp files.
+show_bootstrap_credentials() (
+    startup_since="$1"
+    attempts=0
+    echo "Checking first-start credentials (up to 120 seconds)..."
+    while [ "$attempts" -lt 60 ]; do
+        # Snapshot readiness BEFORE the logs, so a just-completed bootstrap
+        # cannot be mistaken for an existing installation between the checks.
+        backend_id=$(docker compose ps -q backend-api 2>/dev/null) || backend_id=
+        backend_health=
+        if [ -n "$backend_id" ]; then
+            backend_health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$backend_id" 2>/dev/null) || backend_health=
+        fi
+        if ! startup_logs=$(docker compose logs --no-color --no-log-prefix --since "$startup_since" backend-api 2>/dev/null); then
+            echo "WARNING: Could not read backend startup logs. Check: docker compose logs backend-api" >&2
+            return 0
+        fi
+        credentials=$(printf '%s\n' "$startup_logs" | awk '
+            / Erster Start: Superuser angelegt\./ { active=1; user=""; password=""; next }
+            active && /^   Benutzer:  / { user=$0; next }
+            active && /^   Passwort:  / { password=$0; next }
+            active && /^=+$/ {
+                if (user != "" && password != "") print user "\n" password
+                active=0
+            }
+        ')
+        if [ -n "$credentials" ]; then
+            printf '\n%s\n' '================================================================='
+            echo " FIRST LOGIN — generated administrator credentials"
+            printf '%s\n' "$credentials"
+            echo " Save these credentials securely. Change the password at first login."
+            echo " Do not share this installer output or the bootstrap log."
+            printf '%s\n\n' '================================================================='
+            return 0
+        fi
+
+        # The bootstrap runs before readiness. Healthy without a new generated
+        # password means existing accounts or a configured bootstrap password.
+        if [ "$backend_health" = healthy ]; then
+            echo "Backend ready. No new generated password; use your existing or configured credentials."
+            return 0
+        fi
+        attempts=$((attempts + 1))
+        sleep 2
+    done
+    echo "WARNING: First-start credentials/readiness could not be confirmed within 120 seconds." >&2
+    echo "Check backend startup before signing in: docker compose logs backend-api" >&2
+)
+
 # nvidia-smi only proves the driver is installed, not that Docker can actually
 # hand a container a GPU — that needs the NVIDIA Container Toolkit's runtime
 # registered with Docker too (`nvidia-ctk runtime configure` adds an "nvidia"

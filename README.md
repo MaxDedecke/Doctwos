@@ -99,7 +99,14 @@ FRONTEND_URL=http://localhost:3000
 ```
 
 If `BOOTSTRAP_SUPERUSER_PASSWORD` is empty on a fresh database, the generated
-password is printed once in the backend startup log.
+password is printed once in the backend startup log. The online and offline
+installers also display these generated credentials directly after starting the
+services (waiting up to 120 seconds). Save them securely and change the password
+at first login; do not share the installer output or bootstrap log. On updates,
+existing credentials remain unchanged and old passwords are not displayed again.
+An explicitly configured bootstrap password is never printed by the installer.
+If startup cannot be confirmed in time, the installer points to
+`docker compose logs backend-api` for diagnosis.
 
 Start the application with:
 

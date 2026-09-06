@@ -7,6 +7,18 @@ on:
     branches: [develop, main]
 
 jobs:
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Check installer shell syntax
+        run: sh -n install.sh scripts/install-offline.sh scripts/lib/env-bootstrap.sh
+      - name: Test first-start credential handoff (no Docker required)
+        run: python -m unittest discover -s scripts/tests -v
+
   python-quality:
     runs-on: ubuntu-latest
     steps:

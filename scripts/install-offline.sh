@@ -36,7 +36,9 @@ echo "==> Starting services (no build — images come from the loaded bundle)"
 # No -f here: sync_compose_file above set COMPOSE_FILE in .env to
 # docker-compose.offline.yml, plus docker-compose.gpu.yml when a GPU was
 # detected — docker compose picks both up from .env in this cwd.
+startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 docker compose up -d
+show_bootstrap_credentials "$startup_since"
 
 check_env_ready "$bundle_dir"
 

@@ -29,7 +29,9 @@ docker compose build parser-worker
 docker compose build frontend
 
 echo "Starting services (Alembic migrations run automatically on backend startup)..."
+startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 docker compose up -d
+show_bootstrap_credentials "$startup_since"
 
 # LLM_MODEL in .env picks the optional local chat/compliance model. The pilot
 # default is "disabled" so CPU-only/8GB hosts load embeddings only.
