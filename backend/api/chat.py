@@ -25,6 +25,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -40,8 +41,18 @@ from api.schemas import (
 )
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource, Project, User
-from core.teams import assert_team_visible, get_visible_team_ids
+from models.database import (
+    ChatLinkFeedbackSignal,
+    ChatMessage,
+    ChatSession,
+    DocumentChunk,
+    EntityDocLink,
+    KnowledgeLink,
+    KnowledgeSource,
+    Project,
+    User,
+)
+from core.teams import assert_team_visible, get_visible_team_ids, is_admin
 from core.projects import (
     assert_knowledge_source_visible,
     assert_project_visible,
@@ -235,6 +246,10 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
             "file": candidate["file"],
             "lines": [line, line] if line else candidate["lines"],
             "source_id": candidate.get("source_id"),
+            # Die ID wird nur für intern persistierte Quellen verwendet. Sie
+            # verbindet ein Downvote eindeutig mit den Links des zitierten
+            # Dokuments, statt später Dateinamen heuristisch nachzuschlagen.
+            "chunk_id": candidate.get("chunk_id"),
         }
         # case-insensitiv je Datei deduplizieren — kleine Modelle zitieren dieselbe Datei
         # in einer Antwort manchmal mit wechselnder Schreibweise (`payroll.cbl` vs `Payroll.cbl`)
@@ -244,6 +259,98 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
         seen.add(dedup_key)
         resolved.append(entry)
     return resolved
+
+
+def _cited_link_targets(db: Session, sources: list[dict]) -> set[tuple[str, int]]:
+    """Resolve persisted cited chunk IDs to links without filename heuristics."""
+    chunk_ids = {
+        source.get("chunk_id")
+        for source in sources
+        if isinstance(source, dict) and isinstance(source.get("chunk_id"), int)
+    }
+    if not chunk_ids:
+        return set()
+
+    targets = {
+        ("entity_doc", link.id)
+        for link in db.query(EntityDocLink.id).filter(EntityDocLink.chunk_id.in_(chunk_ids)).all()
+    }
+    targets.update(
+        ("knowledge", link.id)
+        for link in db.query(KnowledgeLink.id)
+        .filter(
+            (KnowledgeLink.source_a_chunk_id.in_(chunk_ids))
+            | (KnowledgeLink.source_b_chunk_id.in_(chunk_ids))
+        )
+        .all()
+    )
+    return targets
+
+
+def _apply_downvote_link_signals(
+    db: Session, message: ChatMessage, user: User
+) -> dict:
+    """Record a downvote and move links to pending after two sessions in 30 days."""
+    targets = _cited_link_targets(db, message.sources_json or [])
+    now = datetime.now(timezone.utc)
+    for link_type, link_id in targets:
+        signal = (
+            db.query(ChatLinkFeedbackSignal)
+            .filter(
+                ChatLinkFeedbackSignal.chat_message_id == message.id,
+                ChatLinkFeedbackSignal.link_type == link_type,
+                ChatLinkFeedbackSignal.link_id == link_id,
+            )
+            .first()
+        )
+        if signal:
+            signal.revoked_at = None
+            signal.user_id = user.id
+        else:
+            db.add(
+                ChatLinkFeedbackSignal(
+                    chat_message_id=message.id,
+                    chat_session_id=message.session_id,
+                    user_id=user.id,
+                    link_type=link_type,
+                    link_id=link_id,
+                )
+            )
+    db.flush()
+
+    cutoff = now - timedelta(days=30)
+    marked_for_review = []
+    for link_type, link_id in targets:
+        signals = (
+            db.query(ChatLinkFeedbackSignal.chat_session_id)
+            .filter(
+                ChatLinkFeedbackSignal.link_type == link_type,
+                ChatLinkFeedbackSignal.link_id == link_id,
+                ChatLinkFeedbackSignal.revoked_at.is_(None),
+                ChatLinkFeedbackSignal.created_at >= cutoff,
+            )
+            .all()
+        )
+        # Mehrere Antworten derselben Sitzung bleiben bewusst nur ein Signal.
+        if len({session_id for (session_id,) in signals}) < 2:
+            continue
+        model = EntityDocLink if link_type == "entity_doc" else KnowledgeLink
+        link = db.query(model).filter(model.id == link_id).first()
+        # Ein manueller Ablehnungsentscheid bleibt bestehen. Ein bereits auf
+        # "pending" gesetzter Link wird beim späteren Rücknehmen nicht zurückgedreht.
+        if link and link.status == "approved":
+            link.status = "pending"
+            link.reviewed_at = None
+            marked_for_review.append({"type": link_type, "id": link_id})
+    return {"signals_recorded": len(targets), "marked_for_review": marked_for_review}
+
+
+def _revoke_downvote_link_signals(db: Session, message_id: int) -> None:
+    """Deactivate only this answer's signals; prior review escalation persists."""
+    db.query(ChatLinkFeedbackSignal).filter(
+        ChatLinkFeedbackSignal.chat_message_id == message_id,
+        ChatLinkFeedbackSignal.revoked_at.is_(None),
+    ).update({ChatLinkFeedbackSignal.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
 
 
 @router.post("/chat")
@@ -474,7 +581,12 @@ async def chat(
             # die Sichtbarkeit in "Referenzierte Quellen" entscheidet erst _resolve_cited_sources
             # anhand dessen, was das LLM in der Antwort tatsächlich zitiert (siehe unten).
             candidate_sources = [
-                {"file": r.file_path, "lines": [r.start_line, r.end_line], "source_id": r.source_id}
+                {
+                    "file": r.file_path,
+                    "lines": [r.start_line, r.end_line],
+                    "source_id": r.source_id,
+                    "chunk_id": r.id,
+                }
                 for r in results
             ]
             for chunk in pinned_chunks:
@@ -489,6 +601,7 @@ async def chat(
                             "file": chunk.file_path,
                             "lines": [chunk.start_line, chunk.end_line],
                             "source_id": chunk.source_id,
+                            "chunk_id": chunk.id,
                         },
                     )
             pinned_source = None
@@ -786,8 +899,64 @@ def update_chat_message_feedback(
     if not msg.session or not _session_accessible(msg.session, user):
         raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
     msg.feedback = body.feedback
+    if body.feedback == "down":
+        link_feedback = _apply_downvote_link_signals(db, msg, user)
+    else:
+        # Sowohl ein explizites Zurücknehmen als auch ein Upvote nimmt das
+        # negative Signal dieser Antwort zurück. Einen bereits ausgelösten
+        # Review-Status ändern wir dabei absichtlich nie automatisch.
+        _revoke_downvote_link_signals(db, msg.id)
+        link_feedback = {"signals_recorded": 0, "marked_for_review": []}
     db.commit()
-    return {"id": msg.id, "feedback": msg.feedback}
+    return {"id": msg.id, "feedback": msg.feedback, "link_feedback": link_feedback}
+
+
+@router.get("/admin/chat-feedback")
+def get_negative_chat_feedback(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Admin-Auswertung für O-086.
+
+    Es werden bewusst nur Downvotes gezeigt: Das ist die kleine, direkt
+    handhabbare Arbeitsliste für Retrieval-/Prompt-Verbesserungen. Zu jeder
+    Antwort wird die unmittelbar vorhergehende Nutzerfrage derselben Sitzung
+    geliefert, ohne Chatverläufe oder Daten an einen externen Dienst zu senden.
+    """
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Nur für Administratoren")
+
+    messages = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.role == "assistant", ChatMessage.feedback == "down")
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .limit(100)
+        .all()
+    )
+    entries = []
+    for message in messages:
+        question = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.session_id == message.session_id,
+                ChatMessage.role == "user",
+                ChatMessage.id < message.id,
+            )
+            .order_by(ChatMessage.id.desc())
+            .first()
+        )
+        entries.append(
+            {
+                "message_id": message.id,
+                "session_id": message.session_id,
+                "question": question.content if question else None,
+                "answer": message.content,
+                "sources_json": message.sources_json or [],
+                "metadata_json": message.metadata_json or {},
+                "created_at": message.created_at.isoformat() if message.created_at else None,
+            }
+        )
+    return {"entries": entries, "total": len(entries), "limit": 100}
 
 
 @router.delete("/chat/sessions/{session_id}")

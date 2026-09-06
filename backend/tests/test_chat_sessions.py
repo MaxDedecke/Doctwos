@@ -2,7 +2,17 @@ import json
 
 import pytest
 
-from models.database import ChatMessage, ChatSession, KnowledgeSource, User
+from conftest import TEST_USERNAME
+from models.database import (
+    ChatLinkFeedbackSignal,
+    ChatMessage,
+    ChatSession,
+    DocumentChunk,
+    EntityDocLink,
+    KnowledgeLink,
+    KnowledgeSource,
+    User,
+)
 
 OTHER_USERNAME = "test-fixture-sub-other"
 OTHER_USER_EMAIL = "fixture-user-other@example.com"
@@ -201,6 +211,112 @@ def test_feedback_update_forbidden_for_non_owner_private_session(
 
     db_session.query(ChatMessage).filter(ChatMessage.id == msg.id).delete()
     db_session.commit()
+
+
+def test_two_downvotes_from_separate_sessions_mark_only_cited_links_for_review(
+    client, make_session, db_session
+):
+    """O-087: chunk IDs make the feedback-to-link mapping exact and auditable."""
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    chunk = DocumentChunk(
+        file_path="docs/contract.md", content="Vertrag", start_line=1, end_line=10
+    )
+    db_session.add(chunk)
+    db_session.commit()
+    entity_link = EntityDocLink(chunk_id=chunk.id, doc_title="Vertrag", status="approved")
+    knowledge_link = KnowledgeLink(
+        source_a_type="document",
+        source_a_chunk_id=chunk.id,
+        source_a_title="Vertrag",
+        source_b_type="document",
+        source_b_title="Anderes Dokument",
+        status="approved",
+    )
+    db_session.add_all([entity_link, knowledge_link])
+    db_session.commit()
+
+    source = {"file": "docs/contract.md", "lines": [1, 10], "chunk_id": chunk.id}
+    first_session = make_session(user.id)
+    first = ChatMessage(
+        session_id=first_session.id, role="assistant", content="Antwort 1", sources_json=[source]
+    )
+    db_session.add(first)
+    db_session.commit()
+
+    first_response = client.patch(f"/chat/messages/{first.id}/feedback", json={"feedback": "down"})
+    assert first_response.status_code == 200
+    assert first_response.json()["link_feedback"]["signals_recorded"] == 2
+    db_session.refresh(entity_link)
+    db_session.refresh(knowledge_link)
+    assert entity_link.status == knowledge_link.status == "approved"
+
+    second_session = make_session(user.id)
+    second = ChatMessage(
+        session_id=second_session.id, role="assistant", content="Antwort 2", sources_json=[source]
+    )
+    db_session.add(second)
+    db_session.commit()
+
+    second_response = client.patch(f"/chat/messages/{second.id}/feedback", json={"feedback": "down"})
+    assert second_response.status_code == 200
+    assert {item["type"] for item in second_response.json()["link_feedback"]["marked_for_review"]} == {
+        "entity_doc",
+        "knowledge",
+    }
+    db_session.refresh(entity_link)
+    db_session.refresh(knowledge_link)
+    assert entity_link.status == knowledge_link.status == "pending"
+
+    # Das Zurücknehmen entfernt genau dieses Signal, aber nicht die ausgelöste Prüfung.
+    assert client.patch(f"/chat/messages/{second.id}/feedback", json={"feedback": None}).status_code == 200
+    assert (
+        db_session.query(ChatLinkFeedbackSignal)
+        .filter(ChatLinkFeedbackSignal.chat_message_id == second.id)
+        .filter(ChatLinkFeedbackSignal.revoked_at.isnot(None))
+        .count()
+        == 2
+    )
+    db_session.refresh(entity_link)
+    assert entity_link.status == "pending"
+
+    db_session.delete(entity_link)
+    db_session.delete(knowledge_link)
+    db_session.delete(chunk)
+    db_session.commit()
+
+
+def test_admin_can_review_only_downvoted_answers_with_turn_context(
+    client, make_session, db_session
+):
+    """O-086: the review list is an admin-only projection, not a new data store."""
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    session = make_session(user.id)
+    question = ChatMessage(session_id=session.id, role="user", content="Was macht Programm A?")
+    downvoted = ChatMessage(
+        session_id=session.id,
+        role="assistant",
+        content="Eine unzutreffende Antwort.",
+        feedback="down",
+        sources_json=[{"file": "A.cbl", "lines": [10, 12]}],
+        metadata_json={"provider": "ollama", "model": "mistral"},
+    )
+    upvoted = ChatMessage(session_id=session.id, role="assistant", content="Gut.", feedback="up")
+    db_session.add_all([question, downvoted, upvoted])
+    db_session.commit()
+
+    resp = client.get("/admin/chat-feedback")
+
+    assert resp.status_code == 200
+    entry = next(item for item in resp.json()["entries"] if item["message_id"] == downvoted.id)
+    assert entry["question"] == "Was macht Programm A?"
+    assert entry["answer"] == "Eine unzutreffende Antwort."
+    assert entry["sources_json"] == [{"file": "A.cbl", "lines": [10, 12]}]
+    assert entry["metadata_json"] == {"provider": "ollama", "model": "mistral"}
+    assert all(item["message_id"] != upvoted.id for item in resp.json()["entries"])
+
+
+def test_non_admin_cannot_review_chat_feedback(member_client):
+    assert member_client.get("/admin/chat-feedback").status_code == 403
 
 
 def test_continuing_someone_elses_private_session_via_chat_is_forbidden(

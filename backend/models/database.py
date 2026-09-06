@@ -272,6 +272,41 @@ class ChatMessage(Base):
     session = relationship("ChatSession", back_populates="messages")
 
 
+class ChatLinkFeedbackSignal(Base):
+    """Auditierbares Downvote-Signal für einen aus einer Chat-Antwort zitierten Link.
+
+    ``link_type``/``link_id`` sind absichtlich ein generischer Verweis: Ein Signal
+    kann sowohl einen EntityDocLink als auch einen KnowledgeLink betreffen. Beim
+    Zurücknehmen eines Downvotes bleibt der Datensatz für die Nachvollziehbarkeit
+    erhalten, zählt aber ab ``revoked_at`` nicht mehr zur Eskalationsregel.
+    """
+
+    __tablename__ = "chat_link_feedback_signals"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_message_id = Column(
+        Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chat_session_id = Column(
+        Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    link_type = Column(String(30), nullable=False)  # 'entity_doc' | 'knowledge'
+    link_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    message = relationship("ChatMessage", backref="link_feedback_signals")
+    session = relationship("ChatSession")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "chat_message_id", "link_type", "link_id", name="uq_chat_link_feedback_signal"
+        ),
+        Index("ix_chat_link_feedback_active", "link_type", "link_id", "revoked_at", "created_at"),
+    )
+
+
 class MCPToolAuditLog(Base):
     """Data-minimal audit entry for one executed MCP tool call.
 

@@ -65,6 +65,8 @@
       "documentUploadFailed": "Error uploading document",
       "newChatStarted": "New chat started",
       "feedbackFailed": "Could not save feedback",
+      "feedbackLinkSignalRecorded": "A signal for the cited links was recorded. A second independent downvote is required to start a review.",
+      "feedbackLinksMarkedForReview": "Cited links were marked for review after independent downvotes.",
       "noPanelSpace": "No room for another view — please close a panel first"
     },
     "confirmDialog": {
@@ -597,7 +599,18 @@
       "mcpAuditError": "Error",
       "mcpAuditUser": "User: {{user}}",
       "mcpAuditDuration": "{{duration}} ms",
-      "mcpAuditProject": "Project: {{project}}"
+      "mcpAuditProject": "Project: {{project}}",
+      "feedbackTitle": "Negatively rated chat answers",
+      "feedbackDescription": "Only administrators can see the question, answer, cited sources, and model metadata. This list supports targeted retrieval and prompt improvements.",
+      "feedbackRefresh": "Refresh",
+      "feedbackLoading": "Loading feedback...",
+      "feedbackLoadFailed": "Feedback could not be loaded",
+      "feedbackEmpty": "No chat answers have been rated negatively yet.",
+      "feedbackSession": "Chat session #{{id}}",
+      "feedbackQuestion": "Question",
+      "feedbackQuestionMissing": "No preceding user question was saved.",
+      "feedbackAnswer": "Negatively rated answer",
+      "feedbackEvidence": "Show sources and model metadata"
     },
     "editorTab": {
       "title": "Monaco Editor Options",

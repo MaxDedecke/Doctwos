@@ -16,6 +16,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-8 | Embedding-Batchgröße vs. CPU-only-Timeout (`ollama_client.py`) | Option 3: Sub-Batches + konfigurierbarer Timeout | umgesetzt |
 | E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
 | E-10 | Confluence/Jira-MCP-Anbindung: Cloud-vs-Server/DC-Erkennung | eigene Domain-Suffix-Heuristik statt Import aus `mcp_atlassian.utils` | umgesetzt (08.08.2026) |
+| E-11 | Bilderschließung nach O-074 | späterer lokaler Vision-Import; Open-Source-kompatible Lizenz und On-Premise-Betrieb sind Pflicht, Apache-2.0-Mistral-Modelle (z. B. Pixtral) sind Kandidaten | entschieden (06.09.2026), Umsetzung ausstehend |
 
 ---
 

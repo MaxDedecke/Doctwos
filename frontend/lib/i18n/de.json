@@ -65,6 +65,8 @@
       "documentUploadFailed": "Fehler beim Hochladen des Dokuments",
       "newChatStarted": "Neuer Chat gestartet",
       "feedbackFailed": "Feedback konnte nicht gespeichert werden",
+      "feedbackLinkSignalRecorded": "Hinweis zu den zitierten Verknüpfungen erfasst. Eine Prüfung wird erst bei einem zweiten unabhängigen Downvote ausgelöst.",
+      "feedbackLinksMarkedForReview": "Zitierte Verknüpfungen wurden aufgrund unabhängiger Downvotes zur Prüfung markiert.",
       "noPanelSpace": "Kein Platz für eine weitere Ansicht — bitte zuerst ein Panel schließen"
     },
     "confirmDialog": {
@@ -597,7 +599,18 @@
       "mcpAuditError": "Fehler",
       "mcpAuditUser": "Nutzer: {{user}}",
       "mcpAuditDuration": "{{duration}} ms",
-      "mcpAuditProject": "Projekt: {{project}}"
+      "mcpAuditProject": "Projekt: {{project}}",
+      "feedbackTitle": "Negativ bewertete Chat-Antworten",
+      "feedbackDescription": "Nur Administratoren sehen Frage, Antwort, zitierte Quellen und Modellmetadaten. Die Liste ist die Grundlage für gezielte Retrieval- und Prompt-Verbesserungen.",
+      "feedbackRefresh": "Aktualisieren",
+      "feedbackLoading": "Bewertungen werden geladen...",
+      "feedbackLoadFailed": "Bewertungen konnten nicht geladen werden",
+      "feedbackEmpty": "Bisher wurden keine Chat-Antworten negativ bewertet.",
+      "feedbackSession": "Chat-Sitzung #{{id}}",
+      "feedbackQuestion": "Frage",
+      "feedbackQuestionMissing": "Keine vorherige Nutzerfrage gespeichert.",
+      "feedbackAnswer": "Negativ bewertete Antwort",
+      "feedbackEvidence": "Quellen und Modellmetadaten anzeigen"
     },
     "editorTab": {
       "title": "Monaco Editor Optionen",

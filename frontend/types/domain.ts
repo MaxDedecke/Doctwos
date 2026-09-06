@@ -117,6 +117,8 @@ export interface ChatMetadata {
 export interface ChatSource {
   file: string;
   source_id?: number | string | null;
+  /** Internal exact reference used for feedback-to-link mapping; never rendered. */
+  chunk_id?: number | null;
   lines?: Array<number | null>;
 }
 export interface ChatMessage {
@@ -130,6 +132,16 @@ export interface ChatMessage {
 export interface StoredChatMessage extends Omit<ChatMessage, 'sources' | 'metadata'> {
   sources_json?: ChatSource[] | null;
   metadata_json?: ChatMetadata | null;
+}
+/** Admin-only O-086 review projection; intentionally contains only downvoted turns. */
+export interface ChatFeedbackReview {
+  message_id: number;
+  session_id: number;
+  question: string | null;
+  answer: string;
+  sources_json: ChatSource[];
+  metadata_json: ChatMetadata;
+  created_at: string | null;
 }
 export interface ChatSession {
   id: number;

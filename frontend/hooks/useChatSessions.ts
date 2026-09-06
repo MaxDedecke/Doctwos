@@ -44,7 +44,15 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
     ));
 
     try {
-      await api.updateChatMessageFeedback(messageId, nextValue);
+      const response = await api.updateChatMessageFeedback(messageId, nextValue);
+      if (nextValue === 'down' && response.data.link_feedback.signals_recorded > 0) {
+        showToast(
+          response.data.link_feedback.marked_for_review.length > 0
+            ? t('page.toast.feedbackLinksMarkedForReview')
+            : t('page.toast.feedbackLinkSignalRecorded'),
+          'success',
+        );
+      }
     } catch (error) {
       console.error(error);
       setChatMessages((previous) => previous.map((message) =>
