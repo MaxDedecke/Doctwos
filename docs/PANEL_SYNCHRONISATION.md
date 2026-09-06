@@ -189,7 +189,7 @@ bestätigt den Ist-Zustand); offen ist nur noch D-5.
 | **D-2** ✅ | Was passiert, wenn kein passendes Panel offen ist und die 4-Panel-Grenze erreicht ist? (Vorher: stiller Abbruch in allen drei Varianten.) | PS-04, PS-12, PS-21 | **Entschieden 06.09.2026: kurzer Hinweis** (`page.toast.noPanelSpace`), kein automatisches Umwidmen eines fremden Panels. `addPanel`/`ensurePanelType`/`ensureLivePanelType` melden den Fehlschlag als Rückgabewert. |
 | **D-3** ✅ | Soll ein `callgraph`-Panel seinen Fokus verlieren, wenn anderswo ein Dokument geöffnet wird? | PS-29 | **Entschieden 06.09.2026: nein** — Fokus behalten, wenn die eingehende Auswahl keine Entity enthält. Umgesetzt in der Sync-Regel in `useWorkspaceLayout`. |
 | **D-4** ✅ | Soll die Historie eines Live-Panels die anderen Live-Panels mitziehen? | PS-25, PS-26 | **Entschieden 06.09.2026: ja, alle Live-Panels ziehen mit, eingefrorene nicht.** „Zurück" ist eine Bewegung der Arbeitssituation, nicht eines einzelnen Fensters; das Einfrieren ist der Ausstieg aus dieser Bewegung. Entspricht dem Ist-Zustand, ist jetzt als PS-25 getestet. |
-| **D-5** ❓ | Bleibt der Link-Manager eine Insel? | PS-30 | Vorerst ja; „aus dem Link-Manager in die Code-Ansicht springen" als eigener Punkt, nicht als Teil dieser Aufräumarbeit. |
+| **D-5** ❓ | Bleibt der Link-Manager eine Insel? | PS-30 | **Empfehlung nach näherer Prüfung am 06.09.2026: nein.** Wer eine Verknüpfung beurteilen soll, muss beide Seiten sehen können — genau das geht dort nicht. Als eigener Punkt [O-114] erfasst (samt der Nebenbefunde [O-115] toter `link_chat.py`-Endpunkt und [O-116] Umgehung der zentralen API-Schicht), nicht als Teil dieser Aufräumarbeit. |
 
 ---
 
