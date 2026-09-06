@@ -402,6 +402,12 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 - [FAQ Konnektor-Modularität](FAQ_KONNEKTOR_MODULARITAET.md) — Frage-Antwort-Referenz zu O-042 für Vertriebs-/Kundengespräche
 - [Panel-Synchronisation](PANEL_SYNCHRONISATION.md) — Soll-Matrix zu O-092, inklusive der offenen Festlegungen D-1 bis D-5
 
+## Zurückgestellte Entwicklungspunkte
+
+| ID | Bereich | Punkt | Nächste Aktion | Abhängigkeit |
+|---|---|---|---|---|
+| O-158 | Abhängigkeiten / Sicherheit | Nach O-069 verbleiben zwei transitive Python-Auditfunde: `fastmcp` 2.14.7 hat zwei advisories, deren Fix erst `fastmcp` 3.2.0 (Major-Upgrade) ist und über `mcp-atlassian` 0.22.1 eingebracht wird; `diskcache` 5.6.3 hat derzeit keinen veröffentlichten Fix. Die direkt patchbaren Funde (`pypdf`, `cryptography`) sind bereits aktualisiert. | Erst prüfen, ob eine getestete `mcp-atlassian`-Version FastMCP 3 unterstützt; dann Connector- und MCP-Regressionen gegen den Major-Upgrade ausführen. `diskcache` auf Upstream-Fix überwachen und bis dahin die tatsächliche Erreichbarkeit des betroffenen Cache-Pfads dokumentieren. | Upstream-Kompatibilität bzw. veröffentlichter `diskcache`-Fix |
+
 ## Pflege
 
 Beim Bearbeiten eines Punktes den Status, die nächste Aktion und das Datum direkt

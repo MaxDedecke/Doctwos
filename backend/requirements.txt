@@ -9,10 +9,10 @@ pydantic==2.13.4
 pydantic-settings==2.14.2
 python-multipart==0.0.32
 pgvector==0.5.0
-pypdf==6.14.2
+pypdf==6.16.1
 python-docx==1.2.0
 mammoth==1.12.0
-cryptography==49.0.0
+cryptography==50.0.0
 alembic==1.18.5
 itsdangerous==2.2.0
 argon2-cffi==25.1.0
@@ -30,5 +30,4 @@ markdown==3.10.2
 # Anforderung dagegen auf statt das echte PyPI-Paket zu laden.
 ./vendor/unidecode_shim
 mcp-atlassian==0.22.1
-
 
