@@ -1,5 +1,5 @@
 "use client";
-import type { ChatFeedbackReview, DiagnosticsRun, KnowledgeSource, McpAuditEntry } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, DiagnosticsRun, KnowledgeSource, McpAuditEntry } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -46,6 +46,8 @@ export const LogsSettingsTab: React.FC = () => {
   const [mcpAuditLoading, setMcpAuditLoading] = useState<boolean>(false);
   const [feedbackEntries, setFeedbackEntries] = useState<ChatFeedbackReview[]>([]);
   const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
+  const [diagnosticSettings, setDiagnosticSettings] = useState<ChatFeedbackDiagnosticSettings | null>(null);
+  const [diagnosticSettingsSaving, setDiagnosticSettingsSaving] = useState(false);
 
   const refreshKnowledgeSources = async () => {
     setRefreshingLogs(true);
@@ -103,6 +105,45 @@ export const LogsSettingsTab: React.FC = () => {
     // component-local action and intentionally not a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.is_admin]);
+
+  const refreshDiagnosticSettings = async () => {
+    if (!currentUser?.is_admin) return;
+    try {
+      const res = await api.getFeedbackDiagnosticSettings();
+      setDiagnosticSettings(res.data);
+    } catch (err) {
+      console.error("Failed to load feedback diagnostic settings", err);
+    }
+  };
+
+  useEffect(() => {
+    queueMicrotask(refreshDiagnosticSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.is_admin]);
+
+  const saveDiagnosticSettings = async (next: Omit<ChatFeedbackDiagnosticSettings, 'updated_at'>) => {
+    setDiagnosticSettingsSaving(true);
+    try {
+      const res = await api.updateFeedbackDiagnosticSettings(next);
+      setDiagnosticSettings(res.data);
+      showToast(t('settings.logsTab.feedbackDiagnosticsSaved'), 'success');
+    } catch (err) {
+      console.error("Failed to save feedback diagnostic settings", err);
+      showToast(t('settings.logsTab.feedbackDiagnosticsSaveFailed'), 'error', err);
+    } finally {
+      setDiagnosticSettingsSaving(false);
+    }
+  };
+
+  const deleteDiagnosticCases = async () => {
+    if (!confirm(t('settings.logsTab.feedbackDiagnosticsDeleteConfirm'))) return;
+    try {
+      const res = await api.deleteFeedbackDiagnosticCases();
+      showToast(t('settings.logsTab.feedbackDiagnosticsDeleted', { count: res.data.deleted }), 'success');
+    } catch (err) {
+      showToast(t('settings.logsTab.feedbackDiagnosticsDeleteFailed'), 'error', err);
+    }
+  };
 
   const refreshNegativeFeedback = async () => {
     if (!currentUser?.is_admin) return;
@@ -276,6 +317,35 @@ export const LogsSettingsTab: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {currentUser?.is_admin && diagnosticSettings && (
+        <div className={cn("space-y-3 rounded-lg border p-3", theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200")}>
+          <div>
+            <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.feedbackDiagnosticsTitle')}</h4>
+            <p className="mt-0.5 text-[10px] text-ds-zinc-500">{t('settings.logsTab.feedbackDiagnosticsDescription')}</p>
+          </div>
+          <label className="flex cursor-pointer items-start gap-2 text-xs">
+            <input type="checkbox" checked={diagnosticSettings.collection_enabled} disabled={diagnosticSettingsSaving}
+              onChange={(event) => saveDiagnosticSettings({ collection_enabled: event.target.checked, support_export_enabled: event.target.checked && diagnosticSettings.support_export_enabled, retention_days: diagnosticSettings.retention_days })} />
+            <span><span className={cn("font-medium", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.logsTab.feedbackDiagnosticsCollect')}</span><span className="block text-[10px] text-ds-zinc-500">{t('settings.logsTab.feedbackDiagnosticsCollectDescription')}</span></span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2 text-xs">
+            <input type="checkbox" checked={diagnosticSettings.support_export_enabled} disabled={!diagnosticSettings.collection_enabled || diagnosticSettingsSaving}
+              onChange={(event) => saveDiagnosticSettings({ collection_enabled: diagnosticSettings.collection_enabled, support_export_enabled: event.target.checked, retention_days: diagnosticSettings.retention_days })} />
+            <span><span className={cn("font-medium", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.logsTab.feedbackDiagnosticsExport')}</span><span className="block text-[10px] text-ds-zinc-500">{t('settings.logsTab.feedbackDiagnosticsExportDescription')}</span></span>
+          </label>
+          <label className="block text-[10px] text-ds-zinc-500">{t('settings.logsTab.feedbackDiagnosticsRetention')}
+            <input type="number" min={1} max={365} value={diagnosticSettings.retention_days} disabled={diagnosticSettingsSaving}
+              onChange={(event) => setDiagnosticSettings({ ...diagnosticSettings, retention_days: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })}
+              onBlur={() => saveDiagnosticSettings({ collection_enabled: diagnosticSettings.collection_enabled, support_export_enabled: diagnosticSettings.support_export_enabled, retention_days: diagnosticSettings.retention_days })}
+              className={cn("ml-2 h-7 w-16 rounded border px-2 text-xs", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-700" : "bg-ds-white border-ds-zinc-300")} />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {diagnosticSettings.collection_enabled && diagnosticSettings.support_export_enabled && <a href={`${API_URL}/feedback-diagnostics/export`} download className="text-[10px] text-ds-indigo-500 hover:underline">{t('settings.logsTab.feedbackDiagnosticsDownload')}</a>}
+            <button type="button" onClick={deleteDiagnosticCases} className="text-[10px] text-ds-red-500 hover:underline">{t('settings.logsTab.feedbackDiagnosticsDelete')}</button>
+          </div>
         </div>
       )}
 

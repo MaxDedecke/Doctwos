@@ -610,7 +610,21 @@
       "feedbackQuestion": "Frage",
       "feedbackQuestionMissing": "Keine vorherige Nutzerfrage gespeichert.",
       "feedbackAnswer": "Negativ bewertete Antwort",
-      "feedbackEvidence": "Quellen und Modellmetadaten anzeigen"
+      "feedbackEvidence": "Quellen und Modellmetadaten anzeigen",
+      "feedbackDiagnosticsTitle": "Feedback-Diagnosedaten für Support",
+      "feedbackDiagnosticsDescription": "Standardmäßig deaktiviert. Erfasst lokal nur Frage, Antwort, zitierte Quellen und Modellinformationen; keine vollständigen Verläufe oder Tool-Ergebnisse.",
+      "feedbackDiagnosticsCollect": "Diagnosedaten bei Downvotes lokal erfassen",
+      "feedbackDiagnosticsCollectDescription": "Die Erfassung erfolgt nur für künftige negative Bewertungen und kann jederzeit deaktiviert werden.",
+      "feedbackDiagnosticsExport": "Manuellen Support-Export erlauben",
+      "feedbackDiagnosticsExportDescription": "Ermöglicht ausschließlich Administratoren einen lokalen Download. Es werden keine Daten automatisch übertragen.",
+      "feedbackDiagnosticsRetention": "Aufbewahrung (Tage)",
+      "feedbackDiagnosticsDownload": "Diagnosedaten herunterladen",
+      "feedbackDiagnosticsDelete": "Alle Diagnosedaten löschen",
+      "feedbackDiagnosticsDeleteConfirm": "Alle lokal erfassten Feedback-Diagnosedaten endgültig löschen?",
+      "feedbackDiagnosticsSaved": "Diagnose-Einstellung gespeichert",
+      "feedbackDiagnosticsSaveFailed": "Diagnose-Einstellung konnte nicht gespeichert werden",
+      "feedbackDiagnosticsDeleted": "{{count}} Diagnosedaten gelöscht",
+      "feedbackDiagnosticsDeleteFailed": "Diagnosedaten konnten nicht gelöscht werden"
     },
     "editorTab": {
       "title": "Monaco Editor Optionen",

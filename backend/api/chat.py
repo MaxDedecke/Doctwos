@@ -65,6 +65,7 @@ from services.chat_service import (
     stream_agent_events,
     stream_standard_rag_events,
 )
+from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
 
 # Compatibility imports for focused regression tests and downstream callers. The
 # implementation now lives in services.chat_service with the rest of retrieval.
@@ -901,11 +902,13 @@ def update_chat_message_feedback(
     msg.feedback = body.feedback
     if body.feedback == "down":
         link_feedback = _apply_downvote_link_signals(db, msg, user)
+        capture_downvote_case(db, msg)
     else:
         # Sowohl ein explizites Zurücknehmen als auch ein Upvote nimmt das
         # negative Signal dieser Antwort zurück. Einen bereits ausgelösten
         # Review-Status ändern wir dabei absichtlich nie automatisch.
         _revoke_downvote_link_signals(db, msg.id)
+        remove_case_for_message(db, msg.id)
         link_feedback = {"signals_recorded": 0, "marked_for_review": []}
     db.commit()
     return {"id": msg.id, "feedback": msg.feedback, "link_feedback": link_feedback}

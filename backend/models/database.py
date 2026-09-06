@@ -307,6 +307,42 @@ class ChatLinkFeedbackSignal(Base):
     )
 
 
+class ChatFeedbackDiagnosticSettings(Base):
+    """Deployment-weit gültiges, explizites Admin-Opt-in für O-088."""
+
+    __tablename__ = "chat_feedback_diagnostic_settings"
+    id = Column(Integer, primary_key=True)
+    collection_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    support_export_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    retention_days = Column(Integer, nullable=False, default=90, server_default="90")
+    updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    updated_by = relationship("User")
+
+
+class ChatFeedbackDiagnosticCase(Base):
+    """Minimaler, lokaler Support-Fall aus einem bewusst erfassten Downvote."""
+
+    __tablename__ = "chat_feedback_diagnostic_cases"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_message_id = Column(
+        Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    source_id = Column(Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True)
+    question = Column(EncryptedString, nullable=True)
+    answer = Column(EncryptedString, nullable=False)
+    sources_json = Column(JSON, nullable=True)
+    model = Column(String, nullable=True)
+    provider = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    message = relationship("ChatMessage")
+    project = relationship("Project")
+    source = relationship("KnowledgeSource")
+
+
 class MCPToolAuditLog(Base):
     """Data-minimal audit entry for one executed MCP tool call.
 

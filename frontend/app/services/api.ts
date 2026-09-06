@@ -1,4 +1,4 @@
-import type { ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, Project, ProjectStats, SearchResult, StoredChatMessage, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, Project, ProjectStats, SearchResult, StoredChatMessage, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 
@@ -136,6 +136,10 @@ export const api = {
         }>(`${API_URL}/chat/messages/${messageId}/feedback`, { feedback }),
     getNegativeChatFeedback: () =>
         axios.get<{ entries: ChatFeedbackReview[]; total: number; limit: number }>(`${API_URL}/admin/chat-feedback`),
+    getFeedbackDiagnosticSettings: () => axios.get<ChatFeedbackDiagnosticSettings>(`${API_URL}/feedback-diagnostics/settings`),
+    updateFeedbackDiagnosticSettings: (data: Omit<ChatFeedbackDiagnosticSettings, 'updated_at'>) =>
+        axios.patch<ChatFeedbackDiagnosticSettings>(`${API_URL}/feedback-diagnostics/settings`, data),
+    deleteFeedbackDiagnosticCases: () => axios.delete<{ deleted: number }>(`${API_URL}/feedback-diagnostics/cases`),
     getModelInfo: () => axios.get(`${API_URL}/model-info`),
     getModels: () => axios.get(`${API_URL}/models`),
     updateModelInfo: (data: { llm: string }) => axios.post(`${API_URL}/model-info`, data),

@@ -96,6 +96,12 @@ class ChatMessageFeedbackUpdate(BaseModel):
     feedback: Optional[str] = None  # 'up' | 'down' | null (null clears it)
 
 
+class ChatFeedbackDiagnosticSettingsUpdate(BaseModel):
+    collection_enabled: bool
+    support_export_enabled: bool = False
+    retention_days: int = 90
+
+
 class ConnectorTestRequest(BaseModel):
     """Verbindungstest für Git- und Wissensquellen-Connectoren."""
 

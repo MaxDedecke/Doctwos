@@ -610,7 +610,21 @@
       "feedbackQuestion": "Question",
       "feedbackQuestionMissing": "No preceding user question was saved.",
       "feedbackAnswer": "Negatively rated answer",
-      "feedbackEvidence": "Show sources and model metadata"
+      "feedbackEvidence": "Show sources and model metadata",
+      "feedbackDiagnosticsTitle": "Support feedback diagnostics",
+      "feedbackDiagnosticsDescription": "Disabled by default. Stores only the question, answer, cited sources, and model information locally; no full histories or tool results.",
+      "feedbackDiagnosticsCollect": "Collect diagnostic data for downvotes locally",
+      "feedbackDiagnosticsCollectDescription": "Only future negative ratings are collected and collection can be disabled at any time.",
+      "feedbackDiagnosticsExport": "Allow manual support export",
+      "feedbackDiagnosticsExportDescription": "Lets administrators download data locally only. No data is transferred automatically.",
+      "feedbackDiagnosticsRetention": "Retention (days)",
+      "feedbackDiagnosticsDownload": "Download diagnostic data",
+      "feedbackDiagnosticsDelete": "Delete all diagnostic data",
+      "feedbackDiagnosticsDeleteConfirm": "Permanently delete all locally collected feedback diagnostic data?",
+      "feedbackDiagnosticsSaved": "Diagnostic setting saved",
+      "feedbackDiagnosticsSaveFailed": "Could not save diagnostic setting",
+      "feedbackDiagnosticsDeleted": "Deleted {{count}} diagnostic entries",
+      "feedbackDiagnosticsDeleteFailed": "Could not delete diagnostic entries"
     },
     "editorTab": {
       "title": "Monaco Editor Options",

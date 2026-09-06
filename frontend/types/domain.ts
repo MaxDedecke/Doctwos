@@ -143,6 +143,12 @@ export interface ChatFeedbackReview {
   metadata_json: ChatMetadata;
   created_at: string | null;
 }
+export interface ChatFeedbackDiagnosticSettings {
+  collection_enabled: boolean;
+  support_export_enabled: boolean;
+  retention_days: number;
+  updated_at: string | null;
+}
 export interface ChatSession {
   id: number;
   title: string;
