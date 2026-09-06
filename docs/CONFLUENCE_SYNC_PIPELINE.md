@@ -17,10 +17,10 @@ flowchart TD
         SpaceFilter -->|nein| SkipSpace["ueberspringen"]
         SpaceFilter -->|ja| PageDelta{"version.when &lt;= last_synced_at<br/>UND Chunks existieren bereits?"}
         PageDelta -->|ja, unveraendert| SkipPage["ueberspringen (Delta-Sync)"]
-        PageDelta -->|nein| HtmlToText["body.view.value (HTML)<br/>-&gt; Klartext via _ConfluenceHTMLParser<br/>(Tabellen als Spalten, Code-Bloecke roh erhalten)"]
+        PageDelta -->|nein| HtmlToText["body.view.value (HTML)<br/>-&gt; Klartext via _ConfluenceHTMLParser<br/>(Tabellen als Spalten, Code-Bloecke roh erhalten,<br/>zusaetzlich line_sections: h1-h6 pro Zeile mitgefuehrt, O-082)"]
         HtmlToText --> EmptyCheck{"Text leer?"}
         EmptyCheck -->|ja| SkipEmpty["ueberspringen, geloggt"]
-        EmptyCheck -->|nein| YieldPage["Document einreihen<br/>storage_key = Seitentitel"]
+        EmptyCheck -->|nein| YieldPage["Document einreihen<br/>storage_key = Seitentitel<br/>line_sections mitgegeben"]
     end
 
     PageLoop --> SpaceFilter
@@ -52,8 +52,9 @@ flowchart TD
 
     subgraph PerDocGroup ["pro Dokument -- _process_document (sequentiell, KEINE Nebenlaeufigkeit)"]
         direction TB
-        PerDoc["CodeParser.chunk_file<br/>generisches Zeilenchunking<br/>(siehe GIT_SYNC_PIPELINE.md, Punkt 2)"]
-        PerDoc --> Reindex["reindex_chunks_preserving_links<br/>JEDER Chunk neu embedded (get_embedding,<br/>Einzel-Request, kein Batch, kein Skip)<br/>Content-Fingerprint ordnet alte/neue Chunks<br/>einander zu -&gt; EntityDocLink-Status/chunk_id<br/>bei Uebereinstimmung uebernommen"]
+        PerDoc["CodeParser.chunk_file<br/>generisches Zeilenchunking<br/>(siehe GIT_SYNC_PIPELINE.md, Punkt 2)<br/>Chunk-Grenzen selbst NICHT section-bewusst (O-083, offen)"]
+        PerDoc --> SectionLookup["pro Chunk: line_sections[start_line-1]<br/>nachschlagen -&gt; chunk['meta']['section'] (O-082)<br/>nur wenn line_sections vorhanden (nur Confluence)"]
+        SectionLookup --> Reindex["reindex_chunks_preserving_links<br/>JEDER Chunk neu embedded (get_embedding,<br/>Einzel-Request, kein Batch, kein Skip)<br/>Content-Fingerprint ordnet alte/neue Chunks<br/>einander zu -&gt; EntityDocLink-Status/chunk_id<br/>bei Uebereinstimmung uebernommen<br/>metadata_json erbt chunk['meta'] (z.B. section)"]
         Reindex --> LogDone["_log: 'X indexiert (N Chunks).'"]
     end
 
@@ -85,6 +86,21 @@ flowchart TD
   Zeilenchunking (`CodeParser.chunk_file`, Punkt (2) in
   `docs/GIT_SYNC_PIPELINE.md`) — es gibt keine Sprache, die hier eine
   Strukturanalyse rechtfertigen würde.
+- **Section-Metadaten seit O-082, aber (noch) keine section-bewussten
+  Chunk-Grenzen:** `_ConfluenceHTMLParser` führt parallel zum Klartext eine
+  `line_sections`-Liste mit (die zuletzt gesehene `h1`-`h6`-Überschrift pro
+  Zeile, inklusive Inline-Markup wie `<strong>` im Heading-Text). Das
+  `Document` trägt sie als optionales Feld `line_sections` weiter — nur
+  Confluence befüllt es, Jira/WebDAV/FolderWatch bleiben unverändert. In
+  `_process_document()` schlägt `chunk["start_line"]` darüber die Section
+  nach und übergibt sie als `chunk["meta"]["section"]`, das dieselbe
+  `**(chunk.get("meta") or {})`-Merge-Route in `metadata_json` nimmt, die
+  `GitConnector` für COBOLs `section`/`paragraph` bereits nutzt — ein Chat-
+  Zitat aus einer langen Confluence-Seite zeigt damit jetzt (sofern das
+  Frontend es generisch mit ausliest) den Abschnitt statt nur den
+  Seitentitel. Bewusst **nicht** angefasst: `CodeParser.chunk_file()` selbst
+  schneidet weiterhin blind nach Zeichenzahl, unabhängig von Section-Grenzen
+  — das ist O-083, direkt darauf aufbauend.
 - **Embedding läuft pro Chunk einzeln** (`get_embedding`, kein
   `get_embeddings_batch`) — sobald eine Seite den Delta-Check nicht besteht
   (also neu oder geändert ist), wird **jeder** ihrer Chunks frisch embedded,
@@ -101,8 +117,9 @@ flowchart TD
   Persistenz-Pipeline wie die Seite selbst — mit eigenem Delta-Sync-Check und
   einer harten 20-MB-Obergrenze.
 
-Quelle: `parser/connectors/base.py` (`sync`, `_process_document`),
-`parser/connectors/confluence.py` (`fetch_documents`, `_build_document`,
-`_fetch_attachments`, `_html_to_text`), `parser/chunk_reindex.py`
+Quelle: `parser/connectors/base.py` (`sync`, `_process_document`,
+`Document.line_sections`), `parser/connectors/confluence.py`
+(`fetch_documents`, `_build_document`, `_fetch_attachments`, `_html_to_text`
+liefert seit O-082 `(text, line_sections)`), `parser/chunk_reindex.py`
 (`reindex_chunks_preserving_links`), `parser/tasks/sync.py`
 (`process_knowledge_source_async`).
