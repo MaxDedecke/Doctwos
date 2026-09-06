@@ -16,7 +16,8 @@ flowchart TD
     ConcHigh --> Fetch
     ConcLow --> Fetch["fetch_documents:<br/>Git-Diff seit sync_cursor lesen"]
 
-    Fetch --> BinCheck{"Bekannte Binärendung?<br/>_SKIPPED_BINARY_EXTENSIONS"}
+    Fetch --> PrepareHooks["_run_prepare_hooks:<br/>registry-deklarierte Vorlauf-Hooks<br/>einmal pro Sync (O-079, z.B. Copybook-Index)"]
+    PrepareHooks --> BinCheck{"Bekannte Binärendung?<br/>_SKIPPED_BINARY_EXTENSIONS"}
     BinCheck -->|ja| SkipBin["[SKIP] Binärformat<br/>kein SourceScanFile-Eintrag"]
     BinCheck -->|nein| TextCheck{"_looks_like_text?<br/>striktes UTF-8-Decode +<br/>max. 5% Steuerzeichen (O-074)"}
     TextCheck -->|nein, z.B. EBCDIC| SkipText["[SKIP] kein UTF-8-Text<br/>kein SourceScanFile-Eintrag"]
@@ -26,10 +27,10 @@ flowchart TD
 
     subgraph perFile ["pro Datei -- _embed_document (O-072-Logzeilen umrahmen diesen Block)"]
         direction TB
-        LogStart["_log: Embedding gestartet fuer X."] --> LangCheck{"Sprache COBOL/Copybook?"}
-        LangCheck -->|ja| CobolParse["COBOL-Strukturanalyse (1)<br/>parse_program / parse_copybook<br/>-&gt; Entities, Kanten, Chunks"]
-        LangCheck -->|nein| GenericChunk["CodeParser.chunk_file (2)<br/>generisches Zeilenchunking"]
-        CobolParse --> Embed
+        LogStart["_log: Embedding gestartet fuer X."] --> RegistryCheck{"Sprache in STRUCTURE_PARSERS?<br/>(O-077, Registry-Lookup statt<br/>hartkodierter Weiche)"}
+        RegistryCheck -->|ja| StructParse["Struktur-Parser (1)<br/>entry.parse() -&gt; Entities, Kanten, Chunks<br/>(aktuell einzig COBOL/Copybook,<br/>siehe docs/ADDING_A_LANGUAGE.md)"]
+        RegistryCheck -->|nein| GenericChunk["CodeParser.chunk_file (2)<br/>generisches Zeilenchunking"]
+        StructParse --> Embed
         GenericChunk --> Embed["get_embeddings_batch<br/>HTTP -&gt; Ollama /api/embed"]
         Embed -->|Fehler| EmbedErr["_log: Embedding-Fehler<br/>Chunks bleiben ohne Embedding<br/>-&gt; Einzel-Chunk-Fallback spaeter"]
         Embed --> Return["Doc + Chunks + ParseResult"]
@@ -42,7 +43,7 @@ flowchart TD
     subgraph persistBlock ["_save_document_chunks (DB, sequentiell)"]
         direction TB
         Persist["reindex_chunks_preserving_links<br/>DocumentChunk schreiben<br/>(Fallback: fehlende Embeddings einzeln nachholen)"]
-        Persist --> PersistParse["persist_parse_result<br/>CodeEntity/CodeEdge schreiben<br/>(nur bei COBOL-Ergebnis)"]
+        Persist --> PersistParse["persist_parse_result<br/>CodeEntity/CodeEdge schreiben<br/>(nur wenn STRUCTURE_PARSERS<br/>die Sprache kennt)"]
         PersistParse --> ScanFile["SourceScanFile upserten<br/>content_hash, parse_status"]
     end
 
@@ -62,17 +63,30 @@ flowchart TD
   seriell.
 - **"Embedding gestartet"** (O-072) markiert den Moment, in dem eine Datei den
   Semaphore-Slot bekommt — nicht den Start des eigentlichen Ollama-Requests.
-  Die gemessene Zeit bis "indexiert" umfasst COBOL-Strukturanalyse, Chunking,
+  Die gemessene Zeit bis "indexiert" umfasst Struktur-Parsing (falls die
+  Sprache einen Registry-Eintrag hat, aktuell nur COBOL/Copybook), Chunking,
   Embedding **und** die anschließende DB-Persistenz (Chunks + Entities/Kanten).
 - **Binär-/EBCDIC-Skips** (O-074) passieren schon in `fetch_documents()`, vor
   der Semaphore — sie kosten praktisch keine Zeit und keinen Ollama-Aufruf.
+- **`_run_prepare_hooks`** (O-079) läuft **einmal pro Sync**, nicht pro Datei
+  — vor allen Skip-Checks, weil der Copybook-Index den vollständigen
+  Dateibaum kennen muss, bevor die erste Datei geparst wird (ein in diesem
+  Sync geändertes Programm kann ein unverändertes, damit gar nicht Teil des
+  Deltas seiendes Copybook COPYen). `GitConnector` kennt den Hook-Namen dabei
+  nicht — er fragt generisch jeden Registry-Eintrag mit `prepare_source` ab.
 - **`persistBlock`** läuft sequentiell im `sync()`-Abschluss-Loop (nicht unter
   der Semaphore) — DB-Schreibzugriffe auf dieselbe `KnowledgeSource`-Zeile
   bleiben dadurch unkritisch bezüglich Nebenläufigkeit.
 
 ## Chunking im Detail
 
-### (1) COBOL-Strukturanalyse — `parser/cobol/chunking.py::chunk()`
+### (1) Struktur-Parser — aktuell nur COBOL, `parser/cobol/chunking.py::chunk()`
+
+Der Registry-Lookup oben (`cobol/registry.py::STRUCTURE_PARSERS`, O-077) ist
+sprachneutral; COBOL/Copybook sind bislang bloß der einzige Eintrag darin.
+Was folgt, ist deshalb COBOL-spezifisch — eine zweite Sprache brächte ihr
+eigenes Chunking-Modul mit (siehe `docs/ADDING_A_LANGUAGE.md`), nicht dieses
+hier.
 
 Ein Chunk pro **Paragraph** (PROCEDURE DIVISION), nicht nach fester
 Zeichenzahl geschnitten — Paragraph-/Section-Grenzen kommen bereits aus der
@@ -124,7 +138,10 @@ Beide Chunking-Wege liefern dieselbe Rückgabeform (`content`, `start_line`,
 unterscheidet nicht, woher ein Chunk kommt.
 
 Quelle: `parser/connectors/git.py` (`sync`, `fetch_documents`,
-`_embed_document`, `_save_document_chunks`, `_looks_like_text`),
-`parser/ollama_client.py` (`is_gpu_accelerated`). Siehe
-`docs/OFFENE_ENTWICKLUNGSPUNKTE.md` O-071/O-072/O-074/O-075 für die
-Entstehungsgeschichte der einzelnen Bausteine.
+`_run_prepare_hooks`, `_embed_document`, `_save_document_chunks`,
+`_looks_like_text`), `parser/cobol/registry.py` (`STRUCTURE_PARSERS`,
+`ParserEntry`), `parser/ollama_client.py` (`is_gpu_accelerated`). Siehe
+`docs/OFFENE_ENTWICKLUNGSPUNKTE.md` O-071/O-072/O-074/O-075 sowie
+O-077/O-079 (Registry-Dispatch statt hartkodierter Sprachweiche) für die
+Entstehungsgeschichte der einzelnen Bausteine; `docs/ADDING_A_LANGUAGE.md`
+(O-081) für eine zweite Sprache.
