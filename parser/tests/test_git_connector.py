@@ -9,7 +9,7 @@ from unittest.mock import patch, AsyncMock
 from cobol.model import Chunk, ParseResult
 from db import SessionLocal
 from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
-from connectors.git import GitConnector, _looks_like_text
+from connectors.git import GitConnector, _looks_like_text, _resolve_extension_config
 import git_utils
 
 
@@ -36,6 +36,27 @@ def test_looks_like_text_tolerates_occasional_control_characters():
     alten COBOL-Quellen) dürfen nicht als Datenmüll fehlklassifiziert werden."""
     text = ("IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\n" * 20) + "\x0c"
     assert _looks_like_text(text.encode("utf-8")) is True
+
+
+def test_resolve_extension_config_reads_new_language_extensions_key():
+    """O-078: `spaces.cobol_extensions` wurde in `language_extensions`
+    umbenannt (der Schlüssel selbst tut nichts COBOL-Spezifisches)."""
+    cfg = _resolve_extension_config({"language_extensions": {"cobol": [".foo"]}})
+    assert cfg["cobol"] == {".foo"}
+
+
+def test_resolve_extension_config_still_reads_old_cobol_extensions_key():
+    """Rückwärtskompatibilität: bestehende Wissensquellen mit gespeicherter
+    Alt-Konfiguration (`cobol_extensions`) dürfen nicht brechen."""
+    cfg = _resolve_extension_config({"cobol_extensions": {"cobol": [".bar"]}})
+    assert cfg["cobol"] == {".bar"}
+
+
+def test_resolve_extension_config_prefers_new_key_over_old():
+    cfg = _resolve_extension_config(
+        {"language_extensions": {"cobol": [".new"]}, "cobol_extensions": {"cobol": [".old"]}}
+    )
+    assert cfg["cobol"] == {".new"}
 
 
 def _init_remote(path: str) -> None:

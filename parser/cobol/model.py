@@ -1,44 +1,35 @@
 """
 parser/cobol/model.py
 ======================
-Gemeinsame Datenstrukturen der COBOL-Parser-Pipeline (Plan §6.2).
+COBOL-eigene Datenstrukturen der COBOL-Parser-Pipeline (Plan §6.2).
 
 Divisions/Data-Division/Procedure/SQL ergänzen ihre eigenen Strukturen, sobald
 sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kamen
-`CobolProgram`, `Division`, `Section`, `Paragraph` und `ParsedEdge` dazu, mit
-data_division.py `DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`, mit
-chunking.py `Chunk`, mit parse.py jetzt `Entity` und `ParseResult`.
+`CobolProgram`, `Division`, `Section`, `Paragraph` dazu, mit data_division.py
+`DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`.
 
-`EntityType`/`EdgeType`/`Resolution` spiegeln bewusst die String-Werte aus
-`backend/models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
-der Parser produziert hier schon die Werte, die parse.py später 1:1 in die DB
-schreibt, keine Übersetzungstabelle nötig.
+Die sprachneutralen Typen (`ParseResult`, `Entity`, `ParsedEdge`, `Chunk`
+sowie die Literal-Aliase `SourceFormat`/`EntityType`/`EdgeType`/`Resolution`)
+sind seit O-078 nach `parser/core/model.py` verschoben (dort an ihnen selbst
+hängt nichts COBOL-Spezifisches — ein künftiger zweiter Struktur-Parser,
+siehe O-077, sollte nicht `from cobol.model import ParseResult` schreiben
+müssen). Re-Export hier, damit bestehender Code unverändert weiterläuft.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
 
-SourceFormat = Literal["fixed", "free"]
-
-EntityType = Literal[
-    "program",
-    "copybook",
-    "section",
-    "paragraph",
-    "data_item",
-    "file_fd",
-    "sql_table",
-    "sql_block",
-]
-
-EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS", "WRITES"]
-# "GOTO" ist noch nicht in backend/models/database.py::CodeEdge.type (Kommentar
-# listet nur "CALL | PERFORM | COPY | DEFINES | USES | READS | WRITES") — nachziehen,
-# sobald parse.py/die DB-Schicht ans Ergebnis von procedure.py angebunden wird.
-
-Resolution = Literal["resolved", "unresolved", "dynamic"]
+from core.model import (  # noqa: F401 — Re-Export, siehe Docstring oben (O-078)
+    Chunk,
+    EdgeType,
+    Entity,
+    EntityType,
+    ParsedEdge,
+    ParseResult,
+    Resolution,
+    SourceFormat,
+)
 
 
 @dataclass(frozen=True)
@@ -205,92 +196,3 @@ class SqlBlock:
     tables: list[str] = field(default_factory=list)
     host_variables: list[str] = field(default_factory=list)
     cursor_name: str | None = None
-
-
-@dataclass
-class Chunk:
-    """Ein Embedding-Chunk (F-041) — `content` plus `meta`, das 1:1 in
-    `DocumentChunk.metadata_json` landet (parser/models/database.py).
-
-    meta enthält immer `"program"`/`"format"`. Für den Normalfall (ein Chunk
-    = ein Paragraph) zusätzlich `"section"`/`"paragraph"` (je `str`). Zwei
-    Ausnahmen ändern die Form:
-
-    - Split eines zu großen Paragraphen (> chunk_size): `"paragraph"` bleibt
-      derselbe Name, dazu `"part"`/`"parts"` (1-basiert).
-    - Merge mehrerer zu kleiner Nachbarparagraphen derselben Section
-      (< min_chunk_size): `"paragraph"` (singular) entfällt zugunsten von
-      `"paragraphs"` (`list[str]`) — ein Chunk deckt dann mehr als einen
-      Paragraphen ab, das Singular-Feld wäre irreführend.
-
-    Zwei Sonderfälle aus parse.py chunken die gesamte Datei statt einzelner
-    Paragraphen (kein `"section"`/`"paragraph"`): F-029-Fallback (kein
-    PROCEDURE-DIVISION-Paragraph gefunden) → `"program"` + `"fallback": True`;
-    Copybooks (keine PROCEDURE DIVISION, parse_copybook()) → `"copybook"`.
-    """
-
-    content: str
-    start_line: int
-    end_line: int
-    meta: dict
-
-
-@dataclass
-class Entity:
-    """Eine geparste Entity, wie sie später 1:1 in `code_entities` landet
-    (F-030) — bis auf die DB-Zuweisungen selbst (`id`/`project_id`/
-    `source_id`/`parent_id`/`content_hash`), die erst beim Persistieren in
-    AP-4 entstehen (docs/ENTSCHEIDUNGEN.md E-6). `parent_name` trägt
-    stattdessen den Namen der Eltern-Entity **derselben Datei** — AP-4 löst
-    daraus beim Schreiben die echte `parent_id` auf.
-
-    `qualified_name` wird schon hier gebaut (z.B. "XAAOA.MAIN-SECTION.
-    INIT-PARA") — alle dafür nötigen Vorfahren sind beim Parsen einer
-    einzelnen Datei bereits vollständig bekannt, kein Grund, das auf
-    AP-4/die DB-Schicht zu verschieben.
-    """
-
-    type: EntityType
-    name: str
-    start_line: int
-    end_line: int
-    parent_name: str | None = None
-    qualified_name: str | None = None
-    meta: dict = field(default_factory=dict)
-
-
-@dataclass
-class ParsedEdge:
-    """Eine Kante, wie sie später 1:1 in `code_edges` landet (F-032).
-
-    scope ist der Programmname für lokal aufzulösende Kantenarten (PERFORM,
-    GO TO, USES, DEFINES) und None für global aufzulösende (CALL, COPY) —
-    siehe docs/ENTSCHEIDUNGEN.md E-1. src_start_line/src_end_line sind die
-    Zeile(n) der Anweisung selbst (z.B. der CALL-Zeile), nicht des ganzen
-    umschließenden Paragraphen — das ist, worauf F-067ff. später verlinkt.
-    """
-
-    type: EdgeType
-    src_name: str
-    dst_name: str
-    resolution: Resolution
-    src_start_line: int
-    src_end_line: int
-    scope: str | None = None
-    meta: dict = field(default_factory=dict)
-
-
-@dataclass
-class ParseResult:
-    """Ergebnis von `parse.parse_program()` für **eine** Datei (Plan §6.3),
-    komplett in-memory — kein DB-Zugriff (docs/ENTSCHEIDUNGEN.md E-6). Das
-    ist die Struktur, gegen die die Golden Files aus F-033 vergleichen.
-    """
-
-    program_name: str
-    path: str
-    source_format: SourceFormat
-    entities: list[Entity] = field(default_factory=list)
-    edges: list[ParsedEdge] = field(default_factory=list)
-    chunks: list[Chunk] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)

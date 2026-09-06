@@ -20,8 +20,8 @@ parser/tests/test_git_connector.py mit einem Fake-Eintrag abgesichert.
 from typing import Protocol
 
 from cobol.copybook import CopybookIndex
-from cobol.model import ParseResult
 from cobol.parse import parse_copybook, parse_program
+from core.model import ParseResult
 
 
 class StructureParser(Protocol):

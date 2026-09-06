@@ -33,7 +33,7 @@ from typing import AsyncIterator
 import redis
 
 import git_utils
-from cobol.model import ParseResult
+from core.model import ParseResult
 from cobol import copybook
 from cobol.copybook import CopybookIndex
 from cobol.parse import parse_copybook
@@ -234,8 +234,14 @@ _GIT_FETCH_LOCK_SECONDS = 600
 
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
     """Konfigurierbar über DOCTUS_COBOL_EXTENSIONS (Env, Worker-weiter Default)
-    und optional spaces.cobol_extensions (überschreibt pro Wissensquelle).
-    Beide erwarten {"cobol": [...], "copybook": [...], "jcl": [...]}."""
+    und optional spaces.language_extensions (überschreibt pro Wissensquelle).
+    Beide erwarten {"cobol": [...], "copybook": [...], "jcl": [...]}.
+
+    O-078: der Schlüssel hieß bis 06.09.2026 `cobol_extensions`, obwohl
+    `classify_extension()`/`_DEFAULT_EXTENSIONS` selbst nichts COBOL-
+    Spezifisches tun (reine Endung-zu-Label-Zuordnung). Der alte Schlüssel
+    wird als Fallback weitergelesen, damit bestehende Wissensquellen mit
+    gespeicherter Alt-Konfiguration nicht brechen."""
     cfg = dict(_DEFAULT_EXTENSIONS)
 
     raw_env = os.environ.get("DOCTUS_COBOL_EXTENSIONS")
@@ -245,7 +251,9 @@ def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
         except Exception:
             logger.warning("DOCTUS_COBOL_EXTENSIONS ist kein gültiges JSON, ignoriere.")
 
-    override = spaces.get("cobol_extensions") if isinstance(spaces, dict) else None
+    override = None
+    if isinstance(spaces, dict):
+        override = spaces.get("language_extensions") or spaces.get("cobol_extensions")
     if override:
         cfg.update({k: set(v) for k, v in override.items()})
 
