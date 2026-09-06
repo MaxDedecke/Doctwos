@@ -3,14 +3,16 @@ from models.database import MCPToolAuditLog
 
 
 def test_sanitize_mcp_arguments_removes_secrets_and_bounds_values():
-    sanitized = sanitize_mcp_arguments({
-        "jql": "project = DEMO",
-        "api_token": "do-not-store",
-        "nested": {"Authorization": "Bearer secret-value"},
-        "url": "https://example.test/search?token=do-not-store&query=demo",
-        "error_text": "request failed token=embedded-secret",
-        "large": "x" * 600,
-    })
+    sanitized = sanitize_mcp_arguments(
+        {
+            "jql": "project = DEMO",
+            "api_token": "do-not-store",
+            "nested": {"Authorization": "Bearer secret-value"},
+            "url": "https://example.test/search?token=do-not-store&query=demo",
+            "error_text": "request failed token=embedded-secret",
+            "large": "x" * 600,
+        }
+    )
 
     assert sanitized["jql"] == "project = DEMO"
     assert sanitized["api_token"] == "[REDACTED]"

@@ -8,7 +8,9 @@ from core.config import celery_app
 logger = logging.getLogger(__name__)
 
 
-def send_tracked_task(db, record: Any, task_name: str, args: list[Any], kwargs: dict[str, Any] | None = None):
+def send_tracked_task(
+    db, record: Any, task_name: str, args: list[Any], kwargs: dict[str, Any] | None = None
+):
     """Dispatch a task and retain its broker identifier on the visible job record."""
     if kwargs is None:
         result = celery_app.send_task(task_name, args=args)

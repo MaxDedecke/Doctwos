@@ -57,6 +57,15 @@ begründet und hier ebenfalls akzeptiert: `psycopg2-binary` (LGPL-3.0),
 `certifi` (MPL-2.0). `mcp-atlassian`/`unidecode` sind hier **nicht**
 installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 
+### Python-Entwicklungswerkzeuge (O-064, 06.09.2026)
+
+| Paket | Version | Lizenz | Herkunft / Verwendung |
+|---|---|---|---|
+| `ruff` | `0.16.6` | MIT | [Astral / Ruff](https://github.com/astral-sh/ruff), [Release auf PyPI](https://pypi.org/project/ruff/0.16.6/). `License-Expression: MIT` in den installierten Wheel-Metadaten geprüft. Gepinnt in `requirements-lint.txt`; ausschließlich lokales Entwicklungswerkzeug und CI-Job `python-quality`, keine Installation über die Runtime-Requirements. |
+
+Ruff erfüllt die reguläre Lizenz-Allowlist; keine Ausnahme erforderlich.
+Die Runtime-Lizenzprüfung bleibt auf die ausgelieferten Abhängigkeiten begrenzt.
+
 ## 3. Node — Frontend (`frontend/package.json`, nur `dependencies`)
 
 Geprüft mit `license-checker --production` gegen

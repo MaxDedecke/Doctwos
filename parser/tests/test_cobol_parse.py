@@ -103,11 +103,16 @@ def test_xref_inherits_copybook_field_without_expanding_source_lines():
     )
     index = CopybookIndex(
         {"FIELDS": ["copy/FIELDS.CPY"]},
-        fields_by_path={"copy/FIELDS.CPY": [{
-            "name": "SHARED-FIELD", "parent": "SHARED-RECORD",
-            "qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
-            "path": "copy/FIELDS.CPY",
-        }]},
+        fields_by_path={
+            "copy/FIELDS.CPY": [
+                {
+                    "name": "SHARED-FIELD",
+                    "parent": "SHARED-RECORD",
+                    "qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
+                    "path": "copy/FIELDS.CPY",
+                }
+            ]
+        },
     )
 
     result = parse_program(text, "MAIN.CBL", index)
@@ -133,10 +138,16 @@ def test_xref_applies_copy_replacing_to_inherited_field_name():
     )
     index = CopybookIndex(
         {"FIELDS": ["FIELDS.CPY"]},
-        fields_by_path={"FIELDS.CPY": [{
-            "name": ":TAG:-ID", "parent": ":TAG:-RECORD",
-            "qualified_name": "FIELDS.:TAG:-RECORD.:TAG:-ID", "path": "FIELDS.CPY",
-        }]},
+        fields_by_path={
+            "FIELDS.CPY": [
+                {
+                    "name": ":TAG:-ID",
+                    "parent": ":TAG:-RECORD",
+                    "qualified_name": "FIELDS.:TAG:-RECORD.:TAG:-ID",
+                    "path": "FIELDS.CPY",
+                }
+            ]
+        },
     )
 
     result = parse_program(text, "MAIN.CBL", index)
@@ -158,11 +169,16 @@ def test_xref_does_not_inherit_data_fields_from_procedure_copy():
     )
     index = CopybookIndex(
         {"CODEBOOK": ["CODEBOOK.CPY"]},
-        fields_by_path={"CODEBOOK.CPY": [{
-            "name": "SHARED-FIELD", "parent": "SHARED-RECORD",
-            "qualified_name": "CODEBOOK.SHARED-RECORD.SHARED-FIELD",
-            "path": "CODEBOOK.CPY",
-        }]},
+        fields_by_path={
+            "CODEBOOK.CPY": [
+                {
+                    "name": "SHARED-FIELD",
+                    "parent": "SHARED-RECORD",
+                    "qualified_name": "CODEBOOK.SHARED-RECORD.SHARED-FIELD",
+                    "path": "CODEBOOK.CPY",
+                }
+            ]
+        },
     )
 
     result = parse_program(text, "MAIN.CBL", index)
@@ -174,10 +190,14 @@ def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
     """Der Pass-0-Index liefert fuer ein Copybook auch Felder seiner COPYs.
     Die Definitions-Identitaet bleibt dabei beim urspruenglichen Copybook."""
     base_field = {
-        "name": ":TAG:-ID", "parent": ":TAG:-RECORD",
-        "qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID", "path": "copy/BASE.CPY",
+        "name": ":TAG:-ID",
+        "parent": ":TAG:-RECORD",
+        "qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID",
+        "path": "copy/BASE.CPY",
     }
-    wrapper_copy = parse_copybook("       COPY BASE REPLACING ==:TAG:== BY ==CUSTOMER==.\n", "copy/WRAP.CPY")
+    wrapper_copy = parse_copybook(
+        "       COPY BASE REPLACING ==:TAG:== BY ==CUSTOMER==.\n", "copy/WRAP.CPY"
+    )
     wrapper_fields = inherited_fields(
         wrapper_copy.edges,
         CopybookIndex({"BASE": ["copy/BASE.CPY"]}, fields_by_path={"copy/BASE.CPY": [base_field]}),

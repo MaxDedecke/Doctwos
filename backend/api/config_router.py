@@ -45,7 +45,7 @@ def get_features():
     try:
         with open(_features_path(), "r") as f:
             data = json.load(f)
-        
+
         env_allow = os.environ.get("ALLOW_CLOUD_LLM", "").lower()
         if env_allow in ("true", "1"):
             if "llm" not in data:

@@ -39,9 +39,14 @@ from cobol.copybook import CopybookIndex
 from cobol.parse import parse_copybook, parse_program
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
-from db import SessionLocal, REPOS_ROOT
+from db import REPOS_ROOT
 from models.database import CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
-from ollama_client import ensure_model_pulled, get_embeddings_batch, get_embedding, is_gpu_accelerated
+from ollama_client import (
+    ensure_model_pulled,
+    get_embeddings_batch,
+    get_embedding,
+    is_gpu_accelerated,
+)
 from code_parser import CodeParser
 from chunk_reindex import reindex_chunks_preserving_links
 from tasks.edge_resolver import resolve_global_edges
@@ -79,13 +84,41 @@ MAX_READ_BYTES = 2 * 1024 * 1024
 # Folgeschritt, kein Ersatz für diese Sperrliste.
 _SKIPPED_BINARY_EXTENSIONS = {
     # Bilder
-    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tif", ".tiff",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".bmp",
+    ".ico",
+    ".webp",
+    ".tif",
+    ".tiff",
     # Archive/komprimierte Formate
-    ".zip", ".tar", ".gz", ".tgz", ".bz2", ".rar", ".7z", ".jar", ".war",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".tgz",
+    ".bz2",
+    ".rar",
+    ".7z",
+    ".jar",
+    ".war",
     # Ausführbare/kompilierte Dateien
-    ".exe", ".dll", ".so", ".bin", ".class", ".pyc", ".o",
+    ".exe",
+    ".dll",
+    ".so",
+    ".bin",
+    ".class",
+    ".pyc",
+    ".o",
     # Office-Binärformate ohne geteilte Extraktionsfunktion in diesem Connector
-    ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".xlsx",
+    ".xls",
+    ".pptx",
+    ".ppt",
 }
 
 # O-074 (Ergänzung): eine reine Endungssperre erfasst z. B. eine EBCDIC-
@@ -115,6 +148,7 @@ def _looks_like_text(raw: bytes) -> bool:
         return True
     control_chars = sum(1 for ch in text if ch not in "\t\r\n" and (ord(ch) < 32 or ord(ch) == 127))
     return control_chars / len(text) <= _MAX_CONTROL_CHAR_RATIO
+
 
 # AP-4: diese beiden Klassifikationen bekommen eine echte Strukturanalyse
 # (parser/cobol/) statt des generischen CodeParser-Zeilenchunkings.
@@ -179,7 +213,9 @@ def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookI
                 continue
             # Die Hilfsinstanz macht die bereits expandierten Ziel-Felder fuer
             # die gemeinsame REPLACING-Logik sichtbar.
-            target_index = CopybookIndex(index, fields_by_path={target: fields_for(target, ancestry | {path})})
+            target_index = CopybookIndex(
+                index, fields_by_path={target: fields_for(target, ancestry | {path})}
+            )
             result.extend(copybook.inherited_fields([edge], target_index))
         expanded[path] = result
         return result
@@ -187,6 +223,7 @@ def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookI
     for path in local_fields:
         index.fields_by_path[path] = fields_for(path, set())
     return index
+
 
 # Nur der Fetch/Worktree-Schritt läuft unter diesem Lock, nicht das komplette
 # Einbetten — sonst blockiert ein langer Embed-Lauf jeden anderen Sync
@@ -238,7 +275,9 @@ async def _git_fetch_lock(fingerprint: str, log=None):
             log("Bare-Mirror wird gerade von einer anderen Wissensquelle aktualisiert, warte…")
             announced = True
         if waited >= _GIT_FETCH_LOCK_SECONDS:
-            raise TimeoutError(f"Bare-Mirror-Lock für {fingerprint} nach {_GIT_FETCH_LOCK_SECONDS}s nicht frei geworden.")
+            raise TimeoutError(
+                f"Bare-Mirror-Lock für {fingerprint} nach {_GIT_FETCH_LOCK_SECONDS}s nicht frei geworden."
+            )
         await asyncio.sleep(1)
         waited += 1
     try:
@@ -287,12 +326,19 @@ class GitConnector(BaseConnector):
                 # Event-Loop blockieren).
                 parse_result = await asyncio.to_thread(self._parse_cobol, doc, lang)
                 chunks = [
-                    {"content": c.content, "start_line": c.start_line, "end_line": c.end_line, "meta": c.meta}
+                    {
+                        "content": c.content,
+                        "start_line": c.start_line,
+                        "end_line": c.end_line,
+                        "meta": c.meta,
+                    }
                     for c in parse_result.chunks
                 ]
             else:
                 parser = CodeParser(lang)
-                chunks = await asyncio.to_thread(parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE)
+                chunks = await asyncio.to_thread(
+                    parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
+                )
 
             chunk_texts = [c["content"] for c in chunks]
             embeddings = []
@@ -331,7 +377,7 @@ class GitConnector(BaseConnector):
                     "source_type": doc["source_type"],
                     **doc["extra_meta"],
                     **(chunk.get("meta") or {}),
-                }
+                },
             )
 
         async def embed_content(content):
@@ -346,7 +392,9 @@ class GitConnector(BaseConnector):
             # Found via a real CardDemo import: an EBCDIC data file's batch
             # embed failed (logged), the fallback then failed for every one
             # of its chunks too, and none of that showed up anywhere.
-            self._log(f"Embedding-Fehler für '{doc['title']}' (Chunk übersprungen): {type(e).__name__}: {e}")
+            self._log(
+                f"Embedding-Fehler für '{doc['title']}' (Chunk übersprungen): {type(e).__name__}: {e}"
+            )
 
         path = doc["storage_key"]
         try:
@@ -397,20 +445,29 @@ class GitConnector(BaseConnector):
                         result=parse_result,
                     )
 
-                existing = self.db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id,
-                    SourceScanFile.file_path == path,
-                ).first()
+                existing = (
+                    self.db.query(SourceScanFile)
+                    .filter(
+                        SourceScanFile.source_id == self.source_id,
+                        SourceScanFile.file_path == path,
+                    )
+                    .first()
+                )
                 if existing:
                     existing.content_hash = content_hash
                     if parse_result is not None:
                         existing.parse_status = parse_status
                         existing.parse_error = parse_error
                 else:
-                    self.db.add(SourceScanFile(
-                        source_id=self.source_id, file_path=path, content_hash=content_hash,
-                        parse_status=parse_status, parse_error=parse_error,
-                    ))
+                    self.db.add(
+                        SourceScanFile(
+                            source_id=self.source_id,
+                            file_path=path,
+                            content_hash=content_hash,
+                            parse_status=parse_status,
+                            parse_error=parse_error,
+                        )
+                    )
 
             self.db.commit()
             return count
@@ -429,19 +486,28 @@ class GitConnector(BaseConnector):
 
             if not doc["extra_meta"].get("deleted"):
                 content_hash = doc["extra_meta"].get("content_hash", "")
-                existing = self.db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id,
-                    SourceScanFile.file_path == path,
-                ).first()
+                existing = (
+                    self.db.query(SourceScanFile)
+                    .filter(
+                        SourceScanFile.source_id == self.source_id,
+                        SourceScanFile.file_path == path,
+                    )
+                    .first()
+                )
                 if existing:
                     existing.content_hash = content_hash
                     existing.parse_status = "error"
                     existing.parse_error = error_msg
                 else:
-                    self.db.add(SourceScanFile(
-                        source_id=self.source_id, file_path=path, content_hash=content_hash,
-                        parse_status="error", parse_error=error_msg,
-                    ))
+                    self.db.add(
+                        SourceScanFile(
+                            source_id=self.source_id,
+                            file_path=path,
+                            content_hash=content_hash,
+                            parse_status="error",
+                            parse_error=error_msg,
+                        )
+                    )
                 self.db.commit()
 
             return 0
@@ -464,17 +530,25 @@ class GitConnector(BaseConnector):
         fingerprint = self.source.repo_fingerprint
 
         auth_url = get_authenticated_url(self.source.url, self.source.username, self.source.token)
-        branch = requested_branch or await asyncio.to_thread(git_utils.remote_default_branch, auth_url) or "main"
+        branch = (
+            requested_branch
+            or await asyncio.to_thread(git_utils.remote_default_branch, auth_url)
+            or "main"
+        )
         bare = git_utils.bare_path(REPOS_ROOT, fingerprint)
         wt = git_utils.worktree_path(REPOS_ROOT, self.source_id)
 
         async with _git_fetch_lock(fingerprint, log=self._log):
-            await asyncio.to_thread(git_utils.ensure_bare_mirror, REPOS_ROOT, fingerprint, auth_url, self._log)
+            await asyncio.to_thread(
+                git_utils.ensure_bare_mirror, REPOS_ROOT, fingerprint, auth_url, self._log
+            )
             await asyncio.to_thread(git_utils.fetch_branch, bare, branch, self._log)
 
             worktree_is_new = not os.path.isdir(wt)
             if worktree_is_new:
-                await asyncio.to_thread(git_utils.ensure_worktree, bare, wt, branch, sparse_paths, self._log)
+                await asyncio.to_thread(
+                    git_utils.ensure_worktree, bare, wt, branch, sparse_paths, self._log
+                )
             else:
                 await asyncio.to_thread(git_utils.reset_worktree_to_branch, wt, branch)
 
@@ -492,7 +566,9 @@ class GitConnector(BaseConnector):
         current_hashes: dict[str, str] = {}
         existing_hashes = {
             r.file_path: r.content_hash
-            for r in self.db.query(SourceScanFile).filter(SourceScanFile.source_id == self.source_id).all()
+            for r in self.db.query(SourceScanFile)
+            .filter(SourceScanFile.source_id == self.source_id)
+            .all()
         }
 
         if worktree_is_new or not old_commit:
@@ -509,7 +585,9 @@ class GitConnector(BaseConnector):
             if old_commit == new_commit:
                 self._log("Repository ist bereits auf dem neuesten Stand.")
                 return
-            changes = await asyncio.to_thread(git_utils.diff_name_status, wt, old_commit, new_commit)
+            changes = await asyncio.to_thread(
+                git_utils.diff_name_status, wt, old_commit, new_commit
+            )
             for status, path in changes:
                 if status == "D":
                     deleted_paths.append(path)
@@ -517,13 +595,19 @@ class GitConnector(BaseConnector):
                     additions.append(path)
             tracked = await asyncio.to_thread(git_utils.list_tracked_files, wt)
             current_hashes = {path: tracked[path] for path in additions if path in tracked}
-            existing_hashes = {
-                r.file_path: r.content_hash
-                for r in self.db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id,
-                    SourceScanFile.file_path.in_(additions),
-                ).all()
-            } if additions else {}
+            existing_hashes = (
+                {
+                    r.file_path: r.content_hash
+                    for r in self.db.query(SourceScanFile)
+                    .filter(
+                        SourceScanFile.source_id == self.source_id,
+                        SourceScanFile.file_path.in_(additions),
+                    )
+                    .all()
+                }
+                if additions
+                else {}
+            )
 
         # Resumability (NF-004): unverändert seit dem letzten (ggf.
         # abgebrochenen) Sync -> überspringen, billigster Resume-Mechanismus.
@@ -562,7 +646,9 @@ class GitConnector(BaseConnector):
 
         for path, content_hash in to_process:
             if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
-                self._log(f"[SKIP] '{path}' ist ein Binärformat ohne Textextraktion, wird nicht embedded.")
+                self._log(
+                    f"[SKIP] '{path}' ist ein Binärformat ohne Textextraktion, wird nicht embedded."
+                )
                 continue
             full_path = os.path.join(wt, path)
             try:
@@ -579,7 +665,9 @@ class GitConnector(BaseConnector):
                 self._log(f"Fehler beim Lesen von '{path}': {e}")
                 continue
             if not _looks_like_text(raw):
-                self._log(f"[SKIP] '{path}' ist kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded.")
+                self._log(
+                    f"[SKIP] '{path}' ist kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded."
+                )
                 continue
             content = raw.decode("utf-8")
 
@@ -603,13 +691,15 @@ class GitConnector(BaseConnector):
         lock_key = f"lock:sync_source:{self.source_id}"
         lock_owner = uuid.uuid4().hex
         if not redis_client.set(lock_key, lock_owner, nx=True, ex=_SYNC_LOCK_LEASE_SECONDS):
-            logger.warning(f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe.")
+            logger.warning(
+                f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe."
+            )
             return
 
         try:
-            self.source = self.db.query(KnowledgeSource).filter(
-                KnowledgeSource.id == self.source_id
-            ).first()
+            self.source = (
+                self.db.query(KnowledgeSource).filter(KnowledgeSource.id == self.source_id).first()
+            )
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return
@@ -659,7 +749,9 @@ class GitConnector(BaseConnector):
                 redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
 
                 if len(pending_tasks) >= 50:
-                    done, pending_tasks = await asyncio.wait(pending_tasks, return_when=asyncio.FIRST_COMPLETED)
+                    done, pending_tasks = await asyncio.wait(
+                        pending_tasks, return_when=asyncio.FIRST_COMPLETED
+                    )
                     for t in done:
                         doc, chunks, parse_result = await t
                         chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
@@ -674,7 +766,11 @@ class GitConnector(BaseConnector):
                         # Hintergrund noch an den letzten (oft langsamen)
                         # Dateien gearbeitet wird.
                         self.source.parsed_files = processed
-                        self._update_progress(processed, self.source.total_files, f"{processed} von {self.source.total_files} Dateien fertig")
+                        self._update_progress(
+                            processed,
+                            self.source.total_files,
+                            f"{processed} von {self.source.total_files} Dateien fertig",
+                        )
 
             if pending_tasks:
                 done, _ = await asyncio.wait(pending_tasks)
@@ -686,7 +782,11 @@ class GitConnector(BaseConnector):
                     self.has_changes = True
                     self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
                     self.source.parsed_files = processed
-                    self._update_progress(processed, self.source.total_files, f"{processed} von {self.source.total_files} Dateien fertig")
+                    self._update_progress(
+                        processed,
+                        self.source.total_files,
+                        f"{processed} von {self.source.total_files} Dateien fertig",
+                    )
 
             # Pass 2 (Plan §6.4, E-1): globale Kanten (CALL/COPY) über den
             # gesamten Sync-Lauf hinweg nachauflösen - erst jetzt sind alle in

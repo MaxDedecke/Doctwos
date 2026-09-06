@@ -23,8 +23,14 @@ from typing import Literal
 SourceFormat = Literal["fixed", "free"]
 
 EntityType = Literal[
-    "program", "copybook", "section", "paragraph",
-    "data_item", "file_fd", "sql_table", "sql_block",
+    "program",
+    "copybook",
+    "section",
+    "paragraph",
+    "data_item",
+    "file_fd",
+    "sql_table",
+    "sql_block",
 ]
 
 EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS", "WRITES"]

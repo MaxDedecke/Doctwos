@@ -61,8 +61,8 @@ def _get_webdav_hash(item: dict) -> str:
 
 
 def _get_local_name(tag: str) -> str:
-    if '}' in tag:
-        return tag.split('}', 1)[1]
+    if "}" in tag:
+        return tag.split("}", 1)[1]
     return tag
 
 
@@ -73,7 +73,7 @@ def _parse_webdav_xml(xml_content: bytes) -> list[dict]:
     # Find DAV response elements dynamically
     response_nodes = []
     for node in root.iter():
-        if _get_local_name(node.tag) == 'response':
+        if _get_local_name(node.tag) == "response":
             response_nodes.append(node)
 
     for resp in response_nodes:
@@ -82,43 +82,39 @@ def _parse_webdav_xml(xml_content: bytes) -> list[dict]:
         size = 0
         last_modified = None
 
-        href_node = next((n for n in resp if _get_local_name(n.tag) == 'href'), None)
+        href_node = next((n for n in resp if _get_local_name(n.tag) == "href"), None)
         if href_node is not None:
             href = href_node.text
 
-        propstat_nodes = [n for n in resp if _get_local_name(n.tag) == 'propstat']
+        propstat_nodes = [n for n in resp if _get_local_name(n.tag) == "propstat"]
         for propstat in propstat_nodes:
-            status_node = next((n for n in propstat if _get_local_name(n.tag) == 'status'), None)
+            status_node = next((n for n in propstat if _get_local_name(n.tag) == "status"), None)
             if status_node is not None and "200" not in status_node.text:
                 continue
 
-            prop_node = next((n for n in propstat if _get_local_name(n.tag) == 'prop'), None)
+            prop_node = next((n for n in propstat if _get_local_name(n.tag) == "prop"), None)
             if prop_node is not None:
                 for prop in prop_node:
                     local_prop = _get_local_name(prop.tag)
-                    if local_prop == 'resourcetype':
-                        if any(_get_local_name(child.tag) == 'collection' for child in prop):
+                    if local_prop == "resourcetype":
+                        if any(_get_local_name(child.tag) == "collection" for child in prop):
                             is_dir = True
-                    elif local_prop == 'getcontentlength':
+                    elif local_prop == "getcontentlength":
                         try:
                             size = int(prop.text)
                         except (ValueError, TypeError):
                             pass
-                    elif local_prop == 'getlastmodified':
+                    elif local_prop == "getlastmodified":
                         last_modified = prop.text
 
         if href:
-            results.append({
-                "href": href,
-                "is_dir": is_dir,
-                "size": size,
-                "last_modified": last_modified
-            })
+            results.append(
+                {"href": href, "is_dir": is_dir, "size": size, "last_modified": last_modified}
+            )
     return results
 
 
 class WebdavConnector(BaseConnector):
-
     def __init__(self, source_id: int) -> None:
         super().__init__(source_id)
         self._current_scan: dict[str, dict] = {}
@@ -189,8 +185,7 @@ class WebdavConnector(BaseConnector):
                 try:
                     self._log(f"Scanne WebDAV-Ordner: {current_url}")
                     response = await client.request(
-                        "PROPFIND", current_url, content=body,
-                        headers=prop_headers, auth=self._auth
+                        "PROPFIND", current_url, content=body, headers=prop_headers, auth=self._auth
                     )
                     response.raise_for_status()
                     items = _parse_webdav_xml(response.content)
@@ -198,14 +193,18 @@ class WebdavConnector(BaseConnector):
                     for item in items:
                         # Href auflösen
                         full_item_url = urljoin(current_url, item["href"])
-                        
+
                         # Infinite Loops durch Self-Referencing verhindern
                         if full_item_url == current_url or full_item_url + "/" == current_url:
                             continue
 
                         if item["is_dir"]:
                             # Sicherstellen, dass Verzeichnisse mit einem Slash enden
-                            dir_url = full_item_url if full_item_url.endswith("/") else full_item_url + "/"
+                            dir_url = (
+                                full_item_url
+                                if full_item_url.endswith("/")
+                                else full_item_url + "/"
+                            )
                             if dir_url not in visited:
                                 queue.append(dir_url)
                         else:
@@ -234,7 +233,7 @@ class WebdavConnector(BaseConnector):
         self._prepare_auth()
         self._db_project_id = self.source.project_id
         self._log(f"Starte WebDAV-Verbindung zu: {base_url}")
-        
+
         # 1. Rekursiver Verzeichnis-Scan
         raw_scan = await self._scan_webdav_recursive(base_url)
         self._current_scan = {url: _get_webdav_hash(meta) for url, meta in raw_scan.items()}
@@ -243,15 +242,12 @@ class WebdavConnector(BaseConnector):
         # 2. Delta-Sync Abgleich
         existing: dict[str, str] = {
             r.file_path: r.content_hash
-            for r in self.db.query(SourceScanFile).filter(
-                SourceScanFile.source_id == self.source_id
-            ).all()
+            for r in self.db.query(SourceScanFile)
+            .filter(SourceScanFile.source_id == self.source_id)
+            .all()
         }
 
-        new_or_changed = [
-            url for url, h in self._current_scan.items()
-            if existing.get(url) != h
-        ]
+        new_or_changed = [url for url, h in self._current_scan.items() if existing.get(url) != h]
         self._new_or_changed = set(new_or_changed)
         self._successful_files = set()
         self._log(
@@ -272,7 +268,10 @@ class WebdavConnector(BaseConnector):
                     # Gestreamter Download: chunked auf Platte schreiben statt die ganze
                     # (u. U. hunderte MB große) Datei via response.content in den RAM zu laden.
                     async with client.stream(
-                        "GET", file_url, auth=self._auth, headers=self._headers,
+                        "GET",
+                        file_url,
+                        auth=self._auth,
+                        headers=self._headers,
                         timeout=_DOWNLOAD_TIMEOUT,
                     ) as response:
                         response.raise_for_status()
@@ -283,7 +282,8 @@ class WebdavConnector(BaseConnector):
 
                     try:
                         docs, entities = extract_cloud_file(
-                            tmp_path, ext,
+                            tmp_path,
+                            ext,
                             file_key=file_url,
                             title=rel_path,
                             source_type="WebDAV",
@@ -315,9 +315,9 @@ class WebdavConnector(BaseConnector):
 
             existing_records = {
                 r.file_path: r
-                for r in db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id
-                ).all()
+                for r in db.query(SourceScanFile)
+                .filter(SourceScanFile.source_id == self.source_id)
+                .all()
             }
 
             # Orphans NUR bei nachweislich vollständigem Scan bereinigen. Ein transienter
@@ -362,15 +362,19 @@ class WebdavConnector(BaseConnector):
                 if path in existing_records:
                     existing_records[path].content_hash = content_hash
                 else:
-                    db.add(SourceScanFile(
-                        source_id=self.source_id,
-                        file_path=path,
-                        content_hash=content_hash,
-                    ))
+                    db.add(
+                        SourceScanFile(
+                            source_id=self.source_id,
+                            file_path=path,
+                            content_hash=content_hash,
+                        )
+                    )
 
             db.commit()
         except Exception as e:
-            logger.error(f"[WebdavConnector] Fehler beim Aktualisieren der SourceScanFile-Tabelle: {e}")
+            logger.error(
+                f"[WebdavConnector] Fehler beim Aktualisieren der SourceScanFile-Tabelle: {e}"
+            )
             db.rollback()
         finally:
             db.close()

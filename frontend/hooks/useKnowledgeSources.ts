@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/app/services/api';
 
-type Translate = (key: string, values?: Record<string, unknown>) => string;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
 type Toast = (message: string, type?: string) => void;
 
 interface UseKnowledgeSourcesOptions {

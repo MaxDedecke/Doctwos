@@ -141,7 +141,7 @@ function AppContent() {
   } = displaySettings;
 
 
-  const chatEndRef = useRef(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const ignoreUrlSyncRef = useRef(false);
   // handleSessionSelect is defined much further down (closes over a lot of
   // component state) but is needed by the URL-sync effect above its own
@@ -321,7 +321,7 @@ function AppContent() {
     setIsSettingsOpen(false);
   }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
-  const handleProjectSelect = useCallback(async (project) => {
+  const handleProjectSelect = useCallback(async (project: { id: number; name: string; status?: string | null; url?: string | null } | null) => {
     if (!project) {
       const activeSession = sessions.find(s => s.id === activeSessionId);
       if (activeSessionId && activeSession && activeSession.project_id !== null) {
@@ -389,7 +389,8 @@ function AppContent() {
 
   // File-reference loading lives in useKnowledgeSources.
 
-  const handleFileSelect = useCallback(async (path, line = null, sourceId = null, projectOverride = null) => {
+  const handleFileSelect = useCallback(async (path: string | null, line: number | null = null, sourceId: string | number | null = null, projectOverride: { id: number; repo_id?: number | null } | null = null) => {
+    if (!path) return;
     // Chunks einer Datei liegen unter "<pfad>#<suffix>" — für die Dateiauswahl
     // zählt nur der Pfad davor.
     const cleanPath = path && path.includes('#') ? path.split('#')[0] : path;
@@ -458,7 +459,7 @@ function AppContent() {
           const res = await api.getKnowledgeSourceContent(resolvedSourceId, cleanPath);
           content = res.data.content;
           setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
-          showToast(t('page.toast.documentLoaded', { name: cleanPath.split('/').pop() }), "success");
+          showToast(t('page.toast.documentLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
         }
       } else {
         // project.repo_id ist die KnowledgeSource-id der Git-Quelle (siehe
@@ -469,7 +470,7 @@ function AppContent() {
         const res = await api.getKnowledgeSourceContent(project.repo_id, cleanPath);
         content = res.data.content;
         setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
-        showToast(t('page.toast.fileLoaded', { name: cleanPath.split('/').pop() }), "success");
+        showToast(t('page.toast.fileLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
       }
       setFileContent(content);
 

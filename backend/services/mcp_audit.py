@@ -60,12 +60,18 @@ def sanitize_mcp_arguments(value: Any, _depth: int = 0) -> Any:
         sanitized = {}
         for raw_key, raw_value in list(value.items())[:_MAX_COLLECTION_ITEMS]:
             key = _redact_string(str(raw_key), 120)
-            sanitized[key] = "[REDACTED]" if _SENSITIVE_KEY_RE.search(key) else sanitize_mcp_arguments(raw_value, _depth + 1)
+            sanitized[key] = (
+                "[REDACTED]"
+                if _SENSITIVE_KEY_RE.search(key)
+                else sanitize_mcp_arguments(raw_value, _depth + 1)
+            )
         if len(value) > _MAX_COLLECTION_ITEMS:
             sanitized["_truncated"] = True
         return sanitized
     if isinstance(value, (list, tuple)):
-        sanitized = [sanitize_mcp_arguments(item, _depth + 1) for item in value[:_MAX_COLLECTION_ITEMS]]
+        sanitized = [
+            sanitize_mcp_arguments(item, _depth + 1) for item in value[:_MAX_COLLECTION_ITEMS]
+        ]
         if len(value) > _MAX_COLLECTION_ITEMS:
             sanitized.append("[TRUNCATED]")
         return sanitized
@@ -100,21 +106,25 @@ def record_mcp_tool_call(
     """Persist one call without allowing audit failures to break the chat turn."""
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=cfg.MCP_AUDIT_RETENTION_DAYS)
-        db.query(MCPToolAuditLog).filter(MCPToolAuditLog.created_at < cutoff).delete(synchronize_session=False)
-        db.add(MCPToolAuditLog(
-            user_id=user_id,
-            chat_session_id=chat_session_id,
-            chat_message_id=chat_message_id,
-            project_id=project_id,
-            knowledge_source_id=knowledge_source_id,
-            server_name=_redact_string(server_name, 120),
-            tool_name=_redact_string(tool_name, 200),
-            arguments_json=sanitize_mcp_arguments(arguments),
-            status="success" if success else "error",
-            error_message=_sanitize_error(error_message),
-            duration_ms=max(0, min(int(duration_ms), 2_147_483_647)),
-            trace_id=_redact_string(get_trace_id(), 128),
-        ))
+        db.query(MCPToolAuditLog).filter(MCPToolAuditLog.created_at < cutoff).delete(
+            synchronize_session=False
+        )
+        db.add(
+            MCPToolAuditLog(
+                user_id=user_id,
+                chat_session_id=chat_session_id,
+                chat_message_id=chat_message_id,
+                project_id=project_id,
+                knowledge_source_id=knowledge_source_id,
+                server_name=_redact_string(server_name, 120),
+                tool_name=_redact_string(tool_name, 200),
+                arguments_json=sanitize_mcp_arguments(arguments),
+                status="success" if success else "error",
+                error_message=_sanitize_error(error_message),
+                duration_ms=max(0, min(int(duration_ms), 2_147_483_647)),
+                trace_id=_redact_string(get_trace_id(), 128),
+            )
+        )
         db.commit()
     except Exception:
         # Auditing is intentionally best-effort. A database issue must not turn a

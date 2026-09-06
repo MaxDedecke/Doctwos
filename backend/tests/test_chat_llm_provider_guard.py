@@ -49,11 +49,11 @@ def test_features_endpoint_respects_env_override_true(client, tmp_path, monkeypa
     config_file = tmp_path / "features.json"
     config_file.write_text(json.dumps({"llm": {"allowCloudProviders": False}}))
     monkeypatch.setenv("FEATURES_CONFIG_PATH", str(config_file))
-    
+
     # Without override, should be False
     res = client.get("/config/features")
     assert res.json().get("llm", {}).get("allowCloudProviders") is False
-    
+
     # With override, should be True
     monkeypatch.setenv("ALLOW_CLOUD_LLM", "true")
     res2 = client.get("/config/features")

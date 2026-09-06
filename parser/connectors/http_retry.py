@@ -42,7 +42,7 @@ def _retry_delay(response: httpx.Response, attempt: int) -> float:
                 return max(0.0, (dt - datetime.now(tz)).total_seconds())
             except Exception:
                 pass
-    return min(2 ** attempt, _MAX_BACKOFF)
+    return min(2**attempt, _MAX_BACKOFF)
 
 
 async def request_with_retry(
@@ -68,7 +68,7 @@ async def request_with_retry(
             response = await client.request(method, url, headers=headers_fn(), **kwargs)
         except httpx.TransportError as e:
             if attempt < max_attempts - 1:
-                delay = min(2 ** attempt, _MAX_BACKOFF)
+                delay = min(2**attempt, _MAX_BACKOFF)
                 if log:
                     log(
                         f"[WARNUNG] Netzwerkfehler bei {url}: {e} — "
@@ -133,7 +133,7 @@ async def stream_with_retry(
             response = await cm.__aenter__()
         except httpx.TransportError as e:
             if attempt < max_attempts - 1:
-                delay = min(2 ** attempt, _MAX_BACKOFF)
+                delay = min(2**attempt, _MAX_BACKOFF)
                 if log:
                     log(
                         f"[WARNUNG] Netzwerkfehler bei {url}: {e} — "

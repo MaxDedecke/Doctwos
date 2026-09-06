@@ -33,6 +33,7 @@ router = APIRouter(prefix="/topics", tags=["topics"])
 
 # ── Search (before /{topic_id} routes to avoid param collision) ──────────────
 
+
 @router.get("/search-nodes")
 def search_nodes(
     q: str = "",
@@ -47,14 +48,13 @@ def search_nodes(
     team_ids = get_visible_team_ids(user, db)
     project_ids = get_visible_project_ids(user, db)
     results, _counts = _search_nodes(
-        db, q=q, types=types,
-        visible_team_ids=team_ids,
-        visible_project_ids=project_ids
+        db, q=q, types=types, visible_team_ids=team_ids, visible_project_ids=project_ids
     )
     return results
 
 
 # ── Topic CRUD ────────────────────────────────────────────────────────────────
+
 
 @router.get("")
 def list_topics(db: Session = Depends(get_db)):
@@ -112,6 +112,7 @@ def delete_topic(topic_id: int, db: Session = Depends(get_db)):
 
 # ── Node management ───────────────────────────────────────────────────────────
 
+
 @router.get("/{topic_id}/nodes")
 def list_topic_nodes(topic_id: int, db: Session = Depends(get_db)):
     """
@@ -162,15 +163,9 @@ def detach_node(topic_id: int, node_id: int, db: Session = Depends(get_db)):
     """
     Removes a node link from a topic.
     """
-    n = (
-        db.query(TopicNode)
-        .filter(TopicNode.id == node_id, TopicNode.topic_id == topic_id)
-        .first()
-    )
+    n = db.query(TopicNode).filter(TopicNode.id == node_id, TopicNode.topic_id == topic_id).first()
     if not n:
         raise HTTPException(status_code=404, detail="Node link not found")
     db.delete(n)
     db.commit()
     return {"message": "Node removed"}
-
-

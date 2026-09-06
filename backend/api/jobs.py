@@ -14,12 +14,18 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
-from core.config import UPLOADS_DIR, celery_app
+from core.config import UPLOADS_DIR, celery_app as celery_app  # Re-export for job-control tests.
 from core.db_setup import get_db
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids, is_admin, require_admin
 from core.tracing import get_trace_id
-from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource, LinkBuilderRun, User
+from models.database import (
+    DiagnosticsRun,
+    JobCenterDismissal,
+    KnowledgeSource,
+    LinkBuilderRun,
+    User,
+)
 from services.job_control import revoke_tracked_task, send_tracked_task
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -43,15 +49,25 @@ def _source_can_start(source: KnowledgeSource, admin: bool, status: str) -> bool
 
 
 def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
-    status = "running" if source.sync_status in {"syncing", "parsing"} else (source.sync_status or "pending")
+    status = (
+        "running"
+        if source.sync_status in {"syncing", "parsing"}
+        else (source.sync_status or "pending")
+    )
     if status == "error":
         status = "failed"
     return {
-        "key": f"source:{source.id}", "kind": "source", "id": source.id,
-        "label": source.name, "status": status, "progress": source.progress or 0,
-        "progress_message": source.progress_message, "error_message": source.last_error_detail or source.last_error,
+        "key": f"source:{source.id}",
+        "kind": "source",
+        "id": source.id,
+        "label": source.name,
+        "status": status,
+        "progress": source.progress or 0,
+        "progress_message": source.progress_message,
+        "error_message": source.last_error_detail or source.last_error,
         "created_at": _iso(source.parse_started_at or source.created_at),
-        "finished_at": _iso(source.parse_finished_at), "can_resume": status == "failed",
+        "finished_at": _iso(source.parse_finished_at),
+        "can_resume": status == "failed",
         "can_start": _source_can_start(source, admin, status),
         "can_delete": admin and status in TERMINAL,
         "can_stop": admin and status in ACTIVE,
@@ -61,11 +77,18 @@ def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
 def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
     label = "Entity-Verknüpfungen" if run.task_type == "entity_links" else "Wissens-Verknüpfungen"
     return {
-        "key": f"link_builder:{run.id}", "kind": "link_builder", "id": run.id,
-        "label": label, "status": run.status, "progress": None,
-        "progress_message": run.progress_message, "error_message": run.error_message,
-        "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
+        "key": f"link_builder:{run.id}",
+        "kind": "link_builder",
+        "id": run.id,
+        "label": label,
+        "status": run.status,
+        "progress": None,
+        "progress_message": run.progress_message,
+        "error_message": run.error_message,
+        "created_at": _iso(run.created_at),
+        "finished_at": _iso(run.finished_at),
+        "can_resume": run.status == "failed",
+        "can_start": admin and run.status == "failed",
         "can_delete": admin and run.status in TERMINAL,
         "can_stop": admin and run.status in ACTIVE,
     }
@@ -73,11 +96,18 @@ def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
 
 def _diagnostics_job(run: DiagnosticsRun, admin: bool = False) -> dict:
     return {
-        "key": f"diagnostics:{run.id}", "kind": "diagnostics", "id": run.id,
-        "label": "Diagnosepaket", "status": run.status, "progress": None,
-        "progress_message": run.progress_message, "error_message": run.error_message,
-        "created_at": _iso(run.created_at), "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed", "can_start": admin and run.status == "failed",
+        "key": f"diagnostics:{run.id}",
+        "kind": "diagnostics",
+        "id": run.id,
+        "label": "Diagnosepaket",
+        "status": run.status,
+        "progress": None,
+        "progress_message": run.progress_message,
+        "error_message": run.error_message,
+        "created_at": _iso(run.created_at),
+        "finished_at": _iso(run.finished_at),
+        "can_resume": run.status == "failed",
+        "can_start": admin and run.status == "failed",
         "can_delete": admin and run.status in TERMINAL,
         "can_stop": admin and run.status in ACTIVE,
     }
@@ -100,7 +130,9 @@ def list_jobs(
     if project_id is not None:
         source_query = source_query.filter(KnowledgeSource.project_id == project_id)
     elif project_ids is not None:
-        source_query = source_query.filter(or_(KnowledgeSource.project_id.is_(None), KnowledgeSource.project_id.in_(project_ids)))
+        source_query = source_query.filter(
+            or_(KnowledgeSource.project_id.is_(None), KnowledgeSource.project_id.in_(project_ids))
+        )
 
     run_query = db.query(LinkBuilderRun)
     admin = is_admin(user)
@@ -113,10 +145,7 @@ def list_jobs(
     jobs += [_run_job(row, admin) for row in run_query.all()]
     if admin and project_id is None:
         jobs += [_diagnostics_job(row, admin) for row in db.query(DiagnosticsRun).all()]
-    dismissed = {
-        (row.kind, row.job_id)
-        for row in db.query(JobCenterDismissal).all()
-    }
+    dismissed = {(row.kind, row.job_id) for row in db.query(JobCenterDismissal).all()}
     jobs = [job for job in jobs if (job["kind"], job["id"]) not in dismissed]
     jobs.sort(key=lambda item: item["created_at"] or "", reverse=True)
     return {"active_count": sum(job["status"] in ACTIVE for job in jobs), "jobs": jobs}
@@ -142,14 +171,24 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
     ).delete(synchronize_session=False)
     db.commit()
     if source_type == "local":
-        send_tracked_task(db, source, "process_local_document", [source.id, file_path], {"trace_id": get_trace_id()})
+        send_tracked_task(
+            db,
+            source,
+            "process_local_document",
+            [source.id, file_path],
+            {"trace_id": get_trace_id()},
+        )
     else:
-        send_tracked_task(db, source, "process_knowledge_source", [source.id], {"trace_id": get_trace_id()})
+        send_tracked_task(
+            db, source, "process_knowledge_source", [source.id], {"trace_id": get_trace_id()}
+        )
     return {"message": "Job gestartet", "key": f"source:{source.id}"}
 
 
 def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
-    run = LinkBuilderRun(task_type=previous.task_type, project_id=previous.project_id, status="pending")
+    run = LinkBuilderRun(
+        task_type=previous.task_type, project_id=previous.project_id, status="pending"
+    )
     db.add(run)
     db.commit()
     db.refresh(run)
@@ -164,18 +203,28 @@ def _queue_diagnostics(user: User, db: Session) -> dict:
     db.add(run)
     db.commit()
     db.refresh(run)
-    send_tracked_task(db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()})
+    send_tracked_task(
+        db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()}
+    )
     return {"message": "Job gestartet", "key": f"diagnostics:{run.id}"}
 
 
 @router.post("/{kind}/{job_id}/start", dependencies=[Depends(require_admin)])
-def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def start_job(
+    kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
     """Start a new execution while retaining the previous execution record."""
     if kind == "source":
-        source = db.query(KnowledgeSource).with_for_update().filter(KnowledgeSource.id == job_id).first()
+        source = (
+            db.query(KnowledgeSource).with_for_update().filter(KnowledgeSource.id == job_id).first()
+        )
         if not source:
             raise HTTPException(404, "Job nicht gefunden")
-        status = "running" if source.sync_status in {"syncing", "parsing"} else (source.sync_status or "pending")
+        status = (
+            "running"
+            if source.sync_status in {"syncing", "parsing"}
+            else (source.sync_status or "pending")
+        )
         if status == "error":
             status = "failed"
         if status in ACTIVE:
@@ -212,11 +261,17 @@ def start_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User 
 
 
 @router.delete("/{kind}/{job_id}", dependencies=[Depends(require_admin)])
-def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def delete_job(
+    kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
     """Dismiss a completed job while retaining the underlying execution record."""
     if kind == "source":
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
-        status = "running" if source and source.sync_status in {"syncing", "parsing"} else (source.sync_status if source else None)
+        status = (
+            "running"
+            if source and source.sync_status in {"syncing", "parsing"}
+            else (source.sync_status if source else None)
+        )
         if status == "error":
             status = "failed"
         if not source:
@@ -237,12 +292,18 @@ def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
     if status in ACTIVE:
         raise HTTPException(409, "Laufende Jobs können nicht entfernt werden")
     if status not in TERMINAL:
-        raise HTTPException(409, "Nur abgeschlossene, fehlgeschlagene oder abgebrochene Jobs können entfernt werden")
+        raise HTTPException(
+            409, "Nur abgeschlossene, fehlgeschlagene oder abgebrochene Jobs können entfernt werden"
+        )
 
-    dismissal = db.query(JobCenterDismissal).filter(
-        JobCenterDismissal.kind == kind,
-        JobCenterDismissal.job_id == job_id,
-    ).first()
+    dismissal = (
+        db.query(JobCenterDismissal)
+        .filter(
+            JobCenterDismissal.kind == kind,
+            JobCenterDismissal.job_id == job_id,
+        )
+        .first()
+    )
     if not dismissal:
         db.add(JobCenterDismissal(kind=kind, job_id=job_id, dismissed_by_user_id=user.id))
         db.commit()
@@ -250,14 +311,20 @@ def delete_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
 
 
 @router.post("/{kind}/{job_id}/stop", dependencies=[Depends(require_admin)])
-def stop_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def stop_job(
+    kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
     """Cancel an active job and revoke its Celery task when an id is available."""
     task_id = None
     if kind == "source":
         record = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
         if not record:
             raise HTTPException(404, "Job nicht gefunden")
-        status = "running" if record.sync_status in {"syncing", "parsing"} else (record.sync_status or "pending")
+        status = (
+            "running"
+            if record.sync_status in {"syncing", "parsing"}
+            else (record.sync_status or "pending")
+        )
         if status == "error":
             status = "failed"
         if status not in ACTIVE:
@@ -298,7 +365,9 @@ def stop_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User =
 
 
 @router.post("/{kind}/{job_id}/resume")
-def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def resume_job(
+    kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
     trace = {"trace_id": get_trace_id()}
     if kind == "source":
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
@@ -307,12 +376,18 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
         team_ids = get_visible_team_ids(user, db)
         project_ids = get_visible_project_ids(user, db)
         if (team_ids is not None and source.team_id not in team_ids) or (
-            project_ids is not None and source.project_id is not None and source.project_id not in project_ids
+            project_ids is not None
+            and source.project_id is not None
+            and source.project_id not in project_ids
         ):
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
         if source.sync_status != "error":
             raise HTTPException(409, "Nur fehlgeschlagene Jobs können wiederaufgenommen werden")
-        source.sync_status, source.progress, source.progress_message = "pending", 0, "Wiederaufnahme in Warteschlange…"
+        source.sync_status, source.progress, source.progress_message = (
+            "pending",
+            0,
+            "Wiederaufnahme in Warteschlange…",
+        )
         source.last_error = source.last_error_detail = None
         source.parse_finished_at = None
         db.commit()
@@ -330,11 +405,15 @@ def resume_job(kind: str, job_id: int, db: Session = Depends(get_db), user: User
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
         if project_ids is not None and previous.project_id not in project_ids:
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
-        run = LinkBuilderRun(task_type=previous.task_type, project_id=previous.project_id, status="pending")
+        run = LinkBuilderRun(
+            task_type=previous.task_type, project_id=previous.project_id, status="pending"
+        )
         db.add(run)
         db.commit()
         db.refresh(run)
-        task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
+        task = (
+            "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
+        )
         args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
         send_tracked_task(db, run, task, args, trace)
         return {"message": "Job wiederaufgenommen", "key": f"link_builder:{run.id}"}

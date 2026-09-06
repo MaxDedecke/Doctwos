@@ -16,13 +16,24 @@ def test_tokenize_minimal_kinds_and_values():
     toks = _tokens("01_minimal.cbl")
     kinds_values = [(t.kind, t.value) for t in toks]
     assert kinds_values == [
-        ("WORD", "IDENTIFICATION"), ("WORD", "DIVISION"), ("PERIOD", "."),
-        ("WORD", "PROGRAM-ID"), ("PERIOD", "."),
-        ("WORD", "MINIMAL"), ("PERIOD", "."),
-        ("WORD", "PROCEDURE"), ("WORD", "DIVISION"), ("PERIOD", "."),
-        ("WORD", "MAIN-PARA"), ("PERIOD", "."),
-        ("WORD", "DISPLAY"), ("LITERAL", "'HELLO'"), ("PERIOD", "."),
-        ("WORD", "STOP"), ("WORD", "RUN"), ("PERIOD", "."),
+        ("WORD", "IDENTIFICATION"),
+        ("WORD", "DIVISION"),
+        ("PERIOD", "."),
+        ("WORD", "PROGRAM-ID"),
+        ("PERIOD", "."),
+        ("WORD", "MINIMAL"),
+        ("PERIOD", "."),
+        ("WORD", "PROCEDURE"),
+        ("WORD", "DIVISION"),
+        ("PERIOD", "."),
+        ("WORD", "MAIN-PARA"),
+        ("PERIOD", "."),
+        ("WORD", "DISPLAY"),
+        ("LITERAL", "'HELLO'"),
+        ("PERIOD", "."),
+        ("WORD", "STOP"),
+        ("WORD", "RUN"),
+        ("PERIOD", "."),
     ]
 
 
@@ -56,9 +67,7 @@ def test_tokenize_pseudo_text_for_replacing():
 
 
 def test_tokenize_number_vs_word():
-    lines = source_format.split_logical_lines(
-        "000100  05 WS-FIELD PIC 9(3) VALUE 3.14.\n", "fixed"
-    )
+    lines = source_format.split_logical_lines("000100  05 WS-FIELD PIC 9(3) VALUE 3.14.\n", "fixed")
     toks = lexer.tokenize(lines)
     kinds_values = [(t.kind, t.value) for t in toks]
     assert ("NUMBER", "05") in kinds_values
@@ -75,9 +84,7 @@ def test_tokenize_leading_digit_identifier_stays_one_word():
 
 
 def test_tokenize_numbered_paragraph_name_stays_one_word():
-    lines = source_format.split_logical_lines(
-        "000100  PERFORM 010-SYSTEMDATEN-LADEN.\n", "fixed"
-    )
+    lines = source_format.split_logical_lines("000100  PERFORM 010-SYSTEMDATEN-LADEN.\n", "fixed")
     toks = lexer.tokenize(lines)
     kinds_values = [(t.kind, t.value) for t in toks]
     assert ("WORD", "010-SYSTEMDATEN-LADEN") in kinds_values
@@ -85,9 +92,7 @@ def test_tokenize_numbered_paragraph_name_stays_one_word():
 
 
 def test_tokenize_umlaut_identifier_stays_one_word():
-    lines = source_format.split_logical_lines(
-        "000100  PERFORM 020-DATEIEN-ÖFFNEN.\n", "fixed"
-    )
+    lines = source_format.split_logical_lines("000100  PERFORM 020-DATEIEN-ÖFFNEN.\n", "fixed")
     toks = lexer.tokenize(lines)
     assert ("WORD", "020-DATEIEN-ÖFFNEN") in [(t.kind, t.value) for t in toks]
 

@@ -175,7 +175,9 @@ def _find_src(
         return next((row for row in by_qname.values() if row.type == "program"), None)
 
     allowed = _SRC_TYPES.get(edge.type)
-    candidates = [c for c in by_name.get(edge.src_name.upper(), []) if allowed is None or c.type in allowed]
+    candidates = [
+        c for c in by_name.get(edge.src_name.upper(), []) if allowed is None or c.type in allowed
+    ]
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1:
@@ -192,13 +194,19 @@ def _resolve_local_target(
     edge: ParsedEdge, by_qname: dict[str, CodeEntity], by_name: dict[str, list[CodeEntity]]
 ) -> CodeEntity | None:
     allowed = _LOCAL_TARGET_TYPES.get(edge.type)
-    candidates = [c for c in by_name.get(edge.dst_name.upper(), []) if allowed is None or c.type in allowed]
+    candidates = [
+        c for c in by_name.get(edge.dst_name.upper(), []) if allowed is None or c.type in allowed
+    ]
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1:
         parent_hint = (edge.meta or {}).get("parent")
         if parent_hint:
-            narrowed = [c for c in candidates if (_parent_name(c, by_qname) or "").upper() == parent_hint.upper()]
+            narrowed = [
+                c
+                for c in candidates
+                if (_parent_name(c, by_qname) or "").upper() == parent_hint.upper()
+            ]
             if len(narrowed) == 1:
                 return narrowed[0]
     return None

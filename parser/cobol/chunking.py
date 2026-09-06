@@ -57,7 +57,9 @@ def chunk(
 
         if len(text) > chunk_size:
             flush_pending()
-            chunks.extend(_split_paragraph(program, paragraph, source_lines, source_format, chunk_size))
+            chunks.extend(
+                _split_paragraph(program, paragraph, source_lines, source_format, chunk_size)
+            )
             continue
 
         if len(text) < min_chunk_size:
@@ -75,7 +77,9 @@ def chunk(
     return chunks
 
 
-def _paragraph_chunk(program: CobolProgram, paragraph: Paragraph, source_lines: list[str], fmt: SourceFormat) -> Chunk:
+def _paragraph_chunk(
+    program: CobolProgram, paragraph: Paragraph, source_lines: list[str], fmt: SourceFormat
+) -> Chunk:
     return Chunk(
         content=_text(paragraph.start_line, paragraph.end_line, source_lines),
         start_line=paragraph.start_line,
@@ -91,7 +95,9 @@ def _paragraph_chunk(program: CobolProgram, paragraph: Paragraph, source_lines: 
     )
 
 
-def _merged_chunk(program: CobolProgram, paragraphs: list[Paragraph], source_lines: list[str], fmt: SourceFormat) -> Chunk:
+def _merged_chunk(
+    program: CobolProgram, paragraphs: list[Paragraph], source_lines: list[str], fmt: SourceFormat
+) -> Chunk:
     start_line = paragraphs[0].start_line
     end_line = paragraphs[-1].end_line
     content = "\n".join(_text(p.start_line, p.end_line, source_lines) for p in paragraphs)
@@ -111,7 +117,11 @@ def _merged_chunk(program: CobolProgram, paragraphs: list[Paragraph], source_lin
 
 
 def _split_paragraph(
-    program: CobolProgram, paragraph: Paragraph, source_lines: list[str], fmt: SourceFormat, chunk_size: int
+    program: CobolProgram,
+    paragraph: Paragraph,
+    source_lines: list[str],
+    fmt: SourceFormat,
+    chunk_size: int,
 ) -> list[Chunk]:
     lines = source_lines[paragraph.start_line - 1 : paragraph.end_line]
     n = len(lines)

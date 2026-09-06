@@ -27,7 +27,6 @@ Nur "approved" Links werden vom Agent und Monaco-Tooltips verwendet.
 Bestehende approved/rejected Links werden nie überschrieben.
 """
 
-import asyncio
 import logging
 import os
 import re
@@ -65,8 +64,8 @@ LLM_MIN_CONFIDENCE = 35
 
 
 def _keywords_from_entity(entity: CodeEntity) -> list[str]:
-    tokens = re.split(r'[-_]', entity.name)
-    tokens += re.split(r'[-_]', os.path.splitext(os.path.basename(entity.file_path))[0])
+    tokens = re.split(r"[-_]", entity.name)
+    tokens += re.split(r"[-_]", os.path.splitext(os.path.basename(entity.file_path))[0])
     seen, result = set(), []
     for t in tokens:
         t = t.lower()
@@ -126,7 +125,7 @@ def _pass_keyword(entity: CodeEntity, project_id: int, db) -> dict[str, tuple]:
     result: dict[str, tuple] = {}
     matched_chunks = 0
     for chunk in candidates:
-        content_lower = (chunk.content or '').lower()
+        content_lower = (chunk.content or "").lower()
         matched = sum(1 for kw in keywords if kw in content_lower)
         if matched == 0:
             continue
@@ -177,9 +176,9 @@ async def _llm_review(
         "Gib deine Bewertung als valides JSON-Array von Objekten zurück (eines pro Kandidat, in derselben Reihenfolge):\n"
         "[\n"
         "  {\n"
-        "    \"index\": 0,\n"
-        "    \"confidence\": 85, // Ganzzahl 0-100, wie sicher bist du bezüglich der Relevanz\n"
-        "    \"reason\": \"Erkläre kurz in 1-2 Sätzen, warum diese Doku für die Entity wichtig ist.\"\n"
+        '    "index": 0,\n'
+        '    "confidence": 85, // Ganzzahl 0-100, wie sicher bist du bezüglich der Relevanz\n'
+        '    "reason": "Erkläre kurz in 1-2 Sätzen, warum diese Doku für die Entity wichtig ist."\n'
         "  }\n"
         "]\n"
     )
@@ -208,7 +207,9 @@ async def _llm_review(
             reviewed.append((chunk, confidence / 100.0, link_type, r.get("reason") or None))
         return reviewed
     except Exception as e:
-        logger.warning(f"[LinkBuilder] LLM-Review fehlgeschlagen für {entity.name}, verwende ungeprüfte Kandidaten: {e}")
+        logger.warning(
+            f"[LinkBuilder] LLM-Review fehlgeschlagen für {entity.name}, verwende ungeprüfte Kandidaten: {e}"
+        )
         # Ohne LLM-Urteil ist der heuristische Score (0..1) der einzige Anhaltspunkt —
         # denselben vom Nutzer eingestellten Schwellwert anwenden statt alles durchzureichen,
         # sonst umgeht ein LLM-Ausfall den Regler stillschweigend.
@@ -219,7 +220,9 @@ async def _llm_review(
         ]
 
 
-async def compute_entity_links_async(run_id: int, project_id: int, min_confidence: int | None = None):
+async def compute_entity_links_async(
+    run_id: int, project_id: int, min_confidence: int | None = None
+):
     """
     2-pass scan for every CodeEntity in the project:
       Pass 1 — semantic:   cosine similarity via embeddings
@@ -262,19 +265,25 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
         if current_owner:
             try:
                 owner_run_id = int(current_owner)
-                owner_run = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == owner_run_id).first()
+                owner_run = (
+                    db.query(LinkBuilderRun).filter(LinkBuilderRun.id == owner_run_id).first()
+                )
                 if not owner_run or owner_run.status in ["completed", "failed", "skipped"]:
                     is_stale = True
             except (ValueError, TypeError):
                 is_stale = True
-        
+
         if is_stale:
-            logger.info(f"[LinkBuilder] Stale lock found for project {project_id} (owner run {current_owner.decode('utf-8', errors='ignore') if current_owner else 'None'}). Overriding.")
+            logger.info(
+                f"[LinkBuilder] Stale lock found for project {project_id} (owner run {current_owner.decode('utf-8', errors='ignore') if current_owner else 'None'}). Overriding."
+            )
             redis_client.delete(lock_key)
             acquired = redis_client.set(lock_key, str(run_id), ex=LOCK_LEASE_SECONDS, nx=True)
 
     if not acquired:
-        logger.info(f"[LinkBuilder] Link-Berechnung für Projekt {project_id} läuft bereits. Setze pending flag.")
+        logger.info(
+            f"[LinkBuilder] Link-Berechnung für Projekt {project_id} läuft bereits. Setze pending flag."
+        )
         redis_client.set(pending_key, "true")
         run.status = "skipped"
         run.progress_message = "Es läuft bereits eine Berechnung für dieses Projekt — wird danach automatisch erneut ausgeführt."
@@ -293,26 +302,33 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
 
         entities = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).all()
         if not entities:
-            logger.info(f"[LinkBuilder] Projekt {project_id}: keine Code-Entities gefunden — übersprungen.")
+            logger.info(
+                f"[LinkBuilder] Projekt {project_id}: keine Code-Entities gefunden — übersprungen."
+            )
             run.status = "completed"
             run.progress_message = "Keine Code-Entities gefunden."
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             return
 
-        doc_count = db.query(DocumentChunk).filter(
-            DocumentChunk.project_id == project_id,
-            DocumentChunk.source_id.isnot(None)
-        ).count()
+        doc_count = (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.project_id == project_id, DocumentChunk.source_id.isnot(None))
+            .count()
+        )
         if doc_count == 0:
-            logger.info(f"[LinkBuilder] Projekt {project_id}: keine Wissensquellen — bitte Confluence/Notion synchronisieren.")
+            logger.info(
+                f"[LinkBuilder] Projekt {project_id}: keine Wissensquellen — bitte Confluence/Notion synchronisieren."
+            )
             run.status = "completed"
             run.progress_message = "Keine Wissensquellen — bitte Confluence/Notion synchronisieren."
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             return
 
-        logger.info(f"[LinkBuilder] Projekt {project_id}: starte 3-Pass-Scan ({len(entities)} Entities, {doc_count} Chunks)…")
+        logger.info(
+            f"[LinkBuilder] Projekt {project_id}: starte 3-Pass-Scan ({len(entities)} Entities, {doc_count} Chunks)…"
+        )
         await ensure_model_pulled(config.EMBED_MODEL)
 
         for entity in entities:
@@ -336,18 +352,24 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
             # Optimization: filter out candidates that are already approved or rejected before sending to LLM.
             undecided_pages = []
             for chunk, score, link_type in top_pages:
-                already_decided = db.query(EntityDocLink).filter(
-                    EntityDocLink.entity_id == entity.id,
-                    EntityDocLink.chunk_id == chunk.id,
-                    EntityDocLink.status.in_(["approved", "rejected"])
-                ).first()
+                already_decided = (
+                    db.query(EntityDocLink)
+                    .filter(
+                        EntityDocLink.entity_id == entity.id,
+                        EntityDocLink.chunk_id == chunk.id,
+                        EntityDocLink.status.in_(["approved", "rejected"]),
+                    )
+                    .first()
+                )
                 if not already_decided:
                     undecided_pages.append((chunk, score, link_type))
 
             # Only invoke the LLM if there are undecided candidates
             reviewed_pages = []
             if undecided_pages:
-                reviewed_pages = await _llm_review(entity, undecided_pages, min_confidence=effective_min_confidence)
+                reviewed_pages = await _llm_review(
+                    entity, undecided_pages, min_confidence=effective_min_confidence
+                )
 
             db.query(EntityDocLink).filter(
                 EntityDocLink.entity_id == entity.id,
@@ -355,40 +377,49 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
                 # here so any pre-existing pending suggestions of that type from
                 # before this change don't linger forever unreviewed.
                 EntityDocLink.link_type.in_(["semantic", "keyword", "syntactic"]),
-                EntityDocLink.status == "pending"
+                EntityDocLink.status == "pending",
             ).delete(synchronize_session=False)
 
             for chunk, score, link_type, context in reviewed_pages:
                 # Double check to prevent duplicate insertion
-                already_decided = db.query(EntityDocLink).filter(
-                    EntityDocLink.entity_id == entity.id,
-                    EntityDocLink.chunk_id == chunk.id,
-                    EntityDocLink.status.in_(["approved", "rejected"])
-                ).first()
+                already_decided = (
+                    db.query(EntityDocLink)
+                    .filter(
+                        EntityDocLink.entity_id == entity.id,
+                        EntityDocLink.chunk_id == chunk.id,
+                        EntityDocLink.status.in_(["approved", "rejected"]),
+                    )
+                    .first()
+                )
                 if already_decided:
                     continue
                 meta = chunk.metadata_json or {}
-                db.add(EntityDocLink(
-                    project_id=project_id,
-                    entity_id=entity.id,
-                    chunk_id=chunk.id,
-                    doc_title=meta.get("title") or chunk.file_path,
-                    doc_url=meta.get("url"),
-                    source_type=meta.get("source_type"),
-                    score=round(score, 4),
-                    link_type=link_type,
-                    context=context,
-                    status="pending",
-                    created_by="auto"
-                ))
+                db.add(
+                    EntityDocLink(
+                        project_id=project_id,
+                        entity_id=entity.id,
+                        chunk_id=chunk.id,
+                        doc_title=meta.get("title") or chunk.file_path,
+                        doc_url=meta.get("url"),
+                        source_type=meta.get("source_type"),
+                        score=round(score, 4),
+                        link_type=link_type,
+                        context=context,
+                        status="pending",
+                        created_by="auto",
+                    )
+                )
 
             db.commit()
 
-        total_new = db.query(EntityDocLink).filter(
-            EntityDocLink.project_id == project_id,
-            EntityDocLink.status == "pending"
-        ).count()
-        logger.info(f"[LinkBuilder] Projekt {project_id}: fertig — {total_new} offene Empfehlung(en) gesamt.")
+        total_new = (
+            db.query(EntityDocLink)
+            .filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "pending")
+            .count()
+        )
+        logger.info(
+            f"[LinkBuilder] Projekt {project_id}: fertig — {total_new} offene Empfehlung(en) gesamt."
+        )
         run.status = "completed"
         run.progress_message = f"{total_new} offene Empfehlung(en) gesamt."
         run.links_created = total_new
@@ -409,7 +440,7 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
         has_pending = redis_client.get(pending_key) == b"true"
         if has_pending:
             redis_client.delete(pending_key)
-        
+
         # Release the lock only if we still own it
         current_owner = redis_client.get(lock_key)
         if current_owner == str(run_id).encode("utf-8"):
@@ -417,7 +448,9 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
 
         # Trigger re-run if another request arrived during execution
         if has_pending:
-            logger.info(f"[LinkBuilder] Pending flag für Projekt {project_id} is gesetzt. Starte neuen Durchlauf.")
+            logger.info(
+                f"[LinkBuilder] Pending flag für Projekt {project_id} is gesetzt. Starte neuen Durchlauf."
+            )
             requeue_db = SessionLocal()
             try:
                 new_run = LinkBuilderRun(
@@ -429,7 +462,9 @@ async def compute_entity_links_async(run_id: int, project_id: int, min_confidenc
                 requeue_db.add(new_run)
                 requeue_db.commit()
                 requeue_db.refresh(new_run)
-                result = current_app.send_task("compute_entity_links", args=[new_run.id, project_id])
+                result = current_app.send_task(
+                    "compute_entity_links", args=[new_run.id, project_id]
+                )
                 if getattr(result, "id", None):
                     new_run.celery_task_id = result.id
                     requeue_db.commit()

@@ -95,8 +95,17 @@ def _dump_db_tables(db, out_dir: str, secrets: set[str]) -> None:
         ),
         "db_link_builder_runs.csv": (
             LinkBuilderRun,
-            ["id", "task_type", "project_id", "created_at", "status", "progress_message",
-             "error_message", "finished_at", "links_created"],
+            [
+                "id",
+                "task_type",
+                "project_id",
+                "created_at",
+                "status",
+                "progress_message",
+                "error_message",
+                "finished_at",
+                "links_created",
+            ],
         ),
         # Fehlerregister der Ingestion (F-029): welche Datei ist warum nicht
         # parsebar. parse_error kann Pfade enthalten, läuft daher durch _sanitize.

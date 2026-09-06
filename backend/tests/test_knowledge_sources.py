@@ -4,7 +4,15 @@ import pytest
 from unittest.mock import patch
 
 from core.config import UPLOADS_DIR
-from models.database import JobCenterDismissal, KnowledgeSource, Project, ProjectMembership, SourceScanFile, Team, User
+from models.database import (
+    JobCenterDismissal,
+    KnowledgeSource,
+    Project,
+    ProjectMembership,
+    SourceScanFile,
+    Team,
+    User,
+)
 from conftest import TEST_USERNAME
 
 
@@ -18,11 +26,11 @@ def make_project(db_session, test_team):
         db_session.add(proj)
         db_session.commit()
         db_session.refresh(proj)
-        
+
         membership = ProjectMembership(project_id=proj.id, user_id=user.id, role="admin")
         db_session.add(membership)
         db_session.commit()
-        
+
         created_ids.append(proj.id)
         return proj.id
 
@@ -40,7 +48,9 @@ def cleanup_unscoped_sources(db_session):
     created_ids = []
     yield created_ids
     if created_ids:
-        db_session.query(KnowledgeSource).filter(KnowledgeSource.id.in_(created_ids)).delete(synchronize_session=False)
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id.in_(created_ids)).delete(
+            synchronize_session=False
+        )
         db_session.commit()
 
 
@@ -48,9 +58,10 @@ def test_first_two_knowledge_sources_succeed(client, make_project):
     project_id = make_project()
 
     for i in range(2):
-        resp = client.post("/knowledge-sources", json={
-            "name": f"source-{i}", "type": "Local", "project_id": project_id
-        })
+        resp = client.post(
+            "/knowledge-sources",
+            json={"name": f"source-{i}", "type": "Local", "project_id": project_id},
+        )
         assert resp.status_code == 200, resp.text
 
 
@@ -58,17 +69,19 @@ def test_multiple_knowledge_sources_for_same_project_succeed(client, make_projec
     project_id = make_project()
 
     for i in range(5):
-        resp = client.post("/knowledge-sources", json={
-            "name": f"source-{i}", "type": "Local", "project_id": project_id
-        })
+        resp = client.post(
+            "/knowledge-sources",
+            json={"name": f"source-{i}", "type": "Local", "project_id": project_id},
+        )
         assert resp.status_code == 200, resp.text
 
 
 def test_knowledge_source_without_project_is_unrestricted(client, cleanup_unscoped_sources):
     for i in range(3):
-        resp = client.post("/knowledge-sources", json={
-            "name": f"global-source-{i}", "type": "Local", "project_id": None
-        })
+        resp = client.post(
+            "/knowledge-sources",
+            json={"name": f"global-source-{i}", "type": "Local", "project_id": None},
+        )
         assert resp.status_code == 200, resp.text
         cleanup_unscoped_sources.append(resp.json()["id"])
 
@@ -78,19 +91,20 @@ def test_deleting_a_source(client, make_project):
 
     created_ids = []
     for i in range(2):
-        resp = client.post("/knowledge-sources", json={
-            "name": f"source-{i}", "type": "Local", "project_id": project_id
-        })
+        resp = client.post(
+            "/knowledge-sources",
+            json={"name": f"source-{i}", "type": "Local", "project_id": project_id},
+        )
         created_ids.append(resp.json()["id"])
 
     del_resp = client.delete(f"/knowledge-sources/{created_ids[0]}")
     assert del_resp.status_code == 200
 
-    resp = client.post("/knowledge-sources", json={
-        "name": "source-replacement", "type": "Local", "project_id": project_id
-    })
+    resp = client.post(
+        "/knowledge-sources",
+        json={"name": "source-replacement", "type": "Local", "project_id": project_id},
+    )
     assert resp.status_code == 200, resp.text
-
 
 
 def test_deleting_a_source_with_scan_file_journal_succeeds(client, make_project, db_session):
@@ -101,14 +115,19 @@ def test_deleting_a_source_with_scan_file_journal_succeeds(client, make_project,
     reproduzierbar u.a. bei jedem Git-Quellen-Delete nach abgeschlossenem Sync."""
     project_id = make_project()
 
-    resp = client.post("/knowledge-sources", json={
-        "name": "git-source", "type": "Git", "project_id": project_id
-    })
+    resp = client.post(
+        "/knowledge-sources", json={"name": "git-source", "type": "Git", "project_id": project_id}
+    )
     source_id = resp.json()["id"]
 
-    db_session.add(SourceScanFile(
-        source_id=source_id, file_path="src/FOO.cbl", content_hash="abc123", parse_status="ok",
-    ))
+    db_session.add(
+        SourceScanFile(
+            source_id=source_id,
+            file_path="src/FOO.cbl",
+            content_hash="abc123",
+            parse_status="ok",
+        )
+    )
     db_session.commit()
 
     del_resp = client.delete(f"/knowledge-sources/{source_id}")
@@ -138,7 +157,9 @@ def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
     db_session.commit()
     db_session.refresh(source)
     admin = db_session.query(User).filter(User.username == TEST_USERNAME).one()
-    db_session.add(JobCenterDismissal(kind="source", job_id=source.id, dismissed_by_user_id=admin.id))
+    db_session.add(
+        JobCenterDismissal(kind="source", job_id=source.id, dismissed_by_user_id=admin.id)
+    )
     db_session.commit()
     calls = []
 
@@ -164,10 +185,15 @@ def test_admin_can_queue_full_git_reindex(client, make_project, db_session):
         assert source.total_files == 0
         assert source.last_error is None
         assert source.sync_log == ""
-        assert db_session.query(JobCenterDismissal).filter(
-            JobCenterDismissal.kind == "source",
-            JobCenterDismissal.job_id == source.id,
-        ).first() is None
+        assert (
+            db_session.query(JobCenterDismissal)
+            .filter(
+                JobCenterDismissal.kind == "source",
+                JobCenterDismissal.job_id == source.id,
+            )
+            .first()
+            is None
+        )
     finally:
         db_session.delete(source)
         db_session.commit()
@@ -184,7 +210,9 @@ def test_get_project_knowledge_sources_lists_only_attached(client, make_project)
     other_project_id = make_project()
 
     client.post("/knowledge-sources", json={"name": "a", "type": "Local", "project_id": project_id})
-    client.post("/knowledge-sources", json={"name": "b", "type": "Local", "project_id": other_project_id})
+    client.post(
+        "/knowledge-sources", json={"name": "b", "type": "Local", "project_id": other_project_id}
+    )
 
     resp = client.get(f"/projects/{project_id}/knowledge-sources")
     assert resp.status_code == 200
@@ -194,7 +222,6 @@ def test_get_project_knowledge_sources_lists_only_attached(client, make_project)
 
 def test_project_knowledge_sources_require_project_membership(member_client, db_session):
     """Team membership alone must not grant access to a project's sources."""
-    member = db_session.query(User).filter(User.username == "test-fixture-member").first()
     team = db_session.query(Team).filter(Team.name == "Default Team").first()
     project = Project(name="membership-gated-source-project", team_id=team.id)
     db_session.add(project)
@@ -218,17 +245,24 @@ def test_project_knowledge_sources_require_project_membership(member_client, db_
         assert source.id not in {item["id"] for item in listed.json()}
 
         assert member_client.get(f"/knowledge-sources/{source.id}/files").status_code == 403
-        assert member_client.patch(
-            f"/knowledge-sources/{source.id}", json={"context_note": "nope"}
-        ).status_code == 403
+        assert (
+            member_client.patch(
+                f"/knowledge-sources/{source.id}", json={"context_note": "nope"}
+            ).status_code
+            == 403
+        )
         assert member_client.delete(f"/knowledge-sources/{source.id}").status_code == 403
-        assert member_client.post(
-            "/knowledge-sources", json={
-                "name": "unauthorized-source",
-                "type": "Local",
-                "project_id": project.id,
-            }
-        ).status_code == 403
+        assert (
+            member_client.post(
+                "/knowledge-sources",
+                json={
+                    "name": "unauthorized-source",
+                    "type": "Local",
+                    "project_id": project.id,
+                },
+            ).status_code
+            == 403
+        )
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.query(Project).filter(Project.id == project.id).delete()
@@ -275,7 +309,13 @@ def test_upload_local_document_accepts_docx(client, make_project, db_session):
     resp = client.post(
         "/knowledge-sources/upload",
         data={"name": "Handbuch.docx", "project_id": str(project_id)},
-        files={"file": ("Handbuch.docx", b"irrelevant fuer den Allowlist-Check", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        files={
+            "file": (
+                "Handbuch.docx",
+                b"irrelevant fuer den Allowlist-Check",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -306,14 +346,13 @@ def test_upload_local_document_rejects_disallowed_extension(client, make_project
     assert ".sh" in resp.json()["detail"]
 
     assert (
-        db_session.query(KnowledgeSource)
-        .filter(KnowledgeSource.name == "evil.sh")
-        .first()
-        is None
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.name == "evil.sh").first() is None
     )
 
 
-def test_upload_local_document_sanitizes_path_traversal_in_filename(client, make_project, db_session):
+def test_upload_local_document_sanitizes_path_traversal_in_filename(
+    client, make_project, db_session
+):
     """F-018: der Dateiname kommt vom Client (multipart filename) -- os.path.basename()
     muss einen Pfad wie '../../etc/passwd' auf den reinen Dateinamen kappen, sonst
     könnte der Upload außerhalb von UPLOADS_DIR schreiben."""

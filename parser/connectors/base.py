@@ -36,7 +36,6 @@ from datetime import datetime, timezone
 from typing import TypedDict
 
 import redis
-from celery import current_app as celery_app
 
 from chunk_reindex import reindex_chunks_preserving_links
 from code_parser import CodeParser
@@ -76,6 +75,7 @@ class Document(TypedDict):
                     werden können
         extra_meta  Beliebige Zusatz-Felder für metadata_json (page_id, issue_key, ...)
     """
+
     title: str
     content: str
     url: str | None
@@ -107,14 +107,16 @@ class BaseConnector(ABC):
 
     def _log(self, message: str) -> None:
         """Schreibt eine Zeile ins sync_log der KnowledgeSource und auf stdout."""
-        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         line = f"[{timestamp}] {message}\n"
         logger.info(message)
         if self.source:
             self.source.sync_log = (self.source.sync_log or "") + line
             self.db.commit()
 
-    def _update_progress(self, current: int, total: int | None = None, message: str | None = None) -> None:
+    def _update_progress(
+        self, current: int, total: int | None = None, message: str | None = None
+    ) -> None:
         """Aktualisiert den Fortschritt in der Datenbank."""
         if self.source:
             if total and total > 0:
@@ -172,7 +174,7 @@ class BaseConnector(ABC):
                     "title": doc["title"],
                     "source_type": doc["source_type"],
                     **doc["extra_meta"],
-                }
+                },
             )
 
         async def embed_content(content):
@@ -220,13 +222,15 @@ class BaseConnector(ABC):
         lock_key = f"lock:sync_source:{self.source_id}"
         lock_owner = uuid.uuid4().hex
         if not redis_client.set(lock_key, lock_owner, nx=True, ex=_SYNC_LOCK_LEASE_SECONDS):
-            logger.warning(f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe.")
+            logger.warning(
+                f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe."
+            )
             return
 
         try:
-            self.source = self.db.query(KnowledgeSource).filter(
-                KnowledgeSource.id == self.source_id
-            ).first()
+            self.source = (
+                self.db.query(KnowledgeSource).filter(KnowledgeSource.id == self.source_id).first()
+            )
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return

@@ -1,8 +1,16 @@
 from api import jobs as jobs_api
-from models.database import DiagnosticsRun, JobCenterDismissal, KnowledgeSource, LinkBuilderRun, Project
+from models.database import (
+    DiagnosticsRun,
+    JobCenterDismissal,
+    KnowledgeSource,
+    LinkBuilderRun,
+    Project,
+)
 
 
-def test_admin_can_restart_failed_source_and_keep_job_visible(client, db_session, test_project, test_team, monkeypatch):
+def test_admin_can_restart_failed_source_and_keep_job_visible(
+    client, db_session, test_project, test_team, monkeypatch
+):
     source = KnowledgeSource(
         name="Restartable source",
         type="Git",
@@ -33,7 +41,9 @@ def test_admin_can_restart_failed_source_and_keep_job_visible(client, db_session
 
     listed = client.get("/jobs")
     assert listed.status_code == 200
-    listed_source = next(job for job in listed.json()["jobs"] if job["key"] == f"source:{source.id}")
+    listed_source = next(
+        job for job in listed.json()["jobs"] if job["key"] == f"source:{source.id}"
+    )
     assert listed_source["status"] == "pending"
     assert listed_source["can_start"] is False
     db_session.delete(source)
@@ -53,15 +63,25 @@ def test_job_list_can_be_scoped_to_a_project(client, db_session, test_project, t
     db_session.commit()
     db_session.refresh(other_project)
     source_current = KnowledgeSource(
-        name="Current project source", type="Git", project_id=test_project,
-        team_id=test_team, sync_status="pending",
+        name="Current project source",
+        type="Git",
+        project_id=test_project,
+        team_id=test_team,
+        sync_status="pending",
     )
     source_other = KnowledgeSource(
-        name="Other project source", type="Git", project_id=other_project.id,
-        team_id=test_team, sync_status="pending",
+        name="Other project source",
+        type="Git",
+        project_id=other_project.id,
+        team_id=test_team,
+        sync_status="pending",
     )
-    link_current = LinkBuilderRun(task_type="entity_links", project_id=test_project, status="pending")
-    link_other = LinkBuilderRun(task_type="entity_links", project_id=other_project.id, status="pending")
+    link_current = LinkBuilderRun(
+        task_type="entity_links", project_id=test_project, status="pending"
+    )
+    link_other = LinkBuilderRun(
+        task_type="entity_links", project_id=other_project.id, status="pending"
+    )
     db_session.add_all([source_current, source_other, link_current, link_other])
     db_session.commit()
 
@@ -113,7 +133,9 @@ def test_admin_can_restart_failed_diagnostics_run(client, db_session, monkeypatc
     db_session.commit()
 
 
-def test_admin_can_remove_completed_source_job_without_deleting_source(client, db_session, test_project, test_team):
+def test_admin_can_remove_completed_source_job_without_deleting_source(
+    client, db_session, test_project, test_team
+):
     source = KnowledgeSource(
         name="Dismissable source",
         type="Git",
@@ -128,7 +150,10 @@ def test_admin_can_remove_completed_source_job_without_deleting_source(client, d
     response = client.delete(f"/jobs/source/{source.id}")
 
     assert response.status_code == 200
-    assert db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).first() is not None
+    assert (
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).first()
+        is not None
+    )
     listed = client.get("/jobs")
     assert all(job["key"] != f"source:{source.id}" for job in listed.json()["jobs"])
     db_session.query(JobCenterDismissal).filter(
@@ -176,9 +201,11 @@ def test_admin_can_stop_running_diagnostics_job(client, db_session, monkeypatch)
     db_session.refresh(run)
     assert run.status == "cancelled"
     assert run.progress_message == "Vom Administrator abgebrochen"
-    assert revoked == [(
-        ("celery-task-123",),
-        {"terminate": True, "signal": "SIGTERM"},
-    )]
+    assert revoked == [
+        (
+            ("celery-task-123",),
+            {"terminate": True, "signal": "SIGTERM"},
+        )
+    ]
     db_session.delete(run)
     db_session.commit()

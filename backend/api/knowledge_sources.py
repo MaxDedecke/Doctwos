@@ -35,14 +35,29 @@ from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from api.schemas import FolderWatchCreate, KnowledgeSourceCreate, KnowledgeSourceUpdate, GitSourceCreate
+from api.schemas import (
+    FolderWatchCreate,
+    KnowledgeSourceCreate,
+    KnowledgeSourceUpdate,
+    GitSourceCreate,
+)
 from api.serializers import serialize_source
-from core.config import celery_app, UPLOADS_DIR, REPOS_ROOT
+from core.config import UPLOADS_DIR, REPOS_ROOT
 from core.db_setup import get_db
 from models.database import DocumentChunk, JobCenterDismissal, KnowledgeSource, Project, Team, User
 from core.auth_dependency import get_current_user
-from core.teams import get_visible_team_ids, assert_team_visible, is_admin, require_admin, DEFAULT_TEAM_NAME
-from core.projects import assert_knowledge_source_visible, assert_project_visible, get_visible_project_ids
+from core.teams import (
+    get_visible_team_ids,
+    assert_team_visible,
+    is_admin,
+    require_admin,
+    DEFAULT_TEAM_NAME,
+)
+from core.projects import (
+    assert_knowledge_source_visible,
+    assert_project_visible,
+    get_visible_project_ids,
+)
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
 
@@ -99,12 +114,8 @@ def _check_knowledge_source_cap(project_id: Optional[int], db: Session):
     pass
 
 
-
 def _resolve_team_id(
-    project_id: Optional[int],
-    db: Session,
-    user: User,
-    client_team_id: Optional[int] = None
+    project_id: Optional[int], db: Session, user: User, client_team_id: Optional[int] = None
 ) -> int:
     if project_id is not None:
         proj = db.query(Project).filter(Project.id == project_id).first()
@@ -136,17 +147,21 @@ def _resolve_team_id(
 def create_knowledge_source(
     source: KnowledgeSourceCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
     _check_knowledge_source_cap(source.project_id, db)
     db_source = KnowledgeSource(
-        name=source.name, type=source.type, url=source.url,
-        username=source.username, token=source.token,
-        project_id=source.project_id, spaces=source.spaces,
+        name=source.name,
+        type=source.type,
+        url=source.url,
+        username=source.username,
+        token=source.token,
+        project_id=source.project_id,
+        spaces=source.spaces,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
         context_note=_validate_context_note(source.context_note),
-        team_id=team_id
+        team_id=team_id,
     )
     db.add(db_source)
     db.commit()
@@ -154,31 +169,30 @@ def create_knowledge_source(
 
     # Einheitlicher Task für alle Web-Connector-Typen (Git/Confluence/Jira/WebDAV)
     if db_source.type and db_source.type.lower() in ("confluence", "jira", "webdav", "git"):
-        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
+        send_tracked_task(
+            db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()}
+        )
 
     return serialize_source(db_source)
 
 
 @router.get("")
-def get_knowledge_sources(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
+def get_knowledge_sources(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     team_ids = get_visible_team_ids(user, db)
     project_ids = get_visible_project_ids(user, db)
     q = db.query(KnowledgeSource)
     if team_ids is not None:
         q = q.filter(KnowledgeSource.team_id.in_(team_ids))
     if project_ids is not None:
-        q = q.filter(or_(KnowledgeSource.project_id.in_(project_ids), KnowledgeSource.project_id.is_(None)))
+        q = q.filter(
+            or_(KnowledgeSource.project_id.in_(project_ids), KnowledgeSource.project_id.is_(None))
+        )
     return [serialize_source(s) for s in q.all()]
 
 
 @router.delete("/{source_id}")
 def delete_knowledge_source(
-    source_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    source_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
@@ -204,19 +218,27 @@ def delete_knowledge_source(
 
 @router.post("/{source_id}/sync")
 def sync_knowledge_source(
-    source_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    source_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_knowledge_source_visible(db_source, user, db)
 
-    if db_source.type and db_source.type.lower() in ("confluence", "jira", "folderwatch", "webdav", "git"):
-        send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
+    if db_source.type and db_source.type.lower() in (
+        "confluence",
+        "jira",
+        "folderwatch",
+        "webdav",
+        "git",
+    ):
+        send_tracked_task(
+            db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()}
+        )
     else:
-        raise HTTPException(status_code=400, detail="Synchronisierung wird für diesen Quelltyp nicht unterstützt")
+        raise HTTPException(
+            status_code=400, detail="Synchronisierung wird für diesen Quelltyp nicht unterstützt"
+        )
 
     return {"message": "Synchronisierung der Wissensquelle gestartet", "source_id": source_id}
 
@@ -232,9 +254,13 @@ def reindex_knowledge_source(
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     if (db_source.type or "").lower() != "git":
-        raise HTTPException(status_code=400, detail="Vollständige Neu-Analyse wird nur für Git unterstützt")
+        raise HTTPException(
+            status_code=400, detail="Vollständige Neu-Analyse wird nur für Git unterstützt"
+        )
     if db_source.sync_status in {"pending", "syncing"}:
-        raise HTTPException(status_code=409, detail="Für diese Wissensquelle läuft bereits eine Analyse")
+        raise HTTPException(
+            status_code=409, detail="Für diese Wissensquelle läuft bereits eine Analyse"
+        )
 
     db_source.sync_status = "pending"
     db_source.progress = 0
@@ -249,7 +275,10 @@ def reindex_knowledge_source(
     ).delete(synchronize_session=False)
     db.commit()
     send_tracked_task(
-        db, db_source, "process_knowledge_source", [db_source.id],
+        db,
+        db_source,
+        "process_knowledge_source",
+        [db_source.id],
         {"force_reindex": True, "trace_id": get_trace_id()},
     )
     return {"message": "Vollständige Neu-Analyse gestartet", "source_id": source_id}
@@ -260,7 +289,7 @@ def update_knowledge_source(
     source_id: int,
     update: KnowledgeSourceUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """Aktualisiert Auto-Sync-Intervall und/oder Kontext-Notiz einer Wissensquelle.
 
@@ -290,7 +319,7 @@ def resolve_knowledge_source_url(
     url: str,
     theme: str = "dark",
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """
     Löst eine (ggf. nicht-HTTP) URL zu gerendertem HTML auf.
@@ -304,15 +333,17 @@ def resolve_knowledge_source_url(
     assert_knowledge_source_visible(db_source, user, db)
 
     if url and not (url.startswith("http://") or url.startswith("https://")):
-        chunk = db.query(DocumentChunk).filter(
-            DocumentChunk.source_id == source_id,
-            DocumentChunk.file_path == url
-        ).first()
+        chunk = (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.source_id == source_id, DocumentChunk.file_path == url)
+            .first()
+        )
         if not chunk:
-            chunk = db.query(DocumentChunk).filter(
-                DocumentChunk.source_id == source_id,
-                DocumentChunk.file_path.ilike(url)
-            ).first()
+            chunk = (
+                db.query(DocumentChunk)
+                .filter(DocumentChunk.source_id == source_id, DocumentChunk.file_path.ilike(url))
+                .first()
+            )
         if chunk and chunk.metadata_json and "url" in chunk.metadata_json:
             url = chunk.metadata_json["url"]
 
@@ -331,7 +362,10 @@ def resolve_knowledge_source_url(
         elif source_type == "jira":
             return _resolve_jira(url, db_source.url, auth, headers, theme)
         else:
-            raise HTTPException(status_code=400, detail="Diese Aktion wird nur für Confluence oder Jira unterstützt.")
+            raise HTTPException(
+                status_code=400,
+                detail="Diese Aktion wird nur für Confluence oder Jira unterstützt.",
+            )
     except HTTPException:
         raise
     except Exception as e:
@@ -340,9 +374,7 @@ def resolve_knowledge_source_url(
 
 @router.get("/{source_id}/files")
 def get_knowledge_source_files(
-    source_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    source_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Gibt eine Liste aller eindeutigen Dateipfade der Wissensquelle zurück."""
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
@@ -350,7 +382,12 @@ def get_knowledge_source_files(
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_knowledge_source_visible(db_source, user, db)
 
-    chunks = db.query(DocumentChunk.file_path).filter(DocumentChunk.source_id == source_id).distinct().all()
+    chunks = (
+        db.query(DocumentChunk.file_path)
+        .filter(DocumentChunk.source_id == source_id)
+        .distinct()
+        .all()
+    )
     # Eine Datei kann mehrere Chunks unter "<Dateipfad>#<suffix>" ablegen. Für den
     # Datei-Browser interessiert nur die zugrunde liegende Datei, nicht die einzelnen
     # Chunks — sonst erscheint eine Datei als Dutzende nicht öffenbare Einträge.
@@ -363,7 +400,7 @@ def get_knowledge_source_content(
     source_id: int,
     path: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """Liest den Inhalt einer Datei und gibt ihn als Text/HTML/SVG zurück.
 
@@ -401,6 +438,7 @@ def get_knowledge_source_content(
         if ext == ".pdf":
             try:
                 from pypdf import PdfReader
+
                 reader = PdfReader(file_path)
                 content = "\n".join(p.extract_text() or "" for p in reader.pages)
                 return {"content": content, "format": "text"}
@@ -413,17 +451,23 @@ def get_knowledge_source_content(
                             return {"content": content, "format": "text"}
                 except Exception:
                     pass
-                raise HTTPException(status_code=500, detail=f"Fehler beim Lesen der PDF-Datei: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail=f"Fehler beim Lesen der PDF-Datei: {str(e)}"
+                )
 
         elif ext in (".docx", ".doc"):
             try:
                 import mammoth
+
                 with open(file_path, "rb") as f:
                     result = mammoth.convert_to_html(f)
                 return {"content": result.value, "format": "html"}
             except Exception as e:
-                logger.warning(f"Mammoth HTML-Konvertierung fehlgeschlagen, Fallback auf Textmodus: {e}")
+                logger.warning(
+                    f"Mammoth HTML-Konvertierung fehlgeschlagen, Fallback auf Textmodus: {e}"
+                )
                 import docx
+
                 doc = docx.Document(file_path)
                 parts = [p.text for p in doc.paragraphs]
                 for table in doc.tables:
@@ -448,7 +492,7 @@ def get_knowledge_source_raw(
     download: bool = False,
     theme: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """Liefert eine Datei als Binary-Stream (für PDF-Viewer o.ä.)."""
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
@@ -470,8 +514,14 @@ def get_knowledge_source_raw(
         raise HTTPException(status_code=404, detail="Datei existiert nicht auf dem Server")
 
     ext = os.path.splitext(file_path)[1].lower()
-    media_types = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg",
-                   ".jpeg": "image/jpeg", ".txt": "text/plain", ".md": "text/markdown"}
+    media_types = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+    }
     media_type = media_types.get(ext, "application/octet-stream")
 
     if ext == ".pdf" and not download:
@@ -483,9 +533,10 @@ def get_knowledge_source_raw(
                 with open(file_path, "r", errors="ignore") as f:
                     content = f.read()
                 import markdown
-                html_body = markdown.markdown(content, extensions=['tables', 'fenced_code'])
 
-                is_light = (theme == "light")
+                html_body = markdown.markdown(content, extensions=["tables", "fenced_code"])
+
+                is_light = theme == "light"
                 bg_color = "#ffffff" if is_light else "#09090b"
                 text_color = "#18181b" if is_light else "#d4d4d8"
                 heading_color = "#09090b" if is_light else "#f4f4f5"
@@ -496,8 +547,12 @@ def get_knowledge_source_raw(
                 row_hover = "rgba(244, 244, 245, 0.5)" if is_light else "rgba(39, 39, 42, 0.2)"
                 code_bg = "#f4f4f5" if is_light else "#18181b"
                 code_color = "#e11d48" if is_light else "#f43f5e"
-                scrollbar_thumb = "rgba(161, 161, 170, 0.4)" if is_light else "rgba(82, 82, 91, 0.5)"
-                scrollbar_thumb_hover = "rgba(113, 113, 122, 0.65)" if is_light else "rgba(113, 113, 122, 0.75)"
+                scrollbar_thumb = (
+                    "rgba(161, 161, 170, 0.4)" if is_light else "rgba(82, 82, 91, 0.5)"
+                )
+                scrollbar_thumb_hover = (
+                    "rgba(113, 113, 122, 0.65)" if is_light else "rgba(113, 113, 122, 0.75)"
+                )
 
                 html_content = f"""
                 <!DOCTYPE html>
@@ -609,9 +664,7 @@ def get_knowledge_source_raw(
 
 @router.post("/folder")
 def create_folder_watch_source(
-    source: FolderWatchCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    source: FolderWatchCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Registriert einen Ordner als Wissensquelle und startet den ersten Scan."""
     team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
@@ -627,15 +680,15 @@ def create_folder_watch_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
+    send_tracked_task(
+        db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()}
+    )
     return serialize_source(db_source)
 
 
 @router.post("/git")
 def create_git_source(
-    source: GitSourceCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    source: GitSourceCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Registriert ein Git-Repository als Wissensquelle und startet den ersten Scan."""
     team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
@@ -659,9 +712,10 @@ def create_git_source(
     db.add(db_source)
     db.commit()
     db.refresh(db_source)
-    send_tracked_task(db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()})
+    send_tracked_task(
+        db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()}
+    )
     return serialize_source(db_source)
-
 
 
 # Muss mit der `accept`-Liste in frontend/components/settings/tabs/SourcesSetupTab.tsx
@@ -680,7 +734,7 @@ async def upload_local_document(
     project_id: Optional[int] = Form(None),
     team_id: Optional[int] = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     safe_filename = os.path.basename((file.filename or "upload").replace("\\", "/"))
     extension = os.path.splitext(safe_filename)[1].lower()
@@ -688,16 +742,13 @@ async def upload_local_document(
         raise HTTPException(
             status_code=400,
             detail=f"Dateityp '{extension or '(ohne Endung)'}' ist nicht erlaubt. "
-                   f"Erlaubt: {', '.join(sorted(_ALLOWED_UPLOAD_EXTENSIONS))}",
+            f"Erlaubt: {', '.join(sorted(_ALLOWED_UPLOAD_EXTENSIONS))}",
         )
 
     resolved_team_id = _resolve_team_id(project_id, db, user, team_id)
     _check_knowledge_source_cap(project_id, db)
     db_source = KnowledgeSource(
-        name=name,
-        type="Local",
-        project_id=project_id,
-        team_id=resolved_team_id
+        name=name, type="Local", project_id=project_id, team_id=resolved_team_id
     )
     db.add(db_source)
     db.commit()
@@ -711,7 +762,13 @@ async def upload_local_document(
     with open(file_dest, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    send_tracked_task(db, db_source, "process_local_document", [db_source.id, file_dest], {"trace_id": get_trace_id()})
+    send_tracked_task(
+        db,
+        db_source,
+        "process_local_document",
+        [db_source.id, file_dest],
+        {"trace_id": get_trace_id()},
+    )
     return serialize_source(db_source)
 
 
@@ -756,6 +813,7 @@ html { scrollbar-width: thin; scrollbar-color: rgba(161, 161, 170, 0.5) transpar
 
 def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str = "dark") -> dict:
     import urllib.parse as urlparse
+
     parsed = urlparse.urlparse(url)
     params = urlparse.parse_qs(parsed.query)
 
@@ -763,7 +821,7 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
     if "pageId" in params:
         page_id = params["pageId"][0]
     else:
-        m = re.search(r'/pages/(\d+)', parsed.path)
+        m = re.search(r"/pages/(\d+)", parsed.path)
         if m:
             page_id = m.group(1)
         else:
@@ -778,14 +836,18 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
             for prefix in ["/wiki/rest/api/content", "/rest/api/content"]:
                 try:
                     api_url = f"{base_url.rstrip('/')}{prefix}/{page_id}"
-                    resp = client.get(api_url, auth=auth, headers=headers, params={"expand": "body.view"})
+                    resp = client.get(
+                        api_url, auth=auth, headers=headers, params={"expand": "body.view"}
+                    )
                     if resp.status_code == 200:
                         html_content = resp.json().get("body", {}).get("view", {}).get("value", "")
                         break
                 except Exception:
                     continue
             if not html_content:
-                raise HTTPException(status_code=404, detail="Confluence Seite konnte nicht abgerufen werden.")
+                raise HTTPException(
+                    status_code=404, detail="Confluence Seite konnte nicht abgerufen werden."
+                )
         else:
             base_parsed = urlparse.urlparse(base_url)
             if (parsed.scheme, parsed.netloc) != (base_parsed.scheme, base_parsed.netloc):
@@ -797,14 +859,19 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
             resp.raise_for_status()
             html_content = resp.text
 
-    clean = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', html_content)
-    clean = re.sub(r'<a\b([^>]*)>', r'<a \1 target="_blank">', clean)
+    clean = re.sub(r"<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>", "", html_content)
+    clean = re.sub(r"<a\b([^>]*)>", r'<a \1 target="_blank">', clean)
     style = _LIGHT_STYLE if theme == "light" else _DARK_STYLE
-    return {"content": f"<html><head>{style}</head><body>{clean}</body></html>", "format": "html", "url": url}
+    return {
+        "content": f"<html><head>{style}</head><body>{clean}</body></html>",
+        "format": "html",
+        "url": url,
+    }
 
 
 def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "dark") -> dict:
     import urllib.parse as urlparse
+
     parsed = urlparse.urlparse(url)
     params = urlparse.parse_qs(parsed.query)
 
@@ -812,7 +879,7 @@ def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "da
     if "selectedIssue" in params:
         issue_key = params["selectedIssue"][0]
     else:
-        m = re.search(r'/browse/([A-Z0-9]+-\d+)', parsed.path, re.IGNORECASE)
+        m = re.search(r"/browse/([A-Z0-9]+-\d+)", parsed.path, re.IGNORECASE)
         if m:
             issue_key = m.group(1).upper()
         else:
@@ -829,7 +896,9 @@ def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "da
     with httpx.Client(timeout=15.0) as client:
         for prefix in ["/rest/api/3/issue", "/rest/api/2/issue"]:
             try:
-                resp = client.get(f"{base_url.rstrip('/')}{prefix}/{issue_key}", auth=auth, headers=headers)
+                resp = client.get(
+                    f"{base_url.rstrip('/')}{prefix}/{issue_key}", auth=auth, headers=headers
+                )
                 if resp.status_code == 200:
                     issue_data = resp.json()
                     break
@@ -837,7 +906,9 @@ def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "da
                 continue
 
     if not issue_data:
-        raise HTTPException(status_code=404, detail=f"Jira Ticket {issue_key} konnte nicht geladen werden.")
+        raise HTTPException(
+            status_code=404, detail=f"Jira Ticket {issue_key} konnte nicht geladen werden."
+        )
 
     fields = issue_data.get("fields", {})
     summary = fields.get("summary", "Kein Titel")
@@ -892,7 +963,11 @@ def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "da
     for c in fields.get("comment", {}).get("comments", []):
         author = c.get("author", {}).get("displayName", "User")
         created = c.get("created", "")[:10]
-        body_html = _adf_to_html(c.get("body")) if isinstance(c.get("body"), dict) else str(c.get("body", "")).replace("\n", "<br>")
+        body_html = (
+            _adf_to_html(c.get("body"))
+            if isinstance(c.get("body"), dict)
+            else str(c.get("body", "")).replace("\n", "<br>")
+        )
         comments_html += (
             f'<div style="background-color:{comment_bg};border:1px solid {comment_border};border-radius:8px;padding:12px 16px;margin-bottom:12px;">'
             f'<div style="font-size:11px;font-weight:600;color:{comment_meta_color};margin-bottom:6px;">{author} &bull; {created}</div>'

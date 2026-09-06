@@ -52,7 +52,8 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
         return 0
 
     by_type_and_name: dict[str, dict[str, list[CodeEntity]]] = {
-        "program": {}, "copybook": {},
+        "program": {},
+        "copybook": {},
     }
     targets = (
         db.query(CodeEntity)
@@ -70,12 +71,16 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
             target_path = meta.get("copybook_path")
             if not target_qname or not target_path:
                 continue
-            matches = db.query(CodeEntity).filter(
-                CodeEntity.source_id == source_id,
-                CodeEntity.type == "data_item",
-                CodeEntity.file_path == target_path,
-                CodeEntity.qualified_name == target_qname,
-            ).all()
+            matches = (
+                db.query(CodeEntity)
+                .filter(
+                    CodeEntity.source_id == source_id,
+                    CodeEntity.type == "data_item",
+                    CodeEntity.file_path == target_path,
+                    CodeEntity.qualified_name == target_qname,
+                )
+                .all()
+            )
             if len(matches) == 1:
                 edge.dst_entity_id = matches[0].id
                 edge.resolution = "resolved"

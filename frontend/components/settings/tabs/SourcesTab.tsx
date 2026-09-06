@@ -143,7 +143,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
   };
 
   const availableConnectors = [
-    { name: "Git", desc: t('settings.sourcesTab.types.git.desc') || "Git-Repository mit Source-Code anbinden", typeKey: "git", icon: <GitBranch className="w-5 h-5 text-ds-indigo-400" />, featureKey: 'git' as any },
+    { name: "Git", desc: t('settings.sourcesTab.types.git.desc') || "Git-Repository mit Source-Code anbinden", typeKey: "git", icon: <GitBranch className="w-5 h-5 text-ds-indigo-400" />, featureKey: 'git' as const },
     { name: t('settings.sourcesTab.types.confluence.name'), desc: t('settings.sourcesTab.types.confluence.desc'), typeKey: "confluence", icon: <Database className="w-5 h-5 text-ds-blue-400" />, featureKey: 'confluence' as const },
     { name: t('settings.sourcesTab.types.jira.name'), desc: t('settings.sourcesTab.types.jira.desc'), typeKey: "jira", icon: <Layers className="w-5 h-5 text-ds-violet-400" />, featureKey: 'jira' as const },
     { name: t('settings.sourcesTab.types.local.name'), desc: t('settings.sourcesTab.types.local.desc'), typeKey: "local", icon: <Code className="w-5 h-5 text-ds-amber-400" />, featureKey: 'local' as const },

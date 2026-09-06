@@ -32,7 +32,11 @@ logger = logging.getLogger(__name__)
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     cookie_value = request.cookies.get(SESSION_COOKIE_NAME)
     if not cookie_value:
-        logger.warning("401 – kein '%s' Cookie. Alle Cookies: %s", SESSION_COOKIE_NAME, list(request.cookies.keys()))
+        logger.warning(
+            "401 – kein '%s' Cookie. Alle Cookies: %s",
+            SESSION_COOKIE_NAME,
+            list(request.cookies.keys()),
+        )
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
     try:

@@ -62,9 +62,12 @@ from ._antlr.Cobol85Lexer import Cobol85Lexer
 from ._antlr.Cobol85Parser import Cobol85Parser
 from .model import LogicalLine, Segment
 
-_DIVISION_RE = re.compile(r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", re.IGNORECASE)
+_DIVISION_RE = re.compile(
+    r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", re.IGNORECASE
+)
 _DATA_SECTION_RE = re.compile(
-    r"^(WORKING-STORAGE|FILE|LINKAGE|LOCAL-STORAGE|SCREEN|REPORT|COMMUNICATION)\s+SECTION\b", re.IGNORECASE
+    r"^(WORKING-STORAGE|FILE|LINKAGE|LOCAL-STORAGE|SCREEN|REPORT|COMMUNICATION)\s+SECTION\b",
+    re.IGNORECASE,
 )
 _COPY_START_RE = re.compile(r"^COPY\b", re.IGNORECASE)
 _EMBEDDED_BLOCK_RE = re.compile(r"^EMBEDDED-BLOCK-", re.IGNORECASE)
@@ -96,9 +99,17 @@ COPY_PLACEHOLDER_NAME = "ANTLR-COPY-PLACEHOLDER"
 # gleich) — `original_span()` liefert anschließend die echte Schreibweise
 # zurück, indem sie anhand der (durch die Faltung stabilen) Zeichen-Offsets
 # eines Tokens in den ungefalteten Originaltext zurückgreift.
-_UMLAUT_FOLD = str.maketrans({
-    "Ä": "A", "Ö": "O", "Ü": "U", "ä": "a", "ö": "o", "ü": "u", "ß": "s",
-})
+_UMLAUT_FOLD = str.maketrans(
+    {
+        "Ä": "A",
+        "Ö": "O",
+        "Ü": "U",
+        "ä": "a",
+        "ö": "o",
+        "ü": "u",
+        "ß": "s",
+    }
+)
 
 
 def original_span(source_text: str, ctx) -> str:
@@ -219,7 +230,11 @@ def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
                 placeholder_text = f"01 {COPY_PLACEHOLDER_NAME} PIC X"
             else:
                 placeholder_text = None
-            result.append(_placeholder(line, lines[j], placeholder_text) if placeholder_text else _blank(line, lines[j]))
+            result.append(
+                _placeholder(line, lines[j], placeholder_text)
+                if placeholder_text
+                else _blank(line, lines[j])
+            )
             i = j + 1
             continue
 
@@ -246,7 +261,9 @@ def _placeholder(first: LogicalLine, last: LogicalLine, text: str) -> LogicalLin
 
 
 def _blank(first: LogicalLine, last: LogicalLine) -> LogicalLine:
-    return LogicalLine(first.phys_start_line, last.phys_end_line, [], first.source_format, is_comment=True)
+    return LogicalLine(
+        first.phys_start_line, last.phys_end_line, [], first.source_format, is_comment=True
+    )
 
 
 def _reconstruct_text(lines: list[LogicalLine]) -> str:

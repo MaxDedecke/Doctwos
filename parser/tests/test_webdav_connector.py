@@ -8,6 +8,7 @@ from connectors.webdav import WebdavConnector, _parse_webdav_xml
 
 class _MockStream:
     """Async-Context-Manager, der client.stream() nachbildet (gestreamter Download)."""
+
     def __init__(self, content: bytes):
         self._content = content
         self.raise_for_status = MagicMock()
@@ -30,6 +31,7 @@ def db_session():
     finally:
         session.close()
 
+
 @pytest.fixture
 def test_source(db_session):
     team_id = db_session.execute(
@@ -37,10 +39,12 @@ def test_source(db_session):
         {"name": "webdav-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "webdav-test-project", "team_id": team_id},
     ).scalar_one()
-    
+
     # We create a WebDAV knowledge source
     source = KnowledgeSource(
         name="Test WebDAV",
@@ -48,7 +52,7 @@ def test_source(db_session):
         url="https://example.com/dav/",
         token='{"username": "testuser", "password": "testpassword"}',
         project_id=project_id,
-        team_id=team_id
+        team_id=team_id,
     )
     db_session.add(source)
     db_session.commit()
@@ -91,7 +95,7 @@ def test_parse_webdav_xml():
 </d:multistatus>"""
     res = _parse_webdav_xml(xml_data)
     assert len(res) == 2
-    
+
     file_item = next(item for item in res if not item["is_dir"])
     assert file_item["href"] == "/remote.php/dav/files/user/folder/file.txt"
     assert file_item["size"] == 500
@@ -104,7 +108,7 @@ def test_parse_webdav_xml():
 @pytest.mark.anyio
 async def test_webdav_connector_sync_flow(db_session, test_source):
     connector = WebdavConnector(test_source.id)
-    
+
     # Mock files on the WebDAV server
     # 1. A text file
     propfind_xml = b"""<?xml version="1.0" encoding="utf-8" ?>
@@ -141,7 +145,7 @@ async def test_webdav_connector_sync_flow(db_session, test_source):
     old_record = SourceScanFile(
         source_id=test_source.id,
         file_path="https://example.com/dav/deleted_file.txt",
-        content_hash="oldhash"
+        content_hash="oldhash",
     )
     db_session.add(old_record)
     db_session.commit()
@@ -150,15 +154,16 @@ async def test_webdav_connector_sync_flow(db_session, test_source):
 
     mock_get_embedding = AsyncMock(return_value=[0.1] * 1024)
 
-    with patch("httpx.AsyncClient.request", side_effect=mock_request), \
-         patch("httpx.AsyncClient.stream", side_effect=mock_stream), \
-         patch("connectors.base.get_embedding", mock_get_embedding):
-        
+    with (
+        patch("httpx.AsyncClient.request", side_effect=mock_request),
+        patch("httpx.AsyncClient.stream", side_effect=mock_stream),
+        patch("connectors.base.get_embedding", mock_get_embedding),
+    ):
         # Run fetch_documents to trigger scanning and yielding
         docs = []
         async for doc in connector.fetch_documents():
             docs.append(doc)
-        
+
         # Run sync to clean up orphans and save scan records
         await connector.sync()
 
@@ -169,15 +174,21 @@ async def test_webdav_connector_sync_flow(db_session, test_source):
     assert docs[0]["source_type"] == "WebDAV"
 
     # Verify that SourceScanFile now has the new record and the old deleted record is removed (orphan cleanup)
-    records = db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    records = (
+        db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    )
     assert len(records) == 1
     assert records[0].file_path == "https://example.com/dav/file1.txt"
-    
+
     # Clean up of chunks
-    deleted_chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "https://example.com/dav/deleted_file.txt"
-    ).all()
+    deleted_chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "https://example.com/dav/deleted_file.txt",
+        )
+        .all()
+    )
     assert len(deleted_chunks) == 0
 
 
@@ -192,18 +203,24 @@ async def test_webdav_connector_skips_orphan_cleanup_when_scan_incomplete(db_ses
     PROPFIND-Request gültige Dokumente unwiederbringlich löschen."""
     stale_path = "https://example.com/dav/still_here.txt"
 
-    db_session.add(SourceScanFile(
-        source_id=test_source.id, file_path=stale_path, content_hash="oldhash",
-    ))
-    db_session.add(DocumentChunk(
-        project_id=test_source.project_id,
-        source_id=test_source.id,
-        file_path=stale_path,
-        content="stabiler Inhalt",
-        start_line=1,
-        end_line=1,
-        embedding=[0.0] * 1024,
-    ))
+    db_session.add(
+        SourceScanFile(
+            source_id=test_source.id,
+            file_path=stale_path,
+            content_hash="oldhash",
+        )
+    )
+    db_session.add(
+        DocumentChunk(
+            project_id=test_source.project_id,
+            source_id=test_source.id,
+            file_path=stale_path,
+            content="stabiler Inhalt",
+            start_line=1,
+            end_line=1,
+            embedding=[0.0] * 1024,
+        )
+    )
     db_session.commit()
 
     connector = WebdavConnector(test_source.id)
@@ -226,14 +243,22 @@ async def test_webdav_connector_skips_orphan_cleanup_when_scan_incomplete(db_ses
         await connector.sync()
 
     db_session.expire_all()
-    assert db_session.query(SourceScanFile).filter(
-        SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == stale_path
-    ).count() == 1
-    assert db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == stale_path
-    ).count() == 1
+    assert (
+        db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == stale_path)
+        .count()
+        == 1
+    )
+    assert (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == stale_path)
+        .count()
+        == 1
+    )
 
-    refreshed_source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == test_source.id).first()
+    refreshed_source = (
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == test_source.id).first()
+    )
     assert "Unvollständiger Scan" in (refreshed_source.sync_log or "")
 
 
@@ -259,8 +284,8 @@ async def test_webdav_connector_reassembles_multi_chunk_streamed_download(db_ses
   </d:response>
 </d:multistatus>"""
 
-    full_content = (b"ABCDEFGHIJ" * 100)  # 1000 Bytes, deutlich über einem einzelnen Chunk
-    parts = [full_content[i:i + 91] for i in range(0, len(full_content), 91)]
+    full_content = b"ABCDEFGHIJ" * 100  # 1000 Bytes, deutlich über einem einzelnen Chunk
+    parts = [full_content[i : i + 91] for i in range(0, len(full_content), 91)]
     assert len(parts) > 1  # der Test soll tatsächlich mehrere Chunks durchlaufen
 
     class _MultiChunkStream(_MockStream):
@@ -285,9 +310,11 @@ async def test_webdav_connector_reassembles_multi_chunk_streamed_download(db_ses
     connector.source = test_source
 
     mock_get_embedding = AsyncMock(return_value=[0.1] * 1024)
-    with patch("httpx.AsyncClient.request", side_effect=mock_request), \
-         patch("httpx.AsyncClient.stream", side_effect=mock_stream), \
-         patch("connectors.base.get_embedding", mock_get_embedding):
+    with (
+        patch("httpx.AsyncClient.request", side_effect=mock_request),
+        patch("httpx.AsyncClient.stream", side_effect=mock_stream),
+        patch("connectors.base.get_embedding", mock_get_embedding),
+    ):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert len(docs) == 1

@@ -96,7 +96,9 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
         {"name": "git-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "git-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -125,7 +127,10 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
 def _patched_sync(connector):
     return (
         patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
-        patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])),
+        patch(
+            "connectors.git.get_embeddings_batch",
+            AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts]),
+        ),
         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
         # O-071: ohne Patch würde is_gpu_accelerated() bei jedem Testlauf einen
         # echten Ollama-Aufruf versuchen; True haelt die bisherige volle
@@ -147,9 +152,10 @@ async def test_git_connector_initial_sync(db_session, test_source):
     assert test_source.repo_fingerprint
 
     scan_files = {
-        r.file_path: r for r in db_session.query(SourceScanFile).filter(
-            SourceScanFile.source_id == test_source.id
-        ).all()
+        r.file_path: r
+        for r in db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id)
+        .all()
     }
     assert set(scan_files.keys()) == {"PROG.CBL", "README.md"}
     for record in scan_files.values():
@@ -170,7 +176,9 @@ async def test_git_connector_delta_sync_add_modify_delete(db_session, test_sourc
         await connector1.sync()
 
     # Remote aendert sich: PROG.CBL modifiziert, README.md geloescht, NEW.CBL neu
-    _commit_file(git_remote, "PROG.CBL", "IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\nMORE.\n", "update")
+    _commit_file(
+        git_remote, "PROG.CBL", "IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\nMORE.\n", "update"
+    )
     _delete_file(git_remote, "README.md", "remove readme")
     _commit_file(git_remote, "NEW.CBL", "IDENTIFICATION DIVISION.\nPROGRAM-ID. NEW.\n", "add new")
 
@@ -183,16 +191,18 @@ async def test_git_connector_delta_sync_add_modify_delete(db_session, test_sourc
     assert test_source.sync_status == "completed"
 
     scan_paths = {
-        r.file_path for r in db_session.query(SourceScanFile).filter(
-            SourceScanFile.source_id == test_source.id
-        ).all()
+        r.file_path
+        for r in db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id)
+        .all()
     }
     assert scan_paths == {"PROG.CBL", "NEW.CBL"}
 
     chunk_paths = {
-        c.file_path for c in db_session.query(DocumentChunk).filter(
-            DocumentChunk.source_id == test_source.id
-        ).all()
+        c.file_path
+        for c in db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id)
+        .all()
     }
     assert "README.md" not in chunk_paths
     assert "NEW.CBL" in chunk_paths
@@ -209,10 +219,12 @@ async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_sessi
 
     embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
     connector = GitConnector(test_source.id)
-    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
-         patch("connectors.git.get_embeddings_batch", embed_batch), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
-         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
+    with (
+        patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
+        patch("connectors.git.get_embeddings_batch", embed_batch),
+        patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
+        patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
+    ):
         await connector.sync(force_reindex=True)
 
     assert embed_batch.await_count > 0
@@ -221,7 +233,9 @@ async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_sessi
 
 
 @pytest.mark.anyio
-async def test_git_connector_resumes_via_content_hash(db_session, test_source, monkeypatch, tmp_path):
+async def test_git_connector_resumes_via_content_hash(
+    db_session, test_source, monkeypatch, tmp_path
+):
     """NF-004: eine Datei, deren Blob-SHA schon in SourceScanFile steht (z.B.
     aus einem abgebrochenen vorherigen Lauf), wird beim erneuten Sync NICHT
     neu eingebettet -- der guenstigste Resume-Mechanismus."""
@@ -235,19 +249,23 @@ async def test_git_connector_resumes_via_content_hash(db_session, test_source, m
     git_utils.ensure_worktree(bare, wt, "main")
     tracked = git_utils.list_tracked_files(wt)
 
-    db_session.add(SourceScanFile(
-        source_id=test_source.id,
-        file_path="PROG.CBL",
-        content_hash=git_utils.blob_content_hash(tracked["PROG.CBL"]),
-    ))
+    db_session.add(
+        SourceScanFile(
+            source_id=test_source.id,
+            file_path="PROG.CBL",
+            content_hash=git_utils.blob_content_hash(tracked["PROG.CBL"]),
+        )
+    )
     db_session.commit()
 
     connector = GitConnector(test_source.id)
     embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
-    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
-         patch("connectors.git.get_embeddings_batch", embed_batch), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
-         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
+    with (
+        patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
+        patch("connectors.git.get_embeddings_batch", embed_batch),
+        patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
+        patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
+    ):
         await connector.sync()
 
     embedded_titles = [call.args[0] for call in embed_batch.call_args_list]
@@ -255,16 +273,22 @@ async def test_git_connector_resumes_via_content_hash(db_session, test_source, m
     combined_texts = [t for batch in embedded_titles for t in batch]
     assert not any("PROGRAM-ID. PROG." in t for t in combined_texts)
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "PROG.CBL",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "PROG.CBL",
+        )
+        .all()
+    )
     # Kein neuer Chunk fuer die uebersprungene Datei angelegt
     assert len(chunks) == 0
 
 
 @pytest.mark.anyio
-async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_remote, tmp_path, monkeypatch):
+async def test_git_connector_shares_bare_mirror_across_sources(
+    db_session, git_remote, tmp_path, monkeypatch
+):
     repos_root = str(tmp_path / "repos_root")
     monkeypatch.setattr("connectors.git.REPOS_ROOT", repos_root)
 
@@ -273,16 +297,24 @@ async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_r
         {"name": "git-share-team"},
     ).scalar_one()
     project_a = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "git-share-project-a", "team_id": team_id},
     ).scalar_one()
     project_b = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "git-share-project-b", "team_id": team_id},
     ).scalar_one()
 
-    source_a = KnowledgeSource(name="A", type="Git", url=git_remote, branch="main", project_id=project_a, team_id=team_id)
-    source_b = KnowledgeSource(name="B", type="Git", url=git_remote, branch="main", project_id=project_b, team_id=team_id)
+    source_a = KnowledgeSource(
+        name="A", type="Git", url=git_remote, branch="main", project_id=project_a, team_id=team_id
+    )
+    source_b = KnowledgeSource(
+        name="B", type="Git", url=git_remote, branch="main", project_id=project_b, team_id=team_id
+    )
     db_session.add_all([source_a, source_b])
     db_session.commit()
     db_session.refresh(source_a)
@@ -291,10 +323,15 @@ async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_r
     try:
         for src in (source_a, source_b):
             connector = GitConnector(src.id)
-            with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
-                 patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])), \
-                 patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
-                 patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
+            with (
+                patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
+                patch(
+                    "connectors.git.get_embeddings_batch",
+                    AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts]),
+                ),
+                patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
+                patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
+            ):
                 await connector.sync()
 
         db_session.refresh(source_a)
@@ -308,17 +345,25 @@ async def test_git_connector_shares_bare_mirror_across_sources(db_session, git_r
         assert os.path.isdir(git_utils.worktree_path(repos_root, source_a.id))
         assert os.path.isdir(git_utils.worktree_path(repos_root, source_b.id))
     finally:
-        db_session.query(SourceScanFile).filter(SourceScanFile.source_id.in_([source_a.id, source_b.id])).delete(synchronize_session=False)
-        db_session.query(DocumentChunk).filter(DocumentChunk.source_id.in_([source_a.id, source_b.id])).delete(synchronize_session=False)
+        db_session.query(SourceScanFile).filter(
+            SourceScanFile.source_id.in_([source_a.id, source_b.id])
+        ).delete(synchronize_session=False)
+        db_session.query(DocumentChunk).filter(
+            DocumentChunk.source_id.in_([source_a.id, source_b.id])
+        ).delete(synchronize_session=False)
         db_session.delete(source_a)
         db_session.delete(source_b)
-        db_session.execute(text("DELETE FROM projects WHERE id IN (:a, :b)"), {"a": project_a, "b": project_b})
+        db_session.execute(
+            text("DELETE FROM projects WHERE id IN (:a, :b)"), {"a": project_a, "b": project_b}
+        )
         db_session.execute(text("DELETE FROM teams WHERE id = :id"), {"id": team_id})
         db_session.commit()
 
 
 @pytest.mark.anyio
-async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful_error(db_session, test_source):
+async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful_error(
+    db_session, test_source
+):
     """
     Regression: a failed batch embed (e.g. httpx.TimeoutException, whose
     str() is often empty) used to log "Embedding-Fehler für 'X': " with
@@ -329,10 +374,12 @@ async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful
     expected, self-healing fallback path.
     """
     connector = GitConnector(test_source.id)
-    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
-         patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
-         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)), \
-         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
+    with (
+        patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
+        patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())),
+        patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
+        patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
+    ):
         await connector.sync()
 
     db_session.refresh(test_source)
@@ -341,10 +388,14 @@ async def test_git_connector_falls_back_to_per_chunk_embedding_and_logs_a_useful
 
     # The fallback still embedded and saved every chunk -- a failed batch
     # attempt must not silently drop a file's content.
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "PROG.CBL",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "PROG.CBL",
+        )
+        .all()
+    )
     assert len(chunks) >= 1
     assert all(c.embedding is not None for c in chunks)
 
@@ -362,27 +413,40 @@ async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_sess
     isn't in search results" would have had nothing to go on.
     """
     connector = GitConnector(test_source.id)
-    with patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)), \
-         patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())), \
-         patch("connectors.git.get_embedding", AsyncMock(side_effect=ValueError("truncated response"))), \
-         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)):
+    with (
+        patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
+        patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=Exception())),
+        patch(
+            "connectors.git.get_embedding", AsyncMock(side_effect=ValueError("truncated response"))
+        ),
+        patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
+    ):
         await connector.sync()
 
     db_session.refresh(test_source)
     assert test_source.sync_status == "completed"
-    assert "Embedding-Fehler für 'PROG.CBL' (Chunk übersprungen): ValueError: truncated response" in test_source.sync_log
+    assert (
+        "Embedding-Fehler für 'PROG.CBL' (Chunk übersprungen): ValueError: truncated response"
+        in test_source.sync_log
+    )
 
     # Every chunk failed both attempts -- the file must not silently claim
     # success while carrying zero actual content.
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "PROG.CBL",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "PROG.CBL",
+        )
+        .all()
+    )
     assert len(chunks) == 0
 
 
 @pytest.mark.anyio
-async def test_git_connector_draining_fetch_documents_alone_does_not_move_progress(db_session, test_source):
+async def test_git_connector_draining_fetch_documents_alone_does_not_move_progress(
+    db_session, test_source
+):
     """
     Regression (O-075): parsed_files/progress used to be updated inside
     fetch_documents() -- i.e. the moment a file was read off disk and queued
@@ -402,7 +466,9 @@ async def test_git_connector_draining_fetch_documents_alone_does_not_move_progre
     # loads self.source -- assigning the fixture's db_session-bound object
     # directly here would make self.db.commit() inside fetch_documents() a
     # no-op for it (different session, never part of that unit of work).
-    connector.source = connector.db.query(KnowledgeSource).filter(KnowledgeSource.id == test_source.id).first()
+    connector.source = (
+        connector.db.query(KnowledgeSource).filter(KnowledgeSource.id == test_source.id).first()
+    )
 
     docs = [doc async for doc in connector.fetch_documents()]
     assert len(docs) == 2  # PROG.CBL + README.md, from the git_remote fixture
@@ -414,7 +480,9 @@ async def test_git_connector_draining_fetch_documents_alone_does_not_move_progre
 
 
 @pytest.mark.anyio
-async def test_git_connector_progress_advances_only_as_files_actually_complete(db_session, test_source):
+async def test_git_connector_progress_advances_only_as_files_actually_complete(
+    db_session, test_source
+):
     """Complement to the test above: a full sync() must leave parsed_files
     matching the true number of completed documents, driven by the
     completion loop rather than the (now progress-silent) fetch_documents()."""
@@ -430,7 +498,9 @@ async def test_git_connector_progress_advances_only_as_files_actually_complete(d
 
 
 @pytest.mark.anyio
-async def test_git_connector_skips_known_binary_formats_instead_of_embedding_garbage(db_session, test_source, git_remote):
+async def test_git_connector_skips_known_binary_formats_instead_of_embedding_garbage(
+    db_session, test_source, git_remote
+):
     """
     Regression (O-074): GitConnector had no file-type filtering at all,
     unlike folder.py/webdav.py's SUPPORTED_EXTENSIONS allowlist -- every
@@ -443,7 +513,12 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
     anywhere in the pipeline (only PDFs get an OCR fallback, see O-031) --
     embedding a PNG can never produce anything meaningful.
     """
-    _commit_file(git_remote, "diagrams/architecture.png", "not real PNG bytes, extension is what matters here", "add diagram")
+    _commit_file(
+        git_remote,
+        "diagrams/architecture.png",
+        "not real PNG bytes, extension is what matters here",
+        "add diagram",
+    )
 
     connector = GitConnector(test_source.id)
     p1, p2, p3, p4 = _patched_sync(connector)
@@ -457,28 +532,42 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
     # The .png must never reach the embedding pipeline -- no chunk, no
     # SourceScanFile row (so a future sync can't mistake it for "already
     # handled" either).
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "diagrams/architecture.png",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "diagrams/architecture.png",
+        )
+        .all()
+    )
     assert len(chunks) == 0
-    scan_file = db_session.query(SourceScanFile).filter(
-        SourceScanFile.source_id == test_source.id,
-        SourceScanFile.file_path == "diagrams/architecture.png",
-    ).first()
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == test_source.id,
+            SourceScanFile.file_path == "diagrams/architecture.png",
+        )
+        .first()
+    )
     assert scan_file is None
 
     # The legitimate COBOL/Markdown files must still be processed normally --
     # this must not turn into a blanket skip.
-    cobol_chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "PROG.CBL",
-    ).all()
+    cobol_chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "PROG.CBL",
+        )
+        .all()
+    )
     assert len(cobol_chunks) >= 1
 
 
 @pytest.mark.anyio
-async def test_git_connector_skips_non_utf8_content_despite_text_looking_extension(db_session, test_source, git_remote):
+async def test_git_connector_skips_non_utf8_content_despite_text_looking_extension(
+    db_session, test_source, git_remote
+):
     """
     Regression (O-074, Ergänzung): eine reine Endungssperre erfasst eine
     EBCDIC-Mainframe-Datei wie AWS.M2.CARDDEMO.ACCTDATA.PS nicht -- ".PS"
@@ -489,8 +578,12 @@ async def test_git_connector_skips_non_utf8_content_despite_text_looking_extensi
     Fortsetzungsbytes ergibt hier UnicodeDecodeError).
     """
     ebcdic_digits = bytes([0xF0, 0xF1, 0xF2, 0xF3, 0xF4] * 20)
-    _commit_file(git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", "placeholder", "add mainframe data file")
-    _commit_binary_file(git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", ebcdic_digits, "overwrite with EBCDIC bytes")
+    _commit_file(
+        git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", "placeholder", "add mainframe data file"
+    )
+    _commit_binary_file(
+        git_remote, "AWS.M2.CARDDEMO.ACCTDATA.PS", ebcdic_digits, "overwrite with EBCDIC bytes"
+    )
 
     connector = GitConnector(test_source.id)
     p1, p2, p3, p4 = _patched_sync(connector)
@@ -501,20 +594,30 @@ async def test_git_connector_skips_non_utf8_content_despite_text_looking_extensi
     assert test_source.sync_status == "completed"
     assert "[SKIP] 'AWS.M2.CARDDEMO.ACCTDATA.PS' ist kein UTF-8-Text" in test_source.sync_log
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
+        )
+        .all()
+    )
     assert len(chunks) == 0
-    scan_file = db_session.query(SourceScanFile).filter(
-        SourceScanFile.source_id == test_source.id,
-        SourceScanFile.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
-    ).first()
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == test_source.id,
+            SourceScanFile.file_path == "AWS.M2.CARDDEMO.ACCTDATA.PS",
+        )
+        .first()
+    )
     assert scan_file is None
 
 
 @pytest.mark.anyio
-async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(db_session, test_source, git_remote):
+async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(
+    db_session, test_source, git_remote
+):
     """Auch valides UTF-8 kann Datenmüll sein -- z. B. ein binäres Format,
     dessen Bytes zufällig als gültiges UTF-8 durchgehen, aber fast nur aus
     Steuerzeichen besteht. Die Endungssperre allein greift hier nicht (neue
@@ -529,10 +632,14 @@ async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(db
 
     db_session.refresh(test_source)
     assert "[SKIP] 'weird.dat' ist kein UTF-8-Text" in test_source.sync_log
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id,
-        DocumentChunk.file_path == "weird.dat",
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "weird.dat",
+        )
+        .all()
+    )
     assert len(chunks) == 0
 
 

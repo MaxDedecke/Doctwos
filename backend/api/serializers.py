@@ -8,15 +8,20 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 """
 
 from models.database import (
-    CodeEntity, EntityDocLink, KnowledgeSource, KnowledgeLink, Topic, TopicNode,
-    Project
+    CodeEntity,
+    EntityDocLink,
+    KnowledgeSource,
+    KnowledgeLink,
+    Topic,
+    TopicNode,
+    Project,
 )
 
 
 def serialize_project(p: Project, serialize_repo_info: bool = True) -> dict:
     if not p:
         return None
-    
+
     git_source = None
     if serialize_repo_info:
         try:
@@ -35,33 +40,37 @@ def serialize_project(p: Project, serialize_repo_info: bool = True) -> dict:
         "is_archived": p.is_archived,
         "color": p.color,
         "expose_code_analysis_globally": p.expose_code_analysis_globally,
-        "repository": None
+        "repository": None,
     }
     if git_source:
         status = git_source.sync_status
         if status == "syncing":
             status = "parsing"
-        
+
         spaces = git_source.spaces or {}
-        res.update({
-            "status": status,
-            "progress": git_source.progress,
-            "progress_message": git_source.progress_message,
-            "url": git_source.url,
-            "branch": spaces.get("branch", "main"),
-            "last_commit_hash": spaces.get("last_commit_hash"),
-            "repo_id": git_source.id,
-        })
+        res.update(
+            {
+                "status": status,
+                "progress": git_source.progress,
+                "progress_message": git_source.progress_message,
+                "url": git_source.url,
+                "branch": spaces.get("branch", "main"),
+                "last_commit_hash": spaces.get("last_commit_hash"),
+                "repo_id": git_source.id,
+            }
+        )
     else:
-        res.update({
-            "status": None,
-            "progress": None,
-            "progress_message": None,
-            "url": None,
-            "branch": None,
-            "last_commit_hash": None,
-            "repo_id": None,
-        })
+        res.update(
+            {
+                "status": None,
+                "progress": None,
+                "progress_message": None,
+                "url": None,
+                "branch": None,
+                "last_commit_hash": None,
+                "repo_id": None,
+            }
+        )
     return res
 
 
@@ -108,7 +117,9 @@ def serialize_link(link: EntityDocLink, entity: CodeEntity = None) -> dict:
             "file_path": entity.file_path,
             "start_line": entity.start_line,
             "end_line": entity.end_line,
-        } if entity else None,
+        }
+        if entity
+        else None,
         "chunk_id": link.chunk_id,
         "doc_title": link.doc_title,
         "doc_url": link.doc_url,

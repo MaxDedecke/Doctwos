@@ -32,11 +32,16 @@ import unicodedata
 # Letters whose canonical Unicode decomposition does NOT reduce them to a
 # base Latin letter + combining mark, so NFKD alone won't ASCII-fold them.
 _EXTRA_FOLDS = {
-    "ł": "l", "Ł": "L",
-    "ø": "o", "Ø": "O",
-    "đ": "d", "Đ": "D",
-    "æ": "ae", "Æ": "AE",
-    "œ": "oe", "Œ": "OE",
+    "ł": "l",
+    "Ł": "L",
+    "ø": "o",
+    "Ø": "O",
+    "đ": "d",
+    "Đ": "D",
+    "æ": "ae",
+    "Æ": "AE",
+    "œ": "oe",
+    "Œ": "OE",
     "ß": "ss",  # str.casefold() already does this; kept for direct callers
 }
 

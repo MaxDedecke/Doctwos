@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
 
-type Translate = (key: string, values?: Record<string, unknown>) => string;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 interface PanelRendererProps {
   index: number;

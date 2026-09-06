@@ -61,9 +61,25 @@ for _handler in logging.getLogger().handlers:
     _handler.addFilter(TraceIdFilter())
 
 from api import (
-    auth, chat, knowledge_sources, connectors, entity_links,
-    system, knowledge_links, link_chat, topics, graph, search, teams, users,
-    projects, diagnostics, entities, callgraph, jobs, audit,
+    auth,
+    chat,
+    knowledge_sources,
+    connectors,
+    entity_links,
+    system,
+    knowledge_links,
+    link_chat,
+    topics,
+    graph,
+    search,
+    teams,
+    users,
+    projects,
+    diagnostics,
+    entities,
+    callgraph,
+    jobs,
+    audit,
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user

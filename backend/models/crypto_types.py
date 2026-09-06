@@ -41,7 +41,7 @@ def _get_fernet() -> Fernet:
     if not key:
         raise RuntimeError(
             "MASTER_ENCRYPTION_KEY ist nicht gesetzt. "
-            "Generieren mit: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            'Generieren mit: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
         )
     return Fernet(key.encode())
 

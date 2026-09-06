@@ -12,6 +12,7 @@ Revision ID: 0003_expose_analysis_global
 Revises: 0002_source_context_note
 Create Date: 2026-08-08
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -25,7 +26,9 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "projects",
-        sa.Column("expose_code_analysis_globally", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "expose_code_analysis_globally", sa.Boolean(), nullable=False, server_default=sa.false()
+        ),
     )
 
 

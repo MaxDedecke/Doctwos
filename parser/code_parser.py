@@ -14,7 +14,9 @@ class CodeParser:
     def __init__(self, language_name: str):
         self.language_name = language_name
 
-    def chunk_file(self, content: str, chunk_size: int = 1000, overlap_size: int = 150) -> List[Dict]:
+    def chunk_file(
+        self, content: str, chunk_size: int = 1000, overlap_size: int = 150
+    ) -> List[Dict]:
         """
         Splits the file content into logical text chunks of a given maximum character size,
         with an overlap of characters to preserve context across boundaries.
@@ -53,11 +55,13 @@ class CodeParser:
                 j += 1
 
             end_line = j
-            chunks.append({
-                "content": "\n".join(current_chunk_lines),
-                "start_line": start_line,
-                "end_line": end_line
-            })
+            chunks.append(
+                {
+                    "content": "\n".join(current_chunk_lines),
+                    "start_line": start_line,
+                    "end_line": end_line,
+                }
+            )
 
             if j == n:
                 break

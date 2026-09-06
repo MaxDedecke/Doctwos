@@ -4,7 +4,14 @@ from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSo
 
 
 def test_token_round_trips_through_the_orm(db_session, test_project, test_team):
-    source = KnowledgeSource(name="crypto-roundtrip", type="Git", url="https://example.com/x.git", token="my-plaintext-token", project_id=test_project, team_id=test_team)
+    source = KnowledgeSource(
+        name="crypto-roundtrip",
+        type="Git",
+        url="https://example.com/x.git",
+        token="my-plaintext-token",
+        project_id=test_project,
+        team_id=test_team,
+    )
     db_session.add(source)
     db_session.commit()
     db_session.refresh(source)
@@ -18,7 +25,14 @@ def test_token_round_trips_through_the_orm(db_session, test_project, test_team):
 
 def test_token_is_not_stored_as_plaintext_at_the_raw_sql_level(db_session, test_project, test_team):
     plaintext = "another-plaintext-token"
-    source = KnowledgeSource(name="crypto-raw-check", type="Git", url="https://example.com/x.git", token=plaintext, project_id=test_project, team_id=test_team)
+    source = KnowledgeSource(
+        name="crypto-raw-check",
+        type="Git",
+        url="https://example.com/x.git",
+        token=plaintext,
+        project_id=test_project,
+        team_id=test_team,
+    )
     db_session.add(source)
     db_session.commit()
     db_session.refresh(source)
@@ -35,9 +49,16 @@ def test_token_is_not_stored_as_plaintext_at_the_raw_sql_level(db_session, test_
 
 # ── docs/GAPS.md #4: content-at-rest now covers document/chat/compliance content too ──
 
+
 def test_document_chunk_content_round_trips_and_is_not_plaintext_at_rest(db_session, test_project):
     plaintext = "Section 4.2.1: Fire-rated wall T90 required per DIN 4102."
-    chunk = DocumentChunk(project_id=test_project, file_path="docs/spec.pdf", content=plaintext, start_line=1, end_line=1)
+    chunk = DocumentChunk(
+        project_id=test_project,
+        file_path="docs/spec.pdf",
+        content=plaintext,
+        start_line=1,
+        end_line=1,
+    )
     db_session.add(chunk)
     db_session.commit()
     db_session.refresh(chunk)
@@ -79,5 +100,3 @@ def test_chat_message_content_round_trips_and_is_not_plaintext_at_rest(db_sessio
     db_session.query(ChatMessage).filter(ChatMessage.id == msg.id).delete()
     db_session.query(ChatSession).filter(ChatSession.id == session.id).delete()
     db_session.commit()
-
-

@@ -90,16 +90,18 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
         None,
     )
     data_division = (
-        program.divisions[data_division_index]
-        if data_division_index is not None else None
+        program.divisions[data_division_index] if data_division_index is not None else None
     )
     data_end_line = (
         program.divisions[data_division_index + 1].start_line - 1
         if data_division_index is not None and data_division_index + 1 < len(program.divisions)
-        else data_division.end_line if data_division is not None else None
+        else data_division.end_line
+        if data_division is not None
+        else None
     )
     data_copy_edges = [
-        edge for edge in copy_edges
+        edge
+        for edge in copy_edges
         if data_division is not None
         and data_division.start_line <= edge.src_start_line <= data_end_line
     ]
@@ -161,7 +163,11 @@ def _build_entities(
         )
 
     for paragraph in program.paragraphs:
-        parent_qname = section_qnames.get(paragraph.section, program.name) if paragraph.section else program.name
+        parent_qname = (
+            section_qnames.get(paragraph.section, program.name)
+            if paragraph.section
+            else program.name
+        )
         entities.append(
             Entity(
                 type="paragraph",
@@ -302,7 +308,10 @@ def _pack_whole_file(source_lines: list[str], chunk_size: int) -> list[tuple[str
 
 
 def _fallback_chunks(
-    program: CobolProgram, source_lines: list[str], source_format: SourceFormat, chunk_size: int = DEFAULT_CHUNK_SIZE
+    program: CobolProgram,
+    source_lines: list[str],
+    source_format: SourceFormat,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> list[Chunk]:
     return [
         Chunk(
@@ -362,12 +371,23 @@ def parse_copybook(
     errors.extend(copy_errors)
 
     entities = [
-        Entity(type="copybook", name=name, start_line=start_line, end_line=end_line, qualified_name=name)
+        Entity(
+            type="copybook",
+            name=name,
+            start_line=start_line,
+            end_line=end_line,
+            qualified_name=name,
+        )
     ]
     entities.extend(_build_field_entities(name, items, file_descriptors))
 
     chunks = [
-        Chunk(content=content, start_line=s, end_line=e, meta={"copybook": name, "format": source_format})
+        Chunk(
+            content=content,
+            start_line=s,
+            end_line=e,
+            meta={"copybook": name, "format": source_format},
+        )
         for content, s, e in _pack_whole_file(source_lines, chunk_size)
     ]
 

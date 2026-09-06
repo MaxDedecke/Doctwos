@@ -36,7 +36,13 @@ def search(
     team_ids = get_visible_team_ids(user, db)
     project_ids = get_visible_project_ids(user, db)
     results, counts = search_nodes(
-        db, q=q, types=types, project_id=project_id, source_id=source_id, limit=limit,
-        visible_team_ids=team_ids, visible_project_ids=project_ids
+        db,
+        q=q,
+        types=types,
+        project_id=project_id,
+        source_id=source_id,
+        limit=limit,
+        visible_team_ids=team_ids,
+        visible_project_ids=project_ids,
     )
     return {"query": q, "counts": counts, "results": results}

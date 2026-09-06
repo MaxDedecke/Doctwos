@@ -40,8 +40,12 @@ def test_extract_pdf_pages_returns_per_page_text_when_text_layer_present():
 
 
 def test_extract_pdf_pages_falls_back_to_ocr_when_text_layer_empty():
-    with patch("pypdf.PdfReader", return_value=_fake_reader(["", None])), \
-         patch("connectors.folder.extract_text_from_pdf_ocr", return_value="OCR-erkannter Text") as mock_ocr:
+    with (
+        patch("pypdf.PdfReader", return_value=_fake_reader(["", None])),
+        patch(
+            "connectors.folder.extract_text_from_pdf_ocr", return_value="OCR-erkannter Text"
+        ) as mock_ocr,
+    ):
         pages = extract_pdf_pages("/tmp/scan.pdf")
 
     mock_ocr.assert_called_once_with("/tmp/scan.pdf")
@@ -52,8 +56,10 @@ def test_extract_pdf_pages_falls_back_to_ocr_when_text_layer_empty():
 
 
 def test_folder_extract_text_uses_ocr_fallback_via_extract_pdf_pages():
-    with patch("pypdf.PdfReader", return_value=_fake_reader([""])), \
-         patch("connectors.folder.extract_text_from_pdf_ocr", return_value="OCR-erkannter Text"):
+    with (
+        patch("pypdf.PdfReader", return_value=_fake_reader([""])),
+        patch("connectors.folder.extract_text_from_pdf_ocr", return_value="OCR-erkannter Text"),
+    ):
         content = _extract_text("/tmp/scan.pdf")
 
     assert content == "OCR-erkannter Text"
@@ -75,7 +81,9 @@ def local_document_source(db_session):
         {"name": "pdf-ocr-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "pdf-ocr-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -100,19 +108,25 @@ def local_document_source(db_session):
 
 @pytest.mark.anyio
 @requires_ollama
-async def test_process_local_document_applies_ocr_fallback_for_image_only_pdf(db_session, local_document_source):
+async def test_process_local_document_applies_ocr_fallback_for_image_only_pdf(
+    db_session, local_document_source
+):
     from tasks.document import process_local_document_async
 
-    with patch("tasks.document.extract_pdf_pages", return_value=[(None, "OCR-erkannter Rechnungstext")]):
+    with patch(
+        "tasks.document.extract_pdf_pages", return_value=[(None, "OCR-erkannter Rechnungstext")]
+    ):
         await process_local_document_async(local_document_source.id, "/tmp/scan.pdf")
 
     db_session.expire_all()
     db_session.refresh(local_document_source)
     assert local_document_source.sync_status == "completed"
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == local_document_source.id
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == local_document_source.id)
+        .all()
+    )
     assert len(chunks) == 1
     assert "OCR-erkannter Rechnungstext" in chunks[0].content
     # Die OCR-Erkennung kennt keine Seitenzahl -- muss als None statt als

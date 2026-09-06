@@ -14,6 +14,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from models.database import DocumentChunk, Project, ProjectMembership, User, KnowledgeSource
 from core.teams import assert_team_visible, get_visible_team_ids, is_admin
 
+
 def chunk_source_label(chunk, db: Session) -> str:
     """
     Menschenlesbares Label für die Herkunft eines DocumentChunk.
@@ -23,8 +24,11 @@ def chunk_source_label(chunk, db: Session) -> str:
     """
     if chunk.source_id is None:
         return "Git"
-    source_type = db.query(KnowledgeSource.type).filter(KnowledgeSource.id == chunk.source_id).scalar()
+    source_type = (
+        db.query(KnowledgeSource.type).filter(KnowledgeSource.id == chunk.source_id).scalar()
+    )
     return source_type or "Local"
+
 
 def get_visible_project_ids(user: User, db: Session) -> Optional[list[int]]:
     """
@@ -45,6 +49,7 @@ def get_visible_project_ids(user: User, db: Session) -> Optional[list[int]]:
     )
     return [r[0] for r in rows]
 
+
 def get_globally_exposed_project_ids(db: Session) -> list[int]:
     """Projekt-IDs, deren Code-Analyse-Objekte per Opt-in (`Project.expose_code_analysis_globally`)
     außerhalb ihres eigenen Projekt-Kontexts sichtbar sind (Allgemein-Suche/-Graph-View).
@@ -53,7 +58,9 @@ def get_globally_exposed_project_ids(db: Session) -> list[int]:
     return [r[0] for r in rows]
 
 
-def is_project_code_visible_in_context(project_id: Optional[int], requesting_project_id: Optional[int], db: Session) -> bool:
+def is_project_code_visible_in_context(
+    project_id: Optional[int], requesting_project_id: Optional[int], db: Session
+) -> bool:
     """Ob Code-Analyse-Objekte (CodeEntity/Callgraph) von `project_id` im aktuellen
     Anfrage-Kontext sichtbar sein dürfen, VORAUSGESETZT die reguläre Team-/Projekt-
     Sichtbarkeit (assert_project_visible/assert_team_visible) wurde bereits geprüft.
@@ -72,7 +79,9 @@ def is_project_code_visible_in_context(project_id: Optional[int], requesting_pro
     return bool(proj and proj.expose_code_analysis_globally)
 
 
-def build_document_chunk_code_gate(db: Session, exposed_project_ids: list[int]) -> Optional[ColumnElement]:
+def build_document_chunk_code_gate(
+    db: Session, exposed_project_ids: list[int]
+) -> Optional[ColumnElement]:
     """SQL-Filterbedingung für DocumentChunk-Bulk-Queries (Allgemein-Suche/-Graph-View):
     wendet dieselbe Opt-in-Einschränkung wie CodeEntity/Callgraph auf Chunks an, die aus
     einer Git-Wissensquelle stammen (rohe Repo-Quelldateien -- Code-Analyse-Inhalt, keine
@@ -83,7 +92,9 @@ def build_document_chunk_code_gate(db: Session, exposed_project_ids: list[int]) 
     auf die Sichtbarkeit des Nutzers eingeschränkt). Gibt None zurück, wenn es keine
     Git-Wissensquelle gibt (dann ist nichts einzuschränken -- Bedingung schlicht weglassen,
     statt sie unnötig in die Query aufzunehmen)."""
-    git_source_ids = [s[0] for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.type == "Git").all()]
+    git_source_ids = [
+        s[0] for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.type == "Git").all()
+    ]
     if not git_source_ids:
         return None
     return or_(
@@ -100,16 +111,21 @@ def is_document_chunk_code_visible_in_context(
     (z.B. eine Seite eines generischen KnowledgeLink, siehe api/graph.py::_is_side_visible)."""
     if chunk.source_id is None:
         return True
-    is_git_source = db.query(KnowledgeSource.id).filter(
-        KnowledgeSource.id == chunk.source_id, KnowledgeSource.type == "Git"
-    ).first() is not None
+    is_git_source = (
+        db.query(KnowledgeSource.id)
+        .filter(KnowledgeSource.id == chunk.source_id, KnowledgeSource.type == "Git")
+        .first()
+        is not None
+    )
     if not is_git_source:
         return True
     return is_project_code_visible_in_context(chunk.project_id, requesting_project_id, db)
 
 
 def assert_project_code_visible_in_context(
-    project_id: Optional[int], requesting_project_id: Optional[int], db: Session,
+    project_id: Optional[int],
+    requesting_project_id: Optional[int],
+    db: Session,
     not_found_detail: str = "Entity nicht gefunden",
 ) -> None:
     """Wirft 404 (statt 403 — dieselbe Nicht-gefunden-Tarnung wie bei Team-Sichtbarkeit,
@@ -119,7 +135,9 @@ def assert_project_code_visible_in_context(
         raise HTTPException(status_code=404, detail=not_found_detail)
 
 
-def assert_project_visible(project_id: int, user: User, db: Session, not_found_detail: str = "Projekt nicht gefunden") -> None:
+def assert_project_visible(
+    project_id: int, user: User, db: Session, not_found_detail: str = "Projekt nicht gefunden"
+) -> None:
     """
     Prüft, ob das Projekt für den Benutzer sichtbar ist.
     Falls nicht, wird eine 403 Forbidden Exception ausgelöst.
@@ -139,7 +157,7 @@ def assert_project_visible(project_id: int, user: User, db: Session, not_found_d
 
         raise HTTPException(
             status_code=403,
-            detail=f"Zugriff verweigert. Bitte wende dich an {admin_info}, um Zugriff zu erhalten."
+            detail=f"Zugriff verweigert. Bitte wende dich an {admin_info}, um Zugriff zu erhalten.",
         )
 
 
@@ -161,8 +179,10 @@ def assert_knowledge_source_visible(
     if source.project_id is not None:
         assert_project_visible(source.project_id, user, db, not_found_detail)
 
+
 # Alle vergebbaren Projekt-Mitgliedsrollen (ProjectMembership.role).
 ALLOWED_PROJECT_ROLES = {"admin", "member"}
+
 
 def get_project_role(project_id: int, user: User, db: Session) -> str:
     """
@@ -186,13 +206,16 @@ def get_project_role(project_id: int, user: User, db: Session) -> str:
     )
     return membership.role if membership and membership.role in ALLOWED_PROJECT_ROLES else "member"
 
+
 def resolve_repository_id(project_id: int, db: Session) -> Optional[int]:
     """
     Findet die Repository-ID eines Projekts heraus, falls verknüpft.
     """
     from models.database import KnowledgeSource
-    source = db.query(KnowledgeSource).filter(
-        KnowledgeSource.project_id == project_id,
-        KnowledgeSource.type == "Git"
-    ).first()
+
+    source = (
+        db.query(KnowledgeSource)
+        .filter(KnowledgeSource.project_id == project_id, KnowledgeSource.type == "Git")
+        .first()
+    )
     return source.id if source else None

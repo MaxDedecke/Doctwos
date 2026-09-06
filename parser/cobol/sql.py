@@ -28,8 +28,20 @@ from .model import CobolProgram, DataItem, ParsedEdge, SqlBlock
 from .xref import build_index
 
 _STATEMENT_KEYWORDS = {
-    "SELECT", "INSERT", "UPDATE", "DELETE", "OPEN", "FETCH", "CLOSE",
-    "COMMIT", "ROLLBACK", "INCLUDE", "WHENEVER", "CALL", "EXECUTE", "SET",
+    "SELECT",
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "OPEN",
+    "FETCH",
+    "CLOSE",
+    "COMMIT",
+    "ROLLBACK",
+    "INCLUDE",
+    "WHENEVER",
+    "CALL",
+    "EXECUTE",
+    "SET",
 }
 _CURSOR_STATEMENTS = ("OPEN", "FETCH", "CLOSE")
 _TABLE_PRECEDING_KEYWORDS = {"FROM", "JOIN", "INTO"}

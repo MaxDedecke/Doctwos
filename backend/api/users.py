@@ -128,8 +128,12 @@ def create_user(payload: CreateUserRequest, db: Session = Depends(get_db)):
 
 
 @router.patch("/{user_id}")
-def update_user(user_id: int, payload: UpdateUserRequest, db: Session = Depends(get_db),
-                admin: User = Depends(require_admin)):
+def update_user(
+    user_id: int,
+    payload: UpdateUserRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
     user = _get_user(user_id, db)
 
     if payload.is_active is False or (payload.role is not None and payload.role != "superuser"):

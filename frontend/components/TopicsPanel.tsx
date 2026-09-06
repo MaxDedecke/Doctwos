@@ -566,14 +566,14 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                             <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
                           )}
                           <span className={cn('max-w-[180px] truncate', titleText)}>{node.node_label}</span>
-                          {node.node_meta?.type && (
+                          {typeof node.node_meta?.type === 'string' && node.node_meta.type !== '' && (
                             <span className={cn('text-[10px] px-1 rounded shrink-0', subText)}>
-                              {node.node_meta.type as string}
+                              {node.node_meta.type}
                             </span>
                           )}
-                          {node.node_meta?.file_path && !node.node_meta?.type && (
+                          {typeof node.node_meta?.file_path === 'string' && node.node_meta.file_path !== '' && !node.node_meta?.type && (
                             <span className={cn('text-[10px] max-w-[100px] truncate', subText)}>
-                              {(node.node_meta.file_path as string).split('/').pop()}
+                              {node.node_meta.file_path.split('/').pop()}
                             </span>
                           )}
                           <button
@@ -668,12 +668,12 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                                   <Icon className={cn('w-3.5 h-3.5 shrink-0', iconCls)} />
                                 )}
                                 <span className="truncate flex-1">{r.node_label}</span>
-                                {r.node_meta?.type && (
-                                  <span className={cn('text-[10px] shrink-0', subText)}>{r.node_meta.type as string}</span>
+                                {typeof r.node_meta?.type === 'string' && r.node_meta.type !== '' && (
+                                  <span className={cn('text-[10px] shrink-0', subText)}>{r.node_meta.type}</span>
                                 )}
-                                {r.node_meta?.file_path && !r.node_meta?.type && (
+                                {typeof r.node_meta?.file_path === 'string' && r.node_meta.file_path !== '' && !r.node_meta?.type && (
                                   <span className={cn('text-[10px] shrink-0 truncate max-w-[120px]', subText)}>
-                                    {(r.node_meta.file_path as string).split('/').pop()}
+                                    {r.node_meta.file_path.split('/').pop()}
                                   </span>
                                 )}
                               </button>

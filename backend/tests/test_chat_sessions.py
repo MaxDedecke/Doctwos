@@ -11,8 +11,13 @@ OTHER_USER_EMAIL = "fixture-user-other@example.com"
 @pytest.fixture
 def other_user(db_session):
     """A second user, distinct from the `client` fixture's logged-in user — never logged in itself, just an owner to test isolation against."""
-    user = User(username=OTHER_USERNAME, email=OTHER_USER_EMAIL, name="Other Fixture User",
-                password_hash="x", role="user")
+    user = User(
+        username=OTHER_USERNAME,
+        email=OTHER_USER_EMAIL,
+        name="Other Fixture User",
+        password_hash="x",
+        role="user",
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -41,8 +46,8 @@ def make_session(db_session):
 
 
 def _first_sse_event(body: str) -> dict:
-    line = next(l for l in body.splitlines() if l.startswith("data: "))
-    return json.loads(line[len("data: "):])
+    line = next(candidate for candidate in body.splitlines() if candidate.startswith("data: "))
+    return json.loads(line[len("data: ") :])
 
 
 def test_new_chat_session_is_owned_by_the_creating_user(client, db_session):
@@ -81,10 +86,14 @@ def test_deleting_someone_elses_session_is_forbidden(client, make_session, other
 
     resp = client.delete(f"/chat/sessions/{other_session.id}")
     assert resp.status_code == 403
-    assert db_session.query(ChatSession).filter(ChatSession.id == other_session.id).first() is not None
+    assert (
+        db_session.query(ChatSession).filter(ChatSession.id == other_session.id).first() is not None
+    )
 
 
-def test_publicly_shared_session_is_readable_via_uuid_by_another_user(client, make_session, other_user):
+def test_publicly_shared_session_is_readable_via_uuid_by_another_user(
+    client, make_session, other_user
+):
     """The sharing feature: once explicitly shared (is_public), a session not in
     your own list must still be fully reachable (viewable and resumable) via its
     UUID link."""
@@ -98,7 +107,9 @@ def test_publicly_shared_session_is_readable_via_uuid_by_another_user(client, ma
     assert messages_resp.status_code == 200
 
 
-def test_never_shared_session_is_not_readable_via_uuid_by_another_user(client, make_session, other_user):
+def test_never_shared_session_is_not_readable_via_uuid_by_another_user(
+    client, make_session, other_user
+):
     """O-032: a session that was never explicitly shared (is_public stays False by
     default) must not be readable via its UUID, even though the UUID itself is
     hard to guess."""
@@ -118,7 +129,9 @@ def test_by_uuid_routes_require_authentication(unauthenticated_client, make_sess
     assert resp.status_code == 401
 
 
-def test_get_messages_by_id_forbidden_for_non_owner_private_session(client, make_session, other_user):
+def test_get_messages_by_id_forbidden_for_non_owner_private_session(
+    client, make_session, other_user
+):
     """O-032: /chat/sessions/{id}/messages used sequential, guessable IDs with no
     auth/ownership check at all — must now require owner or is_public."""
     other_session = make_session(other_user.id, is_public=False)
@@ -174,7 +187,9 @@ def test_snapshot_update_allowed_for_public_session(client, make_session, other_
     assert other_session.snapshot_json == {"a": 1}
 
 
-def test_feedback_update_forbidden_for_non_owner_private_session(client, make_session, other_user, db_session):
+def test_feedback_update_forbidden_for_non_owner_private_session(
+    client, make_session, other_user, db_session
+):
     other_session = make_session(other_user.id, is_public=False)
     msg = ChatMessage(session_id=other_session.id, role="assistant", content="hi there")
     db_session.add(msg)
@@ -188,7 +203,9 @@ def test_feedback_update_forbidden_for_non_owner_private_session(client, make_se
     db_session.commit()
 
 
-def test_continuing_someone_elses_private_session_via_chat_is_forbidden(client, make_session, other_user):
+def test_continuing_someone_elses_private_session_via_chat_is_forbidden(
+    client, make_session, other_user
+):
     other_session = make_session(other_user.id, is_public=False)
 
     resp = client.post("/chat", json={"message": "hi", "session_id": other_session.id})
@@ -199,6 +216,7 @@ def test_continuing_someone_elses_private_session_via_chat_is_forbidden(client, 
 # Gegenstück zur impliziten Session-Erzeugung in POST /chat -- deckt den Fall
 # ab, dass ein Befund nur über mehrere Views (z.B. Graph + Code) entsteht, ohne
 # dass der Chat je benutzt wurde.
+
 
 def test_create_session_without_message_is_owned_and_untitled_from_no_message(client, db_session):
     resp = client.post("/chat/sessions", json={"title": "Brandschutz-Befund"})
@@ -259,17 +277,30 @@ def test_create_session_without_message_rejects_unknown_source(client):
     assert resp.status_code == 404
 
 
-def test_create_session_without_message_accepts_visible_project_and_source(client, db_session, test_project, test_team):
-    source = KnowledgeSource(name="o38-source", type="Git", url="https://example.test/o38.git",
-                             branch="main", project_id=test_project, team_id=test_team)
+def test_create_session_without_message_accepts_visible_project_and_source(
+    client, db_session, test_project, test_team
+):
+    source = KnowledgeSource(
+        name="o38-source",
+        type="Git",
+        url="https://example.test/o38.git",
+        branch="main",
+        project_id=test_project,
+        team_id=test_team,
+    )
     db_session.add(source)
     db_session.commit()
     db_session.refresh(source)
 
     try:
-        resp = client.post("/chat/sessions", json={
-            "title": "Projekt-Befund", "project_id": test_project, "source_id": source.id,
-        })
+        resp = client.post(
+            "/chat/sessions",
+            json={
+                "title": "Projekt-Befund",
+                "project_id": test_project,
+                "source_id": source.id,
+            },
+        )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == test_project

@@ -33,7 +33,9 @@ def test_source(db_session):
         {"name": "confluence-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "confluence-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -100,15 +102,17 @@ async def test_confluence_connector_fetches_page_as_plaintext(db_session, test_s
 @pytest.mark.anyio
 async def test_confluence_connector_skips_unchanged_page_since_last_sync(db_session, test_source):
     test_source.last_synced_at = datetime(2026, 7, 15, tzinfo=timezone.utc)
-    db_session.add(DocumentChunk(
-        project_id=test_source.project_id,
-        source_id=test_source.id,
-        file_path="Runbook",
-        content="alte Fassung",
-        start_line=1,
-        end_line=1,
-        embedding=[0.0] * 1024,
-    ))
+    db_session.add(
+        DocumentChunk(
+            project_id=test_source.project_id,
+            source_id=test_source.id,
+            file_path="Runbook",
+            content="alte Fassung",
+            start_line=1,
+            end_line=1,
+            embedding=[0.0] * 1024,
+        )
+    )
     db_session.commit()
     db_session.refresh(test_source)
 

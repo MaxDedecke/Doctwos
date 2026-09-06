@@ -51,10 +51,16 @@ def expand_chunks_with_graph(
         return picked
 
     # F-043: COPY-Ziele der Treffer und CALL-Aufrufer der Treffer.
-    edges = db.query(CodeEdge).filter(or_(
-        and_(CodeEdge.src_entity_id.in_(entity_ids), CodeEdge.type == "COPY"),
-        and_(CodeEdge.dst_entity_id.in_(entity_ids), CodeEdge.type == "CALL"),
-    )).all()
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            or_(
+                and_(CodeEdge.src_entity_id.in_(entity_ids), CodeEdge.type == "COPY"),
+                and_(CodeEdge.dst_entity_id.in_(entity_ids), CodeEdge.type == "CALL"),
+            )
+        )
+        .all()
+    )
     neighbor_ids = {
         edge.dst_entity_id if edge.src_entity_id in entity_ids else edge.src_entity_id
         for edge in edges
@@ -63,7 +69,9 @@ def expand_chunks_with_graph(
     if not neighbor_ids:
         return picked
 
-    neighbors = db.query(CodeEntity).filter(CodeEntity.id.in_(neighbor_ids)).order_by(CodeEntity.id).all()
+    neighbors = (
+        db.query(CodeEntity).filter(CodeEntity.id.in_(neighbor_ids)).order_by(CodeEntity.id).all()
+    )
     remaining_chars = token_budget * 4
     for entity in neighbors:
         definitions = db.query(DocumentChunk).filter(

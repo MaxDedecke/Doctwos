@@ -101,13 +101,19 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
         {"name": "ap4-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "ap4-test-project", "team_id": team_id},
     ).scalar_one()
 
     source = KnowledgeSource(
-        name="AP4 Test Git", type="Git", url=git_remote, branch="main",
-        project_id=project_id, team_id=team_id,
+        name="AP4 Test Git",
+        type="Git",
+        url=git_remote,
+        branch="main",
+        project_id=project_id,
+        team_id=team_id,
     )
     db_session.add(source)
     db_session.commit()
@@ -115,8 +121,12 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
 
     yield source
 
-    db_session.query(CodeEdge).filter(CodeEdge.source_id == source.id).delete(synchronize_session=False)
-    db_session.query(CodeEntity).filter(CodeEntity.source_id == source.id).delete(synchronize_session=False)
+    db_session.query(CodeEdge).filter(CodeEdge.source_id == source.id).delete(
+        synchronize_session=False
+    )
+    db_session.query(CodeEntity).filter(CodeEntity.source_id == source.id).delete(
+        synchronize_session=False
+    )
     db_session.query(SourceScanFile).filter(SourceScanFile.source_id == source.id).delete()
     db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).delete()
     db_session.delete(source)
@@ -128,7 +138,10 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
 def _patched_sync():
     return (
         patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
-        patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])),
+        patch(
+            "connectors.git.get_embeddings_batch",
+            AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts]),
+        ),
         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
     )
 
@@ -175,7 +188,9 @@ async def test_entities_and_edges_persisted_and_globally_resolved(db_session, te
     # Test-Coroutine herauskommen -- ohne jeden Hinweis darauf, WELCHE Erwartung
     # nicht erfuellt ist (genau die Sackgasse aus O-076).
     inherited_use = next((e for e in by_type["USES"] if e.dst_name == "SHARED-FIELD"), None)
-    assert inherited_use is not None, f'Keine USES-Kante auf SHARED-FIELD, nur: {[e.dst_name for e in by_type.get("USES", [])]}'
+    assert inherited_use is not None, (
+        f"Keine USES-Kante auf SHARED-FIELD, nur: {[e.dst_name for e in by_type.get('USES', [])]}"
+    )
     assert inherited_use.resolution == "resolved"
     assert inherited_use.dst_entity_id == by_qname["FIELDS.SHARED-RECORD.SHARED-FIELD"].id
     assert inherited_use.scope_entity_id == by_qname["MAIN"].id
@@ -188,59 +203,95 @@ async def test_entities_and_edges_persisted_and_globally_resolved(db_session, te
 
 
 @pytest.mark.anyio
-async def test_reparse_preserves_entity_id_and_keeps_external_edges(db_session, test_source, git_remote):
+async def test_reparse_preserves_entity_id_and_keeps_external_edges(
+    db_session, test_source, git_remote
+):
     await _sync(test_source.id)
 
-    sub_before = db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "SUB",
-    ).one()
-    call_edge_before = db_session.query(CodeEdge).filter(
-        CodeEdge.source_id == test_source.id, CodeEdge.type == "CALL",
-    ).one()
+    sub_before = (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "SUB",
+        )
+        .one()
+    )
+    call_edge_before = (
+        db_session.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == test_source.id,
+            CodeEdge.type == "CALL",
+        )
+        .one()
+    )
     assert call_edge_before.dst_entity_id == sub_before.id
 
     # SUB.CBL aendert sich (neuer Paragraph), MAIN.CBL/FIELDS.CPY bleiben
     # unveraendert und werden dank NF-004-Resume-Skip in diesem Sync gar
     # nicht neu geparst.
     _commit_file(
-        git_remote, "SUB.CBL",
+        git_remote,
+        "SUB.CBL",
         _SUB_CBL + "       EXTRA-PARA.\n           CONTINUE.\n",
         "add paragraph to sub",
     )
     await _sync(test_source.id)
 
     db_session.expire_all()
-    sub_after = db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "SUB",
-    ).one()
+    sub_after = (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "SUB",
+        )
+        .one()
+    )
     # Regressionstest fuer den beim Implementieren gefundenen Bug: ohne
     # ID-Erhalt beim Reparse waere SUB neu angelegt und die alte Zeile (samt
     # der CALL-Kante aus MAIN, die per CASCADE an ihr haengt) verschwunden.
     assert sub_after.id == sub_before.id
 
-    call_edge_after = db_session.query(CodeEdge).filter(
-        CodeEdge.source_id == test_source.id, CodeEdge.type == "CALL",
-    ).one()
+    call_edge_after = (
+        db_session.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == test_source.id,
+            CodeEdge.type == "CALL",
+        )
+        .one()
+    )
     assert call_edge_after.id == call_edge_before.id
     assert call_edge_after.dst_entity_id == sub_before.id
     assert call_edge_after.resolution == "resolved"
 
     # Der neue Paragraph in SUB ist jetzt da.
-    assert db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "SUB.EXTRA-PARA",
-    ).one_or_none() is not None
+    assert (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "SUB.EXTRA-PARA",
+        )
+        .one_or_none()
+        is not None
+    )
 
 
 @pytest.mark.anyio
 async def test_removed_paragraph_entity_is_deleted_on_reparse(db_session, test_source, git_remote):
     await _sync(test_source.id)
 
-    assert db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "MAIN.SUB-PARA",
-    ).one_or_none() is not None
+    assert (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "MAIN.SUB-PARA",
+        )
+        .one_or_none()
+        is not None
+    )
 
     _commit_file(
-        git_remote, "MAIN.CBL",
+        git_remote,
+        "MAIN.CBL",
         "       IDENTIFICATION DIVISION.\n"
         "       PROGRAM-ID. MAIN.\n"
         "       PROCEDURE DIVISION.\n"
@@ -251,9 +302,21 @@ async def test_removed_paragraph_entity_is_deleted_on_reparse(db_session, test_s
     await _sync(test_source.id)
 
     db_session.expire_all()
-    assert db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "MAIN.SUB-PARA",
-    ).one_or_none() is None
-    assert db_session.query(CodeEntity).filter(
-        CodeEntity.source_id == test_source.id, CodeEntity.qualified_name == "MAIN.MAIN-PARA",
-    ).one_or_none() is not None
+    assert (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "MAIN.SUB-PARA",
+        )
+        .one_or_none()
+        is None
+    )
+    assert (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.qualified_name == "MAIN.MAIN-PARA",
+        )
+        .one_or_none()
+        is not None
+    )

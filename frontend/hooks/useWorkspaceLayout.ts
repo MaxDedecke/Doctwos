@@ -18,7 +18,7 @@ import {
 } from '@/lib/workspaceResize';
 import { cn } from '@/lib/utils';
 
-type Translate = (key: string, values?: Record<string, unknown>) => string;
+type Translate = (key: string, values?: Record<string, string | number>) => string;
 
 interface UseWorkspaceLayoutOptions {
   activeSessionId: number | null;
@@ -63,7 +63,7 @@ export function useWorkspaceLayout({
   const [isMobile, setIsMobile] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'editor' | 'graph'>('chat');
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<{ id: string | number; name: string; url?: string; isWebOrigin?: boolean; type?: string } | null>(null);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [activeRightTab, setActiveRightTab] = useState<'code' | 'doc' | 'weborigin' | 'graph'>('code');
   const [fileContent, setFileContent] = useState('');
@@ -105,7 +105,7 @@ export function useWorkspaceLayout({
   // avoid the pointermove handler closing over a stale value).
   const threeColDividerRef = useRef<'left' | 'right' | null>(null);
   const threeColOtherBoundaryRef = useRef(100 / 3);
-  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const isPanelHistoryNavRef = useRef(false);
   const activePanelIndexRef = useRef(0);
   const pendingPanelTypesRef = useRef<Set<string>>(new Set());

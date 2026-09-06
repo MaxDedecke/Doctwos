@@ -8,7 +8,7 @@ type LayoutMode = '1-pane' | 'split' | '3-col' | '4-grid';
 
 interface WorkspaceShellProps {
   theme: string;
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: (key: string, values?: Record<string, string | number>) => string;
   isMobile: boolean;
   selectedFile: string | null;
   selectedDoc: any | null;
@@ -22,7 +22,7 @@ interface WorkspaceShellProps {
   gridColumnPercent: number;
   gridRowPercent: number;
   isDragging: boolean;
-  splitContainerRef: React.RefObject<HTMLDivElement | null>;
+  splitContainerRef: React.RefObject<HTMLDivElement>;
   threeColLeftPercent: number;
   threeColRightPercent: number;
   handleDividerMouseDown: (event: React.PointerEvent) => void;

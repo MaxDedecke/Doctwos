@@ -36,6 +36,7 @@ import re
 from .lexer import Token
 from .model import CobolProgram, ParsedEdge
 
+
 class CopybookIndex(dict[str, list[str]]):
     """Namensindex plus die bereits in Pass 0 gelesenen Felddefinitionen.
 
@@ -59,6 +60,7 @@ class CopybookIndex(dict[str, list[str]]):
         # den aufrufenden Quelltext einzublenden.
         self.copy_edges_by_path = copy_edges_by_path or {}
 
+
 _OPERAND_KINDS = ("PSEUDO_TEXT", "LITERAL", "WORD")
 
 
@@ -74,7 +76,11 @@ def scan(
     while i < n:
         tok = tokens[i]
 
-        if tok.kind == "WORD" and tok.value.upper() == "COPY" and _word_or_literal_at(tokens, i + 1):
+        if (
+            tok.kind == "WORD"
+            and tok.value.upper() == "COPY"
+            and _word_or_literal_at(tokens, i + 1)
+        ):
             name = _clean_name(tokens[i + 1].value)
             j = i + 2
 
@@ -150,7 +156,9 @@ def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | 
     if len(paths) == 1:
         return paths[0]
     if library is not None:
-        matches = [p for p in paths if os.path.basename(os.path.dirname(p)).upper() == library.upper()]
+        matches = [
+            p for p in paths if os.path.basename(os.path.dirname(p)).upper() == library.upper()
+        ]
         if len(matches) == 1:
             return matches[0]
     return None

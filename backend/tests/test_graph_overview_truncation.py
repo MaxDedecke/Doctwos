@@ -8,14 +8,21 @@ Browser-Hauptthread). Analog zu callgraph.py's MAX_NODES-Deckel (F-066), aber
 der am dichtesten verlinkten Knoten beim Kappen (die Übersicht zeigt bewusst
 auch unverlinkte Entities -- die sind beim Kappen der uninteressanteste Teil).
 """
+
 from unittest.mock import patch
 
 from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
 def _make_source(db, project_id, team_id):
-    source = KnowledgeSource(name="truncation-test-source", type="Git", url="https://example.test/trunc.git",
-                             branch="main", project_id=project_id, team_id=team_id)
+    source = KnowledgeSource(
+        name="truncation-test-source",
+        type="Git",
+        url="https://example.test/trunc.git",
+        branch="main",
+        project_id=project_id,
+        team_id=team_id,
+    )
     db.add(source)
     db.flush()
     return source
@@ -24,19 +31,40 @@ def _make_source(db, project_id, team_id):
 def _make_linked_entity(db, project_id, source_id, index):
     """An entity with one approved doc link -- degree 1, should survive capping
     ahead of anything unlinked."""
-    entity = CodeEntity(project_id=project_id, source_id=source_id, file_path=f"LINKED{index}.CBL",
-                        name=f"LINKED-{index}", qualified_name=f"LINKED-{index}", type="program",
-                        start_line=1, end_line=10)
+    entity = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path=f"LINKED{index}.CBL",
+        name=f"LINKED-{index}",
+        qualified_name=f"LINKED-{index}",
+        type="program",
+        start_line=1,
+        end_line=10,
+    )
     db.add(entity)
     db.flush()
-    chunk = DocumentChunk(project_id=project_id, source_id=source_id, file_path=f"Runbook{index}.md",
-                          content="content", start_line=1, end_line=1,
-                          metadata_json={"title": f"Runbook{index}"})
+    chunk = DocumentChunk(
+        project_id=project_id,
+        source_id=source_id,
+        file_path=f"Runbook{index}.md",
+        content="content",
+        start_line=1,
+        end_line=1,
+        metadata_json={"title": f"Runbook{index}"},
+    )
     db.add(chunk)
     db.flush()
-    link = EntityDocLink(project_id=project_id, entity_id=entity.id, chunk_id=chunk.id,
-                        doc_title=f"Runbook{index}", source_type="local_document", score=0.9,
-                        link_type="semantic", status="approved", context=None)
+    link = EntityDocLink(
+        project_id=project_id,
+        entity_id=entity.id,
+        chunk_id=chunk.id,
+        doc_title=f"Runbook{index}",
+        source_type="local_document",
+        score=0.9,
+        link_type="semantic",
+        status="approved",
+        context=None,
+    )
     db.add(link)
     db.flush()
     return entity, chunk, link
@@ -44,9 +72,16 @@ def _make_linked_entity(db, project_id, source_id, index):
 
 def _make_isolated_entity(db, project_id, source_id, index):
     """An entity with no links at all -- degree 0, should be the first dropped."""
-    entity = CodeEntity(project_id=project_id, source_id=source_id, file_path=f"ISOLATED{index}.CBL",
-                        name=f"ISOLATED-{index}", qualified_name=f"ISOLATED-{index}", type="program",
-                        start_line=1, end_line=10)
+    entity = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path=f"ISOLATED{index}.CBL",
+        name=f"ISOLATED-{index}",
+        qualified_name=f"ISOLATED-{index}",
+        type="program",
+        start_line=1,
+        end_line=10,
+    )
     db.add(entity)
     db.flush()
     return entity
@@ -55,21 +90,42 @@ def _make_isolated_entity(db, project_id, source_id, index):
 def _make_double_linked_entity(db, project_id, source_id):
     """One entity linked to two documents -- degree 2, clearly outranking any
     single-link (degree 1) node when capping."""
-    entity = CodeEntity(project_id=project_id, source_id=source_id, file_path="DOUBLE.CBL",
-                        name="DOUBLE-LINKED", qualified_name="DOUBLE-LINKED", type="program",
-                        start_line=1, end_line=10)
+    entity = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path="DOUBLE.CBL",
+        name="DOUBLE-LINKED",
+        qualified_name="DOUBLE-LINKED",
+        type="program",
+        start_line=1,
+        end_line=10,
+    )
     db.add(entity)
     db.flush()
     links = []
     for suffix in ("a", "b"):
-        chunk = DocumentChunk(project_id=project_id, source_id=source_id, file_path=f"Runbook3{suffix}.md",
-                              content="content", start_line=1, end_line=1,
-                              metadata_json={"title": f"Runbook3{suffix}"})
+        chunk = DocumentChunk(
+            project_id=project_id,
+            source_id=source_id,
+            file_path=f"Runbook3{suffix}.md",
+            content="content",
+            start_line=1,
+            end_line=1,
+            metadata_json={"title": f"Runbook3{suffix}"},
+        )
         db.add(chunk)
         db.flush()
-        link = EntityDocLink(project_id=project_id, entity_id=entity.id, chunk_id=chunk.id,
-                            doc_title=f"Runbook3{suffix}", source_type="local_document", score=0.9,
-                            link_type="semantic", status="approved", context=None)
+        link = EntityDocLink(
+            project_id=project_id,
+            entity_id=entity.id,
+            chunk_id=chunk.id,
+            doc_title=f"Runbook3{suffix}",
+            source_type="local_document",
+            score=0.9,
+            link_type="semantic",
+            status="approved",
+            context=None,
+        )
         db.add(link)
         db.flush()
         links.append(link)
@@ -95,7 +151,9 @@ def test_graph_overview_is_not_truncated_below_the_cap(client, db_session, test_
         db_session.commit()
 
 
-def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(client, db_session, test_project, test_team):
+def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
+    client, db_session, test_project, test_team
+):
     source = _make_source(db_session, test_project, test_team)
     linked_entity, chunk, link = _make_linked_entity(db_session, test_project, source.id, 1)
     isolated_entity = _make_isolated_entity(db_session, test_project, source.id, 1)
@@ -123,7 +181,9 @@ def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
         db_session.commit()
 
 
-def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(client, db_session, test_project, test_team):
+def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
+    client, db_session, test_project, test_team
+):
     """A degree-2 entity linked to two documents, capped to fit the entity plus
     only one of the two docs: the edge to the doc that got cut must not appear
     in the response with a target nothing else in it points to."""

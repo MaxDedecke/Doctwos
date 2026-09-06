@@ -33,7 +33,9 @@ def _extract_json_object(text: str) -> dict:
     kein natives JSON-Erzwingen für diesen einfachen Single-Shot-Call kennen."""
     cleaned = text.strip()
     if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE)
+        cleaned = re.sub(
+            r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.IGNORECASE | re.MULTILINE
+        )
     return json.loads(cleaned)
 
 
@@ -76,7 +78,8 @@ async def search_project_chunks(
     query_embedding = await embed_text(query, is_query=True)
 
     source_ids = [
-        s.id for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).all()
+        s.id
+        for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).all()
     ]
     filters = [DocumentChunk.project_id == project_id]
     if source_ids:
@@ -177,7 +180,9 @@ async def ask_llm_json_for_profile(
             "generationConfig": {"response_mime_type": "application/json"},
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(full_url, json=payload, headers={"Content-Type": "application/json"})
+            resp = await client.post(
+                full_url, json=payload, headers={"Content-Type": "application/json"}
+            )
             resp.raise_for_status()
             text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
             return _extract_json_object(text)
@@ -194,7 +199,9 @@ async def ask_llm_json_for_profile(
             "messages": [{"role": "user", "content": prompt}],
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post("https://api.anthropic.com/v1/messages", json=payload, headers=headers)
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages", json=payload, headers=headers
+            )
             resp.raise_for_status()
             text = resp.json()["content"][0]["text"]
             return _extract_json_object(text)

@@ -37,7 +37,9 @@ def test_source(db_session, tmp_path):
         {"name": "folder-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "folder-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -84,12 +86,16 @@ async def test_folder_connector_sync_flow_and_orphan_cleanup(db_session, test_so
     assert len(docs) == 2
     assert {doc["title"] for doc in docs} == {"a.txt", "b.txt"}
 
-    records = db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    records = (
+        db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    )
     assert {r.file_path for r in records} == {str(file_a), str(file_b)}
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a)
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a))
+        .all()
+    )
     assert len(chunks) == 1
 
     # db_session steht nach den obigen SELECTs in einer offenen (nur lesenden)
@@ -110,35 +116,51 @@ async def test_folder_connector_sync_flow_and_orphan_cleanup(db_session, test_so
 
     assert docs2 == []
     db_session.expire_all()
-    remaining = db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    remaining = (
+        db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).all()
+    )
     assert {r.file_path for r in remaining} == {str(file_b)}
-    assert db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a)
-    ).count() == 0
-    assert db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_b)
-    ).count() == 1
+    assert (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a))
+        .count()
+        == 0
+    )
+    assert (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_b))
+        .count()
+        == 1
+    )
 
 
 @pytest.mark.anyio
-async def test_folder_connector_skips_orphan_cleanup_on_empty_scan(db_session, test_source, tmp_path):
+async def test_folder_connector_skips_orphan_cleanup_on_empty_scan(
+    db_session, test_source, tmp_path
+):
     """Ein leerer/fehlgeschlagener Scan (_current_scan bleibt {}) darf bestehende
     SourceScanFile-/DocumentChunk-Einträge NICHT als Orphans löschen -- sonst würde
     ein kurzzeitig nicht erreichbares Netzlaufwerk den kompletten Index leeren."""
     stale_path = str(tmp_path / "report.txt")
 
-    db_session.add(SourceScanFile(
-        source_id=test_source.id, file_path=stale_path, content_hash="abc123",
-    ))
-    db_session.add(DocumentChunk(
-        project_id=test_source.project_id,
-        source_id=test_source.id,
-        file_path=stale_path,
-        content="alter Inhalt",
-        start_line=1,
-        end_line=1,
-        embedding=[0.0] * 1024,
-    ))
+    db_session.add(
+        SourceScanFile(
+            source_id=test_source.id,
+            file_path=stale_path,
+            content_hash="abc123",
+        )
+    )
+    db_session.add(
+        DocumentChunk(
+            project_id=test_source.project_id,
+            source_id=test_source.id,
+            file_path=stale_path,
+            content="alter Inhalt",
+            start_line=1,
+            end_line=1,
+            embedding=[0.0] * 1024,
+        )
+    )
     db_session.commit()
 
     connector = FolderConnector(test_source.id)
@@ -156,16 +178,24 @@ async def test_folder_connector_skips_orphan_cleanup_on_empty_scan(db_session, t
         await connector.sync()
 
     db_session.expire_all()
-    assert db_session.query(SourceScanFile).filter(
-        SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == stale_path
-    ).count() == 1
-    assert db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == stale_path
-    ).count() == 1
+    assert (
+        db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == stale_path)
+        .count()
+        == 1
+    )
+    assert (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == stale_path)
+        .count()
+        == 1
+    )
 
 
 @pytest.mark.anyio
-async def test_folder_connector_logs_exception_type_when_a_chunk_fails_to_embed(db_session, test_source, tmp_path):
+async def test_folder_connector_logs_exception_type_when_a_chunk_fails_to_embed(
+    db_session, test_source, tmp_path
+):
     """
     Regression: on_embed_error logged "Embedding-Fehler für 'X': " with
     nothing after the colon when the underlying exception's str() is empty
@@ -185,7 +215,9 @@ async def test_folder_connector_logs_exception_type_when_a_chunk_fails_to_embed(
     db_session.refresh(test_source)
     assert "Embedding-Fehler für 'a.txt': Exception:" in test_source.sync_log
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a)
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == str(file_a))
+        .all()
+    )
     assert len(chunks) == 0

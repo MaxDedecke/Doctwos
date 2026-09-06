@@ -37,7 +37,9 @@ def test_source(db_session):
         {"name": "connector-reindex-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "connector-reindex-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -87,14 +89,18 @@ def _doc(content: str) -> dict:
 
 
 @pytest.mark.anyio
-async def test_connector_reindex_rewires_approved_link_when_content_unchanged(db_session, test_source):
+async def test_connector_reindex_rewires_approved_link_when_content_unchanged(
+    db_session, test_source
+):
     source, project_id, entity = test_source
     connector = WebdavConnector(source.id)
     connector.source = source
 
     mock_get_embedding = AsyncMock(return_value=[0.1] * 1024)
     with patch("connectors.base.get_embedding", mock_get_embedding):
-        await connector._process_document(_doc("Dies ist ein stabiler Testabsatz zum Programm XAAOA."))
+        await connector._process_document(
+            _doc("Dies ist ein stabiler Testabsatz zum Programm XAAOA.")
+        )
     connector.db.commit()
 
     first_chunk = db_session.execute(
@@ -118,7 +124,9 @@ async def test_connector_reindex_rewires_approved_link_when_content_unchanged(db
     # Re-Sync mit unverändertem Inhalt -- der Connector-Pfad löscht+erzeugt
     # neu wie jeder Delta-Sync, der Chunk bekommt also zwingend eine neue ID.
     with patch("connectors.base.get_embedding", mock_get_embedding):
-        await connector._process_document(_doc("Dies ist ein stabiler Testabsatz zum Programm XAAOA."))
+        await connector._process_document(
+            _doc("Dies ist ein stabiler Testabsatz zum Programm XAAOA.")
+        )
     connector.db.commit()
 
     second_chunk = db_session.execute(
@@ -134,14 +142,18 @@ async def test_connector_reindex_rewires_approved_link_when_content_unchanged(db
 
 
 @pytest.mark.anyio
-async def test_connector_reindex_resets_approved_link_to_pending_when_content_changes(db_session, test_source):
+async def test_connector_reindex_resets_approved_link_to_pending_when_content_changes(
+    db_session, test_source
+):
     source, project_id, entity = test_source
     connector = WebdavConnector(source.id)
     connector.source = source
 
     mock_get_embedding = AsyncMock(return_value=[0.1] * 1024)
     with patch("connectors.base.get_embedding", mock_get_embedding):
-        await connector._process_document(_doc("Handbuch Abschnitt 4.2: Abbruch bei Rueckgabecode 8."))
+        await connector._process_document(
+            _doc("Handbuch Abschnitt 4.2: Abbruch bei Rueckgabecode 8.")
+        )
     connector.db.commit()
 
     first_chunk_id = db_session.execute(
@@ -166,7 +178,9 @@ async def test_connector_reindex_resets_approved_link_to_pending_when_content_ch
     # Revision B: Inhalt der Passage aendert sich tatsaechlich (neue Fassung
     # des Dokuments kommt über den Auto-Sync herein).
     with patch("connectors.base.get_embedding", mock_get_embedding):
-        await connector._process_document(_doc("Handbuch Abschnitt 4.2: Abbruch bei Rueckgabecode 12."))
+        await connector._process_document(
+            _doc("Handbuch Abschnitt 4.2: Abbruch bei Rueckgabecode 12.")
+        )
     connector.db.commit()
 
     db_session.expire_all()

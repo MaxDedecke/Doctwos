@@ -45,7 +45,7 @@ def get_connector(source_type: str) -> type[BaseConnector]:
         if k.lower() == source_type.lower():
             connector_cls = v
             break
-    
+
     if connector_cls is None:
         registered = ", ".join(set(k.capitalize() for k in REGISTRY.keys()))
         raise ValueError(

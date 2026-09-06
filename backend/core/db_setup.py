@@ -46,7 +46,9 @@ def bootstrap_superuser() -> None:
     # Vor der ersten Migration existiert die Tabelle noch nicht — dann still zurück,
     # der nächste Start nach `alembic upgrade head` legt den Nutzer an.
     if not inspect(engine).has_table("users"):
-        logger.warning("[bootstrap] Tabelle 'users' existiert noch nicht — Superuser-Anlage übersprungen.")
+        logger.warning(
+            "[bootstrap] Tabelle 'users' existiert noch nicht — Superuser-Anlage übersprungen."
+        )
         return
 
     db = SessionLocal()
@@ -82,7 +84,8 @@ def bootstrap_superuser() -> None:
                 " Dieses Passwort wird NUR EINMAL angezeigt und muss beim ersten\n"
                 " Login geändert werden.\n"
                 "=================================================================",
-                cfg.BOOTSTRAP_SUPERUSER, password,
+                cfg.BOOTSTRAP_SUPERUSER,
+                password,
             )
         else:
             logger.info(

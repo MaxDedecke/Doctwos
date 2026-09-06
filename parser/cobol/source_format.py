@@ -59,7 +59,10 @@ def detect_format(text: str) -> SourceFormat:
             continue
         indicator = raw[6] if len(raw) > 6 else ""
         if indicator and indicator in (
-            _COMMENT_INDICATORS + _DEBUG_INDICATORS + _CONTINUATION_INDICATOR + _DIRECTIVE_INDICATORS
+            _COMMENT_INDICATORS
+            + _DEBUG_INDICATORS
+            + _CONTINUATION_INDICATOR
+            + _DIRECTIVE_INDICATORS
         ):
             fixed_signals += 1
     return "free" if free_signals > fixed_signals else "fixed"

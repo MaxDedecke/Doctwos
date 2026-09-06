@@ -20,7 +20,9 @@ from models.database import DocumentChunk, KnowledgeSource
 from conftest import requires_ollama
 
 
-def _fake_docx_document(paragraph_texts: list[str], table_rows: list[list[str]] | None = None) -> MagicMock:
+def _fake_docx_document(
+    paragraph_texts: list[str], table_rows: list[list[str]] | None = None
+) -> MagicMock:
     doc = MagicMock()
     doc.paragraphs = [MagicMock(text=text) for text in paragraph_texts]
     doc.tables = []
@@ -36,23 +38,31 @@ def _fake_docx_document(paragraph_texts: list[str], table_rows: list[list[str]] 
 
 
 def test_extract_docx_text_joins_paragraphs():
-    with patch("docx.Document", return_value=_fake_docx_document(["Erster Absatz", "Zweiter Absatz"])):
+    with patch(
+        "docx.Document", return_value=_fake_docx_document(["Erster Absatz", "Zweiter Absatz"])
+    ):
         content = extract_docx_text("/tmp/handbuch.docx")
 
     assert content == "Erster Absatz\nZweiter Absatz"
 
 
 def test_extract_docx_text_includes_table_cells():
-    with patch("docx.Document", return_value=_fake_docx_document(
-        ["Einleitung"], table_rows=[["Spalte A", "Spalte B"]],
-    )):
+    with patch(
+        "docx.Document",
+        return_value=_fake_docx_document(
+            ["Einleitung"],
+            table_rows=[["Spalte A", "Spalte B"]],
+        ),
+    ):
         content = extract_docx_text("/tmp/handbuch.docx")
 
     assert content == "Einleitung\nSpalte A | Spalte B"
 
 
 def test_folder_extract_text_uses_extract_docx_text_for_doc_and_docx():
-    with patch("connectors.folder.extract_docx_text", return_value="geteilter Word-Text") as mock_extract:
+    with patch(
+        "connectors.folder.extract_docx_text", return_value="geteilter Word-Text"
+    ) as mock_extract:
         content = _extract_text("/tmp/vertrag.doc")
 
     mock_extract.assert_called_once_with("/tmp/vertrag.doc")
@@ -75,7 +85,9 @@ def local_docx_source(db_session):
         {"name": "docx-upload-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "docx-upload-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -103,7 +115,9 @@ def local_docx_source(db_session):
 async def test_process_local_document_uses_shared_extract_docx_text(db_session, local_docx_source):
     from tasks.document import process_local_document_async
 
-    with patch("tasks.document.extract_docx_text", return_value="Aus geteilter Funktion extrahierter Text") as mock_extract:
+    with patch(
+        "tasks.document.extract_docx_text", return_value="Aus geteilter Funktion extrahierter Text"
+    ) as mock_extract:
         await process_local_document_async(local_docx_source.id, "/tmp/Handbuch.docx")
 
     mock_extract.assert_called_once_with("/tmp/Handbuch.docx")
@@ -112,8 +126,10 @@ async def test_process_local_document_uses_shared_extract_docx_text(db_session, 
     db_session.refresh(local_docx_source)
     assert local_docx_source.sync_status == "completed"
 
-    chunks = db_session.query(DocumentChunk).filter(
-        DocumentChunk.source_id == local_docx_source.id
-    ).all()
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == local_docx_source.id)
+        .all()
+    )
     assert len(chunks) == 1
     assert "Aus geteilter Funktion extrahierter Text" in chunks[0].content

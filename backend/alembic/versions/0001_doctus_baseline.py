@@ -15,6 +15,7 @@ Revision ID: 0001_doctus_baseline
 Revises:
 Create Date: 2026-07-31
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -60,8 +61,12 @@ def upgrade() -> None:
     op.create_table(
         "team_memberships",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("team_id", sa.Integer(), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ),
+        sa.Column(
+            "team_id", sa.Integer(), sa.ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         # Ohne diese Constraint legt jeder wiederholte "Mitglied hinzufügen"-Klick
         # eine zweite Zeile an; das ORM deklariert sie, die Baseline hatte sie
@@ -77,7 +82,12 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("team_id", sa.Integer(), sa.ForeignKey("teams.id"), nullable=False),
-        sa.Column("creator_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "creator_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("is_archived", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("color", sa.String(length=7), nullable=True),
     )
@@ -88,8 +98,15 @@ def upgrade() -> None:
     op.create_table(
         "project_memberships",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("role", sa.String(), server_default="member"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint("user_id", "project_id", name="uq_project_memberships_user_project"),
@@ -99,11 +116,20 @@ def upgrade() -> None:
     op.create_table(
         "project_access_requests",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("status", sa.String(), server_default="pending"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.UniqueConstraint("project_id", "user_id", name="uq_project_access_requests_project_user"),
+        sa.UniqueConstraint(
+            "project_id", "user_id", name="uq_project_access_requests_project_user"
+        ),
     )
     op.create_index("ix_project_access_requests_id", "project_access_requests", ["id"])
 
@@ -115,7 +141,12 @@ def upgrade() -> None:
         sa.Column("url", sa.String(), nullable=True),
         sa.Column("username", sa.String(), nullable=True),
         sa.Column("token", sa.Text(), nullable=True),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("spaces", sa.JSON(), nullable=True),
         sa.Column("last_synced_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("sync_status", sa.String(), server_default="pending"),
@@ -137,18 +168,32 @@ def upgrade() -> None:
         sa.Column("sync_cursor", sa.JSON(), nullable=True),
         # F-019: dasselbe Repo darf mehrfach eingebunden werden, solange sich der
         # Branch unterscheidet — deshalb NICHT UNIQUE(url).
-        sa.UniqueConstraint("project_id", "url", "branch", name="uq_knowledge_sources_project_url_branch"),
+        sa.UniqueConstraint(
+            "project_id", "url", "branch", name="uq_knowledge_sources_project_url_branch"
+        ),
     )
     op.create_index("ix_knowledge_sources_id", "knowledge_sources", ["id"])
     op.create_index("ix_knowledge_sources_name", "knowledge_sources", ["name"])
     op.create_index("ix_knowledge_sources_team_id", "knowledge_sources", ["team_id"])
-    op.create_index("ix_knowledge_sources_repo_fingerprint", "knowledge_sources", ["repo_fingerprint"])
+    op.create_index(
+        "ix_knowledge_sources_repo_fingerprint", "knowledge_sources", ["repo_fingerprint"]
+    )
 
     op.create_table(
         "document_chunks",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Integer(),
+            sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("file_path", sa.String()),
         sa.Column("content", sa.Text()),
         sa.Column("start_line", sa.Integer()),
@@ -158,7 +203,9 @@ def upgrade() -> None:
     )
     op.create_index("ix_document_chunks_id", "document_chunks", ["id"])
     op.create_index("ix_document_chunks_file_path", "document_chunks", ["file_path"])
-    op.create_index("ix_document_chunks_project_file", "document_chunks", ["project_id", "file_path"])
+    op.create_index(
+        "ix_document_chunks_project_file", "document_chunks", ["project_id", "file_path"]
+    )
     # Übernommen aus b1c2d3e4f5a6 (NF-010): bge-m3 = 1024 Dimensionen, Cosine.
     op.execute(
         "CREATE INDEX idx_document_chunks_embedding_hnsw ON document_chunks "
@@ -170,9 +217,21 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("uuid", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("title", sa.String()),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("owner_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Integer(),
+            sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "owner_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        ),
         sa.Column("is_public", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("snapshot_json", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
@@ -183,7 +242,9 @@ def upgrade() -> None:
     op.create_table(
         "chat_messages",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("session_id", sa.Integer(), sa.ForeignKey("chat_sessions.id", ondelete="CASCADE")),
+        sa.Column(
+            "session_id", sa.Integer(), sa.ForeignKey("chat_sessions.id", ondelete="CASCADE")
+        ),
         sa.Column("role", sa.String()),
         sa.Column("content", sa.Text()),
         sa.Column("sources_json", sa.JSON(), nullable=True),
@@ -196,12 +257,27 @@ def upgrade() -> None:
     op.create_table(
         "code_entities",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Integer(),
+            sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("file_path", sa.String()),
         sa.Column("name", sa.String()),
         sa.Column("type", sa.String()),
-        sa.Column("parent_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "parent_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("qualified_name", sa.String(), nullable=True),
         sa.Column("start_line", sa.Integer(), nullable=True),
         sa.Column("end_line", sa.Integer(), nullable=True),
@@ -220,14 +296,39 @@ def upgrade() -> None:
     op.create_table(
         "code_edges",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("src_entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("dst_entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Integer(),
+            sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "src_entity_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "dst_entity_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("dst_name", sa.String(), nullable=False),
         sa.Column("type", sa.String(), nullable=False),
         sa.Column("resolution", sa.String(), nullable=False, server_default="unresolved"),
-        sa.Column("scope_entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "scope_entity_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("src_start_line", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("src_end_line", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("meta_json", sa.JSON(), nullable=True),
@@ -250,7 +351,12 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="CASCADE")),
         sa.Column("entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE")),
-        sa.Column("chunk_id", sa.Integer(), sa.ForeignKey("document_chunks.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "chunk_id",
+            sa.Integer(),
+            sa.ForeignKey("document_chunks.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("doc_title", sa.String(), nullable=True),
         sa.Column("doc_url", sa.String(), nullable=True),
         sa.Column("source_type", sa.String(), nullable=True),
@@ -279,7 +385,9 @@ def upgrade() -> None:
     op.create_table(
         "topic_nodes",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("topic_id", sa.Integer(), sa.ForeignKey("topics.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "topic_id", sa.Integer(), sa.ForeignKey("topics.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("node_type", sa.String(length=30), nullable=False),
         sa.Column("node_id", sa.Integer(), nullable=False),
         sa.Column("node_label", sa.String(length=500), nullable=False),
@@ -292,7 +400,12 @@ def upgrade() -> None:
     op.create_table(
         "source_scan_files",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "source_id",
+            sa.Integer(),
+            sa.ForeignKey("knowledge_sources.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("file_path", sa.String(), nullable=False),
         sa.Column("content_hash", sa.String(length=32), nullable=False),
         sa.Column("parse_status", sa.String(), nullable=True),
@@ -307,14 +420,34 @@ def upgrade() -> None:
         "knowledge_links",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("source_a_type", sa.String(length=20), nullable=False),
-        sa.Column("source_a_entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_a_chunk_id", sa.Integer(), sa.ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "source_a_entity_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_a_chunk_id",
+            sa.Integer(),
+            sa.ForeignKey("document_chunks.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("source_a_title", sa.Text(), nullable=False),
         sa.Column("source_a_url", sa.Text(), nullable=True),
         sa.Column("source_a_source_type", sa.String(length=50), nullable=True),
         sa.Column("source_b_type", sa.String(length=20), nullable=False),
-        sa.Column("source_b_entity_id", sa.Integer(), sa.ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("source_b_chunk_id", sa.Integer(), sa.ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "source_b_entity_id",
+            sa.Integer(),
+            sa.ForeignKey("code_entities.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_b_chunk_id",
+            sa.Integer(),
+            sa.ForeignKey("document_chunks.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("source_b_title", sa.Text(), nullable=False),
         sa.Column("source_b_url", sa.Text(), nullable=True),
         sa.Column("source_b_source_type", sa.String(length=50), nullable=True),
@@ -323,7 +456,12 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=20), server_default="pending"),
         sa.Column("context", sa.Text(), nullable=True),
         sa.Column("created_by", sa.String(length=50), server_default="auto"),
-        sa.Column("chat_session_id", sa.Integer(), sa.ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "chat_session_id",
+            sa.Integer(),
+            sa.ForeignKey("chat_sessions.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -334,7 +472,12 @@ def upgrade() -> None:
         "link_builder_runs",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("task_type", sa.String(), nullable=False),
-        sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "project_id",
+            sa.Integer(),
+            sa.ForeignKey("projects.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("status", sa.String(), nullable=False, server_default="pending"),
         sa.Column("progress_message", sa.String(), nullable=True),
@@ -349,7 +492,12 @@ def upgrade() -> None:
     op.create_table(
         "diagnostics_runs",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("triggered_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "triggered_by_user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("status", sa.String(), nullable=False, server_default="pending"),
         sa.Column("progress_message", sa.String(), nullable=True),
@@ -358,7 +506,9 @@ def upgrade() -> None:
         sa.Column("bundle_path", sa.String(), nullable=True),
     )
     op.create_index("ix_diagnostics_runs_id", "diagnostics_runs", ["id"])
-    op.create_index("ix_diagnostics_runs_triggered_by_user_id", "diagnostics_runs", ["triggered_by_user_id"])
+    op.create_index(
+        "ix_diagnostics_runs_triggered_by_user_id", "diagnostics_runs", ["triggered_by_user_id"]
+    )
 
 
 def downgrade() -> None:

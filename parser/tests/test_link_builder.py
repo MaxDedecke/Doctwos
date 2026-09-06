@@ -5,6 +5,7 @@ no longer filter with SQL ILIKE and instead scans the project's chunks in Python
 decryption. This is a real integration test against the shared Postgres DB (same one the backend
 uses) since _pass_keyword's whole job is a DB query + decrypt + score.
 """
+
 import pytest
 from sqlalchemy import text
 
@@ -33,7 +34,9 @@ def test_project(db_session):
         {"name": "link-builder-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "link-builder-test-project", "team_id": team_id},
     ).scalar_one()
     source_id = db_session.execute(
@@ -41,7 +44,12 @@ def test_project(db_session):
             "INSERT INTO knowledge_sources (name, type, team_id, project_id, created_at) "
             "VALUES (:name, :type, :team_id, :project_id, now()) RETURNING id"
         ),
-        {"name": "link-builder-test-source", "type": "Local", "team_id": team_id, "project_id": project_id},
+        {
+            "name": "link-builder-test-source",
+            "type": "Local",
+            "team_id": team_id,
+            "project_id": project_id,
+        },
     ).scalar_one()
     db_session.commit()
 
@@ -58,17 +66,26 @@ def test_project(db_session):
 def test_pass_keyword_matches_decrypted_content(db_session, test_project):
     project_id, source_id = test_project
 
-    entity = CodeEntity(project_id=project_id, file_path="src/payroll_calculator.py", name="calculate_payroll", type="function")
+    entity = CodeEntity(
+        project_id=project_id,
+        file_path="src/payroll_calculator.py",
+        name="calculate_payroll",
+        type="function",
+    )
     db_session.add(entity)
     db_session.commit()
     db_session.refresh(entity)
 
     matching = DocumentChunk(
-        project_id=project_id, source_id=source_id, file_path="docs/payroll.pdf",
+        project_id=project_id,
+        source_id=source_id,
+        file_path="docs/payroll.pdf",
         content="This document describes the payroll calculator module in detail.",
     )
     decoy = DocumentChunk(
-        project_id=project_id, source_id=source_id, file_path="docs/unrelated.pdf",
+        project_id=project_id,
+        source_id=source_id,
+        file_path="docs/unrelated.pdf",
         content="Completely unrelated text about landscaping and gardens.",
     )
     db_session.add_all([matching, decoy])

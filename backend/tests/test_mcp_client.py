@@ -16,6 +16,7 @@ getting it wrong silently breaks every on-prem pilot connection.
 Der Notion-Fall ist mit AP-0 entfallen: mit ihm verschwand der einzige Grund für
 eine Node.js-Runtime im Backend-Image (F-049).
 """
+
 import sys
 import textwrap
 from types import SimpleNamespace
@@ -74,7 +75,13 @@ async def test_start_returns_false_for_a_nonexistent_command():
 
 @pytest.mark.asyncio
 async def test_jira_source_spawns_mcp_atlassian_with_cloud_env():
-    src = SimpleNamespace(id=1, type="jira", url="https://example.atlassian.net", username="user@example.com", token="tok")
+    src = SimpleNamespace(
+        id=1,
+        type="jira",
+        url="https://example.atlassian.net",
+        username="user@example.com",
+        token="tok",
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         clients = await init_mcp_clients_for_sources([src])
@@ -90,7 +97,13 @@ async def test_jira_source_spawns_mcp_atlassian_with_cloud_env():
 
 @pytest.mark.asyncio
 async def test_confluence_source_appends_wiki_suffix():
-    src = SimpleNamespace(id=2, type="confluence", url="https://example.atlassian.net", username="user@example.com", token="tok")
+    src = SimpleNamespace(
+        id=2,
+        type="confluence",
+        url="https://example.atlassian.net",
+        username="user@example.com",
+        token="tok",
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         await init_mcp_clients_for_sources([src])
@@ -101,7 +114,13 @@ async def test_confluence_source_appends_wiki_suffix():
 
 @pytest.mark.asyncio
 async def test_confluence_source_does_not_double_append_wiki_suffix():
-    src = SimpleNamespace(id=3, type="confluence", url="https://example.atlassian.net/wiki", username="user@example.com", token="tok")
+    src = SimpleNamespace(
+        id=3,
+        type="confluence",
+        url="https://example.atlassian.net/wiki",
+        username="user@example.com",
+        token="tok",
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         await init_mcp_clients_for_sources([src])
@@ -117,7 +136,10 @@ async def test_confluence_source_does_not_double_append_wiki_suffix():
         ("https://example.jira.com", True),
         ("https://api.atlassian.com", True),
         ("https://confluence.drv.example", False),
-        ("https://confluence.drv.example/wiki", False),  # a customer-chosen path, not the Cloud convention
+        (
+            "https://confluence.drv.example/wiki",
+            False,
+        ),  # a customer-chosen path, not the Cloud convention
         ("http://localhost:8090", False),
         ("http://10.0.0.5", False),
     ],
@@ -128,7 +150,9 @@ def test_is_atlassian_cloud_url_distinguishes_cloud_from_server_dc(url, expected
 
 @pytest.mark.asyncio
 async def test_jira_server_dc_source_uses_personal_token_when_no_username():
-    src = SimpleNamespace(id=6, type="jira", url="https://jira.drv.example", username=None, token="pat-123")
+    src = SimpleNamespace(
+        id=6, type="jira", url="https://jira.drv.example", username=None, token="pat-123"
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         await init_mcp_clients_for_sources([src])
@@ -141,7 +165,9 @@ async def test_jira_server_dc_source_uses_personal_token_when_no_username():
 
 @pytest.mark.asyncio
 async def test_jira_server_dc_source_with_username_falls_back_to_basic_auth():
-    src = SimpleNamespace(id=7, type="jira", url="https://jira.drv.example", username="svc-account", token="tok")
+    src = SimpleNamespace(
+        id=7, type="jira", url="https://jira.drv.example", username="svc-account", token="tok"
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         await init_mcp_clients_for_sources([src])
@@ -155,7 +181,13 @@ async def test_jira_server_dc_source_with_username_falls_back_to_basic_auth():
 
 @pytest.mark.asyncio
 async def test_confluence_server_dc_source_does_not_append_wiki_suffix():
-    src = SimpleNamespace(id=8, type="confluence", url="https://confluence.drv.example", username=None, token="pat-123")
+    src = SimpleNamespace(
+        id=8,
+        type="confluence",
+        url="https://confluence.drv.example",
+        username=None,
+        token="pat-123",
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         MockClient.return_value.start = AsyncMock(return_value=True)
         await init_mcp_clients_for_sources([src])
@@ -168,7 +200,13 @@ async def test_confluence_server_dc_source_does_not_append_wiki_suffix():
 
 @pytest.mark.asyncio
 async def test_sources_without_a_token_are_skipped():
-    src = SimpleNamespace(id=5, type="jira", url="https://example.atlassian.net", username="user@example.com", token=None)
+    src = SimpleNamespace(
+        id=5,
+        type="jira",
+        url="https://example.atlassian.net",
+        username="user@example.com",
+        token=None,
+    )
     with patch("mcp_client.MCPClient") as MockClient:
         clients = await init_mcp_clients_for_sources([src])
         assert clients == []

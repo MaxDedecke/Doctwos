@@ -33,10 +33,14 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
         errors.append("Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.")
         return edges, errors
 
-    local_names = {p.name.upper() for p in program.paragraphs} | {s.name.upper() for s in program.sections}
+    local_names = {p.name.upper() for p in program.paragraphs} | {
+        s.name.upper() for s in program.sections
+    }
 
     proc_tokens = [
-        t for t in tokens if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
+        t
+        for t in tokens
+        if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
     ]
     n = len(proc_tokens)
 
@@ -63,7 +67,11 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
             continue
 
         if tok.kind == "WORD" and tok.value.upper() == "PERFORM":
-            if nxt is not None and nxt.kind == "WORD" and nxt.value.upper() not in _PERFORM_INLINE_KEYWORDS:
+            if (
+                nxt is not None
+                and nxt.kind == "WORD"
+                and nxt.value.upper() not in _PERFORM_INLINE_KEYWORDS
+            ):
                 end_idx = i + 1
                 meta: dict = {}
                 thru_idx = i + 2
@@ -84,7 +92,9 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         dst_name=nxt.value,
                         resolution="resolved" if resolved else "unresolved",
                         src_start_line=tok.phys_line,
-                        src_end_line=_statement_end_line(proc_tokens, end_idx, proc_tokens[end_idx].phys_line),
+                        src_end_line=_statement_end_line(
+                            proc_tokens, end_idx, proc_tokens[end_idx].phys_line
+                        ),
                         scope=program.name,
                         meta=meta,
                     )
@@ -95,7 +105,11 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
         if tok.kind == "WORD" and tok.value.upper() == "GO" and _word_at(proc_tokens, i + 1, "TO"):
             j = i + 2
             targets: list[Token] = []
-            while j < n and proc_tokens[j].kind == "WORD" and proc_tokens[j].value.upper() != "DEPENDING":
+            while (
+                j < n
+                and proc_tokens[j].kind == "WORD"
+                and proc_tokens[j].value.upper() != "DEPENDING"
+            ):
                 targets.append(proc_tokens[j])
                 j += 1
             end_line = _statement_end_line(proc_tokens, i + 2, tok.phys_line)

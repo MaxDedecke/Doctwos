@@ -8,6 +8,7 @@ installs the GPL original — this test guards against a future
 version bump breaking the one call site (`mcp_atlassian.jira.users.
 normalize_text`) our shim stands in for.
 """
+
 import importlib.metadata
 
 import unidecode as unidecode_module

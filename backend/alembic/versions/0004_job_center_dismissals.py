@@ -16,8 +16,15 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("kind", sa.String(), nullable=False),
         sa.Column("job_id", sa.Integer(), nullable=False),
-        sa.Column("dismissed_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("dismissed_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "dismissed_by_user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "dismissed_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.UniqueConstraint("kind", "job_id", name="uq_job_center_dismissals_kind_job"),
     )
     op.create_index("ix_job_center_dismissals_id", "job_center_dismissals", ["id"])

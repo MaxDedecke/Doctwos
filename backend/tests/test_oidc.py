@@ -172,7 +172,9 @@ def test_verify_state_cookie_rejects_expired_cookie(monkeypatch):
 def test_exchange_code_accepts_a_validly_signed_token(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
     id_token = _sign(rsa_jwk, _valid_claims())
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     claims = oidc.exchange_code("some-code", expected_nonce="expected-nonce")
 
@@ -183,7 +185,9 @@ def test_exchange_code_accepts_a_validly_signed_token(monkeypatch, rsa_jwk):
 def test_exchange_code_rejects_wrong_issuer(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
     id_token = _sign(rsa_jwk, _valid_claims(iss="https://not-the-configured-idp.example.com"))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -192,7 +196,9 @@ def test_exchange_code_rejects_wrong_issuer(monkeypatch, rsa_jwk):
 def test_exchange_code_rejects_wrong_audience(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
     id_token = _sign(rsa_jwk, _valid_claims(aud="some-other-client"))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -202,7 +208,9 @@ def test_exchange_code_rejects_expired_token(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
     now = int(time.time())
     id_token = _sign(rsa_jwk, _valid_claims(iat=now - 600, exp=now - 300))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -220,7 +228,9 @@ def test_exchange_code_rejects_token_signed_by_unknown_key(monkeypatch, rsa_jwk)
     )
     other_jwk = RSAKey.import_key(other_pem, {"kid": "test-key"})
     id_token = _sign(other_jwk, _valid_claims())
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -229,7 +239,9 @@ def test_exchange_code_rejects_token_signed_by_unknown_key(monkeypatch, rsa_jwk)
 def test_exchange_code_rejects_nonce_mismatch(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
     id_token = _sign(rsa_jwk, _valid_claims(nonce="a-different-nonce"))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -237,7 +249,9 @@ def test_exchange_code_rejects_nonce_mismatch(monkeypatch, rsa_jwk):
 
 def test_exchange_code_rejects_non_200_token_response(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(status_code=400)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(status_code=400))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -245,7 +259,9 @@ def test_exchange_code_rejects_non_200_token_response(monkeypatch, rsa_jwk):
 
 def test_exchange_code_rejects_missing_id_token(monkeypatch, rsa_jwk):
     _patch_discovery(monkeypatch, _jwks_for(rsa_jwk))
-    monkeypatch.setattr(oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=None)))
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=None))
+    )
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
@@ -267,7 +283,9 @@ def test_exchange_code_handles_unreachable_token_endpoint(monkeypatch, rsa_jwk):
 @pytest.fixture
 def cleanup_oidc_users(db_session):
     def _delete():
-        db_session.query(User).filter(User.oidc_subject.like("test-oidc-%")).delete(synchronize_session=False)
+        db_session.query(User).filter(User.oidc_subject.like("test-oidc-%")).delete(
+            synchronize_session=False
+        )
         db_session.commit()
 
     _delete()
@@ -302,7 +320,9 @@ def test_provision_or_link_user_finds_the_same_user_again(db_session, cleanup_oi
 
 
 def test_provision_or_link_user_resolves_username_collisions(db_session, cleanup_oidc_users):
-    existing = User(username="collide", password_hash="$argon2id$v=19$m=65536,t=3,p=4$x$y", role="user")
+    existing = User(
+        username="collide", password_hash="$argon2id$v=19$m=65536,t=3,p=4$x$y", role="user"
+    )
     db_session.add(existing)
     db_session.commit()
     try:

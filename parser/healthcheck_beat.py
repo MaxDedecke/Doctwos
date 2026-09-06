@@ -7,6 +7,7 @@ answered by workers), so the only way to tell "beat process died" from
 running. Exits 0 if found, 1 otherwise — used as docker-compose's
 healthcheck test for the parser-beat service.
 """
+
 import os
 import sys
 

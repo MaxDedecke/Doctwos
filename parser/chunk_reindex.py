@@ -61,24 +61,33 @@ async def reindex_chunks_preserving_links(
     Returns the number of chunks successfully embedded and stored.
     """
     if (source_id is None) == (project_id is None):
-        raise ValueError("reindex_chunks_preserving_links requires exactly one of source_id or project_id")
+        raise ValueError(
+            "reindex_chunks_preserving_links requires exactly one of source_id or project_id"
+        )
     scope: ColumnElement = (
-        DocumentChunk.source_id == source_id if source_id is not None
+        DocumentChunk.source_id == source_id
+        if source_id is not None
         else DocumentChunk.project_id == project_id
     )
 
-    old_chunks = db.query(DocumentChunk).filter(
-        scope,
-        DocumentChunk.file_path == file_path,
-    ).all()
+    old_chunks = (
+        db.query(DocumentChunk)
+        .filter(
+            scope,
+            DocumentChunk.file_path == file_path,
+        )
+        .all()
+    )
     old_chunk_ids = [c.id for c in old_chunks]
 
     links_by_old_fingerprint: dict[str, list[EntityDocLink]] = {}
     if old_chunks:
         old_fingerprint_by_chunk_id = {c.id: content_fingerprint(c.content) for c in old_chunks}
-        affected_links = db.query(EntityDocLink).filter(
-            EntityDocLink.chunk_id.in_(old_fingerprint_by_chunk_id.keys())
-        ).all()
+        affected_links = (
+            db.query(EntityDocLink)
+            .filter(EntityDocLink.chunk_id.in_(old_fingerprint_by_chunk_id.keys()))
+            .all()
+        )
         for link in affected_links:
             fp = old_fingerprint_by_chunk_id.get(link.chunk_id)
             if fp:
@@ -107,7 +116,9 @@ async def reindex_chunks_preserving_links(
             try:
                 embedding = await embed_content(chunk["content"])
                 if not embedding:
-                    raise ValueError("Embedding-Modell lieferte leeren Vektor (vermutlich whitespace-/leerer Chunk-Inhalt)")
+                    raise ValueError(
+                        "Embedding-Modell lieferte leeren Vektor (vermutlich whitespace-/leerer Chunk-Inhalt)"
+                    )
             except Exception as e:
                 if on_embed_error:
                     on_embed_error(chunk, e)
@@ -139,8 +150,8 @@ async def reindex_chunks_preserving_links(
 
     # Target the old rows by id, not by (scope, file_path): the new rows just
     # inserted above share that same (scope, file_path) and must survive.
-    db.query(DocumentChunk).filter(
-        DocumentChunk.id.in_(old_chunk_ids)
-    ).delete(synchronize_session=False)
+    db.query(DocumentChunk).filter(DocumentChunk.id.in_(old_chunk_ids)).delete(
+        synchronize_session=False
+    )
 
     return embedded_count

@@ -62,7 +62,9 @@ async def health(response: Response):
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{cfg.OLLAMA_BASE_URL}/api/tags")
-            checks["ollama"] = "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+            checks["ollama"] = (
+                "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+            )
     except Exception as e:
         checks["ollama"] = f"error: {e}"
 

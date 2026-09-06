@@ -44,7 +44,9 @@ def test_source(db_session):
         {"name": "doc-reindex-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "doc-reindex-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -94,7 +96,9 @@ async def test_reindex_rewires_approved_link_when_content_unchanged(db_session, 
 
     try:
         await process_local_document_async(source.id, file_path)
-        first_chunk = db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        first_chunk = (
+            db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        )
         first_chunk_id = first_chunk.id
 
         link = EntityDocLink(
@@ -112,7 +116,9 @@ async def test_reindex_rewires_approved_link_when_content_unchanged(db_session, 
         await process_local_document_async(source.id, file_path)
 
         db_session.expire_all()
-        second_chunk = db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        second_chunk = (
+            db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        )
         assert second_chunk.id != first_chunk_id
 
         refreshed = db_session.query(EntityDocLink).filter(EntityDocLink.id == link_id).one()
@@ -124,13 +130,17 @@ async def test_reindex_rewires_approved_link_when_content_unchanged(db_session, 
 
 @pytest.mark.anyio
 @requires_ollama
-async def test_reindex_resets_approved_link_to_pending_when_content_changes(db_session, test_source):
+async def test_reindex_resets_approved_link_to_pending_when_content_changes(
+    db_session, test_source
+):
     source, project_id, entity = test_source
     file_path = _write_temp_txt("Brandschutznachweis Abschnitt 4.2: Feuerwiderstand EI 90.")
 
     try:
         await process_local_document_async(source.id, file_path)
-        first_chunk = db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        first_chunk = (
+            db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).one()
+        )
 
         link = EntityDocLink(
             project_id=project_id,

@@ -30,7 +30,7 @@ def test_detect_format_fixed_via_column_seven_indicator():
 
 def test_split_fixed_minimal_produces_one_logical_line_per_statement():
     lines = source_format.split_logical_lines(_read("01_minimal.cbl"), "fixed")
-    assert [l.text for l in lines] == [
+    assert [line.text for line in lines] == [
         "IDENTIFICATION DIVISION.",
         "PROGRAM-ID. MINIMAL.",
         "PROCEDURE DIVISION.",
@@ -38,9 +38,9 @@ def test_split_fixed_minimal_produces_one_logical_line_per_statement():
         "DISPLAY 'HELLO'.",
         "STOP RUN.",
     ]
-    for l in lines:
-        assert l.phys_start_line == l.phys_end_line
-        assert not l.is_comment
+    for line in lines:
+        assert line.phys_start_line == line.phys_end_line
+        assert not line.is_comment
 
 
 def test_split_fixed_comment_indicator():
@@ -61,13 +61,13 @@ def test_split_fixed_debug_indicator_is_excluded_from_code():
 
 def test_split_fixed_truncates_after_column_72():
     lines = source_format.split_logical_lines(_read("02_fixed_edge.cbl"), "fixed")
-    display_line = next(l for l in lines if l.text.startswith("DISPLAY"))
+    display_line = next(line for line in lines if line.text.startswith("DISPLAY"))
     assert "IGNOREME" not in display_line.text
 
 
 def test_split_fixed_continuation_merges_into_one_logical_line():
     lines = source_format.split_logical_lines(_read("02_fixed_edge.cbl"), "fixed")
-    display_line = next(l for l in lines if l.text.startswith("DISPLAY"))
+    display_line = next(line for line in lines if line.text.startswith("DISPLAY"))
     assert display_line.phys_start_line == 5
     assert display_line.phys_end_line == 6
     assert display_line.text == (
@@ -80,18 +80,18 @@ def test_split_fixed_continuation_drops_leading_resume_quote():
     # Fortsetzung des offenen Literals markiert - es darf nicht Teil des
     # Literalwerts werden (sonst zwei Anfuehrungszeichen mitten im Text).
     lines = source_format.split_logical_lines(_read("02_fixed_edge.cbl"), "fixed")
-    display_line = next(l for l in lines if l.text.startswith("DISPLAY"))
+    display_line = next(line for line in lines if line.text.startswith("DISPLAY"))
     assert "''" not in display_line.text
 
 
 def test_split_free_strips_inline_comment_but_keeps_code():
     lines = source_format.split_logical_lines(_read("03_free_format.cbl"), "free")
-    display_line = next(l for l in lines if l.text.startswith("display"))
+    display_line = next(line for line in lines if line.text.startswith("display"))
     assert display_line.text == "display 'hello'"
     assert "Begruessung" not in display_line.text
 
 
 def test_split_free_each_physical_line_is_its_own_logical_line():
     lines = source_format.split_logical_lines(_read("03_free_format.cbl"), "free")
-    for l in lines:
-        assert l.phys_start_line == l.phys_end_line
+    for line in lines:
+        assert line.phys_start_line == line.phys_end_line

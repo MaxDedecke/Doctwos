@@ -14,6 +14,7 @@ Revision ID: 0002_source_context_note
 Revises: 0001_doctus_baseline
 Create Date: 2026-08-08
 """
+
 from alembic import op
 import sqlalchemy as sa
 

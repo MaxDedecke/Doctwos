@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Editor from '@monaco-editor/react';
+import type { editor as MonacoEditor } from 'monaco-editor';
 import { AnimatePresence } from 'framer-motion';
 
 import {
@@ -584,7 +585,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     };
   }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t, selectedEntity]);
 
-  const handleEditorDidMountLocal = (editor: any, monaco: any) => {
+  const handleEditorDidMountLocal = (editor: MonacoEditor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
     // Assign through the concrete ref rather than the `editorRef || localEditorRef`
     // merge (activeEditorRef) — the merge isn't statically provable as a ref by
     // the compiler, which then treats writing through it as mutating a plain value.

@@ -1,0 +1,17 @@
+required-version = "==0.16.6"
+target-version = "py311"
+line-length = 100
+force-exclude = true
+extend-exclude = [
+    # Generated from the upstream grammar; regenerate instead of editing.
+    "parser/cobol/_antlr",
+    # Historical experiment, not part of the application (O-065).
+    "parser/spikes",
+]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# Logging must be configured before importing routers and their dependencies.
+"backend/main.py" = ["E402"]

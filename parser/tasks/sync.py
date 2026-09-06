@@ -13,7 +13,6 @@ Neuen Connector-Typ unterstützen:
     Kein Anpassen dieser Datei nötig.
 """
 
-import asyncio
 import logging
 
 from connectors.registry import get_connector
@@ -46,7 +45,7 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
         if source.sync_status == "cancelled":
             logger.info(f"[Sync] KnowledgeSource {source_id} wurde vor dem Start abgebrochen.")
             return
-        
+
         source_type = source.type
         connector_cls = get_connector(source_type)
         connector = connector_cls(source_id)
@@ -60,28 +59,38 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
         # Semantische Verknüpfungen mit Code-Entities neu berechnen, falls sich Chunks geändert haben
         if source.project_id and getattr(connector, "has_changes", False):
             from celery import current_app as celery_app
-            link_run = LinkBuilderRun(task_type="entity_links", project_id=source.project_id, status="pending")
+
+            link_run = LinkBuilderRun(
+                task_type="entity_links", project_id=source.project_id, status="pending"
+            )
             db.add(link_run)
             db.commit()
             db.refresh(link_run)
-            result = celery_app.send_task("compute_entity_links", args=[link_run.id, source.project_id])
+            result = celery_app.send_task(
+                "compute_entity_links", args=[link_run.id, source.project_id]
+            )
             if getattr(result, "id", None):
                 link_run.celery_task_id = result.id
                 db.commit()
-            logger.info(f"[Sync] Link-Berechnung für Projekt {source.project_id} gestartet, da Änderungen vorliegen.")
+            logger.info(
+                f"[Sync] Link-Berechnung für Projekt {source.project_id} gestartet, da Änderungen vorliegen."
+            )
 
     except Exception as e:
         error_msg = str(e)
         logger.error(f"[Sync] Kritischer Fehler für Source {source_id}: {error_msg}")
-        
+
         # Falls der Fehler VOR connector.sync() passiert ist (z.B. get_connector failed),
         # müssen wir hier manuell in die DB loggen, damit der User es im Frontend sieht.
         if source:
             from datetime import datetime, timezone
-            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             source.sync_status = "error"
             source.last_error = error_msg
-            source.sync_log = (source.sync_log or "") + f"[{timestamp}] Initialisierungs-Fehler: {error_msg}\n"
+            source.sync_log = (
+                source.sync_log or ""
+            ) + f"[{timestamp}] Initialisierungs-Fehler: {error_msg}\n"
             db.commit()
     finally:
         db.close()

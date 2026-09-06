@@ -222,9 +222,7 @@ def provision_or_link_user(claims: dict, db: Session) -> User:
 
     email = claims.get("email")
     base_candidate = (
-        (email.split("@")[0] if email else None)
-        or claims.get("preferred_username")
-        or subject
+        (email.split("@")[0] if email else None) or claims.get("preferred_username") or subject
     )
     username = _unique_username(db, _slugify_username(base_candidate))
     name = claims.get("name") or email or username

@@ -100,10 +100,13 @@ def _warmup_antlr_cobol_parser(**kwargs):
 
         t0 = time.monotonic()
         _antlr_warmup()
-        logging.getLogger(__name__).info("ANTLR-COBOL-Warmup abgeschlossen (%.3fs).", time.monotonic() - t0)
+        logging.getLogger(__name__).info(
+            "ANTLR-COBOL-Warmup abgeschlossen (%.3fs).", time.monotonic() - t0
+        )
     except Exception:
         logging.getLogger(__name__).warning(
-            "ANTLR-COBOL-Warmup fehlgeschlagen - kein Blocker, nur langsamerer erster Parse.", exc_info=True
+            "ANTLR-COBOL-Warmup fehlgeschlagen - kein Blocker, nur langsamerer erster Parse.",
+            exc_info=True,
         )
 
 
@@ -123,9 +126,6 @@ app.conf.beat_schedule = {
 }
 
 
-
-
-
 @app.task(name="process_local_document", bind=True)
 def process_local_document(task, source_id: int, file_path: str, trace_id: str | None = None):
     """Celery-Task: Hochgeladenes lokales Dokument (PDF, Word, Text) parsen und einbetten."""
@@ -136,7 +136,9 @@ def process_local_document(task, source_id: int, file_path: str, trace_id: str |
 
 
 @app.task(name="process_knowledge_source", bind=True)
-def process_knowledge_source(task, source_id: int, force_reindex: bool = False, trace_id: str | None = None):
+def process_knowledge_source(
+    task, source_id: int, force_reindex: bool = False, trace_id: str | None = None
+):
     """
     Celery-Task: Wissensquelle synchronisieren (einheitlicher Task für alle Typen).
 
@@ -160,6 +162,7 @@ def process_knowledge_source(task, source_id: int, force_reindex: bool = False, 
 # Alte Task-Namen bleiben als Aliases erhalten, bis der Backend vollständig auf
 # "process_knowledge_source" umgestellt ist. Danach können diese entfernt werden.
 
+
 @app.task(name="process_confluence_source", bind=True)
 def process_confluence_source(task, source_id: int):
     _register_task_id(KnowledgeSource, source_id, task.request.id)
@@ -175,7 +178,13 @@ def process_jira_source(task, source_id: int):
 
 
 @app.task(name="compute_entity_links", bind=True)
-def compute_entity_links(task, run_id: int, project_id: int, trace_id: str | None = None, min_confidence: int | None = None):
+def compute_entity_links(
+    task,
+    run_id: int,
+    project_id: int,
+    trace_id: str | None = None,
+    min_confidence: int | None = None,
+):
     """
     Celery-Task: Semantische Verknüpfungen zwischen Code-Entities und Wissens-Chunks
     berechnen (3 Passes: semantisch, keyword, syntaktisch). Erzeugt pending-Empfehlungen
@@ -193,7 +202,9 @@ def compute_entity_links(task, run_id: int, project_id: int, trace_id: str | Non
 
 
 @app.task(name="compute_knowledge_links", bind=True)
-def compute_knowledge_links(task, run_id: int, trace_id: str | None = None, min_confidence: int | None = None):
+def compute_knowledge_links(
+    task, run_id: int, trace_id: str | None = None, min_confidence: int | None = None
+):
     """
     Celery-Task: Cross-Source Analyse starten. Findet semantische Verknüpfungen
     über alle Wissensquellen und Repositories hinweg. Fortschritt/Ergebnis werden

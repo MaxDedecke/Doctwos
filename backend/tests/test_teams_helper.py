@@ -28,14 +28,21 @@ def test_is_admin_false_for_regular_user():
 
 
 def test_get_visible_team_ids_returns_none_for_admin(db_session):
-    user = User(username="helper-admin-2", email="admin2@example.com", name="Admin", role="superuser")
+    user = User(
+        username="helper-admin-2", email="admin2@example.com", name="Admin", role="superuser"
+    )
     assert get_visible_team_ids(user, db_session) is None
 
 
 def test_get_visible_team_ids_returns_only_member_teams(db_session, two_teams):
     team_a, team_b = two_teams
-    user = User(username="helper-member", email="member@example.com", name="Member",
-                password_hash="x", role="user")
+    user = User(
+        username="helper-member",
+        email="member@example.com",
+        name="Member",
+        password_hash="x",
+        role="user",
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -53,8 +60,13 @@ def test_get_visible_team_ids_returns_only_member_teams(db_session, two_teams):
 
 
 def test_get_visible_team_ids_empty_list_for_user_with_no_teams(db_session):
-    user = User(username="helper-orphan", email="orphan@example.com", name="Orphan",
-                password_hash="x", role="user")
+    user = User(
+        username="helper-orphan",
+        email="orphan@example.com",
+        name="Orphan",
+        password_hash="x",
+        role="user",
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)

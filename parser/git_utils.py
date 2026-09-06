@@ -37,7 +37,12 @@ class GitCommandError(RuntimeError):
 def _partial_clone_unsupported(error: GitCommandError) -> bool:
     """Return whether a Git server rejected the partial-clone filter."""
     message = str(error).lower()
-    return bool(re.search(r"filter.*(not supported|unsupported|not recognized)|(?:does not|do not) support.*filter", message))
+    return bool(
+        re.search(
+            r"filter.*(not supported|unsupported|not recognized)|(?:does not|do not) support.*filter",
+            message,
+        )
+    )
 
 
 def _redact_command_arg(value: str) -> str:
@@ -45,7 +50,15 @@ def _redact_command_arg(value: str) -> str:
     parsed = urlsplit(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or "@" not in parsed.netloc:
         return value
-    return urlunsplit((parsed.scheme, parsed.netloc.rsplit("@", 1)[-1], parsed.path, parsed.query, parsed.fragment))
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc.rsplit("@", 1)[-1],
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
 
 
 def _run(args: list[str]) -> str:
@@ -96,7 +109,9 @@ def ensure_bare_mirror(repos_root: str, fingerprint: str, auth_url: str, log=Non
         if not (PARTIAL_CLONE and _partial_clone_unsupported(error)):
             raise
         if log:
-            log("Remote unterstützt keinen Partial Clone; vollständiger Bare-Mirror wird verwendet.")
+            log(
+                "Remote unterstützt keinen Partial Clone; vollständiger Bare-Mirror wird verwendet."
+            )
         # Git may leave a partially initialized directory behind after clone fails.
         shutil.rmtree(path, ignore_errors=True)
         _run(["git", "clone", "--bare", "--no-tags", auth_url, path])
@@ -137,11 +152,13 @@ def remote_default_branch(url: str) -> str | None:
     output = _run(["git", "ls-remote", "--symref", url, "HEAD"])
     for line in output.splitlines():
         if line.startswith("ref: refs/heads/") and line.endswith("\tHEAD"):
-            return line[len("ref: refs/heads/"):-len("\tHEAD")]
+            return line[len("ref: refs/heads/") : -len("\tHEAD")]
     return None
 
 
-def ensure_worktree(bare: str, wt: str, branch: str, sparse_paths: list[str] | None = None, log=None) -> None:
+def ensure_worktree(
+    bare: str, wt: str, branch: str, sparse_paths: list[str] | None = None, log=None
+) -> None:
     """Legt den Worktree beim ersten Sync einer Wissensquelle an, immer mit
     losgelöstem HEAD (`--detach`) statt eines benannten Branch-Checkouts.
 

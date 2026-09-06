@@ -25,13 +25,12 @@ Pagination:
 import io
 import re
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from html.parser import HTMLParser
 
 import httpx
 
 from connectors.base import BaseConnector, Document
-from db import SessionLocal
 from models.database import DocumentChunk
 
 ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
@@ -55,10 +54,27 @@ class _ConfluenceHTMLParser(HTMLParser):
     - <pre>/<code> content kept verbatim (no whitespace collapsing inside)
     """
 
-    _BLOCK = frozenset({
-        "p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6",
-        "blockquote", "ul", "ol", "table", "thead", "tbody", "pre",
-    })
+    _BLOCK = frozenset(
+        {
+            "p",
+            "div",
+            "li",
+            "tr",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "blockquote",
+            "ul",
+            "ol",
+            "table",
+            "thead",
+            "tbody",
+            "pre",
+        }
+    )
     _SKIP = frozenset({"script", "style", "ac:parameter"})
 
     def __init__(self):
@@ -125,6 +141,7 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
     if mime == "application/pdf":
         try:
             from pypdf import PdfReader
+
             reader = PdfReader(io.BytesIO(data))
             pages = [page.extract_text() or "" for page in reader.pages]
             return "\n\n".join(p.strip() for p in pages if p.strip()) or None
@@ -137,6 +154,7 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
     ):
         try:
             from docx import Document as DocxDoc
+
             doc = DocxDoc(io.BytesIO(data))
             paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
             return "\n\n".join(paragraphs) or None
@@ -154,7 +172,9 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
 
 def _is_supported_mime(mime_type: str) -> bool:
     mime = (mime_type or "").split(";")[0].strip().lower()
-    return mime in _SUPPORTED_MIME_EXACT or any(mime.startswith(p) for p in _SUPPORTED_MIME_PREFIXES)
+    return mime in _SUPPORTED_MIME_EXACT or any(
+        mime.startswith(p) for p in _SUPPORTED_MIME_PREFIXES
+    )
 
 
 class ConfluenceConnector(BaseConnector):
@@ -209,8 +229,11 @@ class ConfluenceConnector(BaseConnector):
                         continue
 
                     doc = self._build_document(page, base_url)
-                    self._update_progress(current_count, message=f"Verarbeite Seite '{page.get('title', '...')}' ({current_count})...")
-                    
+                    self._update_progress(
+                        current_count,
+                        message=f"Verarbeite Seite '{page.get('title', '...')}' ({current_count})...",
+                    )
+
                     if doc is None:
                         continue  # Leer oder unverändert
                     yield doc
@@ -303,10 +326,15 @@ class ConfluenceConnector(BaseConnector):
             try:
                 updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
                 if updated_at <= self.source.last_synced_at:
-                    chunks_exist = self.db.query(DocumentChunk).filter(
-                        DocumentChunk.source_id == self.source.id,
-                        DocumentChunk.file_path == title
-                    ).first() is not None
+                    chunks_exist = (
+                        self.db.query(DocumentChunk)
+                        .filter(
+                            DocumentChunk.source_id == self.source.id,
+                            DocumentChunk.file_path == title,
+                        )
+                        .first()
+                        is not None
+                    )
                     if chunks_exist:
                         return None
             except Exception as ex:
@@ -341,12 +369,13 @@ class ConfluenceConnector(BaseConnector):
         page_id = page.get("id")
         page_title = page.get("title", "Unbekannte Seite")
 
-        for path in [f"/wiki/rest/api/content/{page_id}/child/attachment",
-                     f"/rest/api/content/{page_id}/child/attachment"]:
+        for path in [
+            f"/wiki/rest/api/content/{page_id}/child/attachment",
+            f"/rest/api/content/{page_id}/child/attachment",
+        ]:
             try:
                 resp = await self._fetch_with_retry(
-                    client, f"{base_url}{path}", auth, headers,
-                    {"limit": 50, "expand": "version"}
+                    client, f"{base_url}{path}", auth, headers, {"limit": 50, "expand": "version"}
                 )
                 break
             except Exception:
@@ -362,7 +391,9 @@ class ConfluenceConnector(BaseConnector):
             filename = att.get("title", "attachment")
             file_size = att.get("extensions", {}).get("fileSize", 0)
             if file_size and file_size > ATTACHMENT_MAX_BYTES:
-                self._log(f"Anhang '{filename}' übersprungen (>{ATTACHMENT_MAX_BYTES // (1024*1024)} MB).")
+                self._log(
+                    f"Anhang '{filename}' übersprungen (>{ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB)."
+                )
                 continue
 
             # Delta-Sync: Anhang überspringen wenn unverändert und bereits indiziert
@@ -373,10 +404,12 @@ class ConfluenceConnector(BaseConnector):
                     updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
                     if updated_at <= self.source.last_synced_at:
                         from models.database import DocumentChunk as DC
-                        if self.db.query(DC).filter(
-                            DC.source_id == self.source.id,
-                            DC.file_path == storage_key
-                        ).first():
+
+                        if (
+                            self.db.query(DC)
+                            .filter(DC.source_id == self.source.id, DC.file_path == storage_key)
+                            .first()
+                        ):
                             continue
                 except Exception:
                     pass
@@ -387,8 +420,11 @@ class ConfluenceConnector(BaseConnector):
 
             try:
                 dl_resp = await client.get(
-                    f"{base_url}{download_path}", auth=auth, headers=headers,
-                    follow_redirects=True, timeout=60.0
+                    f"{base_url}{download_path}",
+                    auth=auth,
+                    headers=headers,
+                    follow_redirects=True,
+                    timeout=60.0,
                 )
                 dl_resp.raise_for_status()
             except Exception as e:
@@ -406,5 +442,9 @@ class ConfluenceConnector(BaseConnector):
                 url=att_url,
                 source_type="Confluence",
                 storage_key=storage_key,
-                extra_meta={"page_id": page_id, "attachment_filename": filename, "mime_type": mime_type},
+                extra_meta={
+                    "page_id": page_id,
+                    "attachment_filename": filename,
+                    "mime_type": mime_type,
+                },
             )

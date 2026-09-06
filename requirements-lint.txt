@@ -1,0 +1,2 @@
+# Development/CI only; keep local and CI checks on the same release.
+ruff==0.16.6

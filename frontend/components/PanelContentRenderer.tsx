@@ -58,7 +58,7 @@ type PanelContentRendererProps = {
   handleNavigateBack: () => Promise<void> | void;
   handleDocFocusRequest: (filePath: string, sourceId: number | string | null) => void;
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
-  chatEndRef: React.RefObject<HTMLDivElement | null>;
+  chatEndRef: React.RefObject<HTMLDivElement>;
   currentUser: any | null;
 };
 

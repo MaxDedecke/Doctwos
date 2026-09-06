@@ -98,10 +98,7 @@ def test_inline_perform_until_produces_no_edge_but_scans_its_body():
 
 
 def test_no_procedure_division_reports_error_without_crashing():
-    text = (
-        "       IDENTIFICATION DIVISION.\n"
-        "       PROGRAM-ID. NOPROC.\n"
-    )
+    text = "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. NOPROC.\n"
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)

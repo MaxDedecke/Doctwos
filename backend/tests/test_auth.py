@@ -44,6 +44,7 @@ def test_health_endpoint_does_not_require_auth(unauthenticated_client):
 # Cookie-Handling, und dass ein SSO-Konto (password_hash=None) den lokalen
 # Login sauber ablehnt statt abzustürzen.
 
+
 def _enable_oidc(monkeypatch):
     monkeypatch.setattr(cfg, "OIDC_ISSUER", "https://idp.example.com")
     monkeypatch.setattr(cfg, "OIDC_CLIENT_ID", "doctus-client")
@@ -67,7 +68,8 @@ def test_oidc_callback_returns_404_when_not_configured(unauthenticated_client):
 def test_oidc_login_redirects_to_idp_and_sets_state_cookie(unauthenticated_client, monkeypatch):
     _enable_oidc(monkeypatch)
     monkeypatch.setattr(
-        oidc_service, "build_authorization_url",
+        oidc_service,
+        "build_authorization_url",
         lambda: ("https://idp.example.com/auth?state=abc", "signed-state-cookie-value"),
     )
 
@@ -78,7 +80,9 @@ def test_oidc_login_redirects_to_idp_and_sets_state_cookie(unauthenticated_clien
     assert resp.cookies.get(oidc_service.OIDC_STATE_COOKIE_NAME) == "signed-state-cookie-value"
 
 
-def test_oidc_callback_establishes_a_session_on_success(unauthenticated_client, db_session, monkeypatch):
+def test_oidc_callback_establishes_a_session_on_success(
+    unauthenticated_client, db_session, monkeypatch
+):
     _enable_oidc(monkeypatch)
     user = User(
         username="test-oidc-callback-user",
@@ -89,10 +93,18 @@ def test_oidc_callback_establishes_a_session_on_success(unauthenticated_client, 
     db_session.add(user)
     db_session.commit()
     try:
-        monkeypatch.setattr(oidc_service, "verify_state_cookie", lambda cookie, state: "expected-nonce")
-        monkeypatch.setattr(oidc_service, "exchange_code", lambda code, expected_nonce: {"sub": "test-oidc-callback-sub"})
+        monkeypatch.setattr(
+            oidc_service, "verify_state_cookie", lambda cookie, state: "expected-nonce"
+        )
+        monkeypatch.setattr(
+            oidc_service,
+            "exchange_code",
+            lambda code, expected_nonce: {"sub": "test-oidc-callback-sub"},
+        )
         monkeypatch.setattr(oidc_service, "provision_or_link_user", lambda claims, db: user)
-        unauthenticated_client.cookies.set(oidc_service.OIDC_STATE_COOKIE_NAME, "irrelevant-because-mocked")
+        unauthenticated_client.cookies.set(
+            oidc_service.OIDC_STATE_COOKIE_NAME, "irrelevant-because-mocked"
+        )
 
         resp = unauthenticated_client.get(
             "/auth/oidc/callback", params={"code": "abc", "state": "xyz"}, follow_redirects=False
@@ -168,7 +180,9 @@ def test_change_password_rejects_sso_only_account(unauthenticated_client, db_ses
     db_session.commit()
     db_session.refresh(user)
     try:
-        unauthenticated_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(user.id))
+        unauthenticated_client.cookies.set(
+            SESSION_COOKIE_NAME, create_session_cookie_value(user.id)
+        )
         resp = unauthenticated_client.post(
             "/auth/change-password",
             json={"old_password": "whatever12345", "new_password": "somethingnew123"},

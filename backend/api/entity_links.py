@@ -24,10 +24,17 @@ from sqlalchemy.orm import Session
 import core.config as cfg
 from api.schemas import LinkStatusUpdate, LlmReviewRequest, ManualLinkCreate
 from api.serializers import serialize_link
-from core.config import celery_app
 from core.tracing import get_trace_id
 from core.db_setup import get_db
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, LinkBuilderRun, Project, User
+from models.database import (
+    CodeEntity,
+    DocumentChunk,
+    EntityDocLink,
+    KnowledgeSource,
+    LinkBuilderRun,
+    Project,
+    User,
+)
 from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
@@ -48,6 +55,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "links_created": run.links_created,
     }
 
+
 router = APIRouter(tags=["entity_links"])
 
 
@@ -57,7 +65,7 @@ def get_link_recommendations(
     status: Optional[str] = None,
     min_score: Optional[float] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -69,10 +77,10 @@ def get_link_recommendations(
     if status:
         q = q.filter(EntityDocLink.status == status)
     if min_score is not None:
-        q = q.filter(
-            (EntityDocLink.score >= min_score) | (EntityDocLink.score == None)
-        )
-    links = q.order_by(EntityDocLink.score.desc().nullslast(), EntityDocLink.created_at.desc()).all()
+        q = q.filter((EntityDocLink.score >= min_score) | EntityDocLink.score.is_(None))
+    links = q.order_by(
+        EntityDocLink.score.desc().nullslast(), EntityDocLink.created_at.desc()
+    ).all()
 
     # Preload entities for serialization to avoid N+1 queries
     entity_ids = {lnk.entity_id for lnk in links}
@@ -80,14 +88,20 @@ def get_link_recommendations(
 
     # Calculate counts for UI badges
     counts = {
-        "pending": db.query(EntityDocLink).filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "pending").count(),
-        "approved": db.query(EntityDocLink).filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "approved").count(),
-        "rejected": db.query(EntityDocLink).filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "rejected").count(),
+        "pending": db.query(EntityDocLink)
+        .filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "pending")
+        .count(),
+        "approved": db.query(EntityDocLink)
+        .filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "approved")
+        .count(),
+        "rejected": db.query(EntityDocLink)
+        .filter(EntityDocLink.project_id == project_id, EntityDocLink.status == "rejected")
+        .count(),
     }
 
     return {
         "counts": counts,
-        "links": [serialize_link(lnk, entities.get(lnk.entity_id)) for lnk in links]
+        "links": [serialize_link(lnk, entities.get(lnk.entity_id)) for lnk in links],
     }
 
 
@@ -96,7 +110,7 @@ def create_manual_link(
     project_id: int,
     body: ManualLinkCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -104,18 +118,24 @@ def create_manual_link(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    entity = db.query(CodeEntity).filter(
-        CodeEntity.id == body.entity_id, CodeEntity.project_id == project_id
-    ).first()
+    entity = (
+        db.query(CodeEntity)
+        .filter(CodeEntity.id == body.entity_id, CodeEntity.project_id == project_id)
+        .first()
+    )
     if not entity:
         raise HTTPException(status_code=404, detail="Code entity not found")
 
     # Duplicate check
-    existing = db.query(EntityDocLink).filter(
-        EntityDocLink.entity_id == body.entity_id,
-        EntityDocLink.doc_title == body.doc_title,
-        EntityDocLink.status == "approved"
-    ).first()
+    existing = (
+        db.query(EntityDocLink)
+        .filter(
+            EntityDocLink.entity_id == body.entity_id,
+            EntityDocLink.doc_title == body.doc_title,
+            EntityDocLink.status == "approved",
+        )
+        .first()
+    )
     if existing:
         raise HTTPException(status_code=409, detail="This link already exists")
 
@@ -129,7 +149,7 @@ def create_manual_link(
         link_type="manual",
         context=body.context,
         status="approved",
-        created_by="user"
+        created_by="user",
     )
     db.add(link)
     db.commit()
@@ -140,9 +160,14 @@ def create_manual_link(
 @router.post("/projects/{project_id}/link-recommendations/compute")
 def trigger_link_computation(
     project_id: int,
-    min_confidence: Optional[int] = Query(None, ge=0, le=100, description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidat als Vorschlag gespeichert wird."),
+    min_confidence: Optional[int] = Query(
+        None,
+        ge=0,
+        le=100,
+        description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidat als Vorschlag gespeichert wird.",
+    ),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -155,8 +180,7 @@ def trigger_link_computation(
     # den frisch berechneten Vorschlägen als Karteileichen liegen bleiben.
     # Approved/rejected Links bleiben unangetastet.
     db.query(EntityDocLink).filter(
-        EntityDocLink.project_id == project_id,
-        EntityDocLink.status == "pending"
+        EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
     ).delete(synchronize_session=False)
 
     run = LinkBuilderRun(task_type="entity_links", project_id=project_id, status="pending")
@@ -176,9 +200,7 @@ def trigger_link_computation(
 
 @router.get("/projects/{project_id}/link-builder-runs")
 def list_link_builder_runs(
-    project_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    project_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """
     History of /link-recommendations/compute invocations for a project (most
@@ -205,12 +227,12 @@ def update_link_status(
     link_id: int,
     body: LinkStatusUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     link = db.query(EntityDocLink).filter(EntityDocLink.id == link_id).first()
     if not link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
-    
+
     proj = db.query(Project).filter(Project.id == link.project_id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
@@ -237,7 +259,7 @@ async def llm_review_link(
     link_id: int,
     body: LlmReviewRequest = LlmReviewRequest(),
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     """
     Bewertet einen einzelnen Link erneut per LLM (auf Nutzer-Klick im Link Manager,
@@ -271,9 +293,16 @@ async def llm_review_link(
     if not entity:
         raise HTTPException(status_code=404, detail="Code-Entity nicht gefunden")
 
-    chunk = db.query(DocumentChunk).filter(DocumentChunk.id == link.chunk_id).first() if link.chunk_id else None
+    chunk = (
+        db.query(DocumentChunk).filter(DocumentChunk.id == link.chunk_id).first()
+        if link.chunk_id
+        else None
+    )
     if not chunk:
-        raise HTTPException(status_code=400, detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden")
+        raise HTTPException(
+            status_code=400,
+            detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden",
+        )
 
     prompt = (
         "Du bist ein Programmier- und Code-Dokumentations-Experte.\n"
@@ -310,14 +339,12 @@ async def llm_review_link(
 
 @router.delete("/entity-doc-links/{link_id}")
 def delete_link(
-    link_id: int,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    link_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     link = db.query(EntityDocLink).filter(EntityDocLink.id == link_id).first()
     if not link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
-    
+
     proj = db.query(Project).filter(Project.id == link.project_id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
@@ -334,7 +361,7 @@ def get_entity_links(
     project_id: int,
     entity_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -342,11 +369,16 @@ def get_entity_links(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    links = db.query(EntityDocLink).filter(
-        EntityDocLink.project_id == project_id,
-        EntityDocLink.entity_id == entity_id,
-        EntityDocLink.status == "approved"
-    ).order_by(EntityDocLink.score.desc().nullslast()).all()
+    links = (
+        db.query(EntityDocLink)
+        .filter(
+            EntityDocLink.project_id == project_id,
+            EntityDocLink.entity_id == entity_id,
+            EntityDocLink.status == "approved",
+        )
+        .order_by(EntityDocLink.score.desc().nullslast())
+        .all()
+    )
     return [serialize_link(lnk) for lnk in links]
 
 
@@ -355,7 +387,7 @@ def search_doc_chunks(
     project_id: int,
     q: str = "",
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_current_user),
 ):
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
@@ -363,15 +395,19 @@ def search_doc_chunks(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    source_ids = db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).subquery()
+    source_ids = (
+        db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).subquery()
+    )
     query = db.query(
         DocumentChunk.file_path, DocumentChunk.metadata_json, DocumentChunk.source_id
     ).filter(DocumentChunk.source_id.in_(source_ids))
     if q:
-        query = query.filter(or_(
-            DocumentChunk.file_path.ilike(f"%{q}%"),
-            DocumentChunk.metadata_json['title'].as_string().ilike(f"%{q}%"),
-        ))
+        query = query.filter(
+            or_(
+                DocumentChunk.file_path.ilike(f"%{q}%"),
+                DocumentChunk.metadata_json["title"].as_string().ilike(f"%{q}%"),
+            )
+        )
     rows = query.distinct(DocumentChunk.file_path).limit(20).all()
 
     results = []
@@ -380,9 +416,11 @@ def search_doc_chunks(
         title = (meta or {}).get("title") or file_path
         if title not in seen:
             seen.add(title)
-            results.append({
-                "title": title,
-                "url": (meta or {}).get("url"),
-                "source_type": (meta or {}).get("source_type")
-            })
+            results.append(
+                {
+                    "title": title,
+                    "url": (meta or {}).get("url"),
+                    "source_type": (meta or {}).get("source_type"),
+                }
+            )
     return results

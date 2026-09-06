@@ -18,11 +18,13 @@ class RepoCreate(BaseModel):
     username: Optional[str] = None
     token: Optional[str] = None
 
+
 class ProjectCreate(BaseModel):
     name: str
     description: Optional[str] = None
     team_id: Optional[int] = None
     color: Optional[str] = None
+
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -31,15 +33,19 @@ class ProjectUpdate(BaseModel):
     color: Optional[str] = None
     expose_code_analysis_globally: Optional[bool] = None
 
+
 class ProjectMembershipCreate(BaseModel):
     user_id: int
     role: str = "member"
 
+
 class ProjectMembershipRoleUpdate(BaseModel):
     role: str
 
+
 class ProjectAccessRequestUpdate(BaseModel):
     status: str  # "approved" | "rejected"
+
 
 class ProjectCompleteRequest(BaseModel):
     promote_source_ids: List[int] = []
@@ -63,7 +69,9 @@ class ChatRequest(BaseModel):
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
     metadata: Optional[dict] = None
-    retry_of_message_id: Optional[int] = None  # regenerate: replaces this assistant message instead of appending a new turn
+    retry_of_message_id: Optional[int] = (
+        None  # regenerate: replaces this assistant message instead of appending a new turn
+    )
 
 
 class ChatSessionCreate(BaseModel):
@@ -71,6 +79,7 @@ class ChatSessionCreate(BaseModel):
     impliziten Session-Erzeugung in POST /chat, die den Titel aus der ersten
     Nachricht ableitet. Deckt den Fall ab, dass ein Befund nur über mehrere
     Views (z.B. Graph + Code) entsteht, ohne den Chat je benutzt zu haben."""
+
     title: str
     project_id: Optional[int] = None
     source_id: Optional[int] = None
@@ -79,6 +88,7 @@ class ChatSessionCreate(BaseModel):
 
 class ChatSnapshotUpdate(BaseModel):
     """Content-/Navigationsstate des Workspace (Panels, offene Dateien/Docs/Entities) — s. buildWorkspaceSnapshot im Frontend."""
+
     snapshot: dict
 
 
@@ -88,6 +98,7 @@ class ChatMessageFeedbackUpdate(BaseModel):
 
 class ConnectorTestRequest(BaseModel):
     """Verbindungstest für Git- und Wissensquellen-Connectoren."""
+
     type: str  # 'github' | 'bitbucket' | 'gitlab' | 'confluence' | 'jira'
     username: Optional[str] = None
     token: str
@@ -118,8 +129,12 @@ class KnowledgeSourceCreate(BaseModel):
     project_id: Optional[int] = None
     spaces: Union[List[str], Dict[str, Any]] = []
     team_id: Optional[int] = None
-    sync_interval_minutes: Optional[int] = None  # Auto-Sync-Intervall; None → Server-Default (60), 0 → nur manuell
-    context_note: Optional[str] = None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
+    sync_interval_minutes: Optional[int] = (
+        None  # Auto-Sync-Intervall; None → Server-Default (60), 0 → nur manuell
+    )
+    context_note: Optional[str] = (
+        None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
+    )
 
 
 class FolderWatchCreate(BaseModel):
@@ -146,13 +161,19 @@ class KnowledgeSourceUpdate(BaseModel):
     # Beide Felder optional: der Endpunkt aktualisiert per model_dump(exclude_unset=True)
     # nur, was der Client tatsächlich mitschickt — sonst würde ein Speichern der
     # Kontext-Notiz allein das Sync-Intervall unbeabsichtigt auf den Default zurücksetzen.
-    sync_interval_minutes: Optional[int] = None  # 0 = nur manuell, sonst Auto-Sync-Intervall in Minuten
-    context_note: Optional[str] = None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
+    sync_interval_minutes: Optional[int] = (
+        None  # 0 = nur manuell, sonst Auto-Sync-Intervall in Minuten
+    )
+    context_note: Optional[str] = (
+        None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
+    )
 
 
 class LinkStatusUpdate(BaseModel):
-    status: Optional[str] = None    # "approved" | "rejected"
-    context: Optional[str] = None   # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt (F-032-Erweiterung)
+    status: Optional[str] = None  # "approved" | "rejected"
+    context: Optional[str] = (
+        None  # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt (F-032-Erweiterung)
+    )
 
 
 class LlmReviewRequest(BaseModel):
@@ -162,6 +183,7 @@ class LlmReviewRequest(BaseModel):
     (message, session_id, ...) hier nicht zutrifft. Default "ollama" hält
     bestehende Aufrufer ohne Body funktionsfähig (Backend bleibt zustandslos —
     Regel 3 in CLAUDE.md: der API-Key kommt im Request, nie aus Serverstate)."""
+
     llm_provider: Optional[str] = "ollama"
     llm_model: Optional[str] = None
     llm_api_key: Optional[str] = None
@@ -187,14 +209,14 @@ class KnowledgeLinkCreate(BaseModel):
     source_a_title: str
     source_a_url: Optional[str] = None
     source_a_source_type: Optional[str] = None
-    
+
     source_b_type: str  # 'entity' | 'document'
     source_b_entity_id: Optional[int] = None
     source_b_chunk_id: Optional[int] = None
     source_b_title: str
     source_b_url: Optional[str] = None
     source_b_source_type: Optional[str] = None
-    
+
     link_type: Optional[str] = "manual"
     status: Optional[str] = "approved"
     context: Optional[str] = None
@@ -202,8 +224,8 @@ class KnowledgeLinkCreate(BaseModel):
 
 
 class KnowledgeLinkUpdate(BaseModel):
-    status: Optional[str] = None    # "approved" | "rejected" | "pending"
-    context: Optional[str] = None   # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt
+    status: Optional[str] = None  # "approved" | "rejected" | "pending"
+    context: Optional[str] = None  # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt
 
 
 class TopicCreate(BaseModel):

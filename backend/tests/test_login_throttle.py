@@ -81,6 +81,7 @@ def no_redis(monkeypatch):
 
 # --- Backoff (reine Rechnung) ------------------------------------------------
 
+
 @pytest.mark.parametrize("failures", [0, 1, 3, 5])
 def test_first_attempts_are_free(failures):
     assert lt.lock_seconds_for(failures) == 0
@@ -99,6 +100,7 @@ def test_backoff_is_capped():
 
 
 # --- Redis-Zähler ------------------------------------------------------------
+
 
 def test_failures_are_counted_per_username_and_ip(fake_redis):
     for expected in (1, 2, 3):
@@ -158,6 +160,7 @@ def test_username_case_does_not_open_a_second_bucket(fake_redis):
 
 # --- Redis nicht erreichbar --------------------------------------------------
 
+
 def test_without_redis_the_db_counter_still_counts(no_redis):
     assert lt.register_failure("alice", "10.0.0.1", db_failed_count=4) == 4
     assert lt.remaining_lock_seconds("alice", "10.0.0.1") == 0
@@ -165,6 +168,7 @@ def test_without_redis_the_db_counter_still_counts(no_redis):
 
 
 # --- Client-IP ---------------------------------------------------------------
+
 
 def _request(headers, host="127.0.0.1"):
     return SimpleNamespace(headers=headers, client=SimpleNamespace(host=host))

@@ -82,7 +82,11 @@ def test_partial_clone_falls_back_to_full_clone(tmp_path, monkeypatch):
     assert calls[0][0:4] == ["git", "clone", "--bare", "--no-tags"]
     assert "--filter=blob:none" in calls[0]
     assert calls[1] == [
-        "git", "clone", "--bare", "--no-tags", "https://github.com/acme/repo.git",
+        "git",
+        "clone",
+        "--bare",
+        "--no-tags",
+        "https://github.com/acme/repo.git",
         git_utils.bare_path(str(tmp_path), fingerprint),
     ]
 
@@ -101,7 +105,15 @@ def test_partial_fetch_falls_back_to_unfiltered_fetch(monkeypatch):
 
     git_utils.fetch_branch("/repos/bare/repo.git", "main")
 
-    assert calls[0] == ["git", "-C", "/repos/bare/repo.git", "fetch", "--filter=blob:none", "origin", "main"]
+    assert calls[0] == [
+        "git",
+        "-C",
+        "/repos/bare/repo.git",
+        "fetch",
+        "--filter=blob:none",
+        "origin",
+        "main",
+    ]
     assert calls[1] == ["git", "-C", "/repos/bare/repo.git", "fetch", "origin", "main"]
     assert calls[2] == ["git", "-C", "/repos/bare/repo.git", "branch", "-f", "main", "FETCH_HEAD"]
 
@@ -147,7 +159,9 @@ def test_rename_resolves_to_delete_plus_add(remote, repos_root):
     git_utils.ensure_worktree(bare, wt, "main")
     c1 = git_utils.current_commit(wt)
 
-    subprocess.run(["git", "-C", remote, "mv", "PROG.CBL", "RENAMED.CBL"], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", remote, "mv", "PROG.CBL", "RENAMED.CBL"], check=True, capture_output=True
+    )
     subprocess.run(["git", "-C", remote, "commit", "-m", "rename"], check=True, capture_output=True)
     git_utils.fetch_branch(bare, "main")
     git_utils.reset_worktree_to_branch(wt, "main")

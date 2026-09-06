@@ -55,7 +55,9 @@ def create_local_user(
     return user, plain
 
 
-def set_password(db: Session, user: User, password: Optional[str] = None, commit: bool = True) -> str:
+def set_password(
+    db: Session, user: User, password: Optional[str] = None, commit: bool = True
+) -> str:
     """Setzt das Passwort neu und liefert den Klartext.
 
     Zugleich Entsperrung: der übliche Anlass eines Resets ist ein Nutzer, der sich

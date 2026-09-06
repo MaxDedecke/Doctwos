@@ -28,7 +28,15 @@ from sqlalchemy.orm import Session
 
 from core import config as cfg
 from core.db_setup import get_db
-from models.database import CodeEntity, EntityDocLink, KnowledgeLink, Project, Team, User, KnowledgeSource, DocumentChunk
+from models.database import (
+    CodeEntity,
+    EntityDocLink,
+    KnowledgeLink,
+    Project,
+    User,
+    KnowledgeSource,
+    DocumentChunk,
+)
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible
 from core.projects import (
@@ -60,7 +68,12 @@ def _entity_node(entity: CodeEntity) -> dict:
     }
 
 
-def _doc_node(title: str, source_type: Optional[str], url: Optional[str], chunk: Optional[DocumentChunk] = None) -> dict:
+def _doc_node(
+    title: str,
+    source_type: Optional[str],
+    url: Optional[str],
+    chunk: Optional[DocumentChunk] = None,
+) -> dict:
     """Creates a graph node format for an external knowledge document.
 
     `chunk` carries the metadata_json und den echten file_path (der `#<suffix>`-Teil
@@ -113,8 +126,16 @@ def _is_source_visible(
     )
 
 
-def _side_node_id(nodes: dict, db: Session, side_type: str, entity_id: Optional[int], chunk_id: Optional[int],
-                   title: str, source_type: Optional[str], url: Optional[str]) -> Optional[str]:
+def _side_node_id(
+    nodes: dict,
+    db: Session,
+    side_type: str,
+    entity_id: Optional[int],
+    chunk_id: Optional[int],
+    title: str,
+    source_type: Optional[str],
+    url: Optional[str],
+) -> Optional[str]:
     """Resolves one side of a generic KnowledgeLink ('entity' | 'document') into a graph node,
     inserting it into `nodes` if not already present, and returns its node id."""
     if side_type == "entity" and entity_id is not None:
@@ -124,7 +145,9 @@ def _side_node_id(nodes: dict, db: Session, side_type: str, entity_id: Optional[
         nid = f"entity:{entity.id}"
         nodes.setdefault(nid, _entity_node(entity))
         return nid
-    chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first() if chunk_id else None
+    chunk = (
+        db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first() if chunk_id else None
+    )
     nid = f"doc:{title}"
     nodes.setdefault(nid, _doc_node(title, source_type, url, chunk))
     return nid
@@ -141,7 +164,7 @@ def _is_side_visible(
 ) -> bool:
     if team_ids is None:
         return True
-    if source_type == 'entity' and entity_id is not None:
+    if source_type == "entity" and entity_id is not None:
         ent = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
         if not ent:
             return False
@@ -155,7 +178,7 @@ def _is_side_visible(
             and _is_source_visible(ent.source_id, team_ids, project_ids, db)
             and is_project_code_visible_in_context(ent.project_id, requesting_project_id, db)
         )
-    elif source_type == 'document' and chunk_id is not None:
+    elif source_type == "document" and chunk_id is not None:
         chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
         if not chunk:
             return False
@@ -207,10 +230,9 @@ def get_graph(
         exposed_project_ids = get_globally_exposed_project_ids(db)
         if visible_project_ids is not None:
             exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
-        entity_query = entity_query.filter(or_(
-            CodeEntity.project_id.in_(exposed_project_ids),
-            CodeEntity.project_id == None
-        ))
+        entity_query = entity_query.filter(
+            or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
+        )
 
     # Deterministische Reihenfolge -- Voraussetzung dafür, dass ein Kappen unten
     # (O-053) bei wiederholten Aufrufen dieselbe Auswahl trifft statt bei jedem
@@ -226,10 +248,9 @@ def get_graph(
     else:
         if team_ids is not None:
             project_ids = visible_project_ids or []
-            doc_query = doc_query.filter(or_(
-                DocumentChunk.project_id.in_(project_ids),
-                DocumentChunk.project_id == None
-            ))
+            doc_query = doc_query.filter(
+                or_(DocumentChunk.project_id.in_(project_ids), DocumentChunk.project_id.is_(None))
+            )
         # Dieselbe Opt-in-Einschränkung wie beim Entity-Node-Fetch oben, aber nur für
         # Chunks aus einer Git-Wissensquelle (rohe Repo-Quelldateien = Code-Analyse-
         # Inhalt) -- sonst blieben die als verwaiste Knoten übrig, sobald ihre
@@ -239,8 +260,17 @@ def get_graph(
         if gate is not None:
             doc_query = doc_query.filter(gate)
 
-    min_ids_subquery = doc_query.with_entities(func.min(DocumentChunk.id)).group_by(DocumentChunk.file_path).subquery()
-    distinct_docs = db.query(DocumentChunk).filter(DocumentChunk.id.in_(min_ids_subquery)).order_by(DocumentChunk.id).all()
+    min_ids_subquery = (
+        doc_query.with_entities(func.min(DocumentChunk.id))
+        .group_by(DocumentChunk.file_path)
+        .subquery()
+    )
+    distinct_docs = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.id.in_(min_ids_subquery))
+        .order_by(DocumentChunk.id)
+        .all()
+    )
     for chunk in distinct_docs:
         meta = chunk.metadata_json or {}
         title = meta.get("title") or chunk.file_path
@@ -261,14 +291,14 @@ def get_graph(
     if entity_links:
         entity_ids = {lnk.entity_id for lnk in entity_links}
         entities = {
-            e.id: e
-            for e in db.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).all()
+            e.id: e for e in db.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).all()
         }
         chunk_ids = {lnk.chunk_id for lnk in entity_links if lnk.chunk_id is not None}
-        chunks = {
-            c.id: c
-            for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()
-        } if chunk_ids else {}
+        chunks = (
+            {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+            if chunk_ids
+            else {}
+        )
         for lnk in entity_links:
             entity = entities.get(lnk.entity_id)
             if not entity:
@@ -276,15 +306,20 @@ def get_graph(
             eid = f"entity:{entity.id}"
             nodes.setdefault(eid, _entity_node(entity))
             did = f"doc:{lnk.doc_title}"
-            nodes.setdefault(did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)))
-            edges.append({
-                "id": f"edl:{lnk.id}",
-                "source": eid,
-                "target": did,
-                "link_type": lnk.link_type,
-                "score": lnk.score,
-                "context": lnk.context,
-            })
+            nodes.setdefault(
+                did,
+                _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)),
+            )
+            edges.append(
+                {
+                    "id": f"edl:{lnk.id}",
+                    "source": eid,
+                    "target": did,
+                    "link_type": lnk.link_type,
+                    "score": lnk.score,
+                    "context": lnk.context,
+                }
+            )
 
     # ── Cross-object knowledge links (auto doc↔doc + manual entity/document pairs) ──
     # KnowledgeLink.source_{a,b}_type is generic ('entity' | 'document'), but until now
@@ -292,23 +327,59 @@ def get_graph(
     # here. Manual links created from the graph UI (see /knowledge-links) can connect
     # any two nodes, so both sides are resolved generically.
     for klink in db.query(KnowledgeLink).filter(KnowledgeLink.status == status).all():
-        if not (_is_side_visible(klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, team_ids, visible_project_ids, db, project_id) and
-                _is_side_visible(klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, team_ids, visible_project_ids, db, project_id)):
+        if not (
+            _is_side_visible(
+                klink.source_a_type,
+                klink.source_a_entity_id,
+                klink.source_a_chunk_id,
+                team_ids,
+                visible_project_ids,
+                db,
+                project_id,
+            )
+            and _is_side_visible(
+                klink.source_b_type,
+                klink.source_b_entity_id,
+                klink.source_b_chunk_id,
+                team_ids,
+                visible_project_ids,
+                db,
+                project_id,
+            )
+        ):
             continue
-        src_id = _side_node_id(nodes, db, klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id,
-                                klink.source_a_title, klink.source_a_source_type, klink.source_a_url)
-        tgt_id = _side_node_id(nodes, db, klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id,
-                                klink.source_b_title, klink.source_b_source_type, klink.source_b_url)
+        src_id = _side_node_id(
+            nodes,
+            db,
+            klink.source_a_type,
+            klink.source_a_entity_id,
+            klink.source_a_chunk_id,
+            klink.source_a_title,
+            klink.source_a_source_type,
+            klink.source_a_url,
+        )
+        tgt_id = _side_node_id(
+            nodes,
+            db,
+            klink.source_b_type,
+            klink.source_b_entity_id,
+            klink.source_b_chunk_id,
+            klink.source_b_title,
+            klink.source_b_source_type,
+            klink.source_b_url,
+        )
         if not src_id or not tgt_id:
             continue
-        edges.append({
-            "id": f"kl:{klink.id}",
-            "source": src_id,
-            "target": tgt_id,
-            "link_type": klink.link_type,
-            "score": klink.score,
-            "context": klink.context,
-        })
+        edges.append(
+            {
+                "id": f"kl:{klink.id}",
+                "source": src_id,
+                "target": tgt_id,
+                "link_type": klink.link_type,
+                "score": klink.score,
+                "context": klink.context,
+            }
+        )
 
     return _capped_overview(nodes, edges)
 
@@ -327,8 +398,13 @@ def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
     total_edges = len(edges)
     limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
     if total_nodes <= limit:
-        return {"nodes": list(nodes.values()), "edges": edges, "truncated": False,
-                "total_nodes": total_nodes, "total_edges": total_edges}
+        return {
+            "nodes": list(nodes.values()),
+            "edges": edges,
+            "truncated": False,
+            "total_nodes": total_nodes,
+            "total_edges": total_edges,
+        }
 
     degree: dict[str, int] = {nid: 0 for nid in nodes}
     for edge in edges:
@@ -340,8 +416,13 @@ def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
     kept_ids = set(sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))[:limit])
     kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
     kept_edges = [e for e in edges if e["source"] in kept_ids and e["target"] in kept_ids]
-    return {"nodes": kept_nodes, "edges": kept_edges, "truncated": True,
-            "total_nodes": total_nodes, "total_edges": total_edges}
+    return {
+        "nodes": kept_nodes,
+        "edges": kept_edges,
+        "truncated": True,
+        "total_nodes": total_nodes,
+        "total_edges": total_edges,
+    }
 
 
 @router.get("/focus")
@@ -359,9 +440,11 @@ def get_graph_focus(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    entity = db.query(CodeEntity).filter(
-        CodeEntity.id == entity_id, CodeEntity.project_id == project_id
-    ).first()
+    entity = (
+        db.query(CodeEntity)
+        .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
+        .first()
+    )
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
 
@@ -375,54 +458,104 @@ def get_graph_focus(
     truncated = {"incoming": False, "outgoing": False}
 
     # Dokument-Links dieser Entity
-    doc_links = db.query(EntityDocLink).filter(
-        EntityDocLink.project_id == project_id,
-        EntityDocLink.entity_id == entity.id,
-        EntityDocLink.status == status,
-    ).all()
+    doc_links = (
+        db.query(EntityDocLink)
+        .filter(
+            EntityDocLink.project_id == project_id,
+            EntityDocLink.entity_id == entity.id,
+            EntityDocLink.status == status,
+        )
+        .all()
+    )
     chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
-    chunks = {
-        c.id: c
-        for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()
-    } if chunk_ids else {}
+    chunks = (
+        {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+        if chunk_ids
+        else {}
+    )
     for lnk in doc_links:
         did = f"doc:{lnk.doc_title}"
-        nodes.setdefault(did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)))
-        edges.append({
-            "id": f"edl:{lnk.id}", "source": focus_id, "target": did,
-            "link_type": lnk.link_type, "score": lnk.score, "context": lnk.context,
-        })
+        nodes.setdefault(
+            did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id))
+        )
+        edges.append(
+            {
+                "id": f"edl:{lnk.id}",
+                "source": focus_id,
+                "target": did,
+                "link_type": lnk.link_type,
+                "score": lnk.score,
+                "context": lnk.context,
+            }
+        )
 
     # KnowledgeLinks der Entity (v.a. manuell über die Graph-UI erstellte Entity↔Entity-
     # Verknüpfungen, siehe /knowledge-links) — ohne das bleibt jeder Fokus-Graph rein
     # dokument-zentriert und "Verbindungen erweitern" hat nie eine Nachbar-Entity, auf
     # die es angewendet werden könnte.
-    klinks = db.query(KnowledgeLink).filter(
-        KnowledgeLink.status == status,
-        or_(
-            (KnowledgeLink.source_a_type == "entity") & (KnowledgeLink.source_a_entity_id == entity.id),
-            (KnowledgeLink.source_b_type == "entity") & (KnowledgeLink.source_b_entity_id == entity.id),
-        ),
-    ).all()
+    klinks = (
+        db.query(KnowledgeLink)
+        .filter(
+            KnowledgeLink.status == status,
+            or_(
+                (KnowledgeLink.source_a_type == "entity")
+                & (KnowledgeLink.source_a_entity_id == entity.id),
+                (KnowledgeLink.source_b_type == "entity")
+                & (KnowledgeLink.source_b_entity_id == entity.id),
+            ),
+        )
+        .all()
+    )
     for klink in klinks:
         is_a = klink.source_a_type == "entity" and klink.source_a_entity_id == entity.id
         other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url = (
-            (klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id,
-             klink.source_b_title, klink.source_b_source_type, klink.source_b_url)
-            if is_a else
-            (klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id,
-             klink.source_a_title, klink.source_a_source_type, klink.source_a_url)
+            (
+                klink.source_b_type,
+                klink.source_b_entity_id,
+                klink.source_b_chunk_id,
+                klink.source_b_title,
+                klink.source_b_source_type,
+                klink.source_b_url,
+            )
+            if is_a
+            else (
+                klink.source_a_type,
+                klink.source_a_entity_id,
+                klink.source_a_chunk_id,
+                klink.source_a_title,
+                klink.source_a_source_type,
+                klink.source_a_url,
+            )
         )
-        other_id = _side_node_id(nodes, db, other_type, other_entity_id, other_chunk_id,
-                                  other_title, other_source_type, other_url)
+        other_id = _side_node_id(
+            nodes,
+            db,
+            other_type,
+            other_entity_id,
+            other_chunk_id,
+            other_title,
+            other_source_type,
+            other_url,
+        )
         if not other_id:
             continue
-        edges.append({
-            "id": f"kl:{klink.id}", "source": focus_id, "target": other_id,
-            "link_type": klink.link_type, "score": klink.score, "context": klink.context,
-        })
+        edges.append(
+            {
+                "id": f"kl:{klink.id}",
+                "source": focus_id,
+                "target": other_id,
+                "link_type": klink.link_type,
+                "score": klink.score,
+                "context": klink.context,
+            }
+        )
 
-    return {"focus_id": focus_id, "nodes": list(nodes.values()), "edges": edges, "truncated": truncated}
+    return {
+        "focus_id": focus_id,
+        "nodes": list(nodes.values()),
+        "edges": edges,
+        "truncated": truncated,
+    }
 
 
 @router.get("/export")
@@ -445,13 +578,20 @@ def export_graph(
         writer = csv.writer(out)
         writer.writerow(["source", "target", "link_type", "score", "context"])
         for edge in edges:
-            writer.writerow([
-                edge["source"], edge["target"], edge["link_type"],
-                edge["score"] if edge.get("score") is not None else "",
-                edge.get("context") or "",
-            ])
-        return Response(out.getvalue(), media_type="text/csv",
-                        headers={"Content-Disposition": "attachment; filename=knowledge_graph.csv"})
+            writer.writerow(
+                [
+                    edge["source"],
+                    edge["target"],
+                    edge["link_type"],
+                    edge["score"] if edge.get("score") is not None else "",
+                    edge.get("context") or "",
+                ]
+            )
+        return Response(
+            out.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=knowledge_graph.csv"},
+        )
 
     root = Element("graphml", xmlns="http://graphml.graphdrawing.org/xmlns")
     xml_graph = SubElement(root, "graph", edgedefault="directed")
@@ -462,13 +602,21 @@ def export_graph(
         if node.get("entity_type"):
             SubElement(xml_node, "data", key="entity_type").text = node["entity_type"]
     for edge in edges:
-        xml_edge = SubElement(xml_graph, "edge", id=str(edge["id"]),
-                              source=str(edge["source"]), target=str(edge["target"]))
+        xml_edge = SubElement(
+            xml_graph,
+            "edge",
+            id=str(edge["id"]),
+            source=str(edge["source"]),
+            target=str(edge["target"]),
+        )
         SubElement(xml_edge, "data", key="link_type").text = edge["link_type"]
         if edge.get("score") is not None:
             SubElement(xml_edge, "data", key="score").text = str(edge["score"])
-    return Response(tostring(root, encoding="unicode"), media_type="application/graphml+xml",
-                    headers={"Content-Disposition": "attachment; filename=knowledge_graph.graphml"})
+    return Response(
+        tostring(root, encoding="unicode"),
+        media_type="application/graphml+xml",
+        headers={"Content-Disposition": "attachment; filename=knowledge_graph.graphml"},
+    )
 
 
 @router.get("/export/neo4j")

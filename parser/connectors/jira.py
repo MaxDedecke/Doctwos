@@ -23,7 +23,6 @@ Inhalts-Parsing:
 """
 
 import asyncio
-from datetime import datetime, timezone
 
 import httpx
 
@@ -77,7 +76,11 @@ class JiraConnector(BaseConnector):
                 for i, issue in enumerate(issues):
                     current_count = start + i + 1
                     doc = self._build_document(issue, base_url)
-                    self._update_progress(current_count, total_issues, message=f"Indexiere Issue '{issue.get('key')}' ({current_count}/{total_issues})...")
+                    self._update_progress(
+                        current_count,
+                        total_issues,
+                        message=f"Indexiere Issue '{issue.get('key')}' ({current_count}/{total_issues})...",
+                    )
                     if doc is not None:
                         yield doc
 

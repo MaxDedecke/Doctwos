@@ -24,6 +24,7 @@ EMBED_BATCH_TIMEOUT = float(os.getenv("EMBED_BATCH_TIMEOUT", "120"))
 # Keep track of active clients per event loop to ensure thread-safety and loop-safety
 _loop_clients: Dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
 
+
 def _get_client() -> httpx.AsyncClient:
     """
     Returns a shared httpx.AsyncClient for the currently running event loop.
@@ -34,16 +35,17 @@ def _get_client() -> httpx.AsyncClient:
     except RuntimeError:
         # Fallback if no event loop is running (not expected in async tasks)
         return httpx.AsyncClient(timeout=60.0)
-    
+
     # Prune closed event loops from the cache
     closed_loops = [lp for lp in _loop_clients if lp.is_closed()]
     for lp in closed_loops:
         del _loop_clients[lp]
-        
+
     if loop not in _loop_clients:
         _loop_clients[loop] = httpx.AsyncClient(timeout=60.0)
-        
+
     return _loop_clients[loop]
+
 
 async def get_embedding(text: str, model: str = "bge-m3"):
     """
@@ -57,13 +59,15 @@ async def get_embedding(text: str, model: str = "bge-m3"):
 
     client = _get_client()
     response = await client.post(
-        f"{OLLAMA_BASE_URL}/api/embeddings",
-        json={"model": model, "prompt": text}
+        f"{OLLAMA_BASE_URL}/api/embeddings", json={"model": model, "prompt": text}
     )
     response.raise_for_status()
     return response.json()["embedding"]
 
-async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=3) -> list[list[float]]:
+
+async def get_embeddings_batch(
+    texts: list[str], model: str = "bge-m3", retries=3
+) -> list[list[float]]:
     """Batched embeddings — mehrere Requests à max. EMBED_BATCH_MAX_CHUNKS Texte
     mit Exponential Backoff Retry je Sub-Batch (E-8: verhindert, dass ein
     grosses Dokument in einem einzigen ueberlangen Request in den Timeout laeuft)."""
@@ -72,7 +76,9 @@ async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=
 
     if model.startswith("nomic-embed-text"):
         processed_texts = [
-            f"search_document: {t}" if not (t.startswith("search_document:") or t.startswith("search_query:")) else t
+            f"search_document: {t}"
+            if not (t.startswith("search_document:") or t.startswith("search_query:"))
+            else t
             for t in texts
         ]
     else:
@@ -80,12 +86,14 @@ async def get_embeddings_batch(texts: list[str], model: str = "bge-m3", retries=
 
     embeddings: list[list[float]] = []
     for i in range(0, len(processed_texts), EMBED_BATCH_MAX_CHUNKS):
-        sub_batch = processed_texts[i:i + EMBED_BATCH_MAX_CHUNKS]
+        sub_batch = processed_texts[i : i + EMBED_BATCH_MAX_CHUNKS]
         embeddings.extend(await _get_embeddings_sub_batch(sub_batch, model, retries))
     return embeddings
 
 
-async def _get_embeddings_sub_batch(texts: list[str], model: str, retries: int) -> list[list[float]]:
+async def _get_embeddings_sub_batch(
+    texts: list[str], model: str, retries: int
+) -> list[list[float]]:
     client = _get_client()
 
     for attempt in range(retries):
@@ -94,7 +102,7 @@ async def _get_embeddings_sub_batch(texts: list[str], model: str, retries: int) 
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/embed",
                 json={"model": model, "input": texts},
-                timeout=EMBED_BATCH_TIMEOUT  # Batch braucht mehr Zeit
+                timeout=EMBED_BATCH_TIMEOUT,  # Batch braucht mehr Zeit
             )
             response.raise_for_status()
             return response.json()["embeddings"]
@@ -102,11 +110,12 @@ async def _get_embeddings_sub_batch(texts: list[str], model: str, retries: int) 
             if attempt == retries - 1:
                 logger.error(f"Ollama final failure after {retries} attempts: {e}")
                 raise
-            wait = 2 ** attempt  # 1s, 2s, 4s
-            logger.warning(f"Ollama retry {attempt+1}/{retries} nach {wait}s: {e}")
+            wait = 2**attempt  # 1s, 2s, 4s
+            logger.warning(f"Ollama retry {attempt + 1}/{retries} nach {wait}s: {e}")
             await asyncio.sleep(wait)
 
     return []
+
 
 _JSON_FENCE_OPEN_RE = re.compile(r"^```(?:json)?\s*", re.IGNORECASE)
 
@@ -128,7 +137,9 @@ def _parse_json_content(content: str):
     return obj
 
 
-async def get_chat_json(prompt: str, model: str, timeout: float = 60.0, think: Optional[bool] = None):
+async def get_chat_json(
+    prompt: str, model: str, timeout: float = 60.0, think: Optional[bool] = None
+):
     """
     Single-shot LLM call via Ollama's native /api/chat with format="json" —
     reliable structured output even for small local models (e.g. mistral-nemo).
@@ -193,7 +204,9 @@ async def is_gpu_accelerated(model: str) -> bool:
             if entry.get("model") == model or entry.get("name") == model:
                 return entry.get("size_vram", 0) > 0
     except (httpx.HTTPError, httpx.RequestError, ValueError, KeyError, TypeError) as e:
-        logger.warning(f"is_gpu_accelerated: Ollama-Status nicht auswertbar, nehme CPU-only an: {e}")
+        logger.warning(
+            f"is_gpu_accelerated: Ollama-Status nicht auswertbar, nehme CPU-only an: {e}"
+        )
     return False
 
 
@@ -203,8 +216,4 @@ async def ensure_model_pulled(model: str):
     Reuses a persistent connection pool per event loop.
     """
     client = _get_client()
-    await client.post(
-        f"{OLLAMA_BASE_URL}/api/pull",
-        json={"name": model},
-        timeout=300.0
-    )
+    await client.post(f"{OLLAMA_BASE_URL}/api/pull", json={"name": model}, timeout=300.0)

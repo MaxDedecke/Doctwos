@@ -39,7 +39,9 @@ MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90
 # Client-Risiko (Kraftsimulation im Hauptthread). Analog zu callgraph.py's
 # MAX_NODES (F-066), aber mit höherem Deckel, da die Übersicht bewusst auch
 # unverlinkte Entities zeigt (Inventar-Charakter), nicht nur BFS-erreichte.
-KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env("KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000)
+KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
+    "KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000
+)
 
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,7 @@ def openai_model_supports_custom_temperature(model: str) -> bool:
         return False
     return True
 
+
 # Das aktive LLM-Modell — kann per /model-info POST zur Laufzeit geändert werden.
 # Bis zur ersten Auslieferung ist das lokale LLM bewusst deaktiviert: der
 # CPU-only-Pilot lädt nur bge-m3. Ein Liefer-/GPU-Host setzt OLLAMA_LLM_MODEL
@@ -81,6 +84,7 @@ def resolve_ollama_model(requested: str | None = None) -> str:
             "LLM_MODEL auf einem ausreichend dimensionierten Host konfigurieren."
         )
     return model
+
 
 # ── Queue & Datenbank ─────────────────────────────────────────────────────────
 
@@ -134,6 +138,7 @@ OIDC_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "")
 
 def oidc_enabled() -> bool:
     return bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)
+
 
 # ── Superuser-Bootstrap (F-001) ───────────────────────────────────────────────
 # Beim ersten Start wird genau ein Superuser angelegt. Ist kein Passwort gesetzt,

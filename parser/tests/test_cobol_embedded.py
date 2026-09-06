@@ -35,7 +35,7 @@ def test_mask_replaces_block_with_single_placeholder_line():
 def test_mask_placeholder_has_no_period_and_no_exec_word():
     lines = _logical_lines("08_exec_cics.cbl")
     masked, _ = embedded.mask(lines)
-    placeholder = next(l for l in masked if l.phys_start_line == 5)
+    placeholder = next(line for line in masked if line.phys_start_line == 5)
 
     assert "." not in placeholder.segments[0].text
     words = placeholder.segments[0].text.split()
@@ -45,7 +45,7 @@ def test_mask_placeholder_has_no_period_and_no_exec_word():
 def test_mask_preserves_trailing_period_after_end_exec():
     lines = _logical_lines("08_exec_cics.cbl")
     masked, _ = embedded.mask(lines)
-    placeholder = next(l for l in masked if l.phys_start_line == 5)
+    placeholder = next(line for line in masked if line.phys_start_line == 5)
 
     assert placeholder.text.endswith(".")
 
@@ -55,7 +55,7 @@ def test_mask_without_exec_block_is_a_noop():
     masked, blocks = embedded.mask(lines)
 
     assert blocks == []
-    assert [l.text for l in masked] == [l.text for l in lines]
+    assert [line.text for line in masked] == [line.text for line in lines]
 
 
 def test_mask_missing_end_exec_does_not_crash():

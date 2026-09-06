@@ -23,7 +23,6 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from core.config import celery_app
 from core.tracing import get_trace_id
 from core.db_setup import get_db
 from core.auth_dependency import get_current_user
@@ -89,7 +88,9 @@ def trigger_diagnostics_bundle(
     db.commit()
     db.refresh(run)
 
-    send_tracked_task(db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()})
+    send_tracked_task(
+        db, run, "generate_diagnostics_bundle", [run.id], {"trace_id": get_trace_id()}
+    )
     return {"message": "Diagnostics bundle generation started", "run_id": run.id}
 
 
@@ -114,7 +115,9 @@ def download_diagnostics_bundle(
     if not run:
         raise HTTPException(status_code=404, detail="Diagnostics run nicht gefunden")
     if run.status != "completed" or not run.bundle_path:
-        raise HTTPException(status_code=409, detail=f"Bundle ist noch nicht fertig (Status: {run.status})")
+        raise HTTPException(
+            status_code=409, detail=f"Bundle ist noch nicht fertig (Status: {run.status})"
+        )
     if not os.path.isfile(run.bundle_path):
         raise HTTPException(status_code=410, detail="Bundle-Datei nicht mehr vorhanden")
 

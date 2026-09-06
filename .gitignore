@@ -1,4 +1,5 @@
 __pycache__/
+.ruff_cache/
 *.pyc
 *.egg-info/
 # lokale Build-Artefakte von backend/vendor/unidecode_shim (E-7) und

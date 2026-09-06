@@ -44,7 +44,9 @@ _RENAMES_LEVEL = 66
 _STANDALONE_LEVEL = 77
 
 
-def parse(program: CobolProgram, masked_lines: list[LogicalLine]) -> tuple[list[DataItem], list[FileDescriptor], list[str]]:
+def parse(
+    program: CobolProgram, masked_lines: list[LogicalLine]
+) -> tuple[list[DataItem], list[FileDescriptor], list[str]]:
     errors: list[str] = []
 
     data_division = next((d for d in program.divisions if d.name == "DATA"), None)
@@ -66,7 +68,9 @@ def parse(program: CobolProgram, masked_lines: list[LogicalLine]) -> tuple[list[
     visitor.visit(tree)
 
     items = [i for i in visitor.items if i.name.upper() != COPY_PLACEHOLDER_NAME]
-    file_descriptors = [f for f in visitor.file_descriptors if f.name.upper() != COPY_PLACEHOLDER_NAME]
+    file_descriptors = [
+        f for f in visitor.file_descriptors if f.name.upper() != COPY_PLACEHOLDER_NAME
+    ]
     return items, file_descriptors, errors
 
 
@@ -89,7 +93,9 @@ class _DataDivisionVisitor(Cobol85Visitor):
         entries = ctx.dataDescriptionEntry()
         header_end = _line(entries[0].start) - 1 if entries else _line(ctx.stop)
         header_end = max(header_end, _line(ctx.start))
-        self.file_descriptors.append(FileDescriptor(name=name, start_line=_line(ctx.start), end_line=header_end))
+        self.file_descriptors.append(
+            FileDescriptor(name=name, start_line=_line(ctx.start), end_line=header_end)
+        )
 
         stack: list[tuple[int, str]] = []
         for entry in entries:
@@ -107,7 +113,12 @@ class _DataDivisionVisitor(Cobol85Visitor):
             self._visit_entry(entry, stack, current_fd=None)
         return None
 
-    def _visit_entry(self, entry: Cobol85Parser.DataDescriptionEntryContext, stack: list[tuple[int, str]], current_fd: str | None) -> None:
+    def _visit_entry(
+        self,
+        entry: Cobol85Parser.DataDescriptionEntryContext,
+        stack: list[tuple[int, str]],
+        current_fd: str | None,
+    ) -> None:
         fmt1 = entry.dataDescriptionEntryFormat1()
         if fmt1 is not None:
             self._visit_format1(fmt1, stack, current_fd)
@@ -117,7 +128,13 @@ class _DataDivisionVisitor(Cobol85Visitor):
         if fmt2 is not None:
             name = _clean_name(self._name(fmt2.dataName()))
             self.items.append(
-                DataItem(name=name, level=_RENAMES_LEVEL, start_line=_line(fmt2.start), end_line=_line(fmt2.stop), parent=None)
+                DataItem(
+                    name=name,
+                    level=_RENAMES_LEVEL,
+                    start_line=_line(fmt2.start),
+                    end_line=_line(fmt2.stop),
+                    parent=None,
+                )
             )
             return
 
@@ -128,8 +145,12 @@ class _DataDivisionVisitor(Cobol85Visitor):
             value = _value_text(fmt3.dataValueClause())
             self.items.append(
                 DataItem(
-                    name=name, level=_CONDITION_LEVEL, start_line=_line(fmt3.start), end_line=_line(fmt3.stop),
-                    parent=parent, value=value,
+                    name=name,
+                    level=_CONDITION_LEVEL,
+                    start_line=_line(fmt3.start),
+                    end_line=_line(fmt3.stop),
+                    parent=parent,
+                    value=value,
                 )
             )
             return
@@ -137,7 +158,12 @@ class _DataDivisionVisitor(Cobol85Visitor):
         # (EXEC-Blöcke sind vor antlr_bridge.build_tree() bereits maskiert),
         # bleibt hier nur als expliziter No-Op statt stillschweigend zu fehlen.
 
-    def _visit_format1(self, ctx: Cobol85Parser.DataDescriptionEntryFormat1Context, stack: list[tuple[int, str]], current_fd: str | None) -> None:
+    def _visit_format1(
+        self,
+        ctx: Cobol85Parser.DataDescriptionEntryFormat1Context,
+        stack: list[tuple[int, str]],
+        current_fd: str | None,
+    ) -> None:
         level = _level_number(ctx)
         if level is None:
             return
@@ -170,7 +196,9 @@ class _DataDivisionVisitor(Cobol85Visitor):
                 end_line=_line(ctx.stop),
                 parent=parent,
                 picture=picture_ctx.pictureString().getText() if picture_ctx is not None else None,
-                redefines=_clean_name(self._name(redefines_ctx.dataName())) if redefines_ctx is not None else None,
+                redefines=_clean_name(self._name(redefines_ctx.dataName()))
+                if redefines_ctx is not None
+                else None,
                 occurs=_occurs_count(occurs_ctx),
                 occurs_depending_on=self._occurs_depending_on(occurs_ctx),
                 value=_value_text_from_clause(value_ctx),

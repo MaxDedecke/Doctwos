@@ -71,7 +71,7 @@ interface ChatViewProps {
   selectedFile: any;
   selectedDoc: any;
   splitClasses: { chat: string; editor: string };
-  chatEndRef: React.RefObject<HTMLDivElement | null>;
+  chatEndRef: React.RefObject<HTMLDivElement>;
   selectedSource: any;
   setSelectedSource: (source: any) => void;
   connectedSources: any[];
@@ -504,7 +504,7 @@ export function ChatView({
                               theme === 'dark' ? "border-ds-zinc-800/50" : "border-ds-zinc-200"
                             )}>
                               <span className="text-[10px] text-ds-zinc-500 font-bold uppercase tracking-wider">{t('chatView.referencedSources')}</span>
-                              {m.sources.map((src, sIdx) => {
+                              {m.sources.map((src: { file: string; lines: number[]; source_id?: string }, sIdx: number) => {
                                 const filename = src.file.split('/').pop();
                                 return (
                                   <button

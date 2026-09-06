@@ -73,8 +73,14 @@ def _check_ascii(value: str | None, field_name: str) -> dict | None:
         return None
     if any(ord(c) > 127 for c in value):
         if any(ord(c) == _CYRILLIC_C for c in value):
-            return {"success": False, "message": f"Fehler: {field_name} enthält ein kyrillisches 'с' (U+0441) statt eines normalen lateinischen 'c'. Bitte überprüfe deine Eingabe auf Kopierfehler."}
-        return {"success": False, "message": f"Fehler: {field_name} enthält ungültige Nicht-ASCII-Zeichen."}
+            return {
+                "success": False,
+                "message": f"Fehler: {field_name} enthält ein kyrillisches 'с' (U+0441) statt eines normalen lateinischen 'c'. Bitte überprüfe deine Eingabe auf Kopierfehler.",
+            }
+        return {
+            "success": False,
+            "message": f"Fehler: {field_name} enthält ungültige Nicht-ASCII-Zeichen.",
+        }
     return None
 
 
@@ -92,55 +98,117 @@ async def test_connector(req: ConnectorTestRequest):
                 headers["Authorization"] = f"Bearer {req.token}"
                 resp = await client.get("https://api.github.com/user", headers=headers)
                 if resp.status_code == 200:
-                    return {"success": True, "message": "Verbindung zu GitHub erfolgreich hergestellt!"}
-                return {"success": False, "message": f"GitHub-Fehler ({resp.status_code}): {resp.text}"}
+                    return {
+                        "success": True,
+                        "message": "Verbindung zu GitHub erfolgreich hergestellt!",
+                    }
+                return {
+                    "success": False,
+                    "message": f"GitHub-Fehler ({resp.status_code}): {resp.text}",
+                }
 
             elif req.type == "bitbucket":
                 if req.url:
                     # Bitbucket Server / Data Center
                     base = req.url.rstrip("/")
                     bb_auth, bb_headers = _bitbucket_server_auth(req.username, req.token, headers)
-                    resp = await client.get(f"{base}/rest/api/1.0/projects?limit=1", auth=bb_auth, headers=bb_headers)
+                    resp = await client.get(
+                        f"{base}/rest/api/1.0/projects?limit=1", auth=bb_auth, headers=bb_headers
+                    )
                     if resp.status_code == 200:
-                        return {"success": True, "message": f"Verbindung zu Bitbucket Server ({base}) erfolgreich!"}
-                    return {"success": False, "message": f"Bitbucket Server-Fehler ({resp.status_code}): {resp.text}"}
+                        return {
+                            "success": True,
+                            "message": f"Verbindung zu Bitbucket Server ({base}) erfolgreich!",
+                        }
+                    return {
+                        "success": False,
+                        "message": f"Bitbucket Server-Fehler ({resp.status_code}): {resp.text}",
+                    }
                 else:
                     # Bitbucket Cloud
                     if not req.username:
-                        return {"success": False, "message": "Username ist für Bitbucket Cloud erforderlich."}
-                    resp = await client.get("https://api.bitbucket.org/2.0/user", auth=(req.username, req.token), headers=headers)
+                        return {
+                            "success": False,
+                            "message": "Username ist für Bitbucket Cloud erforderlich.",
+                        }
+                    resp = await client.get(
+                        "https://api.bitbucket.org/2.0/user",
+                        auth=(req.username, req.token),
+                        headers=headers,
+                    )
                     if resp.status_code == 200:
-                        return {"success": True, "message": "Verbindung zu Bitbucket Cloud erfolgreich hergestellt!"}
-                    return {"success": False, "message": f"Bitbucket-Fehler ({resp.status_code}): {resp.text}"}
+                        return {
+                            "success": True,
+                            "message": "Verbindung zu Bitbucket Cloud erfolgreich hergestellt!",
+                        }
+                    return {
+                        "success": False,
+                        "message": f"Bitbucket-Fehler ({resp.status_code}): {resp.text}",
+                    }
 
             elif req.type == "gitlab":
                 headers["Private-Token"] = req.token
                 resp = await client.get("https://gitlab.com/api/v4/user", headers=headers)
                 if resp.status_code == 200:
-                    return {"success": True, "message": "Verbindung zu GitLab erfolgreich hergestellt!"}
-                return {"success": False, "message": f"GitLab-Fehler ({resp.status_code}): {resp.text}"}
+                    return {
+                        "success": True,
+                        "message": "Verbindung zu GitLab erfolgreich hergestellt!",
+                    }
+                return {
+                    "success": False,
+                    "message": f"GitLab-Fehler ({resp.status_code}): {resp.text}",
+                }
 
             elif req.type == "confluence":
                 if not req.url:
-                    return {"success": False, "message": "Server-URL ist für Confluence erforderlich."}
+                    return {
+                        "success": False,
+                        "message": "Server-URL ist für Confluence erforderlich.",
+                    }
                 if not req.username:
-                    return {"success": False, "message": "E-Mail/Username ist für Confluence erforderlich."}
+                    return {
+                        "success": False,
+                        "message": "E-Mail/Username ist für Confluence erforderlich.",
+                    }
                 base_url = req.url.rstrip("/")
-                resp = await client.get(f"{base_url}/wiki/rest/api/space?limit=1", auth=(req.username, req.token), headers=headers)
+                resp = await client.get(
+                    f"{base_url}/wiki/rest/api/space?limit=1",
+                    auth=(req.username, req.token),
+                    headers=headers,
+                )
                 if resp.status_code == 200:
-                    return {"success": True, "message": "Verbindung zu Confluence erfolgreich hergestellt!"}
-                return {"success": False, "message": f"Confluence-Fehler ({resp.status_code}): {resp.text}"}
+                    return {
+                        "success": True,
+                        "message": "Verbindung zu Confluence erfolgreich hergestellt!",
+                    }
+                return {
+                    "success": False,
+                    "message": f"Confluence-Fehler ({resp.status_code}): {resp.text}",
+                }
 
             elif req.type == "jira":
                 if not req.url:
                     return {"success": False, "message": "Server-URL ist für Jira erforderlich."}
                 if not req.username:
-                    return {"success": False, "message": "E-Mail/Username ist für Jira erforderlich."}
+                    return {
+                        "success": False,
+                        "message": "E-Mail/Username ist für Jira erforderlich.",
+                    }
                 base_url = req.url.rstrip("/")
-                resp = await client.get(f"{base_url}/rest/api/2/project?maxResults=1", auth=(req.username, req.token), headers=headers)
+                resp = await client.get(
+                    f"{base_url}/rest/api/2/project?maxResults=1",
+                    auth=(req.username, req.token),
+                    headers=headers,
+                )
                 if resp.status_code == 200:
-                    return {"success": True, "message": "Verbindung zu Jira erfolgreich hergestellt!"}
-                return {"success": False, "message": f"Jira-Fehler ({resp.status_code}): {resp.text}"}
+                    return {
+                        "success": True,
+                        "message": "Verbindung zu Jira erfolgreich hergestellt!",
+                    }
+                return {
+                    "success": False,
+                    "message": f"Jira-Fehler ({resp.status_code}): {resp.text}",
+                }
 
             else:
                 raise HTTPException(status_code=400, detail="Ungültiger Connector-Typ.")
@@ -157,53 +225,96 @@ async def get_connector_repos(req: ConnectorReposRequest):
         try:
             if req.type == "github":
                 headers["Authorization"] = f"Bearer {req.token}"
-                resp = await client.get("https://api.github.com/user/repos?per_page=100&sort=updated", headers=headers)
+                resp = await client.get(
+                    "https://api.github.com/user/repos?per_page=100&sort=updated", headers=headers
+                )
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=resp.status_code, detail=f"GitHub API Fehler: {resp.text}")
-                return [{"name": r["name"], "full_name": r["full_name"], "clone_url": r["clone_url"]} for r in resp.json()]
+                    raise HTTPException(
+                        status_code=resp.status_code, detail=f"GitHub API Fehler: {resp.text}"
+                    )
+                return [
+                    {"name": r["name"], "full_name": r["full_name"], "clone_url": r["clone_url"]}
+                    for r in resp.json()
+                ]
 
             elif req.type == "bitbucket":
                 if req.url:
                     # Bitbucket Server / Data Center — flat /repos endpoint returns all accessible repos
                     base = req.url.rstrip("/")
                     bb_auth, bb_headers = _bitbucket_server_auth(req.username, req.token, headers)
-                    resp = await client.get(f"{base}/rest/api/1.0/repos?limit=100", auth=bb_auth, headers=bb_headers)
+                    resp = await client.get(
+                        f"{base}/rest/api/1.0/repos?limit=100", auth=bb_auth, headers=bb_headers
+                    )
                     if resp.status_code != 200:
-                        raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket Server API Fehler: {resp.text}")
+                        raise HTTPException(
+                            status_code=resp.status_code,
+                            detail=f"Bitbucket Server API Fehler: {resp.text}",
+                        )
                     result = []
                     for item in resp.json().get("values", []):
                         project_key = item.get("project", {}).get("key", "")
                         slug = item.get("slug", "")
                         full_name = f"{project_key}/{slug}"
                         clone_url = _pick_https_clone(item)
-                        result.append({"name": item["name"], "full_name": full_name, "clone_url": clone_url})
+                        result.append(
+                            {"name": item["name"], "full_name": full_name, "clone_url": clone_url}
+                        )
                     return result
                 else:
                     # Bitbucket Cloud
                     if not req.username:
-                        raise HTTPException(status_code=400, detail="Username ist für Bitbucket Cloud erforderlich.")
-                    resp = await client.get("https://api.bitbucket.org/2.0/repositories?role=member&pagelen=100", auth=(req.username, req.token), headers=headers)
+                        raise HTTPException(
+                            status_code=400, detail="Username ist für Bitbucket Cloud erforderlich."
+                        )
+                    resp = await client.get(
+                        "https://api.bitbucket.org/2.0/repositories?role=member&pagelen=100",
+                        auth=(req.username, req.token),
+                        headers=headers,
+                    )
                     if resp.status_code != 200:
-                        raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket API Fehler: {resp.text}")
+                        raise HTTPException(
+                            status_code=resp.status_code,
+                            detail=f"Bitbucket API Fehler: {resp.text}",
+                        )
                     result = []
                     for item in resp.json().get("values", []):
                         clone_url = _pick_https_clone(item)
-                        result.append({"name": item["name"], "full_name": item["full_name"], "clone_url": clone_url})
+                        result.append(
+                            {
+                                "name": item["name"],
+                                "full_name": item["full_name"],
+                                "clone_url": clone_url,
+                            }
+                        )
                     return result
 
             elif req.type == "gitlab":
                 headers["Private-Token"] = req.token
-                resp = await client.get("https://gitlab.com/api/v4/projects?membership=true&per_page=100", headers=headers)
+                resp = await client.get(
+                    "https://gitlab.com/api/v4/projects?membership=true&per_page=100",
+                    headers=headers,
+                )
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}")
-                return [{"name": r["name"], "full_name": r["path_with_namespace"], "clone_url": r["http_url_to_repo"]} for r in resp.json()]
+                    raise HTTPException(
+                        status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}"
+                    )
+                return [
+                    {
+                        "name": r["name"],
+                        "full_name": r["path_with_namespace"],
+                        "clone_url": r["http_url_to_repo"],
+                    }
+                    for r in resp.json()
+                ]
 
             else:
                 raise HTTPException(status_code=400, detail="Ungültiger Connector-Typ.")
         except HTTPException:
             raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Fehler beim Laden der Repositories: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Fehler beim Laden der Repositories: {str(e)}"
+            )
 
 
 @router.post("/branches")
@@ -214,11 +325,20 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
             if req.type == "github":
                 if req.token:
                     headers["Authorization"] = f"Bearer {req.token}"
-                repo_resp = await client.get(f"https://api.github.com/repos/{req.repo_name}", headers=headers)
-                default_branch = repo_resp.json().get("default_branch") if repo_resp.status_code == 200 else None
-                resp = await client.get(f"https://api.github.com/repos/{req.repo_name}/branches?per_page=100", headers=headers)
+                repo_resp = await client.get(
+                    f"https://api.github.com/repos/{req.repo_name}", headers=headers
+                )
+                default_branch = (
+                    repo_resp.json().get("default_branch") if repo_resp.status_code == 200 else None
+                )
+                resp = await client.get(
+                    f"https://api.github.com/repos/{req.repo_name}/branches?per_page=100",
+                    headers=headers,
+                )
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=resp.status_code, detail=f"GitHub API Fehler: {resp.text}")
+                    raise HTTPException(
+                        status_code=resp.status_code, detail=f"GitHub API Fehler: {resp.text}"
+                    )
                 return _default_branch_first([item["name"] for item in resp.json()], default_branch)
 
             elif req.type == "bitbucket":
@@ -227,40 +347,59 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
                     base = req.url.rstrip("/")
                     parts = req.repo_name.split("/", 1)
                     if len(parts) != 2:
-                        raise HTTPException(status_code=400, detail="repo_name muss 'PROJECT_KEY/slug' sein für Bitbucket Server.")
+                        raise HTTPException(
+                            status_code=400,
+                            detail="repo_name muss 'PROJECT_KEY/slug' sein für Bitbucket Server.",
+                        )
                     project_key, repo_slug = parts
                     bb_auth, bb_headers = _bitbucket_server_auth(req.username, req.token, headers)
                     repo_resp = await client.get(
                         f"{base}/rest/api/1.0/projects/{project_key}/repos/{repo_slug}",
-                        auth=bb_auth, headers=bb_headers
+                        auth=bb_auth,
+                        headers=bb_headers,
                     )
                     default_branch = (
                         repo_resp.json().get("defaultBranch", {}).get("displayId")
-                        if repo_resp.status_code == 200 else None
+                        if repo_resp.status_code == 200
+                        else None
                     )
                     resp = await client.get(
                         f"{base}/rest/api/1.0/projects/{project_key}/repos/{repo_slug}/branches?limit=100",
-                        auth=bb_auth, headers=bb_headers
+                        auth=bb_auth,
+                        headers=bb_headers,
                     )
                     if resp.status_code != 200:
-                        raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket Server API Fehler: {resp.text}")
+                        raise HTTPException(
+                            status_code=resp.status_code,
+                            detail=f"Bitbucket Server API Fehler: {resp.text}",
+                        )
                     return _default_branch_first(
-                        [item["displayId"] for item in resp.json().get("values", [])], default_branch
+                        [item["displayId"] for item in resp.json().get("values", [])],
+                        default_branch,
                     )
                 else:
                     # Bitbucket Cloud
                     auth = (req.username, req.token) if req.username and req.token else None
                     repo_resp = await client.get(
                         f"https://api.bitbucket.org/2.0/repositories/{req.repo_name}",
-                        auth=auth, headers=headers
+                        auth=auth,
+                        headers=headers,
                     )
                     default_branch = (
                         repo_resp.json().get("mainbranch", {}).get("name")
-                        if repo_resp.status_code == 200 else None
+                        if repo_resp.status_code == 200
+                        else None
                     )
-                    resp = await client.get(f"https://api.bitbucket.org/2.0/repositories/{req.repo_name}/refs/branches?pagelen=100", auth=auth, headers=headers)
+                    resp = await client.get(
+                        f"https://api.bitbucket.org/2.0/repositories/{req.repo_name}/refs/branches?pagelen=100",
+                        auth=auth,
+                        headers=headers,
+                    )
                     if resp.status_code != 200:
-                        raise HTTPException(status_code=resp.status_code, detail=f"Bitbucket API Fehler: {resp.text}")
+                        raise HTTPException(
+                            status_code=resp.status_code,
+                            detail=f"Bitbucket API Fehler: {resp.text}",
+                        )
                     return _default_branch_first(
                         [item["name"] for item in resp.json().get("values", [])], default_branch
                     )
@@ -269,9 +408,14 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
                 if req.token:
                     headers["Private-Token"] = req.token
                 encoded_name = quote_plus(req.repo_name)
-                resp = await client.get(f"https://gitlab.com/api/v4/projects/{encoded_name}/repository/branches?per_page=100", headers=headers)
+                resp = await client.get(
+                    f"https://gitlab.com/api/v4/projects/{encoded_name}/repository/branches?per_page=100",
+                    headers=headers,
+                )
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}")
+                    raise HTTPException(
+                        status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}"
+                    )
                 return [item["name"] for item in resp.json()]
 
             else:

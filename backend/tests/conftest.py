@@ -37,6 +37,7 @@ def db_session():
 @pytest.fixture
 def unauthenticated_client(db_session):
     """TestClient with no session cookie — for asserting auth is actually enforced."""
+
     def _override_get_db():
         try:
             yield db_session
@@ -76,10 +77,11 @@ def client(unauthenticated_client, db_session):
         db_session.commit()
         db_session.refresh(default_team)
 
-    membership = db_session.query(TeamMembership).filter(
-        TeamMembership.user_id == user.id,
-        TeamMembership.team_id == default_team.id
-    ).first()
+    membership = (
+        db_session.query(TeamMembership)
+        .filter(TeamMembership.user_id == user.id, TeamMembership.team_id == default_team.id)
+        .first()
+    )
     if not membership:
         db_session.add(TeamMembership(user_id=user.id, team_id=default_team.id))
         db_session.commit()
@@ -126,10 +128,14 @@ def member_client(unauthenticated_client, db_session):
         db_session.commit()
         db_session.refresh(default_team)
 
-    membership = db_session.query(TeamMembership).filter(
-        TeamMembership.user_id == user.id,
-        TeamMembership.team_id == default_team.id,
-    ).first()
+    membership = (
+        db_session.query(TeamMembership)
+        .filter(
+            TeamMembership.user_id == user.id,
+            TeamMembership.team_id == default_team.id,
+        )
+        .first()
+    )
     if not membership:
         db_session.add(TeamMembership(user_id=user.id, team_id=default_team.id))
         db_session.commit()

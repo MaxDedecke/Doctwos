@@ -145,6 +145,7 @@ def test_copy_of_quoted_literal_with_extension_still_resolves():
 
 
 def test_replacing_applies_to_all_occurrences():
-    assert copybook.apply_replacing(
-        "CUSTOMER-CUSTOMER-ID", [{"from": "CUSTOMER", "to": "ACCOUNT"}]
-    ) == "ACCOUNT-ACCOUNT-ID"
+    assert (
+        copybook.apply_replacing("CUSTOMER-CUSTOMER-ID", [{"from": "CUSTOMER", "to": "ACCOUNT"}])
+        == "ACCOUNT-ACCOUNT-ID"
+    )

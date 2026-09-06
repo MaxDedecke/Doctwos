@@ -185,7 +185,9 @@ async def change_password(
     if not verify_password(payload.old_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Das aktuelle Passwort ist falsch.")
     if payload.old_password == payload.new_password:
-        raise HTTPException(status_code=400, detail="Das neue Passwort muss sich vom alten unterscheiden.")
+        raise HTTPException(
+            status_code=400, detail="Das neue Passwort muss sich vom alten unterscheiden."
+        )
 
     user.password_hash = hash_password(payload.new_password)
     user.must_change_password = False
@@ -203,7 +205,9 @@ def _oidc_error_redirect(message: str) -> RedirectResponse:
 @router.get("/oidc/login")
 async def oidc_login():
     if not cfg.oidc_enabled():
-        raise HTTPException(status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert.")
+        raise HTTPException(
+            status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert."
+        )
 
     try:
         url, state_cookie_value = oidc_service.build_authorization_url()
@@ -225,7 +229,9 @@ async def oidc_login():
 @router.get("/oidc/callback")
 async def oidc_callback(request: Request, db: Session = Depends(get_db)):
     if not cfg.oidc_enabled():
-        raise HTTPException(status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert.")
+        raise HTTPException(
+            status_code=404, detail="SSO ist für dieses Deployment nicht konfiguriert."
+        )
 
     idp_error = request.query_params.get("error")
     if idp_error:

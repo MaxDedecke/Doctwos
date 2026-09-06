@@ -33,7 +33,9 @@ def test_source(db_session):
         {"name": "jira-test-team"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
+        ),
         {"name": "jira-test-project", "team_id": team_id},
     ).scalar_one()
 
@@ -61,35 +63,49 @@ def test_source(db_session):
 
 
 @pytest.mark.anyio
-async def test_jira_connector_fetches_issue_with_adf_description_and_comments(db_session, test_source):
+async def test_jira_connector_fetches_issue_with_adf_description_and_comments(
+    db_session, test_source
+):
     connector = JiraConnector(test_source.id)
     connector.source = test_source
 
     search_response = {
         "total": 1,
-        "issues": [{
-            "key": "COBOL-42",
-            "fields": {
-                "summary": "Rueckgabecode 8 nach COPY-Aenderung",
-                "description": {
-                    "type": "doc",
-                    "content": [{
-                        "type": "paragraph",
-                        "content": [{"type": "text", "text": "Programm XAAOA bricht ab."}],
-                    }],
-                },
-                "comment": {"comments": [{
-                    "author": {"displayName": "M. Muster"},
-                    "body": {
+        "issues": [
+            {
+                "key": "COBOL-42",
+                "fields": {
+                    "summary": "Rueckgabecode 8 nach COPY-Aenderung",
+                    "description": {
                         "type": "doc",
-                        "content": [{
-                            "type": "paragraph",
-                            "content": [{"type": "text", "text": "Copybook geprueft."}],
-                        }],
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Programm XAAOA bricht ab."}],
+                            }
+                        ],
                     },
-                }]},
-            },
-        }],
+                    "comment": {
+                        "comments": [
+                            {
+                                "author": {"displayName": "M. Muster"},
+                                "body": {
+                                    "type": "doc",
+                                    "content": [
+                                        {
+                                            "type": "paragraph",
+                                            "content": [
+                                                {"type": "text", "text": "Copybook geprueft."}
+                                            ],
+                                        }
+                                    ],
+                                },
+                            }
+                        ]
+                    },
+                },
+            }
+        ],
     }
 
     async def mock_get(url, **kwargs):
@@ -112,9 +128,13 @@ async def test_jira_connector_fetches_issue_with_adf_description_and_comments(db
 
 def test_jira_build_jql_combines_project_and_time_filter():
     connector = JiraConnector.__new__(JiraConnector)  # __init__ braucht DB/Source, hier nicht nötig
-    connector.source = type("FakeSource", (), {
-        "last_synced_at": datetime(2026, 7, 20, 9, 30, tzinfo=timezone.utc),
-    })()
+    connector.source = type(
+        "FakeSource",
+        (),
+        {
+            "last_synced_at": datetime(2026, 7, 20, 9, 30, tzinfo=timezone.utc),
+        },
+    )()
 
     jql = connector._build_jql(["COBOLPROJ"])
 

@@ -47,20 +47,24 @@ def search_nodes(
             query = query.filter(Project.id.in_(visible_project_ids))
         counts["project"] = query.count()
         for p in query.order_by(Project.name).limit(limit).all():
-            results.append({
-                "node_type": "project",
-                "node_id": p.id,
-                "node_label": p.name,
-                "node_url": None,
-                "node_meta": {"is_archived": p.is_archived},
-            })
+            results.append(
+                {
+                    "node_type": "project",
+                    "node_id": p.id,
+                    "node_label": p.name,
+                    "node_url": None,
+                    "node_meta": {"is_archived": p.is_archived},
+                }
+            )
 
     # 2. Search Code Entities (paragraphs, sections, variables)
     if "entity" in wanted and not source_id:
-        query = db.query(CodeEntity).filter(or_(
-            CodeEntity.name.ilike(f"%{q}%"),
-            CodeEntity.file_path.ilike(f"%{q}%"),
-        ))
+        query = db.query(CodeEntity).filter(
+            or_(
+                CodeEntity.name.ilike(f"%{q}%"),
+                CodeEntity.file_path.ilike(f"%{q}%"),
+            )
+        )
         if project_id:
             query = query.filter(CodeEntity.project_id == project_id)
         else:
@@ -71,34 +75,44 @@ def search_nodes(
             # eigenständige Git-Wissensquellen) bleiben davon unberührt.
             exposed_project_ids = get_globally_exposed_project_ids(db)
             if visible_project_ids is not None:
-                exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
+                exposed_project_ids = [
+                    pid for pid in exposed_project_ids if pid in visible_project_ids
+                ]
             elif visible_team_ids is not None:
-                team_project_ids = {p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()}
-                exposed_project_ids = [pid for pid in exposed_project_ids if pid in team_project_ids]
-            query = query.filter(or_(
-                CodeEntity.project_id.in_(exposed_project_ids),
-                CodeEntity.project_id == None
-            ))
+                team_project_ids = {
+                    p[0]
+                    for p in db.query(Project.id)
+                    .filter(Project.team_id.in_(visible_team_ids))
+                    .all()
+                }
+                exposed_project_ids = [
+                    pid for pid in exposed_project_ids if pid in team_project_ids
+                ]
+            query = query.filter(
+                or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
+            )
         counts["entity"] = query.count()
         for e in query.order_by(CodeEntity.name).limit(limit).all():
-            results.append({
-                "node_type": "entity",
-                "node_id": e.id,
-                "node_label": e.name,
-                "node_url": None,
-                "node_meta": {
-                    "type": e.type,
-                    "file_path": e.file_path,
-                    # Code-Dateien können aus einer eigenständigen Git-
-                    # KnowledgeSource stammen (project_id/repo_id ist dann
-                    # absichtlich NULL). Das Frontend braucht source_id, um
-                    # den Worktree-Inhalt über /knowledge-sources/{id}/content
-                    # statt über den alten Repository-Endpunkt zu laden.
-                    "source_id": e.source_id,
-                    "project_id": e.project_id,
-                    "start_line": e.start_line,
-                },
-            })
+            results.append(
+                {
+                    "node_type": "entity",
+                    "node_id": e.id,
+                    "node_label": e.name,
+                    "node_url": None,
+                    "node_meta": {
+                        "type": e.type,
+                        "file_path": e.file_path,
+                        # Code-Dateien können aus einer eigenständigen Git-
+                        # KnowledgeSource stammen (project_id/repo_id ist dann
+                        # absichtlich NULL). Das Frontend braucht source_id, um
+                        # den Worktree-Inhalt über /knowledge-sources/{id}/content
+                        # statt über den alten Repository-Endpunkt zu laden.
+                        "source_id": e.source_id,
+                        "project_id": e.project_id,
+                        "start_line": e.start_line,
+                    },
+                }
+            )
 
     # 3. Search Knowledge Sources (Confluence spaces, Jira projects)
     if "knowledge_source" in wanted and not source_id:
@@ -109,27 +123,31 @@ def search_nodes(
             query = query.filter(
                 or_(
                     KnowledgeSource.project_id.in_(visible_project_ids),
-                    KnowledgeSource.project_id == None
+                    KnowledgeSource.project_id.is_(None),
                 )
             )
         if visible_team_ids is not None:
             query = query.filter(KnowledgeSource.team_id.in_(visible_team_ids))
         counts["knowledge_source"] = query.count()
         for s in query.order_by(KnowledgeSource.name).limit(limit).all():
-            results.append({
-                "node_type": "knowledge_source",
-                "node_id": s.id,
-                "node_label": s.name,
-                "node_url": s.url,
-                "node_meta": {"type": s.type, "project_id": s.project_id},
-            })
+            results.append(
+                {
+                    "node_type": "knowledge_source",
+                    "node_id": s.id,
+                    "node_label": s.name,
+                    "node_url": s.url,
+                    "node_meta": {"type": s.type, "project_id": s.project_id},
+                }
+            )
 
     # 4. Search Document Chunks (Wiki pages, PDFs, etc.)
     if "document" in wanted and q:
-        chunk_filter = db.query(DocumentChunk).filter(or_(
-            DocumentChunk.file_path.ilike(f"%{q}%"),
-            DocumentChunk.metadata_json['title'].as_string().ilike(f"%{q}%"),
-        ))
+        chunk_filter = db.query(DocumentChunk).filter(
+            or_(
+                DocumentChunk.file_path.ilike(f"%{q}%"),
+                DocumentChunk.metadata_json["title"].as_string().ilike(f"%{q}%"),
+            )
+        )
         if project_id:
             chunk_filter = chunk_filter.filter(DocumentChunk.project_id == project_id)
         else:
@@ -139,10 +157,19 @@ def search_nodes(
             # übergreifend durchsuchbar.
             exposed_project_ids = get_globally_exposed_project_ids(db)
             if visible_project_ids is not None:
-                exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
+                exposed_project_ids = [
+                    pid for pid in exposed_project_ids if pid in visible_project_ids
+                ]
             elif visible_team_ids is not None:
-                team_project_ids = {p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()}
-                exposed_project_ids = [pid for pid in exposed_project_ids if pid in team_project_ids]
+                team_project_ids = {
+                    p[0]
+                    for p in db.query(Project.id)
+                    .filter(Project.team_id.in_(visible_team_ids))
+                    .all()
+                }
+                exposed_project_ids = [
+                    pid for pid in exposed_project_ids if pid in team_project_ids
+                ]
             gate = build_document_chunk_code_gate(db, exposed_project_ids)
             if gate is not None:
                 chunk_filter = chunk_filter.filter(gate)
@@ -152,20 +179,23 @@ def search_nodes(
             chunk_filter = chunk_filter.filter(
                 or_(
                     DocumentChunk.project_id.in_(visible_project_ids),
-                    DocumentChunk.project_id == None
+                    DocumentChunk.project_id.is_(None),
                 )
             )
         elif visible_team_ids is not None:
-            project_ids = [p[0] for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()]
+            project_ids = [
+                p[0]
+                for p in db.query(Project.id).filter(Project.team_id.in_(visible_team_ids)).all()
+            ]
             chunk_filter = chunk_filter.filter(DocumentChunk.project_id.in_(project_ids))
 
         counts["document"] = (
-            chunk_filter.with_entities(func.count(func.distinct(DocumentChunk.file_path))).scalar() or 0
+            chunk_filter.with_entities(func.count(func.distinct(DocumentChunk.file_path))).scalar()
+            or 0
         )
 
         min_ids = (
-            chunk_filter
-            .with_entities(func.min(DocumentChunk.id).label("id"))
+            chunk_filter.with_entities(func.min(DocumentChunk.id).label("id"))
             .group_by(DocumentChunk.file_path)
             .limit(limit)
             .subquery()
@@ -174,17 +204,19 @@ def search_nodes(
         for d in docs:
             meta = d.metadata_json or {}
             title = meta.get("title") or d.file_path
-            results.append({
-                "node_type": "document",
-                "node_id": d.id,
-                "node_label": title,
-                "node_url": meta.get("url"),
-                "node_meta": {
-                    "source_type": meta.get("source_type"),
-                    "file_path": d.file_path,
-                    "source_id": d.source_id,
-                    "project_id": d.project_id,
-                },
-            })
+            results.append(
+                {
+                    "node_type": "document",
+                    "node_id": d.id,
+                    "node_label": title,
+                    "node_url": meta.get("url"),
+                    "node_meta": {
+                        "source_type": meta.get("source_type"),
+                        "file_path": d.file_path,
+                        "source_id": d.source_id,
+                        "project_id": d.project_id,
+                    },
+                }
+            )
 
     return results, counts

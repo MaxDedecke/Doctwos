@@ -23,4 +23,6 @@ def get_authenticated_url(url: str, username: str = None, token: str = None) -> 
         auth_part = quote(token, safe="")
     host = parsed.netloc.rsplit("@", 1)[-1]
     authenticated_netloc = f"{auth_part}@{host}"
-    return urlunsplit((parsed.scheme, authenticated_netloc, parsed.path, parsed.query, parsed.fragment))
+    return urlunsplit(
+        (parsed.scheme, authenticated_netloc, parsed.path, parsed.query, parsed.fragment)
+    )

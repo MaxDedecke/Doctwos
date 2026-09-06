@@ -54,7 +54,9 @@ def scan(masked_lines: list[LogicalLine]) -> tuple[CobolProgram, list[str]]:
     visitor.visit(tree)
 
     if not visitor.divisions:
-        errors.append("Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden).")
+        errors.append(
+            "Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden)."
+        )
     if not visitor.program_name:
         errors.append("PROGRAM-ID nicht gefunden.")
 
@@ -138,7 +140,11 @@ class _StructureVisitor(Cobol85Visitor):
             return
         for p in paragraphs_ctx.paragraph():
             name_ctx = p.paragraphName()
-            name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx)) if name_ctx is not None else ""
+            name = (
+                _clean_name(antlr_bridge.original_span(self._source_text, name_ctx))
+                if name_ctx is not None
+                else ""
+            )
             if not name:
                 continue
             self.paragraphs.append(Paragraph(name, section_name, _line(p.start), _line(p.stop)))

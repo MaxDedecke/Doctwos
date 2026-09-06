@@ -20,7 +20,8 @@ from typing import AsyncIterator
 
 from connectors.base import BaseConnector, Document
 from db import SessionLocal
-from models.database import DocumentChunk, SourceScanFile, KnowledgeSource
+from models.database import DocumentChunk, SourceScanFile
+from utils import extract_text_from_pdf_ocr
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,6 @@ def _md5(file_path: str) -> str:
     return h.hexdigest()
 
 
-from utils import extract_text_from_pdf_ocr
-
-
 def extract_pdf_pages(file_path: str) -> list[tuple[int | None, str]]:
     """Liest eine PDF-Datei seitenweise ein; OCR-Fallback für Bild-PDFs ohne Text-Layer.
 
@@ -48,8 +46,11 @@ def extract_pdf_pages(file_path: str) -> list[tuple[int | None, str]]:
     ein einzelner Eintrag mit `page_no=None`.
     """
     from pypdf import PdfReader
+
     reader = PdfReader(file_path)
-    pages = [(page_no, page.extract_text() or "") for page_no, page in enumerate(reader.pages, start=1)]
+    pages = [
+        (page_no, page.extract_text() or "") for page_no, page in enumerate(reader.pages, start=1)
+    ]
     if not any(text.strip() for _, text in pages):
         logger.info(f"OCR-Fallback für PDF ohne Text-Layer: '{file_path}'")
         return [(None, extract_text_from_pdf_ocr(file_path))]
@@ -64,6 +65,7 @@ def extract_docx_text(file_path: str) -> str:
     vorher hatte `document.py` eine eigene, unabhängige python-docx-Schleife.
     """
     import docx
+
     doc = docx.Document(file_path)
     parts = [p.text for p in doc.paragraphs]
     for table in doc.tables:
@@ -108,7 +110,6 @@ def _scan_folder(folder_path: str) -> dict[str, str]:
 
 
 class FolderConnector(BaseConnector):
-
     def __init__(self, source_id: int) -> None:
         super().__init__(source_id)
         self._current_scan: dict[str, str] = {}
@@ -129,19 +130,18 @@ class FolderConnector(BaseConnector):
 
         existing: dict[str, str] = {
             r.file_path: r.content_hash
-            for r in self.db.query(SourceScanFile).filter(
-                SourceScanFile.source_id == self.source_id
-            ).all()
+            for r in self.db.query(SourceScanFile)
+            .filter(SourceScanFile.source_id == self.source_id)
+            .all()
         }
 
-        chunk_count = self.db.query(DocumentChunk).filter(DocumentChunk.source_id == self.source_id).count()
+        chunk_count = (
+            self.db.query(DocumentChunk).filter(DocumentChunk.source_id == self.source_id).count()
+        )
         if chunk_count == 0:
             existing = {}
 
-        new_or_changed = [
-            path for path, h in self._current_scan.items()
-            if existing.get(path) != h
-        ]
+        new_or_changed = [path for path, h in self._current_scan.items() if existing.get(path) != h]
         self._new_or_changed = set(new_or_changed)
         self._successful_files = set()
         self._log(
@@ -182,9 +182,9 @@ class FolderConnector(BaseConnector):
 
             existing_records = {
                 r.file_path: r
-                for r in db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id
-                ).all()
+                for r in db.query(SourceScanFile)
+                .filter(SourceScanFile.source_id == self.source_id)
+                .all()
             }
 
             # Orphans: in DB aber nicht mehr im Ordner → Chunks + Record löschen
@@ -205,15 +205,19 @@ class FolderConnector(BaseConnector):
                 if path in existing_records:
                     existing_records[path].content_hash = content_hash
                 else:
-                    db.add(SourceScanFile(
-                        source_id=self.source_id,
-                        file_path=path,
-                        content_hash=content_hash,
-                    ))
+                    db.add(
+                        SourceScanFile(
+                            source_id=self.source_id,
+                            file_path=path,
+                            content_hash=content_hash,
+                        )
+                    )
 
             db.commit()
         except Exception as e:
-            logger.error(f"[FolderConnector] Fehler beim Aktualisieren der SourceScanFile-Tabelle: {e}")
+            logger.error(
+                f"[FolderConnector] Fehler beim Aktualisieren der SourceScanFile-Tabelle: {e}"
+            )
             db.rollback()
         finally:
             db.close()

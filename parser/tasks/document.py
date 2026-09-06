@@ -10,10 +10,11 @@ from ollama_client import get_embedding, ensure_model_pulled
 
 logger = logging.getLogger(__name__)
 
+
 async def process_local_document_async(source_id: int, file_path: str):
     """
     Parses and indexes a locally uploaded file (PDF, Word, or plain text).
-    
+
     1. Extracts text content depending on the file format (PDF parsing via the
        shared `connectors.folder.extract_pdf_pages` incl. OCR fallback for
        image-only PDFs, Word parsing with python-docx, or default raw text
@@ -40,8 +41,9 @@ async def process_local_document_async(source_id: int, file_path: str):
         return
 
     from datetime import datetime, timezone
+
     def log_event(message: str):
-        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         full_msg = f"[{timestamp}] {message}\n"
         logger.info(message)
         source.sync_log = (source.sync_log or "") + full_msg
@@ -54,7 +56,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         db.commit()
 
         log_event(f"Starte Verarbeitung der lokalen Datei '{file_path}' (ID: {source_id})...")
-        
+
         # 1. Read and extract content depending on file type.
         # `pages` holds (page_number, text) tuples -- page_number is the 1-based
         # PDF page for formats that have one, None otherwise. Chunking per page
@@ -103,7 +105,9 @@ async def process_local_document_async(source_id: int, file_path: str):
         log_event(f"{total_chars} Zeichen Text erfolgreich extrahiert ({len(pages)} Seite(n)).")
 
         # 2. Ensure embedding model is pulled
-        log_event(f"Stelle sicher, dass das Einbettungs-Modell '{config.EMBED_MODEL}' bereit ist...")
+        log_event(
+            f"Stelle sicher, dass das Einbettungs-Modell '{config.EMBED_MODEL}' bereit ist..."
+        )
         await ensure_model_pulled(config.EMBED_MODEL)
 
         # 3. Chunk and embed content, page by page so a chunk never blends text
@@ -126,7 +130,7 @@ async def process_local_document_async(source_id: int, file_path: str):
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
                 embedding=embedding,
-                metadata_json={"language": lang, "page": chunk.get("page")}
+                metadata_json={"language": lang, "page": chunk.get("page")},
             )
 
         async def embed_content(content):
@@ -149,7 +153,9 @@ async def process_local_document_async(source_id: int, file_path: str):
         source.sync_status = "completed"
         source.last_synced_at = datetime.now(timezone.utc)
         db.commit()
-        log_event(f"Datei '{file_path}' erfolgreich indiziert ({embedded_chunks_count} Vektor-Chuncks erzeugt).")
+        log_event(
+            f"Datei '{file_path}' erfolgreich indiziert ({embedded_chunks_count} Vektor-Chuncks erzeugt)."
+        )
 
     except Exception as e:
         error_msg = str(e)

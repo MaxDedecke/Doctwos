@@ -96,13 +96,25 @@ def test_reset_password_replaces_the_old_one(client, cleanup_user):
     old_password = _create(client).json()["initial_password"]
     user_id = next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
 
-    new_password = client.post(f"/users/{user_id}/reset-password", json={}).json()["initial_password"]
+    new_password = client.post(f"/users/{user_id}/reset-password", json={}).json()[
+        "initial_password"
+    ]
     assert new_password != old_password
 
     with as_nobody(client) as anon:
-        assert anon.post("/auth/login", json={"username": NEW_USERNAME, "password": new_password}).status_code == 200
+        assert (
+            anon.post(
+                "/auth/login", json={"username": NEW_USERNAME, "password": new_password}
+            ).status_code
+            == 200
+        )
         # Das alte Passwort ist damit tot.
-        assert anon.post("/auth/login", json={"username": NEW_USERNAME, "password": old_password}).status_code == 401
+        assert (
+            anon.post(
+                "/auth/login", json={"username": NEW_USERNAME, "password": old_password}
+            ).status_code
+            == 401
+        )
 
 
 def test_reset_password_is_rejected_for_sso_accounts(client, db_session):
@@ -110,7 +122,9 @@ def test_reset_password_is_rejected_for_sso_accounts(client, db_session):
     der Kunden-IdP-Anmeldung vorbei."""
     from core.users import create_oidc_user
 
-    user = create_oidc_user(db_session, username="test-oidc-reset-guard", subject="test-oidc-reset-guard-sub")
+    user = create_oidc_user(
+        db_session, username="test-oidc-reset-guard", subject="test-oidc-reset-guard-sub"
+    )
     try:
         resp = client.post(f"/users/{user.id}/reset-password", json={})
         assert resp.status_code == 400

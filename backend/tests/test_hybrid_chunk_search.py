@@ -6,24 +6,33 @@ decrypted candidates in Python (see _SECTION_MATCH_SCAN_LIMIT). This proves it s
 chunk containing the section number without needing a real embedding call -- limit=1 means the
 vector-search fallback branch is never reached.
 """
+
 from api.chat import _find_pinned_chunks, _hybrid_chunk_search
 from models.database import DocumentChunk
 
 
 def test_section_number_match_finds_decrypted_chunk(db_session, test_project):
     matching = DocumentChunk(
-        project_id=test_project, file_path="docs/spec.pdf",
-        content="Abschnitt 4.2.1: Brandschutzklasse T90 fuer tragende Waende.", start_line=1, end_line=1,
+        project_id=test_project,
+        file_path="docs/spec.pdf",
+        content="Abschnitt 4.2.1: Brandschutzklasse T90 fuer tragende Waende.",
+        start_line=1,
+        end_line=1,
     )
     decoy = DocumentChunk(
-        project_id=test_project, file_path="docs/other.pdf",
-        content="Unrelated content without any section reference.", start_line=1, end_line=1,
+        project_id=test_project,
+        file_path="docs/other.pdf",
+        content="Unrelated content without any section reference.",
+        start_line=1,
+        end_line=1,
     )
     db_session.add_all([matching, decoy])
     db_session.commit()
 
     try:
-        base_query = db_session.query(DocumentChunk).filter(DocumentChunk.project_id == test_project)
+        base_query = db_session.query(DocumentChunk).filter(
+            DocumentChunk.project_id == test_project
+        )
         results = _hybrid_chunk_search(
             base_query,
             query_embedding=[0.0] * 1024,

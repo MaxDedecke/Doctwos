@@ -94,4 +94,4 @@ def _text_after_end_exec(text: str) -> str:
     idx = upper.rfind(_END_EXEC)
     if idx == -1:
         return ""
-    return text[idx + len(_END_EXEC):].strip()
+    return text[idx + len(_END_EXEC) :].strip()

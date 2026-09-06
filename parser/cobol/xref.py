@@ -58,10 +58,14 @@ def scan(
     for field in inherited_fields or []:
         if field["name"].upper() != "FILLER":
             index.setdefault(field["effective_name"].upper(), []).append(field)
-    local_names = {p.name.upper() for p in program.paragraphs} | {s.name.upper() for s in program.sections}
+    local_names = {p.name.upper() for p in program.paragraphs} | {
+        s.name.upper() for s in program.sections
+    }
 
     proc_tokens = [
-        t for t in tokens if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
+        t
+        for t in tokens
+        if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
     ]
     n = len(proc_tokens)
 
@@ -89,7 +93,9 @@ def scan(
             ParsedEdge(
                 type="USES",
                 src_name=_enclosing_paragraph(program, tok.phys_line),
-                dst_name=(target["name"] if isinstance(target, dict) else target.name) if target is not None else tok.value,
+                dst_name=(target["name"] if isinstance(target, dict) else target.name)
+                if target is not None
+                else tok.value,
                 resolution=resolution,
                 src_start_line=tok.phys_line,
                 src_end_line=tok.phys_line,
@@ -106,15 +112,19 @@ def scan(
     return edges, errors
 
 
-def _resolve(candidates: list, proc_tokens: list[Token], idx: int, n: int) -> tuple[object | None, str]:
+def _resolve(
+    candidates: list, proc_tokens: list[Token], idx: int, n: int
+) -> tuple[object | None, str]:
     if len(candidates) == 1:
         return candidates[0], "resolved"
 
     qualifier = _qualifier_after(proc_tokens, idx, n)
     if qualifier is not None:
         matches = [
-            c for c in candidates
-            if ((c.get("effective_parent") if isinstance(c, dict) else c.parent) or "").upper() == qualifier
+            c
+            for c in candidates
+            if ((c.get("effective_parent") if isinstance(c, dict) else c.parent) or "").upper()
+            == qualifier
         ]
         if len(matches) == 1:
             return matches[0], "resolved"
