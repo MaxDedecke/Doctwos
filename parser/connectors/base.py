@@ -33,7 +33,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import redis
 
@@ -74,6 +74,14 @@ class Document(TypedDict):
                     eindeutig sein, damit alte Chunks bei Delta-Sync gezielt gelöscht
                     werden können
         extra_meta  Beliebige Zusatz-Felder für metadata_json (page_id, issue_key, ...)
+        line_sections
+                    O-082: optional, 1:1 mit den Zeilen von `content` (Index i
+                    beschreibt die für content-Zeile i+1 zuletzt gültige
+                    Überschrift). Nur vom Confluence-Connector befüllt, der als
+                    einziger strukturierte Section-Grenzen aus der Quelle
+                    kennt. Wird in _process_document() nach dem Chunking
+                    genutzt, um jedem Chunk seine Section als metadata_json
+                    beizugeben (analog zu meta["section"] bei COBOL).
     """
 
     title: str
@@ -82,6 +90,7 @@ class Document(TypedDict):
     source_type: str
     storage_key: str
     extra_meta: dict
+    line_sections: NotRequired[list[str | None]]
 
 
 class BaseConnector(ABC):
@@ -160,6 +169,16 @@ class BaseConnector(ABC):
         parser = CodeParser(lang)
         chunks = parser.chunk_file(doc["content"], chunk_size=config.CHUNK_SIZE)
 
+        # O-082: reine Metadaten-Anreicherung, ändert die von chunk_file()
+        # gesetzten Chunk-Grenzen nicht. line_sections ist 1:1 mit den
+        # content-Zeilen indiziert, chunk["start_line"] ist 1-basiert.
+        line_sections = doc.get("line_sections")
+        if line_sections:
+            for chunk in chunks:
+                idx = chunk["start_line"] - 1
+                if 0 <= idx < len(line_sections) and line_sections[idx]:
+                    chunk["meta"] = {"section": line_sections[idx]}
+
         def build_chunk(chunk, embedding):
             return DocumentChunk(
                 project_id=self.source.project_id,
@@ -174,6 +193,7 @@ class BaseConnector(ABC):
                     "title": doc["title"],
                     "source_type": doc["source_type"],
                     **doc["extra_meta"],
+                    **(chunk.get("meta") or {}),
                 },
             )
 

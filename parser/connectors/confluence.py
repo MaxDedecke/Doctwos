@@ -23,7 +23,6 @@ Pagination:
 """
 
 import io
-import re
 import asyncio
 from datetime import datetime
 from html.parser import HTMLParser
@@ -43,6 +42,9 @@ _SUPPORTED_MIME_EXACT = {
 }
 
 
+_HEADINGS = frozenset({"h1", "h2", "h3", "h4", "h5", "h6"})
+
+
 class _ConfluenceHTMLParser(HTMLParser):
     """Converts Confluence rendered HTML (body.view.value) to clean plaintext.
 
@@ -52,6 +54,17 @@ class _ConfluenceHTMLParser(HTMLParser):
     - Table cells separated with ' | ' so rows stay readable
     - <script>, <style>, and Confluence param tags excluded from output
     - <pre>/<code> content kept verbatim (no whitespace collapsing inside)
+
+    O-082: neben dem reinen Text führt der Parser parallel `_line_sections`
+    mit — pro Ausgabezeile die zuletzt gesehene h1-h6-Überschrift. Anders als
+    bei COBOL (Section-Grenze liegt schon aus der Strukturanalyse vor) muss
+    diese Zuordnung hier während des Parsens mitlaufen: eine Überschrift ist
+    erst nach ihrem </h*>-Endtag vollständig bekannt (Inline-Markup wie
+    <strong> im Heading-Text), wird aber rückwirkend auch der eigenen Zeile
+    zugewiesen (`_heading_line_index`). get_lines_with_sections() wendet
+    dieselbe Trim-/Blankzeilen-Kollaps-Logik wie früher get_text() an, aber
+    auf Text- und Section-Liste zugleich, damit beide im Index synchron
+    bleiben.
     """
 
     _BLOCK = frozenset(
@@ -82,6 +95,17 @@ class _ConfluenceHTMLParser(HTMLParser):
         self._buf: list[str] = []
         self._pre_depth = 0
         self._skip_depth = 0
+        self._current_section: str | None = None
+        self._line_sections: list[str | None] = [None]
+        self._heading_depth = 0
+        self._heading_buf: list[str] = []
+        self._heading_line_index: int | None = None
+
+    def _end_line(self) -> None:
+        """Schließt die aktuelle Zeile ab und merkt die für die neue Zeile
+        gültige Section vor."""
+        self._buf.append("\n")
+        self._line_sections.append(self._current_section)
 
     def handle_starttag(self, tag, attrs):
         if tag in self._SKIP:
@@ -89,15 +113,20 @@ class _ConfluenceHTMLParser(HTMLParser):
             return
         if self._skip_depth:
             return
-        if tag in ("pre", "code"):
+        if tag in _HEADINGS:
+            self._end_line()
+            self._heading_depth += 1
+            self._heading_buf = []
+            self._heading_line_index = len(self._line_sections) - 1
+        elif tag in ("pre", "code"):
             self._pre_depth += 1
-            self._buf.append("\n")
+            self._end_line()
         elif tag == "br":
-            self._buf.append("\n")
+            self._end_line()
         elif tag in ("td", "th"):
             self._buf.append(" | ")
         elif tag in self._BLOCK:
-            self._buf.append("\n")
+            self._end_line()
 
     def handle_endtag(self, tag):
         if tag in self._SKIP:
@@ -105,33 +134,78 @@ class _ConfluenceHTMLParser(HTMLParser):
             return
         if self._skip_depth:
             return
-        if tag in ("pre", "code"):
+        if tag in _HEADINGS:
+            self._heading_depth = max(0, self._heading_depth - 1)
+            heading_text = " ".join("".join(self._heading_buf).split())
+            if heading_text:
+                self._current_section = heading_text
+                if self._heading_line_index is not None:
+                    self._line_sections[self._heading_line_index] = heading_text
+            self._heading_line_index = None
+            self._end_line()
+        elif tag in ("pre", "code"):
             self._pre_depth = max(0, self._pre_depth - 1)
-            self._buf.append("\n")
+            self._end_line()
         elif tag in self._BLOCK:
-            self._buf.append("\n")
+            self._end_line()
 
     def handle_data(self, data):
         if self._skip_depth:
             return
         self._buf.append(data)
+        if self._heading_depth:
+            self._heading_buf.append(data)
+
+    def _normalized_lines(self) -> tuple[list[str], list[str | None]]:
+        raw_lines = "".join(self._buf).split("\n")
+        sections = self._line_sections
+        if len(sections) < len(raw_lines):
+            # Sollte nicht vorkommen (jede "\n" in _buf hat ihren _end_line()
+            # Eintrag) -- defensiv statt IndexError, falls doch mal ein Tag
+            # ohne Section-Nachführung Zeilen erzeugt.
+            sections = sections + [sections[-1] if sections else None] * (
+                len(raw_lines) - len(sections)
+            )
+        lines = [" ".join(line.split()) for line in raw_lines]
+        sections = sections[: len(lines)]
+
+        start = 0
+        while start < len(lines) and lines[start] == "":
+            start += 1
+        end = len(lines)
+        while end > start and lines[end - 1] == "":
+            end -= 1
+        lines, sections = lines[start:end], sections[start:end]
+
+        out_lines: list[str] = []
+        out_sections: list[str | None] = []
+        blank_run = 0
+        for line, section in zip(lines, sections):
+            if line == "":
+                blank_run += 1
+                if blank_run > 1:
+                    continue
+            else:
+                blank_run = 0
+            out_lines.append(line)
+            out_sections.append(section)
+        return out_lines, out_sections
 
     def get_text(self) -> str:
-        raw = "".join(self._buf)
-        lines = []
-        for line in raw.split("\n"):
-            # Collapse inline whitespace per line; keep blank lines for structure
-            normalized = " ".join(line.split())
-            lines.append(normalized)
-        # Drop leading/trailing blanks, collapse 3+ blank lines to 2
-        text = "\n".join(lines).strip()
-        return re.sub(r"\n{3,}", "\n\n", text)
+        lines, _ = self._normalized_lines()
+        return "\n".join(lines)
+
+    def get_lines_with_sections(self) -> tuple[str, list[str | None]]:
+        """Wie get_text(), liefert zusätzlich pro Zeile die zuletzt gültige
+        Section (parallele Liste, 1:1 mit den Zeilen des Textes)."""
+        lines, sections = self._normalized_lines()
+        return "\n".join(lines), sections
 
 
-def _html_to_text(html: str) -> str:
+def _html_to_text(html: str) -> tuple[str, list[str | None]]:
     parser = _ConfluenceHTMLParser()
     parser.feed(html)
-    return parser.get_text()
+    return parser.get_lines_with_sections()
 
 
 def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
@@ -341,7 +415,7 @@ class ConfluenceConnector(BaseConnector):
                 self._log(f"Konnte Änderungszeitpunkt für '{title}' nicht parsen: {ex}")
 
         body_html = page.get("body", {}).get("view", {}).get("value", "")
-        plain_text = _html_to_text(body_html)
+        plain_text, line_sections = _html_to_text(body_html)
         if not plain_text:
             self._log(f"Seite '{title}' hat keinen Textinhalt. Überspringe.")
             return None
@@ -362,6 +436,7 @@ class ConfluenceConnector(BaseConnector):
             source_type="Confluence",
             storage_key=title,
             extra_meta={"page_id": page.get("id")},
+            line_sections=line_sections,
         )
 
     async def _fetch_attachments(self, client, base_url, auth, headers, page: dict):

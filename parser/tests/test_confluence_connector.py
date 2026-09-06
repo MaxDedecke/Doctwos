@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import text
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
@@ -164,3 +164,103 @@ async def test_confluence_connector_filters_by_space(db_session, test_source):
 
     assert len(docs) == 1
     assert docs[0]["title"] == "Runbook"
+
+
+@pytest.mark.anyio
+async def test_confluence_connector_attaches_line_sections(db_session, test_source):
+    """O-082: fetch_documents() liefert pro Zeile die zuletzt gültige
+    Überschrift mit, damit _process_document() daraus meta["section"] pro
+    Chunk ableiten kann."""
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    html = "<h1>Setup</h1><p>Schritt 1.</p><h2>Betrieb</h2><p>Schritt 2.</p>"
+    page_response = {"results": [_page(html=html)], "_links": {}}
+
+    async def mock_get(url, **kwargs):
+        resp = MagicMock()
+        resp.raise_for_status = MagicMock()
+        if "child/attachment" in url:
+            resp.json = MagicMock(return_value={"results": []})
+        else:
+            resp.json = MagicMock(return_value=page_response)
+        return resp
+
+    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+        docs = [doc async for doc in connector.fetch_documents()]
+
+    assert len(docs) == 1
+    lines = docs[0]["content"].split("\n")
+    line_sections = docs[0]["line_sections"]
+    assert len(lines) == len(line_sections)
+    assert line_sections[lines.index("Schritt 1.")] == "Setup"
+    assert line_sections[lines.index("Schritt 2.")] == "Betrieb"
+
+
+@pytest.mark.anyio
+async def test_confluence_connector_process_document_stores_section_metadata(
+    db_session, test_source
+):
+    """O-082 Ende-zu-Ende: _process_document() (gemeinsamer Pfad für alle
+    generischen Connectoren, base.py) reichert metadata_json jedes Chunks um
+    die Section an, in der er in der Confluence-Seite stand."""
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    doc = {
+        "title": "Runbook",
+        "content": "Setup\n\nSchritt 1.\n\nBetrieb\n\nSchritt 2.",
+        "url": "https://example.atlassian.net/spaces/DOCS/pages/123/Runbook",
+        "source_type": "Confluence",
+        "storage_key": "Runbook",
+        "extra_meta": {"page_id": "123"},
+        "line_sections": ["Setup", "Setup", "Setup", "Setup", "Betrieb", "Betrieb", "Betrieb"],
+    }
+
+    with patch("connectors.base.get_embedding", AsyncMock(return_value=[0.0] * 1024)):
+        await connector._process_document(doc)
+    connector.db.commit()
+
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "Runbook")
+        .order_by(DocumentChunk.start_line)
+        .all()
+    )
+    assert len(chunks) == 1
+    assert chunks[0].metadata_json["section"] == "Setup"
+    # Nicht-Section-Felder (url/title/source_type/page_id) bleiben unverändert.
+    assert chunks[0].metadata_json["title"] == "Runbook"
+    assert chunks[0].metadata_json["page_id"] == "123"
+
+
+@pytest.mark.anyio
+async def test_confluence_connector_process_document_without_sections_unaffected(
+    db_session, test_source
+):
+    """Regression: eine Seite ohne jede Überschrift (line_sections nur None)
+    darf weiterhin keinen "section"-Schlüssel in metadata_json bekommen --
+    sonst würde ein leerer Wert die spätere Chat-Zitat-Anzeige verwirren."""
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    doc = {
+        "title": "Notizen",
+        "content": "Ein Absatz ohne jede Überschrift.",
+        "url": None,
+        "source_type": "Confluence",
+        "storage_key": "Notizen",
+        "extra_meta": {"page_id": "456"},
+        "line_sections": [None],
+    }
+
+    with patch("connectors.base.get_embedding", AsyncMock(return_value=[0.0] * 1024)):
+        await connector._process_document(doc)
+    connector.db.commit()
+
+    chunk = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "Notizen")
+        .one()
+    )
+    assert "section" not in chunk.metadata_json
