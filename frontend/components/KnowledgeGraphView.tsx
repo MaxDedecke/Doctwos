@@ -155,9 +155,11 @@ interface Props {
   selectedDoc?: WorkspaceDocument | null;
   projectEntities?: CodeEntity[];
   onEntitySelect?: (ent: CodeEntity) => Promise<void> | void;
+  // O-091: the ONLY navigation callback for both node kinds. The target view
+  // (code/doc/webview) is decided exactly once behind this callback, in
+  // usePanelNavigation::handlePanelFileSelect via getSelectionViewType -- this
+  // component must not route document nodes on a second, parallel path.
   onFileSelect?: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void> | void;
-  // Opens (or navigates an already-open) document panel for a plain document/PDF node.
-  onDocFocus?: (filePath: string, sourceId: number | string | null, openIfMissing?: boolean) => void;
   // How many panels are open in the surrounding workspace grid. With 3 or 4 panels
   // open at once there isn't room for a right-hand sidebar, so the detail panel
   // moves into a collapsible bottom drawer instead.
@@ -185,7 +187,6 @@ export function KnowledgeGraphView({
   projectEntities = EMPTY_PROJECT_ENTITIES,
   onEntitySelect,
   onFileSelect,
-  onDocFocus,
   layoutMode
 }: Props) {
   const { t, language } = useLanguage();
@@ -880,8 +881,14 @@ export function KnowledgeGraphView({
               <button
                 onClick={() => {
                   const { pathVal, sourceIdVal } = resolveDocSelector(selectedNode);
+                  // O-091: exactly one navigation call. This used to also fire
+                  // onDocFocus, which decided the target view a second time and
+                  // independently -- a document node named SRC/X.cbl then opened
+                  // BOTH a code editor (decided by extension) and a doc panel
+                  // (decided unconditionally), and the doc selection blanked the
+                  // editor again. handlePanelFileSelect classifies doc, webview
+                  // and code alike, so the single call covers all three.
                   onFileSelect(pathVal, null, sourceIdVal);
-                  onDocFocus?.(pathVal, sourceIdVal, true);
                 }}
                 className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
@@ -1213,8 +1220,9 @@ export function KnowledgeGraphView({
                 } else if (node.type === 'document' || node.type === 'external') {
                   const { pathVal, sourceIdVal } = resolveDocSelector(node);
                   // Wie im Entity-Zweig: nur anstupsen, nicht öffnen (openIfMissing=false).
+                  // Ebenfalls genau ein Aufruf (O-091) -- der zweite Schreibweg
+                  // über onDocFocus traf sonst auch hier ein offenes doc-Panel.
                   if (onFileSelect) onFileSelect(pathVal, null, sourceIdVal, false);
-                  onDocFocus?.(pathVal, sourceIdVal, false);
                 }
               }}
               onLinkClick={(link: GraphEdge) => {

@@ -1,6 +1,6 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
-**Stand:** 06.09.2026 (D-1 bis D-4 entschieden, D-1 bis D-3 mit Codeänderung; offen ist nur D-5)
+**Stand:** 06.09.2026 (D-1 bis D-4 entschieden, D-1 bis D-3 mit Codeänderung; offen ist nur D-5. PS-15/PS-16 mit [O-091] behoben — keine roten Zellen mehr)
 **Anlass:** [O-092](OFFENE_ENTWICKLUNGSPUNKTE.md) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
@@ -135,8 +135,8 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 |---|---|---|---|---|---|
 | PS-13 | B | Pfad mit Dokumentendung (`.pdf/.docx/.md/.png/.jpg`) + Quelle | `doc`-Panel | wie Ist | ✅ |
 | PS-14 | B | Quelle vom Typ Confluence/Jira | `webview`-Panel, unabhängig von der Endung | wie Ist | ✅ |
-| PS-15 | B + `onDocFocus` | Wissensgraph, **Dokument-Knoten mit Code-Endung** (z. B. `.cbl`), Aktion „In passender Ansicht öffnen" | **Zwei Panels:** `onFileSelect` bestimmt anhand der Endung `code` und öffnet einen Editor, `onDocFocus` öffnet zusätzlich unbedingt ein `doc`-Panel und setzt die globale Doc-Auswahl — die den frisch geöffneten Code-Editor über die Sync-Regel wieder **leert** | Ein Klick = eine Ansicht: Zieltyp genau einmal bestimmen | ⚠️ = [O-091] |
-| PS-16 | B + `onDocFocus` | dieselbe Konstellation, aber Einfachklick (`openIfMissing=false`) | Kein zusätzliches Panel, aber derselbe doppelte Schreibvorgang, sobald ein `doc`-Panel offen ist | wie PS-15 | ⚠️ = [O-091] |
+| PS-15 | B | Wissensgraph, **Dokument-Knoten mit Code-Endung** (z. B. `.cbl`), Aktion „In passender Ansicht öffnen" | Eine Ansicht: der Zieltyp wird genau einmal bestimmt, hinter `onFileSelect` (`handlePanelFileSelect` → `getSelectionViewType`). Vorher öffnete der zweite, parallele Aufruf `onDocFocus` zusätzlich ein `doc`-Panel und leerte den frisch geöffneten Editor über die globale Doc-Auswahl wieder | Ein Klick = eine Ansicht: Zieltyp genau einmal bestimmen | ✅ (behoben 06.09.2026, [O-091]) |
+| PS-16 | B | dieselbe Konstellation, aber Einfachklick (`openIfMissing=false`) | Ein Schreibvorgang; vorher traf der zweite Weg auch hier ein offenes `doc`-Panel | wie PS-15 | ✅ (behoben 06.09.2026, [O-091]) |
 
 ### 4.3 Objekt fokussieren
 
@@ -195,15 +195,17 @@ bestätigt den Ist-Zustand); offen ist nur noch D-5.
 
 ## 6. Stand der Automatisierung
 
-`frontend/hooks/panelSyncMatrix.test.tsx` (30 Fälle) hält die Matrix fest:
+`frontend/hooks/panelSyncMatrix.test.tsx` (31 Fälle) hält die Matrix fest:
 
-- **29 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
+- **Alle 30 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
   (dessen Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
   `usePanelNavigation`.
-- **PS-15** steht als `it.fails` drin: der Test formuliert das Soll („ein Klick =
-  eine Ansicht") und ist heute erwartbar rot. Sobald [O-091] behoben ist, schlägt er
-  an und muss in ein normales `it` gewandelt werden. Damit ist der Fehler
-  reproduziert, ohne die Suite rot zu machen.
+- **PS-15/PS-16** waren die letzten roten Zellen und sind seit dem 06.09.2026
+  behoben ([O-091]). PS-15 stand vorher bewusst als `it.fails` drin und ist jetzt
+  ein normales `it`; PS-16 ist neu dazugekommen. Die Matrixtests prüfen die
+  Zielauflösung; dass der Graph pro Klick nur **einen** Navigationsaufruf abgibt,
+  prüft `frontend/components/KnowledgeGraphView.test.tsx` — dort auch strukturell,
+  damit kein zweiter Navigationsweg unbemerkt zurückkommt.
 - **Kein `it.todo`** mehr offen: D-4 ist entschieden und als PS-25 ausformuliert. Für
   D-5 (Link-Manager) gibt es nichts zu testen, solange er bewusst keine Navigation hat.
 

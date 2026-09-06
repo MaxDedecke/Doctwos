@@ -832,7 +832,6 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 projectEntities={projectEntities}
                 onEntitySelect={handleEntitySelect}
                 onFileSelect={handleFileSelect}
-                onDocFocus={onDocFocus}
                 layoutMode={layoutMode}
               />
             </div>
@@ -1052,8 +1051,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           // generic handleFileSelect would also null out the global selectedEntity,
                                           // which every open callgraph panel unconditionally mirrors (see page.tsx's
                                           // unfrozen-panel sync) and would blank to "Bitte zuerst fokussieren".
-                                          // onDocFocus (same mechanism the Graph View uses to open a document from
-                                          // its own pinned panel) opens/targets a 'doc' panel without touching it.
+                                          // onDocFocus opens/targets a 'doc' panel without touching it. This is the
+                                          // last caller of that path -- the Graph View decides its target view once,
+                                          // inside handlePanelFileSelect (O-091), and no longer routes here.
                                           if (onDocFocus && document.source_id) {
                                             onDocFocus(document.file_path, document.source_id);
                                           } else {

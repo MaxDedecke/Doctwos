@@ -493,22 +493,20 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     }), false);
   });
 
-  // PS-15: der Sollzustand ist "ein Klick = eine Ansicht". Heute bestimmen
-  // onFileSelect und onDocFocus den Zieltyp unabhängig voneinander, und bei
-  // einem Dokument-Knoten mit Code-Endung fallen die Entscheidungen
-  // auseinander -- das ist O-091. `it.fails` hält das Soll fest; sobald O-091
-  // behoben ist, schlägt der Test an und wird zum normalen `it`.
-  it.fails('PS-15: der Graph öffnet für einen Dokument-Knoten mit .cbl-Endung genau eine Ansicht', async () => {
+  // PS-15 (O-091 behoben 06.09.2026): "ein Klick = eine Ansicht". Der
+  // Dokument-Zweig des Graphen ruft jetzt ausschließlich handlePanelFileSelect;
+  // der zweite, parallele Schreibweg über handleDocFocusRequest ist dort
+  // entfallen. Diese Hälfte prüft die Zielauflösung (Code-Endung => genau ein
+  // code-Panel); dass der Graph tatsächlich nur noch einmal ruft, prüft
+  // components/KnowledgeGraphView.test.tsx.
+  it('PS-15: ein Dokument-Knoten mit .cbl-Endung öffnet genau eine Ansicht -- die Code-Ansicht', async () => {
     const { result } = renderHook(() => useNavigationHarness({
       panelConfigs: ['chat', 'graph'],
       connectedSources: [{ id: 7, type: 'git', name: 'carddemo' }],
     }));
 
-    // Genau die Reihenfolge aus KnowledgeGraphView.tsx (Dokument-Zweig der
-    // Aktion "In passender Ansicht öffnen").
     await act(async () => {
       await result.current.navigation.handlePanelFileSelect(1, 'SRC/CBACT01C.cbl', null, 7);
-      result.current.navigation.handleDocFocusRequest('SRC/CBACT01C.cbl', 7, true);
     });
 
     const openedTypes = [
@@ -516,7 +514,31 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
       ...result.current.ensurePanelType.mock.calls.map((call) => call[0]),
       ...result.current.ensureLivePanelType.mock.calls.map((call) => call[0]),
     ];
-    expect(openedTypes).toHaveLength(1);
+    expect(openedTypes).toEqual(['code']);
+    // Kein doc-Panel und keine globale Doc-Auswahl -- genau die hat den frisch
+    // geöffneten Editor vorher wieder geleert.
+    expect(result.current.selectedDoc).toBeNull();
+  });
+
+  // PS-16: dieselbe Konstellation als Einfachklick (openIfMissing=false). Vorher
+  // entstand zwar kein zweites Panel, aber derselbe doppelte Schreibvorgang,
+  // sobald ein doc-Panel offen war.
+  it('PS-16: der Einfachklick auf denselben Knoten stupst nur die Code-Seite an', async () => {
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['chat', 'graph', 'doc'],
+      connectedSources: [{ id: 7, type: 'git', name: 'carddemo' }],
+    }));
+
+    await act(async () => {
+      await result.current.navigation.handlePanelFileSelect(1, 'SRC/CBACT01C.cbl', null, 7, false);
+    });
+
+    // Kein offenes Code-Panel, openIfMissing=false: der Klick bleibt wirkungslos
+    // -- aber er schreibt vor allem nicht mehr in das offene doc-Panel.
+    expect(result.current.addPanel).not.toHaveBeenCalled();
+    expect(result.current.ensureLivePanelType).not.toHaveBeenCalled();
+    expect(result.current.selectedDoc).toBeNull();
+    expect(result.current.panelSelections[2]).toEqual(EMPTY);
   });
 
   it('PS-17/PS-18: eine Objektauswahl schreibt panel-lokal und pinnt das Objekt für den Chat', async () => {

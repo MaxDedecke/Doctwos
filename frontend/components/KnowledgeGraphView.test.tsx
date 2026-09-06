@@ -12,6 +12,8 @@ import type { GraphNode, GraphEdge } from './KnowledgeGraphView';
  * die jsdom nicht hat -- gemockt durch eine Stub-Komponente, die pro Knoten
  * einen klickbaren Button rendert (treibt onNodeClick ohne echtes Canvas an).
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -199,5 +201,120 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(String(fetchMock.mock.calls[2][0])).toContain('/graph?');
     await waitFor(() => expect(screen.queryByText('Zurück zur Übersicht')).toBeNull());
+  });
+});
+
+/**
+ * O-091 (PS-15/PS-16 der Soll-Matrix, docs/PANEL_SYNCHRONISATION.md).
+ *
+ * Der Dokument-Zweig der Aktion "In passender Ansicht öffnen" feuerte früher
+ * zwei voneinander unabhängige Navigationen: onFileSelect entschied den
+ * Zieltyp an der Dateiendung und öffnete für einen Dokument-Knoten namens
+ * SRC/CBACT01C.cbl einen Code-Editor, onDocFocus öffnete unmittelbar danach
+ * unbedingt ein doc-Panel und setzte die globale Doc-Auswahl -- die den frisch
+ * geöffneten Editor wieder leerte. Sichtbar wurde das als "Code landet in der
+ * Doku-Ansicht, dazu geht ein leerer Editor auf".
+ *
+ * Der Zieltyp wird jetzt genau einmal bestimmt, hinter onFileSelect
+ * (usePanelNavigation::handlePanelFileSelect). Diese Tests halten fest, dass
+ * der Graph pro Klick genau einen Navigationsaufruf abgibt -- die Zielauflösung
+ * selbst prüft hooks/panelSyncMatrix.test.tsx.
+ */
+describe('KnowledgeGraphView: ein Klick = eine Ansicht (O-091)', () => {
+  const docNode: GraphNode = {
+    id: 'doc:12',
+    type: 'document',
+    label: 'CBACT01C.cbl',
+    file_path: 'SRC/CBACT01C.cbl',
+    source_id: 7,
+    source_type: 'git',
+    project_id: 1,
+  };
+
+  function renderGraphWithNavigation(onFileSelect: (...args: unknown[]) => void) {
+    return render(
+      <LanguageProvider>
+        <KnowledgeGraphView
+          theme="dark"
+          selectedProject={{ id: 1, name: 'Testprojekt' }}
+          onFileSelect={onFileSelect}
+        />
+      </LanguageProvider>
+    );
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [docNode], edges: [] }),
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('PS-16: der Einfachklick auf einen Dokument-Knoten gibt genau einen Navigationsaufruf ab', async () => {
+    const onFileSelect = vi.fn();
+    renderGraphWithNavigation(onFileSelect);
+
+    fireEvent.click(await screen.findByTestId('node-doc:12'));
+
+    expect(onFileSelect).toHaveBeenCalledTimes(1);
+    // openIfMissing=false: der Einfachklick stupst nur an, er öffnet nichts.
+    expect(onFileSelect).toHaveBeenCalledWith('SRC/CBACT01C.cbl', null, 7, false);
+  });
+
+  it('PS-15: "In passender Ansicht öffnen" gibt genau einen Navigationsaufruf ab', async () => {
+    const onFileSelect = vi.fn();
+    renderGraphWithNavigation(onFileSelect);
+
+    fireEvent.click(await screen.findByTestId('node-doc:12'));
+    onFileSelect.mockClear();
+
+    fireEvent.click(await screen.findByText('In passender Ansicht öffnen'));
+
+    expect(onFileSelect).toHaveBeenCalledTimes(1);
+    expect(onFileSelect).toHaveBeenCalledWith('SRC/CBACT01C.cbl', null, 7);
+  });
+
+  // Die drei Tests oben zählen Aufrufe EINER Rückrufschnittstelle; der Fehler
+  // von O-091 bestand aber gerade darin, dass eine ZWEITE danebenstand. Deshalb
+  // zusätzlich strukturell: im Graphen darf es keinen zweiten Navigationsweg
+  // mehr geben. (Erwähnungen in Kommentaren sind erlaubt, Aufrufe nicht.)
+  it('O-091: der Graph kennt keinen zweiten Navigationsweg neben onFileSelect', () => {
+    // Vitest läuft mit dem Frontend-Verzeichnis als Wurzel (vitest.config.ts).
+    const source = readFileSync(resolve(process.cwd(), 'components/KnowledgeGraphView.tsx'), 'utf-8');
+
+    expect(source).not.toMatch(/onDocFocus\s*\??\.?\(/);
+  });
+
+  it('PS-15: eine Confluence-Seite geht denselben einen Weg -- über url statt file_path', async () => {
+    const pageNode: GraphNode = {
+      id: 'doc:44',
+      type: 'document',
+      label: 'Fachkonzept',
+      file_path: 'RAUM/Fachkonzept',
+      url: 'https://confluence.test/RAUM/Fachkonzept',
+      source_id: 4,
+      source_type: 'confluence',
+      project_id: 1,
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [pageNode], edges: [] }),
+    }));
+    const onFileSelect = vi.fn();
+    renderGraphWithNavigation(onFileSelect);
+
+    fireEvent.click(await screen.findByTestId('node-doc:44'));
+    onFileSelect.mockClear();
+
+    fireEvent.click(await screen.findByText('In passender Ansicht öffnen'));
+
+    expect(onFileSelect).toHaveBeenCalledTimes(1);
+    expect(onFileSelect).toHaveBeenCalledWith('https://confluence.test/RAUM/Fachkonzept', null, 4);
   });
 });
