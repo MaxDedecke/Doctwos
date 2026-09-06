@@ -90,7 +90,7 @@ export const TeamsSettingsTab: React.FC = () => {
       await refreshTeams();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.teamCreateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamCreateFailed'), "error", err);
     } finally {
       setIsCreatingTeam(false);
     }
@@ -110,7 +110,7 @@ export const TeamsSettingsTab: React.FC = () => {
       await refreshTeams();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.teamRenameFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamRenameFailed'), "error", err);
     }
   };
 
@@ -123,7 +123,7 @@ export const TeamsSettingsTab: React.FC = () => {
       await refreshTeams();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.teamDeleteFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.teamDeleteFailed'), "error", err);
     }
   };
 
@@ -136,7 +136,7 @@ export const TeamsSettingsTab: React.FC = () => {
       await refreshTeamMembers(teamId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error", err);
     }
   };
 
@@ -147,7 +147,7 @@ export const TeamsSettingsTab: React.FC = () => {
       await refreshTeamMembers(teamId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error", err);
     }
   };
 

@@ -77,7 +77,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       showToast(t('settings.toast.sourceDeleted'), "success");
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.sourceDeleteFailed'), "error");
+      showToast(t('settings.toast.sourceDeleteFailed'), "error", err);
     }
   };
 
@@ -94,7 +94,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       await api.syncKnowledgeSource(idVal);
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.sourceSyncFailed'), "error");
+      showToast(t('settings.toast.sourceSyncFailed'), "error", err);
     }
   };
 
@@ -117,7 +117,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
       showToast(t('settings.toast.fullReindexStarted', { name: sourceName }), "success");
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.fullReindexFailed'), "error");
+      showToast(t('settings.toast.fullReindexFailed'), "error", err);
     } finally {
       setReindexingSourceId(null);
     }
@@ -133,7 +133,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     } catch (err) {
       console.error(err);
       setConnectedSources(prev);
-      showToast(t('settings.toast.intervalUpdateFailed'), "error");
+      showToast(t('settings.toast.intervalUpdateFailed'), "error", err);
     }
   };
 
@@ -149,7 +149,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     } catch (err) {
       console.error(err);
       setConnectedSources(prev);
-      showToast(t('settings.toast.contextNoteUpdateFailed'), "error");
+      showToast(t('settings.toast.contextNoteUpdateFailed'), "error", err);
     }
   };
 

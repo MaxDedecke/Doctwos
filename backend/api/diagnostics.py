@@ -45,6 +45,11 @@ class ClientErrorReport(BaseModel):
     stack: str | None = None
     digest: str | None = None
     url: str | None = None
+    # O-073: Trace-ID des zuletzt fehlgeschlagenen API-Aufrufs, wie sie dem
+    # Nutzer im Fehler-Toast angezeigt wurde. Nicht die Trace-ID DIESES
+    # Requests -- die steht ohnehin in jeder Logzeile (%(trace_id)s) und wuerde
+    # nur auf die Meldung selbst zeigen, nicht auf den Fehler.
+    trace_id: str | None = None
 
 
 @public_router.post("/client-error")
@@ -57,10 +62,11 @@ def report_client_error(report: ClientErrorReport):
     build a client-side crash database.
     """
     logger.error(
-        "[ClientError] %s | url=%s | digest=%s | stack=%s",
+        "[ClientError] %s | url=%s | digest=%s | client_trace=%s | stack=%s",
         report.message[:1000],
         (report.url or "")[:500],
         report.digest or "-",
+        (report.trace_id or "-")[:64],
         (report.stack or "")[:4000],
     )
     return {"message": "Error report received"}

@@ -164,7 +164,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
             setFetchedRepos(reposRes.data || []);
           } catch (err) {
             console.error("Error fetching repositories:", err);
-            showToast(t('settings.toast.repoListFetchFailed'), "error");
+            showToast(t('settings.toast.repoListFetchFailed'), "error", err);
           } finally {
             setIsLoadingRepos(false);
           }
@@ -178,7 +178,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       console.error(err);
       setConnectionStatus('error');
       setConnectionError(apiErrorDetail(err) || t('settings.toast.networkTestError'));
-      showToast(t('settings.toast.connectionFailed'), "error");
+      showToast(t('settings.toast.connectionFailed'), "error", err);
     } finally {
       setIsTestingConnection(false);
     }
@@ -211,7 +211,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       }
     } catch (err) {
       console.error("Error fetching branches:", err);
-      showToast(t('settings.toast.branchesFetchFailed'), "error");
+      showToast(t('settings.toast.branchesFetchFailed'), "error", err);
       setSelectedBranchName("");
     } finally {
       setIsLoadingBranches(false);
@@ -288,7 +288,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
       showToast(t('settings.toast.repoAdded'), "success");
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.repoAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.repoAddFailed'), "error", err);
     }
   };
 

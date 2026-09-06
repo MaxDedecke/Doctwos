@@ -1,3 +1,5 @@
+import type { ShowToast } from '@/components/Toast';
+import { extractTraceId } from '@/lib/traceId';
 import { axiosResponse } from '@/test/http';
 import { api } from '@/app/services/api';
 import type { ChatMessage, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
@@ -36,7 +38,7 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
   const [handleProjectSelect] = useState(() => (overrides.handleProjectSelect ?? vi.fn()) as (project: Project | null) => void | Promise<void>);
   const [restoreWorkspaceSnapshot] = useState(() => (overrides.restoreWorkspaceSnapshot ?? vi.fn()) as (snapshot: WorkspaceSnapshot) => void);
   const [resetChatSession] = useState(() => (overrides.resetChatSession ?? vi.fn()) as () => void);
-  const [showToast] = useState(() => (overrides.showToast ?? vi.fn()) as (message: string, type?: string) => void);
+  const [showToast] = useState(() => (overrides.showToast ?? vi.fn()) as ShowToast & ReturnType<typeof vi.fn>);
   const [buildWorkspaceSnapshot] = useState(() => (overrides.buildWorkspaceSnapshot ?? vi.fn(() => ({ panelConfigs: ['chat', 'graph'] }))) as () => WorkspaceSnapshot);
 
   const controller = useChatController({
@@ -326,14 +328,20 @@ describe('useChatController', () => {
     });
 
     it('shows an error toast and leaves state untouched when the API call fails', async () => {
-      vi.spyOn(api, 'createChatSession').mockRejectedValue(new Error('network down'));
+      // O-073: der abgefangene Fehler geht als dritter Parameter mit -- daraus
+      // liest der Toast die Trace-ID des fehlgeschlagenen Aufrufs.
+      const failure = Object.assign(new Error('network down'), {
+        response: { status: 500, headers: { 'x-request-id': 'trace-1' } },
+      });
+      vi.spyOn(api, 'createChatSession').mockRejectedValue(failure);
       const { result } = renderHook(() => useControllerHarness());
 
       await act(async () => {
         await result.current.controller.handleSaveSessionWithoutChat('Graph-Befund');
       });
 
-      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error');
+      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error', failure);
+      expect(extractTraceId(result.current.showToast.mock.calls[0][2])).toBe('trace-1');
       expect(result.current.activeSessionId).toBeNull();
       expect(result.current.sessions).toEqual([]);
     });
@@ -390,14 +398,15 @@ describe('useChatController', () => {
     });
 
     it('shows an error toast when the update fails', async () => {
-      vi.spyOn(api, 'updateChatSessionSnapshot').mockRejectedValue(new Error('network down'));
+      const failure = new Error('network down');
+      vi.spyOn(api, 'updateChatSessionSnapshot').mockRejectedValue(failure);
       const { result } = renderHook(() => useControllerHarness({ activeSessionId: 55 }));
 
       await act(async () => {
         await result.current.controller.handleUpdateSessionSnapshot();
       });
 
-      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error');
+      expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error', failure);
     });
   });
 });

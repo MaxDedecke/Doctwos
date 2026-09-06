@@ -101,6 +101,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # O-073: Frontend und Backend sind verschiedene Origins; ein Browser gibt
+    # dem JavaScript aus einer Cross-Origin-Antwort NUR die sechs
+    # CORS-safelisted Response-Header heraus. Ohne diese Zeile kann das
+    # Frontend das unten gesetzte X-Request-ID nicht lesen -- kein Fehler,
+    # kein Log, der Header ist schlicht unsichtbar.
+    expose_headers=["X-Request-ID"],
 )
 
 # Reads/generates X-Request-ID so every log line for this request (and, where

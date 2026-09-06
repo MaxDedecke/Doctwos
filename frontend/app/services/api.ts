@@ -1,5 +1,6 @@
 import type { ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, Project, ProjectStats, SearchResult, StoredChatMessage, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
+import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 
 declare global {
     interface Window {
@@ -19,6 +20,8 @@ export const API_URL = (typeof window !== 'undefined' && window.__DOCTUS_API_URL
  */
 async function fetchWithSessionHandling(input: RequestInfo | URL, init: RequestInit = {}) {
     const response = await fetch(input, { credentials: 'include', ...init });
+    // O-073: auch dieser Weg (SSE, Downloads) traegt die Trace-ID bei.
+    rememberTraceIdFromHeaders(response.headers);
     if (response.status === 401 && typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('doctus:unauthorized'));
     }
@@ -37,8 +40,14 @@ axios.defaults.withCredentials = true;
 // feuern wir ein Event; page.tsx schaltet daraufhin zurück auf die LoginView.
 // Die Rejection wird weiterhin durchgereicht, damit vorhandene .catch-Handler laufen.
 axios.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // O-073: letzte gesehene Trace-ID mitfuehren -- der Crash-Reporter in
+        // app/error.tsx hat kein Fehlerobjekt, aus dem er eine lesen koennte.
+        rememberTraceIdFromHeaders(response.headers);
+        return response;
+    },
     (error) => {
+        rememberTraceIdFromHeaders(error?.response?.headers);
         if (error?.response?.status === 401 && typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('doctus:unauthorized'));
         }

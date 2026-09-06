@@ -137,7 +137,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       await refreshProjectMembers(projectId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberAddFailed'), "error", err);
     }
   };
 
@@ -148,7 +148,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       await refreshProjectMembers(projectId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.projects.members.roleChangeFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.projects.members.roleChangeFailed'), "error", err);
     }
   };
 
@@ -159,7 +159,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       await refreshProjectMembers(projectId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.memberRemoveFailed'), "error", err);
     }
   };
 
@@ -171,7 +171,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       if (status === 'approved') await refreshProjectMembers(projectId);
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestResolveFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestResolveFailed'), "error", err);
     }
   };
 
@@ -209,7 +209,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       }
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.accessRequestFailed'), "error", err);
     } finally {
       setRequestingAccessProjectId(null);
     }
@@ -224,7 +224,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       setFiles(filesRes.data);
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.filesFetchFailed'), "error");
+      showToast(t('settings.toast.filesFetchFailed'), "error", err);
     }
   };
 
@@ -244,7 +244,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       }
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.projectDeleteFailed'), "error");
+      showToast(t('settings.toast.projectDeleteFailed'), "error", err);
     }
   };
 
@@ -281,7 +281,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
       showToast(t('settings.toast.projectCompleted', { name: project.name }), "success");
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.projectCompleteFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.projectCompleteFailed'), "error", err);
     } finally {
       setIsCompletingProject(false);
     }
@@ -419,7 +419,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             setEditingProjectId(null);
                                           } catch (err) {
                                             console.error(err);
-                                            showToast("Fehler beim Aktualisieren", "error");
+                                            showToast("Fehler beim Aktualisieren", "error", err);
                                           } finally {
                                             setIsSavingProject(false);
                                           }

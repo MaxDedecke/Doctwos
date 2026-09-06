@@ -1,3 +1,4 @@
+import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { ChatMessage, ChatSession } from '@/types/domain';
 import { useCallback, useEffect, useState } from 'react';
@@ -5,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 interface UseChatSessionsOptions {
   isLoggedIn: boolean;
   t: (key: string, values?: Record<string, string | number>) => string;
-  showToast: (message: string, type?: string) => void;
+  showToast: ShowToast;
 }
 
 /**
@@ -49,7 +50,7 @@ export function useChatSessions({ isLoggedIn, t, showToast }: UseChatSessionsOpt
       setChatMessages((previous) => previous.map((message) =>
         message.id === messageId ? { ...message, feedback: current } : message
       ));
-      showToast(t('page.toast.feedbackFailed'), 'error');
+      showToast(t('page.toast.feedbackFailed'), 'error', error);
     }
   }, [chatMessages, showToast, t]);
 

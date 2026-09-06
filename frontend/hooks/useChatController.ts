@@ -1,3 +1,5 @@
+import { extractTraceId } from '@/lib/traceId';
+import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
@@ -16,7 +18,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { useCallback } from 'react';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
-type Toast = (message: string, type?: string) => void;
+type Toast = ShowToast;
 
 interface ChatControllerOptions {
   t: Translator;
@@ -92,7 +94,7 @@ export function useChatController({
       await api.shareChatSession(activeSessionId);
     } catch (error) {
       console.error('Failed to mark chat session as shared:', error);
-      showToast(t('chatView.copyFailedToast'), 'error');
+      showToast(t('chatView.copyFailedToast'), 'error', error);
       return;
     }
 
@@ -132,7 +134,7 @@ export function useChatController({
       showToast(t('page.toast.sessionSaved', { title: trimmedTitle }), 'success');
     } catch (error) {
       console.error('Failed to save session without a chat message:', error);
-      showToast(t('page.toast.sessionSaveFailed'), 'error');
+      showToast(t('page.toast.sessionSaveFailed'), 'error', error);
     }
   }, [buildWorkspaceSnapshot, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setSessions, showToast, t]);
 
@@ -153,7 +155,7 @@ export function useChatController({
       showToast(t('page.toast.sessionUpdated'), 'success');
     } catch (error) {
       console.error('Failed to update session snapshot:', error);
-      showToast(t('page.toast.sessionSaveFailed'), 'error');
+      showToast(t('page.toast.sessionSaveFailed'), 'error', error);
     }
   }, [activeSessionId, buildWorkspaceSnapshot, setSessions, showToast, t]);
 
@@ -171,7 +173,12 @@ export function useChatController({
       });
 
       if (!response.ok) {
-        throw new Error(t('page.error.httpError', { status: response.status }));
+        // O-073: die Trace-ID haengt an der Antwort, nicht am Error -- ohne
+        // dieses Mitgeben waere sie hier verloren, und ausgerechnet der Chat
+        // ist der Weg, ueber den Nutzer Fehler am ehesten melden.
+        const httpError = new Error(t('page.error.httpError', { status: response.status })) as Error & { traceId?: string | null };
+        httpError.traceId = extractTraceId(response);
+        throw httpError;
       }
 
       const reader = response.body?.getReader();
@@ -340,7 +347,9 @@ export function useChatController({
                   }
                   return next;
                 });
-                showToast(t('page.toast.aiQueryFailed'), 'error');
+                // Serverseitiger Fehler mitten im Stream: die Antwort selbst
+                // traegt die Trace-ID des Requests (O-073).
+                showToast(t('page.toast.aiQueryFailed'), 'error', response);
                 return;
               }
             } catch (error) {
@@ -364,7 +373,7 @@ export function useChatController({
         }
         return next;
       });
-      showToast(t('page.toast.aiQueryFailed'), 'error');
+      showToast(t('page.toast.aiQueryFailed'), 'error', error);
     } finally {
       setIsLoading(false);
     }
@@ -531,7 +540,7 @@ export function useChatController({
       showToast(t('page.toast.sessionLoaded', { title: session.title }), 'success');
     } catch (error) {
       console.error(error);
-      showToast(t('page.toast.sessionLoadFailed'), 'error');
+      showToast(t('page.toast.sessionLoadFailed'), 'error', error);
     }
   }, [connectedSources, handleProjectSelect, ignoreUrlSyncRef, pathname, projects, restoreWorkspaceSnapshot, router, setActiveSessionId, setChatMessages, setSelectedSource, showToast, t]);
 
@@ -546,7 +555,7 @@ export function useChatController({
       showToast(t('page.toast.sessionRemoved'), 'success');
     } catch (error) {
       console.error(error);
-      showToast(t('page.toast.sessionDeleteFailed'), 'error');
+      showToast(t('page.toast.sessionDeleteFailed'), 'error', error);
     }
   }, [activeSessionId, resetChatSession, setSessions, showToast, t]);
 

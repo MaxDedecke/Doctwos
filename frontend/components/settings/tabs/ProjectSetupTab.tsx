@@ -65,7 +65,7 @@ export const ProjectSetupTab: React.FC<ProjectSetupTabProps> = ({ onDone }) => {
       onDone();
     } catch (err) {
       console.error(err);
-      showToast(t('settings.toast.projectCreateFailed'), "error");
+      showToast(t('settings.toast.projectCreateFailed'), "error", err);
     } finally {
       setIsCreatingProject(false);
     }

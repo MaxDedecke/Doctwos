@@ -149,7 +149,7 @@ export const AiSettingsTab: React.FC = () => {
       showToast(t('settings.toast.aiParamsSaved'), "success");
     } catch (err) {
       console.error("Failed to save model info:", err);
-      showToast(t('settings.toast.aiParamsSaveFailed'), "error");
+      showToast(t('settings.toast.aiParamsSaveFailed'), "error", err);
     }
   };
 

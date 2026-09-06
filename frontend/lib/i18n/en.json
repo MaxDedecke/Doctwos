@@ -51,6 +51,7 @@
       "documentLoaded": "Document \"{{name}}\" loaded",
       "fileLoaded": "File \"{{name}}\" loaded",
       "fileLoadFailed": "Could not load file",
+      "traceIdHint": "Error ID: {{id}} — please quote this when asking for support",
       "sourceFocused": "Knowledge source \"{{name}}\" focused",
       "aiQueryFailed": "AI query failed",
       "sessionLoaded": "Session \"{{title}}\" loaded",

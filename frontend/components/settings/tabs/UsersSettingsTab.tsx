@@ -84,7 +84,7 @@ export const UsersSettingsTab: React.FC = () => {
       await refresh();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.userCreateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userCreateFailed'), "error", err);
     } finally {
       setIsCreating(false);
     }
@@ -100,7 +100,7 @@ export const UsersSettingsTab: React.FC = () => {
       await refresh();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.passwordResetFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.passwordResetFailed'), "error", err);
     } finally {
       setBusyUserId(null);
     }
@@ -115,7 +115,7 @@ export const UsersSettingsTab: React.FC = () => {
       await refresh();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error", err);
     } finally {
       setBusyUserId(null);
     }
@@ -129,7 +129,7 @@ export const UsersSettingsTab: React.FC = () => {
       await refresh();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error", err);
     } finally {
       setBusyUserId(null);
     }
@@ -144,7 +144,7 @@ export const UsersSettingsTab: React.FC = () => {
       await refresh();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error", err);
     } finally {
       setBusyUserId(null);
     }

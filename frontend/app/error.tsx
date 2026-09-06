@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { API_URL } from '@/app/services/api';
+import { getLastTraceId } from '@/lib/traceId';
 
 export default function ErrorBoundary({
   error,
@@ -13,6 +14,12 @@ export default function ErrorBoundary({
 }) {
   const { t } = useLanguage();
   const [reportState, setReportState] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  // O-073: die zuletzt vom Backend gesehene Trace-ID. Hier gibt es kein
+  // Fehlerobjekt eines konkreten Aufrufs -- ein Render-Absturz hat keinen -- der
+  // letzte Request ist aber die naechstgelegene Spur, an der der Support im Log
+  // ansetzen kann. Wird dem Nutzer angezeigt UND mitgeschickt, damit beide
+  // Seiten von derselben ID sprechen.
+  const traceId = getLastTraceId();
 
   // Opt-in only — never sent automatically. A crash report is meant to help
   // us fix the bug, not to phone home on every error a user hits.
@@ -26,6 +33,7 @@ export default function ErrorBoundary({
           message: error.message,
           stack: error.stack,
           digest: error.digest,
+          trace_id: traceId,
           url: typeof window !== 'undefined' ? window.location.href : undefined,
         }),
       });
@@ -40,6 +48,11 @@ export default function ErrorBoundary({
       <div className="max-w-md w-full space-y-4 rounded-lg border border-ds-zinc-800 bg-ds-zinc-900 p-6 text-center">
         <h1 className="text-lg font-bold text-ds-zinc-100">{t('errorBoundary.title')}</h1>
         <p className="text-sm text-ds-zinc-400">{t('errorBoundary.description')}</p>
+        {traceId && (
+          <p className="select-all font-mono text-[11px] text-ds-zinc-500">
+            {t('page.toast.traceIdHint', { id: traceId })}
+          </p>
+        )}
         <div className="flex items-center justify-center gap-3 pt-2">
           <button
             onClick={reset}

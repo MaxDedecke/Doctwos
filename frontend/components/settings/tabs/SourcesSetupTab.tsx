@@ -85,7 +85,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       onDone();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: activeSourceType }), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: activeSourceType }), "error", err);
     } finally {
       setIsConnectingSource(false);
     }
@@ -139,7 +139,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       console.error(err);
       setSourceConnStatus('error');
       setSourceConnError(apiErrorDetail(err) || t('settings.toast.networkTestError'));
-      showToast(t('settings.toast.connectionFailed'), "error");
+      showToast(t('settings.toast.connectionFailed'), "error", err);
     } finally {
       setIsTestingSourceConn(false);
     }
@@ -162,7 +162,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       onDone();
     } catch (err) {
       console.error(err);
-      showToast(apiErrorDetail(err) || t('settings.toast.documentUploadFailed'), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.documentUploadFailed'), "error", err);
     } finally {
       setIsUploading(false);
       setSelectedUploadFile(null);
@@ -184,7 +184,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       setFolderName("");
       onDone();
     } catch (err) {
-      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: t('settings.sourcesTab.types.folderwatch.name') }), "error");
+      showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: t('settings.sourcesTab.types.folderwatch.name') }), "error", err);
     } finally {
       setIsConnectingFolder(false);
     }

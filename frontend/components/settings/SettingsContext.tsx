@@ -1,4 +1,5 @@
 "use client";
+import type { ShowToast } from '@/components/Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { KnowledgeSource, Project, ProjectStats, User } from '@/types/domain';
 
@@ -18,7 +19,7 @@ export interface SettingsContextValue {
   selectedProject: Project | null;
   setSelectedProject: React.Dispatch<React.SetStateAction<Project | null>>;
   setFiles: React.Dispatch<React.SetStateAction<string[]>>;
-  showToast: (msg: string, type: 'success' | 'error') => void;
+  showToast: ShowToast;
   backendStatus: string;
 
   // AI parameters

@@ -1,3 +1,4 @@
+import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import { appendPanelHistory, type PanelHistoryEntry, type PanelSelection } from '@/lib/panelHistory';
 import { resolvePanelNavigationTarget } from '@/lib/panelNavigation';
@@ -19,7 +20,7 @@ type FileNavEntry = {
 
 interface PanelNavigationOptions {
   t: Translator;
-  showToast: (message: string, type?: string) => void;
+  showToast: ShowToast;
   selectedProject: Project | null;
   selectedSource: KnowledgeSource | null;
   connectedSources: KnowledgeSource[];

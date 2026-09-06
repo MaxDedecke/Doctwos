@@ -17,6 +17,7 @@ import { PanelContentRenderer } from "@/components/PanelContentRenderer";
 import { PanelRenderer } from "@/components/PanelRenderer";
 import { SettingsModal } from "@/components/SettingsModal";
 import { Sidebar } from "@/components/Sidebar";
+import { Toast, type ToastState } from "@/components/Toast";
 import { WorkspaceShell } from "@/components/WorkspaceShell";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useAiSettings } from '@/hooks/useAiSettings';
@@ -30,6 +31,7 @@ import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
 import { FeaturesProvider, useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { resolveReferenceTarget } from "@/lib/referenceTarget";
+import { extractTraceId } from "@/lib/traceId";
 import { cn } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -85,7 +87,7 @@ function AppContent() {
     }
   }, []);
 
-  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -126,8 +128,14 @@ function AppContent() {
   // declaration — kept fresh via ref/effect rather than moved, same "latest
   // ref" pattern as projectsRef/selectedProjectRef below.
   const handleSessionSelectRef = useRef<(session: ChatSession) => void>(() => {});
-  const showToast = useCallback((message: string, type = 'success') => {
-    setToast({ message, type });
+  // O-073: `cause` ist der abgefangene Fehler eines Serveraufrufs. Steht er zur
+  // Verfuegung, zeigt der Toast dessen Trace-ID mit an -- damit hat der Nutzer
+  // eine ID, die er bei einer Rueckfrage nennen kann, und der Support findet
+  // dieselbe ID in jeder Logzeile des Requests wieder. Ohne `cause` bleibt der
+  // Toast wie bisher; eine "letzte bekannte" ID waere geraten und wuerde im
+  // Zweifel auf einen ganz anderen Request zeigen.
+  const showToast = useCallback((message: string, type = 'success', cause?: unknown) => {
+    setToast({ message, type, traceId: cause === undefined ? null : extractTraceId(cause) });
     setTimeout(() => setToast(null), 6000);
   }, []);
 
@@ -243,7 +251,7 @@ function AppContent() {
             const params = new URLSearchParams(window.location.search);
             params.delete('chat');
             router.push(`${pathname}?${params.toString()}`);
-            showToast(t('page.toast.sharedChatNotFound'), "error");
+            showToast(t('page.toast.sharedChatNotFound'), "error", err);
           });
       }
     }
@@ -489,7 +497,7 @@ function AppContent() {
         }, 150);
       }
     } catch (err) {
-      showToast(t('page.toast.fileLoadFailed'), "error");
+      showToast(t('page.toast.fileLoadFailed'), "error", err);
     } finally {
       setIsLoadingFile(false);
     }
@@ -804,22 +812,7 @@ function AppContent() {
 
       {/* Custom Toast Notifications */}
       <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={cn(
-              "fixed bottom-4 right-4 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-lg border shadow-2xl backdrop-blur-md text-xs font-semibold tracking-wide transition-colors duration-200",
-              toast.type === 'success'
-                ? (theme === 'dark' ? "bg-ds-emerald-950/90 border-ds-emerald-800/40 text-ds-emerald-300" : "bg-ds-emerald-50/95 border-ds-emerald-200 text-ds-emerald-800")
-                : (theme === 'dark' ? "bg-ds-red-950/90 border-ds-red-800/40 text-ds-red-300" : "bg-ds-red-50/95 border-ds-red-200 text-ds-red-800")
-            )}
-          >
-            {toast.type === 'success' ? <Check className="w-4 h-4 text-ds-emerald-500" /> : <X className="w-4 h-4 text-ds-red-500" />}
-            <span>{toast.message}</span>
-          </motion.div>
-        )}
+        {toast && <Toast toast={toast} theme={theme} />}
       </AnimatePresence>
 
       {/* Advanced Settings Modal Dialog */}

@@ -131,7 +131,7 @@ export const LogsSettingsTab: React.FC = () => {
       setTimeout(poll, 3000);
     } catch (err) {
       setDiagnosticsGenerating(false);
-      showToast(t('settings.logsTab.diagnosticsStartFailedToast'), "error");
+      showToast(t('settings.logsTab.diagnosticsStartFailedToast'), "error", err);
     }
   };
 
@@ -406,7 +406,7 @@ export const LogsSettingsTab: React.FC = () => {
                           showToast(t('settings.logsTab.syncStartedToast'), "success");
                           refreshKnowledgeSources();
                         } catch (err) {
-                          showToast(t('settings.logsTab.syncStartFailedToast'), "error");
+                          showToast(t('settings.logsTab.syncStartFailedToast'), "error", err);
                         }
                       }}
                       className={cn(

@@ -1,4 +1,5 @@
 "use client";
+import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
@@ -67,7 +68,7 @@ interface ChatViewProps {
   activeProfileId: string;
   setActiveProfileId: (val: string) => void;
   llmProfiles: LlmProfile[];
-  showToast: (msg: string, type: "success" | "error") => void;
+  showToast: ShowToast;
   selectedFile: string | null;
   selectedDoc: WorkspaceDocument | null;
   splitClasses: { chat: string; editor: string };

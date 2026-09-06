@@ -1,9 +1,10 @@
+import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { FileReference, KnowledgeSource, Project } from '@/types/domain';
 import { useCallback, useEffect, useState } from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
-type Toast = (message: string, type?: string) => void;
+type Toast = ShowToast;
 
 interface UseKnowledgeSourcesOptions {
   isLoggedIn: boolean;

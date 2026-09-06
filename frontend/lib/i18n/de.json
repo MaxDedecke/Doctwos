@@ -51,6 +51,7 @@
       "documentLoaded": "Dokument \"{{name}}\" geladen",
       "fileLoaded": "Datei \"{{name}}\" geladen",
       "fileLoadFailed": "Datei konnte nicht geladen werden",
+      "traceIdHint": "Fehler-ID: {{id}} — bitte bei Rückfragen angeben",
       "sourceFocused": "Wissensquelle \"{{name}}\" fokussiert",
       "aiQueryFailed": "Fehler bei AI-Abfrage",
       "sessionLoaded": "Sitzung \"{{title}}\" geladen",

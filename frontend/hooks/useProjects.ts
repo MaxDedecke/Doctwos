@@ -1,9 +1,10 @@
+import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { CodeEntity, Project, ProjectStats } from '@/types/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
-type Toast = (message: string, type?: string) => void;
+type Toast = ShowToast;
 
 interface UseProjectsOptions {
   isLoggedIn: boolean;
@@ -53,7 +54,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
       .catch((error) => {
         console.error(error);
         setBackendStatus('error');
-        showToast(t('page.toast.backendConnectionFailed'), 'error');
+        showToast(t('page.toast.backendConnectionFailed'), 'error', error);
       });
   // Authentication is the lifecycle boundary for the initial project load.
   // The translation function is intentionally not a reload trigger.
@@ -167,7 +168,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
       showToast(t('page.toast.projectSelected', { name: project.name }), 'success');
     } catch (error) {
       console.error('Failed to load project files:', error);
-      showToast(t('page.toast.filesFetchFailed'), 'error');
+      showToast(t('page.toast.filesFetchFailed'), 'error', error);
     }
   }, [showToast, t]);
 

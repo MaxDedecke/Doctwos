@@ -1,4 +1,5 @@
 "use client";
+import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
@@ -40,7 +41,7 @@ type PanelContentRendererProps = {
   activeProfileId: string;
   setActiveProfileId: (value: string) => void;
   llmProfiles: LlmProfile[];
-  showToast: (message: string, type?: string) => void;
+  showToast: ShowToast;
   selectedSource: KnowledgeSource | null;
   setSelectedSource: (source: KnowledgeSource | null) => void;
   connectedSources: KnowledgeSource[];

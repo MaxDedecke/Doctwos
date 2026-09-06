@@ -59,7 +59,7 @@ export const LayoutSettingsTab: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      showToast(t('settings.layoutTab.exportError'), 'error');
+      showToast(t('settings.layoutTab.exportError'), 'error', e);
     }
   };
 
@@ -81,7 +81,7 @@ export const LayoutSettingsTab: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      showToast(t('settings.layoutTab.exportError'), 'error');
+      showToast(t('settings.layoutTab.exportError'), 'error', e);
     }
   };
 
