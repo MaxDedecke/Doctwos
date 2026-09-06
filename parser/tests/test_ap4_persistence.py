@@ -37,16 +37,21 @@ def _delete_file(repo: str, rel_path: str, message: str) -> None:
     subprocess.run(["git", "-C", repo, "commit", "-m", message], check=True, capture_output=True)
 
 
+# COPY FIELDS. steht bewusst in der WORKING-STORAGE SECTION: nur ein COPY
+# INNERHALB der DATA DIVISION zieht Datenfelder ins Programm (siehe
+# cobol/parse.py::data_copy_edges). Ein COPY in der PROCEDURE DIVISION kopiert
+# Anweisungen, keine Deklarationen -- SHARED-FIELD waere dann in MAIN schlicht
+# unbekannt und es entstuende gar keine USES-Kante (O-076).
 _MAIN_CBL = """\
        IDENTIFICATION DIVISION.
        PROGRAM-ID. MAIN.
        DATA DIVISION.
        WORKING-STORAGE SECTION.
        01  WS-FLAG              PIC X(1).
+       COPY FIELDS.
        PROCEDURE DIVISION.
        MAIN-PARA.
            DISPLAY SHARED-FIELD.
-           COPY FIELDS.
            PERFORM SUB-PARA.
            CALL 'SUB'.
        SUB-PARA.
@@ -165,7 +170,12 @@ async def test_entities_and_edges_persisted_and_globally_resolved(db_session, te
     assert copy_edge.resolution == "resolved"
     assert copy_edge.dst_entity_id == by_qname["FIELDS"].id
 
-    inherited_use = next(e for e in by_type["USES"] if e.dst_name == "SHARED-FIELD")
+    # Kein blankes next(): fehlt die Kante, wuerde die StopIteration hier laut
+    # PEP 479 als "RuntimeError: coroutine raised StopIteration" aus dem
+    # Test-Coroutine herauskommen -- ohne jeden Hinweis darauf, WELCHE Erwartung
+    # nicht erfuellt ist (genau die Sackgasse aus O-076).
+    inherited_use = next((e for e in by_type["USES"] if e.dst_name == "SHARED-FIELD"), None)
+    assert inherited_use is not None, f'Keine USES-Kante auf SHARED-FIELD, nur: {[e.dst_name for e in by_type.get("USES", [])]}'
     assert inherited_use.resolution == "resolved"
     assert inherited_use.dst_entity_id == by_qname["FIELDS.SHARED-RECORD.SHARED-FIELD"].id
     assert inherited_use.scope_entity_id == by_qname["MAIN"].id

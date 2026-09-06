@@ -149,7 +149,11 @@ async def test_unique_content_still_rewires_correctly_when_other_chunk_is_duplic
     db_session.commit()
 
     all_chunks = db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).all()
-    unique_chunk_id = next(c.id for c in all_chunks if c.content == unique_text)
+    # next(..., None) statt blankem next(): in einem async-Test wuerde eine
+    # StopIteration sonst laut PEP 479 als nichtssagender RuntimeError
+    # herauskommen statt als lesbare Zusicherung (siehe O-076).
+    unique_chunk_id = next((c.id for c in all_chunks if c.content == unique_text), None)
+    assert unique_chunk_id is not None, "Chunk mit dem eindeutigen Inhalt nicht gefunden"
 
     link_unique = EntityDocLink(project_id=project_id, entity_id=entity_a.id, chunk_id=unique_chunk_id,
                                  doc_title="doc.txt", status="approved", link_type="semantic", created_by="auto")
@@ -165,7 +169,8 @@ async def test_unique_content_still_rewires_correctly_when_other_chunk_is_duplic
 
     db_session.expire_all()
     all_chunks_after = db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).all()
-    new_unique_chunk_id = next(c.id for c in all_chunks_after if c.content == unique_text)
+    new_unique_chunk_id = next((c.id for c in all_chunks_after if c.content == unique_text), None)
+    assert new_unique_chunk_id is not None, "Chunk mit dem eindeutigen Inhalt nach dem Reindex nicht gefunden"
 
     refreshed = db_session.query(EntityDocLink).filter(EntityDocLink.id == link_unique_id).one()
     assert refreshed.chunk_id == new_unique_chunk_id
