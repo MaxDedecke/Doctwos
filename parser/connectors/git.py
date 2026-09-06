@@ -28,15 +28,13 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 import redis
 
 import git_utils
+from git_utils import MAX_READ_BYTES
 from core.model import ParseResult
-from cobol import copybook
-from cobol.copybook import CopybookIndex
-from cobol.parse import parse_copybook
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
@@ -66,8 +64,6 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
     "copybook": {".cpy", ".copy"},
     "jcl": {".jcl", ".proc", ".prc"},  # v1: nur Text-Index, keine Strukturanalyse (F-026)
 }
-
-MAX_READ_BYTES = 2 * 1024 * 1024
 
 # O-074: anders als folder.py/webdav.py (SUPPORTED_EXTENSIONS-Allowlist) hatte
 # GitConnector gar keine Dateityp-Filterung -- jede Datei im Repo wurde mit
@@ -156,74 +152,29 @@ def _looks_like_text(raw: bytes) -> bool:
 # Zeilenchunkings.
 
 
-def _build_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookIndex:
-    """Pass 0 (Plan §6.4/E-2): quellenweiter Copybook-Index, Name -> Liste
-    von Pfaden, ergänzt um die Felddefinitionen jedes lesbaren Copybooks.
-    Die Dateinamenauflösung bleibt billig; für E-2 werden Copybook-Inhalte
-    zusätzlich einmal in-memory geparst, ohne DB-Schreibzugriff. Läuft bei
-    JEDEM Sync über den GESAMTEN Baum, nicht nur über geänderte Dateien: ein
-    in diesem Sync geändertes Programm kann ein Copybook COPYen, das selbst
-    unverändert (und damit gar nicht Teil des Deltas) ist."""
-    copybook_exts = extensions.get("copybook", set())
-    if not copybook_exts:
-        return CopybookIndex()
-    tracked = git_utils.list_tracked_files(wt)
-    index = CopybookIndex()
-    for path in tracked:
-        if os.path.splitext(path)[1].lower() not in copybook_exts:
-            continue
-        name = os.path.splitext(os.path.basename(path))[0].upper()
-        index.setdefault(name, []).append(path)
-        full_path = os.path.join(wt, path)
-        try:
-            if os.path.getsize(full_path) > MAX_READ_BYTES:
-                continue
-            with open(full_path, "r", errors="ignore") as f:
-                parsed = parse_copybook(f.read(MAX_READ_BYTES), path)
-            index.fields_by_path[path] = [
-                {
-                    "name": entity.name,
-                    "parent": entity.parent_name,
-                    "qualified_name": entity.qualified_name,
-                    "path": path,
-                }
-                for entity in parsed.entities
-                if entity.type == "data_item"
-            ]
-            index.copy_edges_by_path[path] = [edge for edge in parsed.edges if edge.type == "COPY"]
-        except OSError:
-            # Der Namensindex bleibt nutzbar; die XREF-Vererbung für diese
-            # einzelne, nicht lesbare Datei entfällt fehlertolerant (F-029).
-            continue
-    # Erst nachdem alle Copybooks gelesen wurden, lassen sich verschachtelte
-    # COPYs eindeutig gegen den vollstaendigen Index aufloesen. Die Rekursion
-    # beendet Zyklen fehlertolerant; ein zyklisches Copybook liefert dann nur
-    # seine lokal definierten Felder statt den Sync abzubrechen.
-    local_fields = {path: list(fields) for path, fields in index.fields_by_path.items()}
-    expanded: dict[str, list[dict]] = {}
+async def _run_prepare_hooks(wt: str, extensions: dict[str, set[str]]) -> dict[str, Any]:
+    """O-079: ruft für jede Sprache mit Registry-Eintrag deren optionalen
+    `prepare_source()`-Hook einmal auf, bevor die erste Datei dieser Sprache
+    geparst wird -- generisch über STRUCTURE_PARSERS (cobol/registry.py),
+    ohne dass dieser Connector weiß, was ein Hook tut oder wie er heißt.
+    Vorher rief fetch_documents() dafür `_build_copybook_index()` fest
+    verdrahtet auf, eine COBOL-spezifische Voranalyse mitten im sonst
+    sprachneutralen Connector-Code.
 
-    def fields_for(path: str, ancestry: set[str]) -> list[dict]:
-        if path in expanded:
-            return expanded[path]
-        result = list(local_fields.get(path, []))
-        if path in ancestry:
-            return result
-        for edge in index.copy_edges_by_path.get(path, []):
-            target = copybook.resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
-            if target is None or target in ancestry:
-                continue
-            # Die Hilfsinstanz macht die bereits expandierten Ziel-Felder fuer
-            # die gemeinsame REPLACING-Logik sichtbar.
-            target_index = CopybookIndex(
-                index, fields_by_path={target: fields_for(target, ancestry | {path})}
-            )
-            result.extend(copybook.inherited_fields([edge], target_index))
-        expanded[path] = result
-        return result
-
-    for path in local_fields:
-        index.fields_by_path[path] = fields_for(path, set())
-    return index
+    Mehrere Sprachen können sich denselben Hook teilen (COBOL/Copybook teilen
+    sich `_prepare_copybook_index` für den quellenweiten Copybook-Index) --
+    der läuft dann trotzdem nur einmal, nicht pro Sprache."""
+    prepared: dict[str, Any] = {}
+    results_by_hook: dict[int, Any] = {}
+    for lang, entry in STRUCTURE_PARSERS.items():
+        hook = entry.prepare_source
+        if hook is None:
+            continue
+        key = id(hook)
+        if key not in results_by_hook:
+            results_by_hook[key] = await asyncio.to_thread(hook, wt, extensions)
+        prepared[lang] = results_by_hook[key]
+    return prepared
 
 
 # Nur der Fetch/Worktree-Schritt läuft unter diesem Lock, nicht das komplette
@@ -306,10 +257,13 @@ class GitConnector(BaseConnector):
     def __init__(self, source_id: int) -> None:
         super().__init__(source_id)
         self._new_commit: str | None = None
-        # Pass 0 (AP-4): Name -> Pfade, gefüllt in fetch_documents(), bevor
-        # die erste .cbl-Datei geparst wird - copybook.scan() braucht ihn zur
-        # COPY-Auflösung.
-        self._copybook_index: CopybookIndex = CopybookIndex()
+        # O-079: pro Sprache das Ergebnis ihres optionalen prepare_source-
+        # Hooks (STRUCTURE_PARSERS[lang], cobol/registry.py), gefüllt in
+        # fetch_documents() bevor die erste Datei geparst wird. Für COBOL/
+        # Copybook ist das der quellenweite Copybook-Index (Pass 0, AP-4),
+        # den copybook.scan() zur COPY-Auflösung braucht -- dieser Connector
+        # muss das aber nicht wissen, er reicht das Ergebnis nur durch.
+        self._prepared_by_lang: dict[str, Any] = {}
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
@@ -321,16 +275,21 @@ class GitConnector(BaseConnector):
             lang = doc.get("extra_meta", {}).get("language", "text")
 
             parse_result: ParseResult | None = None
-            parse_fn = STRUCTURE_PARSERS.get(lang)
-            if parse_fn is not None and not doc["extra_meta"].get("deleted"):
+            entry = STRUCTURE_PARSERS.get(lang)
+            if entry is not None and not doc["extra_meta"].get("deleted"):
                 # F-020…034: struktur-bewusstes Parsen statt generischem
                 # Zeilenchunking - parse_program()/parse_copybook() (und jeder
                 # weitere STRUCTURE_PARSERS-Eintrag, O-077) sind rein
                 # in-memory (E-6), deshalb in einen Thread ausgelagert wie
                 # das generische Chunking auch (CPU-gebunden, würde sonst den
-                # Event-Loop blockieren).
+                # Event-Loop blockieren). copybook_index ist das Ergebnis von
+                # entry.prepare_source() (O-079), sofern die Sprache einen
+                # Hook hat -- sonst None.
                 parse_result = await asyncio.to_thread(
-                    parse_fn, doc["content"], doc["storage_key"], copybook_index=self._copybook_index
+                    entry.parse,
+                    doc["content"],
+                    doc["storage_key"],
+                    copybook_index=self._prepared_by_lang.get(lang),
                 )
                 chunks = [
                     {
@@ -559,9 +518,12 @@ class GitConnector(BaseConnector):
             else:
                 await asyncio.to_thread(git_utils.reset_worktree_to_branch, wt, branch)
 
-        # Pass 0 (Plan §6.4/E-2): Namen + Copybook-Felddefinitionen, bei
-        # jedem Sync über den vollen Baum - siehe _build_copybook_index().
-        self._copybook_index = await asyncio.to_thread(_build_copybook_index, wt, extensions)
+        # O-079: registry-deklarierte Vorlauf-Hooks statt eines fest
+        # benannten _build_copybook_index()-Aufrufs - für COBOL/Copybook
+        # baut das (wie zuvor) bei jedem Sync über den vollen Baum den
+        # Copybook-Index (Pass 0, Plan §6.4/E-2), siehe
+        # cobol/registry.py::_prepare_copybook_index.
+        self._prepared_by_lang = await _run_prepare_hooks(wt, extensions)
 
         new_commit = await asyncio.to_thread(git_utils.current_commit, wt)
         self._new_commit = new_commit

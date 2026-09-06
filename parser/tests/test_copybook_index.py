@@ -1,5 +1,5 @@
+from cobol import registry
 from cobol.parse import parse_program
-from connectors import git as git_connector
 
 
 def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monkeypatch):
@@ -9,12 +9,14 @@ def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monke
     (copy_dir / "BASE.CPY").write_text("01 BASE-RECORD.\n   05 BASE-ID PIC X.\n")
     (copy_dir / "WRAP.CPY").write_text("COPY BASE REPLACING ==BASE== BY ==CUSTOMER==.\n")
     monkeypatch.setattr(
-        git_connector.git_utils,
+        registry.git_utils,
         "list_tracked_files",
         lambda _: ["copy/BASE.CPY", "copy/WRAP.CPY"],
     )
 
-    index = git_connector._build_copybook_index(str(tmp_path), {"copybook": {".cpy"}})
+    # O-079: die Voranalyse ist jetzt der prepare_source-Hook der Registry-
+    # Einträge "cobol"/"copybook", nicht mehr ein connectors.git-Internum.
+    index = registry._prepare_copybook_index(str(tmp_path), {"copybook": {".cpy"}})
 
     assert index.fields_by_path["copy/WRAP.CPY"][0]["effective_name"] == "CUSTOMER-RECORD"
     program = (

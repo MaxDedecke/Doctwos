@@ -7,9 +7,15 @@ from sqlalchemy import text
 from unittest.mock import patch, AsyncMock
 
 from cobol.model import Chunk, ParseResult
+from cobol.registry import ParserEntry
 from db import SessionLocal
 from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
-from connectors.git import GitConnector, _looks_like_text, _resolve_extension_config
+from connectors.git import (
+    GitConnector,
+    _looks_like_text,
+    _resolve_extension_config,
+    _run_prepare_hooks,
+)
 import git_utils
 
 
@@ -685,6 +691,33 @@ async def test_git_connector_logs_embedding_start_per_file(db_session, test_sour
 
 
 @pytest.mark.anyio
+async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without_one():
+    """O-079: `_run_prepare_hooks()` läuft generisch über STRUCTURE_PARSERS
+    -- ein von mehreren Sprachen geteilter prepare_source-Hook (wie
+    `_prepare_copybook_index` für "cobol"/"copybook") läuft nur EINMAL statt
+    einmal pro Sprache, und eine Sprache ohne Hook bekommt gar keinen
+    Eintrag im Ergebnis (statt z. B. `None` vorzutäuschen)."""
+    calls = []
+
+    def shared_hook(wt, extensions):
+        calls.append((wt, extensions))
+        return "prepared-once"
+
+    fake_registry = {
+        "langA": ParserEntry(parse=lambda *a, **k: None, prepare_source=shared_hook),
+        "langB": ParserEntry(parse=lambda *a, **k: None, prepare_source=shared_hook),
+        "langC": ParserEntry(parse=lambda *a, **k: None),  # kein Hook
+    }
+
+    with patch("connectors.git.STRUCTURE_PARSERS", fake_registry):
+        prepared = await _run_prepare_hooks("/some/wt", {"ext": {".x"}})
+
+    assert calls == [("/some/wt", {"ext": {".x"}})]
+    assert prepared == {"langA": "prepared-once", "langB": "prepared-once"}
+    assert "langC" not in prepared
+
+
+@pytest.mark.anyio
 async def test_git_connector_dispatches_via_structure_parser_registry():
     """O-077: der Dispatch von Sprache -> Struktur-Parser läuft über
     connectors.git.STRUCTURE_PARSERS (cobol/registry.py), eine kleine Registry
@@ -694,7 +727,8 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
     JEDE registrierte Sprache greift -- ohne eine zweite echte Sprache
     vorzutaeuschen oder zu bauen (siehe docs/OFFENE_ENTWICKLUNGSPUNKTE.md
     O-077, das bewusst gegen eine neue `parser/languages/`-Vorrats-
-    Abstraktion entscheidet)."""
+    Abstraktion entscheidet). Der Fake-Eintrag hat bewusst keinen
+    prepare_source-Hook (O-079)."""
     connector = GitConnector(source_id=-1)
     calls = []
 
@@ -716,12 +750,14 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
         "extra_meta": {"language": "fakelang"},
     }
 
-    with patch("connectors.git.STRUCTURE_PARSERS", {"fakelang": fake_parse}), patch(
-        "connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])
-    ):
+    with patch(
+        "connectors.git.STRUCTURE_PARSERS", {"fakelang": ParserEntry(parse=fake_parse)}
+    ), patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])):
         _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
 
-    assert calls == [("fake source", "fake.xyz", connector._copybook_index)]
+    # O-079: der Fake-Eintrag hat keinen prepare_source-Hook, also wird
+    # None durchgereicht -- das beweist, dass der Hook wirklich optional ist.
+    assert calls == [("fake source", "fake.xyz", None)]
     assert parse_result is not None and parse_result.program_name == "FAKE"
     assert len(chunks) == 1
     assert chunks[0]["content"] == "fake source"

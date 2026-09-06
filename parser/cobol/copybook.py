@@ -128,7 +128,7 @@ def scan(
     return edges, errors
 
 
-# Dieselben Endungen wie connectors/git.py::_build_copybook_index verwendet,
+# Dieselben Endungen wie cobol/registry.py::_prepare_copybook_index verwendet,
 # um den Index zu bauen (Name ohne Endung -> Pfade). Manche Bestände
 # schreiben `COPY "NAME.cpy".` mit Endung im Literal statt der reinen
 # Bibliotheksform `COPY NAME.` - ohne Normalisierung findet index.get() dann
