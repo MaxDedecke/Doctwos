@@ -342,6 +342,7 @@ export function GlobalSearch({
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500" />
         <input
           ref={inputRef}
+          id="global-search-input"
           type="text"
           value={query}
           onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
@@ -394,6 +395,7 @@ export function GlobalSearch({
                       return (
                         <button
                           key={`${item.node_type}-${item.node_id}`}
+                          id={`global-search-result-${item.node_type}-${item.node_id}`}
                           onClick={() => handleSelect(item)}
                           onMouseEnter={() => setActiveIndex(flatIdx)}
                           className={cn(

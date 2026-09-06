@@ -19,9 +19,55 @@ import { SplitPaneWorkspace } from './SplitPaneWorkspace';
 
 const graphProps: Record<string, any> = {};
 
-vi.mock('@monaco-editor/react', () => ({
-  default: (props: any) => <div data-testid="monaco-editor" data-language={props.defaultLanguage}>{props.value}</div>,
-}));
+// Der Editor meldet sich -- wie das echte Monaco -- erst NACH dem ersten
+// Render über `onMount` zurück. Genau dieses Timing ist der Kern des
+// Zeilensprung-Tests weiter unten.
+const editorStub = {
+  revealLineInCenter: vi.fn(),
+  setPosition: vi.fn(),
+  deltaDecorations: vi.fn(() => []),
+  getModel: () => null,
+  getLayoutInfo: () => ({ contentLeft: 53 }),
+  // Alle Ereignis-Registrierungen, die handleEditorDidMountLocal vornimmt --
+  // sie liefern im echten Monaco ein Disposable zurueck.
+  onMouseMove: vi.fn(() => ({ dispose: vi.fn() })),
+  onMouseLeave: vi.fn(() => ({ dispose: vi.fn() })),
+  onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeModel: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidScrollChange: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
+};
+
+const monacoStub = {
+  languages: { getLanguages: () => [], register: vi.fn(), setMonarchTokensProvider: vi.fn(), setLanguageConfiguration: vi.fn() },
+  editor: { defineTheme: vi.fn(), setTheme: vi.fn() },
+  Range: class {},
+};
+
+function MonacoStub(props: any) {
+  // Bewusst per setTimeout und nicht im Effekt: React fuehrt Kind-Effekte VOR
+  // Eltern-Effekten aus, ein onMount im Effekt waere also schon fertig, bevor
+  // der Sprung-Effekt der Werkbank ueberhaupt laeuft -- und wuerde das echte
+  // Timing (Monaco laedt asynchron nach) gerade nicht nachbilden.
+  // Genau einmal melden. `onMount` ist im Bauteil nicht memoisiert, haengt man
+  // den Effekt daran, meldet sich der Stub nach jedem Render erneut -- und der
+  // Mount-Zaehler im Bauteil loest dann eine Render-Schleife aus.
+  const onMountRef = React.useRef(props.onMount);
+  const mountedRef = React.useRef(false);
+  React.useEffect(() => {
+    onMountRef.current = props.onMount;
+  });
+  React.useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    const timer = setTimeout(() => onMountRef.current?.(editorStub, monacoStub), 0);
+    return () => clearTimeout(timer);
+  }, []);
+  return <div data-testid="monaco-editor" data-language={props.defaultLanguage}>{props.value}</div>;
+}
+
+vi.mock('@monaco-editor/react', () => ({ default: (props: any) => <MonacoStub {...props} /> }));
 
 vi.mock('./KnowledgeGraphView', () => ({
   KnowledgeGraphView: (props: any) => {
@@ -89,6 +135,8 @@ function renderWorkspace(overrides: Partial<React.ComponentProps<typeof SplitPan
 describe('SplitPaneWorkspace', () => {
   afterEach(() => {
     for (const key of Object.keys(graphProps)) delete graphProps[key];
+    editorStub.revealLineInCenter.mockClear();
+    editorStub.setPosition.mockClear();
     vi.clearAllMocks();
   });
 
@@ -237,6 +285,28 @@ describe('SplitPaneWorkspace', () => {
       expect(graphProps.selectedFile).toBe('src/ZAHLUNG.cbl');
       expect(graphProps.layoutMode).toBe('4-grid');
       expect(graphProps.onFileSelect).toBe(props.handleFileSelect);
+    });
+  });
+
+  describe('Sprung zur Zielzeile', () => {
+    it('springt zur Zielzeile, auch wenn der Editor erst nach dem ersten Render bereitsteht', async () => {
+      // Beim erstmaligen Oeffnen einer Datei (Suchtreffer, Quellenverweis aus
+      // dem Chat) ist Monaco beim ersten Lauf des Effekts noch nicht montiert.
+      // Ohne den Mount-Zaehler in den Abhaengigkeiten lief der Effekt genau
+      // einmal ins Leere und der Editor blieb in Zeile 1 stehen -- gefunden
+      // ueber den O-062-E2E-Test.
+      renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/ZAHLUNG.cbl', fileContent: 'A\nB\nC', selectedLine: 13 });
+
+      await waitFor(() => expect(editorStub.revealLineInCenter).toHaveBeenCalledWith(13), { timeout: 2000 });
+      expect(editorStub.setPosition).toHaveBeenCalledWith({ lineNumber: 13, column: 1 });
+    });
+
+    it('springt nicht, wenn keine Zeile vorgegeben ist', async () => {
+      renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/ZAHLUNG.cbl', fileContent: 'A\nB\nC' });
+
+      await waitFor(() => expect(screen.getByTestId('monaco-editor')).toBeTruthy());
+      await new Promise(resolve => setTimeout(resolve, 250));
+      expect(editorStub.revealLineInCenter).not.toHaveBeenCalled();
     });
   });
 

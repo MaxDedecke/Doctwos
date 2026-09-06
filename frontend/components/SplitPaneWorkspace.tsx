@@ -160,6 +160,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [entityNeighborGroups, setEntityNeighborGroups] = useState<Record<string, any[]>>({});
   const [isLoadingEntityNeighbors, setIsLoadingEntityNeighbors] = useState(false);
 
+  // Bumped from handleEditorDidMountLocal so the effects below also re-run once
+  // the (async-mounting) Monaco editor/ref actually becomes available —
+  // selectedFile/selectedLine/projectEntities alone can settle before mount
+  // finishes, in which case an effect used to bail out once and never retry.
+  const [editorMountTick, setEditorMountTick] = useState(0);
+
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
@@ -374,7 +380,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       }, 150);
       return () => clearTimeout(timer);
     }
-  }, [selectedLine, selectedFile, activeEditorRef]);
+    // editorMountTick + contentToUse gehoeren zwingend dazu: wird eine Datei
+    // zum ersten Mal geoeffnet (Suchtreffer, Quellenverweis aus dem Chat), ist
+    // Monaco zum Zeitpunkt des ersten Laufs noch gar nicht montiert und das
+    // Modell noch leer -- der Effekt lief dann genau einmal ins Leere und der
+    // Editor blieb in Zeile 1 stehen, statt zur Zielzeile zu springen. Der
+    // Ref-Zuweisung in handleEditorDidMountLocal folgt keine Neuauswertung,
+    // deshalb der explizite Zaehler (dasselbe Muster wie beim
+    // Entity-Dekorations-Effekt weiter unten).
+  }, [selectedLine, selectedFile, activeEditorRef, editorMountTick, contentToUse]);
 
   const handleReferenceItemClick = async (refItem: any) => {
     setFocusedRefNode(refItem);
@@ -484,12 +498,6 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   }, [selectedFile]);
 
   const entityDecorationsRef = useRef<string[]>([]);
-  // Bumped from handleEditorDidMountLocal so the decoration effect below also
-  // re-runs once the (async-mounting) Monaco editor/ref actually becomes
-  // available — selectedFile/projectEntities alone can settle before mount
-  // finishes, in which case the effect used to bail out once and never retry.
-  const [editorMountTick, setEditorMountTick] = useState(0);
-
   useEffect(() => {
     const editor = activeEditorRef.current;
     const monaco = monacoRef.current;
