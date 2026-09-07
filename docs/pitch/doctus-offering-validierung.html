@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doctus — Offering-Validierung</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --canvas:#F5F1E7;
+    --surface:#FFFFFF;
+    --surface-2:#EAE3D2;
+    --ink:#171F1B;
+    --ink-muted:#5B6359;
+    --line:rgba(23,31,27,.14);
+    --line-strong:rgba(23,31,27,.28);
+    --signal:#E4002B;
+    --violet:#7A2E8C;
+    --trace:#0064D2;
+    --success:#1B7A4B;
+    --amber:#B8790C;
+    --gradient:linear-gradient(120deg,var(--signal) 0%,var(--violet) 55%,var(--trace) 100%);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --canvas:#0B1210;
+      --surface:#101917;
+      --surface-2:#16211E;
+      --ink:#ECEEE8;
+      --ink-muted:#9BA79E;
+      --line:rgba(236,238,232,.14);
+      --line-strong:rgba(236,238,232,.30);
+      --signal:#FF5470;
+      --violet:#C07FD1;
+      --trace:#5CA2FF;
+      --success:#3FBE83;
+      --amber:#E3A73B;
+    }
+  }
+  :root[data-theme="dark"]{
+    --canvas:#0B1210;
+    --surface:#101917;
+    --surface-2:#16211E;
+    --ink:#ECEEE8;
+    --ink-muted:#9BA79E;
+    --line:rgba(236,238,232,.14);
+    --line-strong:rgba(236,238,232,.30);
+    --signal:#FF5470;
+    --violet:#C07FD1;
+    --trace:#5CA2FF;
+    --success:#3FBE83;
+    --amber:#E3A73B;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:'Archivo',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    text-wrap:balance;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .mono{
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    letter-spacing:.04em;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    font-size:.72rem;
+    font-weight:600;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+  }
+  .eyebrow::before{
+    content:"";
+    width:.5rem;height:.5rem;border-radius:1px;
+    background:var(--gradient);
+    flex:none;
+  }
+
+  #deck{
+    height:100svh;
+    overflow-y:auto;
+    scroll-snap-type:y mandatory;
+  }
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+  }
+  .slide{
+    min-height:100svh;
+    scroll-snap-align:start;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:clamp(2rem,6vw,5.5rem);
+    position:relative;
+    border-bottom:1px solid var(--line);
+  }
+  .slide-inner{
+    max-width:74rem;
+    width:100%;
+    margin:0 auto;
+    opacity:0;
+    transform:translateY(14px);
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  .slide.in-view .slide-inner{opacity:1;transform:translateY(0);}
+  @media (prefers-reduced-motion: reduce){
+    .slide-inner{opacity:1;transform:none;transition:none;}
+  }
+
+  /* ---- chrome ---- */
+  #dots{
+    position:fixed;
+    right:clamp(1rem,2.4vw,2.2rem);
+    top:50%;
+    transform:translateY(-50%);
+    display:flex;
+    flex-direction:column;
+    gap:.65rem;
+    z-index:20;
+  }
+  #dots button{
+    width:.55rem;height:.55rem;border-radius:50%;
+    border:1px solid var(--line-strong);
+    background:transparent;
+    padding:0;cursor:pointer;
+    transition:background .15s ease, transform .15s ease;
+  }
+  #dots button.active{
+    background:var(--signal);
+    border-color:var(--signal);
+    transform:scale(1.3);
+  }
+  #counter{
+    position:fixed;
+    left:clamp(1rem,2.4vw,2.2rem);
+    bottom:1.4rem;
+    font-size:.72rem;
+    color:var(--ink-muted);
+    z-index:20;
+  }
+  #wordmark-fixed{
+    position:fixed;
+    right:clamp(1rem,2.4vw,2.2rem);
+    bottom:1.4rem;
+    font-size:.72rem;
+    color:var(--ink-muted);
+    z-index:20;
+    text-transform:uppercase;
+  }
+
+  /* ---- shared bits ---- */
+  .kicker-line{
+    height:2px;width:3.4rem;
+    background:var(--gradient);
+    margin:1.4rem 0 1.6rem;
+  }
+  .lede{
+    font-size:clamp(1.05rem,1.5vw,1.25rem);
+    color:var(--ink-muted);
+    max-width:40rem;
+    line-height:1.55;
+  }
+  .headline{
+    font-size:clamp(2rem,4.2vw,3.3rem);
+    line-height:1.08;
+  }
+  .grad-word{
+    background:var(--gradient);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  figure{margin:0;}
+  figcaption{
+    margin-top:.9rem;
+    font-size:.78rem;
+    color:var(--ink-muted);
+  }
+  svg text{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+  .diagram-box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.4;}
+  .diagram-label{fill:var(--ink);font-size:13px;font-weight:600;}
+  .diagram-sub{fill:var(--ink-muted);font-size:10.5px;}
+  .diagram-edge{stroke:var(--ink-muted);stroke-width:1.3;fill:none;}
+
+  /* card grid */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(15.5rem,1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:2.2rem;
+  }
+  .card{
+    background:var(--surface);
+    padding:1.5rem 1.4rem;
+    display:flex;
+    flex-direction:column;
+    gap:.6rem;
+  }
+  .card .num{font-size:.75rem;color:var(--ink-muted);}
+  .card h3{font-size:1.02rem;}
+  .card p{margin:0;color:var(--ink-muted);font-size:.86rem;line-height:1.5;}
+  .card .role-q{
+    margin-top:auto;
+    padding-top:.7rem;
+    border-top:1px dashed var(--line-strong);
+    font-size:.82rem;
+    font-style:italic;
+    color:var(--ink);
+  }
+
+  /* status tag */
+  .tag{
+    display:inline-flex;align-items:center;gap:.4rem;
+    font-family:'IBM Plex Mono';font-size:.66rem;letter-spacing:.06em;
+    text-transform:uppercase;padding:.2rem .5rem;border-radius:2px;
+    border:1px solid var(--line-strong);width:fit-content;
+  }
+  .tag.done{color:var(--success);border-color:var(--success);}
+  .tag.doc{color:var(--trace);border-color:var(--trace);}
+  .tag.open{color:var(--amber);border-color:var(--amber);}
+  .tag::before{content:"●";font-size:.6em;}
+
+  /* stat row */
+  .stats{display:flex;flex-wrap:wrap;gap:2.6rem;margin-top:2.4rem;}
+  .stat .value{font-size:clamp(1.5rem,2.8vw,2rem);font-family:'Space Grotesk';}
+  .stat .label{font-size:.78rem;color:var(--ink-muted);max-width:13rem;margin-top:.3rem;}
+
+  /* checklist */
+  .checklist{display:grid;gap:.75rem;margin-top:2.2rem;max-width:40rem;}
+  .checklist li{
+    list-style:none;
+    display:flex;
+    gap:.8rem;
+    align-items:flex-start;
+    font-size:.92rem;
+    color:var(--ink);
+    padding:.7rem .9rem;
+    border:1px solid var(--line);
+    background:var(--surface);
+  }
+  .checklist .tick{
+    flex:none;width:1.1rem;height:1.1rem;border-radius:2px;
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.7rem;margin-top:.1rem;
+  }
+  .checklist .tick.done{background:var(--success);}
+  .checklist .tick.open{background:var(--amber);}
+  .checklist .cap span{color:var(--ink-muted);}
+
+  /* screenshot frame */
+  .shot{
+    background:var(--surface);
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .shot img{display:block;width:100%;height:auto;}
+  .shot-cap{
+    padding:.7rem .9rem;
+    border-top:1px solid var(--line);
+    font-size:.78rem;
+    color:var(--ink-muted);
+  }
+  .shot-grid{
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:1.4rem;
+    margin-top:2.2rem;
+    align-items:start;
+  }
+  @media (max-width:64rem){.shot-grid{grid-template-columns:1fr;}}
+  .shot-side{display:grid;gap:1.4rem;}
+
+  /* offering split */
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:2.2rem;
+  }
+  @media (max-width:56rem){.split{grid-template-columns:1fr;}}
+  .split-col{
+    background:var(--surface);
+    padding:1.8rem 1.7rem;
+    display:flex;flex-direction:column;gap:.9rem;
+  }
+  .split-col .idx{font-family:'IBM Plex Mono';font-size:.72rem;color:var(--ink-muted);}
+  .split-col h3{font-size:1.2rem;}
+  .split-col p{margin:0;color:var(--ink-muted);font-size:.88rem;line-height:1.55;}
+  .hyp-box{
+    margin-top:.3rem;padding:.7rem .8rem;
+    background:var(--surface-2);font-size:.8rem;line-height:1.5;
+    border-left:2px solid var(--violet);
+  }
+  .hyp-box b{color:var(--ink);}
+
+  /* agenda table */
+  .agenda{margin-top:2.2rem;border-top:1px solid var(--line-strong);}
+  .agenda-row{
+    display:grid;
+    grid-template-columns:5.5rem 1fr 6rem;
+    gap:1rem;
+    padding:.95rem 0;
+    border-bottom:1px solid var(--line);
+    align-items:baseline;
+  }
+  .agenda-row .t{font-family:'IBM Plex Mono';font-size:.8rem;color:var(--signal);}
+  .agenda-row .d{font-size:.95rem;}
+  .agenda-row .d span{display:block;color:var(--ink-muted);font-size:.78rem;margin-top:.2rem;}
+  .agenda-row .m{font-family:'IBM Plex Mono';font-size:.78rem;color:var(--ink-muted);text-align:right;}
+  .agenda-row.block{background:var(--surface-2);margin:0 -.6rem;padding:.95rem .6rem;}
+
+  /* outcome list */
+  .outcomes{list-style:none;margin:2.2rem 0 0;padding:0;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);}
+  .outcomes li{
+    background:var(--surface);
+    display:grid;grid-template-columns:2.4rem 1fr 9rem;gap:1rem;
+    padding:1rem 1.1rem;align-items:baseline;
+  }
+  @media (max-width:50rem){.outcomes li{grid-template-columns:2.2rem 1fr;}.outcomes .owner{grid-column:2;}}
+  .outcomes .idx{font-family:'IBM Plex Mono';color:var(--signal);font-size:.85rem;}
+  .outcomes .q{font-size:.98rem;}
+  .outcomes .q span{display:block;color:var(--ink-muted);font-size:.82rem;margin-top:.25rem;}
+  .outcomes .owner{
+    font-family:'IBM Plex Mono';font-size:.7rem;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--ink-muted);text-align:right;align-self:start;
+    padding-top:.2rem;
+  }
+
+  .cover-mark{
+    font-size:clamp(3rem,9vw,6rem);
+    line-height:.96;
+  }
+  .brand-bar{width:5.2rem;height:6px;background:var(--gradient);margin:1.6rem 0 1.8rem;}
+  .cover-foot{
+    position:absolute;bottom:clamp(2rem,6vw,4rem);left:clamp(2rem,6vw,5.5rem);right:clamp(2rem,6vw,5.5rem);
+    display:flex;justify-content:space-between;font-size:.72rem;color:var(--ink-muted);
+    flex-wrap:wrap;gap:.5rem;
+  }
+  .note{
+    margin-top:1.6rem;font-size:.82rem;color:var(--ink-muted);
+    max-width:40rem;line-height:1.5;padding:.8rem 1rem;border:1px dashed var(--line-strong);
+  }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- 01 COVER -->
+  <section class="slide" id="s1" data-title="Start">
+    <div class="slide-inner">
+      <div class="eyebrow">Interner Workshop &middot; vertraulich</div>
+      <div class="brand-bar"></div>
+      <h1 class="cover-mark">Doctus<span class="grad-word">.</span></h1>
+      <p class="lede" style="margin-top:1.1rem;font-size:clamp(1.1rem,1.9vw,1.35rem);color:var(--ink);">
+        Offering- und Opportunity-Validierung.
+      </p>
+      <p class="lede" style="margin-top:.7rem;">
+        Kein Vertriebs-Pitch, sondern eine gemeinsame Prüfung: Welches Problem löst Doctus,
+        wie könnte Fujitsu es anbieten, und welche Kunden kommen zuerst infrage?
+      </p>
+    </div>
+    <div class="cover-foot">
+      <span class="mono">DOCTUS</span>
+      <span class="mono">FREITAG, 11.09.2026</span>
+    </div>
+  </section>
+
+  <!-- 02 RAHMEN -->
+  <section class="slide" id="s2" data-title="Rahmen">
+    <div class="slide-inner">
+      <div class="eyebrow">Rahmen des Termins</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Diese Runde entscheidet nicht<br>über einen Kauf &mdash; sondern über ein Angebot.</h2>
+      <p class="lede" style="margin-top:1.1rem;">
+        Ihr seid genau die Personen, die aus einem interessanten Produkt einen konkreten
+        Geschäftsvorschlag machen können. Ziel ist am Ende nicht nur Interesse, sondern ein
+        gemeinsames Verständnis:
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="value grad-word">Problem</div>
+          <div class="label">welches Kundenproblem Doctus tatsächlich löst</div>
+        </div>
+        <div class="stat">
+          <div class="value grad-word">Angebot</div>
+          <div class="label">wie Fujitsu das glaubwürdig anbieten könnte</div>
+        </div>
+        <div class="stat">
+          <div class="value grad-word">Kunden</div>
+          <div class="label">welche Accounts als Erstes infrage kommen</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 VIER PERSPEKTIVEN -->
+  <section class="slide" id="s3" data-title="Perspektiven">
+    <div class="slide-inner">
+      <div class="eyebrow">Vier Perspektiven im Raum</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Jede Rolle bringt eine andere<br>Prüffrage mit.</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="num mono">MANAGEMENT</div>
+          <h3>Unteres Management</h3>
+          <p>Ist das ein sinnvoller Geschäftsansatz, der Ressourcen und interne Unterstützung rechtfertigt?</p>
+          <div class="role-q">&bdquo;Wo liegen Risiken und die nächste Entscheidung?&ldquo;</div>
+        </div>
+        <div class="card">
+          <div class="num mono">CONSULTANTS</div>
+          <h3>Consultants</h3>
+          <p>Welche Kundenprobleme kennen wir aus Projekten?</p>
+          <div class="role-q">&bdquo;Wo könnte Doctus Aufwand reduzieren oder Modernisierung vorbereiten?&ldquo;</div>
+        </div>
+        <div class="card">
+          <div class="num mono">SALES</div>
+          <h3>Sales</h3>
+          <p>Welchen Kunden kann ich darauf ansprechen?</p>
+          <div class="role-q">&bdquo;Welchen Schmerz adressiert das, und wie sieht ein erster Einstieg aus?&ldquo;</div>
+        </div>
+        <div class="card">
+          <div class="num mono">OFFERINGS</div>
+          <h3>Offerings Management</h3>
+          <p>Wie wird daraus ein wiederholbares Angebot?</p>
+          <div class="role-q">&bdquo;Welche Leistungen, Betriebsmodelle, Abgrenzungen, Voraussetzungen braucht es?&ldquo;</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 AGENDA -->
+  <section class="slide" id="s4" data-title="Agenda">
+    <div class="slide-inner">
+      <div class="eyebrow">Ablauf &middot; 45 Minuten</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Präsentation und gemeinsame<br>Qualifizierung.</h2>
+      <div class="agenda">
+        <div class="agenda-row block">
+          <div class="t mono">10&prime;</div>
+          <div class="d">Problem &amp; Kunden-Use-Cases<span>Ausgangslage, typische Situationen aus Projekten</span></div>
+          <div class="m">Consultants</div>
+        </div>
+        <div class="agenda-row">
+          <div class="t mono">10&prime;</div>
+          <div class="d">Produkt-Walkthrough<span>Echte Screenshots statt Live-Demo, entlang eines Arbeitsablaufs</span></div>
+          <div class="m">Alle</div>
+        </div>
+        <div class="agenda-row block">
+          <div class="t mono">7&prime;</div>
+          <div class="d">Differenzierung &amp; Offering-Fit<span>Zwei kommerzielle Hypothesen zur Diskussion</span></div>
+          <div class="m">Offerings</div>
+        </div>
+        <div class="agenda-row">
+          <div class="t mono">3&prime;</div>
+          <div class="d">Stand &amp; Validierungsbedarf<span>Was implementiert, dokumentiert und noch offen ist</span></div>
+          <div class="m">Management</div>
+        </div>
+        <div class="agenda-row block">
+          <div class="t mono">15&prime;</div>
+          <div class="d">Diskussion &amp; nächste Schritte<span>Moderiert, mit vier konkreten Ergebnissen</span></div>
+          <div class="m">Alle</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 PROBLEM -->
+  <section class="slide" id="s5" data-title="Problem">
+    <div class="slide-inner">
+      <div class="eyebrow">Ausgangslage</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Das Wissen sitzt in Köpfen,<br>nicht in Systemen.</h2>
+      <p class="lede" style="margin-top:1.1rem;">
+        Große COBOL-Bestände laufen seit Jahrzehnten stabil &mdash; ihr Verständnis hängt an
+        wenigen, langjährigen Personen. Dokumentation existiert, ist aber über Code, Confluence
+        und Jira verstreut und selten aktuell.
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="value grad-word">Jahrzehnte</div>
+          <div class="label">gewachsener Code &mdash; ohne zentrale, verlässliche Wissensquelle</div>
+        </div>
+        <div class="stat">
+          <div class="value grad-word">Wenige</div>
+          <div class="label">Köpfe tragen das eigentliche Systemverständnis</div>
+        </div>
+        <div class="stat">
+          <div class="value grad-word">Verstreut</div>
+          <div class="label">Doku in Code, Confluence und Jira &mdash; nie an einem Ort durchsuchbar</div>
+        </div>
+      </div>
+      <div class="note">Frage an die Runde: Welche dieser Pain Points begegnen euch tatsächlich bei Kunden &mdash; und welche ist die dringendste?</div>
+    </div>
+  </section>
+
+  <!-- 06 USE CASES -->
+  <section class="slide" id="s6" data-title="Kunden-Use-Cases">
+    <div class="slide-inner">
+      <div class="eyebrow">Aus der Projektpraxis</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Vier Situationen, in denen<br>der Schmerz real wird.</h2>
+      <div class="cards">
+        <div class="card"><div class="num mono">01</div><h3>Modernisierungsprojekt startet</h3><p>Bevor migriert oder abgelöst werden kann, muss der Bestand erst verstanden werden &mdash; heute oft Wochen manueller Code-Archäologie.</p></div>
+        <div class="card"><div class="num mono">02</div><h3>Wissensträger verlässt das Team</h3><p>Pensionierung oder Wechsel reißt Systemverständnis heraus, das nirgends sonst dokumentiert war.</p></div>
+        <div class="card"><div class="num mono">03</div><h3>Audit oder Compliance-Anfrage</h3><p>Wo wird welches Datenfeld verarbeitet? Ohne Aufrufgraph eine aufwändige, fehleranfällige Handrecherche.</p></div>
+        <div class="card"><div class="num mono">04</div><h3>Onboarding neuer Entwickler</h3><p>Einarbeitung in einen 30 Jahre gewachsenen Bestand dauert heute Monate statt Tage.</p></div>
+      </div>
+      <div class="note">Frage an die Runde: In welchen dieser Situationen wart ihr zuletzt bei einem Kunden &mdash; und wie wurde sie gelöst (oder eben nicht)?</div>
+    </div>
+  </section>
+
+  <!-- 07 WALKTHROUGH INTRO -->
+  <section class="slide" id="s7" data-title="Produkt">
+    <div class="slide-inner">
+      <div class="eyebrow">Produkt-Walkthrough &middot; echte Screenshots, keine Live-Demo</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Fragen stellen. Antwort mit<br>Beleg im Code bekommen.</h2>
+      <p class="lede" style="margin-top:.9rem;">
+        Ein durchgängiger Arbeitsablauf: Frage stellen &rarr; Antwort mit zitierter Quelle &rarr;
+        von dort in Code, Wissensgraph oder verknüpfte Dokumente springen.
+      </p>
+      <div class="shot-grid">
+        <figure class="shot">
+          <img src="../assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152135.png" alt="Doctus Oberfläche: links Chat mit vier Schnellaktionen, rechts der Wissensgraph einer DB2-Tabelle mit ihren Verbindungen.">
+          <div class="shot-cap">Chat und Wissensgraph nebeneinander &mdash; eine Frage zur DB2-Tabelle führt direkt zu allen Stellen, die darauf zugreifen.</div>
+        </figure>
+        <div class="shot-side">
+          <figure class="shot">
+            <img src="../assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152618.png" alt="Chat-Antwort erklärt ein COBOL-Datenfeld mit Zeilenbeleg, daneben der Code-Editor mit der markierten Zeile.">
+            <div class="shot-cap">Jede Antwort verweist auf die exakte Zeile im Originalcode.</div>
+          </figure>
+          <figure class="shot">
+            <img src="../assets/doctus_bilder/Doctus/Screenshot%202026-09-01%20152435.png" alt="Code-Editor mit einem Copybook, ein Referenzen-Panel zeigt verwendende Programme und verknüpfte Dokumente wie README und Developer-Doku.">
+            <div class="shot-cap">Code, Referenzen und Dokumentation sind an einem Ort verknüpft.</div>
+          </figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 CAPABILITIES -->
+  <section class="slide" id="s8" data-title="Fähigkeiten">
+    <div class="slide-inner">
+      <div class="eyebrow">Funktionsumfang</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Ein Arbeitsplatz,<br>kein Chat-Fenster.</h2>
+      <div class="cards">
+        <div class="card"><span class="tag done">Implementiert</span><h3>Chat mit Quellenbeleg</h3><p>Jede Antwort verweist auf die exakte Zeile im Originalcode.</p></div>
+        <div class="card"><span class="tag done">Implementiert</span><h3>Wissens- &amp; Aufrufgraph</h3><p>CALL, PERFORM, GOTO, COPY visuell &mdash; mit Export.</p></div>
+        <div class="card"><span class="tag done">Implementiert</span><h3>Code und Doku vereint</h3><p>Git, Confluence, Jira, WebDAV, Ordner und Upload &mdash; an einem Ort durchsuchbar.</p></div>
+        <div class="card"><span class="tag done">Implementiert</span><h3>On-Premise &amp; Open Source</h3><p>Läuft vollständig lokal beim Kunden, ausschließlich MIT/BSD/Apache-2.0-Abhängigkeiten.</p></div>
+        <div class="card"><span class="tag done">Implementiert</span><h3>Rollen &amp; Projektrechte</h3><p>Team- und projektscharfe Zugriffskontrolle, verschlüsselte Konnektor-Zugangsdaten.</p></div>
+        <div class="card"><span class="tag open">Zu validieren</span><h3>Mainframe-Konnektoren</h3><p>Anbindung an klassische Mainframe-SCM/DB2-Umgebungen &mdash; nächster Ausbauschritt.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 OFFERING -->
+  <section class="slide" id="s9" data-title="Offering-Fit">
+    <div class="slide-inner">
+      <div class="eyebrow">Differenzierung &amp; Offering-Fit</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Zwei Wege &mdash; als<br>kommerzielle Hypothesen.</h2>
+      <p class="lede" style="margin-top:.9rem;">
+        Bewusst kein fertiges Preismodell und keine fertige Go-to-Market-Strategie. Das ist der
+        Teil, den diese Runde gemeinsam schärfen soll.
+      </p>
+      <div class="split">
+        <div class="split-col">
+          <div class="idx mono">WEG 01</div>
+          <h3>Eigenständiges Produkt</h3>
+          <p>Doctus als self-hosted Legacy Intelligence für Kunden, die ihre Bestände dauerhaft
+          verstehen und dokumentieren müssen.</p>
+          <div class="hyp-box"><b>Hypothese:</b> Lizenz/Subscription + Einführung + Support.</div>
+        </div>
+        <div class="split-col">
+          <div class="idx mono">WEG 02</div>
+          <h3>Modernization Accelerator</h3>
+          <p>Doctus als Werkzeug für Discovery, Wissenssicherung und Analyse innerhalb größerer
+          Modernisierungs- und Consulting-Projekte.</p>
+          <div class="hyp-box"><b>Hypothese:</b> Projekt-Accelerator + anschließende Produktnutzung.</div>
+        </div>
+      </div>
+      <div class="note">Beide Modelle sind kommerzielle Hypothesen, keine validierten Umsatzmodelle. Frage an die Runde: eigenständige Lizenz, Accelerator &mdash; oder kombiniert?</div>
+    </div>
+  </section>
+
+  <!-- 10 STAND -->
+  <section class="slide" id="s10" data-title="Stand">
+    <div class="slide-inner">
+      <div class="eyebrow">Stand &amp; Validierungsbedarf</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Kein Prototyp &mdash; aber auch<br>kein fertiges Enterprise-Produkt.</h2>
+      <p class="lede" style="margin-top:.9rem;">
+        Entstanden aus einem früheren, privaten Vorläuferprojekt (Doctus 1.0) &mdash; daher die
+        Domänenkenntnis, mit der wir heute starten. Alle zehn Arbeitspakete des aktuellen
+        Implementierungsauftrags sind abgeschlossen; für den Enterprise-Rollout bleiben offene Punkte.
+      </p>
+      <ul class="checklist">
+        <li><span class="tick done">&#10003;</span><span class="cap">10 von 10 Arbeitspaketen abgeschlossen &mdash; <span>Parser, Wissens- &amp; Aufrufgraph, Konnektoren, Job-Center, Rechteverwaltung</span></span></li>
+        <li><span class="tick done">&#10003;</span><span class="cap">Lizenzclean &amp; regressionsgetestet &mdash; <span>ausschließlich MIT/BSD/Apache-2.0, automatisierte Test-Suiten</span></span></li>
+        <li><span class="tick open">!</span><span class="cap">Offen: weitere Mainframe- und DB2-Konnektoren &mdash; <span>für klassische Großkunden-Umgebungen</span></span></li>
+        <li><span class="tick open">!</span><span class="cap">Offen: Compliance- und Paketierungsanforderungen &mdash; <span>abhängig vom gewählten Angebotsweg</span></span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 11 DISKUSSION -->
+  <section class="slide" id="s11" data-title="Diskussion">
+    <div class="slide-inner">
+      <div class="eyebrow">Diskussion &amp; nächste Schritte &middot; moderiert</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Vier Ergebnisse, die wir<br>heute mitnehmen wollen.</h2>
+      <ol class="outcomes">
+        <li><span class="idx mono">01</span><span class="q">Problem bestätigen<span>Welche Pain Points begegnen euch tatsächlich bei Kunden, welcher am dringendsten?</span></span><span class="owner">Consultants</span></li>
+        <li><span class="idx mono">02</span><span class="q">Kunden identifizieren<span>Bei welchen zwei oder drei konkreten Accounts könnte Doctus relevant sein?</span></span><span class="owner">Sales</span></li>
+        <li><span class="idx mono">03</span><span class="q">Offering-Hypothese wählen<span>Eigenständige Lizenz, Consulting-Accelerator &mdash; oder kombiniert?</span></span><span class="owner">Offerings</span></li>
+        <li><span class="idx mono">04</span><span class="q">Nächsten Schritt festlegen<span>Wer validiert fachlich, wer spricht mit einem Kunden, wer klärt den Rahmen für eine technische Evaluation?</span></span><span class="owner">Management</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 12 CLOSING -->
+  <section class="slide" id="s12" data-title="Zielbild">
+    <div class="slide-inner">
+      <div class="eyebrow">Idealer Ausgang am Freitag</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Aus einem Produktpitch wird ein<br><span class="grad-word">Geschäftsentwicklungsprozess.</span></h2>
+      <div class="cards">
+        <div class="card"><div class="num mono">SALES</div><p style="font-size:.95rem;color:var(--ink);">nennt einen konkreten Account.</p></div>
+        <div class="card"><div class="num mono">CONSULTANTS</div><p style="font-size:.95rem;color:var(--ink);">bestätigen einen konkreten Anwendungsfall.</p></div>
+        <div class="card"><div class="num mono">OFFERINGS</div><p style="font-size:.95rem;color:var(--ink);">erkennen einen möglichen Angebotsweg.</p></div>
+        <div class="card"><div class="num mono">MANAGEMENT</div><p style="font-size:.95rem;color:var(--ink);">sagt: &bdquo;Das sollten wir strukturiert weiterverfolgen.&ldquo;</p></div>
+      </div>
+    </div>
+    <div class="cover-foot">
+      <span class="mono">DOCTUS</span>
+      <span class="mono">DISKUSSIONSGRUNDLAGE &middot; VERTRAULICH</span>
+    </div>
+  </section>
+
+</div>
+
+<div id="dots" aria-hidden="true"></div>
+<div id="counter" class="mono">01 / 12</div>
+<div id="wordmark-fixed">Doctus</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dotsWrap = document.getElementById('dots');
+  var counter = document.getElementById('counter');
+  var total = slides.length;
+
+  slides.forEach(function(s, i){
+    var b = document.createElement('button');
+    b.setAttribute('aria-label', 'Zu Folie ' + (i+1) + ': ' + (s.dataset.title || ''));
+    b.addEventListener('click', function(){ s.scrollIntoView({behavior:'smooth'}); });
+    dotsWrap.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(dotsWrap.children);
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+
+  var current = 0;
+  function setActive(i){
+    current = i;
+    dots.forEach(function(d, idx){ d.classList.toggle('active', idx === i); });
+    counter.textContent = pad(i+1) + ' / ' + pad(total);
+  }
+  setActive(0);
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var idx = slides.indexOf(e.target);
+      if(e.isIntersecting){
+        e.target.classList.add('in-view');
+        if(e.intersectionRatio > 0.55) setActive(idx);
+      }
+    });
+  }, {root: document.getElementById('deck'), threshold:[0,0.55,1]});
+  slides.forEach(function(s){ io.observe(s); });
+
+  document.addEventListener('keydown', function(e){
+    if(['ArrowDown','PageDown',' '].indexOf(e.key) > -1){
+      e.preventDefault();
+      var next = slides[Math.min(current+1, total-1)];
+      next.scrollIntoView({behavior:'smooth'});
+    } else if(['ArrowUp','PageUp'].indexOf(e.key) > -1){
+      e.preventDefault();
+      var prev = slides[Math.max(current-1, 0)];
+      prev.scrollIntoView({behavior:'smooth'});
+    }
+  });
+})();
+</script>
+</body>
+</html>
