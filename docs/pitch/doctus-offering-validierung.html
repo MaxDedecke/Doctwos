@@ -360,6 +360,61 @@
     margin-top:1.6rem;font-size:.82rem;color:var(--ink-muted);
     max-width:40rem;line-height:1.5;padding:.8rem 1rem;border:1px dashed var(--line-strong);
   }
+
+  /* one-sentence statement */
+  .statement{
+    font-family:'Space Grotesk',system-ui,sans-serif;
+    font-size:clamp(1.45rem,3vw,2.3rem);
+    line-height:1.24;
+    text-wrap:balance;
+    max-width:52rem;
+    margin:0;
+  }
+  .statement .grad-word{white-space:nowrap;}
+
+  /* phase strip */
+  .phases{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    gap:1px;background:var(--line);
+    border:1px solid var(--line);margin-top:2rem;
+  }
+  @media (max-width:56rem){.phases{grid-template-columns:repeat(2,1fr);}}
+  .phase{background:var(--surface);padding:1.1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.45rem;}
+  .phase .when{font-family:'IBM Plex Mono';font-size:.72rem;letter-spacing:.06em;color:var(--signal);text-transform:uppercase;}
+  .phase b{font-size:.95rem;font-family:'Space Grotesk';}
+  .phase span.d{font-size:.8rem;color:var(--ink-muted);line-height:1.5;}
+
+  /* two-column honest list */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:2.2rem;}
+  @media (max-width:56rem){.duo{grid-template-columns:1fr;}}
+  .duo-col{background:var(--surface);padding:1.5rem 1.5rem 1.6rem;}
+  .duo-col h3{font-size:1.02rem;margin-bottom:1rem;}
+  .duo-col ul{margin:0;padding:0;list-style:none;display:grid;gap:.8rem;}
+  .duo-col li{font-size:.86rem;line-height:1.5;color:var(--ink-muted);padding-left:1rem;position:relative;}
+  .duo-col li::before{content:"";position:absolute;left:0;top:.55em;width:.35rem;height:.35rem;background:var(--line-strong);}
+  .duo-col li b{color:var(--ink);font-weight:600;}
+
+  /* why-us strip */
+  .why-us{
+    margin-top:1.4rem;border:1px solid var(--line);border-left:3px solid var(--violet);
+    background:var(--surface);padding:1.1rem 1.3rem;
+    display:grid;grid-template-columns:auto 1fr;gap:1.3rem;align-items:baseline;
+  }
+  @media (max-width:50rem){.why-us{grid-template-columns:1fr;gap:.6rem;}}
+  .why-us .t{font-family:'IBM Plex Mono';font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--violet);white-space:nowrap;}
+  .why-us p{margin:0;font-size:.88rem;line-height:1.6;color:var(--ink-muted);}
+  .why-us b{color:var(--ink);}
+
+  /* ask list */
+  .asks{list-style:none;margin:2rem 0 0;padding:0;display:grid;gap:.7rem;max-width:47rem;}
+  .asks li{display:grid;grid-template-columns:1.8rem 1fr;gap:.6rem;align-items:baseline;
+    font-size:.92rem;line-height:1.5;color:var(--ink-muted);
+    border:1px solid var(--line);border-left:2px solid var(--violet);padding:.7rem .95rem;background:var(--surface);}
+  .asks .n{font-family:'IBM Plex Mono';font-size:.76rem;color:var(--violet);}
+  .asks b{color:var(--ink);font-weight:600;}
+
+  .card p b{color:var(--ink);font-weight:600;}
+  .note b{color:var(--ink);}
 </style>
 </head>
 <body>
@@ -414,7 +469,25 @@
     </div>
   </section>
 
-  <!-- 03 VIER PERSPEKTIVEN -->
+  <!-- 03 IN EINEM SATZ -->
+  <section class="slide" id="s2b" data-title="In einem Satz">
+    <div class="slide-inner">
+      <div class="eyebrow">Damit wir vom Gleichen reden</div>
+      <div class="kicker-line"></div>
+      <p class="statement">
+        Doctus beantwortet Fragen zu einem gewachsenen COBOL-Bestand in normaler Sprache &mdash;
+        mit <span class="grad-word">Beleg auf der exakten Codezeile</span>, vollständig im
+        Rechenzentrum des Kunden.
+      </p>
+      <div class="cards">
+        <div class="card"><div class="num mono">FÜR WEN</div><p>Organisationen mit geschäftskritischem COBOL, deren Systemverständnis an wenigen Personen hängt &mdash; Banken, Versicherungen, öffentlicher Sektor, Industrie.</p></div>
+        <div class="card"><div class="num mono">WAS ANDERS IST</div><p>Nicht suchen und selbst zusammenreimen, sondern <b>fragen und eine belegte Antwort bekommen</b> &mdash; mit Sprung in Code, Aufrufgraph und verknüpfte Dokumentation.</p></div>
+        <div class="card"><div class="num mono">WAS ES NICHT IST</div><p>Kein Migrationswerkzeug, kein Code-Generator, kein Ersatz für Fachleute. Es macht die vorhandenen Fachleute schneller.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 VIER PERSPEKTIVEN -->
   <section class="slide" id="s3" data-title="Perspektiven">
     <div class="slide-inner">
       <div class="eyebrow">Vier Perspektiven im Raum</div>
@@ -423,9 +496,9 @@
       <div class="cards">
         <div class="card">
           <div class="num mono">MANAGEMENT</div>
-          <h3>Unteres Management</h3>
-          <p>Ist das ein sinnvoller Geschäftsansatz, der Ressourcen und interne Unterstützung rechtfertigt?</p>
-          <div class="role-q">&bdquo;Wo liegen Risiken und die nächste Entscheidung?&ldquo;</div>
+          <h3>Management</h3>
+          <p>Ist das ein tragfähiger Geschäftsansatz, der Aufmerksamkeit und interne Unterstützung rechtfertigt?</p>
+          <div class="role-q">&bdquo;Was kostet ein Ja &mdash; und was ist die nächste Entscheidung?&ldquo;</div>
         </div>
         <div class="card">
           <div class="num mono">CONSULTANTS</div>
@@ -457,27 +530,37 @@
       <h2 class="headline">Präsentation und gemeinsame<br>Qualifizierung.</h2>
       <div class="agenda">
         <div class="agenda-row block">
-          <div class="t mono">10&prime;</div>
-          <div class="d">Problem &amp; Kunden-Use-Cases<span>Ausgangslage, typische Situationen aus Projekten</span></div>
-          <div class="m">Consultants</div>
+          <div class="t mono">3&prime;</div>
+          <div class="d">Rahmen &amp; Doctus in einem Satz<span>Worum es heute geht &mdash; und worum ausdrücklich nicht</span></div>
+          <div class="m">Alle</div>
         </div>
         <div class="agenda-row">
-          <div class="t mono">10&prime;</div>
+          <div class="t mono">7&prime;</div>
+          <div class="d">Problem, Warum jetzt &amp; Kunden-Use-Cases<span>Ausgangslage und typische Situationen aus Projekten</span></div>
+          <div class="m">Consultants</div>
+        </div>
+        <div class="agenda-row block">
+          <div class="t mono">8&prime;</div>
           <div class="d">Produkt-Walkthrough<span>Echte Screenshots statt Live-Demo, entlang eines Arbeitsablaufs</span></div>
           <div class="m">Alle</div>
         </div>
+        <div class="agenda-row">
+          <div class="t mono">6&prime;</div>
+          <div class="d">Differenzierung &amp; Zielkundenprofil<span>Warum nicht einfach Copilot &mdash; und wen man ansprechen kann</span></div>
+          <div class="m">Sales</div>
+        </div>
         <div class="agenda-row block">
-          <div class="t mono">7&prime;</div>
-          <div class="d">Differenzierung &amp; Offering-Fit<span>Zwei kommerzielle Hypothesen zur Diskussion</span></div>
+          <div class="t mono">6&prime;</div>
+          <div class="d">Offering-Fit &amp; Einstiegsangebot<span>Zwei kommerzielle Hypothesen und ein kleiner erster Schritt</span></div>
           <div class="m">Offerings</div>
         </div>
         <div class="agenda-row">
-          <div class="t mono">3&prime;</div>
-          <div class="d">Stand &amp; Validierungsbedarf<span>Was implementiert, dokumentiert und noch offen ist</span></div>
+          <div class="t mono">4&prime;</div>
+          <div class="d">Stand, Risiken &amp; Weg nach vorn<span>Was fertig ist, was offen ist, was ein Ja bedeuten würde</span></div>
           <div class="m">Management</div>
         </div>
         <div class="agenda-row block">
-          <div class="t mono">15&prime;</div>
+          <div class="t mono">11&prime;</div>
           <div class="d">Diskussion &amp; nächste Schritte<span>Moderiert, mit vier konkreten Ergebnissen</span></div>
           <div class="m">Alle</div>
         </div>
@@ -514,7 +597,26 @@
     </div>
   </section>
 
-  <!-- 06 USE CASES -->
+  <!-- 06 WARUM JETZT -->
+  <section class="slide" id="s5b" data-title="Warum jetzt">
+    <div class="slide-inner">
+      <div class="eyebrow">Timing</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Das Problem ist alt.<br>Die Lösung ist neu möglich.</h2>
+      <p class="lede" style="margin-top:1.1rem;">
+        COBOL-Wissen bröckelt seit Jahren &mdash; das allein wäre kein Grund, gerade jetzt ein
+        Angebot daraus zu bauen. Drei Entwicklungen treffen sich aber erst jetzt.
+      </p>
+      <div class="cards">
+        <div class="card"><div class="num mono">01 &middot; DRUCK</div><h3>Die Wissenslücke schließt sich nicht von selbst</h3><p>Wer die Systeme gebaut hat, geht in Ruhestand. Der Bestand bleibt, die Erklärung dazu geht mit.</p></div>
+        <div class="card"><div class="num mono">02 &middot; NACHFRAGE</div><h3>Jedes Modernisierungsprogramm beginnt mit „Verstehen“</h3><p>Regulatorik, Fachkräftemangel und Cloud-Programme erhöhen den Handlungsdruck &mdash; und die erste Projektphase ist immer Bestandsanalyse.</p></div>
+        <div class="card"><div class="num mono">03 &middot; MACHBARKEIT</div><h3>Sprachmodelle laufen inzwischen lokal gut genug</h3><p><b>Das ist der eigentliche Auslöser.</b> Für Kunden, deren Quellcode das Haus nicht verlassen darf, war ein solches Werkzeug vor kurzem schlicht keine Option.</p></div>
+      </div>
+      <div class="note">Punkt 3 ist der Grund, warum dieses Gespräch heute Sinn ergibt und vor zwei Jahren nicht. Er ist zugleich das Zeitfenster: die Machbarkeit ist nicht exklusiv.</div>
+    </div>
+  </section>
+
+  <!-- 07 USE CASES -->
   <section class="slide" id="s6" data-title="Kunden-Use-Cases">
     <div class="slide-inner">
       <div class="eyebrow">Aus der Projektpraxis</div>
@@ -576,10 +678,63 @@
     </div>
   </section>
 
-  <!-- 09 OFFERING -->
+  <!-- 11 DIFFERENZIERUNG -->
+  <section class="slide" id="s8b" data-title="Differenzierung">
+    <div class="slide-inner">
+      <div class="eyebrow">Die drei Einwände, die im Kundentermin kommen</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">&bdquo;Warum nicht einfach …?“</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="num mono">EINWAND 01</div>
+          <h3>„… ChatGPT oder Copilot?“</h3>
+          <p>Die kennen den Bestand des Kunden nicht, belegen nichts auf der Originalzeile &mdash; und in vielen Häusern darf Quellcode das Haus überhaupt nicht verlassen. <b>Doctus läuft on-premise, Cloud nur als ausdrückliches Opt-in.</b></p>
+        </div>
+        <div class="card">
+          <div class="num mono">EINWAND 02</div>
+          <h3>„… ein Werkzeug des Plattformherstellers?“</h3>
+          <p>Herstellerwerkzeuge binden an deren Plattform, Lizenzmodell und Roadmap und sehen meist nur den Code. <b>Doctus bringt Code, Confluence und Jira zusammen</b> und setzt auf dem auf, was der Kunde bereits hat.</p>
+        </div>
+        <div class="card">
+          <div class="num mono">EINWAND 03</div>
+          <h3>„… ein Dokumentationsprojekt?“</h3>
+          <p>Das liefert einen Stand zum Stichtag, der ab Tag eins veraltet &mdash; und ist einmalig teuer. <b>Doctus liest den Bestand erneut ein</b> und hält Graph und Belege am Code.</p>
+        </div>
+      </div>
+      <div class="why-us">
+        <div class="t">Und warum wir</div>
+        <p>
+          Eigenentwicklung: <b>keine fremde Lizenz, die wir durchreichen müssten</b>, und die Roadmap liegt bei uns.
+          Ausschließlich MIT/BSD/Apache-2.0 &mdash; das erspart beim Kunden die Lizenzdiskussion, die solche Werkzeuge
+          sonst monatelang aufhält. On-Premise-First passt genau zu den regulierten Bestandskunden, die wir ohnehin betreuen.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 ZIELKUNDEN -->
+  <section class="slide" id="s8c" data-title="Zielkunden">
+    <div class="slide-inner">
+      <div class="eyebrow">Für Sales &middot; wen ansprechen, und womit</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Drei Fragen entscheiden,<br>ob ein Kunde passt.</h2>
+      <p class="lede" style="margin-top:.9rem;">
+        Das Profil: geschäftskritischer COBOL-Bestand, ein laufendes oder geplantes Modernisierungsvorhaben,
+        Wissen an wenigen Köpfen &mdash; und die Auflage, dass Code das Haus nicht verlässt.
+      </p>
+      <ol class="outcomes">
+        <li><span class="idx mono">01</span><span class="q">„Wo liegt euer COBOL heute &mdash; in Git oder mainframe-nativ?“<span>Git, GitLab, Bitbucket, Azure Repos: sofort anbindbar. Endevor, ChangeMan oder PDS-Datasets: braucht den Konnektor-Ausbau.</span></span><span class="owner">Zeitplan</span></li>
+        <li><span class="idx mono">02</span><span class="q">„Falls Endevor: nutzt ihr Endevor Bridge for Git?“<span>Wenn ja, spiegelt Broadcom die Elemente bereits nach Git &mdash; dann reicht voraussichtlich der bestehende Git-Konnektor, ganz ohne neuen Code.</span></span><span class="owner">Aufwand</span></li>
+        <li><span class="idx mono">03</span><span class="q">„Wer beantwortet bei euch heute: wo wird Feld X verarbeitet &mdash; und wie lange braucht er dafür?“<span>Macht den Schmerz im Gespräch konkret und messbar, ohne dass wir eine Zahl behaupten müssen.</span></span><span class="owner">Wert</span></li>
+      </ol>
+      <div class="note">Frage 1 und 2 sind die eigentliche Qualifizierung: sie entscheiden, ob ein Pilot in Wochen möglich ist oder erst nach einem Konnektor-Ausbau. Bitte im Erstkontakt stellen &mdash; die Antworten sind für uns mehr wert als ein früher Terminwunsch.</div>
+    </div>
+  </section>
+
+  <!-- 13 OFFERING -->
   <section class="slide" id="s9" data-title="Offering-Fit">
     <div class="slide-inner">
-      <div class="eyebrow">Differenzierung &amp; Offering-Fit</div>
+      <div class="eyebrow">Offering-Fit &middot; kommerzielle Hypothesen</div>
       <div class="kicker-line"></div>
       <h2 class="headline">Zwei Wege &mdash; als<br>kommerzielle Hypothesen.</h2>
       <p class="lede" style="margin-top:.9rem;">
@@ -602,11 +757,38 @@
           <div class="hyp-box"><b>Hypothese:</b> Projekt-Accelerator + anschließende Produktnutzung.</div>
         </div>
       </div>
+      <div class="why-us">
+        <div class="t">Was noch fehlt</div>
+        <p>
+          Für ein wiederholbares Angebot fehlen genau vier Dinge: <b>Leistungsschnitt</b> (was ist im Preis, was ist Projekt),
+          <b>Betriebsmodell</b> (beim Kunden, bei uns, hybrid), <b>Preislogik</b> (pro Bestand, pro Nutzer, pro Projekt)
+          und eine <b>saubere Abgrenzung</b> zu bestehenden Modernisierungs-Offerings. Das sind keine technischen Fragen mehr.
+        </p>
+      </div>
       <div class="note">Beide Modelle sind kommerzielle Hypothesen, keine validierten Umsatzmodelle. Frage an die Runde: eigenständige Lizenz, Accelerator &mdash; oder kombiniert?</div>
     </div>
   </section>
 
-  <!-- 10 STAND -->
+  <!-- 14 EINSTIEGSANGEBOT -->
+  <section class="slide" id="s9b" data-title="Einstiegsangebot">
+    <div class="slide-inner">
+      <div class="eyebrow">Vorschlag &middot; der kleinste verkaufbare erste Schritt</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Bestands-Discovery statt<br>Plattformentscheidung.</h2>
+      <p class="lede" style="margin-top:.9rem;">
+        Niemand kauft im ersten Termin ein Wissensmanagement-System. Aber viele Kunden kaufen einen
+        abgegrenzten Schritt, der eine Frage beantwortet, die sie ohnehin haben.
+      </p>
+      <div class="cards">
+        <div class="card"><div class="num mono">ZUSCHNITT</div><h3>Zwei bis drei Wochen, ein Ausschnitt</h3><p>Ein abgegrenzter Teil des Kundenbestands &mdash; eine Anwendung, ein paar hundert Programme &mdash; in einer abgeschotteten Umgebung oder direkt beim Kunden.</p></div>
+        <div class="card"><div class="num mono">ERGEBNIS FÜR DEN KUNDEN</div><h3>Etwas, das er behalten kann</h3><p>Aufruf- und Wissensgraph des Ausschnitts als Export, eine Wissenslandkarte und ein Bericht: wo Zusammenhänge unklar sind und wo Wissen nur in Köpfen existiert.</p></div>
+        <div class="card"><div class="num mono">ERGEBNIS FÜR UNS</div><h3>Die Referenz, die heute fehlt</h3><p>Ein echter Kundenbestand als Belastungstest &mdash; und danach eine Aussage über Nutzen, die belegt ist statt behauptet.</p></div>
+      </div>
+      <div class="note"><b>Bewusst offen:</b> Preis, Fixpreis oder T&amp;M, und ob der erste Durchlauf als Investition läuft. Genau das ist die Frage an Offerings Management und Management &mdash; nicht etwas, das ich hier vorwegnehmen will.</div>
+    </div>
+  </section>
+
+  <!-- 15 STAND -->
   <section class="slide" id="s10" data-title="Stand">
     <div class="slide-inner">
       <div class="eyebrow">Stand &amp; Validierungsbedarf</div>
@@ -626,7 +808,61 @@
     </div>
   </section>
 
-  <!-- 11 DISKUSSION -->
+  <!-- 16 EHRLICHKEIT -->
+  <section class="slide" id="s10b" data-title="Grenzen &amp; Risiken">
+    <div class="slide-inner">
+      <div class="eyebrow">Bevor jemand anders die Frage stellt</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Wo die Grenzen liegen &mdash;<br>und was mich nachts beschäftigt.</h2>
+      <div class="duo">
+        <div class="duo-col">
+          <h3>Was Doctus nicht ist</h3>
+          <ul>
+            <li><b>Kein Migrations- oder Konvertierungswerkzeug.</b> Es macht COBOL verständlich, es macht daraus kein Java.</li>
+            <li><b>Kein Code-Generator.</b> Es schreibt keinen Produktivcode und ändert nichts am Bestand.</li>
+            <li><b>Keine fachliche Wahrheitsgarantie.</b> Antworten kommen mit Quelle und Unsicherheitshinweis; die Bewertung bleibt bei einem Menschen. Das ist bewusst so und steht auch so im Anforderungskatalog.</li>
+            <li><b>Kein Ersatz für Fachexperten.</b> Es ist deren Hebel &mdash; das ist auch die ehrlichere Verkaufsgeschichte.</li>
+          </ul>
+        </div>
+        <div class="duo-col">
+          <h3>Die drei realen Risiken</h3>
+          <ul>
+            <li><b>Konnektor-Lücke.</b> Liegt der Bestand mainframe-nativ statt in Git, können wir heute nicht anbinden. <i>Gegenmaßnahme:</i> Qualifizierungsfrage nach vorn; ein PDS-Zugriff wäre der breiteste erste Konnektor, weil er auch ohne kommerzielles SCM funktioniert.</li>
+            <li><b>Noch kein echter Kundenbestand.</b> Getestet ist gegen eigene Korpora, nicht gegen 30 Jahre gewachsene Realität. <i>Gegenmaßnahme:</i> genau dafür das Einstiegsangebot.</li>
+            <li><b>Compilerdialekte.</b> Ein erfolgreicher Import ist noch kein Beleg für vollständige Strukturanalyse. <i>Gegenmaßnahme:</i> Kompatibilität wird pro Compilerfamilie ausgewiesen, nicht pauschal behauptet.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note">Diese Folie steht bewusst vor der Diskussion. Ein Angebot, das man erst nach dem Zuschlag relativieren muss, ist keins.</div>
+    </div>
+  </section>
+
+  <!-- 17 WEG NACH VORN -->
+  <section class="slide" id="s10c" data-title="Weg nach vorn">
+    <div class="slide-inner">
+      <div class="eyebrow">Was ein Ja bedeuten würde</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Kein Programm.<br>Ein nächster Schritt.</h2>
+      <div class="phases">
+        <div class="phase"><div class="when">Schritt 1</div><b>Pilot vorbereiten</b><span class="d">Kunde qualifizieren, Ausschnitt und Zugang klären, Umgebung aufsetzen.</span></div>
+        <div class="phase"><div class="when">Schritt 2</div><b>Pilot durchführen</b><span class="d">Bestands-Discovery an echtem Kundencode &mdash; die belastbare Referenz.</span></div>
+        <div class="phase"><div class="when">Schritt 3</div><b>Verallgemeinern</b><span class="d">Aus dem Pilotergebnis ein wiederholbares Leistungspaket schneiden.</span></div>
+        <div class="phase"><div class="when">Schritt 4</div><b>Anbieten</b><span class="d">Zweiter Kunde ohne Sonderaufwand &mdash; ab hier ist es ein Offering.</span></div>
+      </div>
+      <p class="lede" style="margin-top:1.6rem;max-width:44rem;">
+        <b style="color:var(--ink);">Was ich heute von euch brauche &mdash; und was ausdrücklich nicht:</b>
+      </p>
+      <ol class="asks">
+        <li><span class="n">01</span><span><b>Sales:</b> zwei bis drei Accounts, bei denen die drei Qualifizierungsfragen gestellt werden dürfen. Kein Pitch, nur die Fragen.</span></li>
+        <li><span class="n">02</span><span><b>Consulting:</b> eine Person, die einen Anwendungsfall fachlich gegenliest und sagt, wo er trägt und wo nicht.</span></li>
+        <li><span class="n">03</span><span><b>Offerings:</b> einen Ansprechpartner für den Zuschnitt des Einstiegsangebots.</span></li>
+        <li><span class="n">04</span><span><b>Management:</b> die Zusage, das strukturiert weiterzuverfolgen &mdash; und den Rahmen für eine technische Evaluation an echtem Kundencode.</span></li>
+      </ol>
+      <div class="note">Kein Budgetantrag heute, keine Ressourcenzusage, kein Gremium. Was ich brauche, sind <b>Türen und Gegenleser</b>.</div>
+    </div>
+  </section>
+
+  <!-- 18 DISKUSSION -->
   <section class="slide" id="s11" data-title="Diskussion">
     <div class="slide-inner">
       <div class="eyebrow">Diskussion &amp; nächste Schritte &middot; moderiert</div>
@@ -641,7 +877,7 @@
     </div>
   </section>
 
-  <!-- 12 CLOSING -->
+  <!-- 19 CLOSING -->
   <section class="slide" id="s12" data-title="Zielbild">
     <div class="slide-inner">
       <div class="eyebrow">Idealer Ausgang am Freitag</div>
@@ -663,7 +899,7 @@
 </div>
 
 <div id="dots" aria-hidden="true"></div>
-<div id="counter" class="mono">01 / 12</div>
+<div id="counter" class="mono">01 / 19</div>
 <div id="wordmark-fixed">Doctus</div>
 
 <script>
