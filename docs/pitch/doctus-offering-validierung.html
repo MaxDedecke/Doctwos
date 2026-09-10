@@ -234,7 +234,7 @@
   .stat .label{font-size:.78rem;color:var(--ink-muted);max-width:13rem;margin-top:.3rem;}
 
   /* checklist */
-  .checklist{display:grid;gap:.75rem;margin-top:2.2rem;max-width:40rem;}
+  .checklist{display:grid;gap:.75rem;margin-top:2.2rem;max-width:40rem;padding:0;list-style:none;}
   .checklist li{
     list-style:none;
     display:flex;
@@ -918,14 +918,14 @@
     <div class="slide-inner">
       <div class="eyebrow">Gesamtübersicht Doctus 2.0</div>
       <div class="kicker-line"></div>
-      <h2 class="headline">Was Fujitsu bekommt &mdash;<br>ohne eine Zeile Code zu bezahlen.</h2>
+      <h2 class="headline">Was Fujitsu bekommt.<br>Sechs Dinge, <span class="grad-word">die heute schon existieren.</span></h2>
       <div class="deliver">
         <div class="dl"><div class="n mono">01 &middot; PRODUKT</div><b>Lauffähige Software</b><span>Zehn von zehn Arbeitspaketen abgeschlossen: Parser, Wissens- und Aufrufgraph, Konnektoren, Chat mit Belegkette, Job-Center, Rollen- und Projektrechte.</span></div>
         <div class="dl"><div class="n mono">02 &middot; RECHTE</div><b>Vollständig eigene Lösung</b><span>Eigenentwicklung ohne durchzureichende Fremdlizenz. Ausschließlich MIT/BSD/Apache-2.0-Abhängigkeiten, dokumentiert im OSS-Clearing.</span></div>
         <div class="dl"><div class="n mono">03 &middot; BETRIEB</div><b>Deploybares On-Prem-Paket</b><span>Containerisiert, im Kundenrechenzentrum lauffähig, mit Deployment-Dokumentation. Cloud nur als ausdrückliches Opt-in.</span></div>
         <div class="dl"><div class="n mono">04 &middot; DOKUMENTATION</div><b>Nachvollziehbar statt Kopfwissen</b><span>Anforderungskatalog, Produkthandbuch, Architektur- und Datenmodell, Konnektor-Dokumentation, Mainframe-Kompatibilitätsmatrix &mdash; der 1.0-Fehler „Wissen geht mit dem Team“ ist hier bewusst ausgeschlossen.</span></div>
         <div class="dl"><div class="n mono">05 &middot; QUALITÄT</div><b>Automatisierte Testabdeckung</b><span>Regressionstests über Parser, Konnektoren, Rechte und Oberfläche &mdash; Änderungen sind belegbar, nicht behauptet.</span></div>
-        <div class="dl"><div class="n mono">06 &middot; WISSEN</div><b>Domäne COBOL-Bestand</b><span>Aus 1.0 und 2.0 zusammen: Copybooks, Dialekte, Aufrufstrukturen, Mainframe-SCM-Landschaft &mdash; die Vorarbeit, die ein Wettbewerber erst leisten müsste.</span></div>
+        <div class="dl"><div class="n mono">06 &middot; SICHERHEIT</div><b>Sicherheitskonzept von Anfang an</b><span>SSO/OIDC neben klassischem Passwort-Login, Passwort-Hashes nie in Logs oder Diagnose-Bundles, Cloud-LLMs nur als explizites Opt-in pro Kunde &mdash; On-Premise ist der Normalfall, nicht die Ausnahme.</span></div>
       </div>
       <ul class="checklist" style="max-width:none;margin-top:1.6rem;">
         <li><span class="tick open">!</span><span class="cap">Offen: weitere Mainframe- und DB2-Konnektoren &mdash; <span>für klassische Großkunden-Umgebungen ohne Git</span></span></li>
