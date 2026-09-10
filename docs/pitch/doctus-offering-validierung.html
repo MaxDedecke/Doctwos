@@ -401,6 +401,12 @@
   .fun-row .val em{display:block;font-style:normal;font-size:.7rem;font-family:'IBM Plex Mono';color:var(--ink-muted);margin-top:.2rem;white-space:normal;line-height:1.45;}
   .bar{height:4px;background:var(--line-strong);margin-top:.6rem;}
   .bar i{display:block;height:100%;background:var(--gradient);}
+  .lanes{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:.6rem;}
+  @media (max-width:56rem){.lanes{grid-template-columns:1fr;}}
+  .lane{background:var(--surface-2);padding:.5rem .7rem;}
+  .lane .lane-k{font-family:'IBM Plex Mono';font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);}
+  .lane .lane-v{font-family:'Space Grotesk';font-size:.9rem;margin-top:.16rem;}
+  .lane .lane-s{display:block;font-size:.73rem;color:var(--ink-muted);line-height:1.42;margin-top:.14rem;}
   .src{margin-top:1rem;font-size:.7rem;font-family:'IBM Plex Mono';color:var(--ink-muted);line-height:1.7;}
   .src b{color:var(--ink-muted);font-weight:600;}
 
@@ -643,45 +649,71 @@
     <div class="slide-inner">
       <div class="eyebrow">Marktsituation</div>
       <div class="kicker-line"></div>
-      <h2 class="headline">Ein wachsender Markt &mdash;<br>und das Segment, <span class="grad-word">das wir bedienen können.</span></h2>
+      <h2 class="headline">Zwei Wege in denselben Markt &mdash;<br>und sie kommen <span class="grad-word">auf dieselbe Zahl.</span></h2>
       <div class="funnel">
         <div class="fun-row tam">
           <div class="k">TAM</div>
           <div class="body">
-            <b>Mainframe-Modernisierung weltweit</b>
-            <span>Der gesamte Markt für Modernisierung von Großrechner-Anwendungen &mdash; Software und Services.
-              Wachstum getrieben durch Ruhestandswelle, Regulatorik und Cloud-Programme.</span>
+            <b>Zwei Referenzm&auml;rkte, nicht einer</b>
+            <span>Werkzeug im Modernisierungsprogramm oder Produkt mit wiederkehrender Nutzung &mdash; das sind zwei verschiedene M&auml;rkte.</span>
+            <div class="lanes">
+              <div class="lane">
+                <div class="lane-k">Weg A &middot; Programm</div>
+                <div class="lane-v">8,4 &rarr; 13,3 Mrd. $</div>
+                <span class="lane-s">Mainframe-Modernisierung weltweit, Software und Services. CAGR 9,7 %. Projektgesch&auml;ft, hoher Anteil Mensch.</span>
+              </div>
+              <div class="lane">
+                <div class="lane-k">Weg B &middot; Produkt</div>
+                <div class="lane-v">7,7 &rarr; 22,2 Mrd. $</div>
+                <span class="lane-s">KI-Werkzeuge f&uuml;r Softwareentwicklung, Abo-Modell. CAGR 23,8 %. W&auml;chst 2,5-mal so schnell, skaliert ohne Kopfzahl.</span>
+              </div>
+            </div>
             <div class="bar"><i style="width:100%"></i></div>
           </div>
-          <div class="val">8,4 Mrd. $<em>2025 &rarr; 13,3 Mrd. $ 2030<br>CAGR 9,7 %</em></div>
+          <div class="val">8,4 / 7,7<em>Mrd. $ &middot; 2025<br>Programm / Produkt</em></div>
         </div>
         <div class="fun-row sam">
           <div class="k">SAM</div>
           <div class="body">
-            <b>Deutschland, davon die Verstehens-Phase</b>
-            <span>Deutschland liegt bei 436 Mio. $ (2025 &rarr; 665 Mio. $ 2030), rund 21 % des europäischen Markts.
-              Doctus adressiert nicht das ganze Programm, sondern die erste Phase: Bestandsanalyse, Abhängigkeiten, Wissenssicherung.
-              <b>Annahme: 10&ndash;15 % des Programmvolumens.</b></span>
+            <b>Deutschland &mdash; zweimal gerechnet</b>
+            <span>Beide Wege getrennt hergeleitet. Dass sie sich treffen, ist der Beleg &mdash; nicht die einzelne Zahl.</span>
+            <div class="lanes">
+              <div class="lane">
+                <div class="lane-k">Top-down &middot; aus dem Markt</div>
+                <div class="lane-v">40&ndash;60 Mio. &euro;</div>
+                <span class="lane-s">Deutschland 436 Mio. $ (2025 &rarr; 665 Mio. $ 2030), rund 21 % Europas. Davon die Verstehens-Phase:
+                  <b>Annahme 10&ndash;15 %</b> des Programmvolumens.</span>
+              </div>
+              <div class="lane">
+                <div class="lane-k">Bottom-up &middot; aus den Accounts</div>
+                <div class="lane-v">15&ndash;60 Mio. &euro;</div>
+                <span class="lane-s">Rund 250&ndash;400 Organisationen in Deutschland mit eigenem gesch&auml;ftskritischem COBOL-Bestand,
+                  bei 60&ndash;150 T&euro; wiederkehrend pro Jahr.</span>
+              </div>
+            </div>
             <div class="bar"><i style="width:34%"></i></div>
           </div>
-          <div class="val">44&ndash;65 Mio. $<em>Deutschland, pro Jahr</em></div>
+          <div class="val">40&ndash;60 Mio. &euro;<em>Deutschland, pro Jahr<br>&Uuml;berschneidung beider Wege</em></div>
         </div>
         <div class="fun-row som">
           <div class="k">SOM</div>
           <div class="body">
             <b>Was wir in drei Jahren realistisch holen</b>
-            <span>Bottom-up gerechnet, nicht aus dem Markt abgeleitet: qualifizierte Accounts im Fujitsu-Bestand mit
-              geschäftskritischem COBOL &rarr; 6&ndash;10 Kunden in drei Jahren &rarr; Discovery-Pilot 30&ndash;60 T&euro; plus
-              Folgenutzung 80&ndash;150 T&euro; pro Jahr.</span>
+            <span>Qualifizierte Accounts im Fujitsu-Bestand mit gesch&auml;ftskritischem COBOL &rarr; 6&ndash;10 Kunden in drei Jahren.
+              Je Kunde ein Discovery-Pilot von 30&ndash;60 T&euro; als Einstieg, danach 80&ndash;150 T&euro; pro Jahr aus Plattform plus Nutzern &mdash;
+              <b>nicht aus Nutzerlizenzen allein</b>: COBOL-Teams sind mit 10&ndash;60 Personen zu klein, um diesen Betrag &uuml;ber Seats zu tragen.</span>
             <div class="bar"><i style="width:7%"></i></div>
           </div>
           <div class="val">0,8&ndash;1,8 Mio. &euro;<em>wiederkehrend ab Jahr 3</em></div>
         </div>
       </div>
-      <div class="note wide"><b>Ehrlich zum SOM:</b> Die Zahl der qualifizierten Accounts ist meine Annahme, keine Erhebung.
-        Das muss mit realen Zahlen nochmal evaluiert werden.</div>
-      <div class="src"><b>Quellen:</b> MarketsandMarkets, „Mainframe Modernization Market&ldquo; (2025): global 8,39 Mrd. $ &rarr; 13,34 Mrd. $ (2030);
-        Europa 2,07 Mrd. $ &rarr; 3,13 Mrd. $; Deutschland 436,33 Mio. $ &rarr; 664,84 Mio. $. &nbsp;SAM-Anteil und SOM sind eigene, ausgewiesene Annahmen.</div>
+      <div class="note wide"><b>Was hier Annahme ist:</b> die Zahl der qualifizierten Accounts und der 10&ndash;15-%-Anteil der Verstehens-Phase &mdash;
+        beides meine Sch&auml;tzung, keine Erhebung, und beides muss mit realen Zahlen nachgezogen werden.
+        <b>Der interne Einsatz bei Fujitsu ist bewusst nicht im Trichter:</b> er ist ein Margenhebel auf bestehendes Gesch&auml;ft, kein zus&auml;tzlicher Markt &mdash;
+        ihn mitzuz&auml;hlen h&auml;tte dieselbe Wertsch&ouml;pfung doppelt gebucht.</div>
+      <div class="src"><b>Quellen:</b> MarketsandMarkets, &bdquo;Mainframe Modernization Market&ldquo; (2025): global 8,39 &rarr; 13,34 Mrd. $, Deutschland 436,33 &rarr; 664,84 Mio. $ &middot;
+        Grand View Research, &bdquo;AI Code Tools Market&ldquo; (2025): 7,65 &rarr; 22,2 Mrd. $, CAGR 23,8 % &middot; Bitkom (07/2026): ITK-Markt Deutschland = rund 4,3 % des Weltmarkts &middot;
+        Bundesbank (2025): 1.329 Kreditinstitute &middot; BaFin: rund 500 Versicherer. &nbsp;Umrechnung 1,08 $/&euro;. &nbsp;SAM-Anteil, Accountzahl und SOM sind eigene Annahmen.</div>
     </div>
   </section>
 
@@ -692,7 +724,7 @@
       <div class="kicker-line"></div>
       <h2 class="headline">Vier Branchen &mdash; <span class="grad-word">vier Use Cases</span></h2>
       <div class="segs">
-        <div class="seg"><b>Banken &amp; Sparkassen</b><span>Kernbank, Zahlungsverkehr, Meldewesen. Größtes COBOL-Volumen, höchste Regulierungsdichte.</span><div class="why">Anlass: DORA, Meldewesen, Kernbank-Ablösung</div></div>
+        <div class="seg"><b>Banken &amp; Sparkassen</b><span>Kernbank, Zahlungsverkehr, Meldewesen. Größtes COBOL-Volumen, höchste Regulierungsdichte. Der Account ist selten das einzelne Institut, sondern die Rechenzentrale, in der die Entwicklung gebündelt ist &mdash; wenige Türen, dahinter große Bestände.</span><div class="why">Anlass: DORA, Meldewesen, Kernbank-Ablösung</div></div>
         <div class="seg"><b>Versicherungen</b><span>Bestandsführung mit Vertragslaufzeiten über Jahrzehnte &mdash; Fachlogik von 1985 ist heute noch bindend.</span><div class="why">Anlass: Bestandsmigration, Tarifwerk</div></div>
         <div class="seg"><b>Öffentlicher Sektor</b><span>Steuer, Sozial- und Rentenverfahren. Ablösung politisch getrieben, Ausfall nicht verhandelbar.</span><div class="why">Anlass: Verfahrensablösung, Fachkräftemangel</div></div>
         <div class="seg"><b>Industrie &amp; Logistik</b><span>Disposition, Abrechnung, ERP-Vorläufer &mdash; oft undokumentiert gewachsen, ohne Herstellersupport.</span><div class="why">Anlass: ERP-Konsolidierung, Personalabgang</div></div>
