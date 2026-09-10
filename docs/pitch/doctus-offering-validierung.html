@@ -340,6 +340,7 @@
     .cards{margin-top:1.2rem;}
     .card{padding:1rem 1rem;}
     .card p{font-size:.82rem;}
+    .buzz li{font-size:.82rem;padding-left:.85rem;}
     .note{margin-top:1rem;padding:.65rem .85rem;font-size:.78rem;}
     .src{margin-top:.7rem;}
     .usp{padding:.8rem 1.05rem .85rem;gap:.4rem;}
@@ -548,6 +549,11 @@
   .runsheet li{list-style:none;font-family:'IBM Plex Mono';font-size:.7rem;letter-spacing:.04em;color:var(--ink-muted);
     border:1px solid var(--line);padding:.35rem .6rem;background:var(--surface);}
   .runsheet li b{color:var(--ink);font-weight:600;}
+
+  /* buzzword lists in cards */
+  .buzz{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.42rem;}
+  .buzz li{position:relative;padding-left:.95rem;font-size:.88rem;line-height:1.35;color:var(--ink);}
+  .buzz li::before{content:"";position:absolute;left:0;top:.6em;width:.45rem;height:1px;background:var(--line-strong);}
 </style>
 </head>
 <body>
@@ -561,7 +567,7 @@
       <div class="brand-bar"></div>
       <h1 class="cover-mark">Doctus<span class="grad-word">.</span></h1>
       <p class="lede" style="margin-top:1.1rem;font-size:clamp(1.15rem,2vw,1.5rem);color:var(--ink);">
-        Fragen an den COBOL-Bestand.<br><span class="grad-word">Antworten mit Beleg.</span>
+        AI Driven Wissensmanagement. On Premise.<br><span class="grad-word">Out of the box.</span>
       </p>
     </div>
   </section>
@@ -569,60 +575,48 @@
   <!-- 02 RAHMEN -->
   <section class="slide" id="s2" data-title="Rahmen">
     <div class="slide-inner">
-      <div class="eyebrow">Unser gemeinsamer Rahmen</div>
+      <div class="eyebrow">Meine Sicht &mdash; als Grundlage für die Diskussion</div>
       <div class="kicker-line"></div>
-      <h2 class="headline">Drei Fragen, die am Ende<br>dieser Stunde <span class="grad-word">beantwortet sein sollten.</span></h2>
+      <h2 class="headline">Drei Thesen, die ich heute<br><span class="grad-word">zur Diskussion stelle.</span></h2>
       <div class="cards">
         <div class="card">
           <div class="num mono">01 &middot; PROBLEM</div>
-          <h3>Welches Kundenproblem löst Doctus tatsächlich?</h3>
-          <p>Wo tut es heute weh &mdash; Wartung, Ablösung, Prüfungen, Wissen, das mit Personen geht?
-             Was kostet dieses Problem den Kunden jetzt, und woran merkt er es?</p>
+          <h3>Das lösen wir heute schon</h3>
+          <ul class="buzz">
+            <li>Code-Archäologie vor jeder Migration</li>
+            <li>Wissensverlust bei Pensionierung</li>
+            <li>Audit- &amp; Compliance-Recherche von Hand</li>
+            <li>Monatelanges Onboarding</li>
+            <li>Undokumentierter Bestand</li>
+            <li>Unbelegbare Aufwandsschätzung</li>
+            <li>Wissen verstreut über Code, Confluence, Jira</li>
+          </ul>
         </div>
         <div class="card">
           <div class="num mono">02 &middot; ANGEBOT</div>
-          <h3>Wie könnte Fujitsu das glaubwürdig anbieten?</h3>
-          <p>Als Software, als Projekt, als betriebener Service &mdash; oder als Türöffner für
-             ein größeres Vorhaben? Wer liefert die Leistung, damit ein Kunde es kaufen kann?</p>
+          <h3>So sollte Fujitsu es anbieten</h3>
+          <ul class="buzz">
+            <li>SaaS</li>
+            <li>Modernisierung</li>
+            <li>Serviceprojekte</li>
+          </ul>
         </div>
         <div class="card">
           <div class="num mono">03 &middot; KUNDEN</div>
-          <h3>Welcher Account kommt zuerst infrage?</h3>
-          <p>Wo gibt es geschäftskritisches COBOL, einen offenen Zugang und einen Anlass
-             in den nächsten Monaten? Wer wäre bereit, als Erster mitzumachen?</p>
+          <h3>Diese Zielgruppen kommen zuerst infrage</h3>
+          <ul class="buzz">
+            <li>Banken &amp; Sparkassen</li>
+            <li>Versicherungen</li>
+            <li>Öffentlicher Sektor</li>
+            <li>Industrie &amp; Logistik</li>
+          </ul>
         </div>
       </div>
-      <ul class="runsheet">
-        <li><b>25&prime;</b> &nbsp;Präsentation</li>
-        <li>Markt &amp; Problem</li>
-        <li>Doctus 1.0 &amp; was wir daraus gelernt haben</li>
-        <li>Doctus 2.0: Ansatz, Umfang, Roadmap</li>
-        <li>Ressourcen &amp; Skalierung</li>
-        <li><b>danach</b> &nbsp;Diskussion mit konkreten Ergebnissen</li>
-      </ul>
     </div>
   </section>
 
-  <!-- 03 IN EINEM SATZ -->
-  <section class="slide" id="s3" data-title="In einem Satz">
-    <div class="slide-inner">
-      <div class="eyebrow">Damit wir vom Gleichen reden</div>
-      <div class="kicker-line"></div>
-      <p class="statement">
-        Doctus beantwortet Fragen zu einem gewachsenen COBOL-Bestand in normaler Sprache &mdash;
-        mit <span class="grad-word">Beleg auf der exakten Codezeile</span>, vollständig im
-        Rechenzentrum des Kunden.
-      </p>
-      <div class="cards">
-        <div class="card"><div class="num mono">FÜR WEN</div><p>Organisationen mit geschäftskritischem COBOL, deren Systemverständnis an wenigen Personen hängt &mdash; Banken, Versicherungen, öffentlicher Sektor, Industrie.</p></div>
-        <div class="card"><div class="num mono">WAS ANDERS IST</div><p>Nicht suchen und selbst zusammenreimen, sondern <b>fragen und eine belegte Antwort bekommen</b> &mdash; mit Sprung in Code, Aufrufgraph und verknüpfte Dokumentation.</p></div>
-        <div class="card"><div class="num mono">WAS ES NICHT IST</div><p>Kein Migrationswerkzeug, kein Code-Generator, kein Ersatz für Fachleute. Es macht die vorhandenen Fachleute schneller.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 04 AUSGANGSSITUATION -->
-  <section class="slide" id="s4" data-title="Ausgangssituation">
+  <!-- 03 AUSGANGSSITUATION -->
+  <section class="slide" id="s3" data-title="Ausgangssituation">
     <div class="slide-inner">
       <div class="eyebrow">Ausgangssituation &middot; warum Wissensmanagement</div>
       <div class="kicker-line"></div>
@@ -654,8 +648,8 @@
     </div>
   </section>
 
-  <!-- 05 MARKT -->
-  <section class="slide dense" id="s5" data-title="Markt">
+  <!-- 04 MARKT -->
+  <section class="slide dense" id="s4" data-title="Markt">
     <div class="slide-inner">
       <div class="eyebrow">Markt &middot; Größe und erreichbarer Anteil</div>
       <div class="kicker-line"></div>
@@ -701,8 +695,8 @@
     </div>
   </section>
 
-  <!-- 06 SEGMENTE UND PROBLEME -->
-  <section class="slide dense" id="s6" data-title="Segmente &amp; Probleme">
+  <!-- 05 SEGMENTE UND PROBLEME -->
+  <section class="slide dense" id="s5" data-title="Segmente &amp; Probleme">
     <div class="slide-inner">
       <div class="eyebrow">Von der Segmentierung zum konkreten Schmerz</div>
       <div class="kicker-line"></div>
@@ -728,8 +722,8 @@
     </div>
   </section>
 
-  <!-- 07 DOCTUS 1.0 -->
-  <section class="slide" id="s7" data-title="Doctus 1.0">
+  <!-- 06 DOCTUS 1.0 -->
+  <section class="slide" id="s6" data-title="Doctus 1.0">
     <div class="slide-inner">
       <div class="eyebrow">Versuch 1</div>
       <div class="kicker-line"></div>
@@ -762,8 +756,8 @@
     </div>
   </section>
 
-  <!-- 08 LESSONS LEARNED -->
-  <section class="slide" id="s8" data-title="Lessons Learned">
+  <!-- 07 LESSONS LEARNED -->
+  <section class="slide" id="s7" data-title="Lessons Learned">
     <div class="slide-inner">
       <div class="eyebrow">Lessons Learned &middot; die vier Fragen jedes Lösungskonzepts</div>
       <div class="kicker-line"></div>
@@ -808,8 +802,8 @@
     </div>
   </section>
 
-  <!-- 09 DOCTUS 2.0 -->
-  <section class="slide" id="s9" data-title="Doctus 2.0">
+  <!-- 08 DOCTUS 2.0 -->
+  <section class="slide" id="s8" data-title="Doctus 2.0">
     <div class="slide-inner">
       <div class="eyebrow">Neuer Ansatz</div>
       <div class="kicker-line"></div>
@@ -854,8 +848,8 @@
     </div>
   </section>
 
-  <!-- 10 USPs -->
-  <section class="slide dense" id="s10" data-title="USPs">
+  <!-- 09 USPs -->
+  <section class="slide dense" id="s9" data-title="USPs">
     <div class="slide-inner">
       <div class="eyebrow">USPs &middot; jeweils gegen ein konkretes Problem</div>
       <div class="kicker-line"></div>
@@ -894,8 +888,8 @@
     </div>
   </section>
 
-  <!-- 11 WALKTHROUGH -->
-  <section class="slide" id="s11" data-title="Produkt">
+  <!-- 10 WALKTHROUGH -->
+  <section class="slide" id="s10" data-title="Produkt">
     <div class="slide-inner">
       <div class="eyebrow">Produkt &middot; echte Screenshots, keine Live-Demo</div>
       <div class="kicker-line"></div>
@@ -919,8 +913,8 @@
     </div>
   </section>
 
-  <!-- 12 GESAMTÜBERSICHT / LIEFERUMFANG -->
-  <section class="slide dense" id="s12" data-title="Was Fujitsu bekommt">
+  <!-- 11 GESAMTÜBERSICHT / LIEFERUMFANG -->
+  <section class="slide dense" id="s11" data-title="Was Fujitsu bekommt">
     <div class="slide-inner">
       <div class="eyebrow">Gesamtübersicht Doctus 2.0</div>
       <div class="kicker-line"></div>
@@ -940,8 +934,8 @@
     </div>
   </section>
 
-  <!-- 13 ROADMAP -->
-  <section class="slide" id="s13" data-title="Roadmap">
+  <!-- 12 ROADMAP -->
+  <section class="slide" id="s12" data-title="Roadmap">
     <div class="slide-inner">
       <div class="eyebrow">Roadmap &middot; vom Ja bis zum wiederholbaren Angebot</div>
       <div class="kicker-line"></div>
@@ -984,8 +978,8 @@
     </div>
   </section>
 
-  <!-- 14 RESSOURCEN -->
-  <section class="slide dense" id="s14" data-title="Ressourcen">
+  <!-- 13 RESSOURCEN -->
+  <section class="slide dense" id="s13" data-title="Ressourcen">
     <div class="slide-inner">
       <div class="eyebrow">Was wir intern brauchen</div>
       <div class="kicker-line"></div>
@@ -1022,8 +1016,8 @@
     </div>
   </section>
 
-  <!-- 15 SKALIERUNG -->
-  <section class="slide" id="s15" data-title="Skalierung">
+  <!-- 14 SKALIERUNG -->
+  <section class="slide" id="s14" data-title="Skalierung">
     <div class="slide-inner">
       <div class="eyebrow">Skalierungsmöglichkeiten &middot; vier Achsen</div>
       <div class="kicker-line"></div>
@@ -1063,8 +1057,8 @@
     </div>
   </section>
 
-  <!-- 16 EINSATZ IN DER MODERNISIERUNG -->
-  <section class="slide dense" id="s16" data-title="Modernisierung">
+  <!-- 15 EINSATZ IN DER MODERNISIERUNG -->
+  <section class="slide dense" id="s15" data-title="Modernisierung">
     <div class="slide-inner">
       <div class="eyebrow">Einsatz in der Modernisierung</div>
       <div class="kicker-line"></div>
@@ -1089,8 +1083,8 @@
     </div>
   </section>
 
-  <!-- 17 GRENZEN & RISIKEN -->
-  <section class="slide" id="s17" data-title="Grenzen &amp; Risiken">
+  <!-- 16 GRENZEN & RISIKEN -->
+  <section class="slide" id="s16" data-title="Grenzen &amp; Risiken">
     <div class="slide-inner">
       <div class="eyebrow">Bevor jemand anders die Frage stellt</div>
       <div class="kicker-line"></div>
@@ -1119,8 +1113,8 @@
     </div>
   </section>
 
-  <!-- 18 DISKUSSION -->
-  <section class="slide" id="s18" data-title="Diskussion">
+  <!-- 17 DISKUSSION -->
+  <section class="slide" id="s17" data-title="Diskussion">
     <div class="slide-inner">
       <div class="eyebrow">Diskussionsrunde &middot; was ich von wem brauche</div>
       <div class="kicker-line"></div>
@@ -1145,7 +1139,7 @@
         <div class="person">
           <div class="who"><span>Management</span><span class="ph-name">Name eintragen</span></div>
           <div class="ask"><b>Den Rahmen zusagen:</b> 1,3 FTE über rund sechs Monate und die Freigabe, an echtem Kundencode zu evaluieren.
-            Und die Frage, die ihr mir stellen solltet: <b>Was ist diesmal anders als bei 1.0?</b> &mdash; die Antwort steht auf Folie 9.</div>
+            Und die Frage, die ihr mir stellen solltet: <b>Was ist diesmal anders als bei 1.0?</b> &mdash; die Antwort steht auf Folie 8.</div>
         </div>
       </div>
       <div class="note">Was ich heute <b>nicht</b> brauche: eine Budgetentscheidung, ein Gremium, einen Beschluss.
@@ -1153,8 +1147,8 @@
     </div>
   </section>
 
-  <!-- 19 ABSCHIED -->
-  <section class="slide dense" id="s19" data-title="Abschied">
+  <!-- 18 ABSCHIED -->
+  <section class="slide dense" id="s18" data-title="Abschied">
     <div class="slide-inner">
       <div class="eyebrow">Zum Schluss &middot; was nach diesem Termin weiterläuft</div>
       <div class="kicker-line"></div>
@@ -1203,7 +1197,7 @@
 </div>
 
 <div id="dots" aria-hidden="true"></div>
-<div id="counter" class="mono">01 / 19</div>
+<div id="counter" class="mono">01 / 18</div>
 <div id="wordmark-fixed">Doctus</div>
 <script>
 (function(){
