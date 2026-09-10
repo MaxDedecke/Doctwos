@@ -366,7 +366,6 @@
     .followups{margin-top:1.1rem;}
     .followups li{padding:.6rem 1.05rem;}
     .followups .fq{font-size:.83rem;line-height:1.4;}
-    .followups .when{font-size:.73rem;}
     .signoff{margin-top:1.1rem;padding-top:.9rem;}
     .signoff p{font-size:.81rem;line-height:1.5;}
     .thanks{font-size:clamp(2rem,4vw,2.9rem);}
@@ -506,15 +505,12 @@
   .followups{list-style:none;margin:1.6rem 0 0;padding:0;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);}
   .followups li{
     background:var(--surface);
-    display:grid;grid-template-columns:2.2rem 1fr 13rem;gap:1.1rem;
+    display:grid;grid-template-columns:2.2rem 1fr;gap:1.1rem;
     padding:.85rem 1.15rem;align-items:baseline;
   }
-  @media (max-width:60rem){.followups li{grid-template-columns:2rem 1fr;}.followups .when{grid-column:2;text-align:left;padding-top:.3rem;}}
   .followups .n{font-family:'IBM Plex Mono';font-size:.76rem;color:var(--signal);}
   .followups .fq{font-size:.9rem;line-height:1.45;color:var(--ink);}
   .followups .fq em{display:block;font-style:normal;font-family:'IBM Plex Mono';font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:.28rem;}
-  .followups .when{font-size:.77rem;color:var(--ink-muted);text-align:right;line-height:1.4;align-self:center;}
-  .followups .when b{display:block;color:var(--ink);font-family:'IBM Plex Mono';font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.2rem;}
 
   .signoff{
     margin-top:1.6rem;display:grid;grid-template-columns:1fr auto;gap:1.4rem;align-items:end;
@@ -1113,37 +1109,32 @@
   <!-- 19 ABSCHIED -->
   <section class="slide dense" id="s19" data-title="Abschied">
     <div class="slide-inner">
-      <div class="eyebrow">Zum Schluss &middot; was nach diesem Termin weiterläuft</div>
+      <div class="eyebrow">Abschluss und Fragerunde</div>
       <div class="kicker-line"></div>
-      <h2 class="headline thanks">Danke &mdash; und<br>vier Fragen <span class="grad-word">für danach.</span></h2>
+      <h2 class="headline thanks">Danke &mdash;<br><span class="grad-word">Zeit für Fragen und Diskussionen.</span></h2>
       <p class="lede" style="margin-top:1rem;max-width:44rem;">
-        Nichts davon muss heute im Raum entschieden werden. Aber jede dieser Fragen braucht
-        irgendwann eine Antwort &mdash; und ohne sie steht Doctus 2.0 an derselben Stelle wie 1.0.
+        Ohne diese Antworten steht Doctus 2.0 an derselben Stelle wie 1.0.
       </p>
       <ol class="followups">
         <li>
           <span class="n mono">01</span>
           <span class="fq"><em>An Sales</em>Bei welchen zwei Accounts darf ich die drei Qualifizierungsfragen stellen &mdash;
             und wer stellt sie: ihr im nächsten ohnehin stattfindenden Termin, oder ich?</span>
-          <span class="when"><b>Bis in 2 Wochen</b>Eine kurze Nachricht genügt</span>
         </li>
         <li>
           <span class="n mono">02</span>
           <span class="fq"><em>An Consulting</em>Welcher der vier Anwendungsfälle trägt fachlich &mdash;
             und an welcher Stelle bricht er, wenn man ihn an einem echten Kundenbestand durchdenkt?</span>
-          <span class="when"><b>30 Minuten</b>Gemeinsam an einem realen Fall</span>
         </li>
         <li>
           <span class="n mono">03</span>
           <span class="fq"><em>An Offerings Management</em>Eigenständige Nutzung, Modernization Accelerator &mdash; oder beides?
             Und wer schneidet mit mir Leistungsumfang, Betriebsmodell und Preislogik?</span>
-          <span class="when"><b>Ein Termin</b>Zuschnitt des Einstiegsangebots</span>
         </li>
         <li>
           <span class="n mono">04</span>
-          <span class="fq"><em>An das Management</em>Steht der Rahmen &mdash; 1,3 FTE über rund sechs Monate und die Freigabe,
+          <span class="fq"><em>An das Management</em>Steht der Rahmen &mdash; 2,0 FTE über rund sechs Monate und die Freigabe,
             an echtem Kundencode zu evaluieren? Und wenn nein: woran hängt es?</span>
-          <span class="when"><b>Eine Entscheidung</b>Kein Gremium nötig</span>
         </li>
       </ol>
       <div class="signoff">
