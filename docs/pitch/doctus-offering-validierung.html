@@ -510,19 +510,13 @@
   }
   .followups .n{font-family:'IBM Plex Mono';font-size:.76rem;color:var(--signal);}
   .followups .fq{font-size:.9rem;line-height:1.45;color:var(--ink);}
-  .followups .fq em{display:block;font-style:normal;font-family:'IBM Plex Mono';font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:.28rem;}
 
   .signoff{
-    margin-top:1.6rem;display:grid;grid-template-columns:1fr auto;gap:1.4rem;align-items:end;
+    margin-top:1.6rem;
     border-top:1px solid var(--line-strong);padding-top:1.2rem;
   }
-  @media (max-width:56rem){.signoff{grid-template-columns:1fr;align-items:start;}}
-  .signoff p{margin:0;font-size:.86rem;line-height:1.55;color:var(--ink-muted);max-width:40rem;}
+  .signoff p{margin:0;font-size:.86rem;line-height:1.55;color:var(--ink-muted);}
   .signoff p b{color:var(--ink);}
-  .signoff .me{text-align:right;font-family:'Space Grotesk';font-size:1.05rem;white-space:nowrap;}
-  .signoff .me span{display:block;font-family:'IBM Plex Mono';font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-muted);margin-top:.25rem;}
-  .signoff .me span+span{font-size:.62rem;opacity:.75;margin-top:.15rem;}
-  @media (max-width:56rem){.signoff .me{text-align:left;}}
   .thanks{font-size:clamp(2.4rem,5vw,3.6rem);line-height:1.02;}
 
   /* ===== Personenansprache ===== */
@@ -1118,23 +1112,19 @@
       <ol class="followups">
         <li>
           <span class="n mono">01</span>
-          <span class="fq"><em>An Sales</em>Bei welchen zwei Accounts darf ich die drei Qualifizierungsfragen stellen &mdash;
-            und wer stellt sie: ihr im nächsten ohnehin stattfindenden Termin, oder ich?</span>
+          <span class="fq">Gibt es Accounts, die die harten Kriterien (COBOL-Code, Softwareentwicklung, strenge Regulatorik) voraussichtlich erfüllen?</span>
         </li>
         <li>
           <span class="n mono">02</span>
-          <span class="fq"><em>An Consulting</em>Welcher der vier Anwendungsfälle trägt fachlich &mdash;
-            und an welcher Stelle bricht er, wenn man ihn an einem echten Kundenbestand durchdenkt?</span>
+          <span class="fq">Gibt es konkrete Anwendungsfälle in Modernisierungsprogrammen, die passen könnten?</span>
         </li>
         <li>
           <span class="n mono">03</span>
-          <span class="fq"><em>An Offerings Management</em>Eigenständige Nutzung, Modernization Accelerator &mdash; oder beides?
-            Und wer schneidet mit mir Leistungsumfang, Betriebsmodell und Preislogik?</span>
+          <span class="fq">Seht ihr ein SaaS-Produkt in dem Konzept oder eher ein Werkzeug innerhalb von Modernisierungsprogrammen?</span>
         </li>
         <li>
           <span class="n mono">04</span>
-          <span class="fq"><em>An das Management</em>Steht der Rahmen &mdash; 2,0 FTE über rund sechs Monate und die Freigabe,
-            an echtem Kundencode zu evaluieren? Und wenn nein: woran hängt es?</span>
+          <span class="fq">Gibt es eine konkrete interne Vorstellung eines neuen Portfolioelements?</span>
         </li>
       </ol>
       <div class="signoff">
@@ -1143,7 +1133,6 @@
           mit den offenen Punkten und wer sie mitnimmt. <b>Rückfragen jederzeit direkt an mich,
           auch die unbequemen.</b> Genau die haben bei 1.0 gefehlt.
         </p>
-        <div class="me">Max Dedecke<span>Doctus &middot; Produkt &amp; Entwicklung</span><span>Diskussionsgrundlage &middot; vertraulich</span></div>
       </div>
     </div>
   </section>
