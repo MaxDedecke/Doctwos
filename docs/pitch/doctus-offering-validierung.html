@@ -389,6 +389,9 @@
   .card p b{color:var(--ink);font-weight:600;}
   .note b{color:var(--ink);}
   .note.wide{max-width:none;}
+  .lede.wide{max-width:none;}
+  .stats.spread{display:grid;grid-template-columns:repeat(3,1fr);gap:2.6rem;}
+  .stats.spread .stat .label{max-width:none;padding-right:1.2rem;}
 
   /* ===== Markt: TAM/SAM/SOM ===== */
   .funnel{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:2rem;}
@@ -626,13 +629,13 @@
       <div class="eyebrow">Ausgangssituation &middot; warum Wissensmanagement</div>
       <div class="kicker-line"></div>
       <h2 class="headline">Das Wissen sitzt in Köpfen,<br>nicht in Systemen.</h2>
-      <p class="lede" style="margin-top:1.1rem;">
+      <p class="lede wide" style="margin-top:1.1rem;">
         Große COBOL-Bestände laufen seit Jahrzehnten stabil &mdash; ihr Verständnis hängt an
         wenigen, langjährigen Personen. Dokumentation existiert, ist aber über Code, Confluence
         und Jira verstreut und selten aktuell. Das ist kein Softwareproblem, es ist ein Wissensproblem
         &mdash; und es hat erstmals eine Uhr.
       </p>
-      <div class="stats">
+      <div class="stats spread">
         <div class="stat">
           <div class="value grad-word">&gt; 800 Mrd.</div>
           <div class="label">Zeilen COBOL laufen produktiv &mdash; und es kommen rund 5 Mrd. pro Jahr dazu</div>
@@ -646,7 +649,7 @@
           <div class="label">der Hochschulen haben COBOL aus dem Curriculum gestrichen &mdash; es kommt niemand nach</div>
         </div>
       </div>
-      <div class="note">Der Bestand wächst, die Zahl der Menschen, die ihn erklären können, sinkt. Genau diese Schere ist der Markt &mdash;
+      <div class="note wide">Der Bestand wächst, die Zahl der Menschen, die ihn erklären können, sinkt. Genau diese Schere ist der Markt &mdash;
         und sie schließt sich nicht von selbst.</div>
       <div class="src"><b>Quellen:</b> Micro Focus / Open Mainframe Project (COBOL-Bestand, 2022&ndash;2025) &middot; IBM (jährlicher Zuwachs) &middot;
         Computerworld / Open Mainframe Project Demografie-Erhebungen.</div>
