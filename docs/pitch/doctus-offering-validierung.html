@@ -384,18 +384,19 @@
   .stats.spread .stat .label{max-width:none;padding-right:1.2rem;}
 
   /* ===== Markt: TAM/SAM/SOM ===== */
-  .funnel{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:2rem;}
+  .funnel{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:1.5rem;}
   .fun-row{
     background:var(--surface);
     display:grid;grid-template-columns:4.6rem 1fr 12rem;
-    gap:1.2rem;padding:1.05rem 1.2rem;align-items:center;
+    gap:1.2rem;padding:.85rem 1.2rem;align-items:center;
   }
   @media (max-width:56rem){.fun-row{grid-template-columns:4rem 1fr;}.fun-row .val{grid-column:2;text-align:left;}}
   .fun-row .k{font-family:'IBM Plex Mono';font-size:.78rem;font-weight:600;letter-spacing:.06em;}
   .fun-row.tam .k{color:var(--trace);}
   .fun-row.sam .k{color:var(--violet);}
   .fun-row.som .k{color:var(--signal);}
-  .fun-row .body b{font-size:.95rem;font-family:'Space Grotesk';display:block;margin-bottom:.2rem;}
+  .fun-row .body > b{font-size:.95rem;font-family:'Space Grotesk';display:block;margin-bottom:.2rem;}
+  .fun-row .body span b,.lane b{color:var(--ink);font-weight:600;}
   .fun-row .body span{font-size:.82rem;color:var(--ink-muted);line-height:1.5;display:block;}
   .fun-row .val{font-family:'Space Grotesk';font-size:1.25rem;text-align:right;white-space:nowrap;}
   .fun-row .val em{display:block;font-style:normal;font-size:.7rem;font-family:'IBM Plex Mono';color:var(--ink-muted);margin-top:.2rem;white-space:normal;line-height:1.45;}
@@ -403,7 +404,7 @@
   .bar i{display:block;height:100%;background:var(--gradient);}
   .lanes{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:.6rem;}
   @media (max-width:56rem){.lanes{grid-template-columns:1fr;}}
-  .lane{background:var(--surface-2);padding:.5rem .7rem;}
+  .lane{background:var(--surface-2);padding:.45rem .7rem;}
   .lane .lane-k{font-family:'IBM Plex Mono';font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-muted);}
   .lane .lane-v{font-family:'Space Grotesk';font-size:.9rem;margin-top:.16rem;}
   .lane .lane-s{display:block;font-size:.73rem;color:var(--ink-muted);line-height:1.42;margin-top:.14rem;}
@@ -547,6 +548,29 @@
   .buzz{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.42rem;}
   .buzz li{position:relative;padding-left:.95rem;font-size:.88rem;line-height:1.35;color:var(--ink);}
   .buzz li::before{content:"";position:absolute;left:0;top:.6em;width:.45rem;height:1px;background:var(--line-strong);}
+
+  /* ===== Druck / PDF-Export: eine Folie pro Seite, 16:9 ===== */
+  @page{size:16.667in 9.375in;margin:0;}
+  @media print{
+    html,body{height:auto;background:var(--canvas);}
+    #deck{height:auto;overflow:visible;scroll-snap-type:none;}
+    .slide{
+      min-height:0;
+      height:9.375in;
+      width:16.667in;
+      break-after:page;
+      page-break-after:always;
+      break-inside:avoid;
+      border-bottom:none;
+      overflow:hidden;
+    }
+    .slide:last-child{break-after:auto;page-break-after:auto;}
+    .slide.dense{padding-top:1.9rem;padding-bottom:1.9rem;}
+    /* Einblend-Animation abschalten - sonst drucken die Folien leer */
+    .slide-inner{opacity:1 !important;transform:none !important;transition:none !important;}
+    #dots,#counter{display:none !important;}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
 </style>
 </head>
 <body>
@@ -655,7 +679,6 @@
           <div class="k">TAM</div>
           <div class="body">
             <b>Zwei Referenzm&auml;rkte, nicht einer</b>
-            <span>Werkzeug im Modernisierungsprogramm oder Produkt mit wiederkehrender Nutzung &mdash; das sind zwei verschiedene M&auml;rkte.</span>
             <div class="lanes">
               <div class="lane">
                 <div class="lane-k">Weg A &middot; Programm</div>
@@ -699,18 +722,16 @@
           <div class="k">SOM</div>
           <div class="body">
             <b>Was wir in drei Jahren realistisch holen</b>
-            <span>Qualifizierte Accounts im Fujitsu-Bestand mit gesch&auml;ftskritischem COBOL &rarr; 6&ndash;10 Kunden in drei Jahren.
-              Je Kunde ein Discovery-Pilot von 30&ndash;60 T&euro; als Einstieg, danach 80&ndash;150 T&euro; pro Jahr aus Plattform plus Nutzern &mdash;
-              <b>nicht aus Nutzerlizenzen allein</b>: COBOL-Teams sind mit 10&ndash;60 Personen zu klein, um diesen Betrag &uuml;ber Seats zu tragen.</span>
+            <span>Qualifizierte Accounts im Fujitsu-Bestand mit gesch&auml;ftskritischem COBOL &rarr; 6&ndash;10 Kunden in drei Jahren: Discovery-Pilot
+              30&ndash;60 T&euro; als Einstieg, danach 80&ndash;150 T&euro; pro Jahr aus <b>Plattform plus Nutzern, nicht aus Seats allein</b> &mdash;
+              COBOL-Teams sind mit 10&ndash;60 Personen daf&uuml;r zu klein.</span>
             <div class="bar"><i style="width:7%"></i></div>
           </div>
           <div class="val">0,8&ndash;1,8 Mio. &euro;<em>wiederkehrend ab Jahr 3</em></div>
         </div>
       </div>
-      <div class="note wide"><b>Was hier Annahme ist:</b> die Zahl der qualifizierten Accounts und der 10&ndash;15-%-Anteil der Verstehens-Phase &mdash;
-        beides meine Sch&auml;tzung, keine Erhebung, und beides muss mit realen Zahlen nachgezogen werden.
-        <b>Der interne Einsatz bei Fujitsu ist bewusst nicht im Trichter:</b> er ist ein Margenhebel auf bestehendes Gesch&auml;ft, kein zus&auml;tzlicher Markt &mdash;
-        ihn mitzuz&auml;hlen h&auml;tte dieselbe Wertsch&ouml;pfung doppelt gebucht.</div>
+      <div class="note wide"><b>Was hier Annahme ist:</b> Accountzahl und der 10&ndash;15-%-Anteil der Verstehens-Phase &mdash; beides gesch&auml;tzt, nicht erhoben.
+        <b>Der interne Einsatz bei Fujitsu steht bewusst nicht im Trichter:</b> er ist ein Margenhebel auf bestehendes Gesch&auml;ft, kein zus&auml;tzlicher Markt.</div>
       <div class="src"><b>Quellen:</b> MarketsandMarkets, &bdquo;Mainframe Modernization Market&ldquo; (2025): global 8,39 &rarr; 13,34 Mrd. $, Deutschland 436,33 &rarr; 664,84 Mio. $ &middot;
         Grand View Research, &bdquo;AI Code Tools Market&ldquo; (2025): 7,65 &rarr; 22,2 Mrd. $, CAGR 23,8 % &middot; Bitkom (07/2026): ITK-Markt Deutschland = rund 4,3 % des Weltmarkts &middot;
         Bundesbank (2025): 1.329 Kreditinstitute &middot; BaFin: rund 500 Versicherer. &nbsp;Umrechnung 1,08 $/&euro;. &nbsp;SAM-Anteil, Accountzahl und SOM sind eigene Annahmen.</div>
