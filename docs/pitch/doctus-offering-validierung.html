@@ -552,6 +552,7 @@
   .runsheet li b{color:var(--ink);font-weight:600;}
 
   /* buzzword lists in cards */
+  .card .ans-label{font-size:.8rem;color:var(--ink-muted);margin:-.2rem 0 -.1rem;}
   .buzz{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.42rem;}
   .buzz li{position:relative;padding-left:.95rem;font-size:.88rem;line-height:1.35;color:var(--ink);}
   .buzz li::before{content:"";position:absolute;left:0;top:.6em;width:.45rem;height:1px;background:var(--line-strong);}
@@ -576,13 +577,14 @@
   <!-- 02 RAHMEN -->
   <section class="slide" id="s2" data-title="Rahmen">
     <div class="slide-inner">
-      <div class="eyebrow">Meine Sicht &mdash; als Grundlage für die Diskussion</div>
+      <div class="eyebrow">Grundlagen</div>
       <div class="kicker-line"></div>
-      <h2 class="headline">Drei Thesen, die ich heute<br><span class="grad-word">zur Diskussion stelle.</span></h2>
+      <h2 class="headline">Drei Fragen, die den<br><span class="grad-word">Startpunkt festlegen.</span></h2>
       <div class="cards">
         <div class="card">
           <div class="num mono">01 &middot; PROBLEM</div>
-          <h3>Das lösen wir heute schon</h3>
+          <h3>Welches Problem hat der Kunde und lösen wir?</h3>
+          <div class="ans-label">Das lösen wir heute schon</div>
           <ul class="buzz">
             <li>Code-Archäologie vor jeder Migration</li>
             <li>Wissensverlust bei Pensionierung</li>
@@ -595,7 +597,8 @@
         </div>
         <div class="card">
           <div class="num mono">02 &middot; ANGEBOT</div>
-          <h3>So sollte Fujitsu es anbieten</h3>
+          <h3>Produkt, Projekte, sonstige Services?</h3>
+          <div class="ans-label">So sollte Fujitsu es anbieten</div>
           <ul class="buzz">
             <li>SaaS</li>
             <li>Modernisierung</li>
@@ -604,7 +607,8 @@
         </div>
         <div class="card">
           <div class="num mono">03 &middot; KUNDEN</div>
-          <h3>Diese Zielgruppen kommen zuerst infrage</h3>
+          <h3>Wie sieht der Kunde aus?</h3>
+          <div class="ans-label">Diese Zielgruppen kommen zuerst infrage</div>
           <ul class="buzz">
             <li>Banken &amp; Sparkassen</li>
             <li>Versicherungen</li>
