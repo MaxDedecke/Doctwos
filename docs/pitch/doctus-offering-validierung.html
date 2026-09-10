@@ -698,7 +698,7 @@
         </div>
       </div>
       <div class="note wide"><b>Ehrlich zum SOM:</b> Die Zahl der qualifizierten Accounts ist meine Annahme, keine Erhebung.
-        Sie zu bestätigen oder zu widerlegen ist einer der vier Punkte, die ich heute von euch brauche.</div>
+        Das muss mit realen Zahlen nochmal evaluiert werden.</div>
       <div class="src"><b>Quellen:</b> MarketsandMarkets, „Mainframe Modernization Market&ldquo; (2025): global 8,39 Mrd. $ &rarr; 13,34 Mrd. $ (2030);
         Europa 2,07 Mrd. $ &rarr; 3,13 Mrd. $; Deutschland 436,33 Mio. $ &rarr; 664,84 Mio. $. &nbsp;SAM-Anteil und SOM sind eigene, ausgewiesene Annahmen.</div>
     </div>
@@ -709,7 +709,7 @@
     <div class="slide-inner">
       <div class="eyebrow">Von der Segmentierung zum konkreten Schmerz</div>
       <div class="kicker-line"></div>
-      <h2 class="headline">Vier Branchen &mdash; ein gemeinsamer Nenner</h2>
+      <h2 class="headline">Vier Branchen &mdash; vier Use Cases</h2>
       <div class="segs">
         <div class="seg"><b>Banken &amp; Sparkassen</b><span>Kernbank, Zahlungsverkehr, Meldewesen. Größtes COBOL-Volumen, höchste Regulierungsdichte.</span><div class="why">Anlass: DORA, Meldewesen, Kernbank-Ablösung</div></div>
         <div class="seg"><b>Versicherungen</b><span>Bestandsführung mit Vertragslaufzeiten über Jahrzehnte &mdash; Fachlogik von 1985 ist heute noch bindend.</span><div class="why">Anlass: Bestandsmigration, Tarifwerk</div></div>
@@ -717,12 +717,14 @@
         <div class="seg"><b>Industrie &amp; Logistik</b><span>Disposition, Abrechnung, ERP-Vorläufer &mdash; oft undokumentiert gewachsen, ohne Herstellersupport.</span><div class="why">Anlass: ERP-Konsolidierung, Personalabgang</div></div>
       </div>
       <p class="lede" style="margin-top:1.9rem;max-width:46rem;">
-        Der Nenner: <b style="color:var(--ink);">Bestandsaufnahme.</b>
+        Was alle vier eint: jahrzehntelang gewachsene, geschäftskritische COBOL-Bestände, deren Fachlogik
+        kaum dokumentiert ist und nur noch in wenigen Köpfen liegt &mdash; bei
+        <b style="color:var(--ink);">Änderungsdruck von außen, dem man sich nicht entziehen kann.</b>
       </p>
       <div class="cards">
-        <div class="card"><div class="num mono">01</div><h3>Modernisierungsprojekt startet</h3><p>Vor Migration oder Ablösung steht Verstehen &mdash; heute Wochen bis Monate manueller Code-Archäologie, mit einer Aufwandsschätzung, die niemand belegen kann.</p></div>
-        <div class="card"><div class="num mono">02</div><h3>Wissensträger verlässt das Team</h3><p>Pensionierung oder Wechsel reißt Systemverständnis heraus, das nirgends sonst dokumentiert war &mdash; und das nachträglich niemand rekonstruiert.</p></div>
-        <div class="card"><div class="num mono">03</div><h3>Audit oder Compliance-Anfrage</h3><p>Wo wird welches Datenfeld verarbeitet? Ohne Aufrufgraph eine aufwändige Handrecherche &mdash; mit einem Ergebnis, das man nicht belegen kann.</p></div>
+        <div class="card"><div class="num mono">01</div><h3>Modernisierungsprojekte</h3><p>Vor Migration oder Ablösung steht Verstehen &mdash; heute Wochen bis Monate manueller Code-Archäologie, mit einer Aufwandsschätzung, die niemand belegen kann.</p></div>
+        <div class="card"><div class="num mono">02</div><h3>Wissensverlust</h3><p>Pensionierung oder Wechsel reißt Systemverständnis heraus, das nirgends sonst dokumentiert war &mdash; und das nachträglich niemand rekonstruiert.</p></div>
+        <div class="card"><div class="num mono">03</div><h3>Audit oder Compliance</h3><p>Wo wird welches Datenfeld verarbeitet? Ohne Aufrufgraph eine aufwändige Handrecherche &mdash; mit einem Ergebnis, das man nicht belegen kann.</p></div>
         <div class="card"><div class="num mono">04</div><h3>Onboarding neuer Entwickler</h3><p>Einarbeitung in einen 30 Jahre gewachsenen Bestand dauert Monate. Genau die Zeit, die bei der Nachbesetzung fehlt.</p></div>
       </div>
     </div>
@@ -735,9 +737,8 @@
       <div class="kicker-line"></div>
       <h2 class="headline">Wir hatten diese Idee<br>schon einmal. <span class="grad-word">Sie ist gescheitert.</span></h2>
       <p class="lede wide" style="margin-top:1.1rem;">
-        Doctus 1.0 war ein interner Anlauf auf dasselbe Themenfeld: das Wissen über Bestandssysteme
-        verfügbar machen. Das Vorhaben lief über einen längeren Zeitraum, hat Aufwand gebunden &mdash;
-        und ist nie bei einem Kunden angekommen.
+        Das Doctus Projekt war ein Versuch, Wissen über Bestandssysteme hinweg verfügbar zu machen.
+        Offiziell endete es nach dem ersten PoC &mdash; ohne weitere Beauftragung.
       </p>
       <div class="duo">
         <div class="duo-col">
@@ -746,14 +747,15 @@
             <li><b>Das Problem war real.</b> Der Bedarf, den 1.0 adressieren wollte, ist heute größer als damals &mdash; nicht kleiner.</li>
             <li><b>Der Zugang war richtig.</b> Bestandssysteme erklärbar machen, statt sie blind abzulösen.</li>
             <li><b>Die Domänenkenntnis ist geblieben.</b> Alles, was wir über COBOL-Bestände, Copybooks und Aufrufstrukturen gelernt haben, steckt heute in 2.0.</li>
+            <li><b>Das Timing.</b> Der Bestand altert, die Wissensträger gehen &mdash; das Zeitfenster war damals offen und ist es heute noch.</li>
           </ul>
         </div>
         <div class="duo-col">
-          <h3>Warum ich es trotzdem so nenne</h3>
+          <h3>Warum es für mich gescheitert ist</h3>
           <ul>
-            <li><b>Kein Kunde hat es je benutzt.</b> Es gab kein Ergebnis, an dem man den Nutzen hätte messen können.</li>
-            <li><b>Es endete nicht mit einer Entscheidung,</b> sondern mit dem Auslaufen der Aufmerksamkeit.</li>
-            <li><b>Genau das ist der Grund, warum diese Folie hier steht.</b> Wenn ich heute um Vertrauen für einen zweiten Anlauf bitte, muss ich zuerst sagen, was am ersten falsch war.</li>
+            <li><b>Kein Rollout.</b> Der Kunde hat zwar weiteres Interesse, wünscht sich aber ein besseres Tool.</li>
+            <li><b>Fehlender Fokus.</b> Es gab ein Problem beim Kunden oder ein Modernisierungs-Portfolio-Tool &mdash; nicht beides.</li>
+            <li><b>Technologische Entwicklung.</b> Der massive Sprung der Möglichkeiten verzerrt, was möglich ist und was möglich war.</li>
           </ul>
         </div>
       </div>
