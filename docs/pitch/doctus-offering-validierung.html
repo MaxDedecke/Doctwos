@@ -94,7 +94,9 @@
     height:100svh;
     overflow-y:auto;
     scroll-snap-type:y mandatory;
+    scrollbar-width:none;
   }
+  #deck::-webkit-scrollbar{width:0;height:0;display:none;}
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto;}
   }
