@@ -571,6 +571,34 @@
   .buzz li{position:relative;padding-left:.95rem;font-size:.88rem;line-height:1.35;color:var(--ink);}
   .buzz li::before{content:"";position:absolute;left:0;top:.6em;width:.45rem;height:1px;background:var(--line-strong);}
 
+  /* ===== Datenfluss-Diagramm ===== */
+  .fd-wrap{margin-top:1.2rem;display:flex;justify-content:center;overflow-x:auto;}
+  .fd-wrap svg{width:100%;height:auto;max-height:min(58svh,600px);}
+  @media (max-width:56rem){.fd-wrap svg{min-width:44rem;}}
+  .fd-box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.2;}
+  .fd-band{fill:var(--surface-2);}
+  .fd-chip{fill:var(--canvas);stroke:var(--line);stroke-width:1;}
+  .fd-src{fill:var(--surface);stroke:var(--line);stroke-width:1;}
+  .fd-acc{fill:var(--trace);}
+  .fd-acc-out{fill:var(--signal);}
+  .fd-div{stroke:var(--line-strong);stroke-width:1.2;}
+  .fd-pill{fill:var(--canvas);stroke:var(--line-strong);stroke-width:1;}
+  .fd-user{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;}
+  .fd-in{fill:none;stroke:var(--trace);stroke-width:1.6;marker-end:url(#fd-head-in);}
+  .fd-out{fill:none;stroke:var(--signal);stroke-width:1.6;marker-end:url(#fd-head-out);}
+  .fd-head-in{fill:var(--trace);}
+  .fd-head-out{fill:var(--signal);}
+  .fd-lbl{font-size:10.5px;letter-spacing:.1em;fill:var(--ink-muted);text-transform:uppercase;}
+  .fd-lbl.ink{fill:var(--ink);}
+  .fd-t{font-size:12px;fill:var(--ink);}
+  .fd-t.big{font-size:13px;}
+  .fd-s{font-size:9.5px;fill:var(--ink-muted);}
+  .fd-note{font-size:10.5px;fill:var(--ink-muted);}
+  @media (max-height:860px){
+    .fd-wrap{margin-top:.9rem;}
+    .fd-wrap svg{max-height:50svh;}
+  }
+
   /* ===== Druck / PDF-Export: eine Folie pro Seite, 16:9 ===== */
   @page{size:16.667in 9.375in;margin:0;}
   @media print{
@@ -591,6 +619,7 @@
     /* Einblend-Animation abschalten - sonst drucken die Folien leer */
     .slide-inner{opacity:1 !important;transform:none !important;transition:none !important;}
     #dots,#counter{display:none !important;}
+    .fd-wrap svg{max-height:6.1in;}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   }
 </style>
@@ -907,7 +936,7 @@
   <!-- 09 STACK-VERGLEICH 1.0 VS 2.0 -->
   <section class="slide dense" id="s9" data-title="1.0 vs. 2.0">
     <div class="slide-inner">
-      <div class="eyebrow">1.0 vs. 2.0 &mdash; derselbe Gedanke, zweimal gebaut</div>
+      <div class="eyebrow">1.0 vs. 2.0</div>
       <div class="kicker-line"></div>
       <h2 class="headline">Was damals ein Durchstich war,<br>ist heute <span class="grad-word">ein ganzes System.</span></h2>
       <div class="cmp">
@@ -967,6 +996,113 @@
     </div>
   </section>
 
+  <!-- 09.5 DATENFLUSS -->
+  <section class="slide dense" id="s9b" data-title="Datenfluss">
+    <div class="slide-inner">
+      <div class="eyebrow">Wie Doctus arbeitet</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Neun Quellen, eine Wissensbasis &mdash;<br><span class="grad-word">eine belegte Antwort.</span></h2>
+      <figure class="fd-wrap">
+        <svg viewBox="0 0 1200 628" role="img" aria-label="Datenfluss: neun Quellsysteme fließen in die Datenschicht von Doctus; darüber liegt das Frontend, das die Antwort an den Nutzer liefert.">
+          <defs>
+            <marker id="fd-head-in" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path class="fd-head-in" d="M0,0 L8,4.5 L0,9 Z"></path>
+            </marker>
+            <marker id="fd-head-out" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path class="fd-head-out" d="M0,0 L8,4.5 L0,9 Z"></path>
+            </marker>
+          </defs>
+
+          <!-- Nutzer -->
+          <circle class="fd-user" cx="600" cy="34" r="14"></circle>
+          <path class="fd-user" d="M568 80 C568 54 632 54 632 80"></path>
+          <text class="fd-lbl ink" x="600" y="102" text-anchor="middle">ENTWICKLUNG · WARTUNG · FACHBEREICH</text>
+
+          <!-- Frontend liefert nach oben -->
+          <path class="fd-out" d="M520 200 C520 170 556 150 578 128"></path>
+          <path class="fd-out" d="M600 200 L600 124"></path>
+          <path class="fd-out" d="M680 200 C680 170 644 150 622 128"></path>
+          <text class="fd-note" x="716" y="136">Antwort mit klickbarem Beleg</text>
+          <text class="fd-note" x="716" y="153">im Originalcode — Graph und</text>
+          <text class="fd-note" x="716" y="170">Codestelle daneben</text>
+
+          <!-- Doctus -->
+          <text class="fd-lbl ink" x="170" y="196">DOCTUS 2.0 · IM RECHENZENTRUM DES KUNDEN</text>
+          <text class="fd-lbl" x="1030" y="196" text-anchor="end">EIN STACK · SIEBEN DIENSTE</text>
+          <rect class="fd-band" x="171" y="208" width="858" height="111"></rect>
+          <rect class="fd-box" x="170" y="207" width="860" height="248"></rect>
+          <text class="fd-lbl" x="188" y="234">FRONTEND · ARBEITSFLÄCHE</text>
+          <rect class="fd-chip" x="188" y="248" width="194" height="54"></rect>
+          <text class="fd-t" x="285" y="272" text-anchor="middle">Chat</text>
+          <text class="fd-s" x="285" y="290" text-anchor="middle">mit Belegkette</text>
+          <rect class="fd-chip" x="398" y="248" width="194" height="54"></rect>
+          <text class="fd-t" x="495" y="272" text-anchor="middle">Wissensgraph</text>
+          <text class="fd-s" x="495" y="290" text-anchor="middle">CALL, PERFORM, COPY</text>
+          <rect class="fd-chip" x="608" y="248" width="194" height="54"></rect>
+          <text class="fd-t" x="705" y="272" text-anchor="middle">Code-Ansicht</text>
+          <text class="fd-s" x="705" y="290" text-anchor="middle">Originalzeilen, Monaco</text>
+          <rect class="fd-chip" x="818" y="248" width="194" height="54"></rect>
+          <text class="fd-t" x="915" y="272" text-anchor="middle">Suche &amp; Filter</text>
+          <text class="fd-s" x="915" y="290" text-anchor="middle">über den ganzen Bestand</text>
+
+          <!-- Trennlinie: Retrieval -->
+          <line class="fd-div" x1="170" y1="320" x2="1030" y2="320"></line>
+          <rect class="fd-pill" x="430" y="310" width="340" height="20"></rect>
+          <text class="fd-lbl ink" x="600" y="324" text-anchor="middle">RETRIEVAL · HYBRIDE SUCHE, GRAPH, AGENT</text>
+
+          <text class="fd-lbl" x="188" y="352">DATENSCHICHT · POSTGRES + PGVECTOR</text>
+          <rect class="fd-chip" x="188" y="362" width="194" height="84"></rect>
+          <text class="fd-t" x="285" y="386" text-anchor="middle">Chunks + Vektoren</text>
+          <text class="fd-s" x="285" y="406" text-anchor="middle">bge-m3, 1024 Dimensionen</text>
+          <text class="fd-s" x="285" y="422" text-anchor="middle">HNSW-Index</text>
+          <rect class="fd-chip" x="398" y="362" width="194" height="84"></rect>
+          <text class="fd-t" x="495" y="386" text-anchor="middle">Entitäten</text>
+          <text class="fd-s" x="495" y="406" text-anchor="middle">Programm → Section →</text>
+          <text class="fd-s" x="495" y="422" text-anchor="middle">Paragraph, Copybook</text>
+          <rect class="fd-chip" x="608" y="362" width="194" height="84"></rect>
+          <text class="fd-t" x="705" y="386" text-anchor="middle">Graphkanten</text>
+          <text class="fd-s" x="705" y="406" text-anchor="middle">CALL, PERFORM, GOTO,</text>
+          <text class="fd-s" x="705" y="422" text-anchor="middle">COPY, READS, WRITES</text>
+          <rect class="fd-chip" x="818" y="362" width="194" height="84"></rect>
+          <text class="fd-t" x="915" y="386" text-anchor="middle">Belegstellen</text>
+          <text class="fd-s" x="915" y="406" text-anchor="middle">Datei + physische</text>
+          <text class="fd-s" x="915" y="422" text-anchor="middle">Zeilennummer</text>
+
+          <!-- Quellsysteme fließen in die Datenschicht -->
+          <text class="fd-lbl" x="150" y="486" text-anchor="end">PARSER · CHUNKING</text>
+          <text class="fd-lbl" x="150" y="502" text-anchor="end">EMBEDDINGS</text>
+          <text class="fd-lbl" x="1048" y="486">INKREMENTELLER SYNC</text>
+          <text class="fd-lbl" x="1048" y="502">JE DATEI</text>
+          <path class="fd-in" d="M182 530 C182 498 290 492 290 458"></path>
+          <path class="fd-in" d="M462 530 C462 498 490 492 490 458"></path>
+          <path class="fd-in" d="M742 530 C742 498 700 492 700 458"></path>
+          <path class="fd-in" d="M1022 530 C1022 498 900 492 900 458"></path>
+          <rect class="fd-src" x="55" y="536" width="255" height="84"></rect>
+          <rect class="fd-acc" x="55" y="536" width="255" height="3"></rect>
+          <text class="fd-t big" x="182" y="566" text-anchor="middle">Code-Repositorien</text>
+          <text class="fd-s" x="182" y="590" text-anchor="middle">GitHub · GitLab · Bitbucket</text>
+          <text class="fd-s" x="182" y="607" text-anchor="middle">beliebiges Git-Repository</text>
+          <rect class="fd-src" x="335" y="536" width="255" height="84"></rect>
+          <rect class="fd-acc" x="335" y="536" width="255" height="3"></rect>
+          <text class="fd-t big" x="462" y="566" text-anchor="middle">Dokumentation</text>
+          <text class="fd-s" x="462" y="590" text-anchor="middle">Confluence · WebDAV</text>
+          <text class="fd-s" x="462" y="607" text-anchor="middle">Handbücher, Konzepte, Scans (OCR)</text>
+          <rect class="fd-src" x="615" y="536" width="255" height="84"></rect>
+          <rect class="fd-acc" x="615" y="536" width="255" height="3"></rect>
+          <text class="fd-t big" x="742" y="566" text-anchor="middle">Vorgänge &amp; Historie</text>
+          <text class="fd-s" x="742" y="590" text-anchor="middle">Jira</text>
+          <text class="fd-s" x="742" y="607" text-anchor="middle">Änderungsgründe, Entscheidungen</text>
+          <rect class="fd-src" x="895" y="536" width="255" height="84"></rect>
+          <rect class="fd-acc" x="895" y="536" width="255" height="3"></rect>
+          <text class="fd-t big" x="1022" y="566" text-anchor="middle">Dateiablagen</text>
+          <text class="fd-s" x="1022" y="590" text-anchor="middle">Überwachungsordner · Upload</text>
+          <text class="fd-s" x="1022" y="607" text-anchor="middle">auch EBCDIC-Altlasten</text>
+        </svg>
+      </figure>
+      <div class="note wide">Die Konnektoren synchronisieren inkrementell je Datei; Parser, Chunking und Embeddings laufen im Hintergrund-Worker.
+        <b>Nach oben geht nichts verloren:</b> jede Antwort im Frontend trägt die Belegkette zurück bis zur Codezeile.</div>
+    </div>
+  </section>
   <!-- 10 USPs -->
   <section class="slide dense" id="s10" data-title="USPs">
     <div class="slide-inner">
@@ -1275,7 +1411,7 @@
 </div>
 
 <div id="dots" aria-hidden="true"></div>
-<div id="counter" class="mono">01 / 20</div>
+<div id="counter" class="mono">01 / 21</div>
 <div id="wordmark-fixed">Doctus</div>
 <script>
 (function(){
