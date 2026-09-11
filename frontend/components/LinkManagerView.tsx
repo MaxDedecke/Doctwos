@@ -2,7 +2,6 @@
 import type { LlmProfile } from '@/hooks/useAiSettings';
 
 import { api, API_URL } from '@/app/services/api';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -12,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -129,6 +129,11 @@ function readStoredMinConfidence(): number {
 // score is stored as a 0..1 float and rounded for display (ScoreBadge: Math.round(score * 100)).
 // Guard against float noise (e.g. 0.999999...) so "100%" candidates are still caught.
 const PERFECT_SCORE_THRESHOLD = 0.995;
+
+// Grobe Höhe einer Link-Karte inkl. `space-y-2`-Abstand — vom Virtualizer nur
+// als Startschätzung gebraucht, `measureElement` gleicht danach an die
+// tatsächliche Höhe an (Karten werden auf schmalen Panels höher).
+const ESTIMATED_LINK_CARD_HEIGHT = 84;
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -289,18 +294,24 @@ export function LinkManagerView({
   const fetchKnowledgeLinks = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const scoreParam = minScore > 0 ? `&min_score=${minScore / 100}` : '';
-      const [listRes, pRes, aRes, rRes] = await Promise.all([
-        api.fetch(`${API_URL}/knowledge-links?status=${tab}${scoreParam}`),
-        api.fetch(`${API_URL}/knowledge-links?status=pending${scoreParam}`),
-        api.fetch(`${API_URL}/knowledge-links?status=approved${scoreParam}`),
-        api.fetch(`${API_URL}/knowledge-links?status=rejected${scoreParam}`),
+      // Die Tab-Zähler kommen vom eigenen /counts-Endpunkt. Vorher wurden dafür
+      // alle drei Statuslisten vollständig geladen und nur ausgezählt — im
+      // Offen-Tab also dieselben (real >1000) Vorschläge gleich zweimal.
+      const filters = new URLSearchParams();
+      if (minScore > 0) filters.set('min_score', String(minScore / 100));
+      const [listRes, countsRes] = await Promise.all([
+        api.fetch(`${API_URL}/knowledge-links?status=${tab}&${filters}`),
+        api.fetch(`${API_URL}/knowledge-links/counts?${filters}`),
       ]);
-      const [list, p, a, r] = await Promise.all([listRes.json(), pRes.json(), aRes.json(), rRes.json()]);
+      const [list, counts] = await Promise.all([listRes.json(), countsRes.json()]);
       setKnowledgeLinks(list || []);
-      const counts = { pending: (p || []).length, approved: (a || []).length, rejected: (r || []).length };
-      setKnowledgeCounts(counts);
-      return { links: list, counts };
+      const safeCounts: LinkCounts = {
+        pending: counts?.pending ?? 0,
+        approved: counts?.approved ?? 0,
+        rejected: counts?.rejected ?? 0,
+      };
+      setKnowledgeCounts(safeCounts);
+      return { links: list, counts: safeCounts };
     } catch { return null; }
     finally { if (!silent) setIsLoading(false); }
   }, [tab, minScore]);
@@ -654,6 +665,17 @@ export function LinkManagerView({
   const perfectPendingLinks = tab === 'pending'
     ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD)
     : [];
+
+  // O-165: Die Liste rendert gefenstert. Ein Projekt mit vierstelliger
+  // Vorschlagszahl brachte sonst ~1600 Karten gleichzeitig ins DOM, und jedes
+  // Tippen im Suchfeld baute sie komplett neu auf.
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const linkVirtualizer = useVirtualizer({
+    count: filteredLinks.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => ESTIMATED_LINK_CARD_HEIGHT,
+    overscan: 8,
+  });
 
   const filteredEntityEntities = useMemo(() =>
     entities.filter(e =>
@@ -1059,7 +1081,7 @@ export function LinkManagerView({
               </AnimatePresence>
 
               {/* Unified link list */}
-              <ScrollArea className="flex-1 min-h-0">
+              <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className={cn('w-5 h-5 animate-spin', subText)} />
@@ -1075,9 +1097,15 @@ export function LinkManagerView({
                     )}
                   </div>
                 ) : (
-                  <div className="p-4 space-y-2">
-                    {filteredLinks.map(link => (
-                      <div key={link.id} className={cn('@container/linkcard border rounded-lg px-3 @sm/linkmgr:px-4 py-3 grid grid-cols-1 @sm/linkcard:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-x-3 @sm/linkcard:gap-x-4 gap-y-2 transition-colors', cardCls)}>
+                  <div className="p-4">
+                    <div style={{ height: linkVirtualizer.getTotalSize(), position: 'relative' }}>
+                      {linkVirtualizer.getVirtualItems().map(virtualRow => {
+                        const link = filteredLinks[virtualRow.index];
+                        return (
+                          <div key={link.id} data-index={virtualRow.index} ref={linkVirtualizer.measureElement}
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}
+                            className="pb-2">
+                      <div className={cn('@container/linkcard border rounded-lg px-3 @sm/linkmgr:px-4 py-3 grid grid-cols-1 @sm/linkcard:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-x-3 @sm/linkcard:gap-x-4 gap-y-2 transition-colors', cardCls)}>
                         {renderSide(link.left)}
                         <div className={cn('shrink-0 pt-0 text-xs select-none @sm/linkcard:pt-0.5', arrowColor)}>{link.kind === 'entity' ? '→' : '↔'}</div>
                         <div className="flex-1 min-w-0">
@@ -1130,10 +1158,13 @@ export function LinkManagerView({
                           )}
                         </div>
                       </div>
-                    ))}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-              </ScrollArea>
+              </div>
           </>
         )}
     </div>

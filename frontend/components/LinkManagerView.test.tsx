@@ -13,6 +13,11 @@ import type { CodeEntity } from '@/types/domain';
  *
  * Die drei Doku-Bereiche des Punktes (Filterleiste, manueller Picker,
  * Linkkarten-Interaktionen) sind unten je ein `describe`-Block.
+ *
+ * O-165: Die Linkliste rendert gefenstert (@tanstack/react-virtual) und misst
+ * dafür `offsetHeight`, das jsdom mangels Layout immer als 0 meldet -- ohne den
+ * Spy in `beforeEach` hielte der Virtualizer den Container für 0px hoch und
+ * würde keine einzige Karte rendern (gleiches Vorgehen wie in `Sidebar.test.tsx`).
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -65,6 +70,7 @@ interface Routes {
   entityLinks?: EntityLink[];
   entityCounts?: { pending: number; approved: number; rejected: number };
   knowledgeLinks?: ReturnType<typeof knowledgeLink>[];
+  knowledgeCounts?: { pending: number; approved: number; rejected: number };
   entities?: Array<Omit<CodeEntity, 'id' | 'start_line'> & { id: number | string; start_line?: number }>;
   docSearch?: Array<{ title: string; url?: string | null; source_type?: string | null }>;
   patchOk?: boolean;
@@ -92,6 +98,11 @@ function stubFetch(routes: Routes = {}) {
       return json({
         links: routes.entityLinks ?? [],
         counts: routes.entityCounts ?? { pending: (routes.entityLinks ?? []).length, approved: 0, rejected: 0 },
+      });
+    }
+    if (url.includes('/knowledge-links/counts')) {
+      return json(routes.knowledgeCounts ?? {
+        pending: (routes.knowledgeLinks ?? []).length, approved: 0, rejected: 0,
       });
     }
     if (url.includes('/knowledge-links')) return json(routes.knowledgeLinks ?? []);
@@ -127,6 +138,7 @@ function bodyOf(fetchMock: ReturnType<typeof stubFetch>, fragment: string, metho
 describe('LinkManagerView', () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
   });
 
   afterEach(() => {
@@ -140,12 +152,13 @@ describe('LinkManagerView', () => {
         entityLinks: [entityLink()],
         entityCounts: { pending: 1, approved: 4, rejected: 2 },
         knowledgeLinks: [knowledgeLink()],
+        knowledgeCounts: { pending: 1, approved: 1, rejected: 1 },
       });
 
       renderView();
 
-      // knowledgeCounts entstehen aus der Länge der drei Statuslisten -- der
-      // Stub liefert für jeden Status dieselbe eine Verknüpfung.
+      // Beide Zählerquellen (Entity-Liste und /knowledge-links/counts) werden
+      // je Tab aufaddiert.
       const pendingTab = await screen.findByRole('button', { name: /^Offen/ });
       await waitFor(() => expect(within(pendingTab).getByText('2')).toBeTruthy());
       expect(within(screen.getByRole('button', { name: /^Bestätigt/ })).getByText('5')).toBeTruthy();
@@ -289,6 +302,42 @@ describe('LinkManagerView', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Abgelehnt/ }));
 
       expect(await screen.findByText('Keine abgelehnten Verknüpfungen')).toBeTruthy();
+    });
+  });
+
+  describe('große Listen', () => {
+    it('rendert nur den sichtbaren Ausschnitt statt aller Karten', async () => {
+      const many = Array.from({ length: 400 }, (_, i) => knowledgeLink({
+        id: 1000 + i,
+        source_a: { type: 'document', title: `Quelle ${i}`, url: null, source_type: 'Confluence' },
+        source_b: { type: 'document', title: `Ziel ${i}`, url: null, source_type: 'Confluence' },
+      }));
+      stubFetch({ knowledgeLinks: many, knowledgeCounts: { pending: many.length, approved: 0, rejected: 0 } });
+
+      renderView();
+
+      // Die erste Karte ist da, der Zähler kennt alle 400 -- im DOM hängt aber
+      // nur das gefensterte Stück (600px hoher Container, siehe offsetHeight-Spy).
+      await screen.findByText('Quelle 0');
+      const pendingTab = screen.getByRole('button', { name: /^Offen/ });
+      expect(within(pendingTab).getByText('400')).toBeTruthy();
+      const rendered = screen.getAllByText(/^Quelle \d+$/).length;
+      expect(rendered).toBeGreaterThan(0);
+      expect(rendered).toBeLessThan(50);
+      expect(screen.queryByText('Quelle 399')).toBeNull();
+    });
+
+    it('holt die Tab-Zähler über /knowledge-links/counts statt über die vollen Statuslisten', async () => {
+      const fetchMock = stubFetch({ knowledgeLinks: [knowledgeLink()] });
+
+      renderView();
+      await screen.findByText('Fachkonzept');
+
+      expect(calls(fetchMock, '/knowledge-links/counts')).toHaveLength(1);
+      // Genau eine Listenabfrage: die für den offenen Tab.
+      const listCalls = calls(fetchMock, '/knowledge-links').filter(u => !u.includes('/counts'));
+      expect(listCalls).toHaveLength(1);
+      expect(listCalls[0]).toContain('status=pending');
     });
   });
 

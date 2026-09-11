@@ -86,6 +86,130 @@ def is_side_visible(
     return True
 
 
+class LinkVisibilityIndex:
+    """Sichtbarkeitsprüfung für viele KnowledgeLinks auf einmal.
+
+    `is_side_visible` fragt pro Link-Seite einzeln die DB ab. Der Link-Manager
+    listet je Status die komplette Vorschlagsmenge (real über 1000 Stück), was
+    dort zu mehreren tausend Einzel-Queries pro Aufruf führte. Hier werden der
+    Team-/Projekt-Scope des Nutzers und alle referenzierten Entities/Chunks samt
+    ihrer Projekte/Wissensquellen gebündelt geladen; geprüft wird danach nur
+    noch im Speicher. Die Regeln sind dieselben wie in `is_side_visible` --
+    diese Funktion bleibt für Einzel-Links (PATCH/DELETE/llm-review) bestehen.
+    """
+
+    # Postgres verträgt zwar große IN-Listen, aber der Query-Plan wird mit jedem
+    # zusätzlichen Parameter teurer -- lieber in Blöcken nachschlagen.
+    _BATCH = 500
+
+    def __init__(self, links, user: User, db: Session):
+        visible_team_ids = get_visible_team_ids(user, db)
+        self._unrestricted = visible_team_ids is None  # Admin: sieht alles
+        if self._unrestricted:
+            return
+
+        self._teams = set(visible_team_ids)
+        self._projects = set(get_visible_project_ids(user, db) or [])
+
+        entity_ids = {
+            i
+            for link in links
+            for i in (link.source_a_entity_id, link.source_b_entity_id)
+            if i is not None
+        }
+        chunk_ids = {
+            i
+            for link in links
+            for i in (link.source_a_chunk_id, link.source_b_chunk_id)
+            if i is not None
+        }
+
+        # Pro Entity/Chunk interessiert nur die Herkunft (Projekt bzw. Wissensquelle).
+        self._entities = {
+            row.id: (row.project_id, row.source_id)
+            for row in self._lookup(
+                db,
+                (CodeEntity.id, CodeEntity.project_id, CodeEntity.source_id),
+                CodeEntity.id,
+                entity_ids,
+            )
+        }
+        self._chunks = {
+            row.id: (row.project_id, row.source_id)
+            for row in self._lookup(
+                db,
+                (DocumentChunk.id, DocumentChunk.project_id, DocumentChunk.source_id),
+                DocumentChunk.id,
+                chunk_ids,
+            )
+        }
+
+        origins = list(self._entities.values()) + list(self._chunks.values())
+        project_ids = {p for p, _ in origins if p is not None}
+        source_ids = {s for _, s in origins if s is not None}
+
+        self._project_teams = {
+            row.id: row.team_id
+            for row in self._lookup(db, (Project.id, Project.team_id), Project.id, project_ids)
+        }
+        self._sources = {
+            row.id: (row.team_id, row.project_id)
+            for row in self._lookup(
+                db,
+                (KnowledgeSource.id, KnowledgeSource.team_id, KnowledgeSource.project_id),
+                KnowledgeSource.id,
+                source_ids,
+            )
+        }
+
+    @classmethod
+    def _lookup(cls, db: Session, columns, id_column, ids) -> list:
+        ids = list(ids)
+        rows = []
+        for start in range(0, len(ids), cls._BATCH):
+            rows.extend(
+                db.query(*columns).filter(id_column.in_(ids[start : start + cls._BATCH])).all()
+            )
+        return rows
+
+    def _origin_visible(self, project_id: Optional[int], source_id: Optional[int]) -> bool:
+        if project_id:
+            return (
+                self._project_teams.get(project_id) in self._teams and project_id in self._projects
+            )
+        if source_id:
+            source = self._sources.get(source_id)
+            if source is None:
+                return False
+            team_id, source_project_id = source
+            return team_id in self._teams and (
+                source_project_id is None or source_project_id in self._projects
+            )
+        # Weder Projekt noch Wissensquelle: nichts, woran die Sichtbarkeit hängt.
+        return True
+
+    def _side_visible(
+        self, source_type: str, entity_id: Optional[int], chunk_id: Optional[int]
+    ) -> bool:
+        if source_type == "entity" and entity_id is not None:
+            origin = self._entities.get(entity_id)
+            return origin is not None and self._origin_visible(*origin)
+        if source_type == "document" and chunk_id is not None:
+            origin = self._chunks.get(chunk_id)
+            return origin is not None and self._origin_visible(*origin)
+        # Manuell angelegte Links ohne Entity-/Chunk-Bezug bleiben sichtbar.
+        return True
+
+    def is_visible(self, link) -> bool:
+        if self._unrestricted:
+            return True
+        return self._side_visible(
+            link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id
+        ) and self._side_visible(
+            link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id
+        )
+
+
 @router.post("")
 def create_knowledge_link(
     link: KnowledgeLinkCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
@@ -125,15 +249,8 @@ def create_knowledge_link(
     return serialize_knowledge_link(db_link)
 
 
-@router.get("")
-def list_knowledge_links(
-    status: Optional[str] = None,
-    source_type: Optional[str] = None,
-    min_score: Optional[float] = None,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    query = db.query(KnowledgeLink)
+def _knowledge_link_filters(query, status, source_type, min_score):
+    """Gemeinsame Filterung für Liste und Zähler, damit beide nie auseinanderlaufen."""
     if status:
         query = query.filter(KnowledgeLink.status == status)
     if source_type:
@@ -143,17 +260,72 @@ def list_knowledge_links(
         )
     if min_score is not None:
         query = query.filter(KnowledgeLink.score >= min_score)
+    return query
 
+
+# Spalten, die die Sichtbarkeitsprüfung braucht -- für den Zähler-Endpunkt, der
+# die Links nicht serialisiert und deshalb nicht die vollen Zeilen laden muss.
+_VISIBILITY_COLUMNS = (
+    KnowledgeLink.status,
+    KnowledgeLink.source_a_type,
+    KnowledgeLink.source_a_entity_id,
+    KnowledgeLink.source_a_chunk_id,
+    KnowledgeLink.source_b_type,
+    KnowledgeLink.source_b_entity_id,
+    KnowledgeLink.source_b_chunk_id,
+)
+
+
+@router.get("")
+def list_knowledge_links(
+    status: Optional[str] = None,
+    source_type: Optional[str] = None,
+    min_score: Optional[float] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    query = _knowledge_link_filters(db.query(KnowledgeLink), status, source_type, min_score)
     links = query.order_by(KnowledgeLink.created_at.desc()).all()
-    results = []
-    for link in links:
-        if is_side_visible(
-            link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id, user, db
-        ) and is_side_visible(
-            link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id, user, db
-        ):
-            results.append(link)
-    return [serialize_knowledge_link(r) for r in results]
+    visibility = LinkVisibilityIndex(links, user, db)
+    return [serialize_knowledge_link(link) for link in links if visibility.is_visible(link)]
+
+
+@router.get("/counts")
+def count_knowledge_links(
+    source_type: Optional[str] = None,
+    min_score: Optional[float] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Zähler je Status für die Tab-Badges im Link-Manager.
+
+    Vorher holte sich das Frontend dafür alle drei Statuslisten komplett --
+    beim Offen-Tab also die über 1000 Vorschläge gleich zweimal (einmal als
+    Liste, einmal nur, um sie zu zählen). Hier zählt die Datenbank."""
+    counts = {"pending": 0, "approved": 0, "rejected": 0}
+
+    if get_visible_team_ids(user, db) is None:  # Admin: keine Sichtbarkeitsfilterung nötig
+        rows = _knowledge_link_filters(
+            db.query(KnowledgeLink.status, func.count(KnowledgeLink.id)),
+            None,
+            source_type,
+            min_score,
+        ).group_by(KnowledgeLink.status)
+        for link_status, count in rows:
+            if link_status in counts:
+                counts[link_status] = count
+        return counts
+
+    # Sonst muss jede Zeile durch die Sichtbarkeitsprüfung -- dafür reichen die
+    # wenigen dafür nötigen Spalten statt der vollen Link-Objekte.
+    rows = _knowledge_link_filters(
+        db.query(*_VISIBILITY_COLUMNS), None, source_type, min_score
+    ).all()
+    visibility = LinkVisibilityIndex(rows, user, db)
+    for row in rows:
+        if row.status in counts and visibility.is_visible(row):
+            counts[row.status] += 1
+    return counts
 
 
 @router.patch("/{link_id}")
