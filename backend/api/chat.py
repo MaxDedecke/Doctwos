@@ -56,6 +56,7 @@ from core.teams import assert_team_visible, get_visible_team_ids, is_admin
 from core.projects import (
     assert_knowledge_source_visible,
     assert_project_visible,
+    resolve_repository_id,
 )
 from services.chat_service import (
     find_pinned_chunks,
@@ -82,22 +83,31 @@ def _session_accessible(session: ChatSession, user: User) -> bool:
 
 
 def _record_agent_source(
-    agent_sources: list, file_path: str, start_line: int, end_line: int
+    agent_sources: list,
+    file_path: str,
+    start_line: int,
+    end_line: int,
+    source_id: Optional[int],
 ) -> None:
     """Fügt eine vom Agenten tatsächlich gelesene Datei/Zeile zu den Quellen hinzu (dedupliziert)."""
     lines = [start_line, end_line]
     if any(s["file"] == file_path and s["lines"] == lines for s in agent_sources):
         return
-    agent_sources.append({"file": file_path, "lines": lines, "source_id": None})
+    agent_sources.append({"file": file_path, "lines": lines, "source_id": source_id})
 
 
-def _extract_tool_sources(event: dict, agent_sources: list) -> None:
+def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[int]) -> None:
     """
     Sammelt Dateien, die der Agent über Tools tatsächlich gelesen/gefunden hat
     (view_repo_file, search_repo_code, get_repo_entities) als zusätzliche Kandidaten
     für _resolve_cited_sources — nur weil der Agent eine Datei geöffnet hat, heißt das
     noch nicht, dass sie für die finale Antwort relevant war; das entscheidet das LLM
     selbst über seine Zitate (siehe _resolve_cited_sources).
+
+    ``source_id`` is the single repository the agent's tools read from for this whole
+    run (``resolved_repo_id``) — without it, a citation opened when no project is
+    selected in the workspace stayed empty (same root cause as O-090's citation fix
+    for the standard-RAG path, see ``_resolve_citation_source_id``).
     """
     if event.get("type") != "tool_result":
         return
@@ -121,12 +131,13 @@ def _extract_tool_sources(event: dict, agent_sources: list) -> None:
                 result["file_path"],
                 result.get("start_line", 1),
                 result.get("end_line", 1),
+                source_id,
             )
     elif tool_name == "search_repo_code":
         for match in result.get("matches", [])[:8]:
             if match.get("file"):
                 _record_agent_source(
-                    agent_sources, match["file"], match.get("line", 1), match.get("line", 1)
+                    agent_sources, match["file"], match.get("line", 1), match.get("line", 1), source_id
                 )
     elif tool_name == "get_repo_entities":
         for entity in result.get("entities", [])[:8]:
@@ -136,6 +147,7 @@ def _extract_tool_sources(event: dict, agent_sources: list) -> None:
                     entity["file_path"],
                     entity.get("start_line", 1),
                     entity.get("end_line", 1),
+                    source_id,
                 )
 
 
@@ -161,6 +173,26 @@ def _find_pinned_chunks(
     # Kept as a compatibility seam for focused regression tests.  New code uses
     # the service directly so the router no longer owns retrieval details.
     return find_pinned_chunks(db, project_id, source_id, file_path, line, end_line)
+
+
+def _resolve_citation_source_id(
+    db: Session, chunk: DocumentChunk, repo_id_cache: dict
+) -> Optional[int]:
+    """A repo-backed chunk has ``source_id=None`` (see retrieve_chat_context — it's
+    addressed by ``project_id`` instead), so a raw citation/pin built from it can't
+    open a file once no project is selected in the workspace (a new, general chat
+    spanning multiple projects) — there is no `project.repo_id` for the frontend to
+    fall back to. Resolve it here to the project's Git KnowledgeSource id instead,
+    the same id `project.repo_id` would already have supplied. Memoized per request
+    since many result rows usually share one project.
+    """
+    if chunk.source_id is not None:
+        return chunk.source_id
+    if chunk.project_id is None:
+        return None
+    if chunk.project_id not in repo_id_cache:
+        repo_id_cache[chunk.project_id] = resolve_repository_id(chunk.project_id, db)
+    return repo_id_cache[chunk.project_id]
 
 
 _TITLE_SUFFIX_RE = re.compile(r"^(.+):(\d+)(?:-\d+)?$")
@@ -583,11 +615,12 @@ async def chat(
             # Kandidaten zum Auflösen von LLM-Zitationen auf vollen Pfad/source_id —
             # die Sichtbarkeit in "Referenzierte Quellen" entscheidet erst _resolve_cited_sources
             # anhand dessen, was das LLM in der Antwort tatsächlich zitiert (siehe unten).
+            repo_id_cache: dict = {}
             candidate_sources = [
                 {
                     "file": r.file_path,
                     "lines": [r.start_line, r.end_line],
-                    "source_id": r.source_id,
+                    "source_id": _resolve_citation_source_id(db, r, repo_id_cache),
                     "chunk_id": r.id,
                 }
                 for r in results
@@ -603,7 +636,7 @@ async def chat(
                         {
                             "file": chunk.file_path,
                             "lines": [chunk.start_line, chunk.end_line],
-                            "source_id": chunk.source_id,
+                            "source_id": _resolve_citation_source_id(db, chunk, repo_id_cache),
                             "chunk_id": chunk.id,
                         },
                     )
@@ -679,7 +712,7 @@ async def chat(
                             agent_steps = event.get("agent_steps", [])
                         elif event["type"] in ("thought", "tool_call", "tool_result"):
                             agent_steps.append(event)
-                            _extract_tool_sources(event, agent_sources)
+                            _extract_tool_sources(event, agent_sources, resolved_repo_id)
                         yield f"data: {json.dumps(event)}\n\n"
 
                     for s in agent_sources:
