@@ -166,13 +166,30 @@ export function usePanelNavigation({
         openIfMissing,
       });
       if (resolution.shouldOpenNewPanel) {
-        pinFileFocus(path, line, resolvedSourceId);
-        addPanel(targetType, {
+        // The new panel's own selection is seeded correctly below via
+        // addPanel's selectionOverride — but useWorkspaceLayout also runs a
+        // generic render-phase sync that pushes the *global*
+        // selectedFile/selectedDoc/... into every matching, non-frozen panel
+        // whenever they differ from a panel's own selection. Left at their
+        // old value (often null, e.g. the very first file opened in a fresh
+        // chat), that sync's `incomingType === null` branch treats "no global
+        // selection" as license to sync *any* panel type to null — wiping the
+        // just-seeded file back out on the very next render, before the user
+        // ever saw it. Updating the same global state here keeps it in sync
+        // with the new panel from the start, so that generic sync becomes a
+        // no-op instead of a regression.
+        const nextSelection = {
           selectedFile: path,
           selectedDoc: targetDoc,
           selectedEntity: focusedEntity,
           selectedLine: line,
-        }, false);
+        };
+        pinFileFocus(path, line, resolvedSourceId);
+        setSelectedDoc(nextSelection.selectedDoc);
+        setSelectedFile(nextSelection.selectedFile);
+        setSelectedEntity(nextSelection.selectedEntity);
+        setSelectedLine(nextSelection.selectedLine);
+        addPanel(targetType, nextSelection, false);
         setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
         return;
       }

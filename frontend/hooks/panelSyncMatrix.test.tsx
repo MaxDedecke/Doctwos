@@ -398,7 +398,10 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
 
     expect(result.current.addPanel).toHaveBeenCalledWith('code', expect.objectContaining({ selectedFile: 'app/target.cbl' }), false);
     expect(result.current.panelSelections[1]).toEqual(frozen);
-    expect(result.current.selectedFile).toBeNull();
+    // O-170 follow-up: the global selection now moves together with the new
+    // panel (previously stayed null, which let useWorkspaceLayout's generic
+    // sync effect wipe the just-opened panel back out on the next render).
+    expect(result.current.selectedFile).toBe('app/target.cbl');
   });
 
   it('PS-09: der Call-Graph überschreibt ein eingefrorenes Code-Panel nicht, sondern öffnet ein eigenes', async () => {

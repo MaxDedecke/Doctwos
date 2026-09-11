@@ -85,6 +85,7 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     showToast,
     panelSelections,
     panelHistory,
+    selectedFile,
     selectedDoc,
     pinnedCode,
     activeMobileTab,
@@ -112,6 +113,37 @@ describe('usePanelNavigation', () => {
       sourceId: 8,
     });
     expect(result.current.activeMobileTab).toBe('editor');
+    // O-170 follow-up: the global selection must be updated together with the
+    // new panel, or useWorkspaceLayout's generic render-phase sync (which
+    // treats "no global selection" as license to reset any panel to null)
+    // wipes the just-opened file back out before the user ever sees it.
+    expect(result.current.selectedFile).toBe('manual.pdf');
+    expect(result.current.selectedDoc).toEqual({ id: 8, name: 'manual.pdf' });
+  });
+
+  it('seeds the global selection together with a newly opened code panel (no live panel yet)', async () => {
+    // Regression: opening the *first* citation in a chat with no code panel
+    // yet correctly seeded the new panel's own selection via addPanel's
+    // override, but left the global selectedFile/selectedDoc at their old
+    // (often null) value. useWorkspaceLayout's generic sync effect then
+    // treated that null global selection as license to reset the freshly
+    // created panel back to empty on the very next render -- the editor
+    // "opened" but showed nothing until a second click (once a live panel
+    // already existed) finally set the global selection too.
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['chat'] }));
+
+    await act(async () => {
+      await result.current.navigation.handlePanelFileSelect(0, 'new.cbl', 12);
+    });
+
+    expect(result.current.addPanel).toHaveBeenCalledWith('code', {
+      selectedFile: 'new.cbl',
+      selectedDoc: null,
+      selectedEntity: null,
+      selectedLine: 12,
+    }, false);
+    expect(result.current.selectedFile).toBe('new.cbl');
+    expect(result.current.selectedDoc).toBeNull();
   });
 
   it('keeps frozen-panel navigation local and appends its selection history', async () => {
