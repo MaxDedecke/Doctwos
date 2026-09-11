@@ -601,7 +601,7 @@
       "mcpAuditDuration": "{{duration}} ms",
       "mcpAuditProject": "Projekt: {{project}}",
       "feedbackTitle": "Negativ bewertete Chat-Antworten",
-      "feedbackDescription": "Nur Administratoren sehen Frage, Antwort, zitierte Quellen und Modellmetadaten. Die Liste ist die Grundlage für gezielte Retrieval- und Prompt-Verbesserungen.",
+      "feedbackDescription": "Nur Administratoren sehen Frage, Antwort, zitierte Quellen und Modellmetadaten. Wer die Sitzung geführt hat, wird nicht angezeigt und lässt sich aus dieser Liste nicht ermitteln. Die Liste ist die Grundlage für gezielte Retrieval- und Prompt-Verbesserungen.",
       "feedbackRefresh": "Aktualisieren",
       "feedbackLoading": "Bewertungen werden geladen...",
       "feedbackLoadFailed": "Bewertungen konnten nicht geladen werden",

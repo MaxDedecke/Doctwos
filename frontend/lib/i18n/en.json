@@ -601,7 +601,7 @@
       "mcpAuditDuration": "{{duration}} ms",
       "mcpAuditProject": "Project: {{project}}",
       "feedbackTitle": "Negatively rated chat answers",
-      "feedbackDescription": "Only administrators can see the question, answer, cited sources, and model metadata. This list supports targeted retrieval and prompt improvements.",
+      "feedbackDescription": "Only administrators can see the question, answer, cited sources, and model metadata. Who held the session is never shown and cannot be determined from this list. This list supports targeted retrieval and prompt improvements.",
       "feedbackRefresh": "Refresh",
       "feedbackLoading": "Loading feedback...",
       "feedbackLoadFailed": "Feedback could not be loaded",

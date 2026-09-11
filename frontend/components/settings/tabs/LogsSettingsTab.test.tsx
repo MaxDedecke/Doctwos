@@ -18,7 +18,16 @@ vi.mock('@/components/settings/SettingsContext', () => ({
     connectedSources: [], setConnectedSources: vi.fn(), showToast: vi.fn(),
   }),
 }));
-vi.mock('@/lib/i18n/LanguageContext', () => ({ useLanguage: () => ({ language: 'de', t: (key: string, values?: Record<string, string | number>) => values?.count !== undefined ? `${key}:${values.count}` : key }) }));
+vi.mock('@/lib/i18n/LanguageContext', () => ({
+  useLanguage: () => ({
+    language: 'de',
+    t: (key: string, values?: Record<string, string | number>) => {
+      if (values?.count !== undefined) return `${key}:${values.count}`;
+      if (values?.id !== undefined) return `${key}:${values.id}`;
+      return key;
+    },
+  }),
+}));
 
 import { LogsSettingsTab } from './LogsSettingsTab';
 
@@ -55,5 +64,26 @@ describe('LogsSettingsTab feedback diagnostics', () => {
     expect(await screen.findByText('settings.logsTab.feedbackDiagnosticsDownload')).toBeTruthy();
     fireEvent.click(screen.getByText('settings.logsTab.feedbackDiagnosticsDelete'));
     await waitFor(() => expect(apiMocks.deleteFeedbackDiagnosticCases).toHaveBeenCalledOnce());
+  });
+
+  it('shows the anonymized session label instead of any identifying session data (O-086)', async () => {
+    apiMocks.getFeedbackDiagnosticSettings.mockResolvedValue({ data: disabledSettings });
+    apiMocks.getNegativeChatFeedback.mockResolvedValue({
+      data: {
+        entries: [
+          { message_id: 1, session_label: 1, question: 'Frage A', answer: 'Antwort A', sources_json: [], metadata_json: {}, created_at: null },
+          { message_id: 2, session_label: 2, question: 'Frage B', answer: 'Antwort B', sources_json: [], metadata_json: {}, created_at: null },
+        ],
+        total: 2,
+        limit: 100,
+      },
+    });
+    render(<LogsSettingsTab />);
+
+    expect(await screen.findByText('settings.logsTab.feedbackSession:1')).toBeTruthy();
+    expect(screen.getByText('settings.logsTab.feedbackSession:2')).toBeTruthy();
+    // Nirgends im gerenderten Auszug taucht ein Hinweis auf, wer die Sitzung
+    // geführt hat — nur Frage/Antwort und das anonyme, laufende Label.
+    expect(screen.queryByText(/session_id/i)).toBeNull();
   });
 });

@@ -960,6 +960,15 @@ def get_negative_chat_feedback(
     handhabbare Arbeitsliste für Retrieval-/Prompt-Verbesserungen. Zu jeder
     Antwort wird die unmittelbar vorhergehende Nutzerfrage derselben Sitzung
     geliefert, ohne Chatverläufe oder Daten an einen externen Dienst zu senden.
+
+    Wer die Sitzung geführt hat, wird bewusst NICHT ausgegeben (Erweiterung
+    11.09.2026): ein Admin, der `session_id` sähe, könnte sie gegen
+    `ChatSession.owner_id` nachschlagen und den Sitzungsinhaber ermitteln.
+    Downvotes sollen ohne Angst vor Bloßstellung genutzt werden — deshalb
+    trägt jede Zeile nur ein pro Aufruf neu vergebenes, fortlaufendes
+    `session_label`, das lediglich innerhalb dieser Auswertung erkennen lässt,
+    ob zwei Einträge zum selben Gespräch gehören, aber keinen Rückschluss auf
+    die echte Sitzung oder ihren Inhaber erlaubt.
     """
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
@@ -972,6 +981,7 @@ def get_negative_chat_feedback(
         .all()
     )
     entries = []
+    session_labels: dict[int, int] = {}
     for message in messages:
         question = (
             db.query(ChatMessage)
@@ -983,10 +993,11 @@ def get_negative_chat_feedback(
             .order_by(ChatMessage.id.desc())
             .first()
         )
+        session_label = session_labels.setdefault(message.session_id, len(session_labels) + 1)
         entries.append(
             {
                 "message_id": message.id,
-                "session_id": message.session_id,
+                "session_label": session_label,
                 "question": question.content if question else None,
                 "answer": message.content,
                 "sources_json": message.sources_json or [],

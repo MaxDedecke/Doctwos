@@ -307,7 +307,7 @@ export const LogsSettingsTab: React.FC = () => {
               {feedbackEntries.map((entry) => (
                 <article key={entry.message_id} className={cn("rounded-lg border p-3 space-y-2", theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200")}>
                   <div className="flex justify-between gap-3 text-[9px] text-ds-zinc-500">
-                    <span>{t('settings.logsTab.feedbackSession', { id: entry.session_id })}</span>
+                    <span>{t('settings.logsTab.feedbackSession', { id: entry.session_label })}</span>
                     <span>{entry.created_at ? new Date(entry.created_at).toLocaleString(language === 'de' ? 'de-DE' : 'en-US') : ''}</span>
                   </div>
                   <div><p className="text-[9px] font-bold uppercase text-ds-zinc-500">{t('settings.logsTab.feedbackQuestion')}</p><p className={cn("text-xs whitespace-pre-wrap", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{entry.question || t('settings.logsTab.feedbackQuestionMissing')}</p></div>

@@ -319,6 +319,35 @@ def test_non_admin_cannot_review_chat_feedback(member_client):
     assert member_client.get("/admin/chat-feedback").status_code == 403
 
 
+def test_chat_feedback_review_anonymizes_the_session(client, make_session, db_session, other_user):
+    """Erweiterung O-086: der Sitzungsinhaber darf aus der Auswertung nicht
+    hervorgehen — weder als rohe session_id noch sonst wie. Zwei Downvotes
+    aus verschiedenen Sitzungen (unterschiedliche Inhaber) müssen trotzdem
+    unterscheidbar bleiben, aber nur über ein pro Abruf neu vergebenes Label.
+    """
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    own_session = make_session(user.id)
+    other_session = make_session(other_user.id)
+
+    own_downvote = ChatMessage(
+        session_id=own_session.id, role="assistant", content="Antwort A", feedback="down"
+    )
+    other_downvote = ChatMessage(
+        session_id=other_session.id, role="assistant", content="Antwort B", feedback="down"
+    )
+    db_session.add_all([own_downvote, other_downvote])
+    db_session.commit()
+
+    resp = client.get("/admin/chat-feedback")
+    assert resp.status_code == 200
+    entries = resp.json()["entries"]
+    own_entry = next(item for item in entries if item["message_id"] == own_downvote.id)
+    other_entry = next(item for item in entries if item["message_id"] == other_downvote.id)
+    assert "session_id" not in own_entry
+    assert "session_id" not in other_entry
+    assert own_entry["session_label"] != other_entry["session_label"]
+
+
 def test_continuing_someone_elses_private_session_via_chat_is_forbidden(
     client, make_session, other_user
 ):

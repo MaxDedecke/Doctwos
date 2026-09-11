@@ -137,7 +137,10 @@ export interface StoredChatMessage extends Omit<ChatMessage, 'sources' | 'metada
 /** Admin-only O-086 review projection; intentionally contains only downvoted turns. */
 export interface ChatFeedbackReview {
   message_id: number;
-  session_id: number;
+  // Bewusst kein session_id: der Sitzungsinhaber soll aus dieser Auswertung
+  // nicht ermittelbar sein (O-086-Erweiterung). session_label ist nur eine
+  // pro Abruf neu vergebene, fortlaufende Kennung zum Gruppieren.
+  session_label: number;
   question: string | null;
   answer: string;
   sources_json: ChatSource[];
