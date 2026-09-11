@@ -78,6 +78,14 @@ interface ChatViewProps {
   connectedSources: KnowledgeSource[];
 }
 
+/** Renders a `[start, end]` line pair as "43" for a single line, "43-50" otherwise. */
+function formatLineRange(lines?: Array<number | null> | null): string {
+  const [start, end] = lines ?? [];
+  if (start == null) return '';
+  if (end == null || end === start) return String(start);
+  return `${start}-${end}`;
+}
+
 export function ChatView({
   theme,
   isSidebarOpen,
@@ -444,12 +452,16 @@ export function ChatView({
                                 source_id: m.metadata.pinned.source_id
                               }] : [])).map((ref, refIndex) => {
                                 const pinned = m.metadata?.focus?.pinned || m.metadata?.pinned;
-                                const label = ref.label || (
+                                const location = `${ref.file.split('/').pop()}:${ref.line}`;
+                                const rawLabel = ref.label || (
                                   pinned?.filepath === ref.file && pinned?.line === ref.line
                                     ? pinned?.label
                                     : null
                                 );
-                                const location = `${ref.file.split('/').pop()}:${ref.line}`;
+                                // A bare gutter-line pin (no enclosing entity) sets its label to
+                                // this same "file:line" text (handleGutterClick) — showing it next
+                                // to `location` would just repeat it twice.
+                                const label = rawLabel && rawLabel !== location ? rawLabel : null;
                                 return (
                                 <button
                                   type="button"
@@ -518,11 +530,11 @@ export function ChatView({
                                         ? "bg-ds-zinc-900/80 border-ds-zinc-800 hover:border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-200"
                                         : "bg-ds-zinc-100/50 border-ds-zinc-200 hover:border-ds-zinc-300 text-ds-zinc-600 hover:text-ds-zinc-900"
                                     )}
-                                    title={t('chatView.sourceFileTitle', { file: src.file, lines: src.lines?.join('-') || '' })}
+                                    title={t('chatView.sourceFileTitle', { file: src.file, lines: formatLineRange(src.lines) })}
                                   >
                                     <Folder className="w-3 h-3 text-ds-indigo-400 shrink-0" />
                                     <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
-                                    <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{src.lines?.join('-') || ''}</span>
+                                    <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
                                   </button>
                                 );
                               })}

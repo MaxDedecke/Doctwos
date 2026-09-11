@@ -162,6 +162,44 @@ describe('ChatView', () => {
       expect(handleFileSelect).toHaveBeenCalledWith('src/DISPATCHER.cbl', 42, '7');
     });
 
+    it('zeigt eine Zeilenfokus-Referenz (Label == Ort, Gutter-Klick) nur einmal statt doppelt', () => {
+      // O-090-Folgefund: handleGutterClick setzt label auf genau denselben
+      // "datei:zeile"-Text wie der berechnete `location`-String — das Badge
+      // darf ihn dann nicht als "label · location" nochmal wiederholen.
+      const chatMessages = [
+        {
+          id: 1,
+          role: 'user' as const,
+          content: 'Was passiert hier?',
+          metadata: {
+            refs: [{ file: 'cbl/COPAUS2C.cbl', line: 43, label: 'COPAUS2C.cbl:43', source_id: '7' }],
+          },
+        },
+      ];
+
+      renderChat({ chatMessages });
+
+      expect(screen.getByText('COPAUS2C.cbl:43')).toBeTruthy();
+      expect(screen.queryByText('COPAUS2C.cbl:43 · COPAUS2C.cbl:43')).toBeNull();
+    });
+
+    it('zeigt einen echten Objekt-Namen weiterhin zusammen mit dem Ort', () => {
+      const chatMessages = [
+        {
+          id: 1,
+          role: 'user' as const,
+          content: 'Was macht das?',
+          metadata: {
+            refs: [{ file: 'cbl/COPAUS2C.cbl', line: 43, label: 'BER-ZINS', source_id: '7' }],
+          },
+        },
+      ];
+
+      renderChat({ chatMessages });
+
+      expect(screen.getByText('BER-ZINS · COPAUS2C.cbl:43')).toBeTruthy();
+    });
+
     it('zeigt referenzierte Quellen einer fertigen Assistentenantwort und öffnet sie über handleFileSelect', () => {
       const handleFileSelect = vi.fn();
       const chatMessages = [
@@ -176,9 +214,26 @@ describe('ChatView', () => {
       renderChat({ chatMessages, handleFileSelect, isLoading: false });
 
       expect(screen.getByText('Referenzierte Quellen:')).toBeTruthy();
+      expect(screen.getByText('L10-20')).toBeTruthy();
       fireEvent.click(screen.getByText('DISPATCHER.cbl'));
 
       expect(handleFileSelect).toHaveBeenCalledWith('src/DISPATCHER.cbl', 10, '7');
+    });
+
+    it('zeigt bei einer Einzelzeilen-Quelle nur die eine Zeilennummer, nicht "L43-43"', () => {
+      const chatMessages = [
+        {
+          id: 2,
+          role: 'assistant' as const,
+          content: 'Antwort.',
+          sources: [{ file: 'cbl/COPAUS2C.cbl', lines: [43, 43], source_id: '7' }],
+        },
+      ];
+
+      renderChat({ chatMessages, isLoading: false });
+
+      expect(screen.getByText('L43')).toBeTruthy();
+      expect(screen.queryByText('L43-43')).toBeNull();
     });
 
     it('zeigt das Modell-Badge einer Assistentenantwort', () => {
