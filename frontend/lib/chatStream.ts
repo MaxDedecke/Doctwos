@@ -28,7 +28,7 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
         ? { type: 'tool_call', name: value.name, arguments: value.arguments, id: value.id } : null;
     case 'tool_result':
       return typeof value.name === 'string' && typeof value.result === 'string' && (value.id === undefined || typeof value.id === 'string')
-        ? { type: 'tool_result', name: value.name, result: value.result, id: value.id } : null;
+        ? { type: 'tool_result', name: value.name, result: value.result, id: value.id, truncated: value.truncated === true } : null;
     case 'turn_completed':
       return typeof value.has_tool_calls === 'boolean' ? { type: 'turn_completed', has_tool_calls: value.has_tool_calls } : null;
     case 'answer':

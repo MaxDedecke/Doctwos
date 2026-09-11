@@ -223,6 +223,15 @@ def get_repo_entities(project_id: int, db_session, query: str = "") -> dict:
 # Provider-Zweige (OpenAI/Ollama, Anthropic, Gemini) gemeinsam durchlaufen.
 MAX_MCP_TOOL_RESULT_CHARS = 8000
 
+# Auch als Marker genutzt, um an den drei agent_steps.append()/yield-Stellen zu
+# erkennen, ob ein bestimmtes Werkzeugergebnis gekürzt wurde (_cap_tool_result
+# gibt nur den fertigen String zurück, execute_tool() bleibt bewusst bei
+# "-> str" statt eines Tupels, weil alle drei Provider-Zweige das Ergebnis
+# direkt als Nachrichteninhalt verwenden). Das gesetzte "truncated"-Flag löst
+# in AgentSteps.tsx ein immer sichtbares Badge im (auch eingeklappten) Header
+# aus, statt dass die Kürzung nur im ausgeklappten Werkzeugergebnis auffällt.
+_TOOL_RESULT_TRUNCATION_MARKER = "[… gekürzt:"
+
 
 def _cap_tool_result(text: str, max_chars: int = MAX_MCP_TOOL_RESULT_CHARS) -> str:
     """Kürzt ein MCP-Werkzeugergebnis auf max_chars und hängt eine sichtbare
@@ -234,10 +243,14 @@ def _cap_tool_result(text: str, max_chars: int = MAX_MCP_TOOL_RESULT_CHARS) -> s
     removed = len(text) - max_chars
     return (
         f"{text[:max_chars]}\n\n"
-        f"[… gekürzt: {removed} weitere Zeichen entfernt, um das Kontextfenster "
-        "des Sprachmodells nicht zu sprengen. Bei Bedarf gezielter nachfragen, "
-        "um den fehlenden Teil zu bekommen.]"
+        f"{_TOOL_RESULT_TRUNCATION_MARKER} {removed} weitere Zeichen entfernt, um das "
+        "Kontextfenster des Sprachmodells nicht zu sprengen. Bei Bedarf gezielter "
+        "nachfragen, um den fehlenden Teil zu bekommen.]"
     )
+
+
+def _tool_result_was_truncated(tool_res: str) -> bool:
+    return _TOOL_RESULT_TRUNCATION_MARKER in tool_res
 
 
 # Unified Agent Execution Loop
@@ -633,6 +646,7 @@ async def run_agent_loop(
                         }
 
                         tool_res = await execute_tool(fn_name, fn_args)
+                        truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
                             {
@@ -640,6 +654,7 @@ async def run_agent_loop(
                                 "name": fn_name,
                                 "result": tool_res,
                                 "id": tc_id,
+                                "truncated": truncated,
                             }
                         )
                         yield {
@@ -647,6 +662,7 @@ async def run_agent_loop(
                             "name": fn_name,
                             "result": tool_res,
                             "id": tc_id,
+                            "truncated": truncated,
                         }
 
                         messages.append(
@@ -751,6 +767,7 @@ async def run_agent_loop(
 
                         # Execute
                         tool_res = await execute_tool(fn_name, fn_args)
+                        truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
                             {
@@ -758,6 +775,7 @@ async def run_agent_loop(
                                 "name": fn_name,
                                 "result": tool_res,
                                 "id": tc_id,
+                                "truncated": truncated,
                             }
                         )
                         yield {
@@ -765,6 +783,7 @@ async def run_agent_loop(
                             "name": fn_name,
                             "result": tool_res,
                             "id": tc_id,
+                            "truncated": truncated,
                         }
 
                         tool_result_content.append(
@@ -863,6 +882,7 @@ async def run_agent_loop(
 
                         # Execute
                         tool_res = await execute_tool(fn_name, fn_args)
+                        truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
                             {
@@ -870,6 +890,7 @@ async def run_agent_loop(
                                 "name": fn_name,
                                 "result": tool_res,
                                 "id": tc_id,
+                                "truncated": truncated,
                             }
                         )
                         yield {
@@ -877,6 +898,7 @@ async def run_agent_loop(
                             "name": fn_name,
                             "result": tool_res,
                             "id": tc_id,
+                            "truncated": truncated,
                         }
 
                         response_parts.append(

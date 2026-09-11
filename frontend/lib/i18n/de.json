@@ -898,7 +898,9 @@
     "hide": "Ausblenden",
     "showContent": "Inhalt anzeigen",
     "charsReturned": "{{count}} Zeichen zurückgegeben",
-    "emptyResult": "Leeres Ergebnis"
+    "emptyResult": "Leeres Ergebnis",
+    "contextTrimmed": "{{count}}× Werkzeugergebnis gekürzt (Kontextfenster)",
+    "contextTrimmedTooltip": "Mindestens ein Werkzeugergebnis war zu groß für das Kontextfenster des Sprachmodells und wurde gekürzt. Details beim jeweiligen Schritt unter \"Inhalt anzeigen\"."
   },
   "flowchartView": {
     "title": "Ablaufdiagramm",

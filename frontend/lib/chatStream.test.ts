@@ -15,6 +15,18 @@ describe('chat stream boundary', () => {
     expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
   });
 
+  it('carries the O-168 truncation flag on a tool_result event', () => {
+    const event = { type: 'tool_result', name: 'jira_get_issue', result: 'Found MAIN', id: 'call-1', truncated: true };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
+  });
+
+  it('defaults a tool_result without a truncated field to false', () => {
+    const event = { type: 'tool_result', name: 'search', result: 'Found MAIN' };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual({
+      type: 'tool_result', name: 'search', result: 'Found MAIN', truncated: false,
+    });
+  });
+
   it('accepts a final answer with thought, call and result steps', () => {
     const event = { type: 'answer', content: 'Result', agent_steps: [
       { type: 'thought', content: 'Look up the caller' },

@@ -898,7 +898,9 @@
     "hide": "Hide",
     "showContent": "Show content",
     "charsReturned": "{{count}} characters returned",
-    "emptyResult": "Empty result"
+    "emptyResult": "Empty result",
+    "contextTrimmed": "{{count}}× tool result trimmed (context window)",
+    "contextTrimmedTooltip": "At least one tool result was too large for the language model's context window and was trimmed. See the affected step's \"Show content\" for details."
   },
   "flowchartView": {
     "title": "Flowchart",

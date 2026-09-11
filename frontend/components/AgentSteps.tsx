@@ -4,6 +4,7 @@ import type { AgentStep } from '@/types/domain';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import {
+  AlertTriangle,
   Brain,
   CheckCircle2,
   ChevronDown,
@@ -61,6 +62,11 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
 
     // Count how many tool calls were executed
     const toolCallCount = steps.filter(s => s.type === 'tool_call').length;
+    // O-168: mindestens ein Werkzeugergebnis war zu groß fürs Kontextfenster
+    // und wurde gekürzt (agent.py::_cap_tool_result) -- immer sichtbar im
+    // Header, unabhängig von isOpen/expandedResults, statt nur beim
+    // ausgeklappten Einzelergebnis aufzufallen.
+    const truncatedCount = steps.filter(s => s.type === 'tool_result' && s.truncated).length;
 
     return (
         <div className={cn(
@@ -91,6 +97,15 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                             theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-400" : "bg-ds-zinc-200/80 text-ds-zinc-600"
                         )}>
                             {t('agentSteps.toolsStepsCount', { tools: toolCallCount, steps: steps.length })}
+                        </span>
+                    )}
+                    {truncatedCount > 0 && (
+                        <span
+                            title={t('agentSteps.contextTrimmedTooltip')}
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-wide border border-ds-amber-500/30 bg-ds-amber-500/10 text-ds-amber-500"
+                        >
+                            <AlertTriangle className="w-3 h-3 shrink-0" />
+                            {t('agentSteps.contextTrimmed', { count: truncatedCount })}
                         </span>
                     )}
                 </div>

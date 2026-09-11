@@ -290,7 +290,8 @@ export function useChatController({
                   type: 'tool_result',
                   name: data.name,
                   result: data.result,
-                  id: data.id
+                  id: data.id,
+                  truncated: data.truncated
                 });
                 accumulatedSteps = newSteps;
 

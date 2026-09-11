@@ -102,7 +102,7 @@ export interface ChatReference {
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }
-  | { type: 'tool_result'; name: string; result: string; id?: string };
+  | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean };
 export interface ChatMetadata {
   focus?: ChatTurnFocus;
   project?: ChatTurnFocus['project'];
