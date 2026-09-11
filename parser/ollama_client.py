@@ -10,6 +10,15 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
+# O-168: ohne explizites num_ctx faellt Ollama auf sein kleines eingebautes
+# Default-Kontextfenster zurueck und kuerzt bei Ueberlauf stillschweigend von
+# vorne -- fuer den Compliance-Checker hiesse das, dass Regelwerk oder
+# Elementinhalt unbemerkt aus dem Prompt fallen koennen. Gleicher Default wie
+# backend/core/config.py::OLLAMA_NUM_CTX, hier aber als eigene Env-Variable
+# gelesen, weil dieses Modul (anders als backend/agent.py) nicht von
+# core.config importiert.
+OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+
 # E-8: get_embeddings_batch() schickte bisher alle Chunks eines Dokuments in
 # einem einzigen Request. Ein Lasttest mit synthetischem COBOL-Korpus zeigte:
 # bei CPU-only bge-m3 (~1,1 Chunks/s) lief ein Batch von 300 Chunks in allen
@@ -162,6 +171,7 @@ async def get_chat_json(
         "messages": [{"role": "user", "content": prompt}],
         "format": "json",
         "stream": False,
+        "options": {"num_ctx": OLLAMA_NUM_CTX},
     }
     if think is not None:
         payload["think"] = think

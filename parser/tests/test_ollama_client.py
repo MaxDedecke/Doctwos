@@ -121,3 +121,29 @@ async def test_is_gpu_accelerated_false_when_ollama_unreachable(monkeypatch):
     monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
 
     assert await ollama_client.is_gpu_accelerated("bge-m3") is False
+
+
+@pytest.mark.anyio
+async def test_get_chat_json_sets_explicit_num_ctx(monkeypatch):
+    """O-168: ohne num_ctx faellt Ollama auf sein kleines, stillschweigend
+    kuerzendes Default-Kontextfenster zurueck -- fuer den Compliance-Checker
+    hiesse das, dass Regelwerk oder Elementinhalt unbemerkt aus dem Prompt
+    fallen koennen."""
+    monkeypatch.setattr(ollama_client, "OLLAMA_NUM_CTX", 12345)
+    captured = {}
+
+    async def fake_post(url, json, timeout):
+        captured.update(url=url, payload=json)
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value={"message": {"content": '{"ok": true}'}})
+        return response
+
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    result = await ollama_client.get_chat_json("Frage", model="test-model")
+
+    assert result == {"ok": True}
+    assert captured["payload"]["options"] == {"num_ctx": 12345}

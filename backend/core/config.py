@@ -48,6 +48,16 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 
+# O-168: ohne explizites num_ctx fällt Ollama auf sein eingebautes Default-
+# Kontextfenster zurück (deutlich kleiner als das, was mistral-nemo & Co.
+# eigentlich könnten) und kürzt bei Überlauf **stillschweigend von vorne** --
+# System-Prompt, abgerufenes Wissen und frühe Agent-Werkzeugergebnisse können
+# so unbemerkt rausfallen. 8192 ist ein bewusst konservativer Mittelwert
+# (deutlich über Ollamas Default, aber ohne den minimal empfohlenen 16-GB-
+# Host per Default in die Knie zu zwingen) und lässt sich pro Deployment
+# hochsetzen, wenn Host-RAM/VRAM es hergeben.
+OLLAMA_NUM_CTX: int = _positive_int_env("OLLAMA_NUM_CTX", 8192)
+
 # ── OpenAI-Reasoning-Modelle ─────────────────────────────────────────────────
 # Klassische o1/o3/o4-Serie sowie die Reasoning-Stufen der GPT-5.6-Familie
 # (Sol/Terra/Luna) lehnen einen vom Default (1) abweichenden "temperature"-Wert

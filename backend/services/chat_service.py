@@ -348,6 +348,9 @@ async def stream_standard_rag_events(
                     "messages": [{"role": "system", "content": system_prompt}],
                     "temperature": temperature if temperature is not None else 0.7,
                     "stream": True,
+                    # O-168: explizites Kontextfenster statt Ollamas kleinem,
+                    # stillschweigend kürzendem Default.
+                    "num_ctx": cfg.OLLAMA_NUM_CTX,
                 }
             else:
                 base = (base_url or "https://api.openai.com/v1").rstrip("/")

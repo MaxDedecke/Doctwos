@@ -210,6 +210,36 @@ def get_repo_entities(project_id: int, db_session, query: str = "") -> dict:
         return {"error": str(e)}
 
 
+# O-168: die lokalen Repo-Werkzeuge (list_repo_files/view_repo_file/
+# search_repo_code/get_repo_entities) sind alle schon auf vernünftige Größen
+# gedeckelt (300 Zeilen, 250 Dateien, 80 Treffer). MCP-Werkzeuge (Jira/
+# Confluence etc.) sind das nicht -- ein einzelnes großes Confluence-Dokument
+# oder Jira-Ticket kann unbegrenzt groß sein. Über bis zu max_turns Runden mit
+# mehreren Werkzeugaufrufen pro Runde summiert sich das ungedeckelt in der
+# `messages`-Liste, die bei jeder weiteren Runde komplett erneut ans Modell
+# geschickt wird. Deckel hier statt in mcp_client.py: dort wäre der Kontext
+# (wie viele Runden noch offen sind, was das Modell sonst schon gesehen hat)
+# nicht bekannt; execute_tool() ist außerdem der einzige Punkt, den alle drei
+# Provider-Zweige (OpenAI/Ollama, Anthropic, Gemini) gemeinsam durchlaufen.
+MAX_MCP_TOOL_RESULT_CHARS = 8000
+
+
+def _cap_tool_result(text: str, max_chars: int = MAX_MCP_TOOL_RESULT_CHARS) -> str:
+    """Kürzt ein MCP-Werkzeugergebnis auf max_chars und hängt eine sichtbare
+    Kürzungsnotiz an. Die Notiz landet unverändert im 'tool_result'-Schritt,
+    den das Frontend (AgentSteps.tsx) je Werkzeugaufruf anzeigt -- die
+    Kürzung ist also für den Nutzer nachvollziehbar, nicht still."""
+    if len(text) <= max_chars:
+        return text
+    removed = len(text) - max_chars
+    return (
+        f"{text[:max_chars]}\n\n"
+        f"[… gekürzt: {removed} weitere Zeichen entfernt, um das Kontextfenster "
+        "des Sprachmodells nicht zu sprengen. Bei Bedarf gezielter nachfragen, "
+        "um den fehlenden Teil zu bekommen.]"
+    )
+
+
 # Unified Agent Execution Loop
 async def run_agent_loop(
     provider: str,
@@ -421,7 +451,7 @@ async def run_agent_loop(
                         text_content += item.get("text", "")
                 if not text_content:
                     text_content = json.dumps(tool_res)
-                return text_content
+                return _cap_tool_result(text_content)
             except Exception as ex:
                 error_message = ex
                 return f"Fehler beim Aufruf des MCP-Tools: {ex}"
@@ -496,6 +526,12 @@ async def run_agent_loop(
                 }
                 if is_ollama or cfg.openai_model_supports_custom_temperature(model):
                     payload["temperature"] = temperature if temperature is not None else 0.7
+                if is_ollama:
+                    # O-168: explizites Kontextfenster statt Ollamas kleinem,
+                    # stillschweigend kürzendem Default -- hier besonders
+                    # relevant, weil die Werkzeugschleife über bis zu
+                    # max_turns Runden Zwischenergebnisse an `messages` anhängt.
+                    payload["num_ctx"] = cfg.OLLAMA_NUM_CTX
 
                 accumulated_content = ""
                 accumulated_tool_calls = {}
