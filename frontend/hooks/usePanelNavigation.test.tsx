@@ -139,6 +139,36 @@ describe('usePanelNavigation', () => {
     expect(result.current.pinnedCode).toMatchObject({ filepath: 'new.cbl', line: 12 });
   });
 
+  it('replaces a live (non-frozen) panel\'s file directly instead of leaving the old one behind', async () => {
+    // Regression: a chat citation opening into an already-open, non-frozen
+    // code panel only patched selectedEntity/selectedLine into that panel's
+    // own selection and left selectedFile/selectedDoc to a separate global-
+    // state sync effect — the panel briefly still showed the previous file,
+    // which looked like the first click on a source badge did nothing.
+    const previousSelection: PanelSelection = {
+      selectedFile: 'old.cbl',
+      selectedDoc: null,
+      selectedEntity: null,
+      selectedLine: 5,
+    };
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['chat', 'code'],
+      panelFrozen: [false, false],
+      panelSelections: [{ selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null }, previousSelection],
+    }));
+
+    await act(async () => {
+      await result.current.navigation.handlePanelFileSelect(0, 'new.cbl', 12);
+    });
+
+    expect(result.current.panelSelections[1]).toEqual({
+      selectedFile: 'new.cbl',
+      selectedDoc: null,
+      selectedEntity: null,
+      selectedLine: 12,
+    });
+  });
+
   it('seeds the document focus when a graph requests opening a document view', () => {
     const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['graph'] }));
 

@@ -215,17 +215,27 @@ export function usePanelNavigation({
         });
       }
     } else {
-      setSelectedDoc(targetDoc);
-      setSelectedFile(targetDoc ? null : path);
-      setSelectedEntity(focusedEntity);
-      setSelectedLine(targetDoc ? null : line);
+      // Reusing an existing live panel (targetIndex !== index, e.g. a chat
+      // citation opening into an already-open code panel): the panel's own
+      // selection must carry selectedFile/selectedDoc directly, not just
+      // wait for the separate global-selection sync effect in
+      // useWorkspaceLayout to notice the setSelectedFile/setSelectedDoc call
+      // below on a later render. Without this, the panel's props briefly
+      // still show the *previous* file, and clicking the very citation that
+      // should have opened it appeared to require a second click.
+      const nextSelection = {
+        selectedFile: targetDoc ? null : path,
+        selectedDoc: targetDoc,
+        selectedEntity: focusedEntity,
+        selectedLine: targetDoc ? null : line,
+      };
+      setSelectedDoc(nextSelection.selectedDoc);
+      setSelectedFile(nextSelection.selectedFile);
+      setSelectedEntity(nextSelection.selectedEntity);
+      setSelectedLine(nextSelection.selectedLine);
       setPanelSelections(previous => {
         const next = [...previous];
-        next[targetIndex] = {
-          ...next[targetIndex],
-          selectedEntity: focusedEntity,
-          selectedLine: line,
-        };
+        next[targetIndex] = nextSelection;
         return next;
       });
     }
