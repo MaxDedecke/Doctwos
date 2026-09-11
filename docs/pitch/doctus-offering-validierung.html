@@ -352,6 +352,10 @@
     .q-col .q-body p{font-size:.79rem;line-height:1.45;}
     .duo-col{padding:1.1rem 1.2rem 1.2rem;}
     .duo-col li{font-size:.81rem;}
+    .cmp{margin-top:1rem;}
+    .cmp-row{padding:.48rem 1rem;}
+    .cmp .one,.cmp .two{font-size:.74rem;line-height:1.4;}
+    .cmp-scale{margin-top:.5rem;}
     .ladder{margin-top:1.2rem;}
     .rung{padding:.7rem 1.05rem;}
     .rung .what{font-size:.82rem;}
@@ -452,6 +456,22 @@
   .usp .ans{font-size:.83rem;line-height:1.45;color:var(--ink);margin-top:auto;}
   .usp .ans b{font-family:'Space Grotesk';display:block;font-size:.95rem;margin-bottom:.2rem;}
   .usp .ans span{color:var(--ink-muted);}
+
+  /* ===== Stack-Vergleich 1.0 vs 2.0 ===== */
+  .cmp{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:1.3rem;}
+  .cmp-row{background:var(--surface);display:grid;grid-template-columns:8.5rem 1fr 1.75fr;gap:1.1rem;padding:.6rem 1.1rem;align-items:baseline;}
+  @media (max-width:56rem){.cmp-row{grid-template-columns:1fr;gap:.35rem;}}
+  .cmp-row.head{background:var(--surface-2);font-family:'IBM Plex Mono';font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);}
+  .cmp-row.head .two{color:var(--ink);border-left-color:var(--signal);}
+  .cmp .layer{font-family:'IBM Plex Mono';font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);}
+  .cmp .one{font-size:.78rem;line-height:1.45;color:var(--ink-muted);}
+  .cmp .two{font-size:.78rem;line-height:1.45;color:var(--ink-muted);border-left:2px solid var(--line-strong);padding-left:.8rem;}
+  .cmp .two b{color:var(--ink);font-weight:600;}
+  .cmp .nil{font-family:'IBM Plex Mono';font-size:.7rem;letter-spacing:.04em;color:var(--ink-muted);opacity:.7;}
+  .cmp-scale{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem;}
+  .cmp-scale span{font-family:'IBM Plex Mono';font-size:.7rem;letter-spacing:.04em;color:var(--ink-muted);
+    border:1px solid var(--line);padding:.35rem .6rem;background:var(--surface);}
+  .cmp-scale span b{font-family:'Space Grotesk';font-size:.8rem;color:var(--ink);letter-spacing:0;}
 
   /* ===== Roadmap-Zeitachse ===== */
   .track{margin-top:2rem;border:1px solid var(--line);background:var(--surface);padding:1.4rem 1.3rem 1.2rem;}
@@ -883,8 +903,71 @@
     </div>
   </section>
 
-  <!-- 09 USPs -->
-  <section class="slide dense" id="s9" data-title="USPs">
+  <!-- 09 STACK-VERGLEICH 1.0 VS 2.0 -->
+  <section class="slide dense" id="s9" data-title="1.0 vs. 2.0">
+    <div class="slide-inner">
+      <div class="eyebrow">1.0 vs. 2.0 &mdash; derselbe Gedanke, zweimal gebaut</div>
+      <div class="kicker-line"></div>
+      <h2 class="headline">Was damals ein Durchstich war,<br>ist heute <span class="grad-word">ein ganzes System.</span></h2>
+      <div class="cmp">
+        <div class="cmp-row head">
+          <div class="layer">Schicht</div>
+          <div class="one">Doctus 1.0 &mdash; PoC</div>
+          <div class="two">Doctus 2.0 &mdash; lauffertiges Produkt</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Frontend</div>
+          <div class="one">Vue-Frontend</div>
+          <div class="two"><b>Next.js 16, React, Tailwind, Monaco-Editor.</b> Ein- bis vierfach geteilte Arbeitsfl&auml;che, Zeilenreferenzen aus dem Code direkt in den Chat, DE/EN, hell/dunkel.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Backend</div>
+          <div class="one">Python-Backend</div>
+          <div class="two"><b>FastAPI mit SQLAlchemy und Alembic.</b> 126 HTTP-Endpunkte, 24 Tabellen, versionierte Migrationen &mdash; kein Schema, das beim Update von Hand nachgezogen wird.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Datenhaltung</div>
+          <div class="one">Postgres + Neo4j</div>
+          <div class="two"><b>Postgres mit pgvector &mdash; eine Datenbank.</b> Vektoren, Entit&auml;ten und Graphkanten liegen zusammen; die zweite Datenbank, die mitbetrieben und mitmigriert werden muss, entf&auml;llt.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Hintergrund</div>
+          <div class="one">Celery-Worker</div>
+          <div class="two"><b>Celery-Worker plus Scheduler auf Valkey.</b> Wiederaufsetzbare Synchronisation je Datei, Trace-ID pro Lauf, Job-Center in der Oberfl&auml;che statt Log-Lesen auf dem Server.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Quellen</div>
+          <div class="one">Confluence, Bitbucket</div>
+          <div class="two"><b>Neun Quellsysteme in einem Bestand:</b> GitHub, GitLab, Bitbucket, beliebiges Git, Confluence, Jira, WebDAV, &Uuml;berwachungsordner, Upload &mdash; mit OCR f&uuml;r Scans und Erkennung von EBCDIC-Altlasten.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Codeverst&auml;ndnis</div>
+          <div class="one"><span class="nil">nicht Teil des Stacks</span></div>
+          <div class="two"><b>Eigener COBOL-Parser.</b> Fixed und free format, Fortsetzungszeilen, eingebettetes SQL, Copybook-Aufl&ouml;sung; CALL, PERFORM, GOTO, COPY, READS, WRITES als echte Kanten &mdash; gegen einen Golden-File-Korpus abgesichert.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Retrieval &amp; KI</div>
+          <div class="one">ein Cypher-Retrieve-Use-Case</div>
+          <div class="two"><b>Hybride Suche, Graph und Agent mit Werkzeugen.</b> Lokales Ollama mit BGE-M3, Sprachmodell austauschbar, Cloud-Anbieter standardm&auml;&szlig;ig gesperrt &mdash; und jede Antwort mit Belegkette bis zur Codezeile.</div>
+        </div>
+        <div class="cmp-row">
+          <div class="layer">Betrieb</div>
+          <div class="one"><span class="nil">PoC-Aufsatz</span></div>
+          <div class="two"><b>Sieben Dienste, auf Knopfdruck aufsetzbar.</b> Argon2id und SSO, Team- und Projektrechte, verschl&uuml;sselte Konnektor-Geheimnisse, digest-gepinnte Images, Offline-B&uuml;ndel f&uuml;r das abgeschottete Netz, GPU-Variante.</div>
+        </div>
+      </div>
+      <div class="cmp-scale">
+        <span><b>&asymp;135.000</b> Zeilen Code</span>
+        <span><b>126</b> HTTP-Endpunkte</span>
+        <span><b>9</b> Quellsysteme</span>
+        <span><b>&asymp;770</b> automatisierte Tests</span>
+        <span><b>7</b> Dienste im Stack</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 USPs -->
+  <section class="slide dense" id="s10" data-title="USPs">
     <div class="slide-inner">
       <div class="eyebrow">Kernversprechen und USPs</div>
       <div class="kicker-line"></div>
@@ -920,8 +1003,8 @@
     </div>
   </section>
 
-  <!-- 10 WAS DOCTUS IST -->
-  <section class="slide" id="s10" data-title="Abgrenzung">
+  <!-- 11 WAS DOCTUS IST -->
+  <section class="slide" id="s11" data-title="Abgrenzung">
     <div class="slide-inner">
       <div class="eyebrow">Bevor jemand anders die Frage stellt</div>
       <div class="kicker-line"></div>
@@ -949,8 +1032,8 @@
     </div>
   </section>
 
-  <!-- 11.1 PRODUKTBILD 1/3 -->
-  <section class="slide dense" id="s11" data-title="Produktbild 1">
+  <!-- 12.1 PRODUKTBILD 1/3 -->
+  <section class="slide dense" id="s12" data-title="Produktbild 1">
     <div class="slide-inner">
       <div class="eyebrow">Produktbild (1/3)</div>
       <div class="kicker-line"></div>
@@ -961,8 +1044,8 @@
     </div>
   </section>
 
-  <!-- 11.2 PRODUKTBILD 2/3 -->
-  <section class="slide dense" id="s12" data-title="Produktbild 2">
+  <!-- 12.2 PRODUKTBILD 2/3 -->
+  <section class="slide dense" id="s13" data-title="Produktbild 2">
     <div class="slide-inner">
       <div class="eyebrow">Produktbild (2/3)</div>
       <div class="kicker-line"></div>
@@ -973,8 +1056,8 @@
     </div>
   </section>
 
-  <!-- 11.3 PRODUKTBILD 3/3 -->
-  <section class="slide dense" id="s13" data-title="Produktbild 3">
+  <!-- 12.3 PRODUKTBILD 3/3 -->
+  <section class="slide dense" id="s14" data-title="Produktbild 3">
     <div class="slide-inner">
       <div class="eyebrow">Produktbild (3/3)</div>
       <div class="kicker-line"></div>
@@ -985,8 +1068,8 @@
     </div>
   </section>
 
-  <!-- 14 GESAMTÜBERSICHT / LIEFERUMFANG -->
-  <section class="slide dense" id="s14" data-title="Was Fujitsu bekommt">
+  <!-- 15 GESAMTÜBERSICHT / LIEFERUMFANG -->
+  <section class="slide dense" id="s15" data-title="Was Fujitsu bekommt">
     <div class="slide-inner">
       <div class="eyebrow">Gesamtübersicht Doctus 2.0</div>
       <div class="kicker-line"></div>
@@ -1006,8 +1089,8 @@
     </div>
   </section>
 
-  <!-- 15 ROADMAP -->
-  <section class="slide" id="s15" data-title="Roadmap">
+  <!-- 16 ROADMAP -->
+  <section class="slide" id="s16" data-title="Roadmap">
     <div class="slide-inner">
       <div class="eyebrow">Roadmap</div>
       <div class="kicker-line"></div>
@@ -1049,8 +1132,8 @@
     </div>
   </section>
 
-  <!-- 16 RESSOURCEN -->
-  <section class="slide dense" id="s16" data-title="Ressourcen">
+  <!-- 17 RESSOURCEN -->
+  <section class="slide dense" id="s17" data-title="Ressourcen">
     <div class="slide-inner">
       <div class="eyebrow">Was wir intern brauchen</div>
       <div class="kicker-line"></div>
@@ -1092,8 +1175,8 @@
     </div>
   </section>
 
-  <!-- 17 SKALIERUNG -->
-  <section class="slide" id="s17" data-title="Skalierung">
+  <!-- 18 SKALIERUNG -->
+  <section class="slide" id="s18" data-title="Skalierung">
     <div class="slide-inner">
       <div class="eyebrow">Skalierungsmöglichkeiten</div>
       <div class="kicker-line"></div>
@@ -1128,8 +1211,8 @@
     </div>
   </section>
 
-  <!-- 18 EINSATZ IN DER MODERNISIERUNG -->
-  <section class="slide dense" id="s18" data-title="Modernisierung">
+  <!-- 19 EINSATZ IN DER MODERNISIERUNG -->
+  <section class="slide dense" id="s19" data-title="Modernisierung">
     <div class="slide-inner">
       <div class="eyebrow">Einsatz in der Modernisierung</div>
       <div class="kicker-line"></div>
@@ -1153,8 +1236,8 @@
     </div>
   </section>
 
-  <!-- 19 ABSCHIED -->
-  <section class="slide dense" id="s19" data-title="Abschied">
+  <!-- 20 ABSCHIED -->
+  <section class="slide dense" id="s20" data-title="Abschied">
     <div class="slide-inner">
       <div class="eyebrow">Abschluss und Fragerunde</div>
       <div class="kicker-line"></div>
@@ -1191,7 +1274,7 @@
 </div>
 
 <div id="dots" aria-hidden="true"></div>
-<div id="counter" class="mono">01 / 19</div>
+<div id="counter" class="mono">01 / 20</div>
 <div id="wordmark-fixed">Doctus</div>
 <script>
 (function(){
