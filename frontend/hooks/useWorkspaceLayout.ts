@@ -38,6 +38,8 @@ interface UseWorkspaceLayoutOptions {
 export interface PinnedCode {
   filepath: string;
   line: number;
+  /** End line of the focused object (entity focus only, O-090); unset for a bare line focus. */
+  endLine?: number | null;
   label?: string | null;
   context?: string | null;
   sourceId?: number | string | null;

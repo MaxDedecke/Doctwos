@@ -76,3 +76,53 @@ def test_pinned_chunk_lookup_prefers_the_chunk_covering_the_focused_line(db_sess
     finally:
         db_session.query(DocumentChunk).filter(DocumentChunk.project_id == test_project).delete()
         db_session.commit()
+
+
+def test_pinned_chunk_lookup_covers_an_entity_range_spanning_several_chunks(db_session, test_project):
+    """O-090: an entity focus (e.g. a SECTION) can span several paragraph
+    chunks — all overlapping the range must come back, not just the one
+    covering the entity's start line."""
+    before = DocumentChunk(
+        project_id=test_project,
+        file_path="cbl/PROGRAM.cbl",
+        content="BEFORE-PARAGRAPH",
+        start_line=1,
+        end_line=9,
+    )
+    first_half = DocumentChunk(
+        project_id=test_project,
+        file_path="cbl/PROGRAM.cbl",
+        content="FIRST-PARAGRAPH",
+        start_line=10,
+        end_line=20,
+    )
+    second_half = DocumentChunk(
+        project_id=test_project,
+        file_path="cbl/PROGRAM.cbl",
+        content="SECOND-PARAGRAPH",
+        start_line=21,
+        end_line=30,
+    )
+    after = DocumentChunk(
+        project_id=test_project,
+        file_path="cbl/PROGRAM.cbl",
+        content="AFTER-PARAGRAPH",
+        start_line=31,
+        end_line=40,
+    )
+    db_session.add_all([before, first_half, second_half, after])
+    db_session.commit()
+
+    try:
+        results = _find_pinned_chunks(
+            db_session,
+            project_id=test_project,
+            source_id=None,
+            file_path="cbl/PROGRAM.cbl",
+            line=10,
+            end_line=30,
+        )
+        assert [chunk.content for chunk in results] == ["FIRST-PARAGRAPH", "SECOND-PARAGRAPH"]
+    finally:
+        db_session.query(DocumentChunk).filter(DocumentChunk.project_id == test_project).delete()
+        db_session.commit()

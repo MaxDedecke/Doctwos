@@ -15,6 +15,16 @@ from services.chat_service import (
 )
 
 
+def _fake_chunk(start_line, end_line, content):
+    return SimpleNamespace(
+        start_line=start_line,
+        end_line=end_line,
+        content=content,
+        metadata_json=None,
+        file_path="cbl/PROGRAM.cbl",
+    )
+
+
 def test_prompt_keeps_the_pinned_file_as_primary_context():
     prompt = build_chat_prompt(
         context="<untrusted_source>other file</untrusted_source>",
@@ -41,6 +51,87 @@ def test_non_file_focus_is_included_without_repository_context():
 
     assert "<untrusted_focused_object>" in context
     assert "IFC space: server room" in context
+
+
+def test_line_focus_only_excerpts_a_small_window_not_the_whole_chunk():
+    """O-090: a bare gutter-line focus must not hand the model the whole chunk
+    the line happens to sit in — only a small window around it."""
+    lines = [f"LINE-{n:03d}." for n in range(1, 51)]
+    chunk = _fake_chunk(1, 50, "\n".join(lines))
+
+    context = build_pinned_context(
+        pinned_file="cbl/PROGRAM.cbl",
+        pinned_line=30,
+        pinned_label=None,
+        pinned_context=None,
+        pinned_chunks=[chunk],
+        repository_id=None,
+    )
+
+    assert "LINE-030." in context
+    assert "LINE-015." in context and "LINE-045." in context  # +/- 15 window edges
+    assert "LINE-001." not in context and "LINE-050." not in context
+    assert "More surrounding code exists" in context
+
+
+def test_entity_focus_excerpts_exactly_its_own_line_range():
+    """O-090: an entity focus (end_line set) gets exactly its own physical
+    bounds as the excerpt, even when the underlying chunk spans more than
+    that (e.g. several paragraphs merged into one chunk)."""
+    lines = [f"LINE-{n:03d}." for n in range(1, 51)]
+    merged_chunk = _fake_chunk(1, 50, "\n".join(lines))
+
+    context = build_pinned_context(
+        pinned_file="cbl/PROGRAM.cbl",
+        pinned_line=10,
+        pinned_end_line=20,
+        pinned_label="MY-PARAGRAPH",
+        pinned_context=None,
+        pinned_chunks=[merged_chunk],
+        repository_id=None,
+    )
+
+    assert "LINE-010." in context and "LINE-020." in context
+    assert "LINE-009." not in context and "LINE-021." not in context
+    assert "More surrounding code exists" in context
+
+
+def test_entity_focus_spanning_the_whole_chunk_has_no_more_context_note():
+    """When the focused object's bounds exactly match the fetched chunk(s),
+    there is nothing left outside the excerpt to warn about."""
+    lines = [f"LINE-{n:03d}." for n in range(1, 6)]
+    chunk = _fake_chunk(1, 5, "\n".join(lines))
+
+    context = build_pinned_context(
+        pinned_file="cbl/PROGRAM.cbl",
+        pinned_line=1,
+        pinned_end_line=5,
+        pinned_label="SHORT-PARAGRAPH",
+        pinned_context=None,
+        pinned_chunks=[chunk],
+        repository_id=None,
+    )
+
+    assert "LINE-001." in context and "LINE-005." in context
+    assert "More surrounding code exists" not in context
+
+
+def test_whole_file_pin_without_a_line_still_dumps_full_chunks():
+    """Pinning a whole file/document (no line, e.g. clicking a sidebar file)
+    is unaffected by the O-090 windowing — the user asked about the whole thing."""
+    chunk = _fake_chunk(1, 3, "FULL CONTENT")
+
+    context = build_pinned_context(
+        pinned_file="docs/spec.md",
+        pinned_line=0,
+        pinned_label=None,
+        pinned_context=None,
+        pinned_chunks=[chunk],
+        repository_id=None,
+    )
+
+    assert "FULL CONTENT" in context
+    assert "More surrounding code exists" not in context
 
 
 @pytest.mark.asyncio

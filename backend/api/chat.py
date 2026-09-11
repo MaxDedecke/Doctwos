@@ -155,11 +155,12 @@ def _find_pinned_chunks(
     source_id: Optional[int],
     file_path: str,
     line: Optional[int],
+    end_line: Optional[int] = None,
 ) -> List[DocumentChunk]:
     """Load chunks covering the explicitly focused file/line before semantic search."""
     # Kept as a compatibility seam for focused regression tests.  New code uses
     # the service directly so the router no longer owns retrieval details.
-    return find_pinned_chunks(db, project_id, source_id, file_path, line)
+    return find_pinned_chunks(db, project_id, source_id, file_path, line, end_line)
 
 
 _TITLE_SUFFIX_RE = re.compile(r"^(.+):(\d+)(?:-\d+)?$")
@@ -510,6 +511,7 @@ async def chat(
                 pinned_source_id=request.pinned_source_id,
                 pinned_file=request.pinned_file,
                 pinned_line=request.pinned_line,
+                pinned_end_line=request.pinned_end_line,
                 pinned_label=request.pinned_label,
                 focused_context=request.pinned_context,
                 message=request.message,

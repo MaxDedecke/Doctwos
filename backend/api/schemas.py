@@ -59,6 +59,7 @@ class ChatRequest(BaseModel):
     branch: str = "main"
     pinned_file: Optional[str] = None
     pinned_line: Optional[int] = None
+    pinned_end_line: Optional[int] = None
     pinned_context: Optional[str] = None
     pinned_label: Optional[str] = None
     pinned_source_id: Optional[int] = None

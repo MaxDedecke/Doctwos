@@ -153,4 +153,79 @@ describe('usePanelNavigation', () => {
     });
     expect(result.current.selectedDoc).toEqual({ id: 8, name: 'manual.pdf' });
   });
+
+  // O-090: an entity focus must carry its own end line, so the chat backend can
+  // hand the LLM exactly this object's excerpt instead of the whole RAG chunk.
+  it('pins an entity focus with its own end line', async () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['code'] }));
+    const entity: CodeEntity = {
+      name: 'BER-ZINS',
+      file_path: 'src/PROGRAM.cbl',
+      start_line: 120,
+      end_line: 145,
+    };
+
+    await act(async () => {
+      await result.current.navigation.handlePanelEntitySelect(0, entity);
+    });
+
+    expect(result.current.pinnedCode).toMatchObject({
+      filepath: 'src/PROGRAM.cbl',
+      line: 120,
+      endLine: 145,
+      label: 'BER-ZINS',
+    });
+  });
+
+  it('falls back to the start line as end line when an entity has none', async () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['code'] }));
+    const entity: CodeEntity = {
+      name: 'BER-ZINS',
+      file_path: 'src/PROGRAM.cbl',
+      start_line: 120,
+      end_line: null,
+    };
+
+    await act(async () => {
+      await result.current.navigation.handlePanelEntitySelect(0, entity);
+    });
+
+    expect(result.current.pinnedCode).toMatchObject({ line: 120, endLine: 120 });
+  });
+
+  it('pins the same end-line contract via handleGutterAskEntity', () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['code'] }));
+    const entity: CodeEntity = {
+      name: 'ZINS-SECTION',
+      file_path: 'src/PROGRAM.cbl',
+      start_line: 200,
+      end_line: 260,
+    };
+
+    act(() => {
+      result.current.navigation.handleGutterAskEntity(0, entity);
+    });
+
+    expect(result.current.pinnedCode).toMatchObject({ line: 200, endLine: 260 });
+  });
+
+  it('leaves end line unset for a bare gutter-line focus (no enclosing entity)', () => {
+    const previousSelection: PanelSelection = {
+      selectedFile: 'src/PROGRAM.cbl',
+      selectedDoc: null,
+      selectedEntity: null,
+      selectedLine: null,
+    };
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['code'],
+      panelSelections: [previousSelection],
+    }));
+
+    act(() => {
+      result.current.navigation.handleGutterClick(0, 42, '           MOVE 0 TO WS-COUNTER');
+    });
+
+    expect(result.current.pinnedCode).toMatchObject({ filepath: 'src/PROGRAM.cbl', line: 42 });
+    expect(result.current.pinnedCode?.endLine).toBeFalsy();
+  });
 });

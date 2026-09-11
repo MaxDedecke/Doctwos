@@ -121,6 +121,7 @@ async def retrieve_chat_context(
     pinned_source_id: Optional[int],
     pinned_file: Optional[str],
     pinned_line: Optional[int],
+    pinned_end_line: Optional[int] = None,
     pinned_label: Optional[str],
     focused_context: Optional[str],
     message: str,
@@ -287,13 +288,16 @@ async def retrieve_chat_context(
         query_text = message
 
     pinned_chunks = (
-        find_pinned_chunks(db, project_id, focused_source_id, pinned_file, pinned_line)
+        find_pinned_chunks(
+            db, project_id, focused_source_id, pinned_file, pinned_line, pinned_end_line
+        )
         if pinned_file
         else []
     )
     pinned_context = build_pinned_context(
         pinned_file=pinned_file,
         pinned_line=pinned_line,
+        pinned_end_line=pinned_end_line,
         pinned_label=pinned_label,
         pinned_context=focused_context,
         pinned_chunks=pinned_chunks,
@@ -509,19 +513,65 @@ def find_pinned_chunks(
     source_id: Optional[int],
     file_path: str,
     line: Optional[int],
+    end_line: Optional[int] = None,
 ) -> list[DocumentChunk]:
-    """Return up to three indexed chunks covering a focused file and line."""
+    """Return indexed chunks overlapping a focused file and line range.
+
+    A bare line focus (``end_line`` unset) collapses the range to that single
+    line. An entity focus (``end_line`` set, O-090) can span several paragraph
+    chunks, so the limit is generous here — ``build_pinned_context`` trims each
+    fetched chunk down to the actually-focused window afterwards, so fetching a
+    few extra chunks costs nothing in prompt size.
+    """
     query = db.query(DocumentChunk).filter(DocumentChunk.file_path == file_path)
     if project_id is not None:
         query = query.filter(DocumentChunk.project_id == project_id)
     if source_id is not None:
         query = query.filter(DocumentChunk.source_id == source_id)
+    limit = 3
     if line is not None and line > 0:
+        range_end = end_line if end_line and end_line >= line else line
         query = query.filter(
-            or_(DocumentChunk.start_line.is_(None), DocumentChunk.start_line <= line),
+            or_(DocumentChunk.start_line.is_(None), DocumentChunk.start_line <= range_end),
             or_(DocumentChunk.end_line.is_(None), DocumentChunk.end_line >= line),
         )
-    return query.order_by(DocumentChunk.start_line.asc().nullslast()).limit(3).all()
+        limit = 20
+    return query.order_by(DocumentChunk.start_line.asc().nullslast()).limit(limit).all()
+
+
+_PINNED_LINE_WINDOW = 15
+
+
+def _extract_line_window(
+    chunks: list[DocumentChunk], window_start: int, window_end: int
+) -> tuple[str, bool]:
+    """Slice indexed chunks down to a physical source-line range.
+
+    Chunk text mirrors the source file's physical lines 1:1 — COBOL chunking
+    never expands or reflows text (CLAUDE.md "Zeilennummern sind heilig"), so a
+    line's offset inside ``chunk.content`` is simply ``line - chunk.start_line``.
+    Returns the concatenated excerpt plus whether any fetched chunk reaches
+    beyond the requested window, so the caller can mention that more
+    surrounding code exists without dumping it into the prompt (O-090).
+    """
+    pieces: list[tuple[int, str]] = []
+    has_more = False
+    for chunk in chunks:
+        if chunk.start_line is None or chunk.end_line is None:
+            # No physical line mapping (e.g. unindexed content) — nothing to
+            # slice by offset, so it can only be included as a whole.
+            pieces.append((0, chunk.content))
+            continue
+        if chunk.start_line > window_end or chunk.end_line < window_start:
+            continue
+        if chunk.start_line < window_start or chunk.end_line > window_end:
+            has_more = True
+        lines = chunk.content.split("\n")
+        first = max(window_start, chunk.start_line) - chunk.start_line
+        last = min(window_end, chunk.end_line) - chunk.start_line
+        pieces.append((chunk.start_line, "\n".join(lines[first : last + 1])))
+    pieces.sort(key=lambda item: item[0])
+    return "\n".join(text for _, text in pieces), has_more
 
 
 def chunk_header(chunk: DocumentChunk) -> str:
@@ -539,6 +589,7 @@ def build_pinned_context(
     *,
     pinned_file: Optional[str],
     pinned_line: Optional[int],
+    pinned_end_line: Optional[int] = None,
     pinned_label: Optional[str],
     pinned_context: Optional[str],
     pinned_chunks: list[DocumentChunk],
@@ -548,13 +599,38 @@ def build_pinned_context(
 
     Indexed chunks are preferred.  When a first repository sync has not produced
     chunks yet, the checked-out file is read in a deliberately small window.
+
+    O-090: a focused line/object only ever contributes the lines it actually
+    covers, not every chunk that happens to contain that line — a chunk is a
+    RAG-sized unit (up to ~1000 chars, sometimes several merged paragraphs),
+    while the user asked about one line or one object. Without this, the model
+    regularly explained unrelated neighboring paragraphs the user never asked
+    about.
     """
     context = ""
     if pinned_file:
         if pinned_chunks:
-            chunk_context = "\n\n".join(
-                f"File: {chunk_header(chunk)}\n{chunk.content}" for chunk in pinned_chunks
-            )
+            if pinned_line and pinned_line > 0:
+                if pinned_end_line and pinned_end_line >= pinned_line:
+                    # Entity focus: the object's own physical bounds are the excerpt.
+                    window_start, window_end = pinned_line, pinned_end_line
+                else:
+                    # Bare line focus: a small surrounding window, not the whole
+                    # chunk this line happens to sit in.
+                    window_start = max(1, pinned_line - _PINNED_LINE_WINDOW)
+                    window_end = pinned_line + _PINNED_LINE_WINDOW
+                excerpt, has_more = _extract_line_window(pinned_chunks, window_start, window_end)
+                more_note = (
+                    "\n(More surrounding code exists in this file outside this excerpt; "
+                    "ask the user before assuming details about it.)"
+                    if has_more
+                    else ""
+                )
+                chunk_context = f"Zeile {window_start}-{window_end}:\n{excerpt}{more_note}"
+            else:
+                chunk_context = "\n\n".join(
+                    f"File: {chunk_header(chunk)}\n{chunk.content}" for chunk in pinned_chunks
+                )
             context = (
                 "The user explicitly focused the following code object/file and asks about this "
                 "context first:\n"
@@ -572,8 +648,14 @@ def build_pinned_context(
                 try:
                     with open(full_path, "r", errors="ignore") as source_file:
                         lines = source_file.readlines()
-                    if pinned_line:
-                        start, end = max(1, pinned_line - 15), min(len(lines), pinned_line + 15)
+                    if pinned_line and pinned_end_line and pinned_end_line >= pinned_line:
+                        start, end = pinned_line, min(len(lines), pinned_end_line)
+                        location_note = f"Lines {start}-{end} (focused object):"
+                    elif pinned_line:
+                        start, end = (
+                            max(1, pinned_line - _PINNED_LINE_WINDOW),
+                            min(len(lines), pinned_line + _PINNED_LINE_WINDOW),
+                        )
                         location_note = f"Line: {pinned_line}\nCode snippet (lines {start}-{end}):"
                     else:
                         start, end = 1, min(len(lines), 500)
@@ -635,8 +717,10 @@ def build_chat_prompt(
     pin_note = ""
     if pinned_file:
         pin_note = (
-            "Instruction: Treat the pinned code as the primary subject. Use retrieved files only "
-            "as supporting context; if the pinned context is insufficient, say so clearly.\n\n"
+            "Instruction: Treat the pinned code as the primary subject and answer only about the "
+            "focused line/object. Do not explain other code that merely happens to appear in the "
+            "same excerpt. Use retrieved files only as supporting context; if the pinned context is "
+            "insufficient, say so clearly instead of describing unrelated nearby code.\n\n"
         )
     citation_note = (
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "

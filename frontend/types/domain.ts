@@ -93,6 +93,7 @@ export interface WorkspaceSnapshot {
 export interface ChatReference {
   file: string;
   line: number;
+  end_line?: number | null;
   label?: string | null;
   source_id?: number | string | null;
   program?: string | null;
@@ -168,6 +169,7 @@ export interface ChatRequest {
   source_id: number | string | null;
   pinned_file: string | null;
   pinned_line: number | null;
+  pinned_end_line: number | null;
   pinned_context: string | null;
   pinned_label: string | null;
   pinned_source_id: number | string | null;

@@ -91,6 +91,9 @@ export function usePanelNavigation({
     setPinnedCode({
       filepath: entity.file_path,
       line: entity.start_line ?? 0,
+      // O-090: the object's own end line, so the chat backend can hand the LLM
+      // exactly this object's excerpt instead of the whole chunk it sits in.
+      endLine: entity.end_line ?? entity.start_line ?? null,
       label: entity.name,
       sourceId: entity.source_id ?? null,
       program: entity.program ?? null,
@@ -284,6 +287,8 @@ export function usePanelNavigation({
     setPinnedCode({
       filepath: entity.file_path,
       line: entity.start_line ?? 0,
+      // O-090: see pinEntityFocus above — same entity-focus contract.
+      endLine: entity.end_line ?? entity.start_line ?? null,
       label: entity.name,
       sourceId: entity.source_id ?? selectedSource?.id ?? null,
       program: entity.program ?? null,

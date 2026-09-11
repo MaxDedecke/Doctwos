@@ -14,6 +14,8 @@ export interface ChatFocusSource {
 export interface ChatPinnedFocus {
   filepath: string;
   line: number;
+  /** End line of the focused object (entity focus only, O-090); unset for a bare line focus. */
+  endLine?: number | null;
   label?: string | null;
   context?: string | null;
   sourceId?: FocusId;
@@ -36,6 +38,7 @@ function normalizePinnedFocus(value?: ChatMetadata['pinned'], fallback?: ChatRef
   return {
     filepath: value?.filepath || fallback?.file || '',
     line: value?.line ?? fallback?.line ?? 0,
+    endLine: value?.endLine ?? fallback?.end_line ?? null,
     label: value?.label ?? null,
     context: value?.context ?? null,
     sourceId: value?.sourceId ?? value?.source_id ?? fallback?.source_id ?? null,
@@ -87,6 +90,7 @@ export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: ChatMeta
       ? [{
         file: pinned.filepath,
         line: pinned.line,
+        end_line: pinned.endLine ?? null,
         label: pinned.label ?? null,
         source_id: pinned.sourceId ?? null,
         program: pinned.program ?? null,
@@ -101,6 +105,7 @@ export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: ChatMeta
     pinned: pinned ? {
       filepath: pinned.filepath,
       line: pinned.line,
+      endLine: pinned.endLine ?? null,
       label: pinned.label ?? null,
       context: pinned.context ?? null,
       source_id: pinned.sourceId ?? null,
@@ -120,6 +125,7 @@ export function chatFocusRequestFields(focus: ChatTurnFocus) {
     source_id: focus.source?.id ?? null,
     pinned_file: focus.pinned?.filepath ?? null,
     pinned_line: focus.pinned?.line ?? null,
+    pinned_end_line: focus.pinned?.endLine ?? null,
     pinned_context: focus.pinned?.context ?? null,
     pinned_label: focus.pinned?.label ?? null,
     pinned_source_id: focus.pinned?.sourceId ?? null,
