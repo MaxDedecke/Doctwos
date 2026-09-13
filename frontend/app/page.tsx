@@ -79,9 +79,13 @@ function AppContent() {
   const handleLogout = useCallback(async () => {
     try {
       await api.logout();
-    } finally {
+    } catch (error) {
       // Auch wenn der Logout-Request scheitert: lokal ausloggen, damit der Nutzer
-      // nicht in einer Sitzung festhängt, die er für beendet hält.
+      // nicht in einer Sitzung festhängt, die er für beendet hält. Ohne dieses
+      // catch würde die Ablehnung als unhandled rejection weitergereicht, da
+      // der Aufrufer (Sidebar-Button) das zurückgegebene Promise nicht abwartet.
+      console.error('Logout request failed:', error);
+    } finally {
       setIsLoggedIn(false);
       setCurrentUser(null);
     }
