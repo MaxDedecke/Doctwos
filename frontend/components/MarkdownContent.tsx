@@ -291,7 +291,7 @@ const HEADING_SIZE_CLASSES: Record<number, string> = {
  * `` `some|title.pdf` `` would be split mid-token and lose its closing
  * backtick, silently falling back to plain (unclickable) text.
  */
-const splitTableRow = (line: string): string[] => {
+export const splitTableRow = (line: string): string[] => {
   let trimmed = line.trim();
   if (trimmed.startsWith('|')) trimmed = trimmed.slice(1);
   if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1);
@@ -328,7 +328,7 @@ const isTableSeparatorLine = (line: string): boolean => {
 
 type ColumnAlign = 'left' | 'center' | 'right' | undefined;
 
-const parseTableAlignment = (separatorLine: string): ColumnAlign[] =>
+export const parseTableAlignment = (separatorLine: string): ColumnAlign[] =>
   splitTableRow(separatorLine).map(cell => {
     const left = cell.startsWith(':');
     const right = cell.endsWith(':');
