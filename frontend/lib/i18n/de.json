@@ -184,7 +184,6 @@
       "repoAddFailed": "Fehler beim Hinzufügen des Repositories",
       "documentUploaded": "Dokument erfolgreich hochgeladen und Indizierung gestartet",
       "documentUploadFailed": "Fehler beim Hochladen des Dokuments",
-      "lastProfileCannotDelete": "Das letzte verbleibende Profil kann nicht gelöscht werden.",
       "profileDeleted": "Profil gelöscht",
       "profileNameRequired": "Bitte gib einen Profilnamen ein",
       "modelNameRequired": "Bitte gib einen Modellnamen ein",

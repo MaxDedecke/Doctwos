@@ -68,10 +68,8 @@ export const AiSettingsTab: React.FC = () => {
   };
 
   const handleDeleteProfile = (id: string) => {
-    if (llmProfiles.length <= 1) {
-      showToast(t('settings.toast.lastProfileCannotDelete'), "error");
-      return;
-    }
+    // Der Löschen-Button ist bereits disabled={llmProfiles.length <= 1} (siehe unten) —
+    // dieser Pfad ist von der Oberfläche aus nie erreichbar.
     const updated = llmProfiles.filter(p => p.id !== id);
     setLlmProfiles(updated);
     localStorage.setItem('doctus-llm-profiles', JSON.stringify(updated));

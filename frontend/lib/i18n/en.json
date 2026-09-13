@@ -184,7 +184,6 @@
       "repoAddFailed": "Error adding repository",
       "documentUploaded": "Document uploaded successfully and indexing started",
       "documentUploadFailed": "Error uploading document",
-      "lastProfileCannotDelete": "The last remaining profile cannot be deleted.",
       "profileDeleted": "Profile deleted",
       "profileNameRequired": "Please enter a profile name",
       "modelNameRequired": "Please enter a model name",
