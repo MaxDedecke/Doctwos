@@ -1,6 +1,6 @@
 # Mainframe-COBOL: Kompatibilität und Ausbauplan
 
-Stand: 06.09.2026. Zugehörige Arbeitspunkte: O-117 bis O-156 in
+Stand: 14.09.2026. Zugehörige Arbeitspunkte: O-117 bis O-156 in
 [OFFENE_ENTWICKLUNGSPUNKTE.md](OFFENE_ENTWICKLUNGSPUNKTE.md).
 
 ## Ziel und Grenzen
@@ -27,7 +27,7 @@ Parsertechnik wird nur mit einem tatsächlich genutzten Verbraucher eingeführt.
 | `source_format.py` entscheidet heuristisch Fixed/Free für die gesamte Datei; `>>`-Direktiven werden im Free-Modus übersprungen. | Formatwechsel und bedingte Kompilierung werden nicht semantisch ausgewertet. |
 | Gegenprobe mit vollständiger DATA-/PROCEDURE-DIVISION und `>>IF 1 = 1`: CALLs aus aktivem und inaktivem Zweig, `errors == []`. | Ein fachlich falscher Aufrufgraph kann als fehlerfrei erscheinen. O-119/O-120/O-124. |
 | Gegenprobe mit eingerücktem `>>SOURCE FORMAT FREE`: erkannt als Fixed, keine Programmstruktur. | Explizite Formatvorgaben müssen Vorrang vor bloßer Heuristik haben. O-123. |
-| `antlr_bridge.py` merkt Syntaxfehler für den SLL-/LL-Wiederholungsversuch; sie werden nicht als strukturierte Diagnosen an `ParseResult` weitergegeben. `git.py` leitet den Status aus `errors` ab. | Fehlertoleranz ist vorhanden, aber der Vollständigkeitsgrad ist nicht zuverlässig sichtbar. |
+| **O-120 erledigt (14.09.2026):** `AnalysisStatus` klassifiziert `complete`/`partial`/`text_fallback`/`skipped` anhand von `errors`, strukturierten O-119-Diagnosen und F-029-Fallbacks. `GitConnector` persistiert den Status je Datei und macht auch übersprungene Binär-, Größenlimit- und Nicht-UTF-8-Dateien sichtbar; API, Editor, Graph, Chat-Zitate und Diagnosebericht reichen ihn durch. | Unvollständige Analyse wird nicht mehr als uneingeschränkt vollständig dargestellt. Der Graph weist Status bewusst auf Datei-Ebene aus; belastbare Herkunft und Unsicherheit einzelner Entities/Kanten bleiben O-150. |
 | `GitConnector` klassifiziert primär über Endungen; JCL ist ausdrücklich nur Text. O-074 überspringt Nicht-UTF-8 im regulären Import; der Copybook-Vorlauf verwendet dagegen Textlesen mit `errors="ignore"`. | Member ohne Endung sowie konvertierte oder rekordbasierte Exporte brauchen einen gemeinsamen Importvertrag. Kein stiller Zeichenverlust im Copybook-Vorlauf. |
 | `copybook.py` löst Namen anhand quellenweiter Pfade bzw. Verzeichnisnamen auf; unterstützt bereits COPY/REPLACING und transitive Feldvererbung. | Vorhandene Funktion ausbauen: echte Suchreihenfolge, Versions-/Bibliothekskontext und Compileroptionen fehlen als Eingabe. Nicht als vollständig fehlende COPY-Unterstützung beschreiben. |
 | `embedded.py` maskiert EXEC-Blöcke; `sql.py` analysiert SQL separat, `procedure.py` sucht CALL/PERFORM/GO TO. | Maskierung von CICS ist keine vollständige CICS-Programm-/Ressourcenanalyse. Weitere Subsysteme einzeln nachweisen. |
