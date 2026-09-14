@@ -362,7 +362,7 @@ async def test_git_connector_resumes_via_content_hash(
             analysis_fingerprint=analysis_fingerprint(
                 source_revision=tracked["PROG.CBL"],
                 profile=BuildProfile(),
-                parser_version="cobol-structure-2",
+                parser_version="cobol-structure-3",
                 libraries={},
             ),
         )
@@ -794,8 +794,8 @@ async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without
     Eintrag im Ergebnis (statt z. B. `None` vorzutäuschen)."""
     calls = []
 
-    def shared_hook(wt, extensions):
-        calls.append((wt, extensions))
+    def shared_hook(wt, extensions, profiles_by_path):
+        calls.append((wt, extensions, profiles_by_path))
         return "prepared-once"
 
     fake_registry = {
@@ -807,7 +807,7 @@ async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without
     with patch("connectors.git.STRUCTURE_PARSERS", fake_registry):
         prepared = await _run_prepare_hooks("/some/wt", {"ext": {".x"}})
 
-    assert calls == [("/some/wt", {"ext": {".x"}})]
+    assert calls == [("/some/wt", {"ext": {".x"}}, {})]
     assert prepared == {"langA": "prepared-once", "langB": "prepared-once"}
     assert "langC" not in prepared
 

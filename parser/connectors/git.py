@@ -36,6 +36,7 @@ import git_utils
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
+from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
@@ -140,13 +141,10 @@ def _looks_like_text(raw: bytes) -> bool:
     if not raw:
         return True
     try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
+        text, _ = decode_source(raw)
+    except SourceDecodeError:
         return False
-    if not text:
-        return True
-    control_chars = sum(1 for ch in text if ch not in "\t\r\n" and (ord(ch) < 32 or ord(ch) == 127))
-    return control_chars / len(text) <= _MAX_CONTROL_CHAR_RATIO
+    return looks_like_text(text, _MAX_CONTROL_CHAR_RATIO)
 
 
 # AP-4: Sprachen mit einem Eintrag in STRUCTURE_PARSERS (O-077) bekommen eine
@@ -154,7 +152,11 @@ def _looks_like_text(raw: bytes) -> bool:
 # Zeilenchunkings.
 
 
-async def _run_prepare_hooks(wt: str, extensions: dict[str, set[str]]) -> dict[str, Any]:
+async def _run_prepare_hooks(
+    wt: str,
+    extensions: dict[str, set[str]],
+    profiles_by_path: dict[str, BuildProfile | None] | None = None,
+) -> dict[str, Any]:
     """O-079: ruft für jede Sprache mit Registry-Eintrag deren optionalen
     `prepare_source()`-Hook einmal auf, bevor die erste Datei dieser Sprache
     geparst wird -- generisch über STRUCTURE_PARSERS (cobol/registry.py),
@@ -174,7 +176,7 @@ async def _run_prepare_hooks(wt: str, extensions: dict[str, set[str]]) -> dict[s
             continue
         key = id(hook)
         if key not in results_by_hook:
-            results_by_hook[key] = await asyncio.to_thread(hook, wt, extensions)
+            results_by_hook[key] = await asyncio.to_thread(hook, wt, extensions, profiles_by_path or {})
         prepared[lang] = results_by_hook[key]
     return prepared
 
@@ -674,12 +676,19 @@ class GitConnector(BaseConnector):
             else:
                 await asyncio.to_thread(git_utils.reset_worktree_to_branch, wt, branch)
 
+        current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
+        profiles_by_path = {
+            path: _resolve_document_profile(spaces, path)
+            for path in current_hashes
+            if classify_extension(path, extensions) in {"cobol", "copybook"}
+        }
+
         # O-079: registry-deklarierte Vorlauf-Hooks statt eines fest
         # benannten _build_copybook_index()-Aufrufs - für COBOL/Copybook
         # baut das (wie zuvor) bei jedem Sync über den vollen Baum den
         # Copybook-Index (Pass 0, Plan §6.4/E-2), siehe
         # cobol/registry.py::_prepare_copybook_index.
-        self._prepared_by_lang = await _run_prepare_hooks(wt, extensions)
+        self._prepared_by_lang = await _run_prepare_hooks(wt, extensions, profiles_by_path)
 
         new_commit = await asyncio.to_thread(git_utils.current_commit, wt)
         self._new_commit = new_commit
@@ -693,7 +702,6 @@ class GitConnector(BaseConnector):
         # vergleichen daher bei jedem Lauf pro materialisierter Datei den
         # vollständigen Analyse-Fingerprint. Unveränderte Eingaben bleiben
         # weiterhin ohne Datei-I/O, Parse oder Embedding inkrementell.
-        current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
         existing_records = {
             r.file_path: r
             for r in self.db.query(SourceScanFile)
@@ -726,15 +734,11 @@ class GitConnector(BaseConnector):
         for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
-            profile = (
-                _resolve_document_profile(spaces, path)
-                if language in {"cobol", "copybook"}
-                else None
-            )
+            profile = profiles_by_path.get(path)
             fingerprint = analysis_fingerprint(
                 source_revision=blob_sha,
                 profile=profile,
-                parser_version="cobol-structure-2"
+                parser_version="cobol-structure-3"
                 if language in {"cobol", "copybook"}
                 else "generic-chunker-1",
                 grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",
@@ -791,12 +795,19 @@ class GitConnector(BaseConnector):
             except Exception as e:
                 self._log(f"Fehler beim Lesen von '{path}': {e}")
                 continue
-            if not _looks_like_text(raw):
-                reason = "kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded."
+            profile = profiles_by_path.get(path)
+            try:
+                content, codec = decode_source(raw, profile.encoding if profile is not None else None)
+            except SourceDecodeError as error:
+                reason = f"{error} (vermutlich Binärdaten), wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
                 self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
-            content = raw.decode("utf-8")
+            if not looks_like_text(content, _MAX_CONTROL_CHAR_RATIO):
+                reason = f"kein sinnvoller {codec}-Text (zu viele Steuerzeichen), wird nicht embedded."
+                self._log(f"[SKIP] '{path}' ist {reason}")
+                self._record_skip(path, content_hash, analysis_fp, reason)
+                continue
 
             yield Document(
                 title=os.path.basename(path),
@@ -809,6 +820,7 @@ class GitConnector(BaseConnector):
                     "branch": branch,
                     "content_hash": content_hash,
                     "analysis_fingerprint": analysis_fp,
+                    "encoding": codec,
                 },
             )
 

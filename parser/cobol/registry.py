@@ -37,6 +37,8 @@ from cobol import copybook
 from cobol.copybook import CopybookIndex
 from cobol.names import canonical_identifier
 from cobol.parse import parse_copybook, parse_program
+from cobol.profile import BuildProfile
+from core.source_decoder import SourceDecodeError, decode_source
 from core.model import ParseResult
 
 
@@ -50,7 +52,7 @@ class StructureParser(Protocol):
 
 # (wt, extensions) -> beliebiges Vorlauf-Ergebnis, das per Sync einmal gebaut
 # und dann pro Datei an StructureParser weitergereicht wird.
-PrepareSourceHook = Callable[[str, dict[str, set[str]]], Any]
+PrepareSourceHook = Callable[[str, dict[str, set[str]], dict[str, BuildProfile | None]], Any]
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,11 @@ class ParserEntry:
     prepare_source: PrepareSourceHook | None = None
 
 
-def _prepare_copybook_index(wt: str, extensions: dict[str, set[str]]) -> CopybookIndex:
+def _prepare_copybook_index(
+    wt: str,
+    extensions: dict[str, set[str]],
+    profiles_by_path: dict[str, BuildProfile | None] | None = None,
+) -> CopybookIndex:
     """Pass 0 (Plan §6.4/E-2): quellenweiter Copybook-Index, Name -> Liste
     von Pfaden, ergänzt um die Felddefinitionen jedes lesbaren Copybooks.
     Die Dateinamenauflösung bleibt billig; für E-2 werden Copybook-Inhalte
@@ -85,8 +91,14 @@ def _prepare_copybook_index(wt: str, extensions: dict[str, set[str]]) -> Copyboo
         try:
             if os.path.getsize(full_path) > git_utils.MAX_READ_BYTES:
                 continue
-            with open(full_path, "r", errors="ignore") as f:
-                parsed = parse_copybook(f.read(git_utils.MAX_READ_BYTES), path)
+            with open(full_path, "rb") as f:
+                content, _ = decode_source(
+                    f.read(git_utils.MAX_READ_BYTES),
+                    (profiles_by_path or {}).get(path).encoding
+                    if (profiles_by_path or {}).get(path) is not None
+                    else None,
+                )
+            parsed = parse_copybook(content, path, profile=(profiles_by_path or {}).get(path))
             index.fields_by_path[path] = [
                 {
                     "name": entity.name,
@@ -98,7 +110,7 @@ def _prepare_copybook_index(wt: str, extensions: dict[str, set[str]]) -> Copyboo
                 if entity.type == "data_item"
             ]
             index.copy_edges_by_path[path] = [edge for edge in parsed.edges if edge.type == "COPY"]
-        except OSError:
+        except (OSError, SourceDecodeError):
             # Der Namensindex bleibt nutzbar; die XREF-Vererbung für diese
             # einzelne, nicht lesbare Datei entfällt fehlertolerant (F-029).
             continue

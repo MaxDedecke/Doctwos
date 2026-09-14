@@ -18,7 +18,7 @@ from typing import Mapping
 # Änderungen an handgeschriebenen Scanner-/Persistenzregeln sind nicht aus
 # einer Grammatikdatei ableitbar. Dieser Wert ist deshalb ein absichtlicher,
 # bei semantischen Parseränderungen zu erhöhender Vertrag.
-COBOL_PARSER_VERSION = "3"
+COBOL_PARSER_VERSION = "4"
 
 
 def grammar_fingerprint() -> str:

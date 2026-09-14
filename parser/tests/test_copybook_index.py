@@ -1,5 +1,6 @@
 from cobol import registry
 from cobol.parse import parse_program
+from cobol.profile import BuildProfile
 
 
 def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monkeypatch):
@@ -34,3 +35,22 @@ def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monke
     assert uses.resolution == "resolved"
     assert uses.meta["copybook_path"] == "copy/BASE.CPY"
     assert uses.meta["target_qualified_name"] == "BASE.BASE-RECORD.BASE-ID"
+
+
+def test_sourcewide_index_uses_the_same_confirmed_decoder_as_programs(tmp_path, monkeypatch):
+    copy_dir = tmp_path / "copy"
+    copy_dir.mkdir()
+    source = "01 GRÜSSE.\n   05 Ä-FELD PIC X.\n"
+    (copy_dir / "NAMES.CPY").write_bytes(source.encode("cp273"))
+    monkeypatch.setattr(registry.git_utils, "list_tracked_files", lambda _: ["copy/NAMES.CPY"])
+
+    index = registry._prepare_copybook_index(
+        str(tmp_path),
+        {"copybook": {".cpy"}},
+        {"copy/NAMES.CPY": BuildProfile(encoding="CCSID-273")},
+    )
+
+    assert [field["name"] for field in index.fields_by_path["copy/NAMES.CPY"]] == [
+        "GRÜSSE",
+        "Ä-FELD",
+    ]
