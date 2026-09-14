@@ -187,3 +187,51 @@ class ParseResult:
     chunks: list[Chunk] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     diagnostics: list[ParseDiagnostic] = field(default_factory=list)
+
+
+# O-120: bislang leitete GitConnector den einzigen sichtbaren Qualitätsstatus
+# ("ok"/"fallback_text") ausschließlich aus `errors` ab -- die mit O-119
+# eingeführten strukturierten `diagnostics` (z.B. ein zurückgestuftes
+# COBOL85-Fallback-Token oder eine unbekannte `compiler_family`, siehe
+# O-121s `PROFILE_UNKNOWN_COMPILER_FAMILY`) blieben dabei unberücksichtigt --
+# eine Datei mit ernsten Diagnosen aber leerem `errors` erschien als "ok",
+# genau die in MAINFRAME_KOMPATIBILITAET.md dokumentierte Lücke. Diese vier
+# Werte sind bewusst der komplette Wortschatz aus dem O-120-Katalogeintrag
+# ("vollständig/teilweise/Textfallback/übersprungen") -- "skipped" wird nie
+# von `classify_completeness()` vergeben (eine Datei, die klassifiziert wird,
+# wurde per Definition geparst), sondern direkt vom aufrufenden Connector
+# gesetzt, wenn eine Datei gar nicht erst an den Parser ging (Binärformat,
+# Größenlimit, kein UTF-8 -- siehe `connectors/git.py::fetch_documents`).
+AnalysisStatus = Literal["complete", "partial", "text_fallback", "skipped"]
+
+
+def classify_completeness(result: ParseResult) -> tuple[AnalysisStatus, list[str]]:
+    """Bewertet ein `ParseResult` danach, wie vollständig die Struktur der
+    Datei tatsächlich erfasst wurde -- nicht nur, ob der Parser abgestürzt
+    ist. Reine Funktion, kein DB-Zugriff (wie `ParseResult` selbst, E-6).
+
+    - "text_fallback": kein einziger PROCEDURE-DIVISION-Paragraph gefunden
+      (F-029) -- `_fallback_chunks()` markiert das eigens mit
+      `meta["fallback"] = True`, statt dass wir hier erneut prüfen müssten,
+      ob `entities`/`edges` leer sind (eine Datei ohne PROCEDURE DIVISION
+      kann trotzdem IDENTIFICATION-/DATA-DIVISION-Entities haben).
+    - "partial": es wurde Struktur erkannt, aber `errors` und/oder
+      `diagnostics` mit severity "error"/"warning" stehen dagegen -- ein
+      fachlich unvollständiger oder unsicherer Graph, der nicht als
+      uneingeschränkt verlässlich gelten darf (O-120-Abnahme). severity
+      "info" (z.B. O-121s `SOURCE_FORMAT_HEURISTIC`, die ohne Buildprofil
+      für praktisch jede Datei anfällt) zählt bewusst NICHT als Makel --
+      sonst würde die reine Abwesenheit eines noch nicht existierenden
+      Profil-Einrichtungswegs (O-151) jede Datei zu "partial" degradieren.
+    - "complete": weder noch.
+    """
+    reasons = list(result.errors)
+    reasons += [d.message for d in result.diagnostics if d.severity in ("error", "warning")]
+
+    if any(chunk.meta.get("fallback") for chunk in result.chunks):
+        return "text_fallback", reasons or [
+            "Keine PROCEDURE DIVISION gefunden, Datei wurde als Volltext statt als Struktur analysiert."
+        ]
+    if reasons:
+        return "partial", reasons
+    return "complete", []

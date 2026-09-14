@@ -7,8 +7,13 @@ frontend to fall back to. See `_resolve_citation_source_id` in api/chat.py.
 from types import SimpleNamespace
 
 import api.chat as chat_module
-from api.chat import _extract_tool_sources, _record_agent_source, _resolve_citation_source_id
-from models.database import KnowledgeSource
+from api.chat import (
+    _attach_analysis_status,
+    _extract_tool_sources,
+    _record_agent_source,
+    _resolve_citation_source_id,
+)
+from models.database import KnowledgeSource, SourceScanFile
 
 
 def test_repo_chunk_without_source_id_resolves_to_the_projects_git_source(db_session, test_project, test_team):
@@ -107,3 +112,52 @@ def test_record_agent_source_still_dedupes_by_file_and_lines():
     _record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
 
     assert len(agent_sources) == 1
+
+
+def test_attach_analysis_status_marks_a_partial_citation(db_session, test_project, test_team):
+    """O-120: eine Chat-Quelle, die aus einer nur teilweise geparsten Datei
+    stammt, muss diesen Vorbehalt tragen -- sonst wirkt jedes Zitat gleich
+    verlässlich, egal ob die Struktur dahinter vollständig ist."""
+    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+    db_session.add(git_source)
+    db_session.commit()
+    db_session.add(
+        SourceScanFile(
+            source_id=git_source.id,
+            file_path="PAYROLL.cbl",
+            content_hash="abc",
+            parse_status="partial",
+            parse_error="mismatched input",
+        )
+    )
+    db_session.commit()
+
+    sources = [{"file": "PAYROLL.cbl", "lines": [1, 5], "source_id": git_source.id}]
+    result = _attach_analysis_status(db_session, sources)
+
+    assert result[0]["analysis_status"] == "partial"
+    assert result[0]["analysis_reasons"] == ["mismatched input"]
+
+
+def test_attach_analysis_status_leaves_a_clean_citation_untouched(db_session, test_project, test_team):
+    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+    db_session.add(git_source)
+    db_session.commit()
+    db_session.add(
+        SourceScanFile(
+            source_id=git_source.id, file_path="OK.cbl", content_hash="abc", parse_status="complete"
+        )
+    )
+    db_session.commit()
+
+    sources = [{"file": "OK.cbl", "lines": [1, 5], "source_id": git_source.id}]
+    result = _attach_analysis_status(db_session, sources)
+
+    assert "analysis_status" not in result[0]
+
+
+def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session):
+    # z.B. ein Fallback-Zitat ohne verknüpfte KnowledgeSource -- darf nicht crashen.
+    sources = [{"file": "unknown.txt", "lines": None, "source_id": None}]
+    result = _attach_analysis_status(db_session, sources)
+    assert "analysis_status" not in result[0]

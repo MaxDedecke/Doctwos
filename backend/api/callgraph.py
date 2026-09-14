@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from api.entities import _assert_entity_visible, entity_json
+from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from models.database import CodeEdge, CodeEntity, User
@@ -66,6 +67,20 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
 
     entities = db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id).all()
     nodes = [entity_json(e) for e in entities]
+    # O-120: ein Knoten aus einer nur teilweise/gar nicht strukturell
+    # analysierten Datei (COBOL-Diagnosen, F-029-Textfallback) darf im Graph
+    # nicht ununterscheidbar von einem uneingeschränkt analysierten Knoten
+    # erscheinen. Bewusst nur auf Datei-Ebene (welche Entities/Kanten fehlen
+    # oder unsicher sind, ist O-150s gemeinsamer Herkunfts-/Unsicherheits-
+    # vertrag, nicht Teil dieses Punkts).
+    status_by_key = load_analysis_status(
+        db, {(node.get("source_id"), node.get("file_path")) for node in nodes}
+    )
+    for node in nodes:
+        info = status_by_key.get((node.get("source_id"), node.get("file_path")))
+        if info:
+            node["analysis_status"] = info["status"]
+            node["analysis_reasons"] = info["reasons"]
     edges = [
         {
             "id": e.id,

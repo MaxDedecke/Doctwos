@@ -1219,5 +1219,12 @@
     "title": "Source network",
     "empty": "No network yet — once a source is connected below, the information flow into Doctus will appear here.",
     "overflowLabel": "+{{count}} more"
+  },
+  "analysisStatus": {
+    "partial": "Partially analyzed",
+    "text_fallback": "Indexed as text only, no structure recognized",
+    "skipped": "Analysis skipped",
+    "error": "Analysis failed",
+    "tooltipWithReasons": "{{label}}: {{reasons}}"
   }
 }

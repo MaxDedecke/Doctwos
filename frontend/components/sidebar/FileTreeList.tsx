@@ -4,8 +4,10 @@ import { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronDown, ChevronRight, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { KnowledgeNodeIcon } from '@/components/KnowledgeNodeIcon';
 import { buildFileTree, flattenVisibleFileTree, type FlatTreeRow } from '@/lib/sidebarFileTree';
+import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatusInfo } from '@/lib/analysisStatus';
 
 // Grobe Zeilenhöhe (py-1 + Icon) -- nur Startschätzung für den Virtualizer,
 // `measureElement` gleicht danach an die tatsächliche Höhe an.
@@ -13,6 +15,10 @@ const ESTIMATED_ROW_HEIGHT = 26;
 
 interface FileTreeListProps {
   filesList: string[];
+  // O-120: nur für Dateien befüllt, die nicht uneingeschränkt analysiert
+  // sind (siehe backend/core/analysis_status.py) -- fehlt ein Pfad hier,
+  // gilt er als unauffällig, kein Badge.
+  fileStatus?: Record<string, AnalysisStatusInfo>;
   sourceId: number;
   sourceType?: string;
   selectedFile: string | null;
@@ -33,6 +39,7 @@ interface FileTreeListProps {
  */
 export function FileTreeList({
   filesList,
+  fileStatus,
   sourceId,
   sourceType,
   selectedFile,
@@ -42,6 +49,7 @@ export function FileTreeList({
   theme,
 }: FileTreeListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   const rows = useMemo(
     () => flattenVisibleFileTree(buildFileTree(filesList), collapsedFolders),
@@ -83,6 +91,8 @@ export function FileTreeList({
     }
 
     const isFileSelected = selectedFile === node.path;
+    const status = fileStatus?.[node.path];
+    const title = status ? `${node.path}\n${formatAnalysisStatusTooltip(status, t)}` : node.path;
     return (
       <button
         type="button"
@@ -94,13 +104,20 @@ export function FileTreeList({
             : (theme === 'dark' ? "text-ds-zinc-500 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-300" : "text-ds-zinc-550 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-800")
         )}
         style={{ paddingLeft: `${Math.max(8, depth * 12 + 14)}px` }}
-        title={node.path}
+        title={title}
       >
         <KnowledgeNodeIcon
           node={{ type: 'document', source_type: sourceType }}
           className="w-3 h-3 shrink-0 opacity-70"
         />
         <span className="truncate flex-1 min-w-0 font-mono">{node.name}</span>
+        {status && (
+          <span
+            data-testid="analysis-status-dot"
+            className="w-1.5 h-1.5 rounded-full shrink-0 mr-1.5"
+            style={{ backgroundColor: ANALYSIS_STATUS_COLOR_TOKEN[status.status] }}
+          />
+        )}
       </button>
     );
   };

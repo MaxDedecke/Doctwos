@@ -1,5 +1,6 @@
 import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, Project, ProjectStats, SearchResult, StoredChatMessage, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
+import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 
 declare global {
@@ -83,7 +84,11 @@ export const api = {
     updateKnowledgeSourceContextNote: (id: number, context_note: string) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { context_note }),
     deleteKnowledgeSource: (id: number) => axios.delete(`${API_URL}/knowledge-sources/${id}`),
     getKnowledgeSourceContent: (id: number | string, path?: string) => axios.get<{ content: string; format: string }>(`${API_URL}/knowledge-sources/${id}/content`, { params: path ? { path } : {} }),
-    getKnowledgeSourceFiles: (id: number | string) => axios.get<{ files: string[] }>(`${API_URL}/knowledge-sources/${id}/files`),
+    // O-120: file_status trägt nur Einträge für nicht uneingeschränkt
+    // analysierte Dateien (siehe backend/core/analysis_status.py) -- fehlt
+    // ein Pfad hier, gilt er als vollständig analysiert bzw. hat nie einen
+    // Strukturparser durchlaufen.
+    getKnowledgeSourceFiles: (id: number | string) => axios.get<{ files: string[]; file_status?: Record<string, AnalysisStatusInfo> }>(`${API_URL}/knowledge-sources/${id}/files`),
     resolveWebOrigin: (id: number | string, url: string, theme?: string) => axios.get<{ content: string; format: string; url: string }>(`${API_URL}/knowledge-sources/${id}/resolve`, { params: { url, theme } }),
     uploadLocalDocument: (formData: FormData) => axios.post(`${API_URL}/knowledge-sources/upload`, formData, {
         headers: {

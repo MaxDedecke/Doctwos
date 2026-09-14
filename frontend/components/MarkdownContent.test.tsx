@@ -2,8 +2,21 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
+/** Dieselbe {{var}}-Ersetzung wie LanguageContext.tsx::t, mit den zwei
+ * analysisStatus-Vorlagen als Mini-Wörterbuch -- genug, um
+ * analysisStatus.ts::formatAnalysisStatusTooltip gegen einen realistischen
+ * `t()` zu testen, ohne die echten JSON-Wörterbücher zu importieren. */
+const FAKE_DICT: Record<string, string> = {
+  'analysisStatus.tooltipWithReasons': '{{label}}: {{reasons}}',
+};
+const fakeT = (key: string, vars?: Record<string, string | number>) => {
+  const template = FAKE_DICT[key] ?? key;
+  if (!vars) return template;
+  return Object.entries(vars).reduce((acc, [k, v]) => acc.replace(`{{${k}}}`, String(v)), template);
+};
+
 vi.mock('@/lib/i18n/LanguageContext', () => ({
-  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguage: () => ({ t: fakeT }),
 }));
 
 import {
@@ -24,7 +37,7 @@ function renderParsed(
   knownSources?: KnownSource[],
   theme = 'dark'
 ) {
-  return render(<>{parseText(text, onFileClick, theme, knownSources)}</>);
+  return render(<>{parseText(text, onFileClick, theme, fakeT, knownSources)}</>);
 }
 
 describe('splitTableRow (reine Funktion)', () => {
@@ -120,6 +133,29 @@ describe('parseText — Code-Zitate', () => {
     fireEvent.click(screen.getByText('Deployment Guide:3'));
     expect(onFileClick).toHaveBeenCalledWith('Deployment Guide', 3, 'conf-9');
   });
+
+  // O-120: eine zitierte Datei, die nicht uneingeschränkt analysiert ist,
+  // trägt einen Warn-Punkt + erklärenden Tooltip statt unkommentiert wie
+  // jede andere Quelle auszusehen.
+  it('marks a citation whose source has a non-complete analysis status', () => {
+    const knownSources: KnownSource[] = [
+      { file: 'PAYROLL.cbl', analysis_status: 'partial', analysis_reasons: ['mismatched input'] },
+    ];
+    renderParsed('`PAYROLL.cbl`', vi.fn(), knownSources);
+
+    const button = screen.getByRole('button');
+    expect(button.querySelector('[data-testid="analysis-status-dot"]')).toBeTruthy();
+    expect(button.getAttribute('title')).toContain('mismatched input');
+  });
+
+  it('leaves a citation without a non-complete analysis status unmarked', () => {
+    const knownSources: KnownSource[] = [{ file: 'OK.cbl' }];
+    renderParsed('`OK.cbl`', vi.fn(), knownSources);
+
+    const button = screen.getByRole('button');
+    expect(button.querySelector('[data-testid="analysis-status-dot"]')).toBeNull();
+    expect(button.getAttribute('title')).toBeNull();
+  });
 });
 
 describe('parseText — Zitate ohne Backticks (Tabellenzellen-Fallback)', () => {
@@ -148,6 +184,14 @@ describe('parseText — Zitate ohne Backticks (Tabellenzellen-Fallback)', () => 
   it('leaves plain text alone when no known sources are given', () => {
     renderParsed('Siehe DISPATCHER.cbl für Details', vi.fn(), undefined);
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('marks a backtick-less citation the same way as a backtick one (O-120)', () => {
+    const knownSources: KnownSource[] = [{ file: 'DISPATCHER.cbl', analysis_status: 'skipped', analysis_reasons: [] }];
+    renderParsed('Siehe DISPATCHER.cbl für Details', vi.fn(), knownSources);
+
+    const button = screen.getByRole('button');
+    expect(button.querySelector('[data-testid="analysis-status-dot"]')).toBeTruthy();
   });
 });
 

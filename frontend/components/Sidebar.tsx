@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import React, { useCallback, useEffect, useState } from 'react';
+import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { FileTreeList } from './sidebar/FileTreeList';
 import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
@@ -70,6 +71,10 @@ export function Sidebar({
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
   const [sourceFiles, setSourceFiles] = useState<Record<number, string[]>>({});
+  // O-120: nur für Dateien befüllt, die nicht uneingeschränkt analysiert sind
+  // (siehe api.ts::getKnowledgeSourceFiles) -- FileTreeList zeigt daraus ein
+  // Badge, fehlt ein Pfad hier gilt er als unauffällig.
+  const [sourceFileStatus, setSourceFileStatus] = useState<Record<number, Record<string, AnalysisStatusInfo>>>({});
   const [loadingSourceId, setLoadingSourceId] = useState<number | null>(null);
 
   const loadSourceFiles = async (sourceId: number) => {
@@ -77,6 +82,7 @@ export function Sidebar({
     try {
       const res = await api.getKnowledgeSourceFiles(sourceId);
       setSourceFiles(prev => ({ ...prev, [sourceId]: res.data.files || [] }));
+      setSourceFileStatus(prev => ({ ...prev, [sourceId]: res.data.file_status || {} }));
     } catch (e) {
       console.error("Failed to load source files", e);
     } finally {
@@ -393,6 +399,7 @@ export function Sidebar({
                                     ) : (
                                       <FileTreeList
                                         filesList={filesList}
+                                        fileStatus={sourceFileStatus[Number(source.id)]}
                                         sourceId={Number(source.id)}
                                         sourceType={source.type}
                                         selectedFile={selectedFile}

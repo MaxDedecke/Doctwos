@@ -18,7 +18,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { CallGraphView } from './CallGraphView';
 
-type GraphStubProps = { graphData: { nodes: CallNode[]; links: CallEdge[] }; onNodeClick: (node: CallNode) => void };
+type GraphStubProps = {
+  graphData: { nodes: CallNode[]; links: CallEdge[] };
+  onNodeClick: (node: CallNode) => void;
+  // O-120: exponiert, damit ein Test den tatsächlich berechneten Tooltip-
+  // Text prüfen kann, ohne echtes Canvas.
+  nodeLabel?: (node: CallNode) => string;
+};
 const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     zoom: () => 1,
@@ -27,7 +33,12 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
   return (
     <div data-testid="force-graph-stub">
       {props.graphData.nodes.map((node) => (
-        <button key={node.id} data-testid={`node-${node.id}`} onClick={() => props.onNodeClick(node)}>
+        <button
+          key={node.id}
+          data-testid={`node-${node.id}`}
+          title={props.nodeLabel?.(node)}
+          onClick={() => props.onNodeClick(node)}
+        >
           {node.name}
         </button>
       ))}
@@ -143,6 +154,30 @@ describe('CallGraphView', () => {
       expect(screen.getByTestId('node-entity:2')).toBeTruthy();
       expect(lastFocusUrl(fetchMock)).toContain('entity_id=42');
       expect(lastFocusUrl(fetchMock)).toContain('hops=1');
+    });
+
+    it('markiert einen Knoten aus einer nicht uneingeschränkt analysierten Datei (O-120)', async () => {
+      stubFetch({
+        focus: {
+          ...FOCUS_RESPONSE,
+          nodes: [
+            {
+              ...FOCUS_RESPONSE.nodes[0],
+              analysis_status: 'partial',
+              analysis_reasons: ['mismatched input'],
+            },
+            FOCUS_RESPONSE.nodes[1],
+          ],
+        },
+      });
+
+      renderView();
+
+      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+      const marked = screen.getByTestId('node-entity:1');
+      const clean = screen.getByTestId('node-entity:2');
+      expect(marked.getAttribute('title')).toContain('mismatched input');
+      expect(clean.getAttribute('title')).not.toContain('mismatched input');
     });
 
     it('schickt den Projektkontext mit, wenn ein Projekt gewählt ist', async () => {

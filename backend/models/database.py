@@ -548,8 +548,15 @@ class SourceScanFile(Base):
     )
     file_path = Column(String, nullable=False)
     content_hash = Column(String(32), nullable=False)
-    # 'ok' | 'fallback_text' | 'error' — 'fallback_text' = nicht parsebar, aber als
-    # Volltext indiziert und damit weiterhin durchsuchbar (F-029).
+    # O-120: 'complete' | 'partial' | 'text_fallback' | 'skipped' | 'error'
+    # (core.model.AnalysisStatus plus 'error' für DB-seitige Persistenzfehler,
+    # siehe connectors/git.py::_save_document_chunks). Vor O-120 nur
+    # 'ok'/'fallback_text'/'error', abgeleitet allein aus ParseResult.errors —
+    # ignorierte die O-119-Diagnosen und unterschied nicht zwischen "Struktur
+    # mit Einschränkungen" (jetzt 'partial') und "gar keine Struktur, nur
+    # Volltext" (jetzt 'text_fallback', F-029). 'skipped' ist neu: eine Datei,
+    # die nie beim Parser ankam (Binärformat/Größenlimit/kein UTF-8, siehe
+    # GitConnector._record_skip) — vorher komplett unsichtbar (nur Sync-Log).
     parse_status = Column(String, nullable=True)
     parse_error = Column(Text, nullable=True)
     indexed_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

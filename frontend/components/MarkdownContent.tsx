@@ -1,3 +1,4 @@
+import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip } from '@/lib/analysisStatus';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
 import { BookOpen, Check, Code, Layers } from 'lucide-react';
@@ -77,7 +78,24 @@ export interface KnownSource {
   file: string;
   lines?: Array<number | null>;
   source_id?: number | string | null;
+  // O-120: nur gesetzt, wenn die zugrunde liegende Datei nicht uneingeschränkt
+  // analysiert ist (siehe backend/core/analysis_status.py) -- fehlt es, gilt
+  // das Zitat als unauffällig.
+  analysis_status?: 'partial' | 'text_fallback' | 'skipped' | 'error';
+  analysis_reasons?: string[];
 }
+
+/** Kleiner Warn-Punkt an einem Zitat-Badge, dessen Datei nicht uneingeschränkt
+ * analysiert ist (O-120) -- dieselbe Farbcodierung wie im Editor-Dateibaum
+ * (FileTreeList) und im Call-Graph (CallGraphView). */
+const AnalysisStatusDot: React.FC<{ source: KnownSource }> = ({ source }) =>
+  source.analysis_status ? (
+    <span
+      data-testid="analysis-status-dot"
+      className="w-1.5 h-1.5 rounded-full shrink-0"
+      style={{ backgroundColor: ANALYSIS_STATUS_COLOR_TOKEN[source.analysis_status] }}
+    />
+  ) : null;
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -96,6 +114,7 @@ const renderPlainKnownSources = (
   keyPrefix: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources: KnownSource[]
 ): React.ReactNode[] => {
   const candidates = [...knownSources].filter(s => s.file).sort((a, b) => b.file.length - a.file.length);
@@ -116,6 +135,7 @@ const renderPlainKnownSources = (
         type="button"
         key={`${keyPrefix}-plain-${idx++}`}
         onClick={() => onFileClick(title, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
+        title={knownSource?.analysis_status ? formatAnalysisStatusTooltip({ status: knownSource.analysis_status, reasons: knownSource.analysis_reasons || [] }, t) : undefined}
         className={cn(
           "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
           theme === 'dark'
@@ -125,6 +145,7 @@ const renderPlainKnownSources = (
       >
         <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" />
         <span className="truncate">{match[0]}</span>
+        {knownSource && <AnalysisStatusDot source={knownSource} />}
       </button>
     );
     lastIndex = pattern.lastIndex;
@@ -138,6 +159,7 @@ const parseTextSegment = (
   keyPrefix: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources?: KnownSource[]
 ) => {
   if (!text) return "";
@@ -200,6 +222,7 @@ const parseTextSegment = (
             type="button"
             id={`file-link-${codeVal.replace(/[^a-zA-Z0-9]/g, "-")}`}
             onClick={() => onFileClick(filePath, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
+            title={knownSource?.analysis_status ? formatAnalysisStatusTooltip({ status: knownSource.analysis_status, reasons: knownSource.analysis_reasons || [] }, t) : undefined}
             className={cn(
               "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
               theme === 'dark'
@@ -209,6 +232,7 @@ const parseTextSegment = (
           >
             {isDoc ? <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" /> : <Code className="w-3 h-3 shrink-0" />}
             <span className="truncate">{codeVal}</span>
+            {knownSource && <AnalysisStatusDot source={knownSource} />}
           </button>
         );
       }
@@ -238,7 +262,7 @@ const parseTextSegment = (
       // especially inside table cells) still get a chance to resolve against
       // knownSources here, instead of only ever rendering as inert plain text.
       return knownSources && knownSources.length > 0
-        ? renderPlainKnownSources(bp2, partKey, onFileClick, theme, knownSources)
+        ? renderPlainKnownSources(bp2, partKey, onFileClick, theme, t, knownSources)
         : bp2;
     });
   });
@@ -254,17 +278,18 @@ export const parseText = (
   text: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources?: KnownSource[]
 ) => {
   if (!text) return "";
   const lineParts = text.split(BR_TAG_SPLIT_RE);
   if (lineParts.length === 1) {
-    return parseTextSegment(text, "s0", onFileClick, theme, knownSources);
+    return parseTextSegment(text, "s0", onFileClick, theme, t, knownSources);
   }
   return lineParts.map((part, li) =>
     BR_TAG_TEST_RE.test(part)
       ? <br key={`br-${li}`} />
-      : parseTextSegment(part, `s${li}`, onFileClick, theme, knownSources)
+      : parseTextSegment(part, `s${li}`, onFileClick, theme, t, knownSources)
   );
 };
 
@@ -347,52 +372,55 @@ interface MarkdownTableProps {
   knownSources?: KnownSource[];
 }
 
-const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, theme, onFileClick, knownSources }) => (
-  <div className={cn(
-    "overflow-x-auto rounded-lg border my-4 no-scrollbar",
-    theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200"
-  )}>
-    <table className="w-full text-sm border-collapse">
-      <thead>
-        <tr className={theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-zinc-100/80"}>
-          {header.map((cell, i) => (
-            <th
-              key={i}
-              style={{ textAlign: align[i] || 'left' }}
-              className={cn(
-                "px-3 py-2 font-semibold border-b whitespace-normal",
-                theme === 'dark' ? "text-ds-white border-ds-zinc-800" : "text-ds-zinc-950 border-ds-zinc-200"
-              )}
-            >
-              {parseText(cell, onFileClick, theme, knownSources)}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, ri) => (
-          <tr
-            key={ri}
-            className={cn(
-              "border-b last:border-b-0",
-              theme === 'dark' ? "border-ds-zinc-800/60" : "border-ds-zinc-200/80"
-            )}
-          >
-            {header.map((_, ci) => (
-              <td
-                key={ci}
-                style={{ textAlign: align[ci] || 'left' }}
-                className="px-3 py-2 align-top whitespace-normal"
+const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, theme, onFileClick, knownSources }) => {
+  const { t } = useLanguage();
+  return (
+    <div className={cn(
+      "overflow-x-auto rounded-lg border my-4 no-scrollbar",
+      theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200"
+    )}>
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className={theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-zinc-100/80"}>
+            {header.map((cell, i) => (
+              <th
+                key={i}
+                style={{ textAlign: align[i] || 'left' }}
+                className={cn(
+                  "px-3 py-2 font-semibold border-b whitespace-normal",
+                  theme === 'dark' ? "text-ds-white border-ds-zinc-800" : "text-ds-zinc-950 border-ds-zinc-200"
+                )}
               >
-                {row[ci] !== undefined ? parseText(row[ci], onFileClick, theme, knownSources) : null}
-              </td>
+                {parseText(cell, onFileClick, theme, t, knownSources)}
+              </th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr
+              key={ri}
+              className={cn(
+                "border-b last:border-b-0",
+                theme === 'dark' ? "border-ds-zinc-800/60" : "border-ds-zinc-200/80"
+              )}
+            >
+              {header.map((_, ci) => (
+                <td
+                  key={ci}
+                  style={{ textAlign: align[ci] || 'left' }}
+                  className="px-3 py-2 align-top whitespace-normal"
+                >
+                  {row[ci] !== undefined ? parseText(row[ci], onFileClick, theme, t, knownSources) : null}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
 /**
  * Renders a non-code chunk of text, splitting out ATX-style heading lines
@@ -405,6 +433,7 @@ const renderTextBlock = (
   blockKey: number,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
+  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources?: KnownSource[]
 ) => {
   const lines = block.split('\n');
@@ -416,7 +445,7 @@ const renderTextBlock = (
     const text = paragraphBuffer.join('\n');
     elements.push(
       <p key={`${blockKey}-p-${idx}`} className="leading-relaxed whitespace-pre-wrap text-[15px]">
-        {parseText(text, onFileClick, theme, knownSources)}
+        {parseText(text, onFileClick, theme, t, knownSources)}
       </p>
     );
     paragraphBuffer = [];
@@ -435,7 +464,7 @@ const renderTextBlock = (
           key={`${blockKey}-h-${i}`}
           className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}
         >
-          {parseText(headingMatch[2], onFileClick, theme, knownSources)}
+          {parseText(headingMatch[2], onFileClick, theme, t, knownSources)}
         </HeadingTag>
       );
       i++;
@@ -473,7 +502,7 @@ const renderTextBlock = (
             theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900/30 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-100/60 text-ds-zinc-600"
           )}
         >
-          {parseText(quoteLines.join('\n'), onFileClick, theme, knownSources)}
+          {parseText(quoteLines.join("\n"), onFileClick, theme, t, knownSources)}
         </blockquote>
       );
       i = k;
@@ -519,6 +548,7 @@ const renderTextBlock = (
  * transforming them into HTML elements with syntax highlights and link badges.
  */
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources }) => {
+  const { t } = useLanguage();
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
   return (
@@ -530,7 +560,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
           const code = match ? match[2] : part.slice(3, -3);
           return <CodeBlock key={index} language={lang} code={code} theme={theme} />;
         } else {
-          return renderTextBlock(part, index, onFileClick, theme, knownSources);
+          return renderTextBlock(part, index, onFileClick, theme, t, knownSources);
         }
       })}
     </div>

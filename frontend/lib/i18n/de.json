@@ -1219,5 +1219,12 @@
     "title": "Quellen-Netzwerk",
     "empty": "Noch kein Netzwerk — sobald unten eine Quelle angebunden ist, erscheint hier der Informationsfluss in Doctus.",
     "overflowLabel": "+{{count}} weitere"
+  },
+  "analysisStatus": {
+    "partial": "Teilweise analysiert",
+    "text_fallback": "Nur als Text indiziert, keine Struktur erkannt",
+    "skipped": "Analyse übersprungen",
+    "error": "Analyse fehlgeschlagen",
+    "tooltipWithReasons": "{{label}}: {{reasons}}"
   }
 }

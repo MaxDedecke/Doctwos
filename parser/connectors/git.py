@@ -34,7 +34,7 @@ import redis
 
 import git_utils
 from git_utils import MAX_READ_BYTES
-from core.model import ParseResult
+from core.model import ParseResult, classify_completeness
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
@@ -395,13 +395,16 @@ class GitConnector(BaseConnector):
                 parse_status = None
                 parse_error = None
                 if parse_result is not None:
-                    # F-029: errors != leer heißt nicht zwangsläufig "gar nicht
-                    # geparst" (z.B. eine fehlende DATA DIVISION lässt Programm-/
-                    # Paragraph-Entities trotzdem stehen) - aber es signalisiert
-                    # dem Users-Tab/Diagnostics, dass diese Datei einen genaueren
-                    # Blick verdient.
-                    parse_status = "ok" if not parse_result.errors else "fallback_text"
-                    parse_error = "; ".join(parse_result.errors) or None
+                    # O-120: `errors == []` allein hieß bisher "ok" -- das
+                    # übersah die O-119-Diagnosen (z.B. ein ANTLR-Syntaxfehler,
+                    # der `errors` nie erreicht) und behandelte den F-029-
+                    # Textfallback (keine PROCEDURE DIVISION) wie einen
+                    # gewöhnlichen Fehlerfall statt wie eine eigene, dritte
+                    # Kategorie. `classify_completeness()` bewertet stattdessen
+                    # errors + diagnostics + den Fallback-Chunk-Marker
+                    # gemeinsam (siehe core/model.py für die vier Werte).
+                    parse_status, reasons = classify_completeness(parse_result)
+                    parse_error = "; ".join(reasons) or None
                     persist_parse_result(
                         self.db,
                         project_id=self.source.project_id,
@@ -477,6 +480,38 @@ class GitConnector(BaseConnector):
                 self.db.commit()
 
             return 0
+
+    def _record_skip(self, path: str, content_hash: str, reason: str) -> None:
+        """O-120: eine Datei, die wegen `_SKIPPED_BINARY_EXTENSIONS`, der
+        Größengrenze oder fehlgeschlagener UTF-8-Erkennung nie an
+        `_save_document_chunks()` geht, hinterließ bisher NUR eine
+        `self._log()`-Zeile -- kein SourceScanFile-Eintrag, also unsichtbar
+        für Diagnosebericht/Editor/API. Damit fehlte "übersprungen" als
+        eigener, abfragbarer Status komplett (siehe core/model.py::
+        AnalysisStatus). Contentbezogener Hash ist an dieser Stelle im
+        `to_process`-Loop bereits bekannt, macht die Datei damit auch
+        resumable wie jede embedded Datei.
+        """
+        existing = (
+            self.db.query(SourceScanFile)
+            .filter(SourceScanFile.source_id == self.source_id, SourceScanFile.file_path == path)
+            .first()
+        )
+        if existing:
+            existing.content_hash = content_hash
+            existing.parse_status = "skipped"
+            existing.parse_error = reason
+        else:
+            self.db.add(
+                SourceScanFile(
+                    source_id=self.source_id,
+                    file_path=path,
+                    content_hash=content_hash,
+                    parse_status="skipped",
+                    parse_error=reason,
+                )
+            )
+        self.db.commit()
 
     async def fetch_documents(self, force_reindex: bool = False) -> AsyncIterator[Document]:
         spaces = self.source.spaces or {}
@@ -615,9 +650,9 @@ class GitConnector(BaseConnector):
 
         for path, content_hash in to_process:
             if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
-                self._log(
-                    f"[SKIP] '{path}' ist ein Binärformat ohne Textextraktion, wird nicht embedded."
-                )
+                reason = "Binärformat ohne Textextraktion, wird nicht embedded."
+                self._log(f"[SKIP] '{path}' ist ein {reason}")
+                self._record_skip(path, content_hash, reason)
                 continue
             full_path = os.path.join(wt, path)
             try:
@@ -625,7 +660,9 @@ class GitConnector(BaseConnector):
             except OSError:
                 continue
             if file_size > MAX_READ_BYTES:
-                self._log(f"[SKIP] '{path}' überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB.")
+                reason = f"überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB, nicht embedded."
+                self._log(f"[SKIP] '{path}' {reason}")
+                self._record_skip(path, content_hash, reason)
                 continue
             try:
                 with open(full_path, "rb") as f:
@@ -634,9 +671,9 @@ class GitConnector(BaseConnector):
                 self._log(f"Fehler beim Lesen von '{path}': {e}")
                 continue
             if not _looks_like_text(raw):
-                self._log(
-                    f"[SKIP] '{path}' ist kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded."
-                )
+                reason = "kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded."
+                self._log(f"[SKIP] '{path}' ist {reason}")
+                self._record_skip(path, content_hash, reason)
                 continue
             content = raw.decode("utf-8")
 

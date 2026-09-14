@@ -186,6 +186,44 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         db_session.commit()
 
 
+def test_callgraph_focus_marks_nodes_from_incompletely_analyzed_files(
+    client, db_session, test_project, test_team
+):
+    """O-120: ein Knoten aus einer nur teilweise geparsten Datei darf im
+    Call-Graph nicht wie ein uneingeschränkt analysierter Knoten aussehen."""
+    from models.database import SourceScanFile
+
+    source, caller, target, copybook, paragraph, _ = _fixture_graph(
+        db_session, test_project, test_team
+    )
+    try:
+        db_session.add(
+            SourceScanFile(
+                source_id=source.id,
+                file_path="TARGET.CBL",
+                content_hash="abc",
+                parse_status="partial",
+                parse_error="mismatched input",
+            )
+        )
+        db_session.commit()
+
+        graph = client.get(
+            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
+        ).json()
+        nodes_by_id = {n["id"]: n for n in graph["nodes"]}
+
+        # TARGET.CBL beherbergt sowohl target als auch paragraph.
+        assert nodes_by_id[target.id]["analysis_status"] == "partial"
+        assert nodes_by_id[target.id]["analysis_reasons"] == ["mismatched input"]
+        # CALLER.CBL/FIELDS.CPY blieben unberührt -- kein Eintrag.
+        assert "analysis_status" not in nodes_by_id[caller.id]
+        assert "analysis_status" not in nodes_by_id[copybook.id]
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
 def test_entity_access_denied_outside_project_context_unless_opted_in(
     client, db_session, test_project, test_team
 ):

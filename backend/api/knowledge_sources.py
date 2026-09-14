@@ -44,7 +44,15 @@ from api.schemas import (
 from api.serializers import serialize_source
 from core.config import UPLOADS_DIR, REPOS_ROOT
 from core.db_setup import get_db
-from models.database import DocumentChunk, JobCenterDismissal, KnowledgeSource, Project, Team, User
+from models.database import (
+    DocumentChunk,
+    JobCenterDismissal,
+    KnowledgeSource,
+    Project,
+    SourceScanFile,
+    Team,
+    User,
+)
 from core.auth_dependency import get_current_user
 from core.teams import (
     get_visible_team_ids,
@@ -391,8 +399,25 @@ def get_knowledge_source_files(
     # Eine Datei kann mehrere Chunks unter "<Dateipfad>#<suffix>" ablegen. Für den
     # Datei-Browser interessiert nur die zugrunde liegende Datei, nicht die einzelnen
     # Chunks — sonst erscheint eine Datei als Dutzende nicht öffenbare Einträge.
-    files = sorted({c[0].split("#", 1)[0] for c in chunks if c[0]})
-    return {"files": files}
+    files = {c[0].split("#", 1)[0] for c in chunks if c[0]}
+
+    # O-120: eine Datei, die der GitConnector übersprungen hat (Binärformat,
+    # Größenlimit, kein UTF-8), hat NIE einen DocumentChunk — ohne diesen
+    # zweiten Blick auf SourceScanFile fehlt sie im Baum komplett, ununterscheidbar
+    # von einer Datei, die nie synchronisiert wurde. scan_rows liefert außerdem
+    # gleich den Status für jede nicht uneingeschränkt analysierte Datei mit.
+    scan_rows = (
+        db.query(SourceScanFile.file_path, SourceScanFile.parse_status, SourceScanFile.parse_error)
+        .filter(SourceScanFile.source_id == source_id)
+        .all()
+    )
+    file_status: dict[str, dict] = {}
+    for path, status, error in scan_rows:
+        files.add(path)
+        if status and status != "complete":
+            file_status[path] = {"status": status, "reasons": error.split("; ") if error else []}
+
+    return {"files": sorted(files), "file_status": file_status}
 
 
 @router.get("/{source_id}/content")

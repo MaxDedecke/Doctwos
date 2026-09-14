@@ -558,9 +558,7 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
     assert test_source.sync_status == "completed"
     assert "[SKIP] 'diagrams/architecture.png' ist ein Binärformat" in test_source.sync_log
 
-    # The .png must never reach the embedding pipeline -- no chunk, no
-    # SourceScanFile row (so a future sync can't mistake it for "already
-    # handled" either).
+    # The .png must never reach the embedding pipeline -- no chunk.
     chunks = (
         db_session.query(DocumentChunk)
         .filter(
@@ -570,6 +568,10 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
         .all()
     )
     assert len(chunks) == 0
+    # O-120: the skip IS recorded now (as its own "skipped" status) -- a
+    # future sync must be able to tell "seen and deliberately skipped" apart
+    # from "never seen", and the Editor/diagnostics bundle need something to
+    # show for this file at all.
     scan_file = (
         db_session.query(SourceScanFile)
         .filter(
@@ -578,7 +580,9 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
         )
         .first()
     )
-    assert scan_file is None
+    assert scan_file is not None
+    assert scan_file.parse_status == "skipped"
+    assert "Binärformat" in scan_file.parse_error
 
     # The legitimate COBOL/Markdown files must still be processed normally --
     # this must not turn into a blanket skip.
@@ -640,7 +644,9 @@ async def test_git_connector_skips_non_utf8_content_despite_text_looking_extensi
         )
         .first()
     )
-    assert scan_file is None
+    assert scan_file is not None
+    assert scan_file.parse_status == "skipped"
+    assert "UTF-8" in scan_file.parse_error
 
 
 @pytest.mark.anyio
@@ -670,6 +676,13 @@ async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(
         .all()
     )
     assert len(chunks) == 0
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == "weird.dat")
+        .first()
+    )
+    assert scan_file is not None
+    assert scan_file.parse_status == "skipped"
 
 
 @pytest.mark.anyio

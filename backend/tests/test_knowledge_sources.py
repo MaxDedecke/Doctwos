@@ -205,6 +205,62 @@ def test_non_admin_cannot_queue_full_reindex(member_client):
     assert response.status_code == 403
 
 
+def test_source_files_includes_skipped_files_and_their_status(client, make_project, db_session):
+    """O-120: eine vom GitConnector übersprungene Datei (Binärformat/Größenlimit/
+    kein UTF-8) hat nie einen DocumentChunk -- ohne den SourceScanFile-Blick
+    fehlt sie im Datei-Baum komplett. Der Endpunkt muss sie ergänzen UND ihren
+    Status ausweisen, ohne die vielen unauffälligen ("complete") Dateien mit
+    demselben Feld zu belasten."""
+    from models.database import DocumentChunk
+
+    project_id = make_project()
+    resp = client.post(
+        "/knowledge-sources", json={"name": "git-src", "type": "Git", "project_id": project_id}
+    )
+    source_id = resp.json()["id"]
+
+    db_session.add(
+        DocumentChunk(
+            project_id=project_id,
+            source_id=source_id,
+            file_path="PROG.CBL",
+            content="x",
+            start_line=1,
+            end_line=1,
+        )
+    )
+    db_session.add_all(
+        [
+            SourceScanFile(
+                source_id=source_id,
+                file_path="PROG.CBL",
+                content_hash="a",
+                parse_status="complete",
+            ),
+            SourceScanFile(
+                source_id=source_id,
+                file_path="diagrams/architecture.png",
+                content_hash="b",
+                parse_status="skipped",
+                parse_error="Binärformat ohne Textextraktion, wird nicht embedded.",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    body = client.get(f"/knowledge-sources/{source_id}/files").json()
+
+    assert set(body["files"]) == {"PROG.CBL", "diagrams/architecture.png"}
+    # "complete" (PROG.CBL) taucht bewusst nicht in file_status auf -- kein
+    # Eintrag heißt für den Aufrufer schon "kein Makel bekannt".
+    assert body["file_status"] == {
+        "diagrams/architecture.png": {
+            "status": "skipped",
+            "reasons": ["Binärformat ohne Textextraktion, wird nicht embedded."],
+        }
+    }
+
+
 def test_get_project_knowledge_sources_lists_only_attached(client, make_project):
     project_id = make_project()
     other_project_id = make_project()

@@ -39,6 +39,7 @@ from api.schemas import (
     ChatSnapshotUpdate,
     ChatMessageFeedbackUpdate,
 )
+from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from models.database import (
@@ -293,6 +294,26 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
         seen.add(dedup_key)
         resolved.append(entry)
     return resolved
+
+
+def _attach_analysis_status(db: Session, sources: list[dict]) -> list[dict]:
+    """O-120: eine zitierte Datei kann strukturell nur teilweise/gar nicht
+    analysiert worden sein (COBOL-Diagnosen, F-029-Textfallback) oder beim
+    Import ganz übersprungen worden sein — ein Zitat allein sagt darüber
+    nichts. Ergänzt `analysis_status`/`analysis_reasons` nur dort, wo das der
+    Fall ist (siehe core.analysis_status.load_analysis_status); die meisten
+    Quellen bleiben unverändert. MarkdownContent.tsx rendert daraus eine
+    Warnmarkierung am Zitat statt es unkommentiert wie eine uneingeschränkt
+    verlässliche Quelle darzustellen (O-120-Abnahme)."""
+    status_by_key = load_analysis_status(
+        db, {(source.get("source_id"), source.get("file")) for source in sources}
+    )
+    for source in sources:
+        info = status_by_key.get((source.get("source_id"), source.get("file")))
+        if info:
+            source["analysis_status"] = info["status"]
+            source["analysis_reasons"] = info["reasons"]
+    return sources
 
 
 def _cited_link_targets(db: Session, sources: list[dict]) -> set[tuple[str, int]]:
@@ -754,6 +775,7 @@ async def chat(
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):
                 sources.insert(0, pinned_source)
+            sources = _attach_analysis_status(db, sources)
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
             assistant_msg = persist_assistant_message(

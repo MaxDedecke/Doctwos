@@ -3,6 +3,7 @@ import type { CodeEntity } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import { api, API_URL } from '@/app/services/api';
+import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -19,6 +20,12 @@ export type CallNode = {
   start_line?: number | null;
   source_id?: number | string | null;
   unresolved?: boolean;
+  // O-120: nur gesetzt, wenn die Datei dieses Knotens nicht uneingeschränkt
+  // analysiert ist (siehe backend/core/analysis_status.py). Bewusst nur auf
+  // Datei-Ebene -- welche Entities/Kanten genau unsicher sind, ist O-150s
+  // Herkunfts-/Unsicherheitsvertrag, nicht Teil dieses Punkts.
+  analysis_status?: AnalysisStatus;
+  analysis_reasons?: string[];
   x?: number;
   y?: number;
 };
@@ -90,7 +97,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
       const projectParam = projectId ? `&project_id=${projectId}` : '';
       const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data: { nodes: CodeEntity[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: CallEdge['type']; resolution: string }>; truncated?: boolean } = await response.json();
+      type FocusNode = CodeEntity & { analysis_status?: AnalysisStatus; analysis_reasons?: string[] };
+      const data: { nodes: FocusNode[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: CallEdge['type']; resolution: string }>; truncated?: boolean } = await response.json();
       const nodes: CallNode[] = (data.nodes || []).map((node) => ({
         id: `entity:${node.id}`,
         entityId: node.id,
@@ -99,6 +107,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
         file_path: node.file_path,
         start_line: node.start_line,
         source_id: node.source_id,
+        analysis_status: node.analysis_status,
+        analysis_reasons: node.analysis_reasons,
       }));
       const known = new Set(nodes.map(node => node.id));
       const edges: CallEdge[] = (data.edges || []).map((edge) => {
@@ -185,7 +195,12 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
           width={dimensions.width}
           height={dimensions.height}
           backgroundColor={resolveDsColor(isDark ? 'rgb(var(--ds-neutral-950))' : 'rgb(var(--ds-white))')}
-          nodeLabel={(node: CallNode) => `${node.name} (${node.type})`}
+          nodeLabel={(node: CallNode) => {
+            const base = `${node.name} (${node.type})`;
+            return node.analysis_status
+              ? `${base} — ${formatAnalysisStatusTooltip({ status: node.analysis_status, reasons: node.analysis_reasons || [] }, t)}`
+              : base;
+          }}
           nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
           nodeVal={(node: CallNode) => node.entityId === focusedEntity.id ? 7 : 4}
           nodeCanvasObjectMode={() => 'replace'}
@@ -199,6 +214,19 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
                 ? resolveDsColor('rgb(var(--ds-accent))')
                 : resolveDsColor('rgb(var(--ds-info-base))');
             ctx.fill();
+            // O-120: ein gestrichelter Ring markiert einen Knoten, dessen
+            // Datei nicht uneingeschränkt analysiert ist -- dieselbe
+            // Farbcodierung wie im Editor-Dateibaum/bei Chat-Zitaten.
+            if (node.analysis_status) {
+              ctx.save();
+              ctx.setLineDash([2 / globalScale, 1.5 / globalScale]);
+              ctx.lineWidth = 1.5 / globalScale;
+              ctx.strokeStyle = resolveDsColor(ANALYSIS_STATUS_COLOR_TOKEN[node.analysis_status]);
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, radius + 2.5 / globalScale, 0, 2 * Math.PI);
+              ctx.stroke();
+              ctx.restore();
+            }
             drawKnowledgeNodeIcon({ ...node, type: node.unresolved ? 'external' : 'entity' }, ctx, globalScale);
             if (globalScale > 0.5) {
               const label = node.name ?? '';
