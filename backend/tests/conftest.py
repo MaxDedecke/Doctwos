@@ -214,3 +214,19 @@ requires_ollama = pytest.mark.skipif(
     not _ollama_reachable(),
     reason="Braucht einen erreichbaren Ollama mit bge-m3 (docker compose up -d).",
 )
+
+
+def make_fake_llm_json(confidence: float = 87, reason: str = "Deckt sich inhaltlich."):
+    """Fake für `services.ollama_client.ask_llm_json_for_profile`, geteilt
+    zwischen den llm-review-Tests in test_entity_links.py (O-108) und
+    test_knowledge_links.py (O-109) -- beide Routen rufen dieselbe Funktion
+    mit derselben Signatur auf und erwarten dieselbe
+    {"confidence", "reason"}-Antwortform, also ein gemeinsamer Fake statt
+    zweier getrennt gepflegter Kopien."""
+
+    async def _fake(
+        prompt, provider="ollama", model=None, api_key=None, base_url=None, timeout=60.0
+    ):
+        return {"confidence": confidence, "reason": reason}
+
+    return _fake

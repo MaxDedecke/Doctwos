@@ -22,6 +22,7 @@ import pytest
 
 import api.entity_links as entity_links_api
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
+from tests.conftest import make_fake_llm_json
 from models.database import (
     CodeEntity,
     DocumentChunk,
@@ -518,16 +519,12 @@ def test_update_link_status_rejects_team_member_without_project(
 # ── POST /entity-doc-links/{id}/llm-review ───────────────────────────────────
 
 
-async def _fake_llm_json(prompt, provider="ollama", model=None, api_key=None, base_url=None, timeout=60.0):
-    return {"confidence": 87, "reason": "Deckt sich inhaltlich."}
-
-
 def test_llm_review_updates_score_and_context_but_not_status(
     client, db_session, test_project, source_entity_chunk, monkeypatch
 ):
     source, entity, chunk = source_entity_chunk
     link = _make_link(db_session, test_project, entity, chunk, status="pending", score=0.1)
-    monkeypatch.setattr(entity_links_api, "ask_llm_json_for_profile", _fake_llm_json)
+    monkeypatch.setattr(entity_links_api, "ask_llm_json_for_profile", make_fake_llm_json())
     try:
         res = client.post(f"/entity-doc-links/{link.id}/llm-review")
         assert res.status_code == 200
