@@ -4,11 +4,22 @@ parser/cobol/copybook.py
 F-022: `COPY name [OF|IN lib] [REPLACING operand BY operand …]` als
 `ParsedEdge` (type="COPY").
 
-Scannt den GESAMTEN Token-Strom, nicht auf eine Division beschränkt - COPY
-ist ein Bibliotheksstatement, das laut COBOL-Grammatik überall auftauchen
-darf (am häufigsten in der DATA DIVISION, aber z.B. auch in FILE-CONTROL
-der ENVIRONMENT DIVISION oder in der PROCEDURE DIVISION). Läuft unabhängig
-von divisions.py/data_division.py/procedure.py.
+Scannt den gesamten Token-Strom DIESES Programms, nicht auf eine Division
+beschränkt - COPY ist ein Bibliotheksstatement, das laut COBOL-Grammatik
+überall auftauchen darf (am häufigsten in der DATA DIVISION, aber z.B. auch
+in FILE-CONTROL der ENVIRONMENT DIVISION oder in der PROCEDURE DIVISION).
+Läuft unabhängig von divisions.py/data_division.py/procedure.py.
+
+O-138: `tokens` ist der TOKEN-STROM DER GESAMTEN DATEI - bei mehreren bzw.
+verschachtelten Programmen ruft parse.py `scan()` einmal je CobolProgram mit
+demselben `tokens` auf. Ohne Eingrenzung würde ein COPY in Programm A auch
+beim Scan von Programm B als dessen Kante auftauchen (doppelt gezählt,
+falscher `src_name`) - `own_range` (von parse.py aus den AST-Divisionsgrenzen
+dieses Programms berechnet, `cobol/model.py::program_own_range()`) grenzt
+deshalb in diesem Fall auf die eigenen Divisions ein. Im weit überwiegenden
+Einzelprogramm-Normalfall bleibt `own_range=None` (Default) - Vertrauen auf
+per-Division-AST-Grenzen wäre dort riskant, sobald eine Division nicht
+sauber geparst wurde (z.B. eine fehlende "DATA DIVISION."-Kopfzeile).
 
 Plan §6.1 Regel 1 ist hier zentral: der Copybook-Inhalt wird NIE in den
 Programmtext expandiert (sonst verschieben sich alle Zeilennummern). Es wird
@@ -66,12 +77,26 @@ _OPERAND_KINDS = ("PSEUDO_TEXT", "LITERAL", "WORD")
 
 
 def scan(
-    program: CobolProgram, tokens: list[Token], index: CopybookIndex | None = None
+    program: CobolProgram,
+    tokens: list[Token],
+    index: CopybookIndex | None = None,
+    own_range: tuple[int, int] | None = None,
 ) -> tuple[list[ParsedEdge], list[str]]:
     errors: list[str] = []
     edges: list[ParsedEdge] = []
     index = index or {}
 
+    # O-138: own_range wird NUR bei mehreren/verschachtelten Programmen pro
+    # Datei von parse.py gesetzt (program_own_range() aus divisions.py-AST-
+    # Grenzen). Default None deckt weiterhin den GESAMTEN Tokenstrom ab -
+    # sonst würde eine unvollständig geparste Division (z.B. eine fehlende
+    # "DATA DIVISION."-Kopfzeile, siehe test_insert_into_extracts_table_not_
+    # host_variable in test_cobol_sql.py) COPY-Vorkommen im Einzelprogramm-
+    # Normalfall stillschweigend verlieren, statt sie nur bei echtem
+    # Programm-Nebeneinander einzugrenzen.
+    if own_range is not None:
+        range_start, range_end = own_range
+        tokens = [t for t in tokens if range_start <= t.phys_line <= range_end]
     n = len(tokens)
     i = 0
     while i < n:
@@ -103,7 +128,7 @@ def scan(
             end_idx = _find_period(tokens, j)
             end_line = tokens[end_idx].phys_line if end_idx is not None else tok.phys_line
 
-            meta: dict = {}
+            meta: dict = {"program": program.name}
             if library is not None:
                 meta["library"] = library
             if replacing:

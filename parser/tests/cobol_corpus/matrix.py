@@ -101,6 +101,19 @@ MATRIX: list[CompatCase] = [
             "sind noch nicht gegen Herstellercompiler geprüft."
         ),
     ),
+    CompatCase(
+        "18_multiple_programs",
+        "mehrere Programme pro Datei (O-138)",
+        "teilweise",
+        note=(
+            "Zwei eigenständige Compilation Units mit identischen Paragraphen-"
+            "namen (MAIN-PARA/INIT-PARA) bleiben getrennt aufgelöst; das zweite "
+            "Programm trägt zusätzlich eine ENTRY-Anweisung. Echt verschachtelte "
+            "Unterprogramme (programUnit* INNERHALB eines anderen, nicht nur "
+            "aufeinanderfolgend) sind nur in test_cobol_divisions.py abgedeckt, "
+            "nicht hier - kein Herstellercompiler-Abgleich."
+        ),
+    ),
     CompatCase("99_garbage", "Datei ohne PROCEDURE DIVISION (Fallback-Chunking)", "nicht geprüft"),
 ]
 

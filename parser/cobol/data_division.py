@@ -67,9 +67,21 @@ def parse(
     visitor = _DataDivisionVisitor(source_text)
     visitor.visit(tree)
 
-    items = [i for i in visitor.items if i.name.upper() != COPY_PLACEHOLDER_NAME]
+    # O-138: der Visitor läuft über den GESAMTEN Baum (auch bei mehreren
+    # Programmen/Copybooks in derselben Datei) - ohne diesen Zeilenfilter
+    # würden Felder eines anderen Programms hier mit übernommen, sobald
+    # parse.py parse() mehrfach (einmal je CobolProgram) aufruft.
+    items = [
+        i
+        for i in visitor.items
+        if i.name.upper() != COPY_PLACEHOLDER_NAME
+        and data_division.start_line <= i.start_line <= data_division.end_line
+    ]
     file_descriptors = [
-        f for f in visitor.file_descriptors if f.name.upper() != COPY_PLACEHOLDER_NAME
+        f
+        for f in visitor.file_descriptors
+        if f.name.upper() != COPY_PLACEHOLDER_NAME
+        and data_division.start_line <= f.start_line <= data_division.end_line
     ]
     return items, file_descriptors, errors, diagnostics
 

@@ -49,7 +49,7 @@ export function getKnowledgeNodeIconKind(node: IconNode | null | undefined): Kno
     nodeType === 'git' ||
     nodeType === 'copybook' ||
     nodeType === 'external' ||
-    ['program', 'section', 'paragraph', 'data_item', 'file_fd', 'sql_table', 'sql_block'].includes(entityType)
+    ['program', 'section', 'paragraph', 'data_item', 'file_fd', 'sql_table', 'sql_block', 'entry'].includes(entityType)
   ) {
     return 'code';
   }

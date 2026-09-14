@@ -15,7 +15,8 @@ FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 def _scan(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
-    return divisions.scan(masked)
+    programs, errors, diagnostics = divisions.scan(masked)
+    return programs[0], errors, diagnostics
 
 
 def test_parser_syntax_error_is_reported_without_aborting_the_import():

@@ -326,6 +326,7 @@
       "src_end_line": 15,
       "scope": "EXECSQL",
       "meta": {
+        "program": "EXECSQL",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -354,6 +355,7 @@
       "src_end_line": 22,
       "scope": "EXECSQL",
       "meta": {
+        "program": "EXECSQL",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -382,6 +384,7 @@
       "src_end_line": 22,
       "scope": "EXECSQL",
       "meta": {
+        "program": "EXECSQL",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

@@ -21,6 +21,15 @@ werden nie in diese Fehlerliste übernommen (dieselbe Haltung wie zuvor, als
 unbekannte Tokens stillschweigend übersprungen wurden) — seit O-119 aber
 strukturiert über einen eigenen Rückgabewert (`antlr_bridge._FlaggingErrorListener`)
 statt komplett verschluckt.
+
+O-138: `compilationUnit` ist grammatikalisch `programUnit+`, und `programUnit`
+selbst enthält rekursiv `programUnit*` (echt verschachtelte Unterprogramme).
+`scan()` liefert deshalb eine LISTE von CobolProgram statt eines einzelnen —
+jedes mit ausschließlich seinen EIGENEN Divisions/Sections/Paragraphen, nie
+denen eines Geschwister- oder Kindprogramms (siehe `_StructureVisitor`unten).
+Für den weit überwiegenden Normalfall (genau ein Programm pro Datei) bleiben
+Zeilengrenzen und Fehlerverhalten exakt wie vor O-138 (siehe `_single_program()`
+unten) — kein Golden-File-Unterschied für bestehende Fixtures.
 """
 
 from __future__ import annotations
@@ -41,13 +50,13 @@ _DIVISION_RULE_NAMES = {
 
 def scan(
     masked_lines: list[LogicalLine],
-) -> tuple[CobolProgram, list[str], list[ParseDiagnostic]]:
+) -> tuple[list[CobolProgram], list[str], list[ParseDiagnostic]]:
     errors: list[str] = []
 
     tokens = lexer_mod.tokenize(masked_lines)
     if not tokens:
         errors.append("Keine Tokens gefunden - leere oder nicht lesbare Datei.")
-        return CobolProgram(name="", start_line=0, end_line=0), errors, []
+        return [CobolProgram(name="", start_line=0, end_line=0)], errors, []
 
     start_line = tokens[0].phys_line
     last_line = tokens[-1].phys_line
@@ -55,54 +64,97 @@ def scan(
     tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines)
     visitor = _StructureVisitor(source_text)
     visitor.visit(tree)
+    programs = visitor.programs or [CobolProgram(name="", start_line=start_line, end_line=last_line)]
 
-    if not visitor.divisions:
+    if not any(p.divisions for p in programs):
         errors.append(
             "Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden)."
         )
-    if not visitor.program_name:
+    if any(not p.name for p in programs):
         errors.append("PROGRAM-ID nicht gefunden.")
 
-    program = CobolProgram(
-        name=visitor.program_name,
-        start_line=start_line,
-        end_line=last_line,
-        divisions=visitor.divisions,
-        sections=visitor.sections,
-        paragraphs=visitor.paragraphs,
-    )
-    return program, errors, diagnostics
+    if len(programs) == 1:
+        # Einzelprogramm-Normalfall (weit überwiegende Mehrheit aller Dateien,
+        # alle bestehenden Golden Files): Zeilengrenzen kommen unverändert vom
+        # gesamten Tokenstrom, nicht vom (potenziell engeren) AST-Knoten des
+        # einzelnen programUnit - identisch zum Verhalten vor O-138, auch für
+        # PROGRAM-ID-lose oder division-lose Dateien (F-029-Fallback).
+        programs[0].start_line = start_line
+        programs[0].end_line = last_line
+
+    return programs, errors, diagnostics
 
 
-class _StructureVisitor(Cobol85Visitor):
-    """Ein Durchlauf über `programUnit` (nur das erste — mehrere PROGRAM-IDs
-    pro Datei werden wie vor Phase 3 nicht unterstützt, das gesamte File gilt
-    als ein CobolProgram, siehe divisions.py-Historie/Tests). PROGRAM-ID aus
-    späteren `programUnit`-Wiederholungen (verschachtelte Unterprogramme)
-    überschreibt den Namen — dieselbe "letzter gewinnt"-Regel wie zuvor."""
+class _ProgramFrame:
+    """Sammelstelle für EIN `programUnit` während des Besuchs — getrennt vom
+    fertigen `CobolProgram`, weil sich `name` erst über `visitProgramIdParagraph`
+    ergibt, nachdem der Frame schon existieren muss (Divisions werden vorher
+    besucht)."""
 
-    def __init__(self, source_text: str) -> None:
-        self.program_name = ""
+    def __init__(self, parent_name: str | None) -> None:
+        self.name = ""
+        self.parent_name = parent_name
         self.divisions: list[Division] = []
         self.sections: list[Section] = []
         self.paragraphs: list[Paragraph] = []
-        self._current_division: str | None = None
+
+
+class _StructureVisitor(Cobol85Visitor):
+    """Ein Durchlauf über ALLE `programUnit`-Knoten (O-138: mehrere
+    aufeinanderfolgende PROGRAM-IDs UND echt verschachtelte Unterprogramme).
+
+    Jedes `programUnit` bekommt einen eigenen `_ProgramFrame` auf einem
+    Stack: Divisions/Sections/Paragraphen landen immer im jeweils obersten
+    Frame, nie in einer geteilten globalen Liste — genau das war der O-138-
+    Fehler (gleichnamige Paragraphen/Felder verschiedener Programme wurden
+    ununterscheidbar vermischt). Ein verschachteltes `programUnit` pusht
+    einen neuen Frame VOR seinem eigenen `visitChildren()`-Aufruf und poppt
+    ihn danach wieder — zu jedem Zeitpunkt gehört der Stack-Top exakt zu dem
+    `programUnit`, dessen Divisions/Paragraphen gerade besucht werden, weil
+    die Grammatik `identificationDivision environmentDivision? dataDivision?
+    procedureDivision? programUnit* endProgramStatement?` verschachtelte
+    Unterprogramme immer ERST NACH der eigenen PROCEDURE DIVISION erlaubt."""
+
+    def __init__(self, source_text: str) -> None:
+        self.programs: list[CobolProgram] = []
+        self._stack: list[_ProgramFrame] = []
         self._source_text = source_text
 
     def visitProgramUnit(self, ctx: Cobol85Parser.ProgramUnitContext):  # noqa: N802
+        # Der VOLLE Vorfahrenpfad (nicht nur der unmittelbare Elternname) -
+        # sonst kollidieren zwei gleichnamige, zwei Ebenen tief verschachtelte
+        # Unterprogramme unter verschiedenen Großeltern (parse.py::_qualify
+        # baut daraus "A.B.C" statt nur "B.C").
+        parent_name = ".".join(f.name for f in self._stack) if self._stack else None
+        frame = _ProgramFrame(parent_name)
+        self._stack.append(frame)
+
         for name, rule_key in _DIVISION_RULE_NAMES.items():
             child = getattr(ctx, name)()
             if child is None or child.exception is not None:
                 continue
-            self._current_division = rule_key
-            self.divisions.append(Division(rule_key, _line(child.start), _line(child.stop)))
+            frame.divisions.append(Division(rule_key, _line(child.start), _line(child.stop)))
+
         self.visitChildren(ctx)
+
+        finished = self._stack.pop()
+        self.programs.append(
+            CobolProgram(
+                name=finished.name,
+                start_line=_line(ctx.start),
+                end_line=_line(ctx.stop),
+                divisions=finished.divisions,
+                sections=finished.sections,
+                paragraphs=finished.paragraphs,
+                parent_name=finished.parent_name,
+            )
+        )
         return None
 
     def visitProgramIdParagraph(self, ctx: Cobol85Parser.ProgramIdParagraphContext):  # noqa: N802
         name_ctx = ctx.programName()
-        if name_ctx is not None:
-            self.program_name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx))
+        if name_ctx is not None and self._stack:
+            self._stack[-1].name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx))
         return None
 
     def visitFileSection(self, ctx: Cobol85Parser.FileSectionContext):  # noqa: N802
@@ -126,7 +178,7 @@ class _StructureVisitor(Cobol85Visitor):
     def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
         header = ctx.procedureSectionHeader()
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
-        self.sections.append(Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop)))
+        self._stack[-1].sections.append(Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop)))
         self._collect_paragraphs(ctx.paragraphs(), name)
         return None
 
@@ -150,10 +202,12 @@ class _StructureVisitor(Cobol85Visitor):
             )
             if not name:
                 continue
-            self.paragraphs.append(Paragraph(name, section_name, _line(p.start), _line(p.stop)))
+            self._stack[-1].paragraphs.append(
+                Paragraph(name, section_name, _line(p.start), _line(p.stop))
+            )
 
     def _record_named_section(self, ctx, name: str, start_tok, stop_tok, division: str) -> None:
-        self.sections.append(Section(name, division, _line(start_tok), _line(stop_tok)))
+        self._stack[-1].sections.append(Section(name, division, _line(start_tok), _line(stop_tok)))
 
 
 def _line(token) -> int:

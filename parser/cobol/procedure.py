@@ -1,7 +1,8 @@
 """
 parser/cobol/procedure.py
 ============================
-F-023/024: CALL/PERFORM/GO TO als Kanten aus der PROCEDURE DIVISION.
+F-023/024: CALL/PERFORM/GO TO als Kanten aus der PROCEDURE DIVISION, sowie
+ENTRY-Anweisungen (O-138) als `program.entry_points`.
 
 Läuft nach divisions.scan() — braucht dessen CobolProgram (für die
 Paragraphen-/Sections-Zeilenbereiche, zur lokalen Auflösung von PERFORM/GO TO)
@@ -14,12 +15,19 @@ das Ziel unter den Paragraphen-/Section-Namen desselben Programms auftaucht).
 CALL ist global (Ziel typischerweise ein anderes Programm/eine andere Datei)
 und bleibt "unresolved" bzw. "dynamic" (Variable statt Literal) — die
 Auflösung passiert erst im Nachlauf-Pass (Plan §6.4 Pass 2).
+
+O-138: `program` ist bei mehreren bzw. verschachtelten Programmen pro Datei
+ausschließlich EIN CobolProgram mit seinen eigenen Paragraphen/Sections -
+`meta["program"]` trägt den Programmnamen zusätzlich auf jeder Kante mit, weil
+`cobol_persist.py` bei gleichnamigen Paragraphen/Feldern verschiedener
+Programme derselben Datei sonst nicht mehr zwischen ihnen unterscheiden kann
+(reine Namensgleichheit über `by_name`, ohne Programmzugehörigkeit).
 """
 
 from __future__ import annotations
 
 from .lexer import Token
-from .model import CobolProgram, ParsedEdge
+from .model import CobolProgram, EntryPoint, ParsedEdge
 from .names import canonical_identifier
 
 _PERFORM_INLINE_KEYWORDS = {"UNTIL", "VARYING", "WITH", "TEST", "FOREVER"}
@@ -62,8 +70,32 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         src_start_line=tok.phys_line,
                         src_end_line=_statement_end_line(proc_tokens, i + 1, nxt.phys_line),
                         scope=None,
+                        meta={"program": program.name},
                     )
                 )
+            i += 1
+            continue
+
+        if (
+            tok.kind == "WORD"
+            and canonical_identifier(tok.value) == "ENTRY"
+            and nxt is not None
+            and nxt.kind == "LITERAL"
+        ):
+            # O-138: alternativer Eintrittspunkt - dem umschließenden Programm
+            # zuzuordnen ist der eigentliche Zweck dieses Zweigs (Abnahme
+            # "ENTRY ist dem korrekten Programm zugeordnet"); eine globale
+            # CALL-Auflösung auf ENTRY-Namen ist bewusst nicht Teil dieses
+            # Tickets (edge_resolver.py kennt bislang nur "program").
+            end_line = _statement_end_line(proc_tokens, i + 1, nxt.phys_line)
+            program.entry_points.append(
+                EntryPoint(
+                    name=_clean_name(nxt.value),
+                    paragraph=_enclosing_paragraph(program, tok.phys_line) or None,
+                    start_line=tok.phys_line,
+                    end_line=end_line,
+                )
+            )
             i += 1
             continue
 
@@ -74,7 +106,7 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                 and canonical_identifier(nxt.value) not in _PERFORM_INLINE_KEYWORDS
             ):
                 end_idx = i + 1
-                meta: dict = {}
+                meta: dict = {"program": program.name}
                 thru_idx = i + 2
                 if (
                     thru_idx < n
@@ -126,6 +158,7 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         src_start_line=tok.phys_line,
                         src_end_line=end_line,
                         scope=program.name,
+                        meta={"program": program.name},
                     )
                 )
             i = j

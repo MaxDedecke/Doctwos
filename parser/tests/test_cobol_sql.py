@@ -8,7 +8,8 @@ FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 def _scan(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, blocks = embedded.mask(lines)
-    program, _, _ = divisions.scan(masked)
+    programs, _, _ = divisions.scan(masked)
+    program = programs[0]
     items, _, _, _ = data_division.parse(program, masked)
     sql_blocks, edges, sql_errors = sql.scan(program, blocks, items)
     return program, sql_blocks, edges, sql_errors

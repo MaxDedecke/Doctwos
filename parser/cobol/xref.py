@@ -80,15 +80,13 @@ def scan(
         candidates = index[key]
         target, resolution = _resolve(candidates, proc_tokens, i, n)
 
-        meta = {}
+        meta: dict = {"program": program.name}
         if target is not None:
             if isinstance(target, dict):
-                meta = {
-                    "copybook_path": target["path"],
-                    "target_qualified_name": target["qualified_name"],
-                }
+                meta["copybook_path"] = target["path"]
+                meta["target_qualified_name"] = target["qualified_name"]
             elif target.parent:
-                meta = {"parent": target.parent}
+                meta["parent"] = target.parent
 
         edges.append(
             ParsedEdge(

@@ -124,6 +124,7 @@ def test_xref_inherits_copybook_field_without_expanding_source_lines():
     assert edge.resolution == "resolved"
     assert edge.src_start_line == 8
     assert {key: value for key, value in edge.meta.items() if key != "evidence"} == {
+        "program": "COPYXREF",
         "copybook_path": "copy/FIELDS.CPY",
         "target_qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
     }
@@ -225,6 +226,7 @@ def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
 
     assert edge.resolution == "resolved"
     assert {key: value for key, value in edge.meta.items() if key != "evidence"} == {
+        "program": "NESTEDCOPY",
         "copybook_path": "copy/BASE.CPY",
         "target_qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID",
     }

@@ -129,6 +129,7 @@
       "src_end_line": 9,
       "scope": null,
       "meta": {
+        "program": "DIALECTTEST",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

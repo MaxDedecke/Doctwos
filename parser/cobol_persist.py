@@ -182,7 +182,17 @@ def _find_src(
         # procedure.py/xref.py liefern "" als src_name, wenn eine Anweisung
         # direkt unter PROCEDURE DIVISION ohne umschließenden Paragraphen
         # steht (seltener, aber gültiger Fall) - die Quelle ist dann das
-        # Programm selbst.
+        # Programm selbst. O-138: bei mehreren Programmen pro Datei reicht
+        # "irgendeine program-Entity dieser Datei" nicht mehr - meta["program"]
+        # (von procedure.py/xref.py/copybook.py/sql.py gesetzt) grenzt auf das
+        # tatsächlich umschließende Programm ein; ohne den Hinweis (ältere/
+        # synthetische ParsedEdge ohne meta, z.B. in Tests) bleibt der alte
+        # "erstes Programm der Datei"-Fallback erhalten.
+        program_hint = (edge.meta or {}).get("program")
+        if program_hint:
+            hinted = [c for c in by_name.get(program_hint.upper(), []) if c.type == "program"]
+            if len(hinted) == 1:
+                return hinted[0]
         return next((row for row in by_qname.values() if row.type == "program"), None)
 
     allowed = _SRC_TYPES.get(edge.type)
@@ -208,6 +218,21 @@ def _resolve_local_target(
     candidates = [
         c for c in by_name.get(edge.dst_name.upper(), []) if allowed is None or c.type in allowed
     ]
+
+    # O-138: ein PERFORM/GOTO/USES ist laut E-1 programmlokal - ein
+    # gleichnamiger Paragraph/ein gleichnamiges Feld in einem ANDEREN
+    # Programm derselben Datei ist deshalb kein gültiges Ziel, auch wenn er
+    # gerade der einzige Namenstreffer ist. meta["program"] (vom jeweiligen
+    # Scan-Modul gesetzt) grenzt zuerst auf Entities desselben Programms ein;
+    # bleibt danach nichts übrig, ist die Kante unresolved statt geraten -
+    # genau der Fehler, den O-138 beheben soll. Ohne den Hinweis (Kante ohne
+    # meta["program"]) bleibt das alte, ungegrenzte Verhalten erhalten.
+    program_hint = (edge.meta or {}).get("program")
+    if program_hint:
+        scoped = [c for c in candidates if _belongs_to_program(c, program_hint)]
+        if len(scoped) != len(candidates):
+            candidates = scoped
+
     if len(candidates) == 1:
         return candidates[0]
     if len(candidates) > 1:
@@ -221,6 +246,18 @@ def _resolve_local_target(
             if len(narrowed) == 1:
                 return narrowed[0]
     return None
+
+
+def _belongs_to_program(row: CodeEntity, program_name: str) -> bool:
+    """O-138: das erste Segment eines qualified_name ist immer der einfache
+    Name des Programms, das die Entity gebaut hat (parse.py::_build_entities
+    qualifiziert Sections/Paragraphen/Felder IMMER relativ zu `program.name`,
+    nie zu dessen ggf. selbst schon qualifiziertem eigenen qualified_name -
+    siehe cobol/model.py::CobolProgram-Docstring) - ein einfacher Split
+    reicht deshalb, unabhängig von Verschachtelungstiefe."""
+    if not row.qualified_name:
+        return False
+    return row.qualified_name.split(".", 1)[0].upper() == program_name.upper()
 
 
 def _parent_name(row: CodeEntity, by_qname: dict[str, CodeEntity]) -> str | None:

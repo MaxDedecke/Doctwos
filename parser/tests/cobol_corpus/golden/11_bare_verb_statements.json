@@ -177,6 +177,7 @@
       "src_end_line": 5,
       "scope": "BAREVERBS",
       "meta": {
+        "program": "BAREVERBS",
         "thru": "FIRST-EXIT-PARA-ENDE",
         "evidence": {
           "schema_version": 1,
@@ -206,6 +207,7 @@
       "src_end_line": 6,
       "scope": "BAREVERBS",
       "meta": {
+        "program": "BAREVERBS",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

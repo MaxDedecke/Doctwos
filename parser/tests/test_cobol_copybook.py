@@ -9,7 +9,8 @@ def _edges(text: str, index=None, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)
-    program, div_errors, _ = divisions.scan(masked)
+    programs, div_errors, _ = divisions.scan(masked)
+    program = programs[0]
     edges, copy_errors = copybook.scan(program, tokens, index)
     return program, edges, div_errors + copy_errors
 

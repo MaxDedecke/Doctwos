@@ -276,6 +276,7 @@
       "src_end_line": 13,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -304,6 +305,7 @@
       "src_end_line": 14,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -332,6 +334,7 @@
       "src_end_line": 15,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -360,6 +363,7 @@
       "src_end_line": 15,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "parent": "WS-MONATE",
         "evidence": {
           "schema_version": 1,
@@ -389,6 +393,7 @@
       "src_end_line": 15,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -417,6 +422,7 @@
       "src_end_line": 20,
       "scope": "TABSUB",
       "meta": {
+        "program": "TABSUB",
         "parent": "WS-MONATE",
         "evidence": {
           "schema_version": 1,

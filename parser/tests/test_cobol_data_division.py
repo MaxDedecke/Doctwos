@@ -9,7 +9,8 @@ FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 def _parse(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
-    program, div_errors, _ = divisions.scan(masked)
+    programs, div_errors, _ = divisions.scan(masked)
+    program = programs[0]
     items, fds, dd_errors, _ = data_division.parse(program, masked)
     return program, items, fds, div_errors + dd_errors
 

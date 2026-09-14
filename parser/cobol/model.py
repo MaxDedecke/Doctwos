@@ -117,13 +117,39 @@ class Paragraph:
 
 
 @dataclass
+class EntryPoint:
+    """`ENTRY`-Anweisung (O-138): alternativer Eintrittspunkt in ein
+    Unterprogramm, typischerweise für Aufrufer außerhalb von COBOL
+    (Assembler/PL/I) oder CICS gedacht. name ist der Klartextname aus dem
+    Literal (ohne Anführungszeichen). paragraph ist der Name des
+    umschließenden Paragraphen, in dem die Anweisung steht, oder None, wenn
+    sie direkt unter PROCEDURE DIVISION ohne Paragraph steht."""
+
+    name: str
+    paragraph: str | None
+    start_line: int
+    end_line: int
+
+
+@dataclass
 class CobolProgram:
     """Ein per PROGRAM-ID identifiziertes COBOL-Programm (F-020).
 
     name ist "" statt None, wenn PROGRAM-ID fehlt oder nicht erkannt wurde —
     kein Abbruch (Plan §6.1 Regel 2), der Fehler landet stattdessen in der
     errors-Liste von divisions.scan().
-    """
+
+    O-138: eine Datei kann mehrere COBOL-Programme enthalten — mehrere
+    aufeinanderfolgende PROGRAM-IDs (eigenständige Compilation Units) oder
+    echt verschachtelte Unterprogramme (`programUnit*` in der Grammatik).
+    divisions.scan() liefert dafür eine Liste von CobolProgram-Objekten,
+    jedes mit AUSSCHLIESSLICH seinen eigenen (nicht den seiner Kinder oder
+    Geschwister) Divisions/Sections/Paragraphen — Paragraph-/Feldnamen
+    bleiben dadurch programmlokal (Abnahme O-138). parent_name trägt bei
+    einem echt verschachtelten Unterprogramm den Namen des umschließenden
+    Programms (sonst None) — nötig, damit zwei gleichnamige Unterprogramme
+    unter verschiedenen Elternprogrammen nicht denselben qualified_name
+    erhalten (siehe parse.py::_build_entities)."""
 
     name: str
     start_line: int
@@ -131,6 +157,26 @@ class CobolProgram:
     divisions: list[Division] = field(default_factory=list)
     sections: list[Section] = field(default_factory=list)
     paragraphs: list[Paragraph] = field(default_factory=list)
+    entry_points: list[EntryPoint] = field(default_factory=list)
+    parent_name: str | None = None
+
+
+def program_own_range(program: CobolProgram) -> tuple[int, int]:
+    """O-138: der Zeilenbereich, der AUSSCHLIESSLICH zu diesem Programm
+    gehört — nie zu einem verschachtelten Unterprogramm oder einem
+    nachfolgenden Geschwisterprogramm derselben Datei. `programUnit*`
+    (verschachtelte Programme) steht in der Grammatik immer NACH der
+    eigenen `procedureDivision` (`identificationDivision environmentDivision?
+    dataDivision? procedureDivision? programUnit* endProgramStatement?`) —
+    die Vereinigung der eigenen Divisions ist deshalb schon exakt diese
+    Grenze, ganz ohne Kindprogramme explizit auszuschließen. copybook.py/
+    sql.py nutzen das, um COPY-/EXEC-SQL-Vorkommen nicht mehrfach zu
+    zählen, wenn parse.py je CobolProgram einer Datei einmal scannt.
+    Fällt auf `program.start_line`/`end_line` zurück, wenn gar keine
+    Division erkannt wurde (F-029-Fallback, z.B. 99_garbage.cbl)."""
+    if not program.divisions:
+        return program.start_line, program.end_line
+    return program.divisions[0].start_line, program.divisions[-1].end_line
 
 
 @dataclass

@@ -17,6 +17,11 @@ gegen den Datenfeld-Index aufgelöst: genau ein Treffer → resolved, mehrere
 oder keiner → unresolved, kein Raten (docs/ENTSCHEIDUNGEN.md E-2-Regel).
 Anders als xref.py gibt es innerhalb von SQL-Text kein OF/IN zur
 Disambiguierung, also bleibt Mehrdeutigkeit hier immer unresolved.
+
+O-138: `own_range` grenzt `blocks` bei mehreren/verschachtelten Programmen
+auf die EXEC-SQL-Vorkommen DIESES Programms ein, und `meta["program"]` macht
+die Programmzugehörigkeit für `cobol_persist.py` sichtbar - siehe
+procedure.py-Docstring für die ausführliche Begründung.
 """
 
 from __future__ import annotations
@@ -52,15 +57,28 @@ _END_EXEC_RE = re.compile(r"END-EXEC", re.IGNORECASE)
 
 
 def scan(
-    program: CobolProgram, blocks: list[EmbeddedBlock], items: list[DataItem] | None = None
+    program: CobolProgram,
+    blocks: list[EmbeddedBlock],
+    items: list[DataItem] | None = None,
+    own_range: tuple[int, int] | None = None,
 ) -> tuple[list[SqlBlock], list[ParsedEdge], list[str]]:
     errors: list[str] = []
     sql_blocks: list[SqlBlock] = []
     edges: list[ParsedEdge] = []
     index = build_index(items) if items else {}
 
+    # O-138: `blocks` stammt aus embedded.mask() über die GESAMTE Datei - bei
+    # mehreren/verschachtelten Programmen setzt parse.py `own_range` (aus den
+    # AST-Divisionsgrenzen dieses Programms, cobol/model.py::program_own_range()),
+    # sonst würde ein SQL-Block aus Programm A auch beim Scan von Programm B
+    # noch einmal als dessen SqlBlock/USES-Kante auftauchen. Default None
+    # (Einzelprogramm-Normalfall) bleibt unfiltriert - Vertrauen auf die
+    # Divisions-AST-Grenzen wäre riskant, sobald eine Division nicht sauber
+    # geparst wurde (z.B. eine fehlende "DATA DIVISION."-Kopfzeile).
     for block in blocks:
         if block.dialect != "SQL":
+            continue
+        if own_range is not None and not (own_range[0] <= block.start_line <= own_range[1]):
             continue
 
         tokens = _TOKEN_RE.findall(_strip_exec_wrapper(block.content))
@@ -94,6 +112,7 @@ def scan(
                     src_start_line=block.start_line,
                     src_end_line=block.end_line,
                     scope=program.name,
+                    meta={"program": program.name},
                 )
             )
 

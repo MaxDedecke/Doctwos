@@ -1,24 +1,24 @@
 {
-  "program_name": "PERFTHRU",
-  "path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+  "program_name": "MULTIMAIN",
+  "path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
   "source_format": "fixed",
   "variant_key": "default",
   "entities": [
     {
       "type": "program",
-      "name": "PERFTHRU",
+      "name": "MULTIMAIN",
       "start_line": 1,
-      "end_line": 13,
+      "end_line": 10,
       "parent_name": null,
-      "qualified_name": "PERFTHRU",
+      "qualified_name": "MULTIMAIN",
       "meta": {
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 1,
-            "end_line": 13
+            "end_line": 10
           },
           "variant": {
             "key": "default",
@@ -36,14 +36,14 @@
       "name": "MAIN-PARA",
       "start_line": 4,
       "end_line": 7,
-      "parent_name": "PERFTHRU",
-      "qualified_name": "PERFTHRU.MAIN-PARA",
+      "parent_name": "MULTIMAIN",
+      "qualified_name": "MULTIMAIN.MAIN-PARA",
       "meta": {
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 4,
             "end_line": 7
           },
@@ -63,14 +63,14 @@
       "name": "INIT-PARA",
       "start_line": 8,
       "end_line": 9,
-      "parent_name": "PERFTHRU",
-      "qualified_name": "PERFTHRU.INIT-PARA",
+      "parent_name": "MULTIMAIN",
+      "qualified_name": "MULTIMAIN.INIT-PARA",
       "meta": {
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 8,
             "end_line": 9
           },
@@ -86,20 +86,20 @@
       }
     },
     {
-      "type": "paragraph",
-      "name": "MIDDLE-PARA",
-      "start_line": 10,
-      "end_line": 11,
-      "parent_name": "PERFTHRU",
-      "qualified_name": "PERFTHRU.MIDDLE-PARA",
+      "type": "program",
+      "name": "MULTISUB",
+      "start_line": 11,
+      "end_line": 20,
+      "parent_name": null,
+      "qualified_name": "MULTISUB",
       "meta": {
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
-            "start_line": 10,
-            "end_line": 11
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 11,
+            "end_line": 20
           },
           "variant": {
             "key": "default",
@@ -114,19 +114,74 @@
     },
     {
       "type": "paragraph",
-      "name": "CLEANUP-PARA",
-      "start_line": 12,
-      "end_line": 13,
-      "parent_name": "PERFTHRU",
-      "qualified_name": "PERFTHRU.CLEANUP-PARA",
+      "name": "MAIN-PARA",
+      "start_line": 14,
+      "end_line": 17,
+      "parent_name": "MULTISUB",
+      "qualified_name": "MULTISUB.MAIN-PARA",
       "meta": {
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
-            "start_line": 12,
-            "end_line": 13
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 14,
+            "end_line": 17
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "name": "INIT-PARA",
+      "start_line": 18,
+      "end_line": 19,
+      "parent_name": "MULTISUB",
+      "qualified_name": "MULTISUB.INIT-PARA",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 18,
+            "end_line": 19
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "entry",
+      "name": "MULTISUB-ALT",
+      "start_line": 15,
+      "end_line": 15,
+      "parent_name": "MULTISUB",
+      "qualified_name": "MULTISUB.MULTISUB-ALT",
+      "meta": {
+        "paragraph": "MAIN-PARA",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 15,
+            "end_line": 15
           },
           "variant": {
             "key": "default",
@@ -148,15 +203,14 @@
       "resolution": "resolved",
       "src_start_line": 5,
       "src_end_line": 5,
-      "scope": "PERFTHRU",
+      "scope": "MULTIMAIN",
       "meta": {
-        "program": "PERFTHRU",
-        "thru": "CLEANUP-PARA",
+        "program": "MULTIMAIN",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 5,
             "end_line": 5
           },
@@ -172,22 +226,51 @@
       }
     },
     {
-      "type": "PERFORM",
+      "type": "CALL",
       "src_name": "MAIN-PARA",
-      "dst_name": "UNKNOWN-PARA",
+      "dst_name": "MULTISUB",
       "resolution": "unresolved",
       "src_start_line": 6,
       "src_end_line": 6,
-      "scope": "PERFTHRU",
+      "scope": null,
       "meta": {
-        "program": "PERFTHRU",
+        "program": "MULTIMAIN",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 6,
             "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "PERFORM",
+      "src_name": "MAIN-PARA",
+      "dst_name": "INIT-PARA",
+      "resolution": "resolved",
+      "src_start_line": 16,
+      "src_end_line": 16,
+      "scope": "MULTISUB",
+      "meta": {
+        "program": "MULTISUB",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 16,
+            "end_line": 16
           },
           "variant": {
             "key": "default",
@@ -203,27 +286,26 @@
   ],
   "chunks": [
     {
-      "content": "       MAIN-PARA.\n           PERFORM INIT-PARA THRU CLEANUP-PARA.\n           PERFORM UNKNOWN-PARA.\n           STOP RUN.\n       INIT-PARA.\n           DISPLAY 'INIT'.\n       MIDDLE-PARA.\n           DISPLAY 'MIDDLE'.",
+      "content": "       MAIN-PARA.\n           PERFORM INIT-PARA.\n           CALL 'MULTISUB'.\n           STOP RUN.\n       INIT-PARA.\n           DISPLAY 'MAIN INIT'.",
       "start_line": 4,
-      "end_line": 11,
+      "end_line": 9,
       "meta": {
-        "program": "PERFTHRU",
+        "program": "MULTIMAIN",
         "section": null,
         "paragraphs": [
           "MAIN-PARA",
-          "INIT-PARA",
-          "MIDDLE-PARA"
+          "INIT-PARA"
         ],
         "start_line": 4,
-        "end_line": 11,
+        "end_line": 9,
         "format": "fixed",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
             "start_line": 4,
-            "end_line": 11
+            "end_line": 9
           },
           "variant": {
             "key": "default",
@@ -237,23 +319,26 @@
       }
     },
     {
-      "content": "       CLEANUP-PARA.\n           DISPLAY 'DONE'.",
-      "start_line": 12,
-      "end_line": 13,
+      "content": "       MAIN-PARA.\n           ENTRY 'MULTISUB-ALT' USING WS-PARM.\n           PERFORM INIT-PARA.\n           STOP RUN.\n       INIT-PARA.\n           DISPLAY 'SUB INIT'.",
+      "start_line": 14,
+      "end_line": 19,
       "meta": {
-        "program": "PERFTHRU",
+        "program": "MULTISUB",
         "section": null,
-        "paragraph": "CLEANUP-PARA",
-        "start_line": 12,
-        "end_line": 13,
+        "paragraphs": [
+          "MAIN-PARA",
+          "INIT-PARA"
+        ],
+        "start_line": 14,
+        "end_line": 19,
         "format": "fixed",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
           "source": {
-            "file_path": "cobol_corpus/fixtures/10_perform_thru.cbl",
-            "start_line": 12,
-            "end_line": 13
+            "file_path": "cobol_corpus/fixtures/18_multiple_programs.cbl",
+            "start_line": 14,
+            "end_line": 19
           },
           "variant": {
             "key": "default",
@@ -268,6 +353,7 @@
     }
   ],
   "errors": [
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.",
     "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
   ],
   "diagnostics": [

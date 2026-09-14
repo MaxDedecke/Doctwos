@@ -45,6 +45,7 @@ EntityType = Literal[
     "file_fd",
     "sql_table",
     "sql_block",
+    "entry",
 ]
 
 EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS", "WRITES"]

@@ -1,14 +1,26 @@
 import os
 
 from cobol import divisions, embedded, source_format
-from cobol.model import Division, Paragraph, Section
+from cobol.model import Division, EntryPoint, Paragraph, Section
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
 
 def _program(name: str, fmt: str = "fixed"):
+    """O-138: divisions.scan() liefert seither eine Liste von CobolProgram
+    (mehrere/verschachtelte Programme pro Datei) - alle bestehenden Tests
+    hier prüfen Ein-Programm-Fixtures, deshalb entpackt der Helper auf das
+    einzige Element. Mehrprogramm-Verhalten selbst wird unten separat
+    getestet (test_multiple_top_level_programs_stay_separate() u.a.)."""
     with open(os.path.join(FIXTURES, name)) as f:
         text = f.read()
+    lines = source_format.split_logical_lines(text, fmt)
+    masked, _ = embedded.mask(lines)
+    programs, errors, diagnostics = divisions.scan(masked)
+    return programs[0], errors, diagnostics
+
+
+def _scan_text(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
     return divisions.scan(masked)
@@ -86,9 +98,8 @@ def test_paragraph_inside_procedure_section_records_section_name():
         "           DISPLAY 'HELLO'.\n"
         "           STOP RUN.\n"
     )
-    lines = source_format.split_logical_lines(text, "fixed")
-    masked, _ = embedded.mask(lines)
-    program, errors, _ = divisions.scan(masked)
+    programs, errors, _ = _scan_text(text)
+    program = programs[0]
 
     assert errors == []
     assert program.sections == [Section("MAIN-SECTION", "PROCEDURE", 4, 7)]
@@ -102,9 +113,8 @@ def test_missing_program_id_is_reported_but_does_not_crash():
         "       MAIN-PARA.\n"
         "           STOP RUN.\n"
     )
-    lines = source_format.split_logical_lines(text, "fixed")
-    masked, _ = embedded.mask(lines)
-    program, errors, _ = divisions.scan(masked)
+    programs, errors, _ = _scan_text(text)
+    program = programs[0]
 
     assert program.name == ""
     assert "PROGRAM-ID nicht gefunden." in errors
@@ -128,8 +138,88 @@ def test_bare_reserved_verbs_do_not_open_spurious_paragraphs():
 
 
 def test_empty_token_stream_does_not_crash():
-    program, errors, diagnostics = divisions.scan([])
-    assert program.name == ""
-    assert program.divisions == []
+    programs, errors, diagnostics = divisions.scan([])
+    assert len(programs) == 1
+    assert programs[0].name == ""
+    assert programs[0].divisions == []
     assert errors != []
     assert diagnostics == []
+
+
+def test_multiple_top_level_programs_stay_separate():
+    # O-138: zwei eigenständige Compilation Units (kein Nesting) in
+    # derselben Datei - gleicher Paragraphenname in beiden darf nicht
+    # zusammenfallen, jedes Programm behält seine eigene Paragraphenliste.
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. FIRSTPGM.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+        "       END PROGRAM FIRSTPGM.\n"
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. SECONDPGM.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+        "       END PROGRAM SECONDPGM.\n"
+    )
+    programs, errors, _ = _scan_text(text)
+
+    assert errors == []
+    assert [p.name for p in programs] == ["FIRSTPGM", "SECONDPGM"]
+    assert [p.parent_name for p in programs] == [None, None]
+    for program in programs:
+        assert [p.name for p in program.paragraphs] == ["MAIN-PARA"]
+
+
+def test_nested_program_gets_its_own_scope_and_parent_link():
+    # O-138: NESTED ist textuell innerhalb OUTER (programUnit* in der
+    # Grammatik) - eigene Paragraphenliste, aber mit parent_name = OUTER.
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. OUTER.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       OUTER-PARA.\n"
+        "           CALL 'NESTED'.\n"
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. NESTED.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       OUTER-PARA.\n"
+        "           STOP RUN.\n"
+        "       END PROGRAM NESTED.\n"
+        "       END PROGRAM OUTER.\n"
+    )
+    programs, errors, _ = _scan_text(text)
+
+    assert errors == []
+    by_name = {p.name: p for p in programs}
+    assert set(by_name) == {"OUTER", "NESTED"}
+    assert by_name["OUTER"].parent_name is None
+    assert by_name["NESTED"].parent_name == "OUTER"
+    # Derselbe Paragraphenname in beiden Programmen bleibt getrennt gezählt.
+    assert [p.name for p in by_name["OUTER"].paragraphs] == ["OUTER-PARA"]
+    assert [p.name for p in by_name["NESTED"].paragraphs] == ["OUTER-PARA"]
+
+
+def test_entry_statement_is_attributed_to_its_own_program():
+    from cobol import procedure
+    from cobol.lexer import tokenize
+
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. WITHENTRY.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           ENTRY 'ALTENTRY' USING WS-PARM.\n"
+        "           STOP RUN.\n"
+    )
+    programs, errors, _ = _scan_text(text)
+    program = programs[0]
+    tokens = tokenize(
+        embedded.mask(source_format.split_logical_lines(text, "fixed"))[0]
+    )
+    procedure.scan(program, tokens)
+
+    assert errors == []
+    assert program.entry_points == [EntryPoint("ALTENTRY", "MAIN-PARA", 5, 5)]

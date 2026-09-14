@@ -4,7 +4,8 @@ from cobol import chunking, divisions, embedded, source_format
 def _chunk(text: str, chunk_size: int, min_chunk_size: int, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
-    program, _, _ = divisions.scan(masked)
+    programs, _, _ = divisions.scan(masked)
+    program = programs[0]
     source_lines = text.splitlines()
     return program, chunking.chunk(program, source_lines, fmt, chunk_size, min_chunk_size)
 

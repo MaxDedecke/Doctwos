@@ -375,6 +375,7 @@
       "src_end_line": 25,
       "scope": "KONTOSTATUSPRÜFUNG",
       "meta": {
+        "program": "KONTOSTATUSPRÜFUNG",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

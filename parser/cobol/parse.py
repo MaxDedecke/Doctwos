@@ -56,9 +56,11 @@ from .model import (
     Entity,
     FileDescriptor,
     ParseDiagnostic,
+    ParsedEdge,
     ParseResult,
     SourceFormat,
     SqlBlock,
+    program_own_range,
 )
 from .profile import BuildProfile
 from .names import canonical_identifier
@@ -126,57 +128,85 @@ def parse_program(
     # xref.py bleiben unverändert auf dem flachen Token-Strom von lexer.py.
     # Beide liefern deshalb potenziell dieselben ANTLR-Diagnosen ein zweites
     # Mal - antlr_bridge.consolidate_diagnostics() dedupliziert (O-119).
-    program, div_errors, div_diagnostics = divisions_mod.scan(masked_lines)
+    #
+    # O-138: eine Datei kann mehrere bzw. verschachtelte Programme enthalten
+    # (`programUnit+`/`programUnit*` in der Grammatik) - divisions_mod.scan()
+    # liefert deshalb eine LISTE von CobolProgram, jedes mit ausschließlich
+    # seinen eigenen Paragraphen/Sections/Feldern. Alle nachfolgenden Scans
+    # laufen je Programm einmal, damit gleichnamige Paragraphen/Felder
+    # verschiedener Programme nie vermischt werden (Abnahme O-138).
+    programs, div_errors, div_diagnostics = divisions_mod.scan(masked_lines)
     errors.extend(div_errors)
 
-    items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
-        program, masked_lines
-    )
-    errors.extend(dd_errors)
-
-    proc_edges, proc_errors = procedure_mod.scan(program, tokens)
-    errors.extend(proc_errors)
-
-    copy_edges, copy_errors = copybook_mod.scan(program, tokens, copybook_index)
-    errors.extend(copy_errors)
-
-    sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items)
-    errors.extend(sql_errors)
-
-    data_division_index = next(
-        (index for index, division in enumerate(program.divisions) if division.name == "DATA"),
-        None,
-    )
-    data_division = (
-        program.divisions[data_division_index] if data_division_index is not None else None
-    )
-    data_end_line = (
-        program.divisions[data_division_index + 1].start_line - 1
-        if data_division_index is not None and data_division_index + 1 < len(program.divisions)
-        else data_division.end_line
-        if data_division is not None
-        else None
-    )
-    data_copy_edges = [
-        edge
-        for edge in copy_edges
-        if data_division is not None
-        and data_division.start_line <= edge.src_start_line <= data_end_line
-    ]
-    inherited_fields = copybook_mod.inherited_fields(data_copy_edges, copybook_index)
-    xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
-    errors.extend(xref_errors)
-
-    edges = [*proc_edges, *copy_edges, *sql_edges, *xref_edges]
-    entities = _build_entities(program, items, file_descriptors, sql_blocks)
-
     source_lines = text.splitlines()
-    chunks = chunk_paragraphs(program, source_lines, source_format)
-    if not chunks:
-        chunks = _fallback_chunks(program, source_lines, source_format)
+    entities: list[Entity] = []
+    edges: list[ParsedEdge] = []
+    chunks: list[Chunk] = []
+    dd_diagnostics_all: list[ParseDiagnostic] = []
+    single_program = len(programs) == 1
+
+    for program in programs:
+        # own_range grenzt COPY-/EXEC-SQL-Vorkommen bei mehreren Programmen
+        # auf die eigenen Divisions DIESES Programms ein (sonst würde ein
+        # COPY/EXEC SQL aus Programm A auch bei Programm B noch einmal
+        # auftauchen). None im Einzelprogramm-Normalfall - siehe
+        # copybook.py/sql.py-Docstrings für die Begründung.
+        own_range = None if single_program else program_own_range(program)
+
+        items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
+            program, masked_lines
+        )
+        errors.extend(dd_errors)
+        dd_diagnostics_all.extend(dd_diagnostics)
+
+        proc_edges, proc_errors = procedure_mod.scan(program, tokens)
+        errors.extend(proc_errors)
+
+        copy_edges, copy_errors = copybook_mod.scan(program, tokens, copybook_index, own_range)
+        errors.extend(copy_errors)
+
+        sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items, own_range)
+        errors.extend(sql_errors)
+
+        data_division_index = next(
+            (index for index, division in enumerate(program.divisions) if division.name == "DATA"),
+            None,
+        )
+        data_division = (
+            program.divisions[data_division_index] if data_division_index is not None else None
+        )
+        data_end_line = (
+            program.divisions[data_division_index + 1].start_line - 1
+            if data_division_index is not None and data_division_index + 1 < len(program.divisions)
+            else data_division.end_line
+            if data_division is not None
+            else None
+        )
+        data_copy_edges = [
+            edge
+            for edge in copy_edges
+            if data_division is not None
+            and data_division.start_line <= edge.src_start_line <= data_end_line
+        ]
+        inherited_fields = copybook_mod.inherited_fields(data_copy_edges, copybook_index)
+        xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
+        errors.extend(xref_errors)
+
+        edges.extend([*proc_edges, *copy_edges, *sql_edges, *xref_edges])
+        entities.extend(_build_entities(program, items, file_descriptors, sql_blocks))
+
+        program_chunks = chunk_paragraphs(program, source_lines, source_format)
+        if not program_chunks:
+            # Einzelprogramm-Normalfall (siehe divisions_mod.scan()): der
+            # Fallback deckt wie vor O-138 die GESAMTE Datei ab, nicht nur
+            # program.start_line/end_line - unverändertes Verhalten für alle
+            # bestehenden Golden Files (F-029, z.B. 99_garbage.cbl).
+            fallback_bounds = None if single_program else (program.start_line, program.end_line)
+            program_chunks = _fallback_chunks(program, source_lines, source_format, fallback_bounds)
+        chunks.extend(program_chunks)
 
     result = ParseResult(
-        program_name=program.name,
+        program_name=programs[0].name,
         path=path,
         source_format=source_format,
         variant_key=variant_key(profile),
@@ -186,7 +216,7 @@ def parse_program(
         errors=errors,
     diagnostics=profile_diagnostics
         + lexer_diagnostics
-        + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
+        + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics_all),
     )
     _attach_source_evidence(result, profile, logical_lines)
     return result
@@ -200,14 +230,21 @@ def _build_entities(
 ) -> list[Entity]:
     entities: list[Entity] = []
 
+    # O-138: ein echt verschachteltes Unterprogramm bekommt einen
+    # elternqualifizierten qualified_name ("AUSSEN.INNEN") - sonst würden
+    # zwei gleichnamige Unterprogramme unter verschiedenen Elternprogrammen
+    # derselben Datei kollidieren (uq_code_entities_source_qname). Eigene
+    # Sections/Paragraphen/Felder bleiben trotzdem am einfachen `program.name`
+    # verankert (siehe unten) - das ist die Invariante, auf die sich
+    # cobol_persist.py::_belongs_to_program() verlässt.
     entities.append(
         Entity(
             type="program",
             name=program.name,
             start_line=program.start_line,
             end_line=program.end_line,
-            parent_name=None,
-            qualified_name=program.name,
+            parent_name=program.parent_name,
+            qualified_name=_qualify(program.parent_name, program.name),
         )
     )
 
@@ -244,6 +281,19 @@ def _build_entities(
         )
 
     entities.extend(_build_field_entities(program.name, items, file_descriptors))
+
+    for entry in program.entry_points:
+        entities.append(
+            Entity(
+                type="entry",
+                name=entry.name,
+                start_line=entry.start_line,
+                end_line=entry.end_line,
+                parent_name=program.name,
+                qualified_name=_qualify(program.name, entry.name),
+                meta={"paragraph": entry.paragraph},
+            )
+        )
 
     for block in sql_blocks:
         entities.append(
@@ -342,16 +392,26 @@ def _qualify(parent_qname: str | None, name: str) -> str:
     return f"{parent_qname}.{name}" if parent_qname else name
 
 
-def _pack_whole_file(source_lines: list[str], chunk_size: int) -> list[tuple[str, int, int]]:
-    """Zeilenweises, nicht-überlappendes Packen der gesamten Datei in
-    (content, start_line, end_line)-Tripel - dieselbe Strategie wie
-    chunking._split_paragraph(), nur ohne Paragraphengrenzen. Gemeinsam
-    genutzt von _fallback_chunks() (F-029) und parse_copybook() (Copybooks
-    haben keine PROCEDURE-DIVISION-Paragraphen, an denen chunking.chunk()
-    entlang chunken könnte)."""
+def _pack_whole_file(
+    source_lines: list[str],
+    chunk_size: int,
+    bounds: tuple[int, int] | None = None,
+) -> list[tuple[str, int, int]]:
+    """Zeilenweises, nicht-überlappendes Packen in (content, start_line,
+    end_line)-Tripel - dieselbe Strategie wie chunking._split_paragraph(),
+    nur ohne Paragraphengrenzen. Gemeinsam genutzt von _fallback_chunks()
+    (F-029) und parse_copybook() (Copybooks haben keine PROCEDURE-DIVISION-
+    Paragraphen, an denen chunking.chunk() entlang chunken könnte).
+
+    bounds ist ein 1-basiertes, inklusives (start_line, end_line) - Default
+    None packt wie vor O-138 die GESAMTE `source_lines`-Liste; O-138 nutzt
+    das, um den F-029-Fallback bei mehreren Programmen pro Datei auf den
+    Zeilenbereich EINES Programms einzugrenzen, statt versehentlich auch die
+    Nachbarprogramme mit einzupacken."""
+    start_line, end_line = bounds if bounds is not None else (1, len(source_lines))
     packed: list[tuple[str, int, int]] = []
-    n = len(source_lines)
-    i = 0
+    n = end_line
+    i = start_line - 1
     while i < n:
         current: list[str] = []
         current_len = 0
@@ -375,6 +435,7 @@ def _fallback_chunks(
     program: CobolProgram,
     source_lines: list[str],
     source_format: SourceFormat,
+    bounds: tuple[int, int] | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
 ) -> list[Chunk]:
     return [
@@ -384,7 +445,7 @@ def _fallback_chunks(
             end_line=end_line,
             meta={"program": program.name, "format": source_format, "fallback": True},
         )
-        for content, start_line, end_line in _pack_whole_file(source_lines, chunk_size)
+        for content, start_line, end_line in _pack_whole_file(source_lines, chunk_size, bounds)
     ]
 
 

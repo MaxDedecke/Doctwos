@@ -96,6 +96,7 @@
       "src_end_line": 5,
       "scope": null,
       "meta": {
+        "program": "COPYREPL",
         "replacing": [
           {
             "from": ":TAG:",

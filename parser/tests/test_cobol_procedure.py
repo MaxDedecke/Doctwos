@@ -9,7 +9,8 @@ def _edges(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)
-    program, div_errors, _ = divisions.scan(masked)
+    programs, div_errors, _ = divisions.scan(masked)
+    program = programs[0]
     edges, proc_errors = procedure.scan(program, tokens)
     return program, edges, div_errors + proc_errors
 
@@ -44,7 +45,7 @@ def test_perform_thru_resolves_locally_and_carries_thru_in_meta():
     perform = next(e for e in edges if e.dst_name == "INIT-PARA")
     assert perform.type == "PERFORM"
     assert perform.resolution == "resolved"
-    assert perform.meta == {"thru": "CLEANUP-PARA"}
+    assert perform.meta == {"thru": "CLEANUP-PARA", "program": "PERFTHRU"}
     assert perform.scope == program.name == "PERFTHRU"
 
 
@@ -102,8 +103,8 @@ def test_no_procedure_division_reports_error_without_crashing():
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)
-    program, _, _ = divisions.scan(masked)
-    edges, errors = procedure.scan(program, tokens)
+    programs, _, _ = divisions.scan(masked)
+    edges, errors = procedure.scan(programs[0], tokens)
 
     assert edges == []
     assert errors != []

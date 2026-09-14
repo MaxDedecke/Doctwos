@@ -328,7 +328,7 @@ class CodeEntity(Base):
     )
     file_path = Column(String, index=True)
     name = Column(String, index=True)
-    # 'program'|'copybook'|'section'|'paragraph'|'data_item'|'file_fd'|'sql_table'|'sql_block'
+    # 'program'|'copybook'|'section'|'paragraph'|'data_item'|'file_fd'|'sql_table'|'sql_block'|'entry'
     # v2 zusätzlich: 'jcl_job'|'jcl_step'
     type = Column(String, index=True)
     parent_id = Column(
