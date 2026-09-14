@@ -548,6 +548,10 @@ class SourceScanFile(Base):
     )
     file_path = Column(String, nullable=False)
     content_hash = Column(String(32), nullable=False)
+    # O-122: SHA-256 über Git-Revision, effektives Buildprofil, Parser-/
+    # Grammatikstand und Copybook-Bibliotheken. Anders als content_hash löst
+    # er daher auch ohne Textänderung gezielt einen Reparse aus.
+    analysis_fingerprint = Column(String(64), nullable=True)
     # O-120: 'complete' | 'partial' | 'text_fallback' | 'skipped' | 'error'
     # (core.model.AnalysisStatus plus 'error' für DB-seitige Persistenzfehler,
     # siehe connectors/git.py::_save_document_chunks). Vor O-120 nur

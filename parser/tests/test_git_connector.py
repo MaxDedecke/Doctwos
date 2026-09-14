@@ -1,19 +1,24 @@
 import asyncio
 import os
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import text
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from cobol.model import Chunk, ParseResult
+from cobol.profile import BuildProfile
+from core.analysis_fingerprint import analysis_fingerprint
 from cobol.registry import ParserEntry
 from db import SessionLocal
 from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import (
     GitConnector,
     _looks_like_text,
+    _resolve_document_profile,
     _resolve_extension_config,
+    _reuse_unchanged_embeddings,
     _run_prepare_hooks,
 )
 import git_utils
@@ -63,6 +68,32 @@ def test_resolve_extension_config_prefers_new_key_over_old():
         {"language_extensions": {"cobol": [".new"]}, "cobol_extensions": {"cobol": [".old"]}}
     )
     assert cfg["cobol"] == {".new"}
+
+
+def test_resolve_document_profile_uses_the_most_specific_path_override():
+    profile = _resolve_document_profile(
+        {
+            "build_profile": {
+                "source": {"compiler_family": "GNUCOBOL", "source_format": "fixed"},
+                "paths": {
+                    "legacy": {"source_format": "free"},
+                    "legacy/payroll": {"compiler_version": "4.0"},
+                },
+            }
+        },
+        "legacy/payroll/MAIN.CBL",
+    )
+
+    assert profile == BuildProfile(
+        compiler_family="GNUCOBOL",
+        compiler_version="4.0",
+        source_format="fixed",
+        resolved_from={
+            "compiler_family": "source",
+            "compiler_version": "path",
+            "source_format": "source",
+        },
+    )
 
 
 def _init_remote(path: str) -> None:
@@ -265,9 +296,9 @@ async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_sessi
 async def test_git_connector_resumes_via_content_hash(
     db_session, test_source, monkeypatch, tmp_path
 ):
-    """NF-004: eine Datei, deren Blob-SHA schon in SourceScanFile steht (z.B.
-    aus einem abgebrochenen vorherigen Lauf), wird beim erneuten Sync NICHT
-    neu eingebettet -- der guenstigste Resume-Mechanismus."""
+    """O-122/NF-004: nur ein vollständiger Analyse-Fingerprint darf einen
+    bereits fertigen Parse wiederaufnehmen; eine bloße Altzeile ohne diesen
+    Wert wird bewusst einmal neu verarbeitet."""
     repos_root = str(tmp_path / "repos_root")
     monkeypatch.setattr("connectors.git.REPOS_ROOT", repos_root)
 
@@ -283,6 +314,12 @@ async def test_git_connector_resumes_via_content_hash(
             source_id=test_source.id,
             file_path="PROG.CBL",
             content_hash=git_utils.blob_content_hash(tracked["PROG.CBL"]),
+            analysis_fingerprint=analysis_fingerprint(
+                source_revision=tracked["PROG.CBL"],
+                profile=BuildProfile(),
+                parser_version="cobol-structure-1",
+                libraries={},
+            ),
         )
     )
     db_session.commit()
@@ -777,6 +814,21 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
     assert chunks[0]["start_line"] == 1
     assert chunks[0]["end_line"] == 1
     assert chunks[0]["meta"] == {"fake": True}
+
+
+def test_reuse_unchanged_embeddings_only_returns_new_content_for_embedding():
+    """O-122: Reparse aktualisiert Struktur, aber nicht den Vektor eines
+    unveränderten indexierbaren Textes."""
+    chunks = [
+        {"content": "unchanged source"},
+        {"content": "new source"},
+    ]
+    old_chunks = [SimpleNamespace(content="unchanged source", embedding=[0.25] * 1024)]
+
+    to_embed = _reuse_unchanged_embeddings(chunks, old_chunks)
+
+    assert chunks[0]["embedding"] == [0.25] * 1024
+    assert to_embed == [{"content": "new source"}]
 
 
 @pytest.mark.anyio

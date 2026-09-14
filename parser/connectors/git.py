@@ -35,6 +35,8 @@ import redis
 import git_utils
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
+from core.analysis_fingerprint import analysis_fingerprint
+from cobol.profile import BuildProfile, ProfileFragment, resolve_profile
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
@@ -219,6 +221,76 @@ def classify_extension(path: str, extensions: dict[str, set[str]]) -> str:
     return "text"
 
 
+_PROFILE_FIELDS = {
+    "compiler_family",
+    "compiler_version",
+    "source_format",
+    "encoding",
+    "defines",
+    "copy_search_order",
+}
+
+
+def _profile_fragment(raw: object) -> ProfileFragment | None:
+    """Konvertiert die bereits gespeicherte Git-Quellenkonfiguration in ein
+    O-121-Fragment. Eine Bedienoberfläche oder ein Importformat gehört weiter
+    zu O-151; der Connector liest hier nur den bestehenden JSON-Konfigurations-
+    container ``spaces.build_profile``.
+    """
+    if not isinstance(raw, dict):
+        return None
+    values = {key: value for key, value in raw.items() if key in _PROFILE_FIELDS}
+    if not values:
+        return None
+    if isinstance(values.get("copy_search_order"), list):
+        values["copy_search_order"] = tuple(values["copy_search_order"])
+    return ProfileFragment(**values)
+
+
+def _resolve_document_profile(spaces: dict, path: str) -> BuildProfile | None:
+    """Löst das effektive O-121-Profil einer Git-Datei auf.
+
+    ``build_profile.source`` gilt für das ganze Repository;
+    ``build_profile.paths`` kann Verzeichnispräfixe gezielt übersteuern. Das
+    ist absichtlich nur ein Lesekontrakt für die vorhandene JSON-Konfiguration
+    (keine neue Einstellungsoberfläche, O-151). Bei überlappenden Präfixen
+    gewinnt der längste, also spezifischste Pfad.
+    """
+    config = spaces.get("build_profile") if isinstance(spaces, dict) else None
+    if not isinstance(config, dict):
+        return None
+
+    source = _profile_fragment(config.get("source", config))
+    path_fragment = None
+    path_configs = config.get("paths")
+    if isinstance(path_configs, dict):
+        normalized_path = path.strip("/")
+        matches = [
+            (prefix.strip("/"), raw)
+            for prefix, raw in path_configs.items()
+            if isinstance(prefix, str)
+            and (normalized_path == prefix.strip("/") or normalized_path.startswith(prefix.strip("/") + "/"))
+        ]
+        if matches:
+            _, raw = max(matches, key=lambda item: len(item[0]))
+            path_fragment = _profile_fragment(raw)
+
+    profile, _ = resolve_profile(source=source, path=path_fragment)
+    return profile
+
+
+def _reuse_unchanged_embeddings(chunks: list[dict], old_chunks: list[DocumentChunk]) -> list[dict]:
+    """Übernimmt Vektoren textgleicher Vorgänger-Chunks und gibt nur die
+    verbleibenden Inhalte zum neuen Embedding zurück (O-122)."""
+    reusable = {
+        chunk.content: chunk.embedding for chunk in old_chunks if chunk.embedding is not None
+    }
+    for chunk in chunks:
+        if chunk["content"] in reusable:
+            chunk["embedding"] = reusable[chunk["content"]]
+    return [chunk for chunk in chunks if "embedding" not in chunk]
+
+
 @asynccontextmanager
 async def _git_fetch_lock(fingerprint: str, log=None):
     """Verhindert paralleles Fetch/Worktree-Setup auf demselben Bare-Mirror,
@@ -264,6 +336,11 @@ class GitConnector(BaseConnector):
         # den copybook.scan() zur COPY-Auflösung braucht -- dieser Connector
         # muss das aber nicht wissen, er reicht das Ergebnis nur durch.
         self._prepared_by_lang: dict[str, Any] = {}
+        # O-122: `fetch_documents()` bestimmt das aufgelöste Profil zusammen
+        # mit dem Resume-Fingerprint. Beim später parallel laufenden Parse
+        # wird genau dieses Objekt verwendet, statt die Konfiguration erneut
+        # (und potenziell anders) zu lesen.
+        self._profiles_by_path: dict[str, BuildProfile | None] = {}
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
@@ -285,11 +362,16 @@ class GitConnector(BaseConnector):
                 # Event-Loop blockieren). copybook_index ist das Ergebnis von
                 # entry.prepare_source() (O-079), sofern die Sprache einen
                 # Hook hat -- sonst None.
+                profile = self._profiles_by_path.get(doc["storage_key"])
+                parse_kwargs = {"copybook_index": self._prepared_by_lang.get(lang)}
+                # Registry-Einträge sind bewusst auch für künftige, nicht
+                # COBOL-spezifische Strukturparser offen (O-077). Nur ein
+                # tatsächlich konfiguriertes COBOL-Profil wird deshalb als
+                # zusätzlicher Parser-Eingabewert übergeben.
+                if profile is not None:
+                    parse_kwargs["profile"] = profile
                 parse_result = await asyncio.to_thread(
-                    entry.parse,
-                    doc["content"],
-                    doc["storage_key"],
-                    copybook_index=self._prepared_by_lang.get(lang),
+                    entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
                 )
                 chunks = [
                     {
@@ -306,11 +388,28 @@ class GitConnector(BaseConnector):
                     parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
                 )
 
-            chunk_texts = [c["content"] for c in chunks]
+            # O-122: Ein Profil- oder Bibliothekswechsel kann die Struktur
+            # ändern, obwohl einzelne indexierbare Textpassagen identisch
+            # bleiben. Diese Vektoren werden aus den bisherigen Chunks
+            # wiederverwendet; nur wirklich neuer Inhalt geht an das
+            # Embedding-Modell.
+            old_chunks: list[DocumentChunk] = []
+            if doc["extra_meta"].get("analysis_fingerprint"):
+                old_chunks = (
+                    self.db.query(DocumentChunk)
+                    .filter(
+                        DocumentChunk.source_id == self.source_id,
+                        DocumentChunk.file_path == doc["storage_key"],
+                    )
+                    .all()
+                )
+            to_embed = _reuse_unchanged_embeddings(chunks, old_chunks)
             embeddings = []
-            if chunk_texts:
+            if to_embed:
                 try:
-                    embeddings = await get_embeddings_batch(chunk_texts, model=config.EMBED_MODEL)
+                    embeddings = await get_embeddings_batch(
+                        [c["content"] for c in to_embed], model=config.EMBED_MODEL
+                    )
                 except Exception as e:
                     # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
                     # Exception-Typname macht die Meldung erst brauchbar (sonst
@@ -320,7 +419,7 @@ class GitConnector(BaseConnector):
                     # embedded sie unten einzeln nach (langsamer, aber vollständig).
                     self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
 
-            for chunk, embedding in zip(chunks, embeddings):
+            for chunk, embedding in zip(to_embed, embeddings):
                 chunk["embedding"] = embedding
 
             return doc, chunks, parse_result
@@ -391,6 +490,7 @@ class GitConnector(BaseConnector):
                 ).delete(synchronize_session=False)
             else:
                 content_hash = doc["extra_meta"]["content_hash"]
+                fingerprint = doc["extra_meta"].get("analysis_fingerprint")
 
                 parse_status = None
                 parse_error = None
@@ -424,6 +524,7 @@ class GitConnector(BaseConnector):
                 )
                 if existing:
                     existing.content_hash = content_hash
+                    existing.analysis_fingerprint = fingerprint
                     if parse_result is not None:
                         existing.parse_status = parse_status
                         existing.parse_error = parse_error
@@ -433,6 +534,7 @@ class GitConnector(BaseConnector):
                             source_id=self.source_id,
                             file_path=path,
                             content_hash=content_hash,
+                            analysis_fingerprint=fingerprint,
                             parse_status=parse_status,
                             parse_error=parse_error,
                         )
@@ -455,6 +557,7 @@ class GitConnector(BaseConnector):
 
             if not doc["extra_meta"].get("deleted"):
                 content_hash = doc["extra_meta"].get("content_hash", "")
+                fingerprint = doc["extra_meta"].get("analysis_fingerprint")
                 existing = (
                     self.db.query(SourceScanFile)
                     .filter(
@@ -465,6 +568,7 @@ class GitConnector(BaseConnector):
                 )
                 if existing:
                     existing.content_hash = content_hash
+                    existing.analysis_fingerprint = fingerprint
                     existing.parse_status = "error"
                     existing.parse_error = error_msg
                 else:
@@ -473,6 +577,7 @@ class GitConnector(BaseConnector):
                             source_id=self.source_id,
                             file_path=path,
                             content_hash=content_hash,
+                            analysis_fingerprint=fingerprint,
                             parse_status="error",
                             parse_error=error_msg,
                         )
@@ -481,7 +586,9 @@ class GitConnector(BaseConnector):
 
             return 0
 
-    def _record_skip(self, path: str, content_hash: str, reason: str) -> None:
+    def _record_skip(
+        self, path: str, content_hash: str, fingerprint: str, reason: str
+    ) -> None:
         """O-120: eine Datei, die wegen `_SKIPPED_BINARY_EXTENSIONS`, der
         Größengrenze oder fehlgeschlagener UTF-8-Erkennung nie an
         `_save_document_chunks()` geht, hinterließ bisher NUR eine
@@ -499,6 +606,7 @@ class GitConnector(BaseConnector):
         )
         if existing:
             existing.content_hash = content_hash
+            existing.analysis_fingerprint = fingerprint
             existing.parse_status = "skipped"
             existing.parse_error = reason
         else:
@@ -507,6 +615,7 @@ class GitConnector(BaseConnector):
                     source_id=self.source_id,
                     file_path=path,
                     content_hash=content_hash,
+                    analysis_fingerprint=fingerprint,
                     parse_status="skipped",
                     parse_error=reason,
                 )
@@ -565,65 +674,63 @@ class GitConnector(BaseConnector):
         cursor = self.source.sync_cursor or {}
         old_commit = cursor.get("last_commit")
 
-        deleted_paths: list[str] = []
-        additions: list[str] = []
-        current_hashes: dict[str, str] = {}
-        existing_hashes = {
-            r.file_path: r.content_hash
+        # O-122: Der bisherige Resume-Schlüssel bestand nur aus dem Blob-SHA.
+        # Ein unveränderter Git-Commit durfte deshalb sofort zurückkehren,
+        # obwohl ein Profil-, Parser- oder Copybook-Wechsel dasselbe Programm
+        # anders analysieren kann. Der Git-Index ist billig zu lesen; wir
+        # vergleichen daher bei jedem Lauf pro materialisierter Datei den
+        # vollständigen Analyse-Fingerprint. Unveränderte Eingaben bleiben
+        # weiterhin ohne Datei-I/O, Parse oder Embedding inkrementell.
+        current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
+        existing_records = {
+            r.file_path: r
             for r in self.db.query(SourceScanFile)
             .filter(SourceScanFile.source_id == self.source_id)
             .all()
         }
+        deleted_paths = sorted(set(existing_records) - set(current_hashes))
 
         if worktree_is_new or not old_commit:
             self._log("Vollständige Ersteinlesung des Worktrees…")
-            current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
-            additions = list(current_hashes.keys())
-            deleted_paths = sorted(set(existing_hashes.keys()) - set(current_hashes.keys()))
         elif force_reindex:
             self._log("Vollständige Neu-Analyse erzwungen; alle Dateien werden erneut verarbeitet…")
-            current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
-            additions = list(current_hashes.keys())
-            deleted_paths = sorted(set(existing_hashes.keys()) - set(current_hashes.keys()))
-        else:
-            if old_commit == new_commit:
-                self._log("Repository ist bereits auf dem neuesten Stand.")
-                return
-            changes = await asyncio.to_thread(
-                git_utils.diff_name_status, wt, old_commit, new_commit
-            )
-            for status, path in changes:
-                if status == "D":
-                    deleted_paths.append(path)
-                else:
-                    additions.append(path)
-            tracked = await asyncio.to_thread(git_utils.list_tracked_files, wt)
-            current_hashes = {path: tracked[path] for path in additions if path in tracked}
-            existing_hashes = (
-                {
-                    r.file_path: r.content_hash
-                    for r in self.db.query(SourceScanFile)
-                    .filter(
-                        SourceScanFile.source_id == self.source_id,
-                        SourceScanFile.file_path.in_(additions),
-                    )
-                    .all()
-                }
-                if additions
-                else {}
-            )
+        elif old_commit == new_commit:
+            self._log("Repository unverändert; prüfe Analyse-Fingerprints…")
 
-        # Resumability (NF-004): unverändert seit dem letzten (ggf.
-        # abgebrochenen) Sync -> überspringen, billigster Resume-Mechanismus.
-        to_process: list[tuple[str, str]] = []
-        for path in additions:
-            blob_sha = current_hashes.get(path)
-            if blob_sha is None:
-                continue  # nicht (mehr) materialisiert, z.B. außerhalb des Sparse-Checkout-Kegels
+        copybook_hashes = {
+            path: blob_sha
+            for path, blob_sha in current_hashes.items()
+            if os.path.splitext(path)[1].lower() in extensions.get("copybook", set())
+        }
+
+        # Resumability (NF-004) bleibt erhalten, jetzt aber über sämtliche
+        # Analyse-Eingaben. Die gesamte Copybook-Sammlung ist konservativ als
+        # Bibliotheksstand enthalten: sie kann nie einen betroffenen COPY-
+        # Aufrufer übersehen. Eine künftig noch feinere direkte
+        # Abhängigkeitsauflösung kann diesen Schlüssel nur verkleinern, nicht
+        # die Korrektheit ändern.
+        to_process: list[tuple[str, str, str]] = []
+        self._profiles_by_path.clear()
+        for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)
-            if not force_reindex and existing_hashes.get(path) == content_hash:
+            language = classify_extension(path, extensions)
+            profile = (
+                _resolve_document_profile(spaces, path)
+                if language in {"cobol", "copybook"}
+                else None
+            )
+            fingerprint = analysis_fingerprint(
+                source_revision=blob_sha,
+                profile=profile,
+                parser_version="cobol-structure-1" if language in {"cobol", "copybook"} else "generic-chunker-1",
+                grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",
+                libraries=copybook_hashes if language in {"cobol", "copybook"} else None,
+            )
+            existing = existing_records.get(path)
+            if not force_reindex and existing and existing.analysis_fingerprint == fingerprint:
                 continue
-            to_process.append((path, content_hash))
+            self._profiles_by_path[path] = profile
+            to_process.append((path, content_hash, fingerprint))
 
         total = len(to_process) + len(deleted_paths)
         self.source.total_files = total
@@ -648,11 +755,11 @@ class GitConnector(BaseConnector):
                 extra_meta={"language": "text", "branch": branch, "deleted": True},
             )
 
-        for path, content_hash in to_process:
+        for path, content_hash, analysis_fp in to_process:
             if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
                 reason = "Binärformat ohne Textextraktion, wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist ein {reason}")
-                self._record_skip(path, content_hash, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
             full_path = os.path.join(wt, path)
             try:
@@ -662,7 +769,7 @@ class GitConnector(BaseConnector):
             if file_size > MAX_READ_BYTES:
                 reason = f"überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB, nicht embedded."
                 self._log(f"[SKIP] '{path}' {reason}")
-                self._record_skip(path, content_hash, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
             try:
                 with open(full_path, "rb") as f:
@@ -673,18 +780,22 @@ class GitConnector(BaseConnector):
             if not _looks_like_text(raw):
                 reason = "kein UTF-8-Text (vermutlich EBCDIC/Binärdaten), wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
-                self._record_skip(path, content_hash, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
             content = raw.decode("utf-8")
 
-            lang = classify_extension(path, extensions)
             yield Document(
                 title=os.path.basename(path),
                 content=content,
                 url=None,
                 source_type="Git",
                 storage_key=path,
-                extra_meta={"language": lang, "branch": branch, "content_hash": content_hash},
+                extra_meta={
+                    "language": language,
+                    "branch": branch,
+                    "content_hash": content_hash,
+                    "analysis_fingerprint": analysis_fp,
+                },
             )
 
     async def sync(self, force_reindex: bool = False) -> None:
