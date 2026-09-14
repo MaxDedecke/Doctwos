@@ -193,6 +193,41 @@ def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | 
     return None
 
 
+def transitive_dependencies(
+    start_paths: list[str], index: CopybookIndex
+) -> tuple[set[str], bool]:
+    """O-137: alle über verschachtelte COPY-Vorkommen (transitiv) ab
+    `start_paths` erreichten Copybook-Pfade, mit Zyklenschutz (`visited`
+    verhindert eine Endlosschleife bei A COPY B COPY A). connectors/git.py
+    nutzt das Ergebnis, um den Analyse-Fingerprint einer Datei präzise auf
+    die tatsächlich verwendeten statt den gesamten Copybook-Bestand
+    einzugrenzen (Abnahme: "kein kompletter Bestands-Neuimport bei jeder
+    Änderung").
+
+    Der zweite Rückgabewert ist True, sobald irgendein COPY-Vorkommen in der
+    Kette nicht eindeutig auflösbar war (unbekannt oder mehrdeutig, siehe
+    `resolve_path()`) - der Aufrufer MUSS dann konservativ bleiben (ganzen
+    Bestand einbeziehen), weil sich sonst eine unaufgelöste Abhängigkeit
+    unbemerkt ändern könnte (E-2 "kein Raten", hier auf die Invalidierung
+    selbst angewandt statt nur auf die gespeicherte Kante)."""
+    visited: set[str] = set()
+    ambiguous = False
+    queue = list(dict.fromkeys(start_paths))
+    while queue:
+        path = queue.pop()
+        if path in visited:
+            continue
+        visited.add(path)
+        for edge in index.copy_edges_by_path.get(path, []):
+            target = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
+            if target is None:
+                ambiguous = True
+                continue
+            if target not in visited:
+                queue.append(target)
+    return visited, ambiguous
+
+
 def inherited_fields(copy_edges: list[ParsedEdge], index: CopybookIndex | None) -> list[dict]:
     """Projiziert Felder eindeutig aufgeloester COPY-Anweisungen in den
     aktuellen Namensraum.

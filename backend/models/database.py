@@ -576,6 +576,12 @@ class SourceScanFile(Base):
     # GitConnector._record_skip) — vorher komplett unsichtbar (nur Sync-Log).
     parse_status = Column(String, nullable=True)
     parse_error = Column(Text, nullable=True)
+    # O-137: {pfad: content_hash} der beim letzten erfolgreichen Parsen
+    # eindeutig aufgelösten, (transitiv) verwendeten Copybooks - ermöglicht
+    # connectors/git.py eine präzise statt konservative (voller Bestand)
+    # Fingerprint-Eingrenzung. NULL = noch kein Eintrag oder Nicht-COBOL,
+    # dann bleibt es beim konservativen Verhalten.
+    copybook_dependencies = Column(JSON, nullable=True)
     indexed_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (

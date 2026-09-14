@@ -37,6 +37,8 @@ from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
 from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
+from cobol import copybook as copybook_mod
+from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
@@ -223,6 +225,71 @@ def classify_extension(path: str, extensions: dict[str, set[str]]) -> str:
     return "text"
 
 
+def _fingerprint_libraries(
+    path: str,
+    language: str,
+    existing: SourceScanFile | None,
+    copybook_hashes: dict[str, str],
+    copybook_index: CopybookIndex | None,
+) -> dict[str, str] | None:
+    """O-137: präzise statt konservative Bibliotheks-Menge für den Analyse-
+    Fingerprint, wo sicher möglich - sonst wie vor O-137 der GESAMTE
+    Copybook-Bestand (kann nie eine betroffene Änderung übersehen).
+
+    - Copybook-Dateien: die AST-Kette aus dem Pass-0-Index
+      (`copybook.transitive_dependencies()`) ist bei jedem Sync ohnehin
+      schon vollständig aufgebaut - kein Zusatzaufwand, kein "Henne-Ei"-
+      Problem wie bei Programmen (siehe unten).
+    - Programme: deren eigene COPY-Ziele sind an dieser Stelle unbekannt,
+      ohne die Datei selbst schon strukturell zu parsen - genau das soll
+      der Fingerprint-Vergleich ja gerade vermeiden. Es wird deshalb die
+      beim LETZTEN erfolgreichen Parse entdeckte Menge verwendet
+      (`SourceScanFile.copybook_dependencies`, siehe _save_document_chunks());
+      ohne einen solchen Eintrag (neue Datei, oder eine, deren COPY-Kette
+      zuletzt nicht eindeutig auflösbar war) bleibt es konservativ.
+    """
+    if language not in {"cobol", "copybook"}:
+        return None
+
+    if language == "copybook" and copybook_index is not None:
+        visited, ambiguous = copybook_mod.transitive_dependencies([path], copybook_index)
+        if not ambiguous:
+            return {p: copybook_hashes[p] for p in visited if p in copybook_hashes}
+
+    if language == "cobol" and existing is not None and existing.copybook_dependencies is not None:
+        # Ein seither gelöschtes Copybook fehlt in copybook_hashes - der
+        # damit andere Fingerprint-Wert (statt KeyError) löst korrekt einen
+        # Reparse aus, der die veraltete Abhängigkeit dann bereinigt.
+        return {p: copybook_hashes.get(p, "") for p in existing.copybook_dependencies}
+
+    return copybook_hashes
+
+
+def _discover_copybook_dependencies(
+    result: ParseResult, copybook_index: CopybookIndex | None
+) -> set[str] | None:
+    """O-137: die (transitiv) tatsächlich verwendete Copybook-Pfadmenge
+    dieser gerade fertig geparsten Datei, oder None, wenn irgendein COPY-
+    Vorkommen (direkt oder in der Kette) nicht eindeutig auflösbar war -
+    dann bleibt die künftige Fingerprint-Eingrenzung für diese Datei
+    konservativ (siehe _fingerprint_libraries()), statt eine unaufgelöste
+    Abhängigkeit stillschweigend zu übersehen (E-2 "kein Raten")."""
+    if copybook_index is None:
+        return None
+    copy_edges = [e for e in result.edges if e.type == "COPY"]
+    if any(e.resolution != "resolved" for e in copy_edges):
+        return None
+    direct_paths = [
+        copybook_mod.resolve_path(e.dst_name, (e.meta or {}).get("library"), copybook_index)
+        for e in copy_edges
+    ]
+    direct_paths = [p for p in direct_paths if p is not None]
+    if not direct_paths:
+        return set()
+    visited, ambiguous = copybook_mod.transitive_dependencies(direct_paths, copybook_index)
+    return None if ambiguous else visited
+
+
 _PROFILE_FIELDS = {
     "compiler_family",
     "compiler_version",
@@ -357,6 +424,11 @@ class GitConnector(BaseConnector):
         # wird genau dieses Objekt verwendet, statt die Konfiguration erneut
         # (und potenziell anders) zu lesen.
         self._profiles_by_path: dict[str, BuildProfile | None] = {}
+        # O-137: aktueller Copybook-Pfad -> Git-Blob-SHA, gefüllt in
+        # fetch_documents() - _save_document_chunks() braucht das, um die
+        # dort neu entdeckte Abhängigkeitsmenge in Blob-SHAs statt nur
+        # Pfade umzuwandeln (siehe _discover_copybook_dependencies()).
+        self._copybook_hashes: dict[str, str] = {}
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
@@ -529,6 +601,22 @@ class GitConnector(BaseConnector):
                         content_hash=content_hash,
                         result=parse_result,
                     )
+                    # O-137: die gerade entdeckte (transitive) Copybook-
+                    # Abhängigkeit dieser Datei für den NÄCHSTEN Sync
+                    # merken, damit dessen Fingerprint-Vergleich präzise
+                    # statt konservativ eingrenzen kann (siehe
+                    # _fingerprint_libraries()). None (nicht eindeutig
+                    # auflösbar) bleibt bewusst None statt {} - das ist der
+                    # Unterschied zwischen "keine Abhängigkeiten" und
+                    # "unbekannt, konservativ bleiben".
+                    dependency_paths = _discover_copybook_dependencies(
+                        parse_result, self._prepared_by_lang.get("cobol")
+                    )
+                    copybook_dependencies = (
+                        {p: self._copybook_hashes.get(p, "") for p in dependency_paths}
+                        if dependency_paths is not None
+                        else None
+                    )
 
                 existing = (
                     self.db.query(SourceScanFile)
@@ -544,6 +632,7 @@ class GitConnector(BaseConnector):
                     if parse_result is not None:
                         existing.parse_status = parse_status
                         existing.parse_error = parse_error
+                        existing.copybook_dependencies = copybook_dependencies
                 else:
                     self.db.add(
                         SourceScanFile(
@@ -553,6 +642,9 @@ class GitConnector(BaseConnector):
                             analysis_fingerprint=fingerprint,
                             parse_status=parse_status,
                             parse_error=parse_error,
+                            copybook_dependencies=(
+                                copybook_dependencies if parse_result is not None else None
+                            ),
                         )
                     )
 
@@ -722,13 +814,15 @@ class GitConnector(BaseConnector):
             for path, blob_sha in current_hashes.items()
             if os.path.splitext(path)[1].lower() in extensions.get("copybook", set())
         }
+        self._copybook_hashes = copybook_hashes
 
         # Resumability (NF-004) bleibt erhalten, jetzt aber über sämtliche
-        # Analyse-Eingaben. Die gesamte Copybook-Sammlung ist konservativ als
-        # Bibliotheksstand enthalten: sie kann nie einen betroffenen COPY-
-        # Aufrufer übersehen. Eine künftig noch feinere direkte
-        # Abhängigkeitsauflösung kann diesen Schlüssel nur verkleinern, nicht
-        # die Korrektheit ändern.
+        # Analyse-Eingaben. O-137: statt IMMER der gesamten Copybook-Sammlung
+        # (konservativ, kann nie einen COPY-Aufrufer übersehen, invalidiert
+        # dafür aber jede Datei bei JEDER Copybook-Änderung) grenzt
+        # _fingerprint_libraries() dort präzise ein, wo das sicher möglich
+        # ist - Details dort.
+        copybook_index = self._prepared_by_lang.get("cobol")
         to_process: list[tuple[str, str, str]] = []
         self._profiles_by_path.clear()
         for path, blob_sha in sorted(current_hashes.items()):
@@ -742,7 +836,9 @@ class GitConnector(BaseConnector):
                 if language in {"cobol", "copybook"}
                 else "generic-chunker-1",
                 grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",
-                libraries=copybook_hashes if language in {"cobol", "copybook"} else None,
+                libraries=_fingerprint_libraries(
+                    path, language, existing_records.get(path), copybook_hashes, copybook_index
+                ),
             )
             existing = existing_records.get(path)
             if not force_reindex and existing and existing.analysis_fingerprint == fingerprint:
