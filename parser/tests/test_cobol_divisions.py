@@ -15,7 +15,7 @@ def _program(name: str, fmt: str = "fixed"):
 
 
 def test_minimal_program_structure():
-    program, errors = _program("01_minimal.cbl")
+    program, errors, _ = _program("01_minimal.cbl")
     assert errors == []
     assert program.name == "MINIMAL"
     assert program.start_line == 1
@@ -31,13 +31,13 @@ def test_minimal_program_structure():
 def test_continuation_line_does_not_split_paragraph():
     # 02_fixed_edge.cbl: DISPLAY-Literal über eine Continuation-Zeile hinweg -
     # MAIN-PARA muss trotzdem bis zur letzten Zeile (STOP RUN.) reichen.
-    program, errors = _program("02_fixed_edge.cbl")
+    program, errors, _ = _program("02_fixed_edge.cbl")
     assert errors == []
     assert program.paragraphs == [Paragraph("MAIN-PARA", None, 4, 7)]
 
 
 def test_free_format_program_structure():
-    program, errors = _program("03_free_format.cbl", fmt="free")
+    program, errors, _ = _program("03_free_format.cbl", fmt="free")
     assert errors == []
     assert program.name == "freeformat"
     assert program.paragraphs == [Paragraph("main-para", None, 4, 6)]
@@ -47,13 +47,13 @@ def test_embedded_block_does_not_close_enclosing_paragraph_early():
     # Bug gefunden beim Bauen dieses Tests: der Platzhalter EMBEDDED-BLOCK-CICS
     # gefolgt vom Punkt nach END-EXEC sieht strukturell genauso aus wie ein
     # Paragraphen-Header (WORD PERIOD) - divisions.py muss ihn ausnehmen.
-    program, errors = _program("08_exec_cics.cbl")
+    program, errors, _ = _program("08_exec_cics.cbl")
     assert errors == []
     assert program.paragraphs == [Paragraph("MAIN-PARA", None, 4, 9)]
 
 
 def test_data_division_section_is_recognized():
-    program, errors = _program("09_dynamic_call.cbl")
+    program, errors, _ = _program("09_dynamic_call.cbl")
     assert errors == []
     assert program.name == "DYNCALL"
     assert program.divisions == [
@@ -66,7 +66,7 @@ def test_data_division_section_is_recognized():
 
 
 def test_multiple_paragraphs_get_exact_line_ranges():
-    program, errors = _program("10_perform_thru.cbl")
+    program, errors, _ = _program("10_perform_thru.cbl")
     assert errors == []
     assert program.paragraphs == [
         Paragraph("MAIN-PARA", None, 4, 7),
@@ -88,7 +88,7 @@ def test_paragraph_inside_procedure_section_records_section_name():
     )
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
-    program, errors = divisions.scan(masked)
+    program, errors, _ = divisions.scan(masked)
 
     assert errors == []
     assert program.sections == [Section("MAIN-SECTION", "PROCEDURE", 4, 7)]
@@ -104,7 +104,7 @@ def test_missing_program_id_is_reported_but_does_not_crash():
     )
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
-    program, errors = divisions.scan(masked)
+    program, errors, _ = divisions.scan(masked)
 
     assert program.name == ""
     assert "PROGRAM-ID nicht gefunden." in errors
@@ -116,7 +116,7 @@ def test_bare_reserved_verbs_do_not_open_spurious_paragraphs():
     # wie ein Paragraphen-Kopf aus (WORD PERIOD) und wurde als solcher
     # gewertet - beim zweiten "GOBACK." kollidierte der qualified_name beim
     # Persistieren am Unique-Constraint uq_code_entities_source_qname.
-    program, errors = _program("11_bare_verb_statements.cbl")
+    program, errors, _ = _program("11_bare_verb_statements.cbl")
     assert errors == []
     assert program.paragraphs == [
         Paragraph("MAIN-PARA", None, 4, 6),
@@ -128,7 +128,8 @@ def test_bare_reserved_verbs_do_not_open_spurious_paragraphs():
 
 
 def test_empty_token_stream_does_not_crash():
-    program, errors = divisions.scan([])
+    program, errors, diagnostics = divisions.scan([])
     assert program.name == ""
     assert program.divisions == []
     assert errors != []
+    assert diagnostics == []

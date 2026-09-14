@@ -9,7 +9,7 @@ def _edges(text: str, fmt: str = "fixed"):
     lines = source_format.split_logical_lines(text, fmt)
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)
-    program, div_errors = divisions.scan(masked)
+    program, div_errors, _ = divisions.scan(masked)
     edges, proc_errors = procedure.scan(program, tokens)
     return program, edges, div_errors + proc_errors
 
@@ -102,7 +102,7 @@ def test_no_procedure_division_reports_error_without_crashing():
     lines = source_format.split_logical_lines(text, "fixed")
     masked, _ = embedded.mask(lines)
     tokens = lexer.tokenize(masked)
-    program, _ = divisions.scan(masked)
+    program, _, _ = divisions.scan(masked)
     edges, errors = procedure.scan(program, tokens)
 
     assert edges == []

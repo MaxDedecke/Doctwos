@@ -37,7 +37,7 @@ from . import antlr_bridge
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
 from .antlr_bridge import COPY_PLACEHOLDER_NAME
-from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine
+from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine, ParseDiagnostic
 
 _CONDITION_LEVEL = 88
 _RENAMES_LEVEL = 66
@@ -46,13 +46,13 @@ _STANDALONE_LEVEL = 77
 
 def parse(
     program: CobolProgram, masked_lines: list[LogicalLine]
-) -> tuple[list[DataItem], list[FileDescriptor], list[str]]:
+) -> tuple[list[DataItem], list[FileDescriptor], list[str], list[ParseDiagnostic]]:
     errors: list[str] = []
 
     data_division = next((d for d in program.divisions if d.name == "DATA"), None)
     if data_division is None:
         errors.append("Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.")
-        return [], [], errors
+        return [], [], errors, []
 
     # parse_copybook() (parse.py) übergibt ein synthetisches CobolProgram ohne
     # IDENTIFICATION DIVISION - COBOL85s Grammatik verlangt sie zwingend
@@ -63,7 +63,7 @@ def parse(
         if is_copybook
         else None
     )
-    tree, source_text = antlr_bridge.build_tree(masked_lines, header=header)
+    tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines, header=header)
     visitor = _DataDivisionVisitor(source_text)
     visitor.visit(tree)
 
@@ -71,7 +71,7 @@ def parse(
     file_descriptors = [
         f for f in visitor.file_descriptors if f.name.upper() != COPY_PLACEHOLDER_NAME
     ]
-    return items, file_descriptors, errors
+    return items, file_descriptors, errors, diagnostics
 
 
 class _DataDivisionVisitor(Cobol85Visitor):

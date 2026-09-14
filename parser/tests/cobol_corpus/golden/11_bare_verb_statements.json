@@ -119,5 +119,6 @@
   ],
   "errors": [
     "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
-  ]
+  ],
+  "diagnostics": []
 }

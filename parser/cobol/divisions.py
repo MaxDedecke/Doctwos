@@ -17,9 +17,10 @@ sieht im Parse-Tree nie wie ein Paragraphenkopf aus — die frühere
 Kein Abbruch (Plan §6.1 Regel 2): fehlt PROGRAM-ID oder jede Division, gibt
 es einen möglichst vollständigen CobolProgram plus Einträge in der
 zurückgegebenen Fehlerliste — nie eine Exception. ANTLR-Syntaxfehler selbst
-werden nie in diese Liste übernommen (antlr_bridge._SilentErrorListener) —
-dieselbe Haltung wie zuvor, als unbekannte Tokens stillschweigend übersprungen
-wurden.
+werden nie in diese Fehlerliste übernommen (dieselbe Haltung wie zuvor, als
+unbekannte Tokens stillschweigend übersprungen wurden) — seit O-119 aber
+strukturiert über einen eigenen Rückgabewert (`antlr_bridge._FlaggingErrorListener`)
+statt komplett verschluckt.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from . import antlr_bridge
 from . import lexer as lexer_mod
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
-from .model import CobolProgram, Division, LogicalLine, Paragraph, Section
+from .model import CobolProgram, Division, LogicalLine, ParseDiagnostic, Paragraph, Section
 
 _DIVISION_RULE_NAMES = {
     "identificationDivision": "IDENTIFICATION",
@@ -38,18 +39,20 @@ _DIVISION_RULE_NAMES = {
 }
 
 
-def scan(masked_lines: list[LogicalLine]) -> tuple[CobolProgram, list[str]]:
+def scan(
+    masked_lines: list[LogicalLine],
+) -> tuple[CobolProgram, list[str], list[ParseDiagnostic]]:
     errors: list[str] = []
 
     tokens = lexer_mod.tokenize(masked_lines)
     if not tokens:
         errors.append("Keine Tokens gefunden - leere oder nicht lesbare Datei.")
-        return CobolProgram(name="", start_line=0, end_line=0), errors
+        return CobolProgram(name="", start_line=0, end_line=0), errors, []
 
     start_line = tokens[0].phys_line
     last_line = tokens[-1].phys_line
 
-    tree, source_text = antlr_bridge.build_tree(masked_lines)
+    tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines)
     visitor = _StructureVisitor(source_text)
     visitor.visit(tree)
 
@@ -68,7 +71,7 @@ def scan(masked_lines: list[LogicalLine]) -> tuple[CobolProgram, list[str]]:
         sections=visitor.sections,
         paragraphs=visitor.paragraphs,
     )
-    return program, errors
+    return program, errors, diagnostics
 
 
 class _StructureVisitor(Cobol85Visitor):

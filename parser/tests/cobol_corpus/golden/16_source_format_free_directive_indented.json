@@ -32,5 +32,17 @@
     "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.",
     "Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.",
     "Keine PROCEDURE DIVISION gefunden - USES-Kanten nicht durchsucht."
+  ],
+  "diagnostics": [
+    {
+      "code": "COBOL85_PARSER_ERROR",
+      "severity": "error",
+      "phase": "parser",
+      "message": "mismatched input '>' expecting {ID, IDENTIFICATION}",
+      "line": 1,
+      "column": 0,
+      "count": 1,
+      "profile": null
+    }
   ]
 }

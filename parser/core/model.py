@@ -50,6 +50,9 @@ EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS"
 
 Resolution = Literal["resolved", "unresolved", "dynamic"]
 
+DiagnosticSeverity = Literal["error", "warning"]
+DiagnosticPhase = Literal["lexer", "parser"]
+
 
 @dataclass
 class Chunk:
@@ -124,6 +127,42 @@ class ParsedEdge:
     meta: dict = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ParseDiagnostic:
+    """O-119: strukturierte Lexer-/Parser-Syntaxdiagnose, getrennt von der
+    bestehenden `ParseResult.errors`-Liste (reine Klartextsätze für
+    strukturelle Befunde wie "PROGRAM-ID nicht gefunden", die divisions.py/
+    data_division.py selbst feststellen). Bricht nie den Import ab — ANTLRs
+    eigene Fehlerkorrektur (Resync) läuft unverändert weiter; das hier macht
+    nur sichtbar, was sie überspielt.
+
+    `line`/`column` beziehen sich auf die physische Originalzeile der
+    Quelldatei, nicht auf den spaltenbereinigten Grammatik-Text — dessen
+    Zeilennummern sind absichtlich stabil dazu (siehe
+    `antlr_bridge._reconstruct_text`, CLAUDE.md "Zeilennummern sind heilig").
+    `path` fehlt bewusst — ein `ParseDiagnostic` lebt immer in genau einer
+    `ParseResult`, deren `path` schon gilt.
+
+    Stammt eine Diagnose aus dem ersten SLL-Parse-Versuch, der anschließend
+    mit LL(*) erfolgreich wiederholt wurde, taucht sie hier NICHT auf
+    (O-119-Abnahme) — nur Diagnosen des tatsächlich verwendeten Durchlaufs
+    zählen. Mehrfach identisch auftretende Diagnosen werden vor der Rückgabe
+    gebündelt (`count` > 1) statt einzeln aufgelistet.
+
+    `profile` ist vorbereitet für O-121 (Buildprofile), das noch nicht
+    existiert — bleibt bis dahin immer `None`.
+    """
+
+    code: str
+    severity: DiagnosticSeverity
+    phase: DiagnosticPhase
+    message: str
+    line: int
+    column: int
+    count: int = 1
+    profile: str | None = None
+
+
 @dataclass
 class ParseResult:
     """Ergebnis eines Struktur-Parsers (siehe `cobol/registry.py::
@@ -139,3 +178,4 @@ class ParseResult:
     edges: list[ParsedEdge] = field(default_factory=list)
     chunks: list[Chunk] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    diagnostics: list[ParseDiagnostic] = field(default_factory=list)

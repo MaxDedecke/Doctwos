@@ -52,6 +52,7 @@ anderen unbekannten Rest).
 
 from __future__ import annotations
 
+import dataclasses
 import re
 
 from antlr4 import CommonTokenStream, InputStream
@@ -60,7 +61,16 @@ from antlr4.error.ErrorListener import ErrorListener
 
 from ._antlr.Cobol85Lexer import Cobol85Lexer
 from ._antlr.Cobol85Parser import Cobol85Parser
-from .model import LogicalLine, Segment
+from .model import DiagnosticPhase, LogicalLine, ParseDiagnostic, Segment
+
+# O-119: Anzahl DISTINKTER Diagnose-Einträge, die eine einzelne build_tree()-
+# Rückgabe höchstens tragen darf ("Zahl/Textmenge begrenzen" aus der
+# Abnahme) — ein pathologisch kaputtes Encoding kann sonst hunderte
+# Token-Recognition-Fehler produzieren. Häufig IDENTISCHE Diagnosen (gleicher
+# Code/Phase/Text, andere Zeile) zählen dabei schon vorher als EIN Eintrag
+# (siehe `_bundle_repeats()`) — dieser Deckel greift erst bei tatsächlich
+# unterschiedlichen Diagnosen.
+_MAX_DIAGNOSTICS = 50
 
 _DIVISION_RE = re.compile(
     r"^(IDENTIFICATION|ENVIRONMENT|DATA|PROCEDURE)\s+DIVISION\b", re.IGNORECASE
@@ -125,34 +135,62 @@ def original_span(source_text: str, ctx) -> str:
 
 
 class _FlaggingErrorListener(ErrorListener):
-    """Syntaxfehler werden bewusst verschluckt, nicht auf stderr ausgegeben
-    oder in ParseResult.errors aufgenommen — dieselbe "kein Abbruch"-Haltung
-    wie divisions.py/data_division.py sie schon vor der Migration hatten
-    (unbekannte Tokens werden übersprungen, nie als Fehler gemeldet). ANTLRs
-    eigene Fehlerkorrektur (Resync) sorgt dafür, dass der Rest des Baums
-    trotzdem nutzbar bleibt. Merkt sich zusätzlich, ob überhaupt ein Fehler
-    auftrat — Signal für das Zwei-Phasen-Parsing in `_parse()`/`build_tree()`."""
+    """Syntaxfehler brechen den Import nie ab (ANTLRs eigene Fehlerkorrektur/
+    Resync läuft unverändert weiter, derselbe Grundsatz wie schon vor der
+    Migration, als divisions.py/data_division.py unbekannte Tokens
+    stillschweigend übersprangen) — landen aber seit O-119 strukturiert in
+    `self.diagnostics` statt nur ein `had_error`-Flag zu setzen. Eine Instanz
+    ist an genau eine Phase (Lexer ODER Parser) gebunden, damit
+    `syntaxError()` `phase` nicht aus `recognizer` erraten muss. Ohne
+    explizite Listener-Zuweisung würde ANTLRs Default-`ConsoleErrorListener`
+    Lexer-Fehler weiterhin auf stderr drucken (beobachtet bei
+    `scripts/regenerate_cobol_golden.py`, "token recognition error at: ...")."""
 
-    def __init__(self) -> None:
+    def __init__(self, phase: DiagnosticPhase) -> None:
+        self.phase = phase
         self.had_error = False
+        self.diagnostics: list[ParseDiagnostic] = []
 
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # noqa: N802
         self.had_error = True
+        code = "COBOL85_LEXER_ERROR" if self.phase == "lexer" else "COBOL85_PARSER_ERROR"
+        self.diagnostics.append(
+            ParseDiagnostic(
+                code=code,
+                severity="error",
+                phase=self.phase,
+                message=msg,
+                line=line,
+                column=column,
+            )
+        )
 
 
-def _parse(ascii_text: str, prediction_mode) -> tuple[Cobol85Parser.StartRuleContext, bool]:
+def _parse(
+    ascii_text: str, prediction_mode
+) -> tuple[Cobol85Parser.StartRuleContext, bool, list[ParseDiagnostic]]:
     """Ein Parse-Durchlauf in einem festen Prediction-Mode. Gibt zusätzlich
-    zurück, ob dabei ein Syntaxfehler auftrat, ohne selbst zu entscheiden,
-    was das bedeutet (dafür da: `build_tree()`s Zwei-Phasen-Logik)."""
+    zurück, ob dabei ein Syntaxfehler auftrat (Signal für `build_tree()`s
+    Zwei-Phasen-Logik) sowie die dabei aufgetretenen Diagnosen (O-119) —
+    ohne selbst zu entscheiden, ob diese Diagnosen am Ende zählen (das
+    entscheidet `build_tree()`: nur der tatsächlich verwendete Durchlauf
+    zählt, ein per LL(*) erfolgreich wiederholter SLL-Fehler nicht)."""
     lexer = Cobol85Lexer(InputStream(ascii_text))
+    lexer.removeErrorListeners()
+    lexer_listener = _FlaggingErrorListener("lexer")
+    lexer.addErrorListener(lexer_listener)
+
     tokens = CommonTokenStream(lexer)
     parser = Cobol85Parser(tokens)
     parser._interp.predictionMode = prediction_mode
     parser.removeErrorListeners()
-    listener = _FlaggingErrorListener()
-    parser.addErrorListener(listener)
+    parser_listener = _FlaggingErrorListener("parser")
+    parser.addErrorListener(parser_listener)
+
     tree = parser.startRule()
-    return tree, listener.had_error
+    had_error = lexer_listener.had_error or parser_listener.had_error
+    diagnostics = lexer_listener.diagnostics + parser_listener.diagnostics
+    return tree, had_error, diagnostics
 
 
 def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
@@ -331,7 +369,7 @@ def warmup() -> None:
 
 def build_tree(
     masked_lines: list[LogicalLine], header: str | None = None
-) -> tuple[Cobol85Parser.StartRuleContext, str]:
+) -> tuple[Cobol85Parser.StartRuleContext, str, list[ParseDiagnostic]]:
     """Baut den ANTLR-Parse-Tree aus den (embedded.mask()-maskierten)
     LogicalLines. `masked_lines` wird hier NICHT verändert — mask_for_grammar()
     arbeitet auf einer eigenen Kopie, der Aufrufer behält seine für
@@ -344,10 +382,16 @@ def build_tree(
     eigene Zeile eingefügt, damit sich keine Zeilennummer verschiebt
     (CLAUDE.md „Zeilennummern sind heilig").
 
-    Rückgabe ist `(tree, source_text)` statt nur `tree` — Aufrufer, die Namen
-    per `ctx.getText()` aus dem Baum lesen, bekommen damit potenziell
-    ASCII-gefaltete Umlaute zurück (siehe `_UMLAUT_FOLD`); `original_span()`
-    braucht `source_text`, um die echte Schreibweise zu rekonstruieren.
+    Rückgabe ist `(tree, source_text, diagnostics)` statt nur `tree` —
+    Aufrufer, die Namen per `ctx.getText()` aus dem Baum lesen, bekommen
+    damit potenziell ASCII-gefaltete Umlaute zurück (siehe `_UMLAUT_FOLD`);
+    `original_span()` braucht `source_text`, um die echte Schreibweise zu
+    rekonstruieren. `diagnostics` (O-119) sind schon gebündelt/gedeckelt
+    (siehe `_bundle_repeats()`), aber NICHT gegen einen zweiten build_tree()-
+    Aufruf auf demselben Text dedupliziert — divisions.py und
+    data_division.py bauen den Baum für dieselbe Datei zweimal (siehe deren
+    Docstrings); das übernimmt `consolidate_diagnostics()` beim
+    Zusammenführen in parse.py.
 
     Zwei-Phasen-Parsing (Standardmuster der ANTLR4-Referenz für "SLL für
     Tempo, LL(*) als Fallback"): SLL statt ANTLRs Default (Full-LL) ist auf
@@ -370,7 +414,82 @@ def build_tree(
         text = _prepend_header(text, header)
 
     ascii_text = text.translate(_UMLAUT_FOLD)
-    tree, had_error = _parse(ascii_text, PredictionMode.SLL)
+    tree, had_error, diagnostics = _parse(ascii_text, PredictionMode.SLL)
     if had_error:
-        tree, _ = _parse(ascii_text, PredictionMode.LL)
-    return tree, text
+        # Nur der LL(*)-Durchlauf zählt jetzt — ein SLL-Fehler, den LL(*)
+        # anschließend sauber auflöst, darf laut O-119-Abnahme nicht als
+        # endgültige Diagnose gemeldet werden.
+        tree, _, diagnostics = _parse(ascii_text, PredictionMode.LL)
+    return tree, text, _bundle_repeats(diagnostics)
+
+
+def _bundle_repeats(diagnostics: list[ParseDiagnostic]) -> list[ParseDiagnostic]:
+    """O-119-Abnahme "Wiederholungen bündeln": mehrere Diagnosen mit
+    gleichem `(code, phase, message)` — typischerweise dieselbe Art
+    Token-Recognition-Fehler an vielen Stellen einer kaputt kodierten Datei —
+    werden zu einer einzigen zusammengefasst (`count`, erste Zeile/Spalte
+    bleibt erhalten, weitere Fundstellen hängen lesbar an `message`).
+    Erhält die Fundreihenfolge (erstes Auftreten entscheidet die Position)."""
+    order: list[tuple[str, DiagnosticPhase, str]] = []
+    groups: dict[tuple[str, DiagnosticPhase, str], list[ParseDiagnostic]] = {}
+    for diag in diagnostics:
+        key = (diag.code, diag.phase, diag.message)
+        if key not in groups:
+            order.append(key)
+            groups[key] = []
+        groups[key].append(diag)
+
+    bundled: list[ParseDiagnostic] = []
+    for key in order:
+        occurrences = groups[key]
+        first = occurrences[0]
+        if len(occurrences) == 1:
+            bundled.append(first)
+            continue
+        all_lines = sorted({d.line for d in occurrences})
+        shown = ", ".join(str(n) for n in all_lines[:5])
+        if len(all_lines) > 5:
+            shown += ", ..."
+        message = f"{first.message} (insgesamt {len(occurrences)}x, Zeilen: {shown})"
+        bundled.append(dataclasses.replace(first, message=message, count=len(occurrences)))
+    return bundled
+
+
+def consolidate_diagnostics(*diagnostic_lists: list[ParseDiagnostic]) -> list[ParseDiagnostic]:
+    """Führt Diagnosen mehrerer build_tree()-Aufrufe für DIESELBE Datei
+    zusammen. parse.py::parse_program() ruft dies für divisions.py UND
+    data_division.py auf (siehe deren Docstrings) — beide bauen aus
+    demselben Text denselben Baum, liefern bei einem Syntaxfehler also
+    identische Diagnosen ein zweites Mal; die werden hier dedupliziert statt
+    doppelt in ParseResult.diagnostics zu landen.
+
+    Deckelt zusätzlich die GESAMTZAHL unterschiedlicher Diagnosen
+    (O-119-Abnahme "Zahl ... begrenzen") — unabhängig vom inhaltlichen
+    Bündeln gleicher Wiederholungen in `_bundle_repeats()`, das schon vorher
+    pro build_tree()-Aufruf lief."""
+    seen: set[tuple] = set()
+    merged: list[ParseDiagnostic] = []
+    for diagnostics in diagnostic_lists:
+        for diag in diagnostics:
+            key = (diag.code, diag.phase, diag.message, diag.line, diag.column, diag.count)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(diag)
+
+    if len(merged) <= _MAX_DIAGNOSTICS:
+        return merged
+
+    truncated = merged[: _MAX_DIAGNOSTICS - 1]
+    omitted = len(merged) - len(truncated)
+    truncated.append(
+        ParseDiagnostic(
+            code="DIAGNOSTICS_TRUNCATED",
+            severity="warning",
+            phase="parser",  # Meta-Diagnose ohne echte Phase, "parser" als Deckel-Konvention
+            message=f"{omitted} weitere Diagnosen unterdrückt (Deckel {_MAX_DIAGNOSTICS}).",
+            line=0,
+            column=0,
+        )
+    )
+    return truncated

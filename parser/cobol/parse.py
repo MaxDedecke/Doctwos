@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import os
 
+from . import antlr_bridge
 from . import copybook as copybook_mod
 from . import data_division as data_division_mod
 from . import divisions as divisions_mod
@@ -70,10 +71,14 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
     # Phase 3 (E-11): divisions.py/data_division.py bauen sich ihren eigenen
     # ANTLR-Parse-Tree aus denselben masked_lines - procedure.py/copybook.py/
     # xref.py bleiben unverändert auf dem flachen Token-Strom von lexer.py.
-    program, div_errors = divisions_mod.scan(masked_lines)
+    # Beide liefern deshalb potenziell dieselben ANTLR-Diagnosen ein zweites
+    # Mal - antlr_bridge.consolidate_diagnostics() dedupliziert (O-119).
+    program, div_errors, div_diagnostics = divisions_mod.scan(masked_lines)
     errors.extend(div_errors)
 
-    items, file_descriptors, dd_errors = data_division_mod.parse(program, masked_lines)
+    items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
+        program, masked_lines
+    )
     errors.extend(dd_errors)
 
     proc_edges, proc_errors = procedure_mod.scan(program, tokens)
@@ -125,6 +130,7 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
         edges=edges,
         chunks=chunks,
         errors=errors,
+        diagnostics=antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
     )
 
 
@@ -365,7 +371,9 @@ def parse_copybook(
         divisions=[Division("DATA", start_line, end_line)],
     )
 
-    items, file_descriptors, dd_errors = data_division_mod.parse(synthetic, masked_lines)
+    items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
+        synthetic, masked_lines
+    )
     errors.extend(dd_errors)
     copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
     errors.extend(copy_errors)
@@ -399,6 +407,7 @@ def parse_copybook(
         edges=copy_edges,
         chunks=chunks,
         errors=errors,
+        diagnostics=antlr_bridge.consolidate_diagnostics(dd_diagnostics),
     )
 
 

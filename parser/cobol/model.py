@@ -8,9 +8,10 @@ sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kame
 `CobolProgram`, `Division`, `Section`, `Paragraph` dazu, mit data_division.py
 `DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`.
 
-Die sprachneutralen Typen (`ParseResult`, `Entity`, `ParsedEdge`, `Chunk`
-sowie die Literal-Aliase `SourceFormat`/`EntityType`/`EdgeType`/`Resolution`)
-sind seit O-078 nach `parser/core/model.py` verschoben (dort an ihnen selbst
+Die sprachneutralen Typen (`ParseResult`, `Entity`, `ParsedEdge`, `Chunk`,
+`ParseDiagnostic` sowie die Literal-Aliase `SourceFormat`/`EntityType`/
+`EdgeType`/`Resolution`/`DiagnosticSeverity`/`DiagnosticPhase`) sind seit
+O-078 nach `parser/core/model.py` verschoben (dort an ihnen selbst
 hängt nichts COBOL-Spezifisches — ein künftiger zweiter Struktur-Parser,
 siehe O-077, sollte nicht `from cobol.model import ParseResult` schreiben
 müssen). Re-Export hier, damit bestehender Code unverändert weiterläuft.
@@ -22,9 +23,12 @@ from dataclasses import dataclass, field
 
 from core.model import (  # noqa: F401 — Re-Export, siehe Docstring oben (O-078)
     Chunk,
+    DiagnosticPhase,
+    DiagnosticSeverity,
     EdgeType,
     Entity,
     EntityType,
+    ParseDiagnostic,
     ParsedEdge,
     ParseResult,
     Resolution,
