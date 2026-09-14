@@ -904,6 +904,20 @@ class GitConnector(BaseConnector):
                 self._log(f"[SKIP] '{path}' ist {reason}")
                 self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
+            # O-175: looks_like_text() lässt leeren Inhalt bewusst durch (siehe
+            # test_looks_like_text_accepts_empty_content) -- eine 0-Byte-Datei ist
+            # kein Datenmüll, nur ohne Inhalt. folder.py/webdav.py überspringen so
+            # etwas bereits ("[SKIP] Kein Textinhalt"), GitConnector tat das nicht
+            # und ließ das Dokument bis zu _process_document()/_save_document_chunks()
+            # durchlaufen, wo chunk_file("") eine leere Chunk-Liste liefert -- sichtbar
+            # nur als irreführendes "indexiert (0 Chunks)" im Sync-Log, ohne den
+            # skipped-Status aus O-120. Live an CardDemos 0-Byte-Marker-Dateien unter
+            # scripts/markers/ beobachtet (CUSTFILE, CVTRA02Y, READCUST, ...).
+            if not content.strip():
+                reason = "leer (keine Textinhalte), wird nicht embedded."
+                self._log(f"[SKIP] '{path}' ist {reason}")
+                self._record_skip(path, content_hash, analysis_fp, reason)
+                continue
 
             yield Document(
                 title=os.path.basename(path),

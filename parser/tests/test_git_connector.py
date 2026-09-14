@@ -732,6 +732,66 @@ async def test_git_connector_skips_non_utf8_content_despite_text_looking_extensi
 
 
 @pytest.mark.anyio
+async def test_git_connector_skips_empty_files_instead_of_indexing_zero_chunks(
+    db_session, test_source, git_remote
+):
+    """
+    Regression (O-175): live an CardDemo beobachtet -- `scripts/markers/`
+    enthält 0-Byte-Platzhalterdateien, die denselben Basisnamen wie echte
+    JCL/Copybooks tragen (CUSTFILE, CVTRA02Y, READCUST, ...), nur ohne
+    Endung. looks_like_text() lässt leeren Inhalt bewusst durch (er ist kein
+    Datenmüll), GitConnector hatte davor aber keinen eigenen Leer-Check wie
+    folder.py/webdav.py ("[SKIP] Kein Textinhalt") -- das Dokument lief bis
+    zum Chunking durch und landete nur als irreführendes "indexiert
+    (0 Chunks)" im Sync-Log, unsichtbar für den O-120-skipped-Status.
+    """
+    _commit_file(git_remote, "scripts/markers/CUSTFILE", "", "add empty marker file")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+    assert "[SKIP] 'scripts/markers/CUSTFILE' ist leer" in test_source.sync_log
+    assert "'scripts/markers/CUSTFILE' indexiert" not in test_source.sync_log
+
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "scripts/markers/CUSTFILE",
+        )
+        .all()
+    )
+    assert len(chunks) == 0
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == test_source.id,
+            SourceScanFile.file_path == "scripts/markers/CUSTFILE",
+        )
+        .first()
+    )
+    assert scan_file is not None
+    assert scan_file.parse_status == "skipped"
+    assert "leer" in scan_file.parse_error
+
+    # Eine echte (nicht-leere) Datei mit demselben Basisnamen muss unverändert
+    # normal indexiert werden -- kein blanket skip über den Namen.
+    cobol_chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "PROG.CBL",
+        )
+        .all()
+    )
+    assert len(cobol_chunks) >= 1
+
+
+@pytest.mark.anyio
 async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(
     db_session, test_source, git_remote
 ):
