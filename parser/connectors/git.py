@@ -228,6 +228,7 @@ _PROFILE_FIELDS = {
     "source_columns",
     "encoding",
     "debug_mode",
+    "literal_delimiter",
     "defines",
     "copy_search_order",
 }
@@ -733,7 +734,7 @@ class GitConnector(BaseConnector):
             fingerprint = analysis_fingerprint(
                 source_revision=blob_sha,
                 profile=profile,
-                parser_version="cobol-structure-1"
+                parser_version="cobol-structure-2"
                 if language in {"cobol", "copybook"}
                 else "generic-chunker-1",
                 grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",

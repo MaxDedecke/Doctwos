@@ -35,6 +35,7 @@ import re
 
 from .lexer import Token
 from .model import CobolProgram, ParsedEdge
+from .names import canonical_identifier
 
 
 class CopybookIndex(dict[str, list[str]]):
@@ -78,20 +79,20 @@ def scan(
 
         if (
             tok.kind == "WORD"
-            and tok.value.upper() == "COPY"
+            and canonical_identifier(tok.value) == "COPY"
             and _word_or_literal_at(tokens, i + 1)
         ):
             name = _clean_name(tokens[i + 1].value)
             j = i + 2
 
             library = None
-            if j < n and tokens[j].kind == "WORD" and tokens[j].value.upper() in ("OF", "IN"):
+            if j < n and tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) in ("OF", "IN"):
                 if j + 1 < n and tokens[j + 1].kind in ("WORD", "LITERAL"):
                     library = _clean_name(tokens[j + 1].value)
                     j += 2
 
             replacing: list[dict] = []
-            if j < n and tokens[j].kind == "WORD" and tokens[j].value.upper() == "REPLACING":
+            if j < n and tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) == "REPLACING":
                 j += 1
                 while True:
                     pair, j = _replacing_pair(tokens, j)
@@ -150,14 +151,17 @@ def _resolve(name: str, library: str | None, index: CopybookIndex) -> str:
 
 def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | None:
     """Liefert nur bei eindeutiger COPY-Auflösung den konkreten Pfad."""
-    paths = index.get(strip_copybook_extension(name).upper(), [])
+    paths = index.get(canonical_identifier(strip_copybook_extension(name)), [])
     if not paths:
         return None
     if len(paths) == 1:
         return paths[0]
     if library is not None:
         matches = [
-            p for p in paths if os.path.basename(os.path.dirname(p)).upper() == library.upper()
+            p
+            for p in paths
+            if canonical_identifier(os.path.basename(os.path.dirname(p)))
+            == canonical_identifier(library)
         ]
         if len(matches) == 1:
             return matches[0]
@@ -219,7 +223,9 @@ def _replacing_pair(tokens: list[Token], j: int) -> tuple[dict | None, int]:
         return None, start
     operand1 = _clean_operand(tokens[j].value)
     j += 1
-    if j >= n or not (tokens[j].kind == "WORD" and tokens[j].value.upper() == "BY"):
+    if j >= n or not (
+        tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) == "BY"
+    ):
         return None, start
     j += 1
     if j >= n or tokens[j].kind not in _OPERAND_KINDS:

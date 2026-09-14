@@ -129,6 +129,18 @@ def test_resolve_document_profile_reads_debug_mode():
     )
 
 
+def test_resolve_document_profile_reads_literal_delimiter():
+    profile = _resolve_document_profile(
+        {"build_profile": {"source": {"literal_delimiter": "apostrophe"}}},
+        "MAIN.CBL",
+    )
+
+    assert profile == BuildProfile(
+        literal_delimiter="apostrophe",
+        resolved_from={"literal_delimiter": "source"},
+    )
+
+
 def _init_remote(path: str) -> None:
     subprocess.run(["git", "init", "--initial-branch=main", path], check=True, capture_output=True)
     subprocess.run(["git", "-C", path, "config", "user.email", "test@doctus.local"], check=True)
@@ -350,7 +362,7 @@ async def test_git_connector_resumes_via_content_hash(
             analysis_fingerprint=analysis_fingerprint(
                 source_revision=tracked["PROG.CBL"],
                 profile=BuildProfile(),
-                parser_version="cobol-structure-1",
+                parser_version="cobol-structure-2",
                 libraries={},
             ),
         )

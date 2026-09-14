@@ -57,6 +57,38 @@ def test_tokenize_literal_with_doubled_quote_escape():
     assert literal.value == "'IT''S FINE'"
 
 
+def test_tokenize_national_and_hex_literals_as_single_positioned_tokens():
+    lines = source_format.split_logical_lines(
+        "000100  DISPLAY N'Grüße' X'F1F2'.\n", "fixed"
+    )
+    literals = [token for token in lexer.tokenize(lines) if token.kind == "LITERAL"]
+
+    assert [(token.value, token.phys_line, token.col) for token in literals] == [
+        ("N'Grüße'", 1, 16),
+        ("X'F1F2'", 1, 25),
+    ]
+
+
+def test_unsupported_identifier_characters_are_visible_as_diagnostics():
+    lines = source_format.split_logical_lines("000100  MOVE WS-Å TO WS-OK.\n", "fixed")
+    diagnostics = lexer.diagnostics(lexer.tokenize(lines))
+
+    assert [(item.code, item.line, item.column) for item in diagnostics] == [
+        ("COBOL_UNSUPPORTED_IDENTIFIER_CHARACTER", 1, 13)
+    ]
+
+
+def test_invalid_hex_and_profile_literal_delimiter_are_diagnosed():
+    lines = source_format.split_logical_lines("000100  DISPLAY X'F1G' 'TEXT'.\n", "fixed")
+    diagnostics = lexer.diagnostics(lexer.tokenize(lines), literal_delimiter="quote")
+
+    assert [item.code for item in diagnostics] == [
+        "COBOL_LITERAL_DELIMITER_MISMATCH",
+        "COBOL_INVALID_HEX_LITERAL",
+        "COBOL_LITERAL_DELIMITER_MISMATCH",
+    ]
+
+
 def test_tokenize_pseudo_text_for_replacing():
     lines = source_format.split_logical_lines(
         "000100  COPY WSFIELDS REPLACING ==:TAG:== BY ==WS-FIELD==.\n", "fixed"

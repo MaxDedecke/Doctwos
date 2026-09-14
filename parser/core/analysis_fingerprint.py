@@ -18,7 +18,7 @@ from typing import Mapping
 # Änderungen an handgeschriebenen Scanner-/Persistenzregeln sind nicht aus
 # einer Grammatikdatei ableitbar. Dieser Wert ist deshalb ein absichtlicher,
 # bei semantischen Parseränderungen zu erhöhender Vertrag.
-COBOL_PARSER_VERSION = "2"
+COBOL_PARSER_VERSION = "3"
 
 
 def grammar_fingerprint() -> str:
@@ -64,6 +64,7 @@ def profile_payload(profile: object | None) -> dict[str, object]:
         else None,
         "encoding": getattr(profile, "encoding", None),
         "debug_mode": getattr(profile, "debug_mode", False),
+        "literal_delimiter": getattr(profile, "literal_delimiter", "both"),
         "defines": dict(sorted(getattr(profile, "defines", {}).items())),
         "copy_search_order": list(getattr(profile, "copy_search_order", ())),
         "resolved_from": dict(sorted(getattr(profile, "resolved_from", {}).items())),

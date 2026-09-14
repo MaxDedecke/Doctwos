@@ -25,7 +25,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .model import LogicalLine
+from .model import LogicalLine, ParseDiagnostic
+from .names import unsupported_identifier_characters
 from .source_format import AREA_B_START
 
 # WORD nutzt \w statt A-Za-z0-9, damit deutsche Bezeichner mit Umlauten/ß
@@ -45,11 +46,12 @@ from .source_format import AREA_B_START
 _TOKEN_RE = re.compile(
     r"""
       (?P<PSEUDO_TEXT>==[^=]*==)
-    | (?P<LITERAL>'(?:[^']|'')*'|"(?:[^"]|"")*")
+    | (?P<LITERAL>(?:[NXGZ])?(?:'(?:[^']|'')*'|"(?:[^"]|"")*"))
     | (?P<NUMBER>\d+(?:\.\d+)?(?![^\W_]|-))
     | (?P<WORD>[^\W_](?:[^\W_]|-)*)
     | (?P<PERIOD>\.)
     | (?P<SYMBOL>[()])
+    | (?P<UNSUPPORTED_CHAR>[^\x00-\x7F\s])
     """,
     re.VERBOSE,
 )
@@ -88,3 +90,74 @@ def _tokenize_line(line: LogicalLine) -> list[Token]:
             area = "A" if col < AREA_B_START else "B"
         out.append(Token(m.lastgroup, m.group(), phys_line, col, area))
     return out
+
+
+def diagnostics(tokens: list[Token], literal_delimiter: str = "both") -> list[ParseDiagnostic]:
+    """Meldet unbestätigte Zeichen/Literalformen, ohne Text zu verändern."""
+    result: list[ParseDiagnostic] = []
+    for token in tokens:
+        if token.kind == "WORD":
+            unsupported = unsupported_identifier_characters(token.value)
+            if unsupported:
+                result.append(
+                    ParseDiagnostic(
+                        code="COBOL_UNSUPPORTED_IDENTIFIER_CHARACTER",
+                        severity="warning",
+                        phase="lexer",
+                        message=(
+                            f"Nicht bestätigtes Zeichen {', '.join(repr(char) for char in unsupported)} "
+                            f"im Bezeichner '{token.value}'."
+                        ),
+                        line=token.phys_line,
+                        column=token.col,
+                    )
+                )
+        elif token.kind == "UNSUPPORTED_CHAR":
+            result.append(
+                ParseDiagnostic(
+                    code="COBOL_UNSUPPORTED_CHARACTER",
+                    severity="warning",
+                    phase="lexer",
+                    message=f"Nicht unterstütztes Zeichen {token.value!r} im COBOL-Quelltext.",
+                    line=token.phys_line,
+                    column=token.col,
+                )
+            )
+        elif token.kind == "LITERAL":
+            result.extend(_literal_diagnostics(token, literal_delimiter))
+    return result
+
+
+def _literal_diagnostics(token: Token, literal_delimiter: str) -> list[ParseDiagnostic]:
+    value = token.value
+    prefix = value[:1].upper() if value[:1].upper() in {"N", "X", "G", "Z"} else ""
+    quote = value[len(prefix) : len(prefix) + 1]
+    result: list[ParseDiagnostic] = []
+    expected = {"apostrophe": "'", "quote": '"'}.get(literal_delimiter)
+    if expected is not None and quote != expected:
+        result.append(
+            ParseDiagnostic(
+                code="COBOL_LITERAL_DELIMITER_MISMATCH",
+                severity="warning",
+                phase="lexer",
+                message=(
+                    f"Literal {value!r} nutzt {quote!r}, das bestätigte Profil erwartet {expected!r}."
+                ),
+                line=token.phys_line,
+                column=token.col,
+            )
+        )
+    if prefix == "X":
+        digits = value[len(prefix) + 1 : -1]
+        if len(digits) % 2 or any(char not in "0123456789abcdefABCDEF" for char in digits):
+            result.append(
+                ParseDiagnostic(
+                    code="COBOL_INVALID_HEX_LITERAL",
+                    severity="warning",
+                    phase="lexer",
+                    message=f"Hex-Literal {value!r} enthält keine vollständigen Hex-Bytes.",
+                    line=token.phys_line,
+                    column=token.col,
+                )
+            )
+    return result

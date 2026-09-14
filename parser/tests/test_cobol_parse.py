@@ -396,3 +396,70 @@ def test_debug_mode_changes_only_the_debug_call_edges():
         "DEBUG-TARGET",
         "NORMAL-TARGET",
     ]
+
+
+def test_unicode_identifier_comparison_does_not_collapse_distinct_data_names():
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. UNICODE-NAMES.",
+            "       DATA DIVISION.",
+            "       WORKING-STORAGE SECTION.",
+            "       01 GROUP-A.",
+            "          05 WS-Ä PIC X.",
+            "          05 WS-ä PIC X.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "           MOVE 'A' TO WS-Ä.",
+            "           MOVE 'a' TO WS-ä.",
+        )
+    )
+    result = parse_program(text, "unicode.cbl", profile=BuildProfile(source_format="fixed"))
+
+    uses = [edge for edge in result.edges if edge.type == "USES"]
+    assert [(edge.dst_name, edge.resolution) for edge in uses] == [
+        ("WS-Ä", "resolved"),
+        ("WS-ä", "resolved"),
+    ]
+
+
+def test_national_and_hex_data_values_keep_their_original_spelling():
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. LITERALS.",
+            "       DATA DIVISION.",
+            "       WORKING-STORAGE SECTION.",
+            "       01 WS-NATIONAL PIC N(5) VALUE N'Grüße'.",
+            "       01 WS-HEX PIC X(2) VALUE X'F1F2'.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "           CONTINUE.",
+        )
+    )
+    result = parse_program(text, "literals.cbl", profile=BuildProfile(source_format="fixed"))
+
+    fields = {entity.name: entity.meta["value"] for entity in result.entities if entity.type == "data_item"}
+    assert fields == {"WS-NATIONAL": "N'Grüße'", "WS-HEX": "X'F1F2'"}
+
+
+def test_literal_profile_and_invalid_hex_are_visible_on_parse_result():
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. INVALID-LITERAL.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "           DISPLAY X'F1G'.",
+        )
+    )
+    result = parse_program(
+        text,
+        "invalid.cbl",
+        profile=BuildProfile(source_format="fixed", literal_delimiter="quote"),
+    )
+
+    assert {item.code for item in result.diagnostics} >= {
+        "COBOL_LITERAL_DELIMITER_MISMATCH",
+        "COBOL_INVALID_HEX_LITERAL",
+    }

@@ -61,6 +61,7 @@ _SCALAR_FIELDS: tuple[str, ...] = (
     "source_columns",
     "encoding",
     "debug_mode",
+    "literal_delimiter",
 )
 
 
@@ -109,6 +110,9 @@ class ProfileFragment:
     # Debug-Zeilen (Indikator D in spaltengebundenen Formaten) werden nur
     # bei einem bestätigten aktivem Build ausgewertet.
     debug_mode: bool | None = None
+    # APOST bzw. QUOTE ist eine Compileroption. "both" bleibt der sichere
+    # Default, solange kein bestätigtes Profil eine Variante festlegt.
+    literal_delimiter: str | None = None
     defines: dict[str, str] | None = None
     copy_search_order: tuple[str, ...] | None = None
 
@@ -126,6 +130,7 @@ class BuildProfile:
     source_columns: SourceColumns | None = None
     encoding: str | None = None
     debug_mode: bool = False
+    literal_delimiter: str = "both"
     defines: dict[str, str] = field(default_factory=dict)
     copy_search_order: tuple[str, ...] = ()
     resolved_from: dict[str, str] = field(default_factory=dict)
@@ -216,6 +221,7 @@ def resolve_profile(
         source_columns=resolved.get("source_columns"),
         encoding=resolved.get("encoding"),
         debug_mode=resolved.get("debug_mode", False),
+        literal_delimiter=resolved.get("literal_delimiter", "both"),
         defines=merged_defines,
         copy_search_order=merged_copy_order,
         resolved_from=resolved_from,

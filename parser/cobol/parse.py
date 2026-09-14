@@ -61,6 +61,7 @@ from .model import (
     SqlBlock,
 )
 from .profile import BuildProfile
+from .names import canonical_identifier
 from core.evidence import source_evidence, variant_key
 
 
@@ -116,6 +117,9 @@ def parse_program(
     )
     masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
+    lexer_diagnostics = lexer_mod.diagnostics(
+        tokens, profile.literal_delimiter if profile is not None else "both"
+    )
 
     # Phase 3 (E-11): divisions.py/data_division.py bauen sich ihren eigenen
     # ANTLR-Parse-Tree aus denselben masked_lines - procedure.py/copybook.py/
@@ -180,7 +184,8 @@ def parse_program(
         edges=edges,
         chunks=chunks,
         errors=errors,
-        diagnostics=profile_diagnostics
+    diagnostics=profile_diagnostics
+        + lexer_diagnostics
         + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
     )
     _attach_source_evidence(result, profile, logical_lines)
@@ -305,7 +310,7 @@ def _build_field_entities(
         # Parser-Invariante und macht den internen Schlüssel eindeutig, während
         # der sichtbare Entity-Name weiterhin exakt "FILLER" bleibt. Ein Zähler
         # deckt auch mehrere Beschreibungen auf derselben physischen Zeile ab.
-        if item.name.upper() == "FILLER":
+        if canonical_identifier(item.name) == "FILLER":
             base_qname = f"{qname}@{item.start_line}"
             occurrence = qname_occurrences.get(base_qname, 0) + 1
             qname_occurrences[base_qname] = occurrence
@@ -416,6 +421,9 @@ def parse_copybook(
     )
     masked_lines, _ = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
+    lexer_diagnostics = lexer_mod.diagnostics(
+        tokens, profile.literal_delimiter if profile is not None else "both"
+    )
 
     name = _copybook_name(path)
     source_lines = text.splitlines()
@@ -428,7 +436,7 @@ def parse_copybook(
             source_format=source_format,
             variant_key=variant_key(profile),
             errors=errors,
-            diagnostics=profile_diagnostics,
+            diagnostics=profile_diagnostics + lexer_diagnostics,
         )
 
     start_line = tokens[0].phys_line
@@ -477,7 +485,9 @@ def parse_copybook(
         edges=copy_edges,
         chunks=chunks,
         errors=errors,
-        diagnostics=profile_diagnostics + antlr_bridge.consolidate_diagnostics(dd_diagnostics),
+        diagnostics=profile_diagnostics
+        + lexer_diagnostics
+        + antlr_bridge.consolidate_diagnostics(dd_diagnostics),
     )
     _attach_source_evidence(result, profile, logical_lines)
     return result
@@ -532,4 +542,4 @@ def _attach_source_evidence(
 
 def _copybook_name(path: str) -> str:
     stem = os.path.basename(path).partition(".")[0]
-    return stem.upper()
+    return canonical_identifier(stem)

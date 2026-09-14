@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from .lexer import Token
 from .model import CobolProgram, DataItem, ParsedEdge
+from .names import canonical_identifier
 
 _QUALIFIERS = ("OF", "IN")
 
@@ -32,9 +33,9 @@ _QUALIFIERS = ("OF", "IN")
 def build_index(items: list[DataItem]) -> dict[str, list[DataItem]]:
     index: dict[str, list[DataItem]] = {}
     for item in items:
-        if item.name.upper() == "FILLER":
+        if canonical_identifier(item.name) == "FILLER":
             continue
-        index.setdefault(item.name.upper(), []).append(item)
+        index.setdefault(canonical_identifier(item.name), []).append(item)
     return index
 
 
@@ -56,10 +57,10 @@ def scan(
 
     index = build_index(items)
     for field in inherited_fields or []:
-        if field["name"].upper() != "FILLER":
-            index.setdefault(field["effective_name"].upper(), []).append(field)
-    local_names = {p.name.upper() for p in program.paragraphs} | {
-        s.name.upper() for s in program.sections
+        if canonical_identifier(field["name"]) != "FILLER":
+            index.setdefault(canonical_identifier(field["effective_name"]), []).append(field)
+    local_names = {canonical_identifier(p.name) for p in program.paragraphs} | {
+        canonical_identifier(s.name) for s in program.sections
     }
 
     proc_tokens = [
@@ -72,7 +73,7 @@ def scan(
     for i, tok in enumerate(proc_tokens):
         if tok.kind != "WORD":
             continue
-        key = tok.value.upper()
+        key = canonical_identifier(tok.value)
         if key in local_names or key not in index:
             continue
 
@@ -123,8 +124,9 @@ def _resolve(
         matches = [
             c
             for c in candidates
-            if ((c.get("effective_parent") if isinstance(c, dict) else c.parent) or "").upper()
-            == qualifier
+            if canonical_identifier(
+                (c.get("effective_parent") if isinstance(c, dict) else c.parent) or ""
+            ) == qualifier
         ]
         if len(matches) == 1:
             return matches[0], "resolved"
@@ -134,12 +136,12 @@ def _resolve(
 
 def _qualifier_after(proc_tokens: list[Token], idx: int, n: int) -> str | None:
     nxt = proc_tokens[idx + 1] if idx + 1 < n else None
-    if nxt is None or nxt.kind != "WORD" or nxt.value.upper() not in _QUALIFIERS:
+    if nxt is None or nxt.kind != "WORD" or canonical_identifier(nxt.value) not in _QUALIFIERS:
         return None
     q_tok = proc_tokens[idx + 2] if idx + 2 < n else None
     if q_tok is None or q_tok.kind != "WORD":
         return None
-    return q_tok.value.upper()
+    return canonical_identifier(q_tok.value)
 
 
 def _enclosing_paragraph(program: CobolProgram, line: int) -> str:

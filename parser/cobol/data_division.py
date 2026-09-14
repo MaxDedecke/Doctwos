@@ -142,7 +142,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
         if fmt3 is not None:
             name = _clean_name(self._name(fmt3.conditionName()))
             parent = stack[-1][1] if stack else current_fd
-            value = _value_text(fmt3.dataValueClause())
+            value = _value_text(fmt3.dataValueClause(), self._source_text)
             self.items.append(
                 DataItem(
                     name=name,
@@ -201,7 +201,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
                 else None,
                 occurs=_occurs_count(occurs_ctx),
                 occurs_depending_on=self._occurs_depending_on(occurs_ctx),
-                value=_value_text_from_clause(value_ctx),
+                value=_value_text_from_clause(value_ctx, self._source_text),
             )
         )
 
@@ -234,17 +234,23 @@ def _occurs_count(ctx) -> int | None:
         return None
 
 
-def _value_text_from_clause(ctx) -> str | None:
+def _value_text_from_clause(ctx, source_text: str | None = None) -> str | None:
     if ctx is None:
         return None
     intervals = ctx.dataValueInterval()
     if not intervals:
         return None
-    return _clean_name(intervals[0].dataValueIntervalFrom().getText())
+    value_ctx = intervals[0].dataValueIntervalFrom()
+    value = (
+        antlr_bridge.original_span(source_text, value_ctx)
+        if source_text is not None
+        else value_ctx.getText()
+    )
+    return _clean_name(value)
 
 
-def _value_text(ctx) -> str | None:
-    return _value_text_from_clause(ctx)
+def _value_text(ctx, source_text: str | None = None) -> str | None:
+    return _value_text_from_clause(ctx, source_text)
 
 
 def _level_number(ctx: Cobol85Parser.DataDescriptionEntryFormat1Context) -> int | None:

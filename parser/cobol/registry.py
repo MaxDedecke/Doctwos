@@ -35,6 +35,7 @@ from typing import Any, Callable, Protocol
 import git_utils
 from cobol import copybook
 from cobol.copybook import CopybookIndex
+from cobol.names import canonical_identifier
 from cobol.parse import parse_copybook, parse_program
 from core.model import ParseResult
 
@@ -78,7 +79,7 @@ def _prepare_copybook_index(wt: str, extensions: dict[str, set[str]]) -> Copyboo
     for path in tracked:
         if os.path.splitext(path)[1].lower() not in copybook_exts:
             continue
-        name = os.path.splitext(os.path.basename(path))[0].upper()
+        name = canonical_identifier(os.path.splitext(os.path.basename(path))[0])
         index.setdefault(name, []).append(path)
         full_path = os.path.join(wt, path)
         try:

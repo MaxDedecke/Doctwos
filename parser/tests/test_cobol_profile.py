@@ -81,6 +81,17 @@ def test_debug_mode_is_resolved_like_other_build_semantics():
     assert diagnostics[0].code == "PROFILE_FIELD_OVERRIDDEN"
 
 
+def test_literal_delimiter_is_resolved_like_other_build_semantics():
+    profile, diagnostics = resolve_profile(
+        source=ProfileFragment(literal_delimiter="apostrophe"),
+        path=ProfileFragment(literal_delimiter="quote"),
+    )
+
+    assert profile.literal_delimiter == "quote"
+    assert profile.resolved_from["literal_delimiter"] == "path"
+    assert diagnostics[0].code == "PROFILE_FIELD_OVERRIDDEN"
+
+
 def test_defines_are_merged_across_layers_more_specific_key_wins():
     profile, _ = resolve_profile(
         source=ProfileFragment(defines={"DEBUG": "0", "REGION": "DE"}),
