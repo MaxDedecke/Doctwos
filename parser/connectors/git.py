@@ -822,8 +822,21 @@ class GitConnector(BaseConnector):
         # dafür aber jede Datei bei JEDER Copybook-Änderung) grenzt
         # _fingerprint_libraries() dort präzise ein, wo das sicher möglich
         # ist - Details dort.
+        # O-176: `language` MUSS hier mit durchgereicht werden. Vor O-122 stand
+        # dieselbe Klassifikation direkt in der Verarbeitungsschleife unten (als
+        # `lang`); O-122 zog sie für die Fingerprint-Berechnung hierher vor, ohne
+        # sie an `to_process` weiterzugeben -- die Verarbeitungsschleife griff
+        # seither auf denselben Schleifenvariablennamen `language` zu, der dort
+        # nie neu zugewiesen wurde und deshalb den Wert der ALPHABETISCH LETZTEN
+        # Datei aus dieser Schleife trug (Python kennt keine Block-Scopes).
+        # Live an CardDemo beobachtet: letzte sortierte Datei war
+        # 'scripts/upld_module.sh' -> 'text', wodurch jede COBOL-/Copybook-Datei
+        # im Repo mit `language="text"` embedded wurde -- STRUCTURE_PARSERS.get()
+        # traf nie, `parse_result` blieb None, persist_parse_result() lief nie,
+        # macht code_entities/code_edges für JEDEN Git-Sync seit O-122 leer
+        # (0 Zeilen bestandsweit bestätigt, nicht nur bei CardDemo).
         copybook_index = self._prepared_by_lang.get("cobol")
-        to_process: list[tuple[str, str, str]] = []
+        to_process: list[tuple[str, str, str, str]] = []
         self._profiles_by_path.clear()
         for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)
@@ -844,7 +857,7 @@ class GitConnector(BaseConnector):
             if not force_reindex and existing and existing.analysis_fingerprint == fingerprint:
                 continue
             self._profiles_by_path[path] = profile
-            to_process.append((path, content_hash, fingerprint))
+            to_process.append((path, content_hash, fingerprint, language))
 
         total = len(to_process) + len(deleted_paths)
         self.source.total_files = total
@@ -869,7 +882,7 @@ class GitConnector(BaseConnector):
                 extra_meta={"language": "text", "branch": branch, "deleted": True},
             )
 
-        for path, content_hash, analysis_fp in to_process:
+        for path, content_hash, analysis_fp, language in to_process:
             if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
                 reason = "Binärformat ohne Textextraktion, wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist ein {reason}")

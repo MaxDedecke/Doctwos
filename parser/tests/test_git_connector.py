@@ -12,7 +12,7 @@ from cobol.profile import BuildProfile, SourceColumns
 from core.analysis_fingerprint import analysis_fingerprint
 from cobol.registry import ParserEntry
 from db import SessionLocal
-from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
+from models.database import CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import (
     GitConnector,
     _looks_like_text,
@@ -271,6 +271,75 @@ async def test_git_connector_initial_sync(db_session, test_source):
     languages = {c.metadata_json.get("language") for c in chunks}
     assert "cobol" in languages
     assert "text" in languages
+
+
+@pytest.mark.anyio
+async def test_git_connector_classifies_every_file_by_its_own_extension(
+    db_session, test_source, git_remote
+):
+    """
+    Regression (O-176): `fetch_documents()` computes `language` once per file
+    while building `to_process` (for the O-122 analysis fingerprint), but
+    only stored (path, content_hash, fingerprint) in that list -- not
+    `language` itself. The processing loop below then read the very same,
+    still-in-scope `language` variable (Python has no block scope), which by
+    then held whatever the ALPHABETICALLY LAST path in the whole repo had
+    classified to, for every single file, regardless of its own extension.
+
+    Live at CardDemo: the last sorted path was 'scripts/upld_module.sh'
+    ("text"), so every COBOL/copybook file in the 300+-file repo -- no
+    matter its own extension -- got embedded with language="text":
+    STRUCTURE_PARSERS never matched, parse_result stayed None,
+    persist_parse_result() never ran, and code_entities/code_edges stayed
+    completely empty for the whole source (0 rows, reproduced against the
+    real database).
+
+    Here: 'AAAMAIN.CBL' sorts before 'zzz_trailing.sh' -- the exact ordering
+    that triggers the bug (a COBOL file is not the alphabetically-last path).
+    """
+    cobol_source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. AAAMAIN.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       0000-MAIN.\n"
+        "           STOP RUN.\n"
+    )
+    _commit_file(git_remote, "AAAMAIN.CBL", cobol_source, "add cobol program")
+    _commit_file(git_remote, "zzz_trailing.sh", "#!/bin/sh\necho hi\n", "add trailing text file")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed"
+
+    cobol_chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "AAAMAIN.CBL")
+        .all()
+    )
+    assert cobol_chunks and all(
+        c.metadata_json.get("language") == "cobol" for c in cobol_chunks
+    )
+
+    entities = (
+        db_session.query(CodeEntity)
+        .filter(CodeEntity.source_id == test_source.id, CodeEntity.file_path == "AAAMAIN.CBL")
+        .all()
+    )
+    assert any(e.type == "program" and e.name == "AAAMAIN" for e in entities)
+
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == "AAAMAIN.CBL"
+        )
+        .first()
+    )
+    assert scan_file is not None
+    assert scan_file.parse_status in ("complete", "partial")
 
 
 @pytest.mark.anyio
