@@ -68,7 +68,6 @@ from api import (
     entity_links,
     system,
     knowledge_links,
-    link_chat,
     topics,
     graph,
     search,
@@ -127,7 +126,6 @@ app.include_router(knowledge_sources.router, dependencies=_authenticated)
 app.include_router(connectors.router, dependencies=_authenticated)
 app.include_router(entity_links.router, dependencies=_authenticated)
 app.include_router(knowledge_links.router, dependencies=_authenticated)
-app.include_router(link_chat.router, dependencies=_authenticated)
 app.include_router(topics.router, dependencies=[Depends(require_admin)])
 app.include_router(diagnostics.router, dependencies=[Depends(require_admin)])
 # Unauthenticated on purpose — see public_router's docstring in api/diagnostics.py.

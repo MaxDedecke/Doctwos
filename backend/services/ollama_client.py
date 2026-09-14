@@ -2,10 +2,11 @@
 backend/services/ollama_client.py
 ==================================
 Geteilte Ollama-Aufrufe für die AEC-Agenten (compliance, hoai).
-Fasst zwei bisher pro Router duplizierte Muster zusammen: die Embedding-Suche aus
-api/chat.py:230-285 / api/link_chat.py:104-129, und den Single-Shot-JSON-LLM-Call
-im Stil von parser/ollama_client.py:get_chat_json (dortiger Parser-Service, hier
-für den Backend-Service nachgebaut, da Container getrennt sind).
+Fasst ein bisher pro Router dupliziertes Muster zusammen: die Embedding-Suche aus
+api/chat.py:230-285 (vormals auch api/link_chat.py, entfernt mit O-115 als toter
+Endpunkt), und den Single-Shot-JSON-LLM-Call im Stil von
+parser/ollama_client.py:get_chat_json (dortiger Parser-Service, hier für den
+Backend-Service nachgebaut, da Container getrennt sind).
 
 Wichtig: Modul-Import wie in api/system.py beschrieben ("import core.config as cfg"),
 damit zur Laufzeit über POST /model-info geänderte Modelle sofort greifen.
@@ -131,8 +132,8 @@ async def ask_llm_json_for_profile(
 ) -> dict:
     """Single-Shot-JSON-LLM-Aufruf für ein beliebiges LLM-Profil (lokales Ollama
     oder Cloud-Opt-in OpenAI/Gemini/Anthropic) — Provider-Dispatch analog
-    api/link_chat.py::send_link_chat_message (dort Streaming-Text für den Chat,
-    hier Non-Streaming-JSON für Einzel-Bewertungen wie entity_links.py::llm_review_link).
+    api/chat.py, hier Non-Streaming-JSON für Einzel-Bewertungen wie
+    entity_links.py::llm_review_link.
 
     WICHTIG: Aufrufer MUSS für provider in cfg.CLOUD_LLM_PROVIDERS vorher
     cfg.cloud_llm_allowed() prüfen (siehe core/config.py-Kommentar zum Gate) —
