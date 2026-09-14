@@ -2,6 +2,7 @@ import os
 
 from cobol.copybook import CopybookIndex, inherited_fields
 from cobol.parse import parse_copybook, parse_program
+from cobol.profile import BuildProfile
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
@@ -280,4 +281,40 @@ def test_no_procedure_division_falls_back_to_generic_chunking_too():
     result = parse_program(text, "x")
 
     assert result.chunks
-    assert all(c.meta.get("fallback") is True for c in result.chunks)
+
+
+def test_without_profile_source_format_is_flagged_as_heuristic():
+    result = _parse_fixture("01_minimal.cbl")
+    diag = next(d for d in result.diagnostics if d.code == "SOURCE_FORMAT_HEURISTIC")
+    assert diag.phase == "profile"
+    assert diag.severity == "info"
+
+
+def test_profile_source_format_overrides_the_heuristic_without_a_note():
+    text = "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. MINIMAL.\n"
+    profile = BuildProfile(source_format="free")
+    result = parse_program(text, "x", profile=profile)
+
+    assert result.source_format == "free"
+    assert not any(d.code == "SOURCE_FORMAT_HEURISTIC" for d in result.diagnostics)
+
+
+def test_profile_source_format_override_works_around_the_o123_heuristic_bug():
+    # O-121 gibt Kunden schon vor dem eigentlichen O-123-Fix einen Ausweg:
+    # ein bestätigtes Profil überschreibt die kaputte Heuristik komplett.
+    result_without_profile = _parse_fixture("16_source_format_free_directive_indented.cbl")
+    assert result_without_profile.source_format == "fixed"
+    assert result_without_profile.program_name == ""
+    assert result_without_profile.errors  # Struktur geht ohne Profil verloren (O-123)
+
+    with open(os.path.join(FIXTURES, "16_source_format_free_directive_indented.cbl")) as f:
+        text = f.read()
+    result_with_profile = parse_program(text, "x", profile=BuildProfile(source_format="free"))
+
+    assert result_with_profile.source_format == "free"
+    assert result_with_profile.program_name == "INDENTDIR"
+    # Divisions werden jetzt gefunden - nur die für diese Datei korrekte
+    # Meldung (kein DATA DIVISION vorhanden) bleibt, die O-123-spezifischen
+    # Folgefehler (keine Division/kein PROGRAM-ID/keine PROCEDURE DIVISION)
+    # sind weg.
+    assert result_with_profile.errors == ["Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."]

@@ -54,16 +54,50 @@ from .model import (
     Division,
     Entity,
     FileDescriptor,
+    ParseDiagnostic,
     ParseResult,
     SourceFormat,
     SqlBlock,
 )
+from .profile import BuildProfile
 
 
-def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = None) -> ParseResult:
+def _determine_source_format(
+    text: str, profile: BuildProfile | None
+) -> tuple[SourceFormat, list[ParseDiagnostic]]:
+    """O-121: ein Profil-Wert ist eine bestätigte Tatsache, die Heuristik
+    (`source_format.detect_format()`) bleibt eine unbestätigte Vermutung -
+    Abnahme "keine automatische Dialekterkennung als Gewissheit ausgeben".
+    Ohne Profil-Bestätigung markiert eine eigene Diagnose das Ergebnis
+    entsprechend, statt es kommentarlos wie eine Tatsache zu behandeln."""
+    if profile is not None and profile.source_format is not None:
+        return profile.source_format, []
+
+    detected = source_format_mod.detect_format(text)
+    diagnostic = ParseDiagnostic(
+        code="SOURCE_FORMAT_HEURISTIC",
+        severity="info",
+        phase="profile",
+        message=(
+            f"Quellformat '{detected}' heuristisch erkannt, kein Buildprofil "
+            "hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei "
+            "eingerückten Direktiven: O-123)."
+        ),
+        line=0,
+        column=0,
+    )
+    return detected, [diagnostic]
+
+
+def parse_program(
+    text: str,
+    path: str,
+    copybook_index: CopybookIndex | None = None,
+    profile: BuildProfile | None = None,
+) -> ParseResult:
     errors: list[str] = []
 
-    source_format = source_format_mod.detect_format(text)
+    source_format, profile_diagnostics = _determine_source_format(text, profile)
     logical_lines = source_format_mod.split_logical_lines(text, source_format)
     masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
@@ -130,7 +164,8 @@ def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = N
         edges=edges,
         chunks=chunks,
         errors=errors,
-        diagnostics=antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
+        diagnostics=profile_diagnostics
+        + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
     )
 
 
@@ -335,6 +370,7 @@ def parse_copybook(
     path: str,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     copybook_index: CopybookIndex | None = None,
+    profile: BuildProfile | None = None,
 ) -> ParseResult:
     """F-022/E-2: eine Copybook-Datei als eigenständige Entity mit eigenen
     data_item-Kindern parsen - eigene Zeilennummern, NIE in den Programmtext
@@ -350,7 +386,7 @@ def parse_copybook(
     (copybook.py löst genauso auf, siehe CopybookIndex)."""
     errors: list[str] = []
 
-    source_format = source_format_mod.detect_format(text)
+    source_format, profile_diagnostics = _determine_source_format(text, profile)
     logical_lines = source_format_mod.split_logical_lines(text, source_format)
     masked_lines, _ = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
@@ -360,7 +396,13 @@ def parse_copybook(
 
     if not tokens:
         errors.append("Keine Tokens gefunden - leere oder nicht lesbare Copybook-Datei.")
-        return ParseResult(program_name=name, path=path, source_format=source_format, errors=errors)
+        return ParseResult(
+            program_name=name,
+            path=path,
+            source_format=source_format,
+            errors=errors,
+            diagnostics=profile_diagnostics,
+        )
 
     start_line = tokens[0].phys_line
     end_line = tokens[-1].phys_line
@@ -407,7 +449,7 @@ def parse_copybook(
         edges=copy_edges,
         chunks=chunks,
         errors=errors,
-        diagnostics=antlr_bridge.consolidate_diagnostics(dd_diagnostics),
+        diagnostics=profile_diagnostics + antlr_bridge.consolidate_diagnostics(dd_diagnostics),
     )
 
 

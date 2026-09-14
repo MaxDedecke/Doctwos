@@ -64,6 +64,16 @@
   ],
   "diagnostics": [
     {
+      "code": "SOURCE_FORMAT_HEURISTIC",
+      "severity": "info",
+      "phase": "profile",
+      "message": "Quellformat 'free' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "line": 0,
+      "column": 0,
+      "count": 1,
+      "profile": null
+    },
+    {
       "code": "COBOL85_LEXER_ERROR",
       "severity": "error",
       "phase": "lexer",

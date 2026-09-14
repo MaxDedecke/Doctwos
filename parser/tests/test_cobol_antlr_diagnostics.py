@@ -81,8 +81,11 @@ def test_repeated_identical_diagnostics_are_bundled_with_a_count():
 
     # Fünf verschiedene Sonderzeichen + ein Parser-Fehler - keine Diagnose
     # taucht doppelt auf, obwohl divisions.py UND data_division.py je einmal
-    # antlr_bridge.build_tree() auf derselben Datei aufrufen.
-    assert len(result.diagnostics) == 6
+    # antlr_bridge.build_tree() auf derselben Datei aufrufen. Dazu kommt seit
+    # O-121 immer die eine SOURCE_FORMAT_HEURISTIC-Notiz ohne Profil.
+    antlr_diagnostics = [d for d in result.diagnostics if d.phase != "profile"]
+    assert len(antlr_diagnostics) == 6
+    assert len(result.diagnostics) == 7
 
 
 def test_sll_only_error_resolved_by_ll_retry_is_not_double_counted():
@@ -99,15 +102,21 @@ def test_sll_only_error_resolved_by_ll_retry_is_not_double_counted():
         "           STOP RUN.\n"
     )
     result = parse_program(text, "test/badstmt.cbl")
-    assert len(result.diagnostics) == 1
-    assert result.diagnostics[0].count == 1
+    parser_diagnostics = [d for d in result.diagnostics if d.phase == "parser"]
+    assert len(parser_diagnostics) == 1
+    assert parser_diagnostics[0].count == 1
 
 
-def test_clean_program_has_no_diagnostics():
+def test_clean_program_without_profile_only_has_the_heuristic_note():
     with open(os.path.join(FIXTURES, "01_minimal.cbl")) as f:
         text = f.read()
     result = parse_program(text, "cobol_corpus/fixtures/01_minimal.cbl")
-    assert result.diagnostics == []
+
+    assert len(result.diagnostics) == 1
+    diag = result.diagnostics[0]
+    assert diag.code == "SOURCE_FORMAT_HEURISTIC"
+    assert diag.phase == "profile"
+    assert diag.severity == "info"
 
 
 def _diag(message: str, line: int = 1, code: str = "COBOL85_LEXER_ERROR") -> ParseDiagnostic:

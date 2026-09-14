@@ -50,8 +50,8 @@ EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS"
 
 Resolution = Literal["resolved", "unresolved", "dynamic"]
 
-DiagnosticSeverity = Literal["error", "warning"]
-DiagnosticPhase = Literal["lexer", "parser"]
+DiagnosticSeverity = Literal["error", "warning", "info"]
+DiagnosticPhase = Literal["lexer", "parser", "profile"]
 
 
 @dataclass
@@ -149,8 +149,16 @@ class ParseDiagnostic:
     zählen. Mehrfach identisch auftretende Diagnosen werden vor der Rückgabe
     gebündelt (`count` > 1) statt einzeln aufgelistet.
 
-    `profile` ist vorbereitet für O-121 (Buildprofile), das noch nicht
-    existiert — bleibt bis dahin immer `None`.
+    `phase="profile"` (O-121) markiert Diagnosen, die nicht aus ANTLR
+    stammen, sondern aus der Buildprofil-Auflösung (`cobol/profile.py`) —
+    z.B. ein per Heuristik statt per Profil bestimmtes Quellformat oder eine
+    unbekannte `compiler_family`. `severity="info"` ist für solche Fälle
+    gedacht, die weder Fehler noch echte Warnung sind (z.B. eine bewusste
+    Profil-Übersteuerung über mehrere Ebenen).
+
+    `profile` selbst bleibt weiterhin `None` — Profile haben noch keine
+    persistierte Identität (kein Name/keine ID, siehe `cobol/profile.py`),
+    das kommt erst mit der DB-/Einrichtungsseite (O-151).
     """
 
     code: str
