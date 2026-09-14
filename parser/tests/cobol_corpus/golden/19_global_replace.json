@@ -1,0 +1,231 @@
+{
+  "program_name": "GLOBRPL",
+  "path": "cobol_corpus/fixtures/19_global_replace.cbl",
+  "source_format": "fixed",
+  "variant_key": "default",
+  "entities": [
+    {
+      "type": "program",
+      "name": "GLOBRPL",
+      "start_line": 1,
+      "end_line": 13,
+      "parent_name": null,
+      "qualified_name": "GLOBRPL",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 1,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 7,
+      "parent_name": "GLOBRPL",
+      "qualified_name": "GLOBRPL.WORKING-STORAGE",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 4,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 9,
+      "end_line": 13,
+      "parent_name": "GLOBRPL",
+      "qualified_name": "GLOBRPL.MAIN-PARA",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 9,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "CUSTOMER-ID",
+      "start_line": 6,
+      "end_line": 6,
+      "parent_name": "GLOBRPL",
+      "qualified_name": "GLOBRPL.CUSTOMER-ID",
+      "meta": {
+        "level": 1,
+        "picture": "9(5)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-UNCHANGED",
+      "start_line": 7,
+      "end_line": 7,
+      "parent_name": "GLOBRPL",
+      "qualified_name": "GLOBRPL.WS-UNCHANGED",
+      "meta": {
+        "level": 1,
+        "picture": "X(5)",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 7,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "CUSTOMER-ID",
+      "resolution": "resolved",
+      "src_start_line": 10,
+      "src_end_line": 10,
+      "scope": "GLOBRPL",
+      "meta": {
+        "program": "GLOBRPL",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 10,
+            "end_line": 10
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           DISPLAY :TAG:-ID.\n           DISPLAY 'KEEP :TAG: LITERAL'.\n           REPLACE OFF.\n           STOP RUN.",
+      "start_line": 9,
+      "end_line": 13,
+      "meta": {
+        "program": "GLOBRPL",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 9,
+        "end_line": 13,
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 9,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "diagnostics": [
+    {
+      "code": "SOURCE_FORMAT_HEURISTIC",
+      "severity": "info",
+      "phase": "profile",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
+      "line": 0,
+      "column": 0,
+      "count": 1,
+      "profile": null
+    }
+  ]
+}

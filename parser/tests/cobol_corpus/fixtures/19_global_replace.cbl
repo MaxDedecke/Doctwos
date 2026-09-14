@@ -1,0 +1,13 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. GLOBRPL.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       REPLACE ==:TAG:== BY ==CUSTOMER==.
+       01  :TAG:-ID PIC 9(5).
+       01  WS-UNCHANGED PIC X(5).
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           DISPLAY :TAG:-ID.
+           DISPLAY 'KEEP :TAG: LITERAL'.
+           REPLACE OFF.
+           STOP RUN.

@@ -114,6 +114,20 @@ MATRIX: list[CompatCase] = [
             "nicht hier - kein Herstellercompiler-Abgleich."
         ),
     ),
+    CompatCase(
+        "19_global_replace",
+        "globales REPLACE/REPLACE OFF (O-136)",
+        "teilweise",
+        note=(
+            "Plain-Pseudotext wird zwischen REPLACE und REPLACE OFF sowohl in "
+            "der Definition (DATA DIVISION) als auch in der Verwendung "
+            "(PROCEDURE DIVISION) korrekt aufgeloest; Literalinhalt bleibt "
+            "unangetastet; der angezeigte Originaltext (Chunk) zeigt weiterhin "
+            "die unsubstituierte Schreibweise. LEADING/TRAILING sind nur in "
+            "test_cobol_replace.py abgedeckt, nicht hier. Bewusst NICHT "
+            "unterstuetzt: Pseudotext ueber Continuation-Zeilen hinweg."
+        ),
+    ),
     CompatCase("99_garbage", "Datei ohne PROCEDURE DIVISION (Fallback-Chunking)", "nicht geprüft"),
 ]
 

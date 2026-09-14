@@ -42,6 +42,7 @@ from . import divisions as divisions_mod
 from . import embedded as embedded_mod
 from . import lexer as lexer_mod
 from . import procedure as procedure_mod
+from . import replace as replace_mod
 from . import source_format as source_format_mod
 from . import sql as sql_mod
 from . import xref as xref_mod
@@ -117,6 +118,13 @@ def parse_program(
     logical_lines = conditional_mod.apply(
         logical_lines, profile.defines if profile is not None else {}
     )
+    # O-136: globales REPLACE/REPLACE OFF (nicht an ein COPY gebunden) - läuft
+    # nach conditional.py (ein REPLACE in einem sicher inaktiven >>IF-Zweig
+    # bleibt wirkungslos) und vor embedded.py (REPLACE gilt laut COBOL85 auch
+    # für eingebetteten SQL/CICS-Text). Ersetzt nur die für Struktur/Xref
+    # relevante Sicht - der an chunking.py/_attach_source_evidence gehende
+    # Originaltext (text.splitlines()) bleibt unverändert.
+    logical_lines = replace_mod.apply(logical_lines)
     masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
     lexer_diagnostics = lexer_mod.diagnostics(
@@ -480,6 +488,7 @@ def parse_copybook(
     logical_lines = conditional_mod.apply(
         logical_lines, profile.defines if profile is not None else {}
     )
+    logical_lines = replace_mod.apply(logical_lines)  # O-136, siehe parse_program()
     masked_lines, _ = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
     lexer_diagnostics = lexer_mod.diagnostics(
