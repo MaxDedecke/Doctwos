@@ -9,6 +9,7 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 
 from models.database import (
     CodeEntity,
+    DocumentChunk,
     EntityDocLink,
     KnowledgeSource,
     KnowledgeLink,
@@ -105,7 +106,7 @@ def serialize_source(s: KnowledgeSource) -> dict:
     }
 
 
-def serialize_link(link: EntityDocLink, entity: CodeEntity = None) -> dict:
+def serialize_link(link: EntityDocLink, entity: CodeEntity = None, chunk: DocumentChunk = None) -> dict:
     return {
         "id": link.id,
         "project_id": link.project_id,
@@ -117,12 +118,18 @@ def serialize_link(link: EntityDocLink, entity: CodeEntity = None) -> dict:
             "file_path": entity.file_path,
             "start_line": entity.start_line,
             "end_line": entity.end_line,
+            # O-114: damit der Link-Manager die Code-Seite direkt öffnen kann
+            # (handlePanelFileSelect braucht die Wissensquelle, nicht nur den Pfad).
+            "source_id": entity.source_id,
         }
         if entity
         else None,
         "chunk_id": link.chunk_id,
         "doc_title": link.doc_title,
         "doc_url": link.doc_url,
+        # O-114: Gegenstück für die Doku-Seite — None bei manuell angelegten Links
+        # ohne Chunk-Bezug, dann bleibt die Navigation dorthin aus.
+        "doc_source_id": chunk.source_id if chunk else None,
         "source_type": link.source_type,
         "score": link.score,
         "link_type": link.link_type,
@@ -158,25 +165,52 @@ def serialize_topic_node(n: TopicNode) -> dict:
     }
 
 
-def serialize_knowledge_link(link: KnowledgeLink) -> dict:
+def _knowledge_link_side(
+    source_type, entity_id, chunk_id, title, url, source_type_label, entity_nav, doc_source_id
+) -> dict:
+    side = {
+        "type": source_type,
+        "entity_id": entity_id,
+        "chunk_id": chunk_id,
+        "title": title,
+        "url": url,
+        "source_type": source_type_label,
+    }
+    # O-114: Navigationsdaten für "Code-/Doku-Seite öffnen" im Link-Manager —
+    # optionale Callables, damit diese Funktion nicht von der (in knowledge_links.py
+    # lebenden) Sichtbarkeits-/Batch-Nachschlagelogik abhängen muss.
+    nav = entity_nav(entity_id) if entity_nav and entity_id else None
+    if nav:
+        side["code_ref"] = nav
+    src_id = doc_source_id(chunk_id) if doc_source_id and chunk_id else None
+    if src_id:
+        side["doc_source_id"] = src_id
+    return side
+
+
+def serialize_knowledge_link(link: KnowledgeLink, entity_nav=None, doc_source_id=None) -> dict:
     return {
         "id": link.id,
-        "source_a": {
-            "type": link.source_a_type,
-            "entity_id": link.source_a_entity_id,
-            "chunk_id": link.source_a_chunk_id,
-            "title": link.source_a_title,
-            "url": link.source_a_url,
-            "source_type": link.source_a_source_type,
-        },
-        "source_b": {
-            "type": link.source_b_type,
-            "entity_id": link.source_b_entity_id,
-            "chunk_id": link.source_b_chunk_id,
-            "title": link.source_b_title,
-            "url": link.source_b_url,
-            "source_type": link.source_b_source_type,
-        },
+        "source_a": _knowledge_link_side(
+            link.source_a_type,
+            link.source_a_entity_id,
+            link.source_a_chunk_id,
+            link.source_a_title,
+            link.source_a_url,
+            link.source_a_source_type,
+            entity_nav,
+            doc_source_id,
+        ),
+        "source_b": _knowledge_link_side(
+            link.source_b_type,
+            link.source_b_entity_id,
+            link.source_b_chunk_id,
+            link.source_b_title,
+            link.source_b_url,
+            link.source_b_source_type,
+            entity_nav,
+            doc_source_id,
+        ),
         "score": link.score,
         "link_type": link.link_type,
         "status": link.status,

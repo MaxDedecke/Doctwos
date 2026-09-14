@@ -31,6 +31,7 @@ const PROJECT = { id: 3, name: 'Rentenkasse' };
 
 type EntityLink = {
   id: number; entity_id: number; entity?: CodeEntity; doc_title: string; doc_url: string | null;
+  doc_source_id?: number | null;
   source_type: string | null; score: number | null; link_type: string; status: string;
   context: string | null; created_by: string;
 };
@@ -39,9 +40,10 @@ function entityLink(overrides: Partial<EntityLink> = {}): EntityLink {
   return {
     id: 1,
     entity_id: 11,
-    entity: { id: 11, name: 'ZAHLUNG', type: 'program', file_path: 'src/ZAHLUNG.cbl', start_line: 12, end_line: 40 },
+    entity: { id: 11, name: 'ZAHLUNG', type: 'program', file_path: 'src/ZAHLUNG.cbl', start_line: 12, end_line: 40, source_id: 7 },
     doc_title: 'Zahlungslauf-Handbuch',
     doc_url: 'https://wiki/zahlung',
+    doc_source_id: 9,
     source_type: 'Confluence',
     score: 0.8,
     link_type: 'semantic',
@@ -55,8 +57,8 @@ function entityLink(overrides: Partial<EntityLink> = {}): EntityLink {
 function knowledgeLink(overrides: Record<string, unknown> = {}) {
   return {
     id: 50,
-    source_a: { type: 'document', title: 'Fachkonzept', url: null, source_type: 'Confluence' },
-    source_b: { type: 'document', title: 'Betriebshandbuch', url: null, source_type: 'Confluence' },
+    source_a: { type: 'document', title: 'Fachkonzept', url: null, source_type: 'Confluence', doc_source_id: 21 },
+    source_b: { type: 'document', title: 'Betriebshandbuch', url: null, source_type: 'Confluence', doc_source_id: 22 },
     score: 0.6,
     link_type: 'semantic',
     status: 'pending',
@@ -708,6 +710,82 @@ describe('LinkManagerView', () => {
 
       await waitFor(() => expect(screen.getByText('Alter Text')).toBeTruthy());
       expect(calls(fetchMock, '/entity-doc-links/1', 'PATCH')).toHaveLength(0);
+    });
+  });
+
+  describe('Navigation zur Code-/Doku-Seite (O-114)', () => {
+    it('bietet ohne Navigations-Rückrufe keine Sprung-Knöpfe an', async () => {
+      stubFetch({ entityLinks: [entityLink()] });
+
+      renderView();
+      await screen.findByText('ZAHLUNG');
+
+      expect(screen.queryByTitle('Code-Seite öffnen')).toBeNull();
+      expect(screen.queryByTitle('Doku-Seite öffnen')).toBeNull();
+    });
+
+    it('öffnet die Code-Seite eines Entity-Links über die echte Wissensquelle der Entity', async () => {
+      stubFetch({ entityLinks: [entityLink()] });
+      const onOpenCode = vi.fn();
+
+      renderView({ onOpenCode, onOpenDoc: vi.fn() });
+      await screen.findByText('ZAHLUNG');
+
+      fireEvent.click(screen.getByTitle('Code-Seite öffnen'));
+      expect(onOpenCode).toHaveBeenCalledWith('src/ZAHLUNG.cbl', 12, 7);
+    });
+
+    it('öffnet die Doku-Seite eines Entity-Links über die Wissensquelle des Chunks', async () => {
+      stubFetch({ entityLinks: [entityLink()] });
+      const onOpenDoc = vi.fn();
+
+      renderView({ onOpenCode: vi.fn(), onOpenDoc });
+      await screen.findByText('ZAHLUNG');
+
+      fireEvent.click(screen.getByTitle('Doku-Seite öffnen'));
+      expect(onOpenDoc).toHaveBeenCalledWith('Zahlungslauf-Handbuch', 9);
+    });
+
+    it('bietet keinen Doku-Sprung an, wenn der Link keinen Chunk-Bezug hat (manuell angelegt)', async () => {
+      stubFetch({ entityLinks: [entityLink({ doc_source_id: null })] });
+
+      renderView({ onOpenCode: vi.fn(), onOpenDoc: vi.fn() });
+      await screen.findByText('ZAHLUNG');
+
+      expect(screen.getByTitle('Code-Seite öffnen')).toBeTruthy();
+      expect(screen.queryByTitle('Doku-Seite öffnen')).toBeNull();
+    });
+
+    it('öffnet für einen Doc↔Doc-Knowledge-Link beide Seiten über ihre jeweilige Wissensquelle', async () => {
+      stubFetch({ knowledgeLinks: [knowledgeLink()] });
+      const onOpenDoc = vi.fn();
+
+      renderView({ onOpenCode: vi.fn(), onOpenDoc });
+      await screen.findByText('Fachkonzept');
+
+      const buttons = screen.getAllByTitle('Doku-Seite öffnen');
+      expect(buttons).toHaveLength(2);
+      fireEvent.click(buttons[0]);
+      expect(onOpenDoc).toHaveBeenCalledWith('Fachkonzept', 21);
+      fireEvent.click(buttons[1]);
+      expect(onOpenDoc).toHaveBeenCalledWith('Betriebshandbuch', 22);
+      // Doc↔Doc hat keine Code-Seite.
+      expect(screen.queryByTitle('Code-Seite öffnen')).toBeNull();
+    });
+
+    it('öffnet die Code-Seite eines Knowledge-Links mit Entity-Bezug über deren Datei/Zeile', async () => {
+      stubFetch({
+        knowledgeLinks: [knowledgeLink({
+          source_a: { type: 'entity', title: 'KONTO-PARA', url: null, source_type: 'Git', code_ref: { file_path: 'KONTO.cbl', line: 42, source_id: 3 } },
+        })],
+      });
+      const onOpenCode = vi.fn();
+
+      renderView({ onOpenCode, onOpenDoc: vi.fn() });
+      await screen.findByText('KONTO-PARA');
+
+      fireEvent.click(screen.getByTitle('Code-Seite öffnen'));
+      expect(onOpenCode).toHaveBeenCalledWith('KONTO.cbl', 42, 3);
     });
   });
 });

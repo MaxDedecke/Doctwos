@@ -142,6 +142,18 @@ describe('PanelContentRenderer', () => {
       expect(getCaptured('linkmanager-view').selectedProject).toEqual(expect.objectContaining({ id: 3 }));
     });
 
+    it('O-114: verdrahtet den Link-Manager mit denselben Navigations-Rückrufen wie jedes andere Panel', () => {
+      const handlePanelFileSelect = vi.fn();
+      const handleDocFocusRequest = vi.fn();
+      renderPanel({ contentType: 'linkmanager', handlePanelFileSelect, handleDocFocusRequest });
+
+      getCaptured('linkmanager-view').onOpenCode?.('src/ZAHLUNG.cbl', 12, 5);
+      expect(handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/ZAHLUNG.cbl', 12, 5, true);
+
+      getCaptured('linkmanager-view').onOpenDoc?.('Handbuch.pdf', 9);
+      expect(handleDocFocusRequest).toHaveBeenCalledWith('Handbuch.pdf', 9);
+    });
+
     it.each([
       ['code', 'code'],
       ['doc', 'doc'],

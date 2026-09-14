@@ -171,6 +171,10 @@ export function PanelContentRenderer({
         activeProfileId={activeProfileId}
         setActiveProfileId={setActiveProfileId}
         showToast={showToast}
+        // O-114: dieselben Rückrufe, die jedes andere Panel schon bekommt (z. B.
+        // CallGraphView.onFileSelect) — der Link-Manager war die einzige Insel.
+        onOpenCode={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
+        onOpenDoc={(filePath, sourceId) => handleDocFocusRequest(filePath, sourceId)}
       />
     );
   }

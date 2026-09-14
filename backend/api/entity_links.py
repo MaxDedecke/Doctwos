@@ -85,6 +85,10 @@ def get_link_recommendations(
     # Preload entities for serialization to avoid N+1 queries
     entity_ids = {lnk.entity_id for lnk in links}
     entities = {e.id: e for e in db.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).all()}
+    # O-114: dito für die Chunks, aus denen serialize_link die Wissensquelle der
+    # Doku-Seite liest (für "Doku-Seite öffnen" im Link-Manager).
+    chunk_ids = {lnk.chunk_id for lnk in links if lnk.chunk_id}
+    chunks = {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()} if chunk_ids else {}
 
     # Calculate counts for UI badges
     counts = {
@@ -101,7 +105,10 @@ def get_link_recommendations(
 
     return {
         "counts": counts,
-        "links": [serialize_link(lnk, entities.get(lnk.entity_id)) for lnk in links],
+        "links": [
+            serialize_link(lnk, entities.get(lnk.entity_id), chunks.get(lnk.chunk_id))
+            for lnk in links
+        ],
     }
 
 
@@ -334,7 +341,7 @@ async def llm_review_link(
         link.context = data["reason"]
     db.commit()
     db.refresh(link)
-    return serialize_link(link, entity)
+    return serialize_link(link, entity, chunk)
 
 
 @router.delete("/entity-doc-links/{link_id}")

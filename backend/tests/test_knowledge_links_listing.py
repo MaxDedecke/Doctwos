@@ -19,6 +19,7 @@ from sqlalchemy import event
 
 from core.db_setup import engine
 from models.database import (
+    CodeEntity,
     DocumentChunk,
     KnowledgeLink,
     Project,
@@ -252,3 +253,81 @@ def test_liste_skaliert_ohne_query_pro_link(member_client, db_session, test_proj
     # Konstante Obergrenze: Auth, Link-Query und die gebündelten Nachschlage-
     # Abfragen. Ohne den Index wären es allein >80 (zwei pro Link-Seite).
     assert len(queries) < 20, f"{len(queries)} Queries für 40 Links:\n" + "\n".join(queries)
+
+
+def test_liste_liefert_navigationsdaten_je_seite(client, db_session, test_project):
+    """O-114: "Code-Seite öffnen" / "Doku-Seite öffnen" im Link-Manager brauchen
+    je Seite die Wissensquelle -- für eine Entity-Seite Datei/Zeile/Quelle der
+    CodeEntity, für eine Dokument-Seite die Quelle des Chunks."""
+    proj = db_session.query(Project).filter(Project.id == test_project).first()
+    source = KnowledgeSource(
+        name="O-114 Quelle", type="Local", team_id=proj.team_id, project_id=test_project
+    )
+    db_session.add(source)
+    db_session.commit()
+
+    entity = CodeEntity(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="KONTO.cbl",
+        name="KONTO-PARA",
+        type="paragraph",
+        start_line=42,
+        end_line=50,
+    )
+    doc_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="handbuch.md",
+        content="x",
+        start_line=1,
+        end_line=2,
+    )
+    db_session.add_all([entity, doc_chunk])
+    db_session.commit()
+    db_session.refresh(entity)
+    db_session.refresh(doc_chunk)
+
+    # Der Cross-Link-Builder setzt bei Entity-Seiten trotzdem immer einen
+    # chunk_id (siehe parser/tasks/cross_link_builder.py) -- hier reicht für den
+    # Test aber der reine Entity-Bezug, um entity_nav auszulösen.
+    entity_chunk = DocumentChunk(
+        project_id=test_project, file_path="KONTO.cbl", content="x", start_line=42, end_line=50
+    )
+    db_session.add(entity_chunk)
+    db_session.commit()
+    db_session.refresh(entity_chunk)
+
+    link = KnowledgeLink(
+        source_a_type="entity",
+        source_a_entity_id=entity.id,
+        source_a_chunk_id=entity_chunk.id,
+        source_a_title="KONTO-PARA",
+        source_b_type="document",
+        source_b_chunk_id=doc_chunk.id,
+        source_b_title="handbuch.md",
+        score=0.8,
+        status="pending",
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    try:
+        served = next(
+            item for item in client.get("/knowledge-links?status=pending").json()
+            if item["id"] == link.id
+        )
+        assert served["source_a"]["code_ref"] == {
+            "file_path": "KONTO.cbl", "line": 42, "source_id": source.id,
+        }
+        assert "doc_source_id" not in served["source_a"]
+        assert served["source_b"]["doc_source_id"] == source.id
+        assert "code_ref" not in served["source_b"]
+    finally:
+        db_session.query(KnowledgeLink).filter(KnowledgeLink.id == link.id).delete()
+        db_session.query(DocumentChunk).filter(
+            DocumentChunk.id.in_([doc_chunk.id, entity_chunk.id])
+        ).delete(synchronize_session=False)
+        db_session.query(CodeEntity).filter(CodeEntity.id == entity.id).delete()
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()

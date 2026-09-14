@@ -1088,7 +1088,9 @@
       "remove": "Entfernen",
       "reapprove": "Doch bestätigen",
       "delete": "Löschen",
-      "llmReview": "Mit LLM prüfen"
+      "llmReview": "Mit LLM prüfen",
+      "openCode": "Code-Seite öffnen",
+      "openDoc": "Doku-Seite öffnen"
     },
     "noResultsAutoLinkHint": "Klicke „{{action}}\" um automatisch nach Verknüpfungen zu suchen.",
     "computeMessages": {

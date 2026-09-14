@@ -105,11 +105,6 @@ class LinkVisibilityIndex:
     def __init__(self, links, user: User, db: Session):
         visible_team_ids = get_visible_team_ids(user, db)
         self._unrestricted = visible_team_ids is None  # Admin: sieht alles
-        if self._unrestricted:
-            return
-
-        self._teams = set(visible_team_ids)
-        self._projects = set(get_visible_project_ids(user, db) or [])
 
         entity_ids = {
             i
@@ -124,18 +119,29 @@ class LinkVisibilityIndex:
             if i is not None
         }
 
-        # Pro Entity/Chunk interessiert nur die Herkunft (Projekt bzw. Wissensquelle).
+        # Herkunft (Projekt bzw. Wissensquelle) für die Sichtbarkeitsprüfung, plus
+        # seit O-114 Datei/Zeile bzw. Wissensquelle für die "Code-/Doku-Seite
+        # öffnen"-Navigation im Link-Manager (entity_nav/doc_source_id unten) — beides
+        # in denselben zwei Batch-Abfragen, deshalb auch für Admins ausgeführt, die
+        # die Sichtbarkeitsprüfung selbst überspringen (sonst gäbe es die Navigation
+        # nur für Nicht-Admins).
         self._entities = {
-            row.id: (row.project_id, row.source_id)
+            row.id: row
             for row in self._lookup(
                 db,
-                (CodeEntity.id, CodeEntity.project_id, CodeEntity.source_id),
+                (
+                    CodeEntity.id,
+                    CodeEntity.project_id,
+                    CodeEntity.source_id,
+                    CodeEntity.file_path,
+                    CodeEntity.start_line,
+                ),
                 CodeEntity.id,
                 entity_ids,
             )
         }
         self._chunks = {
-            row.id: (row.project_id, row.source_id)
+            row.id: row
             for row in self._lookup(
                 db,
                 (DocumentChunk.id, DocumentChunk.project_id, DocumentChunk.source_id),
@@ -144,7 +150,15 @@ class LinkVisibilityIndex:
             )
         }
 
-        origins = list(self._entities.values()) + list(self._chunks.values())
+        if self._unrestricted:
+            return
+
+        self._teams = set(visible_team_ids)
+        self._projects = set(get_visible_project_ids(user, db) or [])
+
+        origins = [(row.project_id, row.source_id) for row in self._entities.values()] + [
+            (row.project_id, row.source_id) for row in self._chunks.values()
+        ]
         project_ids = {p for p, _ in origins if p is not None}
         source_ids = {s for _, s in origins if s is not None}
 
@@ -193,10 +207,10 @@ class LinkVisibilityIndex:
     ) -> bool:
         if source_type == "entity" and entity_id is not None:
             origin = self._entities.get(entity_id)
-            return origin is not None and self._origin_visible(*origin)
+            return origin is not None and self._origin_visible(origin.project_id, origin.source_id)
         if source_type == "document" and chunk_id is not None:
             origin = self._chunks.get(chunk_id)
-            return origin is not None and self._origin_visible(*origin)
+            return origin is not None and self._origin_visible(origin.project_id, origin.source_id)
         # Manuell angelegte Links ohne Entity-/Chunk-Bezug bleiben sichtbar.
         return True
 
@@ -208,6 +222,24 @@ class LinkVisibilityIndex:
         ) and self._side_visible(
             link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id
         )
+
+    # ── O-114: Navigationsdaten für den Link-Manager ────────────────────────
+    # Nutzen dieselben (immer geladenen) Batches wie die Sichtbarkeitsprüfung
+    # oben, statt eigene Abfragen zu duplizieren.
+
+    def entity_nav(self, entity_id: Optional[int]) -> Optional[dict]:
+        if entity_id is None:
+            return None
+        row = self._entities.get(entity_id)
+        if row is None or not row.file_path:
+            return None
+        return {"file_path": row.file_path, "line": row.start_line, "source_id": row.source_id}
+
+    def doc_source_id(self, chunk_id: Optional[int]) -> Optional[int]:
+        if chunk_id is None:
+            return None
+        row = self._chunks.get(chunk_id)
+        return row.source_id if row is not None else None
 
 
 @router.post("")
@@ -287,7 +319,13 @@ def list_knowledge_links(
     query = _knowledge_link_filters(db.query(KnowledgeLink), status, source_type, min_score)
     links = query.order_by(KnowledgeLink.created_at.desc()).all()
     visibility = LinkVisibilityIndex(links, user, db)
-    return [serialize_knowledge_link(link) for link in links if visibility.is_visible(link)]
+    return [
+        serialize_knowledge_link(
+            link, entity_nav=visibility.entity_nav, doc_source_id=visibility.doc_source_id
+        )
+        for link in links
+        if visibility.is_visible(link)
+    ]
 
 
 @router.get("/counts")

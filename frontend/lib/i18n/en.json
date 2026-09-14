@@ -1088,7 +1088,9 @@
       "remove": "Remove",
       "reapprove": "Approve anyway",
       "delete": "Delete",
-      "llmReview": "Check with LLM"
+      "llmReview": "Check with LLM",
+      "openCode": "Open code side",
+      "openDoc": "Open doc side"
     },
     "noResultsAutoLinkHint": "Click \"{{action}}\" to automatically search for links.",
     "computeMessages": {

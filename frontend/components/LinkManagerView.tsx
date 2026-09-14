@@ -44,6 +44,11 @@ import { TopicsPanel } from './TopicsPanel';
 interface PickerDocument { title: string; url?: string | null; source_type?: string | null }
 interface PickerEntity { id: string | number; name: string; file_path: string; type?: string; start_line?: number }
 
+// O-114: Navigationsziel einer Code-Seite — dieselben drei Felder, die
+// handlePanelFileSelect(index, filePath, line, sourceId) sonst aus einer
+// CodeEntity bekommt.
+interface CodeRef { file_path: string; line: number | null; source_id: number | string | null }
+
 interface EntityDocLink {
   id: number;
   entity_id: number;
@@ -54,9 +59,13 @@ interface EntityDocLink {
     file_path: string;
     start_line: number;
     end_line: number;
+    source_id?: number | string | null;
   };
   doc_title: string;
   doc_url: string | null;
+  // O-114: Wissensquelle der Doku-Seite — None bei manuell angelegten Links
+  // ohne Chunk-Bezug, dann bleibt "Doku-Seite öffnen" aus.
+  doc_source_id?: number | string | null;
   source_type: string | null;
   score: number | null;
   link_type: string;
@@ -65,10 +74,19 @@ interface EntityDocLink {
   created_by: string;
 }
 
+interface KnowledgeLinkSide {
+  type: string;
+  title: string;
+  url: string | null;
+  source_type: string | null;
+  code_ref?: CodeRef | null;
+  doc_source_id?: number | string | null;
+}
+
 interface KnowledgeLink {
   id: number;
-  source_a: { type: string; title: string; url: string | null; source_type: string | null };
-  source_b: { type: string; title: string; url: string | null; source_type: string | null };
+  source_a: KnowledgeLinkSide;
+  source_b: KnowledgeLinkSide;
   score: number | null;
   link_type: string;
   status: string;
@@ -86,6 +104,10 @@ interface LinkManagerViewProps {
   activeProfileId?: string;
   setActiveProfileId?: (val: string) => void;
   showToast?: (msg: string, type: 'success' | 'error') => void;
+  // O-114: dieselben Navigations-Rückrufe, die jedes andere Panel schon über
+  // PanelContentRenderer bekommt — der Link-Manager war das einzige ohne.
+  onOpenCode?: (filePath: string, line: number | null, sourceId: number | string | null) => void;
+  onOpenDoc?: (filePath: string, sourceId: number | string | null) => void;
 }
 
 type Segment = 'links' | 'topics';
@@ -98,6 +120,8 @@ interface UnifiedSide {
   sourceType?: string | null;
   url?: string | null;
   icon?: 'code';
+  codeRef?: CodeRef | null;
+  docSourceId?: number | string | null;
 }
 
 interface UnifiedLink {
@@ -155,6 +179,7 @@ function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }
 export function LinkManagerView({
   selectedProject, theme, currentUser,
   llmProfiles = [], activeProfileId, setActiveProfileId, showToast,
+  onOpenCode, onOpenDoc,
 }: LinkManagerViewProps) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
@@ -634,8 +659,11 @@ export function LinkManagerView({
         label: l.entity?.name ?? t('linkManagerView.entityFallbackName', { id: l.entity_id }),
         caption: `${l.entity?.type ?? ''}${l.entity?.file_path ? ' · ' + l.entity.file_path : ''}${l.entity?.start_line ? ':' + l.entity.start_line : ''}`,
         icon: 'code',
+        codeRef: l.entity
+          ? { file_path: l.entity.file_path, line: l.entity.start_line ?? null, source_id: l.entity.source_id ?? null }
+          : null,
       },
-      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url },
+      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null },
       score: l.score,
       linkType: l.link_type,
       status: l.status,
@@ -645,8 +673,14 @@ export function LinkManagerView({
       id: `k-${l.id}`,
       kind: 'knowledge',
       rawId: l.id,
-      left: { label: l.source_a.title, caption: l.source_a.type, sourceType: l.source_a.source_type, url: l.source_a.url },
-      right: { label: l.source_b.title, caption: l.source_b.type, sourceType: l.source_b.source_type, url: l.source_b.url },
+      left: {
+        label: l.source_a.title, caption: l.source_a.type, sourceType: l.source_a.source_type, url: l.source_a.url,
+        codeRef: l.source_a.code_ref ?? null, docSourceId: l.source_a.doc_source_id ?? null,
+      },
+      right: {
+        label: l.source_b.title, caption: l.source_b.type, sourceType: l.source_b.source_type, url: l.source_b.url,
+        codeRef: l.source_b.code_ref ?? null, docSourceId: l.source_b.doc_source_id ?? null,
+      },
       score: l.score,
       linkType: l.link_type,
       status: l.status,
@@ -761,6 +795,23 @@ export function LinkManagerView({
             className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
             <ExternalLink className="w-3 h-3" />
           </a>
+        )}
+        {/* O-114: der Link-Manager war das einzige Panel ohne Navigations-Rückrufe —
+            "stimmt diese Verknüpfung?" ließ sich bisher nicht beantworten, ohne die
+            Ansicht zu verlassen. */}
+        {onOpenCode && side.codeRef && (
+          <button onClick={() => onOpenCode(side.codeRef!.file_path, side.codeRef!.line, side.codeRef!.source_id)}
+            title={t('linkManagerView.actions.openCode')}
+            className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
+            <FileCode className="w-3 h-3" />
+          </button>
+        )}
+        {onOpenDoc && side.docSourceId != null && (
+          <button onClick={() => onOpenDoc(side.label, side.docSourceId!)}
+            title={t('linkManagerView.actions.openDoc')}
+            className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
+            <BookOpen className="w-3 h-3" />
+          </button>
         )}
       </div>
       {side.caption && <p className={cn('text-[11px] truncate', side.icon === 'code' ? 'pl-5' : '', cardMuted)}>{side.caption}</p>}

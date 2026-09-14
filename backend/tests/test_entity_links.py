@@ -211,6 +211,31 @@ def test_get_link_recommendations_lists_links_with_counts(
         db_session.commit()
 
 
+def test_get_link_recommendations_serves_navigation_source_ids(
+    client, db_session, test_project, source_entity_chunk
+):
+    """O-114: der Link-Manager braucht die Wissensquelle beider Seiten, um
+    "Code-Seite öffnen" / "Doku-Seite öffnen" über handlePanelFileSelect /
+    handleDocFocusRequest aufzulösen — nicht nur Titel/Pfad."""
+    source, entity, chunk = source_entity_chunk
+    link = _make_link(db_session, test_project, entity, chunk, status="pending")
+    manual = _make_link(db_session, test_project, entity, chunk=None, status="approved")
+    try:
+        res = client.get(f"/projects/{test_project}/link-recommendations")
+        served = {lnk["id"]: lnk for lnk in res.json()["links"]}
+
+        assert served[link.id]["entity"]["source_id"] == source.id
+        assert served[link.id]["doc_source_id"] == source.id
+        # Manuell angelegte Links ohne Chunk-Bezug können die Doku-Seite nicht
+        # navigierbar machen — None statt eines falschen Werts.
+        assert served[manual.id]["doc_source_id"] is None
+    finally:
+        db_session.query(EntityDocLink).filter(
+            EntityDocLink.id.in_([link.id, manual.id])
+        ).delete(synchronize_session=False)
+        db_session.commit()
+
+
 def test_get_link_recommendations_filters_by_status_and_min_score(
     client, db_session, test_project, source_entity_chunk
 ):
@@ -532,6 +557,10 @@ def test_llm_review_updates_score_and_context_but_not_status(
         assert body["score"] == pytest.approx(0.87)
         assert body["context"] == "Deckt sich inhaltlich."
         assert body["status"] == "pending"  # unverändert — Nutzer entscheidet
+        # O-114: dieser Endpunkt lädt entity+chunk ohnehin schon fürs LLM-Prompt —
+        # beide Navigationsfelder müssen also auch hier mitkommen.
+        assert body["entity"]["source_id"] == source.id
+        assert body["doc_source_id"] == source.id
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.commit()
