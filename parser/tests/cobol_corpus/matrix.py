@@ -81,24 +81,24 @@ MATRIX: list[CompatCase] = [
     CompatCase(
         "16_source_format_free_directive_indented",
         "SOURCE FORMAT FREE, Direktive eingerückt",
-        "bekannter Fehler",
-        ticket="O-123",
+        "teilweise",
         note=(
-            "Weder Free- noch Fixed-Signal der Heuristik greift auf der "
-            "eingerückten Direktivenzeile - die Datei wird komplett als "
-            "Fixed behandelt und verliert ihre gesamte Programmstruktur "
-            "(5 Fehler, keine Division gefunden, program_name leer)."
+            "Direktive vor dem ersten Quelltext wird auch eingerückt als "
+            "explizites Startformat erkannt. Die umfassenderen Fälle "
+            "Variable/Extended und Wechsel innerhalb einer Datei werden "
+            "in test_cobol_source_format.py abgedeckt; keine "
+            "Hersteller-Compilerabnahme im CI."
         ),
     ),
     CompatCase(
         "17_conditional_compilation_true_branch",
         ">>IF/>>ELSE bedingte Kompilierung mit bekanntem Ausdruck",
-        "bekannter Fehler",
-        ticket="O-124",
+        "teilweise",
         note=(
-            "CALLs aus aktivem UND inaktivem Zweig werden erzeugt, `errors` "
-            "bleibt leer - ein fachlich falscher Aufrufgraph erscheint als "
-            "vollständig und fehlerfrei analysiert."
+            "Numerische Gleichheit und profilierte DEFINEs werden ohne "
+            "Quellcodeausführung ausgewertet; unbekannte Bedingungen bleiben "
+            "als bedingte Kanten erhalten. Weitere EVALUATE-/Dialektformen "
+            "sind noch nicht gegen Herstellercompiler geprüft."
         ),
     ),
     CompatCase("99_garbage", "Datei ohne PROCEDURE DIVISION (Fallback-Chunking)", "nicht geprüft"),

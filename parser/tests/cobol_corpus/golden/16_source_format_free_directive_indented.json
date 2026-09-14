@@ -1,58 +1,99 @@
 {
-  "program_name": "",
+  "program_name": "INDENTDIR",
   "path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
-  "source_format": "fixed",
+  "source_format": "free",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
-      "name": "",
-      "start_line": 1,
+      "name": "INDENTDIR",
+      "start_line": 2,
       "end_line": 7,
       "parent_name": null,
-      "qualified_name": "",
-      "meta": {}
+      "qualified_name": "INDENTDIR",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
+            "start_line": 2,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 5,
+      "end_line": 7,
+      "parent_name": "INDENTDIR",
+      "qualified_name": "INDENTDIR.MAIN-PARA",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
+            "start_line": 5,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "edges": [],
   "chunks": [
     {
-      "content": "       >>SOURCE FORMAT FREE\n       IDENTIFICATION DIVISION.\n       PROGRAM-ID. INDENTDIR.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           DISPLAY \"HELLO\".\n           STOP RUN.",
-      "start_line": 1,
+      "content": "       MAIN-PARA.\n           DISPLAY \"HELLO\".\n           STOP RUN.",
+      "start_line": 5,
       "end_line": 7,
       "meta": {
-        "program": "",
-        "format": "fixed",
-        "fallback": true
+        "program": "INDENTDIR",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 5,
+        "end_line": 7,
+        "format": "free",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
+            "start_line": 5,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
   "errors": [
-    "Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden).",
-    "PROGRAM-ID nicht gefunden.",
-    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.",
-    "Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.",
-    "Keine PROCEDURE DIVISION gefunden - USES-Kanten nicht durchsucht."
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
   ],
-  "diagnostics": [
-    {
-      "code": "SOURCE_FORMAT_HEURISTIC",
-      "severity": "info",
-      "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
-      "line": 0,
-      "column": 0,
-      "count": 1,
-      "profile": null
-    },
-    {
-      "code": "COBOL85_PARSER_ERROR",
-      "severity": "error",
-      "phase": "parser",
-      "message": "mismatched input '>' expecting {ID, IDENTIFICATION}",
-      "line": 1,
-      "column": 0,
-      "count": 1,
-      "profile": null
-    }
-  ]
+  "diagnostics": []
 }

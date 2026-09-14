@@ -35,6 +35,9 @@ def test_fingerprint_changes_for_every_parse_relevant_input():
     assert fingerprint != analysis_fingerprint(
         **{**base, "profile": BuildProfile(source_format="free")}
     )
+    assert fingerprint != analysis_fingerprint(
+        **{**base, "profile": BuildProfile(source_format="fixed", debug_mode=True)}
+    )
     assert fingerprint != analysis_fingerprint(**{**base, "parser_version": "parser-v2"})
     assert fingerprint != analysis_fingerprint(**{**base, "grammar_version": "grammar-v2"})
     assert fingerprint != analysis_fingerprint(
@@ -47,7 +50,9 @@ def test_empty_profile_has_an_explicit_stable_payload():
         "compiler_family": None,
         "compiler_version": None,
         "source_format": None,
+        "source_columns": None,
         "encoding": None,
+        "debug_mode": False,
         "defines": {},
         "copy_search_order": [],
         "resolved_from": {},

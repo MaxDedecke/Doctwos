@@ -2,6 +2,7 @@
   "program_name": "DIALECTTEST",
   "path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
   "source_format": "free",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 13,
       "parent_name": null,
       "qualified_name": "DIALECTTEST",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 1,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 5,
       "parent_name": "DIALECTTEST",
       "qualified_name": "DIALECTTEST.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 4,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -28,7 +65,25 @@
       "end_line": 13,
       "parent_name": "DIALECTTEST",
       "qualified_name": "DIALECTTEST.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 7,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -43,7 +98,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 5,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -56,17 +128,25 @@
       "src_start_line": 9,
       "src_end_line": 9,
       "scope": null,
-      "meta": {}
-    },
-    {
-      "type": "CALL",
-      "src_name": "MAIN-PARA",
-      "dst_name": "INACTIVE",
-      "resolution": "unresolved",
-      "src_start_line": 11,
-      "src_end_line": 11,
-      "scope": null,
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 9,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -80,7 +160,24 @@
         "paragraph": "MAIN-PARA",
         "start_line": 7,
         "end_line": 13,
-        "format": "free"
+        "format": "free",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 7,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -90,7 +187,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'free' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'free' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

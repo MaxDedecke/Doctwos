@@ -2,6 +2,7 @@
   "program_name": "DYNCALL",
   "path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 11,
       "parent_name": null,
       "qualified_name": "DYNCALL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 1,
+            "end_line": 11
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 5,
       "parent_name": "DYNCALL",
       "qualified_name": "DYNCALL.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 4,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -28,7 +65,25 @@
       "end_line": 11,
       "parent_name": "DYNCALL",
       "qualified_name": "DYNCALL.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 7,
+            "end_line": 11
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -43,7 +98,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": "SUBPROG"
+        "value": "SUBPROG",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 5,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -56,7 +128,25 @@
       "src_start_line": 9,
       "src_end_line": 9,
       "scope": null,
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 9,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "CALL",
@@ -66,7 +156,25 @@
       "src_start_line": 10,
       "src_end_line": 10,
       "scope": null,
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 10,
+            "end_line": 10
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -76,7 +184,25 @@
       "src_start_line": 8,
       "src_end_line": 8,
       "scope": "DYNCALL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 8,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -86,7 +212,25 @@
       "src_start_line": 9,
       "src_end_line": 9,
       "scope": "DYNCALL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 9,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -100,7 +244,24 @@
         "paragraph": "MAIN-PARA",
         "start_line": 7,
         "end_line": 11,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/09_dynamic_call.cbl",
+            "start_line": 7,
+            "end_line": 11
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -110,7 +271,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

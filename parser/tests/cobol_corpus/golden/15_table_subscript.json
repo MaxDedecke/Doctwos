@@ -2,6 +2,7 @@
   "program_name": "TABSUB",
   "path": "cobol_corpus/fixtures/15_table_subscript.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 21,
       "parent_name": null,
       "qualified_name": "TABSUB",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 1,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 8,
       "parent_name": "TABSUB",
       "qualified_name": "TABSUB.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 5,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -28,7 +65,25 @@
       "end_line": 16,
       "parent_name": "TABSUB",
       "qualified_name": "TABSUB.AUFBAU",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 11,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -37,7 +92,25 @@
       "end_line": 21,
       "parent_name": "TABSUB",
       "qualified_name": "TABSUB.AUSGABE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 18,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -46,7 +119,25 @@
       "end_line": 16,
       "parent_name": "AUFBAU",
       "qualified_name": "TABSUB.AUFBAU.100-MONATE-FUELLEN",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 12,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -55,7 +146,25 @@
       "end_line": 21,
       "parent_name": "AUSGABE",
       "qualified_name": "TABSUB.AUSGABE.200-MONATE-ANZEIGEN",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 19,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -70,7 +179,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -86,7 +212,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 7,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -102,7 +245,24 @@
         "redefines": null,
         "occurs": 12,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 8,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -115,7 +275,25 @@
       "src_start_line": 13,
       "src_end_line": 13,
       "scope": "TABSUB",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 13,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -125,28 +303,24 @@
       "src_start_line": 14,
       "src_end_line": 14,
       "scope": "TABSUB",
-      "meta": {}
-    },
-    {
-      "type": "USES",
-      "src_name": "100-MONATE-FUELLEN",
-      "dst_name": "WS-IDX",
-      "resolution": "resolved",
-      "src_start_line": 15,
-      "src_end_line": 15,
-      "scope": "TABSUB",
-      "meta": {}
-    },
-    {
-      "type": "USES",
-      "src_name": "100-MONATE-FUELLEN",
-      "dst_name": "WS-MONAT-NR",
-      "resolution": "resolved",
-      "src_start_line": 15,
-      "src_end_line": 15,
-      "scope": "TABSUB",
       "meta": {
-        "parent": "WS-MONATE"
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 14,
+            "end_line": 14
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -157,7 +331,82 @@
       "src_start_line": 15,
       "src_end_line": 15,
       "scope": "TABSUB",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 15,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-MONAT-NR",
+      "resolution": "resolved",
+      "src_start_line": 15,
+      "src_end_line": 15,
+      "scope": "TABSUB",
+      "meta": {
+        "parent": "WS-MONATE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 15,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "100-MONATE-FUELLEN",
+      "dst_name": "WS-IDX",
+      "resolution": "resolved",
+      "src_start_line": 15,
+      "src_end_line": 15,
+      "scope": "TABSUB",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 15,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -168,7 +417,24 @@
       "src_end_line": 20,
       "scope": "TABSUB",
       "meta": {
-        "parent": "WS-MONATE"
+        "parent": "WS-MONATE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 20,
+            "end_line": 20
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -183,7 +449,24 @@
         "paragraph": "100-MONATE-FUELLEN",
         "start_line": 12,
         "end_line": 16,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 12,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -196,7 +479,24 @@
         "paragraph": "200-MONATE-ANZEIGEN",
         "start_line": 19,
         "end_line": 21,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 19,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -206,7 +506,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

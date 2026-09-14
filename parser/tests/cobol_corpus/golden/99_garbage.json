@@ -2,6 +2,7 @@
   "program_name": "",
   "path": "cobol_corpus/fixtures/99_garbage.cbl",
   "source_format": "free",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 6,
       "parent_name": null,
       "qualified_name": "",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "sql_block",
@@ -27,7 +46,24 @@
         "host_variables": [
           "UNDEFINED-FIELD"
         ],
-        "cursor_name": null
+        "cursor_name": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 3,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -40,7 +76,25 @@
       "src_start_line": 3,
       "src_end_line": 5,
       "scope": "",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 3,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -51,7 +105,24 @@
       "meta": {
         "program": "",
         "format": "free",
-        "fallback": true
+        "fallback": true,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -67,7 +138,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'free' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'free' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

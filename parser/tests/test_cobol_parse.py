@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from cobol.copybook import CopybookIndex, inherited_fields
 from cobol.parse import parse_copybook, parse_program
 from cobol.profile import BuildProfile
@@ -121,7 +123,7 @@ def test_xref_inherits_copybook_field_without_expanding_source_lines():
 
     assert edge.resolution == "resolved"
     assert edge.src_start_line == 8
-    assert edge.meta == {
+    assert {key: value for key, value in edge.meta.items() if key != "evidence"} == {
         "copybook_path": "copy/FIELDS.CPY",
         "target_qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
     }
@@ -222,7 +224,7 @@ def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
     edge = next(edge for edge in result.edges if edge.type == "USES")
 
     assert edge.resolution == "resolved"
-    assert edge.meta == {
+    assert {key: value for key, value in edge.meta.items() if key != "evidence"} == {
         "copybook_path": "copy/BASE.CPY",
         "target_qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID",
     }
@@ -299,13 +301,36 @@ def test_profile_source_format_overrides_the_heuristic_without_a_note():
     assert not any(d.code == "SOURCE_FORMAT_HEURISTIC" for d in result.diagnostics)
 
 
-def test_profile_source_format_override_works_around_the_o123_heuristic_bug():
-    # O-121 gibt Kunden schon vor dem eigentlichen O-123-Fix einen Ausweg:
-    # ein bestätigtes Profil überschreibt die kaputte Heuristik komplett.
+@pytest.mark.parametrize("fmt", ["variable", "extended"])
+def test_confirmed_variable_and_extended_profiles_keep_their_format(fmt):
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. LONGFMT.",
+            "       DATA DIVISION.",
+            "       WORKING-STORAGE SECTION.",
+            "       01 WS-LONG-FIELD PIC X.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "           DISPLAY WS-LONG-FIELD.",
+        )
+    )
+    result = parse_program(text, "x", profile=BuildProfile(source_format=fmt))
+
+    assert result.source_format == fmt
+    assert result.program_name == "LONGFMT"
+    assert result.errors == []
+    assert not any(d.code == "SOURCE_FORMAT_HEURISTIC" for d in result.diagnostics)
+
+
+def test_indented_source_format_directive_is_an_explicit_start_format():
     result_without_profile = _parse_fixture("16_source_format_free_directive_indented.cbl")
-    assert result_without_profile.source_format == "fixed"
-    assert result_without_profile.program_name == ""
-    assert result_without_profile.errors  # Struktur geht ohne Profil verloren (O-123)
+    assert result_without_profile.source_format == "free"
+    assert result_without_profile.program_name == "INDENTDIR"
+    assert result_without_profile.errors == [
+        "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+    ]
+    assert not any(d.code == "SOURCE_FORMAT_HEURISTIC" for d in result_without_profile.diagnostics)
 
     with open(os.path.join(FIXTURES, "16_source_format_free_directive_indented.cbl")) as f:
         text = f.read()
@@ -317,4 +342,57 @@ def test_profile_source_format_override_works_around_the_o123_heuristic_bug():
     # Meldung (kein DATA DIVISION vorhanden) bleibt, die O-123-spezifischen
     # Folgefehler (keine Division/kein PROGRAM-ID/keine PROCEDURE DIVISION)
     # sind weg.
-    assert result_with_profile.errors == ["Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."]
+    assert result_with_profile.errors == [
+        "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."
+    ]
+
+
+def test_parse_artifacts_share_source_evidence_and_a_profile_variant():
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. EVIDENCE.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "           CALL 'TARGET'.",
+        )
+    )
+    result = parse_program(text, "src/EVIDENCE.cbl", profile=BuildProfile(source_format="fixed"))
+
+    assert result.variant_key.startswith("profile:")
+    artifact_metas = [
+        *(entity.meta for entity in result.entities),
+        *(edge.meta for edge in result.edges),
+    ]
+    artifact_metas.extend(chunk.meta for chunk in result.chunks)
+    assert artifact_metas
+    for meta in artifact_metas:
+        evidence = meta["evidence"]
+        assert evidence["kind"] == "source"
+        assert evidence["source"]["file_path"] == "src/EVIDENCE.cbl"
+        assert evidence["variant"]["key"] == result.variant_key
+        assert evidence["condition"] is None
+
+
+def test_debug_mode_changes_only_the_debug_call_edges():
+    text = "\n".join(
+        (
+            "       IDENTIFICATION DIVISION.",
+            "       PROGRAM-ID. DEBUGMODE.",
+            "       PROCEDURE DIVISION.",
+            "       MAIN-PARA.",
+            "      D    CALL 'DEBUG-TARGET'.",
+            "           CALL 'NORMAL-TARGET'.",
+        )
+    )
+
+    disabled = parse_program(text, "debug.cbl", profile=BuildProfile(source_format="fixed"))
+    enabled = parse_program(
+        text, "debug.cbl", profile=BuildProfile(source_format="fixed", debug_mode=True)
+    )
+
+    assert [edge.dst_name for edge in disabled.edges if edge.type == "CALL"] == ["NORMAL-TARGET"]
+    assert [edge.dst_name for edge in enabled.edges if edge.type == "CALL"] == [
+        "DEBUG-TARGET",
+        "NORMAL-TARGET",
+    ]

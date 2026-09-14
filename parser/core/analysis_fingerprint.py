@@ -18,7 +18,7 @@ from typing import Mapping
 # Änderungen an handgeschriebenen Scanner-/Persistenzregeln sind nicht aus
 # einer Grammatikdatei ableitbar. Dieser Wert ist deshalb ein absichtlicher,
 # bei semantischen Parseränderungen zu erhöhender Vertrag.
-COBOL_PARSER_VERSION = "1"
+COBOL_PARSER_VERSION = "2"
 
 
 def grammar_fingerprint() -> str:
@@ -51,7 +51,19 @@ def profile_payload(profile: object | None) -> dict[str, object]:
         "compiler_family": getattr(profile, "compiler_family", None),
         "compiler_version": getattr(profile, "compiler_version", None),
         "source_format": getattr(profile, "source_format", None),
+        "source_columns": {
+            "sequence_end": getattr(getattr(profile, "source_columns", None), "sequence_end", None),
+            "indicator_column": getattr(
+                getattr(profile, "source_columns", None), "indicator_column", None
+            ),
+            "area_a_start": getattr(getattr(profile, "source_columns", None), "area_a_start", None),
+            "area_b_start": getattr(getattr(profile, "source_columns", None), "area_b_start", None),
+            "code_end": getattr(getattr(profile, "source_columns", None), "code_end", None),
+        }
+        if getattr(profile, "source_columns", None) is not None
+        else None,
         "encoding": getattr(profile, "encoding", None),
+        "debug_mode": getattr(profile, "debug_mode", False),
         "defines": dict(sorted(getattr(profile, "defines", {}).items())),
         "copy_search_order": list(getattr(profile, "copy_search_order", ())),
         "resolved_from": dict(sorted(getattr(profile, "resolved_from", {}).items())),
@@ -79,5 +91,7 @@ def analysis_fingerprint(
         "grammar_version": grammar_version or grammar_fingerprint(),
         "libraries": dict(sorted((libraries or {}).items())),
     }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
+        "utf-8"
+    )
     return hashlib.sha256(encoded).hexdigest()

@@ -2,6 +2,7 @@
   "program_name": "COPYMISS",
   "path": "cobol_corpus/fixtures/05_copy_missing.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 9,
       "parent_name": null,
       "qualified_name": "COPYMISS",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 1,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 5,
       "parent_name": "COPYMISS",
       "qualified_name": "COPYMISS.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 4,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -28,7 +65,25 @@
       "end_line": 9,
       "parent_name": "COPYMISS",
       "qualified_name": "COPYMISS.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 7,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "edges": [
@@ -40,7 +95,25 @@
       "src_start_line": 5,
       "src_end_line": 5,
       "scope": null,
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 5,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -54,7 +127,24 @@
         "paragraph": "MAIN-PARA",
         "start_line": 7,
         "end_line": 9,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 7,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -64,7 +154,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

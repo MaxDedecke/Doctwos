@@ -2,7 +2,7 @@
 O-121: Buildprofil-Vererbung (Quelle -> Pfad/Member -> Buildvariante).
 """
 
-from cobol.profile import BuildProfile, ProfileFragment, resolve_profile
+from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 
 
 def test_no_fragments_yield_empty_profile_without_diagnostics():
@@ -62,6 +62,25 @@ def test_variant_wins_over_path_wins_over_source_for_the_same_field():
     assert profile.resolved_from["compiler_version"] == "variant"
 
 
+def test_source_columns_are_resolved_and_attributed_like_the_source_format():
+    columns = SourceColumns(code_end=120)
+    profile, diagnostics = resolve_profile(source=ProfileFragment(source_columns=columns))
+
+    assert profile.source_columns == columns
+    assert profile.resolved_from["source_columns"] == "source"
+    assert diagnostics == []
+
+
+def test_debug_mode_is_resolved_like_other_build_semantics():
+    profile, diagnostics = resolve_profile(
+        source=ProfileFragment(debug_mode=False), path=ProfileFragment(debug_mode=True)
+    )
+
+    assert profile.debug_mode is True
+    assert profile.resolved_from["debug_mode"] == "path"
+    assert diagnostics[0].code == "PROFILE_FIELD_OVERRIDDEN"
+
+
 def test_defines_are_merged_across_layers_more_specific_key_wins():
     profile, _ = resolve_profile(
         source=ProfileFragment(defines={"DEBUG": "0", "REGION": "DE"}),
@@ -79,7 +98,9 @@ def test_copy_search_order_replaces_entirely_at_the_most_specific_non_empty_laye
 
 
 def test_unknown_compiler_family_is_diagnosed_but_still_set():
-    profile, diagnostics = resolve_profile(source=ProfileFragment(compiler_family="ACME-COBOL-9000"))
+    profile, diagnostics = resolve_profile(
+        source=ProfileFragment(compiler_family="ACME-COBOL-9000")
+    )
     assert profile.compiler_family == "ACME-COBOL-9000"
     assert len(diagnostics) == 1
     assert diagnostics[0].code == "PROFILE_UNKNOWN_COMPILER_FAMILY"

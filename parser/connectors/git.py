@@ -36,7 +36,7 @@ import git_utils
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
-from cobol.profile import BuildProfile, ProfileFragment, resolve_profile
+from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from cobol.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
@@ -225,7 +225,9 @@ _PROFILE_FIELDS = {
     "compiler_family",
     "compiler_version",
     "source_format",
+    "source_columns",
     "encoding",
+    "debug_mode",
     "defines",
     "copy_search_order",
 }
@@ -244,6 +246,14 @@ def _profile_fragment(raw: object) -> ProfileFragment | None:
         return None
     if isinstance(values.get("copy_search_order"), list):
         values["copy_search_order"] = tuple(values["copy_search_order"])
+    if isinstance(values.get("source_columns"), dict):
+        try:
+            values["source_columns"] = SourceColumns(**values["source_columns"])
+        except (TypeError, ValueError):
+            # O-151 verantwortet die Konfigurationsoberfläche und ihre
+            # Diagnose. Bis dahin darf ungültiges gespeichertes JSON keinen
+            # Importabbruch verursachen; es wirkt schlicht nicht als Layout.
+            values.pop("source_columns")
     return ProfileFragment(**values)
 
 
@@ -269,7 +279,10 @@ def _resolve_document_profile(spaces: dict, path: str) -> BuildProfile | None:
             (prefix.strip("/"), raw)
             for prefix, raw in path_configs.items()
             if isinstance(prefix, str)
-            and (normalized_path == prefix.strip("/") or normalized_path.startswith(prefix.strip("/") + "/"))
+            and (
+                normalized_path == prefix.strip("/")
+                or normalized_path.startswith(prefix.strip("/") + "/")
+            )
         ]
         if matches:
             _, raw = max(matches, key=lambda item: len(item[0]))
@@ -586,9 +599,7 @@ class GitConnector(BaseConnector):
 
             return 0
 
-    def _record_skip(
-        self, path: str, content_hash: str, fingerprint: str, reason: str
-    ) -> None:
+    def _record_skip(self, path: str, content_hash: str, fingerprint: str, reason: str) -> None:
         """O-120: eine Datei, die wegen `_SKIPPED_BINARY_EXTENSIONS`, der
         Größengrenze oder fehlgeschlagener UTF-8-Erkennung nie an
         `_save_document_chunks()` geht, hinterließ bisher NUR eine
@@ -722,7 +733,9 @@ class GitConnector(BaseConnector):
             fingerprint = analysis_fingerprint(
                 source_revision=blob_sha,
                 profile=profile,
-                parser_version="cobol-structure-1" if language in {"cobol", "copybook"} else "generic-chunker-1",
+                parser_version="cobol-structure-1"
+                if language in {"cobol", "copybook"}
+                else "generic-chunker-1",
                 grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",
                 libraries=copybook_hashes if language in {"cobol", "copybook"} else None,
             )

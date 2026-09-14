@@ -2,6 +2,7 @@
   "program_name": "IDPARA",
   "path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 21,
       "parent_name": null,
       "qualified_name": "IDPARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 1,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 13,
       "parent_name": "IDPARA",
       "qualified_name": "IDPARA.FILE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 12,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -28,7 +65,25 @@
       "end_line": 16,
       "parent_name": "IDPARA",
       "qualified_name": "IDPARA.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 15,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -37,7 +92,25 @@
       "end_line": 21,
       "parent_name": "IDPARA",
       "qualified_name": "IDPARA.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 19,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -52,7 +125,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": "N"
+        "value": "N",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 16,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -65,7 +155,25 @@
       "src_start_line": 13,
       "src_end_line": 13,
       "scope": null,
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 13,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -75,7 +183,25 @@
       "src_start_line": 20,
       "src_end_line": 20,
       "scope": "IDPARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 20,
+            "end_line": 20
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -89,7 +215,24 @@
         "paragraph": "MAIN-PARA",
         "start_line": 19,
         "end_line": 21,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 19,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -99,7 +242,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

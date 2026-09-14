@@ -36,6 +36,7 @@ import os
 
 from . import antlr_bridge
 from . import copybook as copybook_mod
+from . import conditional as conditional_mod
 from . import data_division as data_division_mod
 from . import divisions as divisions_mod
 from . import embedded as embedded_mod
@@ -60,6 +61,7 @@ from .model import (
     SqlBlock,
 )
 from .profile import BuildProfile
+from core.evidence import source_evidence, variant_key
 
 
 def _determine_source_format(
@@ -74,14 +76,19 @@ def _determine_source_format(
         return profile.source_format, []
 
     detected = source_format_mod.detect_format(text)
+    if source_format_mod.initial_format_directive(text) is not None:
+        # Eine anfängliche SOURCE-FORMAT-Direktive ist eine ausdrückliche
+        # Quellvorgabe, keine bloße Vermutung. Spätere Direktiven werden bei
+        # split_logical_lines() je Zeile angewandt.
+        return detected, []
     diagnostic = ParseDiagnostic(
         code="SOURCE_FORMAT_HEURISTIC",
         severity="info",
         phase="profile",
         message=(
             f"Quellformat '{detected}' heuristisch erkannt, kein Buildprofil "
-            "hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei "
-            "eingerückten Direktiven: O-123)."
+            "oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt "
+            "(siehe O-121)."
         ),
         line=0,
         column=0,
@@ -98,7 +105,15 @@ def parse_program(
     errors: list[str] = []
 
     source_format, profile_diagnostics = _determine_source_format(text, profile)
-    logical_lines = source_format_mod.split_logical_lines(text, source_format)
+    logical_lines = source_format_mod.split_logical_lines(
+        text,
+        source_format,
+        profile.source_columns if profile is not None else None,
+        profile.debug_mode if profile is not None else False,
+    )
+    logical_lines = conditional_mod.apply(
+        logical_lines, profile.defines if profile is not None else {}
+    )
     masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
 
@@ -156,10 +171,11 @@ def parse_program(
     if not chunks:
         chunks = _fallback_chunks(program, source_lines, source_format)
 
-    return ParseResult(
+    result = ParseResult(
         program_name=program.name,
         path=path,
         source_format=source_format,
+        variant_key=variant_key(profile),
         entities=entities,
         edges=edges,
         chunks=chunks,
@@ -167,6 +183,8 @@ def parse_program(
         diagnostics=profile_diagnostics
         + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics),
     )
+    _attach_source_evidence(result, profile, logical_lines)
+    return result
 
 
 def _build_entities(
@@ -387,7 +405,15 @@ def parse_copybook(
     errors: list[str] = []
 
     source_format, profile_diagnostics = _determine_source_format(text, profile)
-    logical_lines = source_format_mod.split_logical_lines(text, source_format)
+    logical_lines = source_format_mod.split_logical_lines(
+        text,
+        source_format,
+        profile.source_columns if profile is not None else None,
+        profile.debug_mode if profile is not None else False,
+    )
+    logical_lines = conditional_mod.apply(
+        logical_lines, profile.defines if profile is not None else {}
+    )
     masked_lines, _ = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
 
@@ -400,6 +426,7 @@ def parse_copybook(
             program_name=name,
             path=path,
             source_format=source_format,
+            variant_key=variant_key(profile),
             errors=errors,
             diagnostics=profile_diagnostics,
         )
@@ -441,16 +468,66 @@ def parse_copybook(
         for content, s, e in _pack_whole_file(source_lines, chunk_size)
     ]
 
-    return ParseResult(
+    result = ParseResult(
         program_name=name,
         path=path,
         source_format=source_format,
+        variant_key=variant_key(profile),
         entities=entities,
         edges=copy_edges,
         chunks=chunks,
         errors=errors,
         diagnostics=profile_diagnostics + antlr_bridge.consolidate_diagnostics(dd_diagnostics),
     )
+    _attach_source_evidence(result, profile, logical_lines)
+    return result
+
+
+def _attach_source_evidence(
+    result: ParseResult, profile: BuildProfile | None, logical_lines: list
+) -> None:
+    """Macht Herkunft/Variante auf Entity, Kante und Chat-Chunk identisch sichtbar."""
+    for entity in result.entities:
+        entity.meta = {
+            **entity.meta,
+            "evidence": source_evidence(
+                path=result.path,
+                start_line=entity.start_line,
+                end_line=entity.end_line,
+                profile=profile,
+            ),
+        }
+    for edge in result.edges:
+        condition = next(
+            (
+                line.condition
+                for line in logical_lines
+                if line.phys_start_line <= edge.src_start_line <= line.phys_end_line
+            ),
+            None,
+        )
+        edge.meta = {
+            **edge.meta,
+            "evidence": source_evidence(
+                path=result.path,
+                start_line=edge.src_start_line,
+                end_line=edge.src_end_line,
+                profile=profile,
+            ),
+        }
+        edge.meta["evidence"]["condition"] = condition
+        if condition:
+            edge.meta["condition"] = condition
+    for chunk in result.chunks:
+        chunk.meta = {
+            **chunk.meta,
+            "evidence": source_evidence(
+                path=result.path,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                profile=profile,
+            ),
+        }
 
 
 def _copybook_name(path: str) -> str:

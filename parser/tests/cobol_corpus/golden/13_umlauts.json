@@ -2,6 +2,7 @@
   "program_name": "KONTOSTATUSPRÜFUNG",
   "path": "cobol_corpus/fixtures/13_umlauts.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 26,
       "parent_name": null,
       "qualified_name": "KONTOSTATUSPRÜFUNG",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 1,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 12,
       "parent_name": "KONTOSTATUSPRÜFUNG",
       "qualified_name": "KONTOSTATUSPRÜFUNG.FILE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 10,
+            "end_line": 12
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -28,7 +65,25 @@
       "end_line": 20,
       "parent_name": "KONTOSTATUSPRÜFUNG",
       "qualified_name": "KONTOSTATUSPRÜFUNG.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 14,
+            "end_line": 20
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -37,7 +92,25 @@
       "end_line": 26,
       "parent_name": "KONTOSTATUSPRÜFUNG",
       "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜFUNGS-LOGIK",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 23,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -46,7 +119,25 @@
       "end_line": 26,
       "parent_name": "PRÜFUNGS-LOGIK",
       "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜFUNGS-LOGIK.200-BUCHUNGSPOSITIONEN-PRÜFEN",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 24,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "file_fd",
@@ -55,7 +146,25 @@
       "end_line": 11,
       "parent_name": "KONTOSTATUSPRÜFUNG",
       "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜF-DATEI",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 11,
+            "end_line": 11
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -70,7 +179,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 12,
+            "end_line": 12
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -86,7 +212,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 15,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -102,7 +245,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 16,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -118,7 +278,24 @@
         "redefines": null,
         "occurs": 1,
         "occurs_depending_on": "WS-ANZAHL-PRÜFUNGEN",
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 17,
+            "end_line": 18
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -134,7 +311,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 19,
+            "end_line": 19
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -150,7 +344,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": "J"
+        "value": "J",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 20,
+            "end_line": 20
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -163,7 +374,25 @@
       "src_start_line": 25,
       "src_end_line": 25,
       "scope": "KONTOSTATUSPRÜFUNG",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 25,
+            "end_line": 25
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -177,7 +406,24 @@
         "paragraph": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
         "start_line": 24,
         "end_line": 26,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 24,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -187,7 +433,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

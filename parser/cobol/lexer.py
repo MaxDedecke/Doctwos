@@ -8,12 +8,9 @@ Läuft nach embedded.mask() — EXEC-Blöcke sind zu diesem Zeitpunkt bereits
 durch satzzeichenfreie Platzhalter ersetzt, ein Punkt im Quelltext ist hier
 also immer ein echtes Satzende oder eine Dezimalstelle, nie SQL-Syntax.
 
-Tokenisiert pro Segment (nicht pro verketteter LogicalLine), damit die
-Spaltenposition jedes Tokens exakt bleibt. Bekannte Grenze: ein normales Wort
-(kein Literal), das über eine Continuation-Zeile hinweg gebrochen wird,
-zerfällt in zwei Tokens — dieser Fall ist in der Praxis selten (Continuation
-dient primär langen Literalen/PICTURE-Klauseln) und im Testkorpus nicht
-abgedeckt.
+Tokenisiert je LogicalLine, mit einer Zeichenpositionstabelle aus deren
+Segmenten. Dadurch bleiben Spaltenpositionen exakt und ein Literal oder Wort,
+das über eine Continuation-Zeile fortgesetzt wird, bleibt ein einzelnes Token.
 
 SYMBOL deckt bewusst nur `(`/`)` ab — die einzigen PICTURE-Klausel-Zeichen,
 die sonst stillschweigend aus dem Tokenstrom fallen würden (`_TOKEN_RE`
@@ -28,7 +25,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .model import LogicalLine, Segment, SourceFormat
+from .model import LogicalLine
 from .source_format import AREA_B_START
 
 # WORD nutzt \w statt A-Za-z0-9, damit deutsche Bezeichner mit Umlauten/ß
@@ -72,17 +69,22 @@ def tokenize(lines: list[LogicalLine]) -> list[Token]:
     for line in lines:
         if line.is_comment:
             continue
-        for seg in line.segments:
-            tokens.extend(_tokenize_segment(seg, line.source_format))
+        tokens.extend(_tokenize_line(line))
     return tokens
 
 
-def _tokenize_segment(seg: Segment, fmt: SourceFormat) -> list[Token]:
+def _tokenize_line(line: LogicalLine) -> list[Token]:
+    text = "".join(seg.text for seg in line.segments)
+    positions = [
+        (seg.phys_line, seg.col_start + offset)
+        for seg in line.segments
+        for offset, _ in enumerate(seg.text)
+    ]
     out: list[Token] = []
-    for m in _TOKEN_RE.finditer(seg.text):
-        col = seg.col_start + m.start()
+    for m in _TOKEN_RE.finditer(text):
+        phys_line, col = positions[m.start()]
         area = None
-        if fmt == "fixed":
+        if line.source_format != "free":
             area = "A" if col < AREA_B_START else "B"
-        out.append(Token(m.lastgroup, m.group(), seg.phys_line, col, area))
+        out.append(Token(m.lastgroup, m.group(), phys_line, col, area))
     return out

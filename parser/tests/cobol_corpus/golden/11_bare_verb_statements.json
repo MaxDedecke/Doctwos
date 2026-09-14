@@ -2,6 +2,7 @@
   "program_name": "BAREVERBS",
   "path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 16,
       "parent_name": null,
       "qualified_name": "BAREVERBS",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 1,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -19,7 +38,25 @@
       "end_line": 6,
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 4,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -28,7 +65,25 @@
       "end_line": 8,
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.FIRST-EXIT-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 7,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -37,7 +92,25 @@
       "end_line": 10,
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.FIRST-EXIT-PARA-ENDE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 9,
+            "end_line": 10
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -46,7 +119,25 @@
       "end_line": 13,
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.SECOND-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 11,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -55,7 +146,25 @@
       "end_line": 16,
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.THIRD-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 14,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "edges": [
@@ -68,7 +177,24 @@
       "src_end_line": 5,
       "scope": "BAREVERBS",
       "meta": {
-        "thru": "FIRST-EXIT-PARA-ENDE"
+        "thru": "FIRST-EXIT-PARA-ENDE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 5,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -79,7 +205,25 @@
       "src_start_line": 6,
       "src_end_line": 6,
       "scope": "BAREVERBS",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -97,7 +241,24 @@
         ],
         "start_line": 4,
         "end_line": 10,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 4,
+            "end_line": 10
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -113,7 +274,24 @@
         ],
         "start_line": 11,
         "end_line": 16,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/11_bare_verb_statements.cbl",
+            "start_line": 11,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -125,7 +303,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

@@ -30,7 +30,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-SourceFormat = Literal["fixed", "free"]
+# O-123: Variable und Extended behalten die Fixed-Format-Spalten 1–7, heben
+# aber dessen rechte Grenze an.  Sie sind eigene Werte (statt still als
+# ``fixed`` ausgegeben zu werden), damit Profil, Ergebnis und Chunk-Metadaten
+# den tatsächlich angewendeten Vertrag wiedergeben.
+SourceFormat = Literal["fixed", "free", "variable", "extended"]
 
 EntityType = Literal[
     "program",
@@ -182,6 +186,9 @@ class ParseResult:
     program_name: str
     path: str
     source_format: SourceFormat
+    # O-150: Varianten werden beim Persistieren getrennt gehalten. ``default``
+    # bleibt für alte Aufrufer ohne bestätigtes Buildprofil kompatibel.
+    variant_key: str = "default"
     entities: list[Entity] = field(default_factory=list)
     edges: list[ParsedEdge] = field(default_factory=list)
     chunks: list[Chunk] = field(default_factory=list)

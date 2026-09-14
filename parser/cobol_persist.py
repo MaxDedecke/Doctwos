@@ -89,7 +89,11 @@ def persist_parse_result(
     existing = {
         row.qualified_name: row
         for row in db.query(CodeEntity)
-        .filter(CodeEntity.source_id == source_id, CodeEntity.file_path == file_path)
+        .filter(
+            CodeEntity.source_id == source_id,
+            CodeEntity.file_path == file_path,
+            CodeEntity.variant_key == result.variant_key,
+        )
         .all()
     }
 
@@ -101,7 +105,12 @@ def persist_parse_result(
         seen_qnames.add(qname)
         row = existing.get(qname)
         if row is None:
-            row = CodeEntity(source_id=source_id, project_id=project_id, file_path=file_path)
+            row = CodeEntity(
+                source_id=source_id,
+                project_id=project_id,
+                file_path=file_path,
+                variant_key=result.variant_key,
+            )
             db.add(row)
         row.name = ent.name
         row.type = ent.type
@@ -122,6 +131,7 @@ def persist_parse_result(
         db.query(CodeEntity).filter(
             CodeEntity.source_id == source_id,
             CodeEntity.file_path == file_path,
+            CodeEntity.variant_key == result.variant_key,
             CodeEntity.qualified_name.in_(stale_qnames),
         ).delete(synchronize_session=False)
 
@@ -133,12 +143,13 @@ def persist_parse_result(
     if file_entity_ids:
         db.query(CodeEdge).filter(
             CodeEdge.source_id == source_id,
+            CodeEdge.variant_key == result.variant_key,
             CodeEdge.src_entity_id.in_(file_entity_ids),
         ).delete(synchronize_session=False)
 
     edge_count = 0
     for edge in result.edges:
-        row = _build_edge(project_id, source_id, edge, by_qname, by_name)
+        row = _build_edge(project_id, source_id, result.variant_key, edge, by_qname, by_name)
         if row is None:
             continue
         db.add(row)
@@ -222,6 +233,7 @@ def _parent_name(row: CodeEntity, by_qname: dict[str, CodeEntity]) -> str | None
 def _build_edge(
     project_id: int | None,
     source_id: int,
+    variant_key: str,
     edge: ParsedEdge,
     by_qname: dict[str, CodeEntity],
     by_name: dict[str, list[CodeEntity]],
@@ -273,5 +285,6 @@ def _build_edge(
         scope_entity_id=scope_entity_id,
         src_start_line=edge.src_start_line,
         src_end_line=edge.src_end_line,
+        variant_key=variant_key,
         meta_json=edge.meta or None,
     )

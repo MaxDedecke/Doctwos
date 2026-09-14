@@ -289,7 +289,9 @@ class ChatLinkFeedbackSignal(Base):
     chat_session_id = Column(
         Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     link_type = Column(String(30), nullable=False)  # 'entity_doc' | 'knowledge'
     link_id = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -330,7 +332,9 @@ class ChatFeedbackDiagnosticCase(Base):
         Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
-    source_id = Column(Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True)
+    source_id = Column(
+        Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True
+    )
     question = Column(EncryptedString, nullable=True)
     answer = Column(EncryptedString, nullable=False)
     sources_json = Column(JSON, nullable=True)
@@ -407,6 +411,9 @@ class CodeEntity(Base):
     )
     # Stabiler Schlüssel für Deep-Links: 'XAAOA.MAIN-SECTION.INIT-PARA'
     qualified_name = Column(String, nullable=True)
+    # O-150: dieselbe Quelle kann mehrere bestätigte Buildvarianten tragen;
+    # ihre gleichnamigen Artefakte dürfen sich nicht gegenseitig überschreiben.
+    variant_key = Column(String(64), nullable=False, server_default="default", index=True)
     start_line = Column(Integer, nullable=True)
     end_line = Column(Integer, nullable=True)
     # PIC-Klausel, Level, OCCURS/REDEFINES, SQL-Statement-Typ, Format (fixed/free)
@@ -421,7 +428,12 @@ class CodeEntity(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("source_id", "qualified_name", name="uq_code_entities_source_qname"),
+        UniqueConstraint(
+            "source_id",
+            "variant_key",
+            "qualified_name",
+            name="uq_code_entities_source_variant_qname",
+        ),
         Index("ix_code_entities_source_type", "source_id", "type"),
     )
 
@@ -465,6 +477,7 @@ class CodeEdge(Base):
     )
     src_start_line = Column(Integer, nullable=False, server_default="0")
     src_end_line = Column(Integer, nullable=False, server_default="0")
+    variant_key = Column(String(64), nullable=False, server_default="default", index=True)
     meta_json = Column(JSON, nullable=True)  # z.B. {"thru": "END-PARA"}, {"replacing": [...]}
 
     src_entity = relationship("CodeEntity", foreign_keys=[src_entity_id])

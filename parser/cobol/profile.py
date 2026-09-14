@@ -3,7 +3,7 @@ parser/cobol/profile.py
 =========================
 O-121: Buildprofile als expliziter Parser-Eingabewert statt impliziter
 Heuristik. Ein Profil beschreibt Compilerfamilie/-version, Quellformat,
-Encoding, Defines und COPY-Suchreihenfolge für eine COBOL-Quelle — heute
+Encoding, Debug-Modus, Defines und COPY-Suchreihenfolge für eine COBOL-Quelle — heute
 nur als Datenstruktur plus Resolver; DB-Persistenz und eine
 Einrichtungsoberfläche pro Kundenquelle sind O-151s Aufgabe
 (Profilimport/-export, manuelle Overrides), nicht diese.
@@ -18,11 +18,12 @@ heißt "diese Ebene äußert sich nicht dazu"):
 `resolve_profile()` verschmilzt sie zu einem `BuildProfile`: die
 spezifischste Ebene gewinnt je Feld.
 
-Nur `source_format` wirkt heute tatsächlich auf `parse.py` (Profil-Wert
+`source_format` und `debug_mode` wirken heute tatsächlich auf `parse.py` (Profil-Wert
 überschreibt `source_format.detect_format()`; fehlt er, bleibt die
 Heuristik aktiv, erzeugt aber eine `ParseDiagnostic`, die sie als Vermutung
 statt Tatsache kennzeichnet — O-121-Abnahme "keine automatische
-Dialekterkennung als Gewissheit ausgeben"). `compiler_version`, `encoding`
+Dialekterkennung als Gewissheit ausgeben"). `debug_mode` aktiviert nur
+bestätigte Fixed-/Variable-/Extended-Debug-Zeilen. `compiler_version`, `encoding`
 (O-127), `defines` (O-124: `>>IF`/`>>DEFINE`-Auswertung) und
 `copy_search_order` (O-135: COPY-Suchreihenfolge) sind bewusst schon als
 Felder vorhanden, weil die jeweiligen Ticket-Texte sie selbst als
@@ -53,7 +54,44 @@ KNOWN_COMPILER_FAMILIES = frozenset(
 )
 
 _LAYER_NAMES: tuple[str, ...] = ("source", "path", "variant")
-_SCALAR_FIELDS: tuple[str, ...] = ("compiler_family", "compiler_version", "source_format", "encoding")
+_SCALAR_FIELDS: tuple[str, ...] = (
+    "compiler_family",
+    "compiler_version",
+    "source_format",
+    "source_columns",
+    "encoding",
+    "debug_mode",
+)
+
+
+@dataclass(frozen=True)
+class SourceColumns:
+    """Konfigurierbare, 1-basierte Grenzen eines spaltengebundenen Formats.
+
+    Die Standardwerte entsprechen dem klassischen COBOL-Referenzformat.
+    ``code_end=None`` bedeutet keine rechte Begrenzung; Variable/Extended
+    liefern ohne Override dennoch ihre dokumentierten Standardgrenzen in
+    :mod:`source_format`.  Ein Layout wirkt absichtlich nicht auf Free-Format.
+    """
+
+    sequence_end: int = 6
+    indicator_column: int = 7
+    area_a_start: int = 8
+    area_b_start: int = 12
+    code_end: int | None = None
+
+    def __post_init__(self) -> None:
+        values = (self.sequence_end, self.indicator_column, self.area_a_start, self.area_b_start)
+        if any(not isinstance(value, int) or value < 1 for value in values):
+            raise ValueError("Spaltengrenzen müssen positive ganze Zahlen sein.")
+        if not (self.sequence_end < self.indicator_column < self.area_a_start <= self.area_b_start):
+            raise ValueError(
+                "Spaltengrenzen müssen sequence < indicator < area_a <= area_b erfüllen."
+            )
+        if self.code_end is not None and (
+            not isinstance(self.code_end, int) or self.code_end < self.area_b_start
+        ):
+            raise ValueError("code_end muss ab Area B liegen oder None sein.")
 
 
 @dataclass(frozen=True)
@@ -66,7 +104,11 @@ class ProfileFragment:
     compiler_family: str | None = None
     compiler_version: str | None = None
     source_format: SourceFormat | None = None
+    source_columns: SourceColumns | None = None
     encoding: str | None = None
+    # Debug-Zeilen (Indikator D in spaltengebundenen Formaten) werden nur
+    # bei einem bestätigten aktivem Build ausgewertet.
+    debug_mode: bool | None = None
     defines: dict[str, str] | None = None
     copy_search_order: tuple[str, ...] | None = None
 
@@ -81,7 +123,9 @@ class BuildProfile:
     compiler_family: str | None = None
     compiler_version: str | None = None
     source_format: SourceFormat | None = None
+    source_columns: SourceColumns | None = None
     encoding: str | None = None
+    debug_mode: bool = False
     defines: dict[str, str] = field(default_factory=dict)
     copy_search_order: tuple[str, ...] = ()
     resolved_from: dict[str, str] = field(default_factory=dict)
@@ -169,7 +213,9 @@ def resolve_profile(
         compiler_family=resolved.get("compiler_family"),
         compiler_version=resolved.get("compiler_version"),
         source_format=resolved.get("source_format"),
+        source_columns=resolved.get("source_columns"),
         encoding=resolved.get("encoding"),
+        debug_mode=resolved.get("debug_mode", False),
         defines=merged_defines,
         copy_search_order=merged_copy_order,
         resolved_from=resolved_from,

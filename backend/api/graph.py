@@ -65,6 +65,8 @@ def _entity_node(entity: CodeEntity) -> dict:
         "url": None,
         "qualified_name": entity.qualified_name,
         "source_id": entity.source_id,
+        "variant_key": entity.variant_key,
+        "evidence": (entity.meta_json or {}).get("evidence"),
     }
 
 

@@ -21,8 +21,6 @@ import importlib.util
 import os
 import sys
 
-import pytest
-
 from cobol.parse import parse_program
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
@@ -45,7 +43,7 @@ def _read_fixture(name: str) -> str:
 
 
 def test_every_fixture_has_exactly_one_matrix_entry():
-    fixture_names = {f[:-len(".cbl")] for f in os.listdir(FIXTURES) if f.endswith(".cbl")}
+    fixture_names = {f[: -len(".cbl")] for f in os.listdir(FIXTURES) if f.endswith(".cbl")}
     assert {case.fixture for case in MATRIX} == fixture_names
     assert len(MATRIX) == len(MATRIX_BY_FIXTURE), "doppelter Fixture-Name in MATRIX"
 
@@ -56,18 +54,6 @@ def test_known_bugs_carry_a_ticket_reference():
             assert case.ticket, f"{case.fixture}: 'bekannter Fehler' ohne ticket-Feld"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "O-123: eingerückte >>SOURCE FORMAT FREE-Direktive wird von "
-        "source_format.detect_format() als Fixed erkannt, siehe "
-        "docs/MAINFRAME_KOMPATIBILITAET.md. Golden File "
-        "16_source_format_free_directive_indented.json pinnt das aktuell "
-        "falsche Verhalten. Wird dieser Test grün: Matrix-Status in "
-        "cobol_corpus/matrix.py auf 'unterstützt'/'teilweise' setzen, "
-        "diesen Marker entfernen, Golden File neu erzeugen."
-    ),
-)
 def test_o123_indented_source_format_free_directive_is_recognized():
     fixture = "16_source_format_free_directive_indented.cbl"
     text = _read_fixture(fixture)
@@ -75,21 +61,12 @@ def test_o123_indented_source_format_free_directive_is_recognized():
 
     assert result.source_format == "free"
     assert result.program_name == "INDENTDIR"
-    assert result.errors == []
+    # Das Fixture enthält absichtlich keine DATA DIVISION. Entscheidend für
+    # O-123 ist, dass die Formatdirektive nicht mehr die Programmstruktur
+    # zerstört; die verbliebene fachlich korrekte Diagnose gehört nicht dazu.
+    assert result.errors == ["Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht."]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "O-124: >>IF 1 = 1 / >>ELSE erzeugt CALLs aus aktivem UND "
-        "inaktivem Zweig bei leerer Fehlerliste, siehe "
-        "docs/MAINFRAME_KOMPATIBILITAET.md. Golden File "
-        "17_conditional_compilation_true_branch.json pinnt das aktuell "
-        "falsche Verhalten. Wird dieser Test grün: Matrix-Status in "
-        "cobol_corpus/matrix.py auf 'unterstützt'/'teilweise' setzen, "
-        "diesen Marker entfernen, Golden File neu erzeugen."
-    ),
-)
 def test_o124_inactive_branch_of_known_true_condition_is_excluded():
     fixture = "17_conditional_compilation_true_branch.cbl"
     text = _read_fixture(fixture)
@@ -98,3 +75,29 @@ def test_o124_inactive_branch_of_known_true_condition_is_excluded():
     call_targets = sorted(edge.dst_name for edge in result.edges if edge.type == "CALL")
     assert call_targets == ["ACTIVE"]
     assert result.errors == []
+
+
+def test_o124_unknown_define_keeps_both_calls_as_conditional_evidence():
+    text = "\n".join(
+        (
+            "identification division.",
+            "program-id. CONDITIONAL.",
+            "procedure division.",
+            "main-para.",
+            ">>IF FEATURE",
+            '    call "ENABLED".',
+            ">>ELSE",
+            '    call "DISABLED".',
+            ">>END-IF",
+        )
+    )
+    result = parse_program(text, "conditional.cbl")
+
+    assert sorted(edge.dst_name for edge in result.edges if edge.type == "CALL") == [
+        "DISABLED",
+        "ENABLED",
+    ]
+    conditions = {
+        edge.dst_name: edge.meta["condition"] for edge in result.edges if edge.type == "CALL"
+    }
+    assert conditions == {"ENABLED": "FEATURE", "DISABLED": "NOT (FEATURE)"}

@@ -8,7 +8,7 @@ from sqlalchemy import text
 from unittest.mock import AsyncMock, patch
 
 from cobol.model import Chunk, ParseResult
-from cobol.profile import BuildProfile
+from cobol.profile import BuildProfile, SourceColumns
 from core.analysis_fingerprint import analysis_fingerprint
 from cobol.registry import ParserEntry
 from db import SessionLocal
@@ -93,6 +93,39 @@ def test_resolve_document_profile_uses_the_most_specific_path_override():
             "compiler_version": "path",
             "source_format": "source",
         },
+    )
+
+
+def test_resolve_document_profile_reads_configured_source_columns():
+    profile = _resolve_document_profile(
+        {
+            "build_profile": {
+                "source": {
+                    "source_format": "variable",
+                    "source_columns": {"code_end": 180},
+                }
+            }
+        },
+        "MAIN.CBL",
+    )
+
+    assert profile == BuildProfile(
+        source_format="variable",
+        source_columns=SourceColumns(code_end=180),
+        resolved_from={"source_format": "source", "source_columns": "source"},
+    )
+
+
+def test_resolve_document_profile_reads_debug_mode():
+    profile = _resolve_document_profile(
+        {"build_profile": {"source": {"source_format": "fixed", "debug_mode": True}}},
+        "MAIN.CBL",
+    )
+
+    assert profile == BuildProfile(
+        source_format="fixed",
+        debug_mode=True,
+        resolved_from={"source_format": "source", "debug_mode": "source"},
     )
 
 
@@ -800,9 +833,10 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
         "extra_meta": {"language": "fakelang"},
     }
 
-    with patch(
-        "connectors.git.STRUCTURE_PARSERS", {"fakelang": ParserEntry(parse=fake_parse)}
-    ), patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])):
+    with (
+        patch("connectors.git.STRUCTURE_PARSERS", {"fakelang": ParserEntry(parse=fake_parse)}),
+        patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])),
+    ):
         _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
 
     # O-079: der Fake-Eintrag hat keinen prepare_source-Hook, also wird

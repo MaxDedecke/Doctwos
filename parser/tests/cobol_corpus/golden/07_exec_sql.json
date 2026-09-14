@@ -2,6 +2,7 @@
   "program_name": "EXECSQL",
   "path": "cobol_corpus/fixtures/07_exec_sql.cbl",
   "source_format": "fixed",
+  "variant_key": "default",
   "entities": [
     {
       "type": "program",
@@ -10,7 +11,25 @@
       "end_line": 26,
       "parent_name": null,
       "qualified_name": "EXECSQL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 1,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "section",
@@ -19,7 +38,25 @@
       "end_line": 7,
       "parent_name": "EXECSQL",
       "qualified_name": "EXECSQL.WORKING-STORAGE",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 4,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "paragraph",
@@ -28,7 +65,25 @@
       "end_line": 26,
       "parent_name": "EXECSQL",
       "qualified_name": "EXECSQL.MAIN-PARA",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 9,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "data_item",
@@ -43,7 +98,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 5,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -59,7 +131,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -75,7 +164,24 @@
         "redefines": null,
         "occurs": null,
         "occurs_depending_on": null,
-        "value": null
+        "value": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 7,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -93,7 +199,24 @@
         "host_variables": [
           "WS-DEPT-ID"
         ],
-        "cursor_name": "EMP-CURSOR"
+        "cursor_name": "EMP-CURSOR",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 10,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -107,7 +230,24 @@
         "statement_type": "OPEN",
         "tables": [],
         "host_variables": [],
-        "cursor_name": "EMP-CURSOR"
+        "cursor_name": "EMP-CURSOR",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 16,
+            "end_line": 18
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -124,7 +264,24 @@
           "WS-EMP-ID",
           "WS-EMP-NAME"
         ],
-        "cursor_name": "EMP-CURSOR"
+        "cursor_name": "EMP-CURSOR",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 19,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     },
     {
@@ -138,7 +295,24 @@
         "statement_type": "CLOSE",
         "tables": [],
         "host_variables": [],
-        "cursor_name": "EMP-CURSOR"
+        "cursor_name": "EMP-CURSOR",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 23,
+            "end_line": 25
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -151,7 +325,25 @@
       "src_start_line": 10,
       "src_end_line": 15,
       "scope": "EXECSQL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 10,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -161,7 +353,25 @@
       "src_start_line": 19,
       "src_end_line": 22,
       "scope": "EXECSQL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 19,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     },
     {
       "type": "USES",
@@ -171,7 +381,25 @@
       "src_start_line": 19,
       "src_end_line": 22,
       "scope": "EXECSQL",
-      "meta": {}
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 19,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
@@ -185,7 +413,24 @@
         "paragraph": "MAIN-PARA",
         "start_line": 9,
         "end_line": 26,
-        "format": "fixed"
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 9,
+            "end_line": 26
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
       }
     }
   ],
@@ -195,7 +440,7 @@
       "code": "SOURCE_FORMAT_HEURISTIC",
       "severity": "info",
       "phase": "profile",
-      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil hat es bestätigt (siehe O-121; bekannte Heuristik-Lücke bei eingerückten Direktiven: O-123).",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
       "line": 0,
       "column": 0,
       "count": 1,

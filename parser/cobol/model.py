@@ -65,6 +65,8 @@ class LogicalLine:
     source_format: SourceFormat = "fixed"
     is_comment: bool = False
     is_debug: bool = False
+    directive: str | None = None
+    condition: str | None = None
 
     @property
     def text(self) -> str:

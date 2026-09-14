@@ -51,17 +51,16 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     if not candidates:
         return 0
 
-    by_type_and_name: dict[str, dict[str, list[CodeEntity]]] = {
-        "program": {},
-        "copybook": {},
-    }
+    by_variant_type_and_name: dict[tuple[str, str, str], list[CodeEntity]] = {}
     targets = (
         db.query(CodeEntity)
         .filter(CodeEntity.source_id == source_id, CodeEntity.type.in_(("program", "copybook")))
         .all()
     )
     for row in targets:
-        by_type_and_name[row.type].setdefault(row.name.upper(), []).append(row)
+        by_variant_type_and_name.setdefault(
+            (row.variant_key, row.type, row.name.upper()), []
+        ).append(row)
 
     resolved = 0
     for edge in candidates:
@@ -76,6 +75,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
                 .filter(
                     CodeEntity.source_id == source_id,
                     CodeEntity.type == "data_item",
+                    CodeEntity.variant_key == edge.variant_key,
                     CodeEntity.file_path == target_path,
                     CodeEntity.qualified_name == target_qname,
                 )
@@ -88,7 +88,9 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
             continue
         target_type = _TARGET_TYPE_BY_EDGE_TYPE[edge.type]
         dst_name = strip_copybook_extension(edge.dst_name) if edge.type == "COPY" else edge.dst_name
-        matches = by_type_and_name[target_type].get(dst_name.upper(), [])
+        matches = by_variant_type_and_name.get(
+            (edge.variant_key, target_type, dst_name.upper()), []
+        )
         if len(matches) == 1:
             edge.dst_entity_id = matches[0].id
             edge.resolution = "resolved"

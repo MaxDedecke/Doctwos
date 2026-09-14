@@ -89,6 +89,8 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
             "target_name": e.dst_name,
             "type": e.type,
             "resolution": e.resolution,
+            "variant_key": e.variant_key,
+            "meta": e.meta_json or {},
             "start_line": e.src_start_line,
             "end_line": e.src_end_line,
         }
@@ -103,6 +105,10 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
             "target_name": e.name,
             "type": "CONTAINS",
             "resolution": "resolved",
+            "variant_key": e.variant_key,
+            "meta": (e.meta_json or {}).get("evidence")
+            and {"evidence": e.meta_json["evidence"]}
+            or {},
             "start_line": e.start_line,
             "end_line": e.end_line,
         }
@@ -158,7 +164,18 @@ def export_callgraph(
     if format == "csv":
         out = io.StringIO()
         writer = csv.writer(out)
-        writer.writerow(["source", "target", "target_name", "type", "resolution"])
+        writer.writerow(
+            [
+                "source",
+                "target",
+                "target_name",
+                "type",
+                "resolution",
+                "variant_key",
+                "evidence",
+                "condition",
+            ]
+        )
         for edge in graph["edges"]:
             writer.writerow(
                 [
@@ -167,6 +184,9 @@ def export_callgraph(
                     edge["target_name"],
                     edge["type"],
                     edge["resolution"],
+                    edge.get("variant_key", ""),
+                    json.dumps((edge.get("meta") or {}).get("evidence"), ensure_ascii=False),
+                    json.dumps((edge.get("meta") or {}).get("condition"), ensure_ascii=False),
                 ]
             )
         return Response(
@@ -190,6 +210,11 @@ def export_callgraph(
                 target=str(edge["target"]),
             )
             SubElement(xml_edge, "data", key="type").text = edge["type"]
+            SubElement(xml_edge, "data", key="resolution").text = edge["resolution"]
+            SubElement(xml_edge, "data", key="variant_key").text = edge.get("variant_key", "")
+            SubElement(xml_edge, "data", key="evidence").text = json.dumps(
+                (edge.get("meta") or {}).get("evidence"), ensure_ascii=False
+            )
     return Response(
         tostring(root, encoding="unicode"),
         media_type="application/graphml+xml",
