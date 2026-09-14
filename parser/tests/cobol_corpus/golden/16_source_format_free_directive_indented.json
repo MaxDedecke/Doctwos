@@ -1,0 +1,36 @@
+{
+  "program_name": "",
+  "path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
+  "source_format": "fixed",
+  "entities": [
+    {
+      "type": "program",
+      "name": "",
+      "start_line": 1,
+      "end_line": 7,
+      "parent_name": null,
+      "qualified_name": "",
+      "meta": {}
+    }
+  ],
+  "edges": [],
+  "chunks": [
+    {
+      "content": "       >>SOURCE FORMAT FREE\n       IDENTIFICATION DIVISION.\n       PROGRAM-ID. INDENTDIR.\n       PROCEDURE DIVISION.\n       MAIN-PARA.\n           DISPLAY \"HELLO\".\n           STOP RUN.",
+      "start_line": 1,
+      "end_line": 7,
+      "meta": {
+        "program": "",
+        "format": "fixed",
+        "fallback": true
+      }
+    }
+  ],
+  "errors": [
+    "Keine Division erkannt (weder IDENTIFICATION/ENVIRONMENT/DATA/PROCEDURE DIVISION gefunden).",
+    "PROGRAM-ID nicht gefunden.",
+    "Keine DATA DIVISION gefunden - Datenfelder nicht durchsucht.",
+    "Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.",
+    "Keine PROCEDURE DIVISION gefunden - USES-Kanten nicht durchsucht."
+  ]
+}

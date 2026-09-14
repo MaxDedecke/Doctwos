@@ -1,0 +1,88 @@
+{
+  "program_name": "DIALECTTEST",
+  "path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+  "source_format": "free",
+  "entities": [
+    {
+      "type": "program",
+      "name": "DIALECTTEST",
+      "start_line": 1,
+      "end_line": 13,
+      "parent_name": null,
+      "qualified_name": "DIALECTTEST",
+      "meta": {}
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 5,
+      "parent_name": "DIALECTTEST",
+      "qualified_name": "DIALECTTEST.WORKING-STORAGE",
+      "meta": {}
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 7,
+      "end_line": 13,
+      "parent_name": "DIALECTTEST",
+      "qualified_name": "DIALECTTEST.MAIN-PARA",
+      "meta": {}
+    },
+    {
+      "type": "data_item",
+      "name": "FLAG",
+      "start_line": 5,
+      "end_line": 5,
+      "parent_name": "DIALECTTEST",
+      "qualified_name": "DIALECTTEST.FLAG",
+      "meta": {
+        "level": 1,
+        "picture": "X",
+        "redefines": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "CALL",
+      "src_name": "MAIN-PARA",
+      "dst_name": "ACTIVE",
+      "resolution": "unresolved",
+      "src_start_line": 9,
+      "src_end_line": 9,
+      "scope": null,
+      "meta": {}
+    },
+    {
+      "type": "CALL",
+      "src_name": "MAIN-PARA",
+      "dst_name": "INACTIVE",
+      "resolution": "unresolved",
+      "src_start_line": 11,
+      "src_end_line": 11,
+      "scope": null,
+      "meta": {}
+    }
+  ],
+  "chunks": [
+    {
+      "content": "MAIN-PARA.\n>>IF 1 = 1\n    call \"ACTIVE\".\n>>ELSE\n    call \"INACTIVE\".\n>>END-IF\n    goback.",
+      "start_line": 7,
+      "end_line": 13,
+      "meta": {
+        "program": "DIALECTTEST",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 7,
+        "end_line": 13,
+        "format": "free"
+      }
+    }
+  ],
+  "errors": []
+}
