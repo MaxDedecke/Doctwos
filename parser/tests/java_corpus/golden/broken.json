@@ -1,0 +1,111 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.damaged;\n\nclass Broken {",
+      "end_line": 3,
+      "meta": {
+        "container_path": null,
+        "end_line": 3,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "    void recover() {\n        int value = ;\n    }",
+      "end_line": 6,
+      "meta": {
+        "container_path": "corpus.damaged.Broken",
+        "end_line": 6,
+        "language": "java",
+        "start_line": 4,
+        "symbol_name": "recover",
+        "symbol_qualified_name": "corpus.damaged.Broken#recover()",
+        "symbol_type": "method"
+      },
+      "start_line": 4
+    },
+    {
+      "content": "}",
+      "end_line": 7,
+      "meta": {
+        "container_path": "corpus.damaged.Broken",
+        "end_line": 7,
+        "language": "java",
+        "start_line": 7,
+        "symbol_qualified_name": "corpus.damaged.Broken",
+        "symbol_type": "context"
+      },
+      "start_line": 7
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "JAVA_PARSER_ERROR",
+      "column": 18,
+      "line": 5,
+      "message": "extraneous input '=' expecting ';'",
+      "phase": "parser",
+      "severity": "error"
+    }
+  ],
+  "entities": [
+    {
+      "end_line": 8,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "broken.java",
+      "parent_qualified_name": null,
+      "qualified_name": "broken.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "package": "corpus.damaged"
+      },
+      "name": "corpus.damaged",
+      "parent_qualified_name": "broken.java",
+      "qualified_name": "corpus.damaged",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 7,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Broken",
+      "parent_qualified_name": "corpus.damaged",
+      "qualified_name": "corpus.damaged.Broken",
+      "start_line": 3,
+      "type": "class"
+    },
+    {
+      "end_line": 6,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "parameter_types": [],
+        "return_type": "void",
+        "signature": "recover()",
+        "visibility": "package"
+      },
+      "name": "recover",
+      "parent_qualified_name": "corpus.damaged.Broken",
+      "qualified_name": "corpus.damaged.Broken#recover()",
+      "start_line": 4,
+      "type": "method"
+    }
+  ]
+}

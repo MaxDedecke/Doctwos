@@ -32,6 +32,22 @@ def test_shared_registry_declares_roots_and_parser_analysis_inputs():
     assert cobol_entry.grammar_fingerprint is not None
     assert len(cobol_entry.grammar_fingerprint()) == 64
 
+    java_entry = registry.STRUCTURE_PARSERS["java"]
+    assert java_entry.root_entity_types == ("compilation_unit",)
+    assert java_entry.parser_version == "java-structure-1"
+    assert len(java_entry.grammar_fingerprint()) == 64
+
+
+def test_java_registry_entry_produces_entities_and_symbol_chunks():
+    result = registry.STRUCTURE_PARSERS["java"].parse(
+        "package sample; class App { void run() {} }", "src/App.java"
+    )
+
+    assert result.entities[0].type == "compilation_unit"
+    assert result.entities[0].meta["is_file_root"] is True
+    assert any(entity.qualified_name == "sample.App#run()" for entity in result.entities)
+    assert any(chunk.meta.get("symbol_type") == "method" for chunk in result.chunks)
+
 
 def test_registry_inputs_preserve_existing_cobol_analysis_fingerprint():
     entry = registry.STRUCTURE_PARSERS["cobol"]

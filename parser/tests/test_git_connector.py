@@ -20,6 +20,8 @@ from connectors.git import (
     _resolve_extension_config,
     _reuse_unchanged_embeddings,
     _run_prepare_hooks,
+    _is_java_build_excluded,
+    classify_extension,
 )
 import git_utils
 
@@ -73,6 +75,35 @@ def test_resolve_extension_config_prefers_new_key_over_old():
         {"language_extensions": {"cobol": [".new"]}, "cobol_extensions": {"cobol": [".old"]}}
     )
     assert cfg["cobol"] == {".new"}
+
+
+def test_java_extension_is_disabled_by_default_and_opt_in_per_source(monkeypatch):
+    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    defaults = _resolve_extension_config({})
+    opted_in = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
+
+    assert classify_extension("src/App.java", defaults) == "text"
+    assert classify_extension("src/App.java", opted_in) == "java"
+
+
+def test_java_extension_can_be_enabled_worker_wide(monkeypatch):
+    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.setenv("DOCTUS_LANGUAGE_EXTENSIONS", '{"java": [".java"]}')
+    cfg = _resolve_extension_config({})
+
+    assert classify_extension("src/App.java", cfg) == "java"
+
+
+def test_java_build_directory_excludes_are_scoped_to_java_sources(monkeypatch):
+    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    opted_in = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
+
+    assert _is_java_build_excluded("module/target/generated/App.java", opted_in)
+    assert _is_java_build_excluded("module/.gradle/cache/App.java", opted_in)
+    assert not _is_java_build_excluded("module/src/main/java/App.java", opted_in)
+    assert not _is_java_build_excluded("target/MAIN.cbl", opted_in)
 
 
 def test_resolve_document_profile_uses_the_most_specific_path_override():
@@ -348,6 +379,57 @@ async def test_git_connector_classifies_every_file_by_its_own_extension(
 
 
 @pytest.mark.anyio
+async def test_git_connector_parses_java_when_source_opts_in(db_session, test_source):
+    test_source.spaces = {"language_extensions": {"java": [".java"]}}
+    db_session.commit()
+    _commit_file(
+        test_source.url,
+        "src/demo/App.java",
+        "package demo;\npublic class App { public void run() {} }\n",
+        "add java source",
+    )
+    _commit_file(
+        test_source.url,
+        "target/generated/Generated.java",
+        "package generated; class Generated {}\n",
+        "add generated java source",
+    )
+
+    connector = GitConnector(test_source.id)
+    patches = _patched_sync(connector)
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "src/demo/App.java",
+        )
+        .all()
+    )
+    entities = (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == test_source.id,
+            CodeEntity.file_path == "src/demo/App.java",
+        )
+        .all()
+    )
+
+    assert chunks
+    assert all(chunk.metadata_json.get("language") == "java" for chunk in chunks)
+    assert any(chunk.metadata_json.get("symbol_type") == "method" for chunk in chunks)
+    assert {entity.type for entity in entities} >= {"compilation_unit", "package", "class", "method"}
+    assert not (
+        db_session.query(DocumentChunk)
+        .filter(
+            DocumentChunk.source_id == test_source.id,
+            DocumentChunk.file_path == "target/generated/Generated.java",
+        )
+        .all()
+    )
+@pytest.mark.anyio
 async def test_git_connector_delta_sync_add_modify_delete(db_session, test_source, git_remote):
     connector1 = GitConnector(test_source.id)
     p1, p2, p3, p4 = _patched_sync(connector1)
@@ -396,19 +478,23 @@ async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_sessi
     with first_batch, first_single, first_model, first_gpu:
         await connector.sync()
 
-    embed_batch = AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts])
     connector = GitConnector(test_source.id)
     with (
         patch("connectors.git.ensure_model_pulled", AsyncMock(return_value=None)),
-        patch("connectors.git.get_embeddings_batch", embed_batch),
+        patch(
+            "connectors.git.get_embeddings_batch",
+            AsyncMock(side_effect=lambda texts, model=None: [[0.1] * 1024 for _ in texts]),
+        ),
         patch("connectors.git.get_embedding", AsyncMock(return_value=[0.1] * 1024)),
         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
     ):
         await connector.sync(force_reindex=True)
 
-    assert embed_batch.await_count > 0
     db_session.refresh(test_source)
     assert test_source.sync_status == "completed"
+    # O-122 reuses embeddings for text-identical chunks even during a forced
+    # analysis; force_reindex guarantees that every file is processed again.
+    assert test_source.parsed_files == test_source.total_files > 0
 
 
 @pytest.mark.anyio
@@ -882,7 +968,7 @@ async def test_git_connector_skips_valid_utf8_dominated_by_control_characters(
         await connector.sync()
 
     db_session.refresh(test_source)
-    assert "[SKIP] 'weird.dat' ist kein UTF-8-Text" in test_source.sync_log
+    assert "[SKIP] 'weird.dat' ist kein sinnvoller utf-8-Text" in test_source.sync_log
     chunks = (
         db_session.query(DocumentChunk)
         .filter(

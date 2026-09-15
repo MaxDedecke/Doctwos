@@ -68,6 +68,18 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
     "cobol": {".cbl", ".cob", ".cobol"},
     "copybook": {".cpy", ".copy"},
     "jcl": {".jcl", ".proc", ".prc"},  # v1: nur Text-Index, keine Strukturanalyse (F-026)
+    # Explicit opt-in: configure {"java": [".java"]} per source or via the
+    # worker-wide DOCTUS_LANGUAGE_EXTENSIONS environment variable.
+    "java": set(),
+}
+_JAVA_BUILD_EXCLUDED_DIRS = {
+    "target",
+    "build",
+    ".gradle",
+    "bin",
+    "out",
+    ".idea",
+    ".settings",
 }
 
 # O-074: anders als folder.py/webdav.py (SUPPORTED_EXTENSIONS-Allowlist) hatte
@@ -190,7 +202,7 @@ _GIT_FETCH_LOCK_SECONDS = 600
 
 
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
-    """Konfigurierbar über DOCTUS_COBOL_EXTENSIONS (Env, Worker-weiter Default)
+    """Konfigurierbar über DOCTUS_LANGUAGE_EXTENSIONS (Worker-weiter Default)
     und optional spaces.language_extensions (überschreibt pro Wissensquelle).
     Beide erwarten {"cobol": [...], "copybook": [...], "jcl": [...]}.
 
@@ -201,12 +213,14 @@ def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
     gespeicherter Alt-Konfiguration nicht brechen."""
     cfg = dict(_DEFAULT_EXTENSIONS)
 
-    raw_env = os.environ.get("DOCTUS_COBOL_EXTENSIONS")
+    raw_env = os.environ.get("DOCTUS_LANGUAGE_EXTENSIONS") or os.environ.get(
+        "DOCTUS_COBOL_EXTENSIONS"
+    )
     if raw_env:
         try:
             cfg.update({k: set(v) for k, v in json.loads(raw_env).items()})
         except Exception:
-            logger.warning("DOCTUS_COBOL_EXTENSIONS ist kein gültiges JSON, ignoriere.")
+            logger.warning("DOCTUS_LANGUAGE_EXTENSIONS ist kein gültiges JSON, ignoriere.")
 
     override = None
     if isinstance(spaces, dict):
@@ -223,6 +237,15 @@ def classify_extension(path: str, extensions: dict[str, set[str]]) -> str:
         if ext in exts:
             return lang
     return "text"
+
+
+def _is_java_build_excluded(path: str, extensions: dict[str, set[str]]) -> bool:
+    if classify_extension(path, extensions) != "java":
+        return False
+    return any(
+        part.lower() in _JAVA_BUILD_EXCLUDED_DIRS
+        for part in path.replace("\\", "/").split("/")[:-1]
+    )
 
 
 def _fingerprint_libraries(
@@ -769,6 +792,13 @@ class GitConnector(BaseConnector):
                 await asyncio.to_thread(git_utils.reset_worktree_to_branch, wt, branch)
 
         current_hashes = await asyncio.to_thread(git_utils.list_tracked_files, wt)
+        excluded_java_paths = {
+            path for path in current_hashes if _is_java_build_excluded(path, extensions)
+        }
+        if excluded_java_paths:
+            self._log(
+                f"{len(excluded_java_paths)} Java-Datei(en) aus Build-/IDE-Verzeichnissen werden ignoriert."
+            )
         profiles_by_path = {
             path: _resolve_document_profile(spaces, path)
             for path in current_hashes
@@ -800,7 +830,10 @@ class GitConnector(BaseConnector):
             .filter(SourceScanFile.source_id == self.source_id)
             .all()
         }
-        deleted_paths = sorted(set(existing_records) - set(current_hashes))
+        deleted_paths = sorted(
+            (set(existing_records) - set(current_hashes))
+            | (set(existing_records) & excluded_java_paths)
+        )
 
         if worktree_is_new or not old_commit:
             self._log("Vollständige Ersteinlesung des Worktrees…")
@@ -839,6 +872,8 @@ class GitConnector(BaseConnector):
         to_process: list[tuple[str, str, str, str]] = []
         self._profiles_by_path.clear()
         for path, blob_sha in sorted(current_hashes.items()):
+            if path in excluded_java_paths:
+                continue
             content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
             profile = profiles_by_path.get(path)

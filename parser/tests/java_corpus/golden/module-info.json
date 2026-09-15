@@ -1,0 +1,44 @@
+{
+  "chunks": [
+    {
+      "content": "open module corpus.application {\n    requires java.base;\n    exports corpus.api;\n}",
+      "end_line": 4,
+      "meta": {
+        "container_path": null,
+        "end_line": 4,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 5,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "module-info.java",
+      "parent_qualified_name": null,
+      "qualified_name": "module-info.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 4,
+      "meta": {
+        "language": "java",
+        "module": "corpus.application"
+      },
+      "name": "corpus.application",
+      "parent_qualified_name": "module-info.java",
+      "qualified_name": "corpus.application",
+      "start_line": 1,
+      "type": "module"
+    }
+  ]
+}

@@ -9,6 +9,8 @@ from cobol.parse import parse_copybook, parse_program
 from cobol.prepare import prepare_copybook_index
 from core.analysis_fingerprint import grammar_fingerprint as cobol_grammar_fingerprint
 from core.model import ParseResult
+from java.fingerprint import grammar_fingerprint as java_grammar_fingerprint
+from java.parse import parse_java_file
 
 
 class StructureParser(Protocol):
@@ -43,6 +45,17 @@ def _parse_copybook(
     return parse_copybook(text, path, copybook_index=prepared_source, **kwargs)
 
 
+def _parse_java(
+    text: str, path: str, *, prepared_source: Any = None, **kwargs: Any
+) -> ParseResult:
+    """Adapt the generic registry contract to Java's source-only parser."""
+    return parse_java_file(
+        text,
+        path,
+        max_diagnostics=kwargs.get("max_diagnostics", 50),
+    )
+
+
 STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "cobol": ParserEntry(
         parse=_parse_cobol,
@@ -57,5 +70,11 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         root_entity_types=("copybook",),
         parser_version="cobol-structure-3",
         grammar_fingerprint=cobol_grammar_fingerprint,
+    ),
+    "java": ParserEntry(
+        parse=_parse_java,
+        root_entity_types=("compilation_unit",),
+        parser_version="java-structure-1",
+        grammar_fingerprint=java_grammar_fingerprint,
     ),
 }

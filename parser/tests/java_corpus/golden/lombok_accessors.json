@@ -1,0 +1,449 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.lombok;\n\nimport lombok.Data;\nimport lombok.Getter;\nimport lombok.Setter;\n\n@Data\npublic class Customer {",
+      "end_line": 8,
+      "meta": {
+        "container_path": null,
+        "end_line": 8,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "    private String name;",
+      "end_line": 9,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 9,
+        "language": "java",
+        "start_line": 9,
+        "symbol_name": "getName",
+        "symbol_qualified_name": "corpus.lombok.Customer#getName()",
+        "symbol_type": "method"
+      },
+      "start_line": 9
+    },
+    {
+      "content": "    private String name;",
+      "end_line": 9,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 9,
+        "language": "java",
+        "start_line": 9,
+        "symbol_name": "setName",
+        "symbol_qualified_name": "corpus.lombok.Customer#setName(String)",
+        "symbol_type": "method"
+      },
+      "start_line": 9
+    },
+    {
+      "content": "    private String name;",
+      "end_line": 9,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 9,
+        "language": "java",
+        "start_line": 9,
+        "symbol_name": "name",
+        "symbol_qualified_name": "corpus.lombok.Customer#name",
+        "symbol_type": "field"
+      },
+      "start_line": 9
+    },
+    {
+      "content": "    private final int id;",
+      "end_line": 10,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 10,
+        "language": "java",
+        "start_line": 10,
+        "symbol_name": "getId",
+        "symbol_qualified_name": "corpus.lombok.Customer#getId()",
+        "symbol_type": "method"
+      },
+      "start_line": 10
+    },
+    {
+      "content": "    private final int id;",
+      "end_line": 10,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 10,
+        "language": "java",
+        "start_line": 10,
+        "symbol_name": "id",
+        "symbol_qualified_name": "corpus.lombok.Customer#id",
+        "symbol_type": "field"
+      },
+      "start_line": 10
+    },
+    {
+      "content": "    @Getter(AccessLevel.NONE)\n    private String internalCode;",
+      "end_line": 12,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 12,
+        "language": "java",
+        "start_line": 11,
+        "symbol_name": "setInternalCode",
+        "symbol_qualified_name": "corpus.lombok.Customer#setInternalCode(String)",
+        "symbol_type": "method"
+      },
+      "start_line": 11
+    },
+    {
+      "content": "    @Getter(AccessLevel.NONE)\n    private String internalCode;",
+      "end_line": 12,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 12,
+        "language": "java",
+        "start_line": 11,
+        "symbol_name": "internalCode",
+        "symbol_qualified_name": "corpus.lombok.Customer#internalCode",
+        "symbol_type": "field"
+      },
+      "start_line": 11
+    },
+    {
+      "content": "}\n\nclass Flags {",
+      "end_line": 15,
+      "meta": {
+        "container_path": "corpus.lombok.Customer",
+        "end_line": 15,
+        "language": "java",
+        "start_line": 13,
+        "symbol_qualified_name": "corpus.lombok.Customer",
+        "symbol_type": "context"
+      },
+      "start_line": 13
+    },
+    {
+      "content": "    @Getter @Setter\n    boolean isEnabled;",
+      "end_line": 17,
+      "meta": {
+        "container_path": "corpus.lombok.Flags",
+        "end_line": 17,
+        "language": "java",
+        "start_line": 16,
+        "symbol_name": "setEnabled",
+        "symbol_qualified_name": "corpus.lombok.Flags#setEnabled(boolean)",
+        "symbol_type": "method"
+      },
+      "start_line": 16
+    },
+    {
+      "content": "    @Getter @Setter\n    boolean isEnabled;",
+      "end_line": 17,
+      "meta": {
+        "container_path": "corpus.lombok.Flags",
+        "end_line": 17,
+        "language": "java",
+        "start_line": 16,
+        "symbol_name": "isEnabled",
+        "symbol_qualified_name": "corpus.lombok.Flags#isEnabled",
+        "symbol_type": "field"
+      },
+      "start_line": 16
+    },
+    {
+      "content": "    public boolean isEnabled() { return isEnabled; }",
+      "end_line": 18,
+      "meta": {
+        "container_path": "corpus.lombok.Flags",
+        "end_line": 18,
+        "language": "java",
+        "start_line": 18,
+        "symbol_name": "isEnabled",
+        "symbol_qualified_name": "corpus.lombok.Flags#isEnabled()",
+        "symbol_type": "method"
+      },
+      "start_line": 18
+    },
+    {
+      "content": "}",
+      "end_line": 19,
+      "meta": {
+        "container_path": "corpus.lombok.Flags",
+        "end_line": 19,
+        "language": "java",
+        "start_line": 19,
+        "symbol_qualified_name": "corpus.lombok.Flags",
+        "symbol_type": "context"
+      },
+      "start_line": 19
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 20,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "lombok_accessors.java",
+      "parent_qualified_name": null,
+      "qualified_name": "lombok_accessors.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "package": "corpus.lombok"
+      },
+      "name": "corpus.lombok",
+      "parent_qualified_name": "lombok_accessors.java",
+      "qualified_name": "corpus.lombok",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 13,
+      "meta": {
+        "annotations": [
+          "Data"
+        ],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "visibility": "public"
+      },
+      "name": "Customer",
+      "parent_qualified_name": "corpus.lombok",
+      "qualified_name": "corpus.lombok.Customer",
+      "start_line": 7,
+      "type": "class"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "annotations": [],
+        "field_type": "String",
+        "language": "java",
+        "modifiers": [
+          "private"
+        ],
+        "visibility": "private"
+      },
+      "name": "name",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#name",
+      "start_line": 9,
+      "type": "field"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "annotations": [],
+        "generated_by": "lombok",
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "String",
+        "signature": "getName()",
+        "source_field": "corpus.lombok.Customer#name",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "getName",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#getName()",
+      "start_line": 9,
+      "type": "method"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "annotations": [],
+        "generated_by": "lombok",
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "String"
+        ],
+        "return_type": "void",
+        "signature": "setName(String)",
+        "source_field": "corpus.lombok.Customer#name",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "setName",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#setName(String)",
+      "start_line": 9,
+      "type": "method"
+    },
+    {
+      "end_line": 10,
+      "meta": {
+        "annotations": [],
+        "field_type": "int",
+        "language": "java",
+        "modifiers": [
+          "private",
+          "final"
+        ],
+        "visibility": "private"
+      },
+      "name": "id",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#id",
+      "start_line": 10,
+      "type": "field"
+    },
+    {
+      "end_line": 10,
+      "meta": {
+        "annotations": [],
+        "generated_by": "lombok",
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "int",
+        "signature": "getId()",
+        "source_field": "corpus.lombok.Customer#id",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "getId",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#getId()",
+      "start_line": 10,
+      "type": "method"
+    },
+    {
+      "end_line": 12,
+      "meta": {
+        "annotations": [
+          "Getter"
+        ],
+        "field_type": "String",
+        "language": "java",
+        "modifiers": [
+          "private"
+        ],
+        "visibility": "private"
+      },
+      "name": "internalCode",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#internalCode",
+      "start_line": 11,
+      "type": "field"
+    },
+    {
+      "end_line": 12,
+      "meta": {
+        "annotations": [],
+        "generated_by": "lombok",
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "String"
+        ],
+        "return_type": "void",
+        "signature": "setInternalCode(String)",
+        "source_field": "corpus.lombok.Customer#internalCode",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "setInternalCode",
+      "parent_qualified_name": "corpus.lombok.Customer",
+      "qualified_name": "corpus.lombok.Customer#setInternalCode(String)",
+      "start_line": 11,
+      "type": "method"
+    },
+    {
+      "end_line": 19,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Flags",
+      "parent_qualified_name": "corpus.lombok",
+      "qualified_name": "corpus.lombok.Flags",
+      "start_line": 15,
+      "type": "class"
+    },
+    {
+      "end_line": 17,
+      "meta": {
+        "annotations": [
+          "Getter",
+          "Setter"
+        ],
+        "field_type": "boolean",
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "isEnabled",
+      "parent_qualified_name": "corpus.lombok.Flags",
+      "qualified_name": "corpus.lombok.Flags#isEnabled",
+      "start_line": 16,
+      "type": "field"
+    },
+    {
+      "end_line": 17,
+      "meta": {
+        "annotations": [],
+        "generated_by": "lombok",
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "boolean"
+        ],
+        "return_type": "void",
+        "signature": "setEnabled(boolean)",
+        "source_field": "corpus.lombok.Flags#isEnabled",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "setEnabled",
+      "parent_qualified_name": "corpus.lombok.Flags",
+      "qualified_name": "corpus.lombok.Flags#setEnabled(boolean)",
+      "start_line": 16,
+      "type": "method"
+    },
+    {
+      "end_line": 18,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "boolean",
+        "signature": "isEnabled()",
+        "visibility": "public"
+      },
+      "name": "isEnabled",
+      "parent_qualified_name": "corpus.lombok.Flags",
+      "qualified_name": "corpus.lombok.Flags#isEnabled()",
+      "start_line": 18,
+      "type": "method"
+    }
+  ]
+}

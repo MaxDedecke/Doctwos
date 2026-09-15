@@ -1,0 +1,152 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.modern;\n\nsealed interface Shape permits Circle, Rectangle {}\nrecord Circle(double radius) implements Shape {}\nrecord Rectangle(double width, double height) implements Shape {}\n\nfinal class Area {",
+      "end_line": 7,
+      "meta": {
+        "container_path": null,
+        "end_line": 7,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "    static double calculate(Shape shape) {\n        return switch (shape) {\n            case Circle circle when circle.radius() > 0 -> Math.PI * circle.radius() * circle.radius();\n            case Rectangle(double width, double height) -> width * height;\n        };\n    }",
+      "end_line": 13,
+      "meta": {
+        "container_path": "corpus.modern.Area",
+        "end_line": 13,
+        "language": "java",
+        "start_line": 8,
+        "symbol_name": "calculate",
+        "symbol_qualified_name": "corpus.modern.Area#calculate(Shape)",
+        "symbol_type": "method"
+      },
+      "start_line": 8
+    },
+    {
+      "content": "}",
+      "end_line": 14,
+      "meta": {
+        "container_path": "corpus.modern.Area",
+        "end_line": 14,
+        "language": "java",
+        "start_line": 14,
+        "symbol_qualified_name": "corpus.modern.Area",
+        "symbol_type": "context"
+      },
+      "start_line": 14
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 15,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "java21_patterns.java",
+      "parent_qualified_name": null,
+      "qualified_name": "java21_patterns.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "package": "corpus.modern"
+      },
+      "name": "corpus.modern",
+      "parent_qualified_name": "java21_patterns.java",
+      "qualified_name": "corpus.modern",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 3,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "sealed"
+        ],
+        "visibility": "package"
+      },
+      "name": "Shape",
+      "parent_qualified_name": "corpus.modern",
+      "qualified_name": "corpus.modern.Shape",
+      "start_line": 3,
+      "type": "interface"
+    },
+    {
+      "end_line": 4,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Circle",
+      "parent_qualified_name": "corpus.modern",
+      "qualified_name": "corpus.modern.Circle",
+      "start_line": 4,
+      "type": "record"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Rectangle",
+      "parent_qualified_name": "corpus.modern",
+      "qualified_name": "corpus.modern.Rectangle",
+      "start_line": 5,
+      "type": "record"
+    },
+    {
+      "end_line": 14,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "final"
+        ],
+        "visibility": "package"
+      },
+      "name": "Area",
+      "parent_qualified_name": "corpus.modern",
+      "qualified_name": "corpus.modern.Area",
+      "start_line": 7,
+      "type": "class"
+    },
+    {
+      "end_line": 13,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "static"
+        ],
+        "parameter_types": [
+          "Shape"
+        ],
+        "return_type": "double",
+        "signature": "calculate(Shape)",
+        "visibility": "package"
+      },
+      "name": "calculate",
+      "parent_qualified_name": "corpus.modern.Area",
+      "qualified_name": "corpus.modern.Area#calculate(Shape)",
+      "start_line": 8,
+      "type": "method"
+    }
+  ]
+}

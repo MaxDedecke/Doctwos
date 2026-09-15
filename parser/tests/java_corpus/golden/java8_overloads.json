@@ -1,0 +1,317 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.legacy;\n\nimport java.util.List;\n\n@Deprecated\npublic class Catalog<T extends Number> {",
+      "end_line": 6,
+      "meta": {
+        "container_path": null,
+        "end_line": 6,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "    private final List<T> values;",
+      "end_line": 7,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 7,
+        "language": "java",
+        "start_line": 7,
+        "symbol_name": "values",
+        "symbol_qualified_name": "corpus.legacy.Catalog#values",
+        "symbol_type": "field"
+      },
+      "start_line": 7
+    },
+    {
+      "content": "    int count, limit;",
+      "end_line": 8,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 8,
+        "language": "java",
+        "start_line": 8,
+        "symbol_name": "count, limit",
+        "symbol_qualified_name": [
+          "corpus.legacy.Catalog#count",
+          "corpus.legacy.Catalog#limit"
+        ],
+        "symbol_type": "fields"
+      },
+      "start_line": 8
+    },
+    {
+      "content": "    public Catalog(List<T> values) {\n        this.values = values;\n    }",
+      "end_line": 12,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 12,
+        "language": "java",
+        "start_line": 10,
+        "symbol_name": "Catalog",
+        "symbol_qualified_name": "corpus.legacy.Catalog#<init>(List<T>)",
+        "symbol_type": "constructor"
+      },
+      "start_line": 10
+    },
+    {
+      "content": "    public T find(int index) {\n        return values.get(index);\n    }",
+      "end_line": 16,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 16,
+        "language": "java",
+        "start_line": 14,
+        "symbol_name": "find",
+        "symbol_qualified_name": "corpus.legacy.Catalog#find(int)",
+        "symbol_type": "method"
+      },
+      "start_line": 14
+    },
+    {
+      "content": "    public T find(String key) {\n        return values.get(key.length());\n    }",
+      "end_line": 20,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 20,
+        "language": "java",
+        "start_line": 18,
+        "symbol_name": "find",
+        "symbol_qualified_name": "corpus.legacy.Catalog#find(String)",
+        "symbol_type": "method"
+      },
+      "start_line": 18
+    },
+    {
+      "content": "\n    public static class Entry {",
+      "end_line": 22,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog",
+        "end_line": 22,
+        "language": "java",
+        "start_line": 21,
+        "symbol_qualified_name": "corpus.legacy.Catalog",
+        "symbol_type": "context"
+      },
+      "start_line": 21
+    },
+    {
+      "content": "        String key;",
+      "end_line": 23,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog.Entry",
+        "end_line": 23,
+        "language": "java",
+        "start_line": 23,
+        "symbol_name": "key",
+        "symbol_qualified_name": "corpus.legacy.Catalog.Entry#key",
+        "symbol_type": "field"
+      },
+      "start_line": 23
+    },
+    {
+      "content": "    }\n}",
+      "end_line": 25,
+      "meta": {
+        "container_path": "corpus.legacy.Catalog.Entry",
+        "end_line": 25,
+        "language": "java",
+        "start_line": 24,
+        "symbol_qualified_name": "corpus.legacy.Catalog.Entry",
+        "symbol_type": "context"
+      },
+      "start_line": 24
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 26,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "java8_overloads.java",
+      "parent_qualified_name": null,
+      "qualified_name": "java8_overloads.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "package": "corpus.legacy"
+      },
+      "name": "corpus.legacy",
+      "parent_qualified_name": "java8_overloads.java",
+      "qualified_name": "corpus.legacy",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 25,
+      "meta": {
+        "annotations": [
+          "Deprecated"
+        ],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "visibility": "public"
+      },
+      "name": "Catalog",
+      "parent_qualified_name": "corpus.legacy",
+      "qualified_name": "corpus.legacy.Catalog",
+      "start_line": 5,
+      "type": "class"
+    },
+    {
+      "end_line": 7,
+      "meta": {
+        "annotations": [],
+        "field_type": "List<T>",
+        "language": "java",
+        "modifiers": [
+          "private",
+          "final"
+        ],
+        "visibility": "private"
+      },
+      "name": "values",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#values",
+      "start_line": 7,
+      "type": "field"
+    },
+    {
+      "end_line": 8,
+      "meta": {
+        "annotations": [],
+        "field_type": "int",
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "count",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#count",
+      "start_line": 8,
+      "type": "field"
+    },
+    {
+      "end_line": 8,
+      "meta": {
+        "annotations": [],
+        "field_type": "int",
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "limit",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#limit",
+      "start_line": 8,
+      "type": "field"
+    },
+    {
+      "end_line": 12,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "List<T>"
+        ],
+        "signature": "Catalog(List<T>)",
+        "visibility": "public"
+      },
+      "name": "Catalog",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#<init>(List<T>)",
+      "start_line": 10,
+      "type": "constructor"
+    },
+    {
+      "end_line": 16,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "int"
+        ],
+        "return_type": "T",
+        "signature": "find(int)",
+        "visibility": "public"
+      },
+      "name": "find",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#find(int)",
+      "start_line": 14,
+      "type": "method"
+    },
+    {
+      "end_line": 20,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [
+          "String"
+        ],
+        "return_type": "T",
+        "signature": "find(String)",
+        "visibility": "public"
+      },
+      "name": "find",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog#find(String)",
+      "start_line": 18,
+      "type": "method"
+    },
+    {
+      "end_line": 24,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public",
+          "static"
+        ],
+        "visibility": "public"
+      },
+      "name": "Entry",
+      "parent_qualified_name": "corpus.legacy.Catalog",
+      "qualified_name": "corpus.legacy.Catalog.Entry",
+      "start_line": 22,
+      "type": "class"
+    },
+    {
+      "end_line": 23,
+      "meta": {
+        "annotations": [],
+        "field_type": "String",
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "key",
+      "parent_qualified_name": "corpus.legacy.Catalog.Entry",
+      "qualified_name": "corpus.legacy.Catalog.Entry#key",
+      "start_line": 23,
+      "type": "field"
+    }
+  ]
+}

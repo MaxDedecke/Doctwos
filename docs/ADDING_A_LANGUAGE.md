@@ -1,20 +1,17 @@
 # Eine neue Sprache anbinden
 
 **Zweck (O-081):** "auf andere Sprachen skalierbar, wenn nötig" ist eine
-Behauptung, die überprüfbar sein muss. Diese Anleitung ist die Probe darauf —
-Schritt für Schritt, anhand des COBOL-Parsers (`parser/cobol/`) als einziger
-existierender Referenzimplementierung. Stand 06.09.2026, nach O-077 (Registry
-statt hartkodierter Weiche), O-078 (sprachneutrale Parse-Typen nach
-`parser/core/model.py`), O-079 (Copybook-Vorlauf als registry-deklarierter
-Hook) und O-080 (Frontend-Entity-Decorations waren schon immer sprachneutral,
-nichts zu tun).
+Behauptung, die überprüfbar sein muss. Diese Anleitung beschreibt die
+gemeinsame Anbindung über Registry und ParseResult. COBOL (`parser/cobol/`)
+und Java (`parser/java/`) sind die Referenzimplementierungen. Stand
+15.09.2026, nach O-077 (Registry statt hartkodierter Weiche), O-078
+(sprachneutrale Parse-Typen), O-079 (registry-deklarierter Vorlauf-Hook) und
+O-080 (sprachneutrale Frontend-Entity-Decorations).
 
-**Reine Anleitung, kein Code** — es gibt noch keinen zweiten Struktur-Parser,
-und dieses Dokument baut absichtlich keinen auf Vorrat (CLAUDE.md Prinzip 3,
-siehe auch die Vorgeschichte in O-077: eine ungenutzte `parser/languages/`-
-Abstraktion gab es schon einmal und wurde wieder entfernt). Diese Datei
-beschreibt nur, was zu tun wäre, wenn ein echter zweiter Struktur-Parser
-gebraucht wird.
+Die Anleitung bleibt bewusst klein und orientiert sich an bereits
+implementierten Verträgen. Sie führt kein `parser/languages/`-Vorratspaket ein
+(CLAUDE.md Prinzip 3; siehe O-077), sondern dokumentiert die konkreten Schritte
+für einen weiteren Registry-Eintrag.
 
 ## Kurzfassung
 
@@ -105,7 +102,7 @@ mit einem äquivalenten Einbindungsmechanismus.
 
 ## Schritt 1: Dateiendungen klassifizieren
 
-`connectors/git.py::_DEFAULT_EXTENSIONS` (bzw. `DOCTUS_COBOL_EXTENSIONS`-Env
+`connectors/git.py::_DEFAULT_EXTENSIONS` (bzw. `DOCTUS_LANGUAGE_EXTENSIONS`-Env
 oder `spaces["language_extensions"]` pro Wissensquelle, siehe
 `_resolve_extension_config()`) ordnet Dateiendungen einem Sprachschlüssel
 zu:
@@ -115,6 +112,7 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
     "cobol": {".cbl", ".cob", ".cobol"},
     "copybook": {".cpy", ".copy"},
     "jcl": {".jcl", ".proc", ".prc"},
+    "java": set(),  # opt-in per Quelle oder Worker-Konfiguration
 }
 ```
 

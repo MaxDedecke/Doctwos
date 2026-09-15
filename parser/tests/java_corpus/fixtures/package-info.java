@@ -1,0 +1,2 @@
+@Deprecated
+package corpus.documented;

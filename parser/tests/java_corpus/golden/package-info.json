@@ -1,0 +1,44 @@
+{
+  "chunks": [
+    {
+      "content": "@Deprecated\npackage corpus.documented;",
+      "end_line": 2,
+      "meta": {
+        "container_path": null,
+        "end_line": 2,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 3,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "package-info.java",
+      "parent_qualified_name": null,
+      "qualified_name": "package-info.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 2,
+      "meta": {
+        "language": "java",
+        "package": "corpus.documented"
+      },
+      "name": "corpus.documented",
+      "parent_qualified_name": "package-info.java",
+      "qualified_name": "corpus.documented",
+      "start_line": 1,
+      "type": "package"
+    }
+  ]
+}

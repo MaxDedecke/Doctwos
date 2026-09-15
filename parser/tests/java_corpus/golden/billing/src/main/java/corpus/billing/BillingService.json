@@ -1,0 +1,112 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.billing;\n\npublic class BillingService {",
+      "end_line": 3,
+      "meta": {
+        "container_path": null,
+        "end_line": 3,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "    public int calculate(int amount) {\n        return amount;\n    }",
+      "end_line": 6,
+      "meta": {
+        "container_path": "corpus.billing.BillingService",
+        "end_line": 6,
+        "language": "java",
+        "start_line": 4,
+        "symbol_name": "calculate",
+        "symbol_qualified_name": "corpus.billing.BillingService#calculate(int)",
+        "symbol_type": "method"
+      },
+      "start_line": 4
+    },
+    {
+      "content": "}",
+      "end_line": 7,
+      "meta": {
+        "container_path": "corpus.billing.BillingService",
+        "end_line": 7,
+        "language": "java",
+        "start_line": 7,
+        "symbol_qualified_name": "corpus.billing.BillingService",
+        "symbol_type": "context"
+      },
+      "start_line": 7
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 8,
+      "meta": {
+        "is_file_root": true,
+        "language": "java",
+        "module": "billing"
+      },
+      "name": "BillingService.java",
+      "parent_qualified_name": null,
+      "qualified_name": "billing/src/main/java/corpus/billing/BillingService.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "module": "billing",
+        "package": "corpus.billing"
+      },
+      "name": "corpus.billing",
+      "parent_qualified_name": "billing/src/main/java/corpus/billing/BillingService.java",
+      "qualified_name": "corpus.billing",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 7,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "module": "billing",
+        "visibility": "public"
+      },
+      "name": "BillingService",
+      "parent_qualified_name": "corpus.billing",
+      "qualified_name": "corpus.billing.BillingService",
+      "start_line": 3,
+      "type": "class"
+    },
+    {
+      "end_line": 6,
+      "meta": {
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "module": "billing",
+        "parameter_types": [
+          "int"
+        ],
+        "return_type": "int",
+        "signature": "calculate(int)",
+        "visibility": "public"
+      },
+      "name": "calculate",
+      "parent_qualified_name": "corpus.billing.BillingService",
+      "qualified_name": "corpus.billing.BillingService#calculate(int)",
+      "start_line": 4,
+      "type": "method"
+    }
+  ]
+}

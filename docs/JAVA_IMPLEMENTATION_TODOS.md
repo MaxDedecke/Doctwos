@@ -20,27 +20,55 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 - [x] **T1.4 Eltern-Persistenz:** `_parent_id` anhand des expliziten Parent-QName
   bestimmen; alten Punkt-Split nur als Kompatibilitäts-Fallback für Ergebnisse
   ohne Parent-QName behalten. Parent-Scope- und Reparse-Tests ergänzen.
-- [ ] **T1.5 COBOL-Gate:** Parser-Golden-Files, Persistenz-/Connector-Tests und
+- [x] **T1.5 COBOL-Gate:** Parser-Golden-Files, Persistenz-/Connector-Tests und
   Backend-Entity-Tests ausführen; COBOL-Golden-Dateien dürfen sich nicht ändern.
-  Gezielte Golden-, Persistenz-, Connector- und Backend-Entity-Tests sind grün.
-  Der vollständige Parser-Testlauf meldete weitere Fehlschläge; sein
-  Fehlerbericht wurde nicht gesichert und muss vor Abschluss erneut erhoben
-  und eingeordnet werden.
+  **Abgeschlossen 15.09.2026:** vollständige Parser-Suite 365/365 grün,
+  Backend-Root-Tests 4/4 grün; COBOL-Golden-Files unverändert. Zwei veraltete
+  Git-Connector-Testannahmen wurden aktualisiert: `force_reindex` analysiert
+  alle Dateien erneut, übernimmt aber unveränderte Embeddings (O-122); die
+  Skip-Meldung für UTF-8-Dateien mit zu vielen Steuerzeichen entspricht jetzt
+  der aktuellen Diagnose. Kein Produktcode geändert.
 
 ## Paket 2 – Java-Deklarationen und Chunks
 
-- [ ] **T2.1 Grammatik-Freigabe:** Java-21-Grammatik, Upstream-Commit,
-  Sprachstand, Lizenztext und Regenerierungsweg verifizieren und dokumentieren.
-- [ ] **T2.2 Parser-Bridge:** ANTLR-Lexer/Parser, begrenzte Diagnosen,
-  Originalzeilen-Mapping und fehler-tolerantes Ergebnis implementieren.
-- [ ] **T2.3 Declaration Visitor:** Compilation Units, Package/Module, alle
-  vereinbarten Typen, Methoden, Konstruktoren, Felder und Initializer mit
-  stabilen QNames, Parent-QNames, Metadaten und Zeilenbereichen erfassen.
-- [ ] **T2.4 Chunking und Git:** Symbolorientierte Java-Chunks, Fallback,
-  Java-Extension, Opt-in-Konfiguration, Build-Excludes und Modul-Metadaten
-  integrieren.
-- [ ] **T2.5 Golden-Korpus:** Java-Fixtures, Golden-Files und Regenerierungsskript
-  aufbauen; Java-8- und Java-21-Syntax sowie beschädigte Dateien abdecken.
+- [x] **T2.1 Grammatik-Freigabe:** **Abgeschlossen 15.09.2026.** Als Basis ist
+  `antlr/grammars-v4/java/java` am Commit
+  `20efa537586610f5aebd584429ac1b5993a30381` gepinnt. `JavaLexer.g4` und
+  `JavaParser.g4` enthalten jeweils den BSD-3-Clause-Lizenztext; Herkunft,
+  Sprachstand und Generierungsverfahren sind unter
+  `parser/java/grammar/README.md` dokumentiert. Das Upstream-README nennt Java
+  24 als getesteten Stand; Java-21-Feature-Abdeckung wird trotzdem im eigenen
+  Golden-Korpus geprüft. Upstream liefert nur Java-/C#-Basisklassen. Die
+  Python-Bridge und ihre beiden semantischen Prädikate werden Doctus-eigen
+  implementiert, ohne die fremde Java-Basisklasse zu übernehmen.
+- [x] **T2.2 Parser-Bridge:** **Abgeschlossen 15.09.2026.** ANTLR-4.13.2-
+  Python-Lexer, Parser und Visitor sind generiert und eingecheckt; die eigene
+  Basisklasse implementiert beide Grammatik-Prädikate. Die Bridge normalisiert
+  CRLF/CR, mappt Diagnosen auf Originalzeilen, begrenzt sie und behält bei
+  Syntaxfehlern den reparierten Teilbaum. Python 3.12.3 und die festgelegte
+  ANTLR-Runtime 4.13.2 sind getestet. Regenerierung: `parser/java/generate_parser.sh`.
+- [x] **T2.3 Declaration Visitor:** **Abgeschlossen 15.09.2026.** Das gemeinsame
+  `ParseResult` enthält Datei-Wurzel, Package/Modul, Top-Level- und geschachtelte
+  Typen (Klasse, Interface, Enum, Record, Annotation Type), Methoden,
+  Konstruktoren, Felder/Enum-Konstanten und Initializer. QNames und Parent-QNames
+  sind explizit; Signaturen, Modifier, Sichtbarkeit, Annotationen und Quellzeilen
+  werden als Metadaten geliefert. `@Getter`, `@Setter` und `@Data` erzeugen
+  belegte Accessor-Entities, sofern keine gleichnamige Methode existiert.
+  Ausführbare Bodies werden nicht als lokale Deklarationsräume traversiert.
+  Java-Bridge-Tests: 14/14.
+- [x] **T2.4 Chunking und Git:** **Abgeschlossen 15.09.2026.** Methoden,
+  Konstruktoren, Initializer und Feldgruppen erzeugen Symbol-Chunks; übriger
+  Quelltext bleibt als Kontext, nicht parsebare Dateien bekommen markierte
+  Fallback-Chunks. `.java` ist standardmäßig aus und kann pro Quelle über
+  `language_extensions` oder workerweit `DOCTUS_LANGUAGE_EXTENSIONS` aktiviert
+  werden. `target/`, `build/`, `.gradle/`, `bin/`, `out/`, `.idea/` und
+  `.settings/` werden dann ausgeschlossen. Maven-/Gradle-Quellpfade liefern
+  `meta.module`. Git-Integrationstest: 1/1.
+- [x] **T2.5 Golden-Korpus:** **Abgeschlossen 15.09.2026.** Sieben Fixtures
+  decken Java-8-Generics/Overloads, Java-21-Records/Pattern-Switch, Lombok,
+  Modul-/Package-Deskriptoren, Modulpfade und beschädigte Syntax ab. JSON-
+  Golden-Files und `parser/tests/update_java_goldens.py` sind vorhanden;
+  Bridge-, Golden- und Registry-Tests zusammen: 19/19.
 
 ## Paket 3 – Beziehungen und Auflösung
 
@@ -79,13 +107,9 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.4.
-- **Aktiv:** T1.5 (gezielte Tests grün; vollständigen Parser-Testlauf mit
-  gesichertem Fehlerbericht wiederholen und die Fehlschläge einordnen).
-- **Nächstes konkretes TODO:** `PYTHONPATH=parser .venv/bin/pytest parser/tests -q`
-  mit der benötigten `.env`-Konfiguration erneut ausführen, Fehlerbericht
-  sichern und entscheiden, ob die Fehlschläge regressionsbedingt oder
-  umgebungs-/baselinebedingt sind. Erst danach T1.5 schließen oder gezielt
-  nachbessern.
-- **Danach:** nach T1.5 mit T2.1 (Java-21-Grammatik-Freigabe) beginnen.
-- **Noch nicht begonnen:** T2.1 bis T5.4.
+- **Abgeschlossen:** T1.1 bis T1.5 und T2.1 bis T2.5.
+- **Aktiv:** T3.1 (Java-Beziehungen extrahieren).
+- **Nächstes konkretes TODO:** Imports, Vererbung, Implementierungen,
+  Typverwendungen, Methoden-/Konstruktoraufrufe und Feldzugriffe samt
+  Quellbelegen als `ParsedEdge` erfassen.
+- **Noch nicht begonnen:** T3.2 bis T5.4.
