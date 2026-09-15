@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 from cobol.model import Chunk, ParseResult
 from cobol.profile import BuildProfile, SourceColumns
 from core.analysis_fingerprint import analysis_fingerprint
-from cobol.registry import ParserEntry
+from core.registry import ParserEntry
 from db import SessionLocal
 from models.database import CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import (
@@ -22,6 +22,11 @@ from connectors.git import (
     _run_prepare_hooks,
 )
 import git_utils
+
+
+async def _run_to_thread_inline(func, *args, **kwargs):
+    """Keep dispatch-contract tests independent of executor shutdown behavior."""
+    return func(*args, **kwargs)
 
 
 def test_looks_like_text_accepts_plain_ascii():
@@ -918,7 +923,7 @@ async def test_git_connector_logs_embedding_start_per_file(db_session, test_sour
 async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without_one():
     """O-079: `_run_prepare_hooks()` läuft generisch über STRUCTURE_PARSERS
     -- ein von mehreren Sprachen geteilter prepare_source-Hook (wie
-    `_prepare_copybook_index` für "cobol"/"copybook") läuft nur EINMAL statt
+    `prepare_copybook_index` für "cobol"/"copybook") läuft nur EINMAL statt
     einmal pro Sprache, und eine Sprache ohne Hook bekommt gar keinen
     Eintrag im Ergebnis (statt z. B. `None` vorzutäuschen)."""
     calls = []
@@ -933,7 +938,10 @@ async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without
         "langC": ParserEntry(parse=lambda *a, **k: None),  # kein Hook
     }
 
-    with patch("connectors.git.STRUCTURE_PARSERS", fake_registry):
+    with (
+        patch("connectors.git.STRUCTURE_PARSERS", fake_registry),
+        patch("connectors.git.asyncio.to_thread", _run_to_thread_inline),
+    ):
         prepared = await _run_prepare_hooks("/some/wt", {"ext": {".x"}})
 
     assert calls == [("/some/wt", {"ext": {".x"}}, {})]
@@ -944,7 +952,7 @@ async def test_run_prepare_hooks_dedupes_shared_hook_and_skips_languages_without
 @pytest.mark.anyio
 async def test_git_connector_dispatches_via_structure_parser_registry():
     """O-077: der Dispatch von Sprache -> Struktur-Parser läuft über
-    connectors.git.STRUCTURE_PARSERS (cobol/registry.py), eine kleine Registry
+    connectors.git.STRUCTURE_PARSERS (core/registry.py), eine kleine Registry
     statt der vormaligen hartkodierten `if lang in {"cobol", "copybook"}`-
     Weiche. Das hier haengt einen Fake-"Sprache"-Eintrag in genau diese
     Registry ein und beweist so, dass der Dispatch-Mechanismus selbst fuer
@@ -956,8 +964,8 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
     connector = GitConnector(source_id=-1)
     calls = []
 
-    def fake_parse(text_, path, copybook_index=None):
-        calls.append((text_, path, copybook_index))
+    def fake_parse(text_, path, *, prepared_source=None, **kwargs):
+        calls.append((text_, path, prepared_source))
         return ParseResult(
             program_name="FAKE",
             path=path,
@@ -977,6 +985,7 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
     with (
         patch("connectors.git.STRUCTURE_PARSERS", {"fakelang": ParserEntry(parse=fake_parse)}),
         patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])),
+        patch("connectors.git.asyncio.to_thread", _run_to_thread_inline),
     ):
         _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
 

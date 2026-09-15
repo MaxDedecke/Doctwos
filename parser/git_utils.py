@@ -23,8 +23,8 @@ import subprocess
 from urllib.parse import urlsplit, urlunsplit
 
 # Obergrenze für einzelne Dateireads (Connector-Chunking wie Parser-Vorlauf-
-# Hooks, z. B. cobol/registry.py::_prepare_copybook_index) -- hier statt in
-# connectors/git.py, damit auch cobol/registry.py sie lesen kann, ohne einen
+# Hooks, z. B. cobol/prepare.py::prepare_copybook_index) -- hier statt in
+# connectors/git.py, damit auch cobol/prepare.py sie lesen kann, ohne einen
 # Zirkelimport auf connectors.git einzugehen (git_utils selbst hängt an
 # nichts aus cobol/ oder connectors/).
 MAX_READ_BYTES = 2 * 1024 * 1024

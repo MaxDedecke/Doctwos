@@ -40,7 +40,7 @@ from core.source_decoder import SourceDecodeError, decode_source, looks_like_tex
 from cobol import copybook as copybook_mod
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
-from cobol.registry import STRUCTURE_PARSERS
+from core.registry import STRUCTURE_PARSERS
 from cobol_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
@@ -161,14 +161,14 @@ async def _run_prepare_hooks(
 ) -> dict[str, Any]:
     """O-079: ruft für jede Sprache mit Registry-Eintrag deren optionalen
     `prepare_source()`-Hook einmal auf, bevor die erste Datei dieser Sprache
-    geparst wird -- generisch über STRUCTURE_PARSERS (cobol/registry.py),
+    geparst wird -- generisch über STRUCTURE_PARSERS (core/registry.py),
     ohne dass dieser Connector weiß, was ein Hook tut oder wie er heißt.
     Vorher rief fetch_documents() dafür `_build_copybook_index()` fest
     verdrahtet auf, eine COBOL-spezifische Voranalyse mitten im sonst
     sprachneutralen Connector-Code.
 
     Mehrere Sprachen können sich denselben Hook teilen (COBOL/Copybook teilen
-    sich `_prepare_copybook_index` für den quellenweiten Copybook-Index) --
+    sich `prepare_copybook_index` für den quellenweiten Copybook-Index) --
     der läuft dann trotzdem nur einmal, nicht pro Sprache."""
     prepared: dict[str, Any] = {}
     results_by_hook: dict[int, Any] = {}
@@ -413,7 +413,7 @@ class GitConnector(BaseConnector):
         super().__init__(source_id)
         self._new_commit: str | None = None
         # O-079: pro Sprache das Ergebnis ihres optionalen prepare_source-
-        # Hooks (STRUCTURE_PARSERS[lang], cobol/registry.py), gefüllt in
+        # Hooks (STRUCTURE_PARSERS[lang], core/registry.py), gefüllt in
         # fetch_documents() bevor die erste Datei geparst wird. Für COBOL/
         # Copybook ist das der quellenweite Copybook-Index (Pass 0, AP-4),
         # den copybook.scan() zur COPY-Auflösung braucht -- dieser Connector
@@ -447,11 +447,11 @@ class GitConnector(BaseConnector):
                 # weitere STRUCTURE_PARSERS-Eintrag, O-077) sind rein
                 # in-memory (E-6), deshalb in einen Thread ausgelagert wie
                 # das generische Chunking auch (CPU-gebunden, würde sonst den
-                # Event-Loop blockieren). copybook_index ist das Ergebnis von
+                # Event-Loop blockieren). prepared_source ist das Ergebnis von
                 # entry.prepare_source() (O-079), sofern die Sprache einen
                 # Hook hat -- sonst None.
                 profile = self._profiles_by_path.get(doc["storage_key"])
-                parse_kwargs = {"copybook_index": self._prepared_by_lang.get(lang)}
+                parse_kwargs = {"prepared_source": self._prepared_by_lang.get(lang)}
                 # Registry-Einträge sind bewusst auch für künftige, nicht
                 # COBOL-spezifische Strukturparser offen (O-077). Nur ein
                 # tatsächlich konfiguriertes COBOL-Profil wird deshalb als
@@ -779,7 +779,7 @@ class GitConnector(BaseConnector):
         # benannten _build_copybook_index()-Aufrufs - für COBOL/Copybook
         # baut das (wie zuvor) bei jedem Sync über den vollen Baum den
         # Copybook-Index (Pass 0, Plan §6.4/E-2), siehe
-        # cobol/registry.py::_prepare_copybook_index.
+        # cobol/prepare.py::prepare_copybook_index.
         self._prepared_by_lang = await _run_prepare_hooks(wt, extensions, profiles_by_path)
 
         new_commit = await asyncio.to_thread(git_utils.current_commit, wt)
@@ -842,13 +842,18 @@ class GitConnector(BaseConnector):
             content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
             profile = profiles_by_path.get(path)
+            parser_entry = STRUCTURE_PARSERS.get(language)
             fingerprint = analysis_fingerprint(
                 source_revision=blob_sha,
                 profile=profile,
-                parser_version="cobol-structure-3"
-                if language in {"cobol", "copybook"}
-                else "generic-chunker-1",
-                grammar_version=None if language in {"cobol", "copybook"} else "not-applicable",
+                parser_version=(
+                    parser_entry.parser_version if parser_entry else "generic-chunker-1"
+                ),
+                grammar_version=(
+                    parser_entry.grammar_fingerprint()
+                    if parser_entry and parser_entry.grammar_fingerprint
+                    else "not-applicable"
+                ),
                 libraries=_fingerprint_libraries(
                     path, language, existing_records.get(path), copybook_hashes, copybook_index
                 ),

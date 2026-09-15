@@ -13,7 +13,7 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 - [x] **T1.2 Datei-Wurzel:** `/entities/resolve` über `meta.is_file_root`
   auflösen; für bereits persistierte COBOL-Dateien vorübergehend auf die
   bisherigen `program`-/`copybook`-Typen zurückfallen.
-- [ ] **T1.3 Registry:** `ParserEntry` und `STRUCTURE_PARSERS` nach
+- [x] **T1.3 Registry:** `ParserEntry` und `STRUCTURE_PARSERS` nach
   `parser/core/registry.py` verschieben; `prepared_source`, explizite Root-Typen
   und parserabhängige Version/Fingerprint-Hooks einführen. COBOL-Aufrufer und
   Tests kontrolliert migrieren.
@@ -75,6 +75,7 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1, T1.2 und T1.4.
-- **Als Nächstes:** T1.3 (sprachneutrale Registry); danach T1.5 als Paket-Gate.
-- **Noch nicht begonnen:** T1.3 und T1.5 bis T5.4.
+- **Abgeschlossen:** T1.1 bis T1.4.
+- **Aktiv:** T1.5 (gezielte Tests grün; DB-gebundene Integrationsprüfung noch offen).
+- **Als Nächstes:** nach T1.5 mit Paket 2 beginnen.
+- **Noch nicht begonnen:** T2.1 bis T5.4.

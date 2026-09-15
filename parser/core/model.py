@@ -7,9 +7,9 @@ O-078: Vorher standen `ParseResult`/`Entity`/`ParsedEdge`/`Chunk` in
 `parser/cobol/model.py`, obwohl an ihnen selbst nichts COBOL-Spezifisches
 hängt — `cobol_persist.py::persist_parse_result` könnte sie unverändert für
 jede Sprache verarbeiten. Das erzwang für einen künftigen zweiten Struktur-
-Parser (siehe O-077, `cobol/registry.py::STRUCTURE_PARSERS`) die falsche
+Parser (siehe O-077, `core/registry.py::STRUCTURE_PARSERS`) die falsche
 Kopplung `from cobol.model import ParseResult`. Diese vier Typen (plus die
-Literal-Aliase, die sie referenzieren) leben jetzt hier; `cobol/model.py`
+Alias-Typen, die sie referenzieren) leben jetzt hier; `cobol/model.py`
 importiert sie unverändert weiter, damit bestehender Code (`from cobol.model
 import ...` sowie das paketinterne `from .model import ...`) unangetastet
 bleibt. Reine Verschiebung — keine Verhaltensänderung.
@@ -174,7 +174,7 @@ class ParseDiagnostic:
 
 @dataclass
 class ParseResult:
-    """Ergebnis eines Struktur-Parsers (siehe `cobol/registry.py::
+    """Ergebnis eines Struktur-Parsers (siehe `core/registry.py::
     STRUCTURE_PARSERS`, O-077) für **eine** Datei (Plan §6.3), komplett
     in-memory — kein DB-Zugriff (docs/ENTSCHEIDUNGEN.md E-6). Das ist die
     Struktur, gegen die die Golden Files aus F-033 vergleichen.

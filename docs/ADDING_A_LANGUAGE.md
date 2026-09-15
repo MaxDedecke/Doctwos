@@ -130,16 +130,16 @@ was Schritt 3 registriert.
 Eigenes Paket `parser/<sprache>/` analog `parser/cobol/` — reine
 Parse-Logik, komplett DB-frei (E-6), kein Import aus `connectors/`,
 `models/` oder `cobol_persist.py`. Einstiegsfunktion mit der Signatur, die
-`StructureParser` in `cobol/registry.py` verlangt:
+`StructureParser` in `core/registry.py` verlangt:
 
 ```python
-def parse_program(text: str, path: str, copybook_index: CopybookIndex | None = None) -> ParseResult: ...
+def parse_program(text: str, path: str, *, prepared_source: object = None) -> ParseResult: ...
 ```
 
-Der dritte Parameter heißt aus historischen Gründen `copybook_index` (COBOL
-war die einzige Sprache, als er entstand) — er ist aber generisch: es ist
-schlicht das Ergebnis, das `ParserEntry.prepare_source()` (Schritt 3, O-079)
-für diese Sprache geliefert hat, `None` wenn kein Hook registriert ist. Eine
+Der generische Parameter `prepared_source` ist das Ergebnis, das
+`ParserEntry.prepare_source()` (Schritt 3, O-079) für diese Sprache
+geliefert hat; ohne Hook ist es `None`. Der COBOL-Adapter übersetzt diesen
+Namen intern auf das historische `copybook_index`-Argument. Eine
 neue Sprache ohne quellenweite Vorabanalyse ignoriert den Parameter einfach
 (Default `None`); eine Sprache mit einem COBOL-COPY-analogen Bedarf (z. B.
 eine quellenweite Symboltabelle für `#include`) bekommt über denselben
@@ -148,20 +148,31 @@ wissen muss.
 
 ## Schritt 3: In der Registry eintragen
 
-`cobol/registry.py::STRUCTURE_PARSERS` ist die einzige Anschlussstelle:
+`core/registry.py::STRUCTURE_PARSERS` ist die gemeinsame Anschlussstelle:
 
 ```python
 @dataclass(frozen=True)
 class ParserEntry:
     parse: StructureParser
     prepare_source: PrepareSourceHook | None = None   # optional, O-079
+    root_entity_types: tuple[str, ...] = ()
+    parser_version: str = "1"
+    grammar_fingerprint: Callable[[], str] | None = None
 
 STRUCTURE_PARSERS: dict[str, ParserEntry] = {
-    "cobol": ParserEntry(parse=parse_program, prepare_source=_prepare_copybook_index),
-    "copybook": ParserEntry(parse=parse_copybook, prepare_source=_prepare_copybook_index),
-    "java": ParserEntry(parse=java_parse.parse_program),   # Beispiel, kein prepare_source nötig
+    "cobol": ParserEntry(parse=parse_program, prepare_source=prepare_copybook_index),
+    "java": ParserEntry(
+        parse=java_parse.parse_program,
+        root_entity_types=("compilation_unit",),
+        parser_version="java-structure-1",
+        grammar_fingerprint=java_grammar_fingerprint,
+    ),
 }
 ```
+
+Neue Einträge setzen einen stabilen `parser_version`-Wert und, falls sie eine
+Grammatik nutzen, einen Fingerprint-Hook. Die Git-Ingestion verwendet beide
+Werte für Resume- und Reindex-Entscheidungen.
 
 Der Registry-Schlüssel ist derselbe String wie in Schritt 1
 (`_DEFAULT_EXTENSIONS`). `GitConnector` kennt danach automatisch die neue
@@ -169,12 +180,9 @@ Sprache — `_embed_document()`/`_run_prepare_hooks()` fragen generisch über
 `STRUCTURE_PARSERS.get(lang)` ab, ohne dass `connectors/git.py` je wieder
 angefasst werden muss.
 
-**Bewusst nicht Teil dieser Anleitung:** `cobol/registry.py` unter dem
-`cobol/`-Paket zu belassen, obwohl es ab einem echten zweiten Eintrag streng
-genommen keine COBOL-spezifische Datei mehr wäre. Ein Umzug (z. B. nach
-`parser/core/registry.py`) ist dann eine eigene, kleine Aufräumarbeit — aber
-kein Vorratsbau jetzt, wo noch niemand zweites drinsteht (derselbe Grundsatz
-wie bei O-077/O-078).
+`cobol/registry.py` bleibt vorübergehend als Kompatibilitäts-Reexport für
+bestehende Importe bestehen. Neue Parser und Konsumenten verwenden
+`core/registry.py`.
 
 ## Schritt 4: Golden-File-Testkorpus
 

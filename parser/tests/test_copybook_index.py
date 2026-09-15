@@ -1,4 +1,4 @@
-from cobol import registry
+from cobol import prepare
 from cobol.parse import parse_program
 from cobol.profile import BuildProfile
 
@@ -10,14 +10,14 @@ def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monke
     (copy_dir / "BASE.CPY").write_text("01 BASE-RECORD.\n   05 BASE-ID PIC X.\n")
     (copy_dir / "WRAP.CPY").write_text("COPY BASE REPLACING ==BASE== BY ==CUSTOMER==.\n")
     monkeypatch.setattr(
-        registry.git_utils,
+        prepare.git_utils,
         "list_tracked_files",
         lambda _: ["copy/BASE.CPY", "copy/WRAP.CPY"],
     )
 
     # O-079: die Voranalyse ist jetzt der prepare_source-Hook der Registry-
     # Einträge "cobol"/"copybook", nicht mehr ein connectors.git-Internum.
-    index = registry._prepare_copybook_index(str(tmp_path), {"copybook": {".cpy"}})
+    index = prepare.prepare_copybook_index(str(tmp_path), {"copybook": {".cpy"}})
 
     assert index.fields_by_path["copy/WRAP.CPY"][0]["effective_name"] == "CUSTOMER-RECORD"
     program = (
@@ -42,9 +42,9 @@ def test_sourcewide_index_uses_the_same_confirmed_decoder_as_programs(tmp_path, 
     copy_dir.mkdir()
     source = "01 GRÜSSE.\n   05 Ä-FELD PIC X.\n"
     (copy_dir / "NAMES.CPY").write_bytes(source.encode("cp273"))
-    monkeypatch.setattr(registry.git_utils, "list_tracked_files", lambda _: ["copy/NAMES.CPY"])
+    monkeypatch.setattr(prepare.git_utils, "list_tracked_files", lambda _: ["copy/NAMES.CPY"])
 
-    index = registry._prepare_copybook_index(
+    index = prepare.prepare_copybook_index(
         str(tmp_path),
         {"copybook": {".cpy"}},
         {"copy/NAMES.CPY": BuildProfile(encoding="CCSID-273")},
