@@ -89,6 +89,26 @@ def _definition(entity: CodeEntity, db: Session) -> dict | None:
     }
 
 
+def _select_file_root(file_entities: list[CodeEntity], path: str) -> CodeEntity | None:
+    """Select a language-neutral file root, with legacy COBOL fallback."""
+    entity = next(
+        (
+            candidate
+            for candidate in file_entities
+            if (candidate.meta_json or {}).get("is_file_root")
+        ),
+        None,
+    )
+    if entity is not None:
+        return entity
+
+    # Compatibility for entities persisted before the shared root marker was
+    # introduced. New parsers should set is_file_root.
+    suffix = PurePosixPath(path).suffix.lower()
+    wanted_type = "copybook" if suffix in {".cpy", ".copy"} else "program"
+    return next((candidate for candidate in file_entities if candidate.type == wanted_type), None)
+
+
 @router.get("/resolve")
 def resolve_entity(
     source_id: int,
@@ -104,18 +124,16 @@ def resolve_entity(
     if not source:
         raise HTTPException(status_code=404, detail="Quelle nicht gefunden")
     assert_team_visible(source.team_id, user, db, "Quelle nicht gefunden")
-    suffix = PurePosixPath(path).suffix.lower()
-    wanted_type = "copybook" if suffix in {".cpy", ".copy"} else "program"
-    entity = (
+    file_entities = (
         db.query(CodeEntity)
         .filter(
             CodeEntity.source_id == source_id,
             CodeEntity.file_path == path,
-            CodeEntity.type == wanted_type,
         )
         .order_by(CodeEntity.id)
-        .first()
+        .all()
     )
+    entity = _select_file_root(file_entities, path)
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(entity, user, db, project_id)

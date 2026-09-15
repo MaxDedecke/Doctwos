@@ -30,7 +30,12 @@ def _parse_result_dict(fixture_name: str) -> dict:
     with open(os.path.join(FIXTURES, fixture_name)) as f:
         text = f.read()
     logical_path = f"cobol_corpus/fixtures/{fixture_name}"
-    return dataclasses.asdict(parse_program(text, logical_path))
+    result = dataclasses.asdict(parse_program(text, logical_path))
+    # Parent QNames are a new cross-language contract and are covered by
+    # dedicated assertions. Keep the existing COBOL output goldens byte-stable.
+    for entity in result["entities"]:
+        entity.pop("parent_qualified_name", None)
+    return result
 
 
 @pytest.mark.parametrize("fixture_name", FIXTURE_NAMES)
@@ -48,3 +53,12 @@ def test_every_fixture_has_a_golden_file():
     golden_names = {f for f in os.listdir(GOLDEN) if f.endswith(".json")}
     expected_names = {f.rsplit(".", 1)[0] + ".json" for f in FIXTURE_NAMES}
     assert golden_names == expected_names
+
+
+def test_cobol_entities_include_explicit_parent_qualified_names():
+    with open(os.path.join(FIXTURES, "01_minimal.cbl")) as f:
+        result = parse_program(f.read(), "cobol_corpus/fixtures/01_minimal.cbl")
+
+    by_qname = {entity.qualified_name: entity for entity in result.entities}
+    assert by_qname["MINIMAL"].parent_qualified_name is None
+    assert by_qname["MINIMAL.MAIN-PARA"].parent_qualified_name == "MINIMAL"

@@ -253,6 +253,7 @@ def _build_entities(
             end_line=program.end_line,
             parent_name=program.parent_name,
             qualified_name=_qualify(program.parent_name, program.name),
+            parent_qualified_name=program.parent_name,
         )
     )
 
@@ -268,6 +269,7 @@ def _build_entities(
                 end_line=section.end_line,
                 parent_name=program.name,
                 qualified_name=qname,
+                parent_qualified_name=program.name,
             )
         )
 
@@ -285,6 +287,7 @@ def _build_entities(
                 end_line=paragraph.end_line,
                 parent_name=paragraph.section or program.name,
                 qualified_name=_qualify(parent_qname, paragraph.name),
+                parent_qualified_name=parent_qname,
             )
         )
 
@@ -299,6 +302,7 @@ def _build_entities(
                 end_line=entry.end_line,
                 parent_name=program.name,
                 qualified_name=_qualify(program.name, entry.name),
+                parent_qualified_name=program.name,
                 meta={"paragraph": entry.paragraph},
             )
         )
@@ -312,6 +316,7 @@ def _build_entities(
                 end_line=block.end_line,
                 parent_name=program.name,
                 qualified_name=_qualify(program.name, block.name),
+                parent_qualified_name=program.name,
                 meta={
                     "statement_type": block.statement_type,
                     "tables": block.tables,
@@ -353,6 +358,7 @@ def _build_field_entities(
                 end_line=fd.end_line,
                 parent_name=root_name,
                 qualified_name=qname,
+                parent_qualified_name=root_name,
             )
         )
 
@@ -382,6 +388,7 @@ def _build_field_entities(
                 end_line=item.end_line,
                 parent_name=item.parent or root_name,
                 qualified_name=qname,
+                parent_qualified_name=parent_qname,
                 meta={
                     "level": item.level,
                     "picture": item.picture,
@@ -532,6 +539,7 @@ def parse_copybook(
             start_line=start_line,
             end_line=end_line,
             qualified_name=name,
+            parent_qualified_name=None,
         )
     ]
     entities.extend(_build_field_entities(name, items, file_descriptors))

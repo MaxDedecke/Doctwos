@@ -36,19 +36,9 @@ from typing import Literal
 # den tatsächlich angewendeten Vertrag wiedergeben.
 SourceFormat = Literal["fixed", "free", "variable", "extended"]
 
-EntityType = Literal[
-    "program",
-    "copybook",
-    "section",
-    "paragraph",
-    "data_item",
-    "file_fd",
-    "sql_table",
-    "sql_block",
-    "entry",
-]
+EntityType = str
 
-EdgeType = Literal["CALL", "PERFORM", "GOTO", "COPY", "DEFINES", "USES", "READS", "WRITES"]
+EdgeType = str
 # "GOTO" ist noch nicht in backend/models/database.py::CodeEdge.type (Kommentar
 # listet nur "CALL | PERFORM | COPY | DEFINES | USES | READS | WRITES") — nachziehen,
 # sobald parse.py/die DB-Schicht ans Ergebnis von procedure.py angebunden wird.
@@ -94,7 +84,9 @@ class Entity:
     `source_id`/`parent_id`/`content_hash`), die erst beim Persistieren in
     AP-4 entstehen (docs/ENTSCHEIDUNGEN.md E-6). `parent_name` trägt
     stattdessen den Namen der Eltern-Entity **derselben Datei** — AP-4 löst
-    daraus beim Schreiben die echte `parent_id` auf.
+    daraus beim Schreiben die echte `parent_id` auf. Neue Struktur-Parser
+    setzen zusätzlich `parent_qualified_name`, damit Persistenz und Views die
+    Hierarchie nicht aus dem sprachspezifischen QName-Format erraten müssen.
 
     `qualified_name` wird schon hier gebaut (z.B. "XAAOA.MAIN-SECTION.
     INIT-PARA") — alle dafür nötigen Vorfahren sind beim Parsen einer
@@ -109,6 +101,10 @@ class Entity:
     parent_name: str | None = None
     qualified_name: str | None = None
     meta: dict = field(default_factory=dict)
+    # Explicit parent identity is necessary because qualified names need not
+    # use dots as hierarchy separators (e.g. Java method signatures), and a
+    # dot may occur inside a package or type name.
+    parent_qualified_name: str | None = None
 
 
 @dataclass

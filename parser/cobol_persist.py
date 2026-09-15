@@ -119,7 +119,13 @@ def persist_parse_result(
         row.end_line = ent.end_line
         row.meta_json = ent.meta or None
         row.content_hash = content_hash
-        row.parent_id = _parent_id(qname, by_qname, existing)
+        row.parent_id = _parent_id(
+            qname,
+            by_qname,
+            existing,
+            parent_qualified_name=ent.parent_qualified_name,
+            legacy_parent_name=ent.parent_name,
+        )
         # Sofort flushen, damit die eigene id für Kinder verfügbar ist, die
         # in derselben Schleife noch folgen (entities sind laut parse.py
         # immer in Eltern-vor-Kind-Reihenfolge aufgebaut).
@@ -160,18 +166,23 @@ def persist_parse_result(
 
 
 def _parent_id(
-    qname: str, by_qname: dict[str, CodeEntity], existing: dict[str, CodeEntity]
+    qname: str,
+    by_qname: dict[str, CodeEntity],
+    existing: dict[str, CodeEntity],
+    *,
+    parent_qualified_name: str | None = None,
+    legacy_parent_name: str | None = None,
 ) -> int | None:
-    """Der Elternteil einer Entity ist immer der qualified_name minus des
-    eigenen letzten Namenssegments — qualified_name wird in parse.py
-    ausschließlich über `f"{parent_qname}.{name}"` gebaut (_qualify()), ein
-    String-Split reicht deshalb, ganz ohne die namensbasierte Mehrdeutigkeit,
-    die eine Suche über parent_name (nur ein Klartextname, kein Namensraum)
-    hätte."""
-    if "." not in qname:
-        return None
-    parent_qname = qname.rsplit(".", 1)[0]
-    row = by_qname.get(parent_qname) or existing.get(parent_qname)
+    """Resolve the explicit parent, retaining the old QName split only for
+    ParseResults created before ``parent_qualified_name`` was introduced."""
+    if parent_qualified_name is None:
+        # A missing explicit parent on a root is intentional, even when its
+        # QName contains dots (for example a Java package or source path).
+        # Only older child entities with a parent_name use the old split.
+        if legacy_parent_name is None or "." not in qname:
+            return None
+        parent_qualified_name = qname.rsplit(".", 1)[0]
+    row = by_qname.get(parent_qualified_name) or existing.get(parent_qualified_name)
     return row.id if row else None
 
 

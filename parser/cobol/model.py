@@ -9,7 +9,7 @@ sie gebaut werden — kein Vorbau auf Vorrat. Mit divisions.py/procedure.py kame
 `DataItem` und `FileDescriptor`, mit sql.py `SqlBlock`.
 
 Die sprachneutralen Typen (`ParseResult`, `Entity`, `ParsedEdge`, `Chunk`,
-`ParseDiagnostic` sowie die Literal-Aliase `SourceFormat`/`EntityType`/
+`ParseDiagnostic` sowie die Alias-Typen `SourceFormat`/`EntityType`/
 `EdgeType`/`Resolution`/`DiagnosticSeverity`/`DiagnosticPhase`) sind seit
 O-078 nach `parser/core/model.py` verschoben (dort an ihnen selbst
 hängt nichts COBOL-Spezifisches — ein künftiger zweiter Struktur-Parser,

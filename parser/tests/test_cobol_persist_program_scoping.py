@@ -10,7 +10,7 @@ Session.
 """
 
 from cobol.model import ParsedEdge
-from cobol_persist import _belongs_to_program, _find_src, _resolve_local_target
+from cobol_persist import _belongs_to_program, _find_src, _parent_id, _resolve_local_target
 from models.database import CodeEntity
 
 
@@ -120,3 +120,41 @@ def test_belongs_to_program_checks_only_the_root_segment():
     assert _belongs_to_program(row, "PROGA") is True
     assert _belongs_to_program(row, "PROGB") is False
     assert _belongs_to_program(row, "proga") is True  # case-insensitiv
+
+
+def test_parent_id_uses_explicit_parent_qname_for_names_with_dots():
+    parent = _entity(10, "PaymentService", "class", "com.acme.PaymentService")
+    child = _entity(
+        11,
+        "book(java.lang.String)",
+        "method",
+        "com.acme.PaymentService#book(java.lang.String)",
+    )
+
+    assert _parent_id(
+        child.qualified_name,
+        {parent.qualified_name: parent},
+        {},
+        parent_qualified_name=parent.qualified_name,
+    ) == parent.id
+
+
+def test_parent_id_keeps_legacy_split_for_results_without_parent_qname():
+    parent = _entity(10, "PROGA", "program", "PROGA")
+    child = _entity(11, "PARA-X", "paragraph", "PROGA.PARA-X")
+
+    assert (
+        _parent_id(
+            child.qualified_name,
+            {parent.qualified_name: parent},
+            {},
+            legacy_parent_name="PROGA",
+        )
+        == parent.id
+    )
+
+
+def test_dotted_root_qname_does_not_get_an_inferred_parent():
+    root = _entity(11, "Example.java", "compilation_unit", "com.acme.Example.java")
+
+    assert _parent_id(root.qualified_name, {}, {}, legacy_parent_name=None) is None
