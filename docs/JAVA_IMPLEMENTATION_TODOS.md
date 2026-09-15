@@ -22,6 +22,10 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   ohne Parent-QName behalten. Parent-Scope- und Reparse-Tests ergänzen.
 - [ ] **T1.5 COBOL-Gate:** Parser-Golden-Files, Persistenz-/Connector-Tests und
   Backend-Entity-Tests ausführen; COBOL-Golden-Dateien dürfen sich nicht ändern.
+  Gezielte Golden-, Persistenz-, Connector- und Backend-Entity-Tests sind grün.
+  Der vollständige Parser-Testlauf meldete weitere Fehlschläge; sein
+  Fehlerbericht wurde nicht gesichert und muss vor Abschluss erneut erhoben
+  und eingeordnet werden.
 
 ## Paket 2 – Java-Deklarationen und Chunks
 
@@ -76,6 +80,12 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 ## Fortschritt
 
 - **Abgeschlossen:** T1.1 bis T1.4.
-- **Aktiv:** T1.5 (gezielte Tests grün; DB-gebundene Integrationsprüfung noch offen).
-- **Als Nächstes:** nach T1.5 mit Paket 2 beginnen.
+- **Aktiv:** T1.5 (gezielte Tests grün; vollständigen Parser-Testlauf mit
+  gesichertem Fehlerbericht wiederholen und die Fehlschläge einordnen).
+- **Nächstes konkretes TODO:** `PYTHONPATH=parser .venv/bin/pytest parser/tests -q`
+  mit der benötigten `.env`-Konfiguration erneut ausführen, Fehlerbericht
+  sichern und entscheiden, ob die Fehlschläge regressionsbedingt oder
+  umgebungs-/baselinebedingt sind. Erst danach T1.5 schließen oder gezielt
+  nachbessern.
+- **Danach:** nach T1.5 mit T2.1 (Java-21-Grammatik-Freigabe) beginnen.
 - **Noch nicht begonnen:** T2.1 bis T5.4.
