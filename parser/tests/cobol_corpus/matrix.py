@@ -60,7 +60,9 @@ MATRIX: list[CompatCase] = [
     CompatCase("05_copy_missing", "COPY auf fehlendes Copybook", "nicht geprüft"),
     CompatCase("06_data_qualified", "qualifizierte Datenfeldnamen", "nicht geprüft"),
     CompatCase("07_exec_sql", "EXEC SQL-Block", "nicht geprüft"),
-    CompatCase("08_exec_cics", "EXEC CICS-Block (nur Maskierung, keine Ressourcenanalyse)", "nicht geprüft"),
+    CompatCase(
+        "08_exec_cics", "EXEC CICS-Block (nur Maskierung, keine Ressourcenanalyse)", "nicht geprüft"
+    ),
     CompatCase("09_dynamic_call", "dynamischer CALL", "nicht geprüft"),
     CompatCase("10_perform_thru", "PERFORM ... THRU", "nicht geprüft"),
     CompatCase("11_bare_verb_statements", "Anweisungen ohne Punkt", "nicht geprüft"),

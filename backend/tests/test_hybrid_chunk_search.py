@@ -78,7 +78,9 @@ def test_pinned_chunk_lookup_prefers_the_chunk_covering_the_focused_line(db_sess
         db_session.commit()
 
 
-def test_pinned_chunk_lookup_covers_an_entity_range_spanning_several_chunks(db_session, test_project):
+def test_pinned_chunk_lookup_covers_an_entity_range_spanning_several_chunks(
+    db_session, test_project
+):
     """O-090: an entity focus (e.g. a SECTION) can span several paragraph
     chunks — all overlapping the range must come back, not just the one
     covering the entity's start line."""

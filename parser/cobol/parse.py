@@ -222,7 +222,7 @@ def parse_program(
         edges=edges,
         chunks=chunks,
         errors=errors,
-    diagnostics=profile_diagnostics
+        diagnostics=profile_diagnostics
         + lexer_diagnostics
         + antlr_bridge.consolidate_diagnostics(div_diagnostics, dd_diagnostics_all),
     )

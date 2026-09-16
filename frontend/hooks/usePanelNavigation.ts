@@ -96,6 +96,10 @@ export function usePanelNavigation({
       endLine: entity.end_line ?? entity.start_line ?? null,
       label: entity.name,
       sourceId: entity.source_id ?? null,
+      entityId: entity.id ?? null,
+      entityType: entity.type ?? null,
+      qualifiedName: entity.qualified_name ?? null,
+      breadcrumb: entity.qualified_name ?? null,
       program: entity.program ?? null,
       section: entity.section ?? null,
       paragraph: entity.paragraph ?? null,
@@ -133,23 +137,24 @@ export function usePanelNavigation({
     line: number | null = null,
     sourceId: number | string | null = null,
     openIfMissing = true,
+    focusedEntityOverride: CodeEntity | null = null,
   ) => {
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
     const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
       ? { id: resolvedSourceId, name: path || '', ...(isWebOrigin ? { isWebOrigin: true, url: path || undefined } : {}) }
       : null;
     const targetType = getSelectionViewType(path, targetDoc);
-    let focusedEntity = path && !targetDoc
+    let focusedEntity = focusedEntityOverride || (path && !targetDoc
       ? projectEntities.find((entity: CodeEntity) =>
           entity.file_path === path &&
           (!resolvedSourceId || Number(entity.source_id) === Number(resolvedSourceId)) &&
           (entity.type === 'program' || entity.type === 'copybook')) || null
-      : null;
+      : null);
 
     // Resolve code entities before any state-changing await. Graph "open in
     // view" can fire this handler next to onDocFocus; keeping the routing
     // decision synchronous prevents a duplicate panel from being opened.
-    if (path && resolvedSourceId && !isWebOrigin && !targetDoc) {
+    if (path && resolvedSourceId && !isWebOrigin && !targetDoc && !focusedEntityOverride) {
       try {
         focusedEntity = (await api.resolveEntity(Number(resolvedSourceId), path, selectedProject?.id)).data;
       } catch (error) {
@@ -184,7 +189,8 @@ export function usePanelNavigation({
           selectedEntity: focusedEntity,
           selectedLine: line,
         };
-        pinFileFocus(path, line, resolvedSourceId);
+        if (focusedEntityOverride) pinEntityFocus(focusedEntityOverride);
+        else pinFileFocus(path, line, resolvedSourceId);
         setSelectedDoc(nextSelection.selectedDoc);
         setSelectedFile(nextSelection.selectedFile);
         setSelectedEntity(nextSelection.selectedEntity);
@@ -203,7 +209,8 @@ export function usePanelNavigation({
       setActiveMobileTab(targetType === 'graph' ? 'graph' : targetType === 'chat' ? 'chat' : 'editor');
     }
 
-    pinFileFocus(path, line, resolvedSourceId);
+    if (focusedEntityOverride) pinEntityFocus(focusedEntityOverride);
+    else pinFileFocus(path, line, resolvedSourceId);
 
     if (panelFrozen[targetIndex]) {
       const previousSelection = panelSelections[targetIndex];
@@ -256,7 +263,7 @@ export function usePanelNavigation({
         return next;
       });
     }
-  }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef, showToast, t]);
+  }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinEntityFocus, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef, showToast, t]);
 
   const handleDocFocusRequest = useCallback((filePath: string, sourceId: number | string | null, openIfMissing = true) => {
     if (!sourceId) return;
@@ -318,6 +325,10 @@ export function usePanelNavigation({
       endLine: entity.end_line ?? entity.start_line ?? null,
       label: entity.name,
       sourceId: entity.source_id ?? selectedSource?.id ?? null,
+      entityId: entity.id ?? null,
+      entityType: entity.type ?? null,
+      qualifiedName: entity.qualified_name ?? null,
+      breadcrumb: entity.qualified_name ?? null,
       program: entity.program ?? null,
       section: entity.section ?? null,
       paragraph: entity.paragraph ?? null,
@@ -329,6 +340,20 @@ export function usePanelNavigation({
       if (textarea) textarea.focus();
     }, 150);
   }, [ensurePanelType, selectedSource, setActiveMobileTab, setPinnedCode, showToast, t]);
+
+  const handlePanelEntitySelectAndOpen = useCallback(async (index: number, entity: CodeEntity) => {
+    if (!entity) return;
+    pinEntityFocus(entity);
+    updatePanelEntitySelection(index, entity);
+    await handlePanelFileSelect(
+      index,
+      entity.file_path,
+      entity.start_line,
+      entity.source_id ?? null,
+      true,
+      entity,
+    );
+  }, [handlePanelFileSelect, pinEntityFocus, updatePanelEntitySelection]);
 
   const handleEntitySelect = useCallback(async (entity: CodeEntity, projectOverride: Project | null = null) => {
     setSelectedEntity(entity);
@@ -356,6 +381,7 @@ export function usePanelNavigation({
     pinEntityFocus,
     handleObjectFocus,
     handlePanelEntitySelect,
+    handlePanelEntitySelectAndOpen,
     handlePanelFileSelect,
     handleDocFocusRequest,
     handleGutterClick,

@@ -55,6 +55,7 @@ type PanelContentRendererProps = {
   referencesTab: 'code' | 'docs';
   setReferencesTab: (tab: 'code' | 'docs') => void;
   handlePanelEntitySelect: (index: number, entity: CodeEntity) => Promise<void> | void;
+  handlePanelEntitySelectAndOpen?: (index: number, entity: CodeEntity) => Promise<void> | void;
   handleGutterClick: (index: number, lineNumber: number, lineContent: string) => void;
   handleGutterAskEntity: (index: number, entity: CodeEntity) => void;
   projectEntities: CodeEntity[];
@@ -107,6 +108,7 @@ export function PanelContentRenderer({
   referencesTab,
   setReferencesTab,
   handlePanelEntitySelect,
+  handlePanelEntitySelectAndOpen,
   handleGutterClick,
   handleGutterAskEntity,
   projectEntities,
@@ -216,6 +218,9 @@ export function PanelContentRenderer({
       selectedProject={selectedProject}
       projectEntities={projectEntities}
       handleEntitySelect={(entity) => handlePanelEntitySelect(index, entity)}
+      handleEntitySelectAndOpen={handlePanelEntitySelectAndOpen
+        ? (entity) => handlePanelEntitySelectAndOpen(index, entity)
+        : undefined}
       onGutterClick={(lineNumber, lineContent) => handleGutterClick(index, lineNumber, lineContent)}
       onGutterAskEntity={(entity) => handleGutterAskEntity(index, entity)}
       fileNavStack={fileNavStack}

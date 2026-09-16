@@ -126,6 +126,7 @@ class BaseConnector(ABC):
         # DB-Session wird in sync() geöffnet und in finally geschlossen
         self.db = SessionLocal()
         self.source: KnowledgeSource | None = None
+        self.embedding_model = config.EMBED_MODEL
         self._sync_start_time: datetime | None = None
         self.has_changes = False
 
@@ -212,17 +213,19 @@ class BaseConnector(ABC):
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
                 embedding=embedding,
+                embedding_model=self.embedding_model,
                 metadata_json={
+                    **doc["extra_meta"],
                     "url": doc["url"],
                     "title": doc["title"],
                     "source_type": doc["source_type"],
-                    **doc["extra_meta"],
+                    "embedding_model": self.embedding_model,
                     **(chunk.get("meta") or {}),
                 },
             )
 
         async def embed_content(content):
-            return await get_embedding(content, model=config.EMBED_MODEL)
+            return await get_embedding(content, model=self.embedding_model)
 
         def on_embed_error(chunk, e):
             # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
@@ -258,7 +261,7 @@ class BaseConnector(ABC):
 
     # ── Öffentlicher Einstiegspunkt ──────────────────────────────────────────
 
-    async def sync(self) -> None:
+    async def sync(self, force_reindex: bool = False) -> None:
         """
         Orchestriert den vollständigen Sync-Ablauf für eine KnowledgeSource.
         Wird von der Celery-Task in tasks/sync.py aufgerufen.
@@ -278,6 +281,7 @@ class BaseConnector(ABC):
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return
+            self.embedding_model = self.source.embedding_model or config.EMBED_MODEL
 
             self._sync_start_time = datetime.now(timezone.utc)
             self.source.sync_status = "syncing"
@@ -291,8 +295,8 @@ class BaseConnector(ABC):
                 f"Starte Sync für '{self.source.name}' "
                 f"(ID: {self.source_id}, Typ: {self.source.type})..."
             )
-            self._log(f"Stelle sicher, dass Embedding-Modell '{config.EMBED_MODEL}' bereit ist...")
-            await ensure_model_pulled(config.EMBED_MODEL)
+            self._log(f"Stelle sicher, dass Embedding-Modell '{self.embedding_model}' bereit ist...")
+            await ensure_model_pulled(self.embedding_model)
 
             processed = 0
             total_chunks = 0

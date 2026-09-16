@@ -37,6 +37,7 @@ export interface KnowledgeSource {
   progress?: number;
   progress_message?: string | null;
   context_note?: string | null;
+  embedding_model?: string | null;
   last_synced_at?: string | null;
 }
 /** Navigation projections may omit the database ID; unresolved entities can have no source line. */
@@ -96,6 +97,10 @@ export interface ChatReference {
   end_line?: number | null;
   label?: string | null;
   source_id?: number | string | null;
+  entity_id?: number | null;
+  entity_type?: string | null;
+  qualified_name?: string | null;
+  breadcrumb?: string | null;
   program?: string | null;
   section?: string | null;
   paragraph?: string | null;
@@ -108,7 +113,12 @@ export interface ChatMetadata {
   focus?: ChatTurnFocus;
   project?: ChatTurnFocus['project'];
   source?: ChatTurnFocus['source'];
-  pinned?: (Partial<ChatPinnedFocus> & { source_id?: number | string | null }) | null;
+  pinned?: (Partial<ChatPinnedFocus> & {
+    source_id?: number | string | null;
+    entity_id?: number | null;
+    entity_type?: string | null;
+    qualified_name?: string | null;
+  }) | null;
   refs?: ChatReference[];
   agent_steps?: AgentStep[];
   model?: string;
@@ -176,6 +186,7 @@ export interface ChatRequest {
   pinned_context: string | null;
   pinned_label: string | null;
   pinned_source_id: number | string | null;
+  pinned_entity_id: number | null;
   branch: string;
   temperature: number;
   system_prompt: string;
@@ -183,6 +194,7 @@ export interface ChatRequest {
   llm_model?: string;
   llm_api_key?: string;
   llm_base_url?: string;
+  embedding_model?: string;
   metadata: ChatMetadata;
   retry_of_message_id?: number;
 }

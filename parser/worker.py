@@ -184,6 +184,7 @@ def compute_entity_links(
     project_id: int,
     trace_id: str | None = None,
     min_confidence: int | None = None,
+    embedding_model: str | None = None,
 ):
     """
     Celery-Task: Semantische Verknüpfungen zwischen Code-Entities und Wissens-Chunks
@@ -197,13 +198,24 @@ def compute_entity_links(
     """
     _register_task_id(LinkBuilderRun, run_id, task.request.id)
     with trace_id_scope(trace_id):
-        asyncio.run(compute_entity_links_async(run_id, project_id, min_confidence=min_confidence))
+        asyncio.run(
+            compute_entity_links_async(
+                run_id,
+                project_id,
+                min_confidence=min_confidence,
+                embedding_model=embedding_model,
+            )
+        )
     return {"status": "finished", "run_id": run_id, "project_id": project_id}
 
 
 @app.task(name="compute_knowledge_links", bind=True)
 def compute_knowledge_links(
-    task, run_id: int, trace_id: str | None = None, min_confidence: int | None = None
+    task,
+    run_id: int,
+    trace_id: str | None = None,
+    min_confidence: int | None = None,
+    embedding_model: str | None = None,
 ):
     """
     Celery-Task: Cross-Source Analyse starten. Findet semantische Verknüpfungen
@@ -215,7 +227,13 @@ def compute_knowledge_links(
     """
     _register_task_id(LinkBuilderRun, run_id, task.request.id)
     with trace_id_scope(trace_id):
-        asyncio.run(compute_knowledge_links_async(run_id, min_confidence=min_confidence))
+        asyncio.run(
+            compute_knowledge_links_async(
+                run_id,
+                min_confidence=min_confidence,
+                embedding_model=embedding_model,
+            )
+        )
     return {"status": "finished", "run_id": run_id}
 
 

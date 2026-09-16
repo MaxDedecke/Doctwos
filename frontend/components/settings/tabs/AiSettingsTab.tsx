@@ -1,5 +1,5 @@
 "use client";
-import type { LlmProfile } from '@/hooks/useAiSettings';
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, type LlmProfile } from '@/hooks/useAiSettings';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -43,6 +43,7 @@ export const AiSettingsTab: React.FC = () => {
   const [profileNameInput, setProfileNameInput] = useState("");
   const [profileProviderInput, setProfileProviderInput] = useState("ollama");
   const [profileModelInput, setProfileModelInput] = useState("");
+  const [profileEmbeddingModelInput, setProfileEmbeddingModelInput] = useState(DEFAULT_EMBEDDING_MODEL);
   const [profileApiKeyInput, setProfileApiKeyInput] = useState("");
   const [profileBaseUrlInput, setProfileBaseUrlInput] = useState("");
   const [showProfileForm, setShowProfileForm] = useState(false);
@@ -51,7 +52,8 @@ export const AiSettingsTab: React.FC = () => {
     setEditingProfileId(null);
     setProfileNameInput("");
     setProfileProviderInput("ollama");
-    setProfileModelInput("qwen2.5:1.5b");
+    setProfileModelInput(DEFAULT_LLM_MODEL);
+    setProfileEmbeddingModelInput(DEFAULT_EMBEDDING_MODEL);
     setProfileApiKeyInput("");
     setProfileBaseUrlInput("");
     setShowProfileForm(true);
@@ -62,6 +64,7 @@ export const AiSettingsTab: React.FC = () => {
     setProfileNameInput(prof.name);
     setProfileProviderInput(prof.provider);
     setProfileModelInput(prof.model);
+    setProfileEmbeddingModelInput(prof.embeddingModel || DEFAULT_EMBEDDING_MODEL);
     setProfileApiKeyInput(prof.apiKey || "");
     setProfileBaseUrlInput(prof.baseUrl || "");
     setShowProfileForm(true);
@@ -100,6 +103,7 @@ export const AiSettingsTab: React.FC = () => {
             name: profileNameInput,
             provider: profileProviderInput,
             model: profileModelInput,
+            embeddingModel: profileEmbeddingModelInput.trim() || undefined,
             apiKey: profileApiKeyInput,
             baseUrl: profileBaseUrlInput
           };
@@ -114,6 +118,7 @@ export const AiSettingsTab: React.FC = () => {
         name: profileNameInput,
         provider: profileProviderInput,
         model: profileModelInput,
+        embeddingModel: profileEmbeddingModelInput.trim() || undefined,
         apiKey: profileApiKeyInput,
         baseUrl: profileBaseUrlInput
       };
@@ -212,6 +217,12 @@ export const AiSettingsTab: React.FC = () => {
                         <span className="uppercase">{prof.provider}</span>
                         <span>•</span>
                         <span className="truncate">{prof.model}</span>
+                        {prof.embeddingModel && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate" title={t('settings.profilesTab.embeddingModelLabel')}>E: {prof.embeddingModel}</span>
+                          </>
+                        )}
                         {prof.baseUrl && (
                           <>
                             <span>•</span>
@@ -286,9 +297,9 @@ export const AiSettingsTab: React.FC = () => {
                   value={profileProviderInput}
                   onValueChange={val => {
                     setProfileProviderInput(val);
-                    const defaults = ["qwen2.5:1.5b", "gpt-4o", "gemini-1.5-flash", "claude-3-5-sonnet-20241022"];
+                    const defaults = [DEFAULT_LLM_MODEL, "qwen2.5:1.5b", "gpt-4o", "gemini-1.5-flash", "claude-3-5-sonnet-20241022"];
                     if (!profileModelInput || defaults.includes(profileModelInput)) {
-                      if (val === 'ollama') setProfileModelInput("qwen2.5:1.5b");
+                      if (val === 'ollama') setProfileModelInput(DEFAULT_LLM_MODEL);
                       else if (val === 'openai') setProfileModelInput("gpt-4o");
                       else if (val === 'gemini') setProfileModelInput("gemini-1.5-flash");
                       else if (val === 'anthropic') setProfileModelInput("claude-3-5-sonnet-20241022");
@@ -315,13 +326,32 @@ export const AiSettingsTab: React.FC = () => {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
+                {t('settings.profilesTab.embeddingModelLabel')}
+              </label>
+              <input
+                type="text"
+                placeholder={DEFAULT_EMBEDDING_MODEL}
+                value={profileEmbeddingModelInput}
+                onChange={e => setProfileEmbeddingModelInput(e.target.value)}
+                className={cn(
+                  "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
+                  theme === 'dark'
+                    ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
+                    : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
+                )}
+              />
+              <p className="text-[9px] text-ds-zinc-500 px-0.5">{t('settings.profilesTab.embeddingModelHint')}</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.modelNameLabel')}</label>
                 <input
                   type="text"
                   placeholder={
-                    profileProviderInput === 'ollama' ? "qwen2.5:1.5b" :
+                    profileProviderInput === 'ollama' ? DEFAULT_LLM_MODEL :
                     profileProviderInput === 'openai' ? "gpt-4o, gpt-3.5-turbo, etc." :
                     profileProviderInput === 'gemini' ? "gemini-1.5-flash" :
                     "claude-3-5-sonnet-20241022"

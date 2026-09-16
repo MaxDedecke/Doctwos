@@ -138,7 +138,11 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
         for match in result.get("matches", [])[:8]:
             if match.get("file"):
                 _record_agent_source(
-                    agent_sources, match["file"], match.get("line", 1), match.get("line", 1), source_id
+                    agent_sources,
+                    match["file"],
+                    match.get("line", 1),
+                    match.get("line", 1),
+                    source_id,
                 )
     elif tool_name == "get_repo_entities":
         for entity in result.get("entities", [])[:8]:
@@ -342,9 +346,7 @@ def _cited_link_targets(db: Session, sources: list[dict]) -> set[tuple[str, int]
     return targets
 
 
-def _apply_downvote_link_signals(
-    db: Session, message: ChatMessage, user: User
-) -> dict:
+def _apply_downvote_link_signals(db: Session, message: ChatMessage, user: User) -> dict:
     """Record a downvote and move links to pending after two sessions in 30 days."""
     targets = _cited_link_targets(db, message.sources_json or [])
     now = datetime.now(timezone.utc)
@@ -405,7 +407,9 @@ def _revoke_downvote_link_signals(db: Session, message_id: int) -> None:
     db.query(ChatLinkFeedbackSignal).filter(
         ChatLinkFeedbackSignal.chat_message_id == message_id,
         ChatLinkFeedbackSignal.revoked_at.is_(None),
-    ).update({ChatLinkFeedbackSignal.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False)
+    ).update(
+        {ChatLinkFeedbackSignal.revoked_at: datetime.now(timezone.utc)}, synchronize_session=False
+    )
 
 
 @router.post("/chat")
@@ -566,8 +570,10 @@ async def chat(
                 pinned_line=request.pinned_line,
                 pinned_end_line=request.pinned_end_line,
                 pinned_label=request.pinned_label,
+                pinned_entity_id=request.pinned_entity_id,
                 focused_context=request.pinned_context,
                 message=request.message,
+                embedding_model=request.embedding_model,
             )
             results = retrieval.results
             prompt = retrieval.prompt

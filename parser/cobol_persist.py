@@ -146,13 +146,20 @@ def persist_parse_result(
             row.end_line = ent.end_line
             row.meta_json = ent.meta or None
             row.content_hash = content_hash
-            row.parent_id = _parent_id(
-                qname,
-                by_qname,
-                existing,
-                parent_qualified_name=ent.parent_qualified_name,
-                legacy_parent_name=ent.parent_name,
-            )
+            if not (ent.meta.get("language") == "java" and ent.type in {"package", "module"}):
+                row.parent_id = _parent_id(
+                    qname,
+                    by_qname,
+                    existing,
+                    parent_qualified_name=ent.parent_qualified_name,
+                    legacy_parent_name=ent.parent_name,
+                )
+        elif ent.meta.get("language") == "java" and ent.type in {"package", "module"}:
+            # Java packages/modules are shared by files. They must not retain
+            # the compilation unit of whichever file created the row first,
+            # because deleting that file would cascade through the shared
+            # container into unchanged files.
+            row.parent_id = None
         # Sofort flushen, damit die eigene id für Kinder verfügbar ist, die
         # in derselben Schleife noch folgen (entities sind laut parse.py
         # immer in Eltern-vor-Kind-Reihenfolge aufgebaut).
@@ -175,9 +182,7 @@ def persist_parse_result(
     # A shared Java package entity can be referenced by several source files.
     # Only delete edges whose source entity is owned by this file; otherwise a
     # reparse of file B would delete imports/relations persisted for file A.
-    file_entity_ids = [
-        row.id for row in by_qname.values() if row.file_path == file_path
-    ]
+    file_entity_ids = [row.id for row in by_qname.values() if row.file_path == file_path]
     if file_entity_ids:
         db.query(CodeEdge).filter(
             CodeEdge.source_id == source_id,

@@ -20,7 +20,9 @@ def resolve_encoding(encoding: str | None) -> str:
     try:
         return codecs.lookup(candidate).name
     except LookupError as error:
-        raise SourceDecodeError(f"unbekannte oder nicht verfügbare Codepage '{requested}'") from error
+        raise SourceDecodeError(
+            f"unbekannte oder nicht verfügbare Codepage '{requested}'"
+        ) from error
 
 
 def decode_source(raw: bytes, encoding: str | None = None) -> tuple[str, str]:

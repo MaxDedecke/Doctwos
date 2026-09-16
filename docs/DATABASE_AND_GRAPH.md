@@ -194,18 +194,19 @@ unterschiedliche Node-/Edge-Mengen ziehen und unterschiedlich kappen:
 |---|---|---|---|
 | **Zweck** | Visualisierung: Code ↔ Dokumentation, Dokument ↔ Dokument | Visualisierung: reine Code-Struktur/-Aufrufe | Kein sichtbarer Graph — reichert den Chat-Kontext eines Vektor-Treffers an |
 | **Knoten** | `CodeEntity` + `DocumentChunk` (dedupliziert je `file_path`/Titel) | `CodeEntity` (BFS über `hops` Hops ab einer Wurzel-Entity) | `CodeEntity`, ermittelt über Datei+Zeilen-Überlappung mit dem Vektor-Treffer |
-| **Kanten** | `EntityDocLink` + `KnowledgeLink`, nur `status=approved` (Default) | `CodeEdge` mit `type ∈ {CALL, PERFORM, GOTO, COPY}` + **synthetische** `CONTAINS`-Kante aus `CodeEntity.parent_id` (nur Vorfahren nachgezogen, nie Kinder — sonst würde ein Paragraph-Fokus den Knotendeckel mit Datenfeldern sprengen) | `CodeEdge` mit `type ∈ {COPY, CALL}` ab den getroffenen Entities |
+| **Kanten** | `EntityDocLink` + `KnowledgeLink`, nur `status=approved` (Default) | `CodeEdge` mit `type ∈ {CALL, PERFORM, GOTO, COPY}` + **synthetische** `CONTAINS`-Kante aus `CodeEntity.parent_id` (nur Vorfahren nachgezogen, nie Kinder — sonst würde ein Paragraph-Fokus den Knotendeckel mit Datenfeldern sprengen) | Aufgelöste `CodeEdge`s mit `type ∈ {COPY, CALL, CALLS, INSTANTIATES, EXTENDS, IMPLEMENTS, USES_TYPE, READS, WRITES}` ab den getroffenen Entities |
 | **Deckel** | `KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES` (Default 2000) — bei Überschreitung bleiben die Knoten mit dem höchsten Grad (meiste Kanten) erhalten (O-053); `/graph/focus` umgeht den Deckel für einen gezielten 1-Hop-Ausschnitt | 500 Knoten hart (`MAX_NODES`), BFS bricht ab, sobald erreicht | Zeichenbudget (`token_budget * 4`, Default 1800 Token) statt Knotenzahl — Nachbar-Chunks werden aufgenommen, bis das Budget aufgebraucht ist |
 | **Sichtbarkeit** | Team/Projekt + `expose_code_analysis_globally`-Gate pro Knoten/Kante | `_assert_entity_visible` auf die Wurzel-Entity (Nachbarn werden nicht einzeln nachgeprüft — bewusst, da BFS sonst pro Hop einen weiteren DB-Join bräuchte) | Kein eigener Sichtbarkeits-Check — läuft serverseitig innerhalb einer bereits autorisierten Chat-Anfrage |
 | **Export** | CSV, GraphML, Cypher (Neo4j) — `/graph/export`, `/graph/export/neo4j` | JSON, CSV, GraphML — `/callgraph/export` | Kein Export (interner Zwischenschritt) |
 
 Die RAG-Graph-Erweiterung ist der am wenigsten offensichtliche der drei: sie
 zeigt dem Nutzer nichts direkt an, sondern sorgt dafür, dass eine Chat-Antwort
-über einen Vektor-Treffer hinaus auch die **Definition** eines per `COPY`
-eingebundenen Copybooks oder eines `CALL`-Aufrufers/-Aufgerufenen mit in den
-LLM-Kontext bekommt — reine Vektorähnlichkeit würde solche strukturellen
-Nachbarn sonst verpassen, wenn ihr Text nicht zufällig auch semantisch nah
-am Suchtext liegt.
+über einen Vektor-Treffer hinaus auch die **Definition** strukturell relevanter
+Nachbarn mit in den LLM-Kontext bekommt. Dazu gehören bei COBOL `COPY`-Ziele und
+`CALL`-Aufrufer/-Aufgerufene sowie bei Java u. a. `CALLS`, `INSTANTIATES`,
+`EXTENDS`, `IMPLEMENTS` und `USES_TYPE` — reine Vektorähnlichkeit würde solche
+Beziehungen sonst verpassen, wenn der Nachbartext nicht zufällig semantisch
+nah am Suchtext liegt.
 
 Quelle: `backend/models/database.py`, `backend/api/graph.py`,
 `backend/api/callgraph.py`, `backend/services/graph_retrieval.py`,

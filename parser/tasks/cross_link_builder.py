@@ -35,6 +35,12 @@ TOP_MATCHES = 5
 LLM_MIN_CONFIDENCE = 35
 
 
+def _embedding_model_filter(model: str):
+    if model == config.EMBED_MODEL:
+        return or_(DocumentChunk.embedding_model == model, DocumentChunk.embedding_model.is_(None))
+    return DocumentChunk.embedding_model == model
+
+
 def _chunk_source_label(chunk, db) -> str:
     """
     Menschenlesbares Label für die Herkunft eines DocumentChunk.
@@ -88,7 +94,11 @@ async def _llm_review_pair(
         }
 
 
-async def compute_knowledge_links_async(run_id: int, min_confidence: int | None = None):
+async def compute_knowledge_links_async(
+    run_id: int,
+    min_confidence: int | None = None,
+    embedding_model: str | None = None,
+):
     """
     run_id points at a LinkBuilderRun row (created by the caller as "pending",
     task_type="knowledge_links", project_id=None since this scans across all
@@ -109,6 +119,11 @@ async def compute_knowledge_links_async(run_id: int, min_confidence: int | None 
         db.close()
         return
 
+    selected_embedding_model = (
+        embedding_model or run.embedding_model or config.EMBED_MODEL
+    ).strip()
+    run.embedding_model = selected_embedding_model
+
     links_created = 0
     try:
         logger.info("[CrossLinkBuilder] Starting cross-source analysis...")
@@ -117,7 +132,10 @@ async def compute_knowledge_links_async(run_id: int, min_confidence: int | None 
 
         # We process chunks that have embeddings
         # For efficiency in a real system, we'd only process "new" or "dirty" chunks
-        chunks = db.query(DocumentChunk).filter(DocumentChunk.embedding.isnot(None)).all()
+        model_filter = _embedding_model_filter(selected_embedding_model)
+        chunks = db.query(DocumentChunk).filter(
+            DocumentChunk.embedding.isnot(None), model_filter
+        ).all()
 
         for chunk in chunks:
             # Determine source type and ID for exclusion
@@ -131,7 +149,9 @@ async def compute_knowledge_links_async(run_id: int, min_confidence: int | None 
 
             # Query for similar chunks
             query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
-                DocumentChunk.id != chunk.id, DocumentChunk.embedding.isnot(None)
+                DocumentChunk.id != chunk.id,
+                DocumentChunk.embedding.isnot(None),
+                model_filter,
             )
 
             # Exclude same source

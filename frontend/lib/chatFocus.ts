@@ -19,6 +19,12 @@ export interface ChatPinnedFocus {
   label?: string | null;
   context?: string | null;
   sourceId?: FocusId;
+  /** Stable parser entity identity; optional for legacy file/line pins. */
+  entityId?: number | null;
+  /** Open parser type/QName fields keep the focus language-neutral. */
+  entityType?: string | null;
+  qualifiedName?: string | null;
+  breadcrumb?: string | null;
   program?: string | null;
   section?: string | null;
   paragraph?: string | null;
@@ -42,6 +48,10 @@ function normalizePinnedFocus(value?: ChatMetadata['pinned'], fallback?: ChatRef
     label: value?.label ?? null,
     context: value?.context ?? null,
     sourceId: value?.sourceId ?? value?.source_id ?? fallback?.source_id ?? null,
+    entityId: value?.entityId ?? value?.entity_id ?? fallback?.entity_id ?? null,
+    entityType: value?.entityType ?? value?.entity_type ?? fallback?.entity_type ?? null,
+    qualifiedName: value?.qualifiedName ?? value?.qualified_name ?? fallback?.qualified_name ?? null,
+    breadcrumb: value?.breadcrumb ?? fallback?.breadcrumb ?? null,
     program: value?.program ?? fallback?.program ?? null,
     section: value?.section ?? fallback?.section ?? null,
     paragraph: value?.paragraph ?? fallback?.paragraph ?? null,
@@ -93,6 +103,10 @@ export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: ChatMeta
         end_line: pinned.endLine ?? null,
         label: pinned.label ?? null,
         source_id: pinned.sourceId ?? null,
+        entity_id: pinned.entityId ?? null,
+        entity_type: pinned.entityType ?? null,
+        qualified_name: pinned.qualifiedName ?? null,
+        breadcrumb: pinned.breadcrumb ?? null,
         program: pinned.program ?? null,
         section: pinned.section ?? null,
         paragraph: pinned.paragraph ?? null,
@@ -109,6 +123,10 @@ export function createChatMetadata(focus: ChatTurnFocus, extraMetadata: ChatMeta
       label: pinned.label ?? null,
       context: pinned.context ?? null,
       source_id: pinned.sourceId ?? null,
+      entity_id: pinned.entityId ?? null,
+      entity_type: pinned.entityType ?? null,
+      qualified_name: pinned.qualifiedName ?? null,
+      breadcrumb: pinned.breadcrumb ?? null,
       program: pinned.program ?? null,
       section: pinned.section ?? null,
       paragraph: pinned.paragraph ?? null,
@@ -129,5 +147,6 @@ export function chatFocusRequestFields(focus: ChatTurnFocus) {
     pinned_context: focus.pinned?.context ?? null,
     pinned_label: focus.pinned?.label ?? null,
     pinned_source_id: focus.pinned?.sourceId ?? null,
+    pinned_entity_id: focus.pinned?.entityId ?? null,
   };
 }

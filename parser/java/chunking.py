@@ -6,6 +6,8 @@ from core.model import Chunk, Entity
 
 
 DEFAULT_CHUNK_SIZE = 1000
+
+
 def _split_range(
     lines: list[str], start_line: int, end_line: int, chunk_size: int
 ) -> list[tuple[str, int, int]]:
@@ -21,9 +23,7 @@ def _split_range(
                 break
             content_length += line_length
             line_index += 1
-        pieces.append(
-            ("\n".join(lines[start:line_index]), start + 1, line_index)
-        )
+        pieces.append(("\n".join(lines[start:line_index]), start + 1, line_index))
     return pieces
 
 
@@ -48,7 +48,11 @@ def _container_for_line(entities: list[Entity], line: int) -> Entity | None:
         if entity.type in {"class", "interface", "enum", "record", "annotation_type"}
         and entity.start_line <= line <= entity.end_line
     ]
-    return min(containers, key=lambda entity: entity.end_line - entity.start_line) if containers else None
+    return (
+        min(containers, key=lambda entity: entity.end_line - entity.start_line)
+        if containers
+        else None
+    )
 
 
 def chunk_java_source(

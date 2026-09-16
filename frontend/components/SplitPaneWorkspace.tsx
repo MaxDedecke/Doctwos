@@ -95,6 +95,7 @@ interface SplitPaneWorkspaceProps {
   editorMinimap: boolean;
   projectEntities?: CodeEntity[];
   handleEntitySelect?: (ent: CodeEntity) => Promise<void> | void;
+  handleEntitySelectAndOpen?: (ent: CodeEntity) => Promise<void> | void;
   onGutterClick?: (lineNumber: number, lineContent: string) => void;
   onGutterAskEntity?: (entity: CodeEntity) => void;
   fileNavStack?: Array<{file: string|null, doc: WorkspaceDocument|null, tab: string}>;
@@ -138,6 +139,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   selectedProject = null,
   projectEntities = [],
   handleEntitySelect,
+  handleEntitySelectAndOpen,
   onGutterClick,
   onGutterAskEntity,
   fileNavStack = [],
@@ -1044,7 +1046,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       disabled={!canOpen}
                                       onClick={() => {
                                         if (entity) {
-                                          handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                          if (handleEntitySelectAndOpen) {
+                                            handleEntitySelectAndOpen(entity);
+                                          } else {
+                                            handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                          }
                                         } else if (document?.file_path) {
                                           // This panel is pinned to the code/doc view (activeRightTab is a fixed
                                           // prop here, see page.tsx renderPanel) — routing a document through the

@@ -19,6 +19,10 @@ OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 # Modell für Vektor-Embeddings. Alle Connectoren, Tasks und der Link Builder
 # referenzieren diesen Namen — Modell-Wechsel hier, nirgendwo sonst.
 EMBED_MODEL: str = os.getenv("EMBED_MODEL", "bge-m3")
+# pgvector's current HNSW column is fixed at this dimension. A model that
+# returns another size must fail the indexing operation explicitly; otherwise
+# a model switch would create an unusable or mixed vector space.
+EMBEDDING_DIMENSION: int = 1024
 
 # Lokales Chat-/Compliance-LLM. Bis zur ersten Auslieferung auf CPU-only-Piloten
 # bewusst deaktiviert; bge-m3-Embeddings bleiben davon unabhängig aktiv.

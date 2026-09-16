@@ -45,9 +45,7 @@ def _parse_copybook(
     return parse_copybook(text, path, copybook_index=prepared_source, **kwargs)
 
 
-def _parse_java(
-    text: str, path: str, *, prepared_source: Any = None, **kwargs: Any
-) -> ParseResult:
+def _parse_java(text: str, path: str, *, prepared_source: Any = None, **kwargs: Any) -> ParseResult:
     """Adapt the generic registry contract to Java's source-only parser."""
     return parse_java_file(
         text,

@@ -128,6 +128,38 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
   });
 
+  it('navigates from a Java entity node while preserving its file, line and source', async () => {
+    const javaNode: GraphNode = {
+      id: 'entity:101',
+      type: 'entity',
+      entity_type: 'method',
+      label: 'calculate',
+      file_path: 'src/main/java/com/acme/PaymentService.java',
+      start_line: 24,
+      source_id: 5,
+      project_id: 1,
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [javaNode], edges: [] }),
+    }));
+    const onFileSelect = vi.fn();
+
+    render(
+      <LanguageProvider>
+        <KnowledgeGraphView
+          theme="dark"
+          selectedProject={{ id: 1, name: 'Testprojekt' }}
+          onFileSelect={onFileSelect}
+        />
+      </LanguageProvider>,
+    );
+
+    fireEvent.click(await screen.findByTestId('node-entity:101'));
+
+    expect(onFileSelect).toHaveBeenCalledWith(javaNode.file_path, javaNode.start_line, javaNode.source_id, false);
+  });
+
   it('loads the real neighborhood via GET /graph/focus and replaces the (possibly truncated) overview', async () => {
     const overviewResponse = {
       nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 }],

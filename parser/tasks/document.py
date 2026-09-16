@@ -40,6 +40,8 @@ async def process_local_document_async(source_id: int, file_path: str):
         logger.info(f"Verarbeitung für Quelle {source_id} läuft bereits, überspringe.")
         return
 
+    embedding_model = source.embedding_model or config.EMBED_MODEL
+
     from datetime import datetime, timezone
 
     def log_event(message: str):
@@ -106,9 +108,9 @@ async def process_local_document_async(source_id: int, file_path: str):
 
         # 2. Ensure embedding model is pulled
         log_event(
-            f"Stelle sicher, dass das Einbettungs-Modell '{config.EMBED_MODEL}' bereit ist..."
+            f"Stelle sicher, dass das Einbettungs-Modell '{embedding_model}' bereit ist..."
         )
-        await ensure_model_pulled(config.EMBED_MODEL)
+        await ensure_model_pulled(embedding_model)
 
         # 3. Chunk and embed content, page by page so a chunk never blends text
         # from two different PDF pages together.
@@ -130,11 +132,16 @@ async def process_local_document_async(source_id: int, file_path: str):
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
                 embedding=embedding,
-                metadata_json={"language": lang, "page": chunk.get("page")},
+                embedding_model=embedding_model,
+                metadata_json={
+                    "language": lang,
+                    "page": chunk.get("page"),
+                    "embedding_model": embedding_model,
+                },
             )
 
         async def embed_content(content):
-            return await get_embedding(content, model=config.EMBED_MODEL)
+            return await get_embedding(content, model=embedding_model)
 
         def on_embed_error(chunk, e):
             log_event(f"Fehler beim Erzeugen des Vektors für Chunk: {e}")

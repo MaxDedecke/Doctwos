@@ -8,6 +8,18 @@ gepflegt — für die Container-Images und Modelle ist die Prüfung manuell und
 muss vor jedem Release wiederholt werden (siehe Abschnitt „Nicht automatisch
 geprüft" unten).
 
+Wichtig für die Interpretation eines externen Scanners: Die Allowlist und die
+Ausnahmelisten definieren die Doctus-Freigabepolitik, sie behaupten nicht, dass
+ein Scanner keinerlei Lizenzbefund ausgeben wird. LGPL-, MPL- und CC-BY-Artefakte
+bleiben bei einer strengen „nur MIT/BSD/Apache"-Richtlinie sichtbare Treffer,
+werden hier aber als begründete, nicht blockierende Ausnahmen behandelt. Ein
+Clearing mit dieser Policy kann daher grün sein, obwohl ein Rohscan Treffer
+meldet.
+
+Der Bericht ist außerdem kein Open-Source-Lizenzhinweis für Doctus selbst:
+Das eigene Projekt ist laut `README.md` „All rights reserved". Für eine
+Weitergabe braucht Doctus daher zusätzlich eine eigene Nutzungs-/Lieferlizenz.
+
 **Regel (CLAUDE.md):** strikt Open Source, nur MIT/BSD/Apache-2.0. Jede
 Abhängigkeit mit abweichender Lizenz braucht eine benannte, begründete
 Ausnahme hier **und** in `scripts/license_exceptions_python.json` /
@@ -124,14 +136,61 @@ Pip-Paket selbst.
 Beide MIT/BSD-3-Clause, kompatibel mit Architekturprinzip 2. Ergebnis auch in
 `docs/ENTSCHEIDUNGEN.md` E-11 referenziert.
 
+## 7. Java-Grammatik und Release-Artefakte
+
+Die Java-Quellgrammatik stammt aus
+`antlr/grammars-v4/java/java` und ist auf den Commit
+`20efa537586610f5aebd584429ac1b5993a30381` gepinnt. `JavaLexer.g4` und
+`JavaParser.g4` tragen den BSD-3-Clause-Lizenztext; die mitgeführte Kopie der
+Lizenz liegt unter `parser/java/LICENSE-upstream-grammars-v4-java`. Herkunft,
+Sprachstand und Regenerierung sind zusätzlich in
+`parser/java/grammar/README.md` festgehalten.
+
+Die eingecheckten Dateien unter `parser/java/_antlr/` sind daraus abgeleitete
+Python-Artefakte. Die ANTLR-Generierung ist ein Build-/Entwicklungsschritt und
+kein Bestandteil der Produktions-Runtime. Für eine nachvollziehbare Änderung
+müssen Grammatik-Pin, Lizenzkopie, generierte Dateien und Java-Golden-Korpus
+gemeinsam geprüft werden.
+
+Offline-Regenerierung ist möglich, wenn das ANTLR-4.13.2-Complete-JAR bereits
+lokal vorliegt:
+
+```bash
+cd parser
+ANTLR_JAR=/path/to/antlr-4.13.2-complete.jar ./java/generate_parser.sh
+PYTHONPATH=. python tests/update_java_goldens.py
+python -m pytest tests/test_java_antlr_bridge.py tests/test_java_golden.py -q
+```
+
+Der Vorgang benötigt keine Netzverbindung. Ein Release darf nicht aus einer
+unversionierten oder spontan aus dem Internet geladenen Grammatik regeneriert
+werden. Änderungen an der Upstream-Revision brauchen einen neuen Provenienz-
+und Lizenznachtrag.
+
+Die Produktions- und Offline-Images enthalten weder `tests/`,
+`requirements-dev.txt` noch das ANTLR-Generator-JAR. Das Parser-Dev-Target ist
+nur über den Test-/Entwicklungsdienst in `docker-compose.dev.yml` verfügbar
+(`--profile test`) und wird nicht in `docker-compose.offline.yml` gestartet.
+Damit bleibt der ausgelieferte Runtime-Inhalt auf die benötigten Parser- und
+Runtime-Abhängigkeiten begrenzt.
+
 ---
 
 ## Nicht automatisch geprüft (manueller Nachzug vor jedem Release)
 
+- **Security-Advisories der Node-Abhängigkeiten**: Der Lizenzscan ist kein
+  Vulnerability-Scan. Beim T5.4-Lauf am 16.09.2026 meldete `npm audit
+  --omit=dev` eine kritische Next.js- und eine hohe `sharp`-Vulnerability;
+  npm bot ein Update auf `next@16.3.5` außerhalb des aktuellen deklarativen
+  Versionsbereichs an. Vor produktiver Auslieferung separat bewerten und
+  testen.
+
 - **Container-Basisimages**: keine automatisierte Lizenzprüfung der
   Image-Inhalte (nur der oben dokumentierte manuelle Check). Ein
   `syft`/`grype`-SBOM-Lauf gegen die gebauten Images wäre der nächste
-  Ausbauschritt, ist aber kein MUSS laut Plan.
+  Ausbauschritt. Ein Rohscan der Distribution-Basis und der darin enthaltenen
+  Systembibliotheken kann zusätzliche LGPL-/GPL-Befunde liefern; bis dieser
+  Lauf erfolgt ist, gibt es dafür keinen vollständigen „keine Treffer"-Nachweis.
 - **Modelllizenzen**: ändern sich mit jedem `OLLAMA_MODEL`-Wechsel in
   `.env` — bei Modellwechsel diesen Abschnitt manuell nachziehen.
 - **Transitive Docker-Build-Werkzeuge** (z.B. `build-essential` im

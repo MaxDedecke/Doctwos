@@ -1,4 +1,4 @@
-"""Graph-erweitertes COBOL-Retrieval (F-043).
+"""Language-neutral graph expansion for chat retrieval (F-043).
 
 Vektor-Treffer werden über ihre Datei/Zeilen einem möglichst spezifischen
 CodeEntity zugeordnet. Danach ergänzen wir Definition-Chunks von COPY-Zielen
@@ -6,13 +6,30 @@ und Aufrufern. Das harte Zeichenbudget ist absichtlich unabhängig vom Modell;
 vier Zeichen pro Token sind eine konservative, deterministische Näherung.
 """
 
-from sqlalchemy import and_, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from models.database import CodeEdge, CodeEntity, DocumentChunk
 
 
 DEFAULT_GRAPH_TOKEN_BUDGET = 1800
+
+# Only semantic/code relationships can add useful source context.  Keeping the
+# allowlist explicit avoids pulling in bookkeeping edges such as DEFINES while
+# allowing Java's open parser edge taxonomy without another language branch.
+RETRIEVAL_EDGE_TYPES = frozenset(
+    {
+        "COPY",
+        "CALL",
+        "CALLS",
+        "INSTANTIATES",
+        "EXTENDS",
+        "IMPLEMENTS",
+        "USES_TYPE",
+        "READS",
+        "WRITES",
+    }
+)
 
 
 def expand_chunks_with_graph(
@@ -50,14 +67,15 @@ def expand_chunks_with_graph(
     if not entity_ids:
         return picked
 
-    # F-043: COPY-Ziele der Treffer und CALL-Aufrufer der Treffer.
+    # F-043: one-hop semantic neighbors.  Both directions matter for Java:
+    # a class is useful together with its parent and its subclasses, while a
+    # method is useful with both callers and callees.
     edges = (
         db.query(CodeEdge)
         .filter(
-            or_(
-                and_(CodeEdge.src_entity_id.in_(entity_ids), CodeEdge.type == "COPY"),
-                and_(CodeEdge.dst_entity_id.in_(entity_ids), CodeEdge.type == "CALL"),
-            )
+            CodeEdge.type.in_(RETRIEVAL_EDGE_TYPES),
+            CodeEdge.resolution == "resolved",
+            or_(CodeEdge.src_entity_id.in_(entity_ids), CodeEdge.dst_entity_id.in_(entity_ids)),
         )
         .all()
     )

@@ -22,7 +22,7 @@ vi.mock('@/components/settings/SettingsContext', () => ({
 import { AiSettingsTab } from './AiSettingsTab';
 
 const profile = (overrides: Partial<LlmProfile> = {}): LlmProfile => ({
-  id: 'p1', name: 'Lokal', provider: 'ollama', model: 'qwen2.5:1.5b', ...overrides,
+  id: 'p1', name: 'Lokal', provider: 'ollama', model: 'qwen3:32b', ...overrides,
 });
 
 /** Findet die Select-Trigger-Combobox, die zu diesem Label-Text gehört. */
@@ -68,7 +68,7 @@ describe('AiSettingsTab', () => {
       fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
 
       expect((screen.getByPlaceholderText('settings.profilesTab.profileNamePlaceholder') as HTMLInputElement).value).toBe('');
-      expect(screen.getByDisplayValue('qwen2.5:1.5b')).toBeTruthy();
+      expect(screen.getByDisplayValue('qwen3:32b')).toBeTruthy();
     });
 
     it('requires a name before saving', () => {
@@ -84,7 +84,7 @@ describe('AiSettingsTab', () => {
       render(<AiSettingsTab />);
       fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
       fireEvent.change(screen.getByPlaceholderText('settings.profilesTab.profileNamePlaceholder'), { target: { value: 'Neu' } });
-      fireEvent.change(screen.getByDisplayValue('qwen2.5:1.5b'), { target: { value: '' } });
+      fireEvent.change(screen.getByDisplayValue('qwen3:32b'), { target: { value: '' } });
       fireEvent.click(screen.getByText('settings.profilesTab.saveProfile'));
 
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.modelNameRequired', 'error');
@@ -100,7 +100,7 @@ describe('AiSettingsTab', () => {
 
       expect(settingsValue.setLlmProfiles).toHaveBeenCalledWith([
         profile(),
-        expect.objectContaining({ name: 'Neu', provider: 'ollama', model: 'qwen2.5:1.5b', apiKey: 'secret' }),
+        expect.objectContaining({ name: 'Neu', provider: 'ollama', model: 'qwen3:32b', apiKey: 'secret' }),
       ]);
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.profileCreated', 'success');
       const stored = JSON.parse(localStorage.getItem('doctus-llm-profiles')!);
@@ -112,7 +112,7 @@ describe('AiSettingsTab', () => {
       featuresValue = { ...DEFAULT_FEATURES, llm: { allowCloudProviders: true } };
       render(<AiSettingsTab />);
       fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
-      expect(screen.getByDisplayValue('qwen2.5:1.5b')).toBeTruthy();
+      expect(screen.getByDisplayValue('qwen3:32b')).toBeTruthy();
 
       fireEvent.click(comboboxForLabel('settings.profilesTab.providerLabel'));
       fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.providerOptions.openai'));
@@ -124,7 +124,7 @@ describe('AiSettingsTab', () => {
       featuresValue = { ...DEFAULT_FEATURES, llm: { allowCloudProviders: true } };
       render(<AiSettingsTab />);
       fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
-      fireEvent.change(screen.getByDisplayValue('qwen2.5:1.5b'), { target: { value: 'my-custom-model' } });
+      fireEvent.change(screen.getByDisplayValue('qwen3:32b'), { target: { value: 'my-custom-model' } });
 
       fireEvent.click(comboboxForLabel('settings.profilesTab.providerLabel'));
       fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.providerOptions.openai'));

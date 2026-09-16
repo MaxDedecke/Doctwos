@@ -39,11 +39,7 @@ def load_analysis_status(
     if not pairs:
         return {}
     source_ids = {source_id for source_id, _ in pairs}
-    rows = (
-        db.query(SourceScanFile)
-        .filter(SourceScanFile.source_id.in_(source_ids))
-        .all()
-    )
+    rows = db.query(SourceScanFile).filter(SourceScanFile.source_id.in_(source_ids)).all()
     result: dict[tuple[int, str], dict] = {}
     for row in rows:
         key = (row.source_id, row.file_path)

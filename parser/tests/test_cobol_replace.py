@@ -36,38 +36,25 @@ def test_plain_pseudo_text_substitutes_only_between_replace_and_off():
 
 
 def test_substitution_never_touches_literal_content():
-    text = (
-        "       REPLACE ==:TAG:== BY ==CUSTOMER==.\n"
-        "       DISPLAY 'KEEP :TAG: LITERAL'.\n"
-    )
+    text = "       REPLACE ==:TAG:== BY ==CUSTOMER==.\n       DISPLAY 'KEEP :TAG: LITERAL'.\n"
     out = _texts(replace.apply(_lines(text)))
     assert out[1] == "DISPLAY 'KEEP :TAG: LITERAL'."
 
 
 def test_leading_qualifier_replaces_only_the_matched_prefix():
-    text = (
-        "       REPLACE LEADING ==WS-== BY ==NEW-==.\n"
-        "       MOVE WS-A TO WS-B.\n"
-    )
+    text = "       REPLACE LEADING ==WS-== BY ==NEW-==.\n       MOVE WS-A TO WS-B.\n"
     out = _texts(replace.apply(_lines(text)))
     assert out[1] == "MOVE NEW-A TO NEW-B."
 
 
 def test_trailing_qualifier_replaces_only_the_matched_suffix():
-    text = (
-        "       REPLACE TRAILING ==-OLD== BY ==-NEW==.\n"
-        "       MOVE FIELD-OLD TO OTHER-OLD.\n"
-    )
+    text = "       REPLACE TRAILING ==-OLD== BY ==-NEW==.\n       MOVE FIELD-OLD TO OTHER-OLD.\n"
     out = _texts(replace.apply(_lines(text)))
     assert out[1] == "MOVE FIELD-NEW TO OTHER-NEW."
 
 
 def test_a_second_replace_statement_supersedes_the_first_instead_of_stacking():
-    text = (
-        "       REPLACE ==A== BY ==B==.\n"
-        "       REPLACE ==C== BY ==D==.\n"
-        "       MOVE A TO C.\n"
-    )
+    text = "       REPLACE ==A== BY ==B==.\n       REPLACE ==C== BY ==D==.\n       MOVE A TO C.\n"
     out = _texts(replace.apply(_lines(text)))
     # A ist nicht mehr aktiv (vom zweiten REPLACE abgeloest), nur C->D gilt.
     assert out[2] == "MOVE A TO D."
@@ -79,12 +66,7 @@ def test_replace_inside_an_inactive_conditional_branch_has_no_effect():
     # Freies Format, weil >>IF nur so als eigene Direktivenzeile erkannt wird
     # (siehe 17_conditional_compilation_true_branch.cbl) - fuer diesen Test
     # unerheblich, replace.py arbeitet formatunabhaengig auf LogicalLines.
-    text = (
-        ">>IF 1 = 2\n"
-        "REPLACE ==A== BY ==B==.\n"
-        ">>END-IF\n"
-        "MOVE A TO WS-A.\n"
-    )
+    text = ">>IF 1 = 2\nREPLACE ==A== BY ==B==.\n>>END-IF\nMOVE A TO WS-A.\n"
     lines = source_format.split_logical_lines(text, "free")
     lines = conditional.apply(lines, {})
     out = _texts(replace.apply(lines))

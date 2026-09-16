@@ -349,6 +349,19 @@ erfasst, nicht umgesetzt.
 | O-186 | P2 / Skalierungsabnahme | Für die Link-Builder gibt es noch keine reproduzierbare Skalierungs-Regression auf einem 500k-LOC-ähnlichen Korpus; dadurch bleiben Durchsatz, Indexgröße und Kostenannahmen ungesichert. | Synthetischen oder anonymisierten Benchmark-Korpus samt festem Messprotokoll ergänzen: Erstimport, Delta-Sync, Link-Run, Such-p95, Speicher, Vektorindexgröße und LLM-Review-Durchsatz. **Abnahme:** versionierter Benchmark-Bericht mit Hardwareprofil, Korpusgröße, Parametern und akzeptierten Grenzwerten; Regressionen sind in CI oder einem definierten Performance-Job sichtbar. | O-001, O-075, O-153; O-177–O-185 |
 | O-187 | Frontend+Backend / AI-Profile / Embeddings | Das Embedding-Modell ist derzeit ein globaler, separat vom LLM-Profil geladener Zustand (`OLLAMA_EMBED_MODEL`/`GET /model-info`); LLM-Profile speichern nur Provider, LLM-Modell und Parameter im Browser. Ein aktives Profil kann daher nicht festlegen, mit welchem Embedding-Modell neue Quellen, Chat-Anfragen oder Link-Builder arbeiten. | LLM-Profile um ein optionales Embedding-Modell erweitern und dessen Aktivierung durchgängig verdrahten. Vor dem Einsatz müssen Provider-/Modellverfügbarkeit und die Vektordimension geprüft werden; Modellwechsel dürfen Embeddings unterschiedlicher Modelle nicht still im selben Vektorraum mischen, sondern brauchen eine persistierte Modell-/Versionskennung und einen expliziten, fortschrittsanzeigenden Reindex für betroffene Quellen/Indizes. **Abnahme:** Das Profilformular zeigt und speichert das Embedding-Modell; Profilwechsel verwenden es bei Ingestion, Query-Retrieval und Link-Berechnungen; inkompatible Bestands-Embeddings werden erkannt und kontrolliert neu aufgebaut. | `OLLAMA_EMBED_MODEL`, `/model-info`/`/models`; O-180, O-182; Vektorschema- und Reindex-Strategie |
 
+**Arbeitsstand O-187 (16.09.2026):** Der vertikale Schnitt ist umgesetzt: LLM-Profile
+speichern jetzt ein optionales Ollama-Embedding-Modell; Quellen, Chunks und
+Link-Builder-Runs persistieren die verwendete Modellkennung. Ingestion, Chat-Retrieval
+und beide Link-Builder verwenden das aktive Profil und filtern strikt nach dem
+Vektorraum. Die feste Dimension (1024) wird beim Embedding geprüft; ein expliziter
+Admin-Reindex kann das Modell einer Quelle kontrolliert wechseln und setzt den
+vorhandenen Vektorbestand sowie den sichtbaren Fortschritt zurück. Bestehende
+Quellen werden per Migration als `bge-m3` markiert. Die Sources-Ansicht zeigt
+abweichende aktive Modelle als „Reindex erforderlich“. Reindex-Buttons stehen
+für alle realen Quelltypen bereit. Offen bleiben eine vorgelagerte
+Verfügbarkeitsprüfung im Profilformular sowie die vollständige Run-/Mismatch-
+Telemetrie.
+
 O-171 bis O-174 stammen aus Kollegenfragen (Basti, 14.09.2026) zu Architektur,
 Ingestion und Suche — gestellt als "ketzerische" bzw. technische Fragen,
 gegen den tatsächlichen Codestand geprüft und als Ideen/Evaluierungspunkte

@@ -131,12 +131,15 @@ def test_parent_id_uses_explicit_parent_qname_for_names_with_dots():
         "com.acme.PaymentService#book(java.lang.String)",
     )
 
-    assert _parent_id(
-        child.qualified_name,
-        {parent.qualified_name: parent},
-        {},
-        parent_qualified_name=parent.qualified_name,
-    ) == parent.id
+    assert (
+        _parent_id(
+            child.qualified_name,
+            {parent.qualified_name: parent},
+            {},
+            parent_qualified_name=parent.qualified_name,
+        )
+        == parent.id
+    )
 
 
 def test_parent_id_keeps_legacy_split_for_results_without_parent_qname():

@@ -85,9 +85,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 if not isinstance(children, list):
                     children = [children]
                 values.extend(
-                    child.getText()
-                    for child in children
-                    if child.getText() in _JAVA_MODIFIERS
+                    child.getText() for child in children if child.getText() in _JAVA_MODIFIERS
                 )
             rule_name = JavaParser.ruleNames[current.getRuleIndex()]
             if values or rule_name in _DECLARATION_BOUNDARIES:
@@ -490,9 +488,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             setter = False
 
         is_boolean_is_name = field_type == "boolean" and (
-            field.name.startswith("is")
-            and len(field.name) > 2
-            and field.name[2].isupper()
+            field.name.startswith("is") and len(field.name) > 2 and field.name[2].isupper()
         )
         property_name = field.name[2:] if is_boolean_is_name else field.name
         capitalized = property_name[:1].upper() + property_name[1:]

@@ -63,12 +63,17 @@ class ChatRequest(BaseModel):
     pinned_context: Optional[str] = None
     pinned_label: Optional[str] = None
     pinned_source_id: Optional[int] = None
+    # Stable language-neutral CodeEntity focus; legacy clients may omit it.
+    pinned_entity_id: Optional[int] = None
     temperature: Optional[float] = 0.7
     system_prompt: Optional[str] = None
     llm_provider: Optional[str] = "ollama"
     llm_model: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
+    # Optionales Embedding-Modell des aktiven LLM-Profils. Fehlt es, verwendet
+    # das Backend den Deployment-Default.
+    embedding_model: Optional[str] = None
     metadata: Optional[dict] = None
     retry_of_message_id: Optional[int] = (
         None  # regenerate: replaces this assistant message instead of appending a new turn
@@ -142,6 +147,7 @@ class KnowledgeSourceCreate(BaseModel):
     context_note: Optional[str] = (
         None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
     )
+    embedding_model: Optional[str] = None
 
 
 class FolderWatchCreate(BaseModel):
@@ -150,6 +156,7 @@ class FolderWatchCreate(BaseModel):
     project_id: Optional[int] = None
     team_id: Optional[int] = None
     sync_interval_minutes: Optional[int] = None
+    embedding_model: Optional[str] = None
 
 
 class GitSourceCreate(BaseModel):
@@ -162,6 +169,7 @@ class GitSourceCreate(BaseModel):
     team_id: Optional[int] = None
     sparse_paths: Optional[List[str]] = None
     sync_interval_minutes: Optional[int] = None
+    embedding_model: Optional[str] = None
 
 
 class KnowledgeSourceUpdate(BaseModel):
@@ -174,6 +182,13 @@ class KnowledgeSourceUpdate(BaseModel):
     context_note: Optional[str] = (
         None  # Fachwissen-Notiz für den System-Prompt, siehe KnowledgeSource.context_note
     )
+    embedding_model: Optional[str] = None
+
+
+class EmbeddingReindexRequest(BaseModel):
+    """Optional target model for an explicit, progress-tracked reindex."""
+
+    embedding_model: Optional[str] = None
 
 
 class LinkStatusUpdate(BaseModel):

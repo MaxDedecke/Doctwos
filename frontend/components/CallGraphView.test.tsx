@@ -252,6 +252,33 @@ describe('CallGraphView', () => {
       expect(onFileSelect).toHaveBeenCalledWith('src/UNTER.cbl', 20, 5);
     });
 
+    it('navigiert auch von einer Java-Methode aus dem Call-Graphen in den Editor', async () => {
+      stubFetch({
+        focus: {
+          nodes: [
+            { id: 101, name: 'PaymentService', type: 'class', file_path: 'src/main/java/com/acme/PaymentService.java', start_line: 8, source_id: 5 },
+            { id: 102, name: 'calculate', type: 'method', file_path: 'src/main/java/com/acme/PaymentService.java', start_line: 24, source_id: 5 },
+          ],
+          edges: [{ id: 1001, source: 101, target: 102, type: 'CALLS', resolution: 'resolved', target_name: 'calculate' }],
+          edge_types: ['CALLS'],
+          truncated: false,
+        },
+      });
+
+      const { onFileSelect } = renderView({ focusedEntity: { id: 101, name: 'PaymentService' } });
+
+      await waitFor(() => expect(screen.getByTestId('node-entity:102')).toBeTruthy());
+      expect(screen.getByTestId('node-entity:102').textContent).toBe('calculate');
+
+      fireEvent.click(screen.getByTestId('node-entity:102'));
+
+      expect(onFileSelect).toHaveBeenCalledWith(
+        'src/main/java/com/acme/PaymentService.java',
+        24,
+        5,
+      );
+    });
+
     // Der Knoten für ein unaufgelöstes Ziel wird allein aus `target_name`
     // gebaut und hat deshalb gar keinen Dateipfad -- geprüft wird hier also
     // das beobachtbare Verhalten (Klick öffnet nichts), nicht speziell die

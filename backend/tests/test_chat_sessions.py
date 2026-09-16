@@ -257,9 +257,13 @@ def test_two_downvotes_from_separate_sessions_mark_only_cited_links_for_review(
     db_session.add(second)
     db_session.commit()
 
-    second_response = client.patch(f"/chat/messages/{second.id}/feedback", json={"feedback": "down"})
+    second_response = client.patch(
+        f"/chat/messages/{second.id}/feedback", json={"feedback": "down"}
+    )
     assert second_response.status_code == 200
-    assert {item["type"] for item in second_response.json()["link_feedback"]["marked_for_review"]} == {
+    assert {
+        item["type"] for item in second_response.json()["link_feedback"]["marked_for_review"]
+    } == {
         "entity_doc",
         "knowledge",
     }
@@ -268,7 +272,10 @@ def test_two_downvotes_from_separate_sessions_mark_only_cited_links_for_review(
     assert entity_link.status == knowledge_link.status == "pending"
 
     # Das Zurücknehmen entfernt genau dieses Signal, aber nicht die ausgelöste Prüfung.
-    assert client.patch(f"/chat/messages/{second.id}/feedback", json={"feedback": None}).status_code == 200
+    assert (
+        client.patch(f"/chat/messages/{second.id}/feedback", json={"feedback": None}).status_code
+        == 200
+    )
     assert (
         db_session.query(ChatLinkFeedbackSignal)
         .filter(ChatLinkFeedbackSignal.chat_message_id == second.id)

@@ -176,14 +176,10 @@ def _append_columnar_line(
             lines.append(LogicalLine(lineno, lineno, [], fmt, is_comment=True, is_debug=True))
             return None
     if indicator in _DIRECTIVE_INDICATORS:
-        lines.append(
-            LogicalLine(lineno, lineno, [], fmt, is_comment=True, directive=code.strip())
-        )
+        lines.append(LogicalLine(lineno, lineno, [], fmt, is_comment=True, directive=code.strip()))
         return None
     if _is_compiler_directive(code):
-        lines.append(
-            LogicalLine(lineno, lineno, [], fmt, is_comment=True, directive=code.strip())
-        )
+        lines.append(LogicalLine(lineno, lineno, [], fmt, is_comment=True, directive=code.strip()))
         return None
     code = _without_inline_comment(code)
     if not code.strip():

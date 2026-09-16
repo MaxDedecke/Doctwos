@@ -38,10 +38,7 @@ def _requested_edge_types(
     therefore also works for a parser type unknown to this API version.
     """
     requested = {
-        item.strip().upper()
-        for value in (types or [])
-        for item in value.split(",")
-        if item.strip()
+        item.strip().upper() for value in (types or []) for item in value.split(",") if item.strip()
     }
     if requested:
         return requested

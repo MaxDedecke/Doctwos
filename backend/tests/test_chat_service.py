@@ -9,10 +9,12 @@ import pytest
 
 import core.config as cfg
 from services.chat_service import (
+    build_entity_breadcrumb,
     build_chat_prompt,
     build_pinned_context,
     stream_standard_rag_events,
 )
+from models.database import CodeEntity
 
 
 def _fake_chunk(start_line, end_line, content):
@@ -37,6 +39,59 @@ def test_prompt_keeps_the_pinned_file_as_primary_context():
     assert "pinned code as the primary subject" in prompt
     assert "Question: What does it do?" in prompt
     assert "<untrusted_context>" in prompt
+
+
+def test_entity_breadcrumb_is_language_neutral(db_session, test_project):
+    package = CodeEntity(
+        project_id=test_project,
+        file_path="src/PaymentService.java",
+        name="com.acme",
+        qualified_name="com.acme",
+        type="package",
+    )
+    clazz = CodeEntity(
+        project_id=test_project,
+        file_path="src/PaymentService.java",
+        name="PaymentService",
+        qualified_name="com.acme.PaymentService",
+        type="class",
+        parent=package,
+    )
+    method = CodeEntity(
+        project_id=test_project,
+        file_path="src/PaymentService.java",
+        name="calculate",
+        qualified_name="com.acme.PaymentService#calculate()",
+        type="method",
+        parent=clazz,
+    )
+    db_session.add(method)
+    db_session.commit()
+    try:
+        assert (
+            build_entity_breadcrumb(db_session, method) == "com.acme › PaymentService › calculate"
+        )
+    finally:
+        db_session.delete(method)
+        db_session.delete(clazz)
+        db_session.delete(package)
+        db_session.commit()
+
+
+def test_pinned_context_renders_entity_breadcrumb():
+    chunk = _fake_chunk(1, 2, "class PaymentService {}")
+    context = build_pinned_context(
+        pinned_file="src/PaymentService.java",
+        pinned_line=1,
+        pinned_end_line=2,
+        pinned_label="PaymentService",
+        focused_breadcrumb="com.acme › PaymentService",
+        pinned_context=None,
+        pinned_chunks=[chunk],
+        repository_id=None,
+    )
+
+    assert "Entity breadcrumb: com.acme › PaymentService" in context
 
 
 def test_non_file_focus_is_included_without_repository_context():

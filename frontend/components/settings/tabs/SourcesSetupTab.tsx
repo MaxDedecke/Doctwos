@@ -1,5 +1,6 @@
 "use client";
 import { apiErrorDetail } from '@/lib/apiError';
+import { DEFAULT_EMBEDDING_MODEL } from '@/hooks/useAiSettings';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -24,7 +25,11 @@ interface SourcesSetupTabProps {
 
 export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceType, selectedSourceRepoId, onDone }) => {
   const { t } = useLanguage();
-  const { theme, showToast, setConnectedSources, projects } = useSettings();
+  const {
+    theme, showToast, setConnectedSources, projects, llmProfiles, activeProfileId,
+  } = useSettings();
+  const activeEmbeddingModel = llmProfiles.find(p => p.id === activeProfileId)?.embeddingModel
+    || DEFAULT_EMBEDDING_MODEL;
 
   const [sourceInstanceName, setSourceInstanceName] = useState("");
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
@@ -76,7 +81,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         username: sourceUsername || null,
         token: sourceToken || null,
         project_id: selectedSourceRepoId === "all" ? null : parseInt(selectedSourceRepoId),
-        spaces: spacesPayload
+        spaces: spacesPayload,
+        embedding_model: activeEmbeddingModel,
       };
 
       const res = await api.createKnowledgeSource(payload);
@@ -155,6 +161,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       if (selectedSourceRepoId !== 'all') {
         formData.append('project_id', selectedSourceRepoId);
       }
+      formData.append('embedding_model', activeEmbeddingModel);
 
       const res = await api.uploadLocalDocument(formData);
       setConnectedSources(prev => [...prev, res.data]);
@@ -177,6 +184,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         name: folderName.trim(),
         folder_path: folderPath.trim(),
         project_id: selectedSourceRepoId !== 'all' ? parseInt(selectedSourceRepoId) : null,
+        embedding_model: activeEmbeddingModel,
       });
       setConnectedSources(prev => [...prev, res.data]);
       showToast(t('settings.toast.sourceConnected', { type: t('settings.sourcesTab.types.folderwatch.name') }), "success");

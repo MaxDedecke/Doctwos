@@ -230,9 +230,9 @@ def test_get_link_recommendations_serves_navigation_source_ids(
         # navigierbar machen — None statt eines falschen Werts.
         assert served[manual.id]["doc_source_id"] is None
     finally:
-        db_session.query(EntityDocLink).filter(
-            EntityDocLink.id.in_([link.id, manual.id])
-        ).delete(synchronize_session=False)
+        db_session.query(EntityDocLink).filter(EntityDocLink.id.in_([link.id, manual.id])).delete(
+            synchronize_session=False
+        )
         db_session.commit()
 
 
@@ -346,9 +346,7 @@ def test_create_manual_link_rejects_team_member_without_project(
 # ── POST /projects/{id}/link-recommendations/compute ────────────────────────
 
 
-def test_trigger_link_computation_dispatches_task_and_creates_run(
-    client, db_session, test_project
-):
+def test_trigger_link_computation_dispatches_task_and_creates_run(client, db_session, test_project):
     calls = []
 
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
@@ -404,9 +402,9 @@ def test_trigger_link_computation_clears_pending_but_keeps_reviewed_links(
     db_session.query(LinkBuilderRun).filter(LinkBuilderRun.project_id == test_project).delete(
         synchronize_session=False
     )
-    db_session.query(EntityDocLink).filter(
-        EntityDocLink.id.in_([approved_id, rejected_id])
-    ).delete(synchronize_session=False)
+    db_session.query(EntityDocLink).filter(EntityDocLink.id.in_([approved_id, rejected_id])).delete(
+        synchronize_session=False
+    )
     db_session.commit()
 
 
@@ -429,11 +427,16 @@ def test_list_link_builder_runs_returns_most_recent_first(client, db_session, te
     # gleichem Zeitstempel wäre dann zufällig, nicht das, was der Test prüft.
     now = datetime.now(timezone.utc)
     older = LinkBuilderRun(
-        task_type="entity_links", project_id=test_project, status="completed",
+        task_type="entity_links",
+        project_id=test_project,
+        status="completed",
         created_at=now - timedelta(seconds=5),
     )
     newer = LinkBuilderRun(
-        task_type="entity_links", project_id=test_project, status="failed", created_at=now,
+        task_type="entity_links",
+        project_id=test_project,
+        status="failed",
+        created_at=now,
     )
     db_session.add_all([older, newer])
     db_session.commit()
@@ -451,7 +454,9 @@ def test_list_link_builder_runs_returns_most_recent_first(client, db_session, te
 
 
 def test_list_link_builder_runs_ignores_other_task_types(client, db_session, test_project):
-    knowledge_run = LinkBuilderRun(task_type="knowledge_links", project_id=test_project, status="completed")
+    knowledge_run = LinkBuilderRun(
+        task_type="knowledge_links", project_id=test_project, status="completed"
+    )
     db_session.add(knowledge_run)
     db_session.commit()
     db_session.refresh(knowledge_run)
@@ -466,7 +471,9 @@ def test_list_link_builder_runs_ignores_other_task_types(client, db_session, tes
 def test_list_link_builder_runs_hides_project_from_team_outsider(
     unauthenticated_client, test_project, team_outsider
 ):
-    res = _as(unauthenticated_client, team_outsider).get(f"/projects/{test_project}/link-builder-runs")
+    res = _as(unauthenticated_client, team_outsider).get(
+        f"/projects/{test_project}/link-builder-runs"
+    )
     assert res.status_code == 404
 
 
@@ -527,7 +534,11 @@ def test_update_link_status_of_missing_link_is_404(client):
 
 
 def test_update_link_status_rejects_team_member_without_project(
-    unauthenticated_client, test_project, team_member_without_project, db_session, source_entity_chunk
+    unauthenticated_client,
+    test_project,
+    team_member_without_project,
+    db_session,
+    source_entity_chunk,
 ):
     source, entity, chunk = source_entity_chunk
     link = _make_link(db_session, test_project, entity, chunk, status="pending")
@@ -619,7 +630,11 @@ def test_llm_review_of_missing_link_is_404(client):
 
 
 def test_llm_review_rejects_team_member_without_project(
-    unauthenticated_client, test_project, team_member_without_project, db_session, source_entity_chunk
+    unauthenticated_client,
+    test_project,
+    team_member_without_project,
+    db_session,
+    source_entity_chunk,
 ):
     source, entity, chunk = source_entity_chunk
     link = _make_link(db_session, test_project, entity, chunk, status="pending")
@@ -650,7 +665,11 @@ def test_delete_missing_link_is_404(client):
 
 
 def test_delete_link_rejects_team_member_without_project(
-    unauthenticated_client, test_project, team_member_without_project, db_session, source_entity_chunk
+    unauthenticated_client,
+    test_project,
+    team_member_without_project,
+    db_session,
+    source_entity_chunk,
 ):
     source, entity, chunk = source_entity_chunk
     link = _make_link(db_session, test_project, entity, chunk, status="approved")
@@ -659,7 +678,9 @@ def test_delete_link_rejects_team_member_without_project(
             f"/entity-doc-links/{link.id}"
         )
         assert res.status_code == 403
-        assert db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).first() is not None
+        assert (
+            db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).first() is not None
+        )
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.commit()

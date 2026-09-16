@@ -36,6 +36,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from api.schemas import (
+    EmbeddingReindexRequest,
     FolderWatchCreate,
     KnowledgeSourceCreate,
     KnowledgeSourceUpdate,
@@ -43,9 +44,11 @@ from api.schemas import (
 )
 from api.serializers import serialize_source
 from core.config import UPLOADS_DIR, REPOS_ROOT
+import core.config as cfg
 from core.db_setup import get_db
 from models.database import (
     DocumentChunk,
+    EntityDocLink,
     JobCenterDismissal,
     KnowledgeSource,
     Project,
@@ -118,6 +121,18 @@ def _validate_context_note(value: Optional[str]) -> Optional[str]:
     return stripped
 
 
+def _validate_embedding_model(value: Optional[str]) -> Optional[str]:
+    """Normalize an optional profile model and reject an unusable value early."""
+    if value is None:
+        return None
+    model = value.strip()
+    if not model or model == "disabled":
+        raise HTTPException(status_code=400, detail="Embedding-Modell darf nicht leer oder deaktiviert sein")
+    if len(model) > 255:
+        raise HTTPException(status_code=400, detail="Embedding-Modellname ist zu lang")
+    return model
+
+
 def _check_knowledge_source_cap(project_id: Optional[int], db: Session):
     pass
 
@@ -169,6 +184,7 @@ def create_knowledge_source(
         spaces=source.spaces,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
         context_note=_validate_context_note(source.context_note),
+        embedding_model=_validate_embedding_model(source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)
@@ -254,22 +270,53 @@ def sync_knowledge_source(
 @router.post("/{source_id}/reindex")
 def reindex_knowledge_source(
     source_id: int,
+    body: EmbeddingReindexRequest | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
-    """Queue an admin-only full reindex without recreating the source."""
+    """Queue an admin-only full reindex without recreating the source.
+
+    The old vectors are removed as one explicit operation and the source is
+    reprocessed with the selected model. This makes a model switch visible in
+    progress/status instead of silently mixing vector spaces.
+    """
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
-    if (db_source.type or "").lower() != "git":
-        raise HTTPException(
-            status_code=400, detail="Vollständige Neu-Analyse wird nur für Git unterstützt"
-        )
     if db_source.sync_status in {"pending", "syncing"}:
         raise HTTPException(
             status_code=409, detail="Für diese Wissensquelle läuft bereits eine Analyse"
         )
 
+    local_file_path = None
+    if (db_source.type or "").lower() == "local":
+        file_name = (db_source.spaces or {}).get("path") if isinstance(db_source.spaces, dict) else None
+        if not file_name:
+            raise HTTPException(status_code=400, detail="Lokale Datei ist nicht mehr verfügbar")
+        local_file_path = os.path.join(UPLOADS_DIR, file_name)
+
+    requested_model = _validate_embedding_model(body.embedding_model if body else None)
+    db_source.embedding_model = requested_model or db_source.embedding_model or cfg.OLLAMA_EMBED_MODEL
+    # The direct source-level reset cannot fingerprint individual replacement
+    # chunks. Approved entity links therefore need an explicit human review
+    # after the model switch instead of silently retaining a dead chunk_id.
+    affected_links = (
+        db.query(EntityDocLink)
+        .join(DocumentChunk, EntityDocLink.chunk_id == DocumentChunk.id)
+        .filter(DocumentChunk.source_id == source_id, EntityDocLink.status == "approved")
+        .all()
+    )
+    for link in affected_links:
+        link.status = "pending"
+        link.score = None
+        link.reviewed_at = None
+        note = "[Embedding-Modell/Reindex geändert – erneute Prüfung nötig] "
+        if not (link.context or "").startswith(note):
+            link.context = note + (link.context or "")
+    db.query(DocumentChunk).filter(DocumentChunk.source_id == source_id).delete(
+        synchronize_session=False
+    )
+    db_source.last_synced_at = None
     db_source.sync_status = "pending"
     db_source.progress = 0
     db_source.parsed_files = 0
@@ -282,13 +329,15 @@ def reindex_knowledge_source(
         JobCenterDismissal.job_id == db_source.id,
     ).delete(synchronize_session=False)
     db.commit()
-    send_tracked_task(
-        db,
-        db_source,
-        "process_knowledge_source",
-        [db_source.id],
-        {"force_reindex": True, "trace_id": get_trace_id()},
-    )
+    if local_file_path:
+        task_name = "process_local_document"
+        task_args = [db_source.id, local_file_path]
+        task_kwargs = {"trace_id": get_trace_id()}
+    else:
+        task_name = "process_knowledge_source"
+        task_args = [db_source.id]
+        task_kwargs = {"force_reindex": True, "trace_id": get_trace_id()}
+    send_tracked_task(db, db_source, task_name, task_args, task_kwargs)
     return {"message": "Vollständige Neu-Analyse gestartet", "source_id": source_id}
 
 
@@ -316,6 +365,20 @@ def update_knowledge_source(
         db_source.sync_interval_minutes = _validate_sync_interval(fields["sync_interval_minutes"])
     if "context_note" in fields:
         db_source.context_note = _validate_context_note(fields["context_note"])
+    if "embedding_model" in fields:
+        requested_model = _validate_embedding_model(fields["embedding_model"])
+        current_model = db_source.embedding_model or cfg.OLLAMA_EMBED_MODEL
+        if requested_model != current_model:
+            has_vectors = db.query(DocumentChunk.id).filter(
+                DocumentChunk.source_id == source_id,
+                DocumentChunk.embedding.isnot(None),
+            ).first()
+            if has_vectors:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Embedding-Modell geändert. Bitte anschließend einen expliziten Reindex starten.",
+                )
+            db_source.embedding_model = requested_model
     db.commit()
     db.refresh(db_source)
     return serialize_source(db_source)
@@ -700,6 +763,7 @@ def create_folder_watch_source(
         url=source.folder_path,
         project_id=source.project_id,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
+        embedding_model=_validate_embedding_model(source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)
@@ -732,6 +796,7 @@ def create_git_source(
         branch=source.branch,
         spaces={"sparse_paths": source.sparse_paths},
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
+        embedding_model=_validate_embedding_model(source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)
@@ -758,6 +823,7 @@ async def upload_local_document(
     name: str = Form(...),
     project_id: Optional[int] = Form(None),
     team_id: Optional[int] = Form(None),
+    embedding_model: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -773,7 +839,11 @@ async def upload_local_document(
     resolved_team_id = _resolve_team_id(project_id, db, user, team_id)
     _check_knowledge_source_cap(project_id, db)
     db_source = KnowledgeSource(
-        name=name, type="Local", project_id=project_id, team_id=resolved_team_id
+        name=name,
+        type="Local",
+        project_id=project_id,
+        team_id=resolved_team_id,
+        embedding_model=_validate_embedding_model(embedding_model),
     )
     db.add(db_source)
     db.commit()

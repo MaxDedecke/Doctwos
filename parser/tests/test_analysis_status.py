@@ -55,7 +55,9 @@ def test_error_severity_diagnostic_with_empty_errors_is_no_longer_reported_as_co
 def test_warning_severity_diagnostic_also_downgrades_from_complete():
     # z.B. O-121s PROFILE_UNKNOWN_COMPILER_FAMILY -- ein ungeklärter Dialekt
     # darf nicht als uneingeschränkt analysiert erscheinen (O-120-Abnahme).
-    result = _result(chunks=[_chunk()], diagnostics=[_diag("warning", "unbekannte compiler_family")])
+    result = _result(
+        chunks=[_chunk()], diagnostics=[_diag("warning", "unbekannte compiler_family")]
+    )
     status, reasons = classify_completeness(result)
     assert status == "partial"
     assert reasons == ["unbekannte compiler_family"]

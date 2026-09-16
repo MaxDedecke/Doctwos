@@ -59,7 +59,11 @@ def test_admin_opt_in_captures_minimal_case_and_gates_export(client, db_session)
         role="assistant",
         content="Eine falsche Erklärung.",
         sources_json=[{"file": "program.cbl", "chunk_id": 12}],
-        metadata_json={"model": "local-model", "provider": "ollama", "agent_steps": [{"secret": "nope"}]},
+        metadata_json={
+            "model": "local-model",
+            "provider": "ollama",
+            "agent_steps": [{"secret": "nope"}],
+        },
     )
     db_session.add_all([question, answer])
     db_session.commit()
@@ -71,7 +75,10 @@ def test_admin_opt_in_captures_minimal_case_and_gates_export(client, db_session)
     )
     assert enabled.status_code == 200
 
-    assert client.patch(f"/chat/messages/{answer.id}/feedback", json={"feedback": "down"}).status_code == 200
+    assert (
+        client.patch(f"/chat/messages/{answer.id}/feedback", json={"feedback": "down"}).status_code
+        == 200
+    )
     cases = client.get("/feedback-diagnostics/cases")
     assert cases.status_code == 200
     entry = next(item for item in cases.json()["entries"] if item["message_id"] == answer.id)
@@ -85,10 +92,15 @@ def test_admin_opt_in_captures_minimal_case_and_gates_export(client, db_session)
     assert exported.json()["generated_locally"] is True
 
     # A withdrawn downvote must not remain in support diagnostics.
-    assert client.patch(f"/chat/messages/{answer.id}/feedback", json={"feedback": None}).status_code == 200
-    assert not db_session.query(ChatFeedbackDiagnosticCase).filter(
-        ChatFeedbackDiagnosticCase.chat_message_id == answer.id
-    ).first()
+    assert (
+        client.patch(f"/chat/messages/{answer.id}/feedback", json={"feedback": None}).status_code
+        == 200
+    )
+    assert (
+        not db_session.query(ChatFeedbackDiagnosticCase)
+        .filter(ChatFeedbackDiagnosticCase.chat_message_id == answer.id)
+        .first()
+    )
 
     db_session.delete(session)
     db_session.commit()
@@ -100,14 +112,24 @@ def test_feedback_diagnostic_export_needs_explicit_admin_opt_in(client):
 
 
 def test_diagnostic_settings_validate_retention_and_disable_export(client):
-    assert client.patch(
-        "/feedback-diagnostics/settings",
-        json={"collection_enabled": True, "support_export_enabled": True, "retention_days": 0},
-    ).status_code == 400
-    assert client.patch(
-        "/feedback-diagnostics/settings",
-        json={"collection_enabled": True, "support_export_enabled": True, "retention_days": 366},
-    ).status_code == 400
+    assert (
+        client.patch(
+            "/feedback-diagnostics/settings",
+            json={"collection_enabled": True, "support_export_enabled": True, "retention_days": 0},
+        ).status_code
+        == 400
+    )
+    assert (
+        client.patch(
+            "/feedback-diagnostics/settings",
+            json={
+                "collection_enabled": True,
+                "support_export_enabled": True,
+                "retention_days": 366,
+            },
+        ).status_code
+        == 400
+    )
 
     response = client.patch(
         "/feedback-diagnostics/settings",
@@ -142,10 +164,13 @@ def test_expired_diagnostic_cases_are_purged(client, db_session):
     )
     db_session.add(case)
     db_session.commit()
-    assert client.patch(
-        "/feedback-diagnostics/settings",
-        json={"collection_enabled": True, "support_export_enabled": False, "retention_days": 1},
-    ).status_code == 200
+    assert (
+        client.patch(
+            "/feedback-diagnostics/settings",
+            json={"collection_enabled": True, "support_export_enabled": False, "retention_days": 1},
+        ).status_code
+        == 200
+    )
 
     assert client.get("/feedback-diagnostics/cases").json()["entries"] == []
 

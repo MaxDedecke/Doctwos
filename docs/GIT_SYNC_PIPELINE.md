@@ -64,7 +64,7 @@ flowchart TD
 - **"Embedding gestartet"** (O-072) markiert den Moment, in dem eine Datei den
   Semaphore-Slot bekommt — nicht den Start des eigentlichen Ollama-Requests.
   Die gemessene Zeit bis "indexiert" umfasst Struktur-Parsing (falls die
-  Sprache einen Registry-Eintrag hat, aktuell nur COBOL/Copybook), Chunking,
+  Sprache einen Registry-Eintrag hat, aktuell COBOL/Copybook/Java), Chunking,
   Embedding **und** die anschließende DB-Persistenz (Chunks + Entities/Kanten).
 - **Binär-/EBCDIC-Skips** (O-074) passieren schon in `fetch_documents()`, vor
   der Semaphore — sie kosten praktisch keine Zeit und keinen Ollama-Aufruf.
@@ -80,13 +80,14 @@ flowchart TD
 
 ## Chunking im Detail
 
-### (1) Struktur-Parser — aktuell nur COBOL, `parser/cobol/chunking.py::chunk()`
+### (1) Struktur-Parser — COBOL/Copybook und Java
 
-Der Registry-Lookup oben (`cobol/registry.py::STRUCTURE_PARSERS`, O-077) ist
-sprachneutral; COBOL/Copybook sind bislang bloß der einzige Eintrag darin.
-Was folgt, ist deshalb COBOL-spezifisch — eine zweite Sprache brächte ihr
-eigenes Chunking-Modul mit (siehe `docs/ADDING_A_LANGUAGE.md`), nicht dieses
-hier.
+Der Registry-Lookup oben (`parser/core/registry.py::STRUCTURE_PARSERS`, O-077)
+ist sprachneutral. Jeder eingetragene Parser erhält die automatisch erkannte
+Sprache; für nicht registrierte Sprachen bleibt das generische Chunking aktiv.
+COBOL/Copybook und Java liefern derzeit strukturbezogene Chunks, weitere
+Sprachen können über denselben Registry-Vertrag ergänzt werden (siehe
+`docs/ADDING_A_LANGUAGE.md`).
 
 Ein Chunk pro **Paragraph** (PROCEDURE DIVISION), nicht nach fester
 Zeichenzahl geschnitten — Paragraph-/Section-Grenzen kommen bereits aus der

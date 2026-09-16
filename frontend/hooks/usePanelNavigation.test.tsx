@@ -271,6 +271,36 @@ describe('usePanelNavigation', () => {
     expect(result.current.pinnedCode).toMatchObject({ line: 200, endLine: 260 });
   });
 
+  it('keeps the generic Java entity focus when opening a graph neighbor', async () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['code'] }));
+    const entity: CodeEntity = {
+      id: 102,
+      name: 'calculate',
+      type: 'method',
+      qualified_name: 'com.acme.PaymentService#calculate()',
+      file_path: 'src/main/java/com/acme/PaymentService.java',
+      start_line: 24,
+      end_line: 31,
+      source_id: 55,
+    };
+
+    await act(async () => {
+      await result.current.navigation.handlePanelEntitySelectAndOpen(0, entity);
+    });
+
+    expect(result.current.pinnedCode).toMatchObject({
+      entityId: 102,
+      entityType: 'method',
+      qualifiedName: 'com.acme.PaymentService#calculate()',
+      breadcrumb: 'com.acme.PaymentService#calculate()',
+    });
+    expect(result.current.panelSelections[0]).toMatchObject({
+      selectedFile: entity.file_path,
+      selectedEntity: entity,
+      selectedLine: entity.start_line,
+    });
+  });
+
   it('leaves end line unset for a bare gutter-line focus (no enclosing entity)', () => {
     const previousSelection: PanelSelection = {
       selectedFile: 'src/PROGRAM.cbl',

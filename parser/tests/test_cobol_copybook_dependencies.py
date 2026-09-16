@@ -11,7 +11,9 @@ from connectors.git import _discover_copybook_dependencies, _fingerprint_librari
 from models.database import SourceScanFile
 
 
-def _copy_edge(dst_name: str, resolution: str = "resolved", library: str | None = None) -> ParsedEdge:
+def _copy_edge(
+    dst_name: str, resolution: str = "resolved", library: str | None = None
+) -> ParsedEdge:
     meta = {"library": library} if library else {}
     return ParsedEdge(
         type="COPY",

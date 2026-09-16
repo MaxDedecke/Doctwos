@@ -98,6 +98,21 @@ vi.mock('@/components/GlobalSearch', () => ({
       >
         select-document-result
       </button>
+      <button onClick={() => props.onSelectResult({
+        node_type: 'entity',
+        node_id: 101,
+        node_label: 'PaymentService',
+        node_url: null,
+        node_meta: {
+          project_id: 2,
+          source_id: 55,
+          file_path: 'src/main/java/com/acme/PaymentService.java',
+          start_line: 8,
+          type: 'class',
+        },
+      })}>
+        select-java-entity-result
+      </button>
     </div>
   ),
 }));
@@ -317,6 +332,20 @@ describe('app/page.tsx — Orchestrierung', () => {
       // Der Projektwechsel allein hat schon zurückgesetzt (Sitzung 7 gehört zu
       // Projekt 1) -- der Dokumentaufruf selbst legt keine zweite Sitzung an.
       await waitFor(() => expect(screen.getByTestId('sidebar-active-session').textContent).toBe('none'));
+    });
+
+    it('switches to the search result project before opening a Java entity in the editor', async () => {
+      mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA, projectB]));
+      renderApp();
+      await screen.findByTestId('sidebar');
+
+      fireEvent.click(screen.getByText('select-java-entity-result'));
+
+      await waitFor(() => expect(screen.getByTestId('sidebar-selected-project').textContent).toBe('Zinsberechnung'));
+      await waitFor(() => expect(mockedApi.getKnowledgeSourceContent).toHaveBeenCalledWith(
+        55,
+        'src/main/java/com/acme/PaymentService.java',
+      ));
     });
   });
 

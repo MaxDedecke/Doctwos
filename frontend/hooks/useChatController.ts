@@ -1,7 +1,7 @@
 import { extractTraceId } from '@/lib/traceId';
 import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
-import type { LlmProfile } from '@/hooks/useAiSettings';
+import { DEFAULT_EMBEDDING_MODEL, type LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import {
   chatFocusRequestFields,
@@ -426,6 +426,7 @@ export function useChatController({
       llm_model: activeProfile?.model || undefined,
       llm_api_key: activeProfile?.apiKey || undefined,
       llm_base_url: activeProfile?.baseUrl || undefined,
+      embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: newUserMsg.metadata || {}
     }, targetIndex);
   }, [activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
@@ -469,6 +470,7 @@ export function useChatController({
       llm_model: activeProfile?.model || undefined,
       llm_api_key: activeProfile?.apiKey || undefined,
       llm_base_url: activeProfile?.baseUrl || undefined,
+      embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: createChatMetadata(turnFocus, userMsg.metadata),
       retry_of_message_id: assistantMsg.id
     }, index);

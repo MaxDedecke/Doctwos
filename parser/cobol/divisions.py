@@ -64,7 +64,9 @@ def scan(
     tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines)
     visitor = _StructureVisitor(source_text)
     visitor.visit(tree)
-    programs = visitor.programs or [CobolProgram(name="", start_line=start_line, end_line=last_line)]
+    programs = visitor.programs or [
+        CobolProgram(name="", start_line=start_line, end_line=last_line)
+    ]
 
     if not any(p.divisions for p in programs):
         errors.append(
@@ -154,7 +156,9 @@ class _StructureVisitor(Cobol85Visitor):
     def visitProgramIdParagraph(self, ctx: Cobol85Parser.ProgramIdParagraphContext):  # noqa: N802
         name_ctx = ctx.programName()
         if name_ctx is not None and self._stack:
-            self._stack[-1].name = _clean_name(antlr_bridge.original_span(self._source_text, name_ctx))
+            self._stack[-1].name = _clean_name(
+                antlr_bridge.original_span(self._source_text, name_ctx)
+            )
         return None
 
     def visitFileSection(self, ctx: Cobol85Parser.FileSectionContext):  # noqa: N802
@@ -178,7 +182,9 @@ class _StructureVisitor(Cobol85Visitor):
     def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
         header = ctx.procedureSectionHeader()
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
-        self._stack[-1].sections.append(Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop)))
+        self._stack[-1].sections.append(
+            Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop))
+        )
         self._collect_paragraphs(ctx.paragraphs(), name)
         return None
 

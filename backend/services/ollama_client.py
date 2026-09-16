@@ -69,12 +69,17 @@ async def embed_text(
             embedding = resp.json()["data"][0]["embedding"]
         elif cfg.EMBEDDING_PROVIDER == "ollama":
             resp = await client.post(
-                f"{cfg.EMBEDDING_BASE_URL}/api/embeddings",
-                json={"model": embedding_model, "prompt": prompt},
+                f"{cfg.EMBEDDING_BASE_URL}/api/embed",
+                json={
+                    "model": embedding_model,
+                    "input": prompt,
+                    "dimensions": cfg.EMBEDDING_DIMENSION,
+                    "options": {"num_ctx": cfg.OLLAMA_NUM_CTX},
+                },
                 headers=headers,
             )
             resp.raise_for_status()
-            embedding = resp.json()["embedding"]
+            embedding = resp.json()["embeddings"][0]
         else:
             raise ValueError(
                 "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "

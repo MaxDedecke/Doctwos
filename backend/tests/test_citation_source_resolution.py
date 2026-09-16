@@ -16,8 +16,12 @@ from api.chat import (
 from models.database import KnowledgeSource, SourceScanFile
 
 
-def test_repo_chunk_without_source_id_resolves_to_the_projects_git_source(db_session, test_project, test_team):
-    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+def test_repo_chunk_without_source_id_resolves_to_the_projects_git_source(
+    db_session, test_project, test_team
+):
+    git_source = KnowledgeSource(
+        project_id=test_project, team_id=test_team, type="Git", name="repo"
+    )
     db_session.add(git_source)
     db_session.commit()
 
@@ -49,8 +53,12 @@ def test_chunk_without_a_project_resolves_to_none():
     assert _resolve_citation_source_id(None, chunk, {}) is None
 
 
-def test_repo_id_lookup_is_cached_across_chunks_from_the_same_project(db_session, test_project, test_team, monkeypatch):
-    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+def test_repo_id_lookup_is_cached_across_chunks_from_the_same_project(
+    db_session, test_project, test_team, monkeypatch
+):
+    git_source = KnowledgeSource(
+        project_id=test_project, team_id=test_team, type="Git", name="repo"
+    )
     db_session.add(git_source)
     db_session.commit()
 
@@ -118,7 +126,9 @@ def test_attach_analysis_status_marks_a_partial_citation(db_session, test_projec
     """O-120: eine Chat-Quelle, die aus einer nur teilweise geparsten Datei
     stammt, muss diesen Vorbehalt tragen -- sonst wirkt jedes Zitat gleich
     verlässlich, egal ob die Struktur dahinter vollständig ist."""
-    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+    git_source = KnowledgeSource(
+        project_id=test_project, team_id=test_team, type="Git", name="repo"
+    )
     db_session.add(git_source)
     db_session.commit()
     db_session.add(
@@ -139,8 +149,12 @@ def test_attach_analysis_status_marks_a_partial_citation(db_session, test_projec
     assert result[0]["analysis_reasons"] == ["mismatched input"]
 
 
-def test_attach_analysis_status_leaves_a_clean_citation_untouched(db_session, test_project, test_team):
-    git_source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="repo")
+def test_attach_analysis_status_leaves_a_clean_citation_untouched(
+    db_session, test_project, test_team
+):
+    git_source = KnowledgeSource(
+        project_id=test_project, team_id=test_team, type="Git", name="repo"
+    )
     db_session.add(git_source)
     db_session.commit()
     db_session.add(

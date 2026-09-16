@@ -228,8 +228,7 @@ def test_api_and_graph_transport_java_edge_types_and_optional_inheritance(
         assert "EXTENDS" in {edge["type"] for edge in inheritance_graph["edges"]}
 
         explicit_graph = client.get(
-            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
-            "&types=EXTENDS"
+            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}&types=EXTENDS"
         ).json()
         assert {edge["type"] for edge in explicit_graph["edges"]} == {"EXTENDS"}
 
@@ -361,6 +360,83 @@ def test_graph_retrieval_adds_callers_and_copy_targets_with_budget(
         assert {chunk.file_path for chunk in expanded} == {"TARGET.CBL", "CALLER.CBL", "FIELDS.CPY"}
         budgeted = expand_chunks_with_graph(db_session, [chunks[0]], token_budget=1)
         assert [chunk.file_path for chunk in budgeted] == ["TARGET.CBL"]
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_graph_retrieval_adds_resolved_java_neighbors_with_budget(
+    db_session, test_project, test_team
+):
+    source = KnowledgeSource(
+        name="java-retrieval-source",
+        type="Git",
+        url="https://example.test/java-retrieval.git",
+        branch="main",
+        project_id=test_project,
+        team_id=test_team,
+    )
+    db_session.add(source)
+    db_session.flush()
+    service = CodeEntity(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="src/PaymentService.java",
+        name="PaymentService",
+        qualified_name="com.acme.PaymentService",
+        type="class",
+        start_line=1,
+        end_line=20,
+        meta_json={"language": "java"},
+    )
+    repository = CodeEntity(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="src/PaymentRepository.java",
+        name="PaymentRepository",
+        qualified_name="com.acme.PaymentRepository",
+        type="class",
+        start_line=1,
+        end_line=20,
+        meta_json={"language": "java"},
+    )
+    db_session.add_all([service, repository])
+    db_session.flush()
+    db_session.add(
+        CodeEdge(
+            project_id=test_project,
+            source_id=source.id,
+            src_entity_id=service.id,
+            dst_entity_id=repository.id,
+            dst_name="com.acme.PaymentRepository",
+            type="USES_TYPE",
+            resolution="resolved",
+        )
+    )
+    hit = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path=service.file_path,
+        content="PaymentService definition",
+        start_line=1,
+        end_line=20,
+    )
+    neighbor = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path=repository.file_path,
+        content="PaymentRepository definition",
+        start_line=1,
+        end_line=20,
+    )
+    db_session.add_all([hit, neighbor])
+    db_session.commit()
+    try:
+        expanded = expand_chunks_with_graph(db_session, [hit], token_budget=100)
+        assert [chunk.file_path for chunk in expanded] == [hit.file_path, neighbor.file_path]
+        assert [
+            chunk.file_path for chunk in expand_chunks_with_graph(db_session, [hit], token_budget=1)
+        ] == [hit.file_path]
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

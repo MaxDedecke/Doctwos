@@ -787,5 +787,32 @@ describe('LinkManagerView', () => {
       fireEvent.click(screen.getByTitle('Code-Seite öffnen'));
       expect(onOpenCode).toHaveBeenCalledWith('KONTO.cbl', 42, 3);
     });
+
+    it('öffnet die Code-Seite einer Java-Entity mit Datei, Zeile und Wissensquelle', async () => {
+      stubFetch({
+        entityLinks: [entityLink({
+          entity: {
+            id: 101,
+            name: 'PaymentService',
+            type: 'class',
+            file_path: 'src/main/java/com/acme/PaymentService.java',
+            start_line: 8,
+            source_id: 5,
+          },
+        })],
+      });
+      const onOpenCode = vi.fn();
+
+      renderView({ onOpenCode, onOpenDoc: vi.fn() });
+      await screen.findByText('PaymentService');
+
+      fireEvent.click(screen.getByTitle('Code-Seite öffnen'));
+
+      expect(onOpenCode).toHaveBeenCalledWith(
+        'src/main/java/com/acme/PaymentService.java',
+        8,
+        5,
+      );
+    });
   });
 });

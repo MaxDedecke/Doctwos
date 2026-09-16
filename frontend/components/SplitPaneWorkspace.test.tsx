@@ -1,5 +1,6 @@
 import type { EditorProps, OnMount } from '@monaco-editor/react';
 import type { KnowledgeGraphView } from './KnowledgeGraphView';
+import { axiosResponse } from '@/test/http';
 /**
  * O-061 (Teil 2): `SplitPaneWorkspace` entscheidet als zweite Stufe der
  * Panel-Weiche, welcher Inhalt im rechten Bereich landet -- Graph-Ansicht,
@@ -14,7 +15,8 @@ import type { KnowledgeGraphView } from './KnowledgeGraphView';
  * dem selbst geladenen Zustand haben.
  */
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { render, screen, waitFor } from '@testing-library/react';
+import { api } from '@/app/services/api';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SplitPaneWorkspace } from './SplitPaneWorkspace';
@@ -184,6 +186,18 @@ describe('SplitPaneWorkspace', () => {
       expect(screen.getByTestId('monaco-editor').getAttribute('data-language')).toBe('python');
     });
 
+    it('code: erkennt Java-Dateien und zeigt ihren Originalinhalt im Editor', () => {
+      renderWorkspace({
+        activeRightTab: 'code',
+        selectedFile: 'src/main/java/com/acme/PaymentService.java',
+        fileContent: 'package com.acme;\npublic record PaymentService(int id) {}',
+      });
+
+      const editor = screen.getByTestId('monaco-editor');
+      expect(editor.getAttribute('data-language')).toBe('java');
+      expect(editor.textContent).toContain('public record PaymentService');
+    });
+
     it('code: fällt bei unbekannter Endung auf Klartext zurück', () => {
       renderWorkspace({ activeRightTab: 'code', selectedFile: 'DATEI.xyz', fileContent: 'inhalt' });
 
@@ -334,6 +348,89 @@ describe('SplitPaneWorkspace', () => {
       renderWorkspace({ activeRightTab: 'weborigin', selectedFile: 'src/ZAHLUNG.cbl', fileReferences: undefined });
       await waitFor(() => expect(screen.getByTestId('monaco-editor')).toBeTruthy());
       expect(api.getProjectReferences).not.toHaveBeenCalled();
+    });
+
+    it('lädt Java-Entity-Nachbarschaften und öffnet das Ziel mit Zeile und Quelle', async () => {
+      const javaEntity = {
+        id: 101,
+        name: 'PaymentService',
+        type: 'class',
+        file_path: 'src/main/java/com/acme/PaymentService.java',
+        start_line: 8,
+        source_id: 5,
+      };
+      const javaMethod = {
+        id: 102,
+        name: 'calculate',
+        type: 'method',
+        file_path: 'src/main/java/com/acme/PaymentService.java',
+        start_line: 24,
+        source_id: 5,
+      };
+      vi.mocked(api.getEntityNeighbors).mockResolvedValueOnce(axiosResponse({
+          entity: javaEntity,
+          groups: {
+            'CALLS:out': [{
+              edge_id: 9001,
+              type: 'CALLS',
+              direction: 'out',
+              resolution: 'resolved',
+              dst_name: 'calculate',
+              entity: javaMethod,
+              start_line: 24,
+              end_line: 30,
+            }],
+          },
+        }));
+      const handleFileSelect = vi.fn();
+
+      renderWorkspace({
+        activeRightTab: 'code',
+        selectedFile: javaEntity.file_path,
+        fileContent: 'class PaymentService {}',
+        selectedEntity: javaEntity,
+        isReferencesDropdownOpen: true,
+        handleFileSelect,
+      });
+
+      const target = await screen.findByRole('button', { name: /calculate/ });
+      expect(api.getEntityNeighbors).toHaveBeenCalledWith(101, { projectId: 3 });
+
+      target.click();
+
+      expect(handleFileSelect).toHaveBeenCalledWith(javaMethod.file_path, javaMethod.start_line, javaMethod.source_id);
+    });
+
+    it('öffnet eine Java-Entity in der Referenzansicht und drillt zur verknüpften Zeile weiter', async () => {
+      const javaReference = {
+        id: 102,
+        node_type: 'entity',
+        name: 'PaymentRepository',
+        file_path: 'src/main/java/com/acme/PaymentRepository.java',
+        line: 31,
+        source_id: 5,
+        source: 'Git',
+      };
+      const handleFileSelect = vi.fn();
+      vi.mocked(api.getProjectReferences).mockResolvedValue(axiosResponse([javaReference]));
+
+      renderWorkspace({
+        activeRightTab: 'doc',
+        selectedFile: 'src/main/java/com/acme/PaymentService.java',
+        selectedDoc: { id: 5, name: 'src/main/java/com/acme/PaymentService.java' },
+        fileReferences: [javaReference],
+        isReferencesDropdownOpen: true,
+        handleFileSelect,
+      });
+
+      fireEvent.click(await screen.findByRole('button', { name: /PaymentRepository/ }));
+      await waitFor(() => expect(api.getProjectReferences).toHaveBeenCalledWith(3, javaReference.file_path));
+
+      const drilldownTarget = (await screen.findByText(javaReference.file_path, { exact: true })).closest('[class*="cursor-pointer"]');
+      expect(drilldownTarget).not.toBeNull();
+      fireEvent.click(drilldownTarget!);
+
+      expect(handleFileSelect).toHaveBeenCalledWith(javaReference.file_path, javaReference.line, javaReference.source_id);
     });
   });
 });

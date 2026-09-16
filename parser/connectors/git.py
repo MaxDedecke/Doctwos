@@ -36,6 +36,7 @@ import git_utils
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
+from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
 from cobol import copybook as copybook_mod
 from cobol.copybook import CopybookIndex
@@ -62,15 +63,13 @@ redis_client = redis.from_url(config.REDIS_URL)
 
 # F-016: grobe Dateiklassifikation fürs generische Chunking (CodeParser ist
 # language-agnostisch, siehe code_parser.py — das Feld landet nur informativ
-# in metadata_json). Die eigentliche COBOL-Strukturanalyse (parser/cobol/)
-# hängt AP-4 an, hier geht es nur um den Ingestion-Layer.
+# in metadata_json). Die eigentliche Strukturanalyse wird anschließend über
+# STRUCTURE_PARSERS anhand der automatisch erkannten Sprache gewählt.
 _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
+    **{language: set(suffixes) for language, suffixes in DEFAULT_LANGUAGE_EXTENSIONS.items()},
     "cobol": {".cbl", ".cob", ".cobol"},
     "copybook": {".cpy", ".copy"},
     "jcl": {".jcl", ".proc", ".prc"},  # v1: nur Text-Index, keine Strukturanalyse (F-026)
-    # Explicit opt-in: configure {"java": [".java"]} per source or via the
-    # worker-wide DOCTUS_LANGUAGE_EXTENSIONS environment variable.
-    "java": set(),
 }
 _JAVA_BUILD_EXCLUDED_DIRS = {
     "target",
@@ -81,6 +80,59 @@ _JAVA_BUILD_EXCLUDED_DIRS = {
     ".idea",
     ".settings",
 }
+
+
+def _delete_file_entities(db, *, source_id: int, file_path: str) -> None:
+    """Delete one file's entities without cascading shared Java containers.
+
+    Java package/module entities are shared across files, but their legacy
+    ``file_path`` stores the first file that created them.  Deleting that file
+    must therefore move the container to another surviving Java entity before
+    deleting file-owned declarations; otherwise the self-referential CASCADE
+    removes the package and declarations from unchanged files as well.
+    """
+    shared_types = ("package", "module")
+    shared = (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == source_id,
+            CodeEntity.file_path == file_path,
+            CodeEntity.type.in_(shared_types),
+        )
+        .all()
+    )
+
+    for container in shared:
+        survivor = (
+            db.query(CodeEntity)
+            .filter(
+                CodeEntity.source_id == source_id,
+                CodeEntity.variant_key == container.variant_key,
+                CodeEntity.file_path != file_path,
+                CodeEntity.type.notin_(shared_types),
+            )
+            .order_by(CodeEntity.id)
+            .first()
+        )
+        if survivor is not None:
+            # Use SQL-level DML so the self-referential ORM cascade cannot
+            # interpret the shared container as an orphan while its owner file
+            # is removed.
+            db.execute(
+                CodeEntity.__table__.update()
+                .where(CodeEntity.id == container.id)
+                .values(file_path=survivor.file_path)
+            )
+        else:
+            db.execute(CodeEntity.__table__.delete().where(CodeEntity.id == container.id))
+    db.execute(
+        CodeEntity.__table__.delete().where(
+            CodeEntity.source_id == source_id,
+            CodeEntity.file_path == file_path,
+        )
+    )
+    db.expire_all()
+
 
 # O-074: anders als folder.py/webdav.py (SUPPORTED_EXTENSIONS-Allowlist) hatte
 # GitConnector gar keine Dateityp-Filterung -- jede Datei im Repo wurde mit
@@ -190,7 +242,9 @@ async def _run_prepare_hooks(
             continue
         key = id(hook)
         if key not in results_by_hook:
-            results_by_hook[key] = await asyncio.to_thread(hook, wt, extensions, profiles_by_path or {})
+            results_by_hook[key] = await asyncio.to_thread(
+                hook, wt, extensions, profiles_by_path or {}
+            )
         prepared[lang] = results_by_hook[key]
     return prepared
 
@@ -204,7 +258,10 @@ _GIT_FETCH_LOCK_SECONDS = 600
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
     """Konfigurierbar über DOCTUS_LANGUAGE_EXTENSIONS (Worker-weiter Default)
     und optional spaces.language_extensions (überschreibt pro Wissensquelle).
-    Beide erwarten {"cobol": [...], "copybook": [...], "jcl": [...]}.
+    Beide erwarten ein Mapping aus Sprachlabeln auf Dateiendungen. Die
+    eingebauten Standard-Endungen decken gängige Programmiersprachen ab;
+    die Konfiguration dient nur noch für kundenspezifische Endungen oder
+    bewusste Overrides.
 
     O-078: der Schlüssel hieß bis 06.09.2026 `cobol_extensions`, obwohl
     `classify_extension()`/`_DEFAULT_EXTENSIONS` selbst nichts COBOL-
@@ -232,11 +289,8 @@ def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
 
 
 def classify_extension(path: str, extensions: dict[str, set[str]]) -> str:
-    ext = os.path.splitext(path)[1].lower()
-    for lang, exts in extensions.items():
-        if ext in exts:
-            return lang
-    return "text"
+    """Backward-compatible name for the repository language detector."""
+    return detect_language(path, extensions)
 
 
 def _is_java_build_excluded(path: str, extensions: dict[str, set[str]]) -> bool:
@@ -385,11 +439,19 @@ def _resolve_document_profile(spaces: dict, path: str) -> BuildProfile | None:
     return profile
 
 
-def _reuse_unchanged_embeddings(chunks: list[dict], old_chunks: list[DocumentChunk]) -> list[dict]:
+def _reuse_unchanged_embeddings(
+    chunks: list[dict], old_chunks: list[DocumentChunk], embedding_model: str | None = None
+) -> list[dict]:
     """Übernimmt Vektoren textgleicher Vorgänger-Chunks und gibt nur die
     verbleibenden Inhalte zum neuen Embedding zurück (O-122)."""
     reusable = {
-        chunk.content: chunk.embedding for chunk in old_chunks if chunk.embedding is not None
+        chunk.content: chunk.embedding
+        for chunk in old_chunks
+        if chunk.embedding is not None
+        and (
+            embedding_model is None
+            or getattr(chunk, "embedding_model", None) in (None, embedding_model)
+        )
     }
     for chunk in chunks:
         if chunk["content"] in reusable:
@@ -514,12 +576,12 @@ class GitConnector(BaseConnector):
                     )
                     .all()
                 )
-            to_embed = _reuse_unchanged_embeddings(chunks, old_chunks)
+            to_embed = _reuse_unchanged_embeddings(chunks, old_chunks, self.embedding_model)
             embeddings = []
             if to_embed:
                 try:
                     embeddings = await get_embeddings_batch(
-                        [c["content"] for c in to_embed], model=config.EMBED_MODEL
+                        [c["content"] for c in to_embed], model=self.embedding_model
                     )
                 except Exception as e:
                     # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
@@ -547,17 +609,19 @@ class GitConnector(BaseConnector):
                 start_line=chunk["start_line"],
                 end_line=chunk["end_line"],
                 embedding=embedding,
+                embedding_model=self.embedding_model,
                 metadata_json={
+                    **doc["extra_meta"],
                     "url": doc["url"],
                     "title": doc["title"],
                     "source_type": doc["source_type"],
-                    **doc["extra_meta"],
+                    "embedding_model": self.embedding_model,
                     **(chunk.get("meta") or {}),
                 },
             )
 
         async def embed_content(content):
-            return await get_embedding(content, model=config.EMBED_MODEL)
+            return await get_embedding(content, model=self.embedding_model)
 
         def on_embed_error(chunk, e):
             # Without this, a chunk that fails the per-chunk fallback embed
@@ -595,10 +659,9 @@ class GitConnector(BaseConnector):
                 # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
                 # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
                 # korrekt, anders als beim Reparse-Fall in cobol_persist.py.
-                self.db.query(CodeEntity).filter(
-                    CodeEntity.source_id == self.source_id,
-                    CodeEntity.file_path == path,
-                ).delete(synchronize_session=False)
+                # Java-Package-/Module-Entities sind allerdings dateiübergreifend
+                # geteilt und werden deshalb vor dem Löschen umgehängt.
+                _delete_file_entities(self.db, source_id=self.source_id, file_path=path)
             else:
                 content_hash = doc["extra_meta"]["content_hash"]
                 fingerprint = doc["extra_meta"].get("analysis_fingerprint")
@@ -946,14 +1009,18 @@ class GitConnector(BaseConnector):
                 continue
             profile = profiles_by_path.get(path)
             try:
-                content, codec = decode_source(raw, profile.encoding if profile is not None else None)
+                content, codec = decode_source(
+                    raw, profile.encoding if profile is not None else None
+                )
             except SourceDecodeError as error:
                 reason = f"{error} (vermutlich Binärdaten), wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
                 self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
             if not looks_like_text(content, _MAX_CONTROL_CHAR_RATIO):
-                reason = f"kein sinnvoller {codec}-Text (zu viele Steuerzeichen), wird nicht embedded."
+                reason = (
+                    f"kein sinnvoller {codec}-Text (zu viele Steuerzeichen), wird nicht embedded."
+                )
                 self._log(f"[SKIP] '{path}' ist {reason}")
                 self._record_skip(path, content_hash, analysis_fp, reason)
                 continue
@@ -1009,6 +1076,7 @@ class GitConnector(BaseConnector):
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return
+            self.embedding_model = self.source.embedding_model or config.EMBED_MODEL
 
             self._sync_start_time = datetime.now(timezone.utc)
             self.source.sync_status = "syncing"
@@ -1023,15 +1091,15 @@ class GitConnector(BaseConnector):
                 f"Starte Sync für '{self.source.name}' "
                 f"(ID: {self.source_id}, Typ: {self.source.type})…"
             )
-            self._log(f"Stelle sicher, dass Embedding-Modell '{config.EMBED_MODEL}' bereit ist…")
-            await ensure_model_pulled(config.EMBED_MODEL)
+            self._log(f"Stelle sicher, dass Embedding-Modell '{self.embedding_model}' bereit ist…")
+            await ensure_model_pulled(self.embedding_model)
 
             # O-071: CPU-only-Ollama rechnet Batches intern sequentiell --
             # EMBED_CONCURRENCY parallele Anfragen stauen sich dort nur und
             # laufen in Timeout/Fallback-Schleifen. GPU-Installationen
             # profitieren dagegen von echter Nebenläufigkeit, daher pro
             # Sync-Start neu ermitteln statt pauschal zu drosseln.
-            if await is_gpu_accelerated(config.EMBED_MODEL):
+            if await is_gpu_accelerated(self.embedding_model):
                 embed_concurrency = config.EMBED_CONCURRENCY
             else:
                 embed_concurrency = min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY)

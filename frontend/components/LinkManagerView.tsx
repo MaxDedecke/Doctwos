@@ -1,5 +1,5 @@
 "use client";
-import type { LlmProfile } from '@/hooks/useAiSettings';
+import { DEFAULT_EMBEDDING_MODEL, type LlmProfile } from '@/hooks/useAiSettings';
 
 import { api, API_URL } from '@/app/services/api';
 import {
@@ -411,11 +411,12 @@ export function LinkManagerView({
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
     const confidenceParam = `min_confidence=${minConfidence}`;
+    const embeddingParam = `embedding_model=${encodeURIComponent(activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
     await Promise.all([
       projectId
-        ? api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}`, { method: 'POST' }).catch(() => {})
+        ? api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {})
         : Promise.resolve(),
-      api.fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}`, { method: 'POST' }).catch(() => {}),
+      api.fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {}),
     ]);
 
     const poll = async (attempt: number) => {

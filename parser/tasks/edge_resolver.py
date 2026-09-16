@@ -147,9 +147,7 @@ def _java_parse_results(
                 qualified_name=entity.qualified_name,
                 meta=dict(entity.meta_json or {}),
                 parent_qualified_name=(
-                    by_id[entity.parent_id].qualified_name
-                    if entity.parent_id in by_id
-                    else None
+                    by_id[entity.parent_id].qualified_name if entity.parent_id in by_id else None
                 ),
             )
             for entity in included.values()
@@ -184,16 +182,8 @@ def _java_parse_results(
 
 
 def _resolve_java_edges(db: Session, source_id: int) -> int:
-    entities = (
-        db.query(CodeEntity)
-        .filter(CodeEntity.source_id == source_id)
-        .all()
-    )
-    edges = (
-        db.query(CodeEdge)
-        .filter(CodeEdge.source_id == source_id)
-        .all()
-    )
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    edges = db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all()
     result_pairs = _java_parse_results(entities, edges)
     if not result_pairs:
         return 0
@@ -207,9 +197,11 @@ def _resolve_java_edges(db: Session, source_id: int) -> int:
     for result, persisted_edges, parsed_edges in result_pairs:
         for persisted, parsed in zip(persisted_edges, parsed_edges):
             target_qname = (parsed.meta or {}).get("target_qualified_name")
-            target_matches = entity_by_variant_qname.get(
-                (result.variant_key, target_qname), []
-            ) if target_qname else []
+            target_matches = (
+                entity_by_variant_qname.get((result.variant_key, target_qname), [])
+                if target_qname
+                else []
+            )
             if parsed.resolution == "resolved" and len(target_matches) == 1:
                 persisted.dst_entity_id = target_matches[0].id
                 persisted.resolution = "resolved"

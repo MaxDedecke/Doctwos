@@ -6,6 +6,8 @@ export interface LlmProfile {
   name: string;
   provider: string;
   model: string;
+  /** Local Ollama embedding model used for ingestion and retrieval. */
+  embeddingModel?: string;
   apiKey?: string;
   baseUrl?: string;
   temperature?: number;
@@ -19,8 +21,8 @@ interface UseAiSettingsOptions {
   t: Translator;
 }
 
-export const DEFAULT_LLM_MODEL = 'qwen2.5:1.5b';
-export const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text';
+export const DEFAULT_LLM_MODEL = 'qwen3:32b';
+export const DEFAULT_EMBEDDING_MODEL = 'qwen3-embedding:4b';
 export const DEFAULT_SYSTEM_PROMPT =
   'Du bist Doctus, ein Enterprise-Wissensassistent. Du hilfst dabei, große, gewachsene Projektlandschaften zu verstehen — '
   + 'von COBOL-Beständen über Copybooks und JCL bis zu Dokumenten und angebundenen Wissensquellen (z. B. Confluence, Jira). '
@@ -32,14 +34,30 @@ function readProfiles(t: Translator): LlmProfile[] {
   if (savedProfiles) {
     try {
       const parsed = JSON.parse(savedProfiles);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map(profile => ({
+          ...profile,
+          model: !profile.model || profile.model === 'qwen2.5:1.5b'
+            ? DEFAULT_LLM_MODEL
+            : profile.model,
+          // The deployment moved from bge-m3 to Qwen3 Embedding 4B. Replace
+          // the old implicit profile value so new sources and retrieval use
+          // the same vector space as the server default.
+          embeddingModel: !profile.embeddingModel || profile.embeddingModel === 'bge-m3'
+            ? DEFAULT_EMBEDDING_MODEL
+            : profile.embeddingModel,
+        }));
+      }
     } catch (error) {
       console.error('Failed to restore LLM profiles:', error);
     }
   }
 
   const legacyProvider = localStorage.getItem('doctus-llm-provider') || 'ollama';
-  const legacyModel = localStorage.getItem('doctus-llm-model') || DEFAULT_LLM_MODEL;
+  const storedLegacyModel = localStorage.getItem('doctus-llm-model');
+  const legacyModel = !storedLegacyModel || storedLegacyModel === 'qwen2.5:1.5b'
+    ? DEFAULT_LLM_MODEL
+    : storedLegacyModel;
   const legacyApiKey = localStorage.getItem('doctus-llm-api-key') || '';
   const legacyBaseUrl = localStorage.getItem('doctus-llm-base-url') || '';
 
@@ -48,6 +66,7 @@ function readProfiles(t: Translator): LlmProfile[] {
     name: t('page.defaultLlmProfiles.localOllama'),
     provider: 'ollama',
     model: legacyProvider === 'ollama' ? legacyModel : DEFAULT_LLM_MODEL,
+    embeddingModel: DEFAULT_EMBEDDING_MODEL,
   }];
 
   if (legacyProvider !== 'ollama' || legacyModel !== DEFAULT_LLM_MODEL) {
@@ -60,6 +79,7 @@ function readProfiles(t: Translator): LlmProfile[] {
       model: legacyModel,
       apiKey: legacyApiKey,
       baseUrl: legacyBaseUrl,
+      embeddingModel: DEFAULT_EMBEDDING_MODEL,
     });
   }
 
@@ -132,10 +152,13 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     if (profile?.systemPrompt !== undefined) setSystemPrompt(profile.systemPrompt);
   }, [llmProfiles]);
 
+  const activeProfileEmbeddingModel = llmProfiles.find(profile => profile.id === activeProfileId)?.embeddingModel;
+  const effectiveActiveEmbeddingModel = activeProfileEmbeddingModel || activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL;
+
   return {
     activeLlmModel,
     setActiveLlmModel,
-    activeEmbeddingModel,
+    activeEmbeddingModel: effectiveActiveEmbeddingModel,
     setActiveEmbeddingModel,
     availableModels,
     temperature,

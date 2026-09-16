@@ -43,6 +43,10 @@ export interface PinnedCode {
   label?: string | null;
   context?: string | null;
   sourceId?: number | string | null;
+  entityId?: number | null;
+  entityType?: string | null;
+  qualifiedName?: string | null;
+  breadcrumb?: string | null;
   program?: string | null;
   section?: string | null;
   paragraph?: string | null;

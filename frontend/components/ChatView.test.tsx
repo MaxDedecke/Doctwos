@@ -424,5 +424,19 @@ describe('ChatView', () => {
 
       expect(setPinnedCode).toHaveBeenCalledWith(null);
     });
+
+    it('zeigt den Breadcrumb eines generischen Java-Entity-Fokus im Pin-Chip', () => {
+      renderChat({
+        pinnedCode: {
+          filepath: 'src/PaymentService.java',
+          line: 24,
+          label: 'calculate',
+          breadcrumb: 'com.acme › PaymentService › calculate',
+          context: null,
+        },
+      });
+
+      expect(screen.getByText('Pin: com.acme › PaymentService › calculate')).toBeTruthy();
+    });
   });
 });

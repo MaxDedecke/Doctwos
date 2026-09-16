@@ -314,11 +314,14 @@ def test_liste_liefert_navigationsdaten_je_seite(client, db_session, test_projec
 
     try:
         served = next(
-            item for item in client.get("/knowledge-links?status=pending").json()
+            item
+            for item in client.get("/knowledge-links?status=pending").json()
             if item["id"] == link.id
         )
         assert served["source_a"]["code_ref"] == {
-            "file_path": "KONTO.cbl", "line": 42, "source_id": source.id,
+            "file_path": "KONTO.cbl",
+            "line": 42,
+            "source_id": source.id,
         }
         assert "doc_source_id" not in served["source_a"]
         assert served["source_b"]["doc_source_id"] == source.id

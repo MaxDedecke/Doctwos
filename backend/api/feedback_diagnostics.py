@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from api.schemas import ChatFeedbackDiagnosticSettingsUpdate
-from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.teams import require_admin
 from models.database import ChatFeedbackDiagnosticCase, User
@@ -50,10 +49,14 @@ def update_settings(
     user: User = Depends(require_admin),
 ):
     if not 1 <= body.retention_days <= 365:
-        raise HTTPException(status_code=400, detail="Aufbewahrungsfrist muss zwischen 1 und 365 Tagen liegen")
+        raise HTTPException(
+            status_code=400, detail="Aufbewahrungsfrist muss zwischen 1 und 365 Tagen liegen"
+        )
     settings = get_settings(db)
     settings.collection_enabled = body.collection_enabled
-    settings.support_export_enabled = body.support_export_enabled if body.collection_enabled else False
+    settings.support_export_enabled = (
+        body.support_export_enabled if body.collection_enabled else False
+    )
     settings.retention_days = body.retention_days
     settings.updated_by_user_id = user.id
     purge_expired_cases(db, settings.retention_days)
@@ -73,7 +76,9 @@ def list_cases(
     db.commit()
     cases = (
         db.query(ChatFeedbackDiagnosticCase)
-        .order_by(ChatFeedbackDiagnosticCase.created_at.desc(), ChatFeedbackDiagnosticCase.id.desc())
+        .order_by(
+            ChatFeedbackDiagnosticCase.created_at.desc(), ChatFeedbackDiagnosticCase.id.desc()
+        )
         .limit(limit)
         .all()
     )
@@ -94,8 +99,14 @@ def export_cases(db: Session = Depends(get_db), user: User = Depends(require_adm
         raise HTTPException(status_code=403, detail="Support-Export wurde nicht freigegeben")
     purge_expired_cases(db, settings.retention_days)
     db.commit()
-    cases = db.query(ChatFeedbackDiagnosticCase).order_by(ChatFeedbackDiagnosticCase.created_at.desc()).all()
+    cases = (
+        db.query(ChatFeedbackDiagnosticCase)
+        .order_by(ChatFeedbackDiagnosticCase.created_at.desc())
+        .all()
+    )
     return JSONResponse(
         content={"generated_locally": True, "entries": [_serialize_case(case) for case in cases]},
-        headers={"Content-Disposition": 'attachment; filename="doctus-chat-feedback-diagnostics.json"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="doctus-chat-feedback-diagnostics.json"'
+        },
     )

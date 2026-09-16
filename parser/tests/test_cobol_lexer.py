@@ -58,9 +58,7 @@ def test_tokenize_literal_with_doubled_quote_escape():
 
 
 def test_tokenize_national_and_hex_literals_as_single_positioned_tokens():
-    lines = source_format.split_logical_lines(
-        "000100  DISPLAY N'Grüße' X'F1F2'.\n", "fixed"
-    )
+    lines = source_format.split_logical_lines("000100  DISPLAY N'Grüße' X'F1F2'.\n", "fixed")
     literals = [token for token in lexer.tokenize(lines) if token.kind == "LITERAL"]
 
     assert [(token.value, token.phys_line, token.col) for token in literals] == [

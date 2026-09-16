@@ -83,7 +83,9 @@ def _method_candidates(
     argument_count = meta.get("argument_count")
     if argument_count is not None:
         candidates = [
-            item for item in candidates if len(item.meta.get("parameter_types", ())) == argument_count
+            item
+            for item in candidates
+            if len(item.meta.get("parameter_types", ())) == argument_count
         ]
     return candidates
 
@@ -150,9 +152,7 @@ def resolve_local_edges(edges: list[ParsedEdge], entities: list[Entity]) -> None
     for item in types:
         types_by_name.setdefault(item.name, []).append(item)
 
-    package = next(
-        (item.meta.get("package") for item in entities if item.type == "package"), None
-    )
+    package = next((item.meta.get("package") for item in entities if item.type == "package"), None)
     fields_by_qname = {
         item.qualified_name: item
         for item in entities
@@ -267,9 +267,7 @@ def _global_type_candidates(
         return exact, "qualified_name" if exact else None
 
     package = _package_for(result)
-    candidates = _candidates_at_stage(
-        (f"{package}.{name}",) if package else (), types_by_qname
-    )
+    candidates = _candidates_at_stage((f"{package}.{name}",) if package else (), types_by_qname)
     if candidates:
         return candidates, "current_package"
 

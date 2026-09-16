@@ -52,7 +52,7 @@ describe('useAiSettings', () => {
 
     await waitFor(() => expect(result.current.availableModels).toEqual(['llama3', 'qwen']));
     expect(result.current.activeLlmModel).toBe('llama3');
-    expect(result.current.activeEmbeddingModel).toBe('bge-m3');
+    expect(result.current.activeEmbeddingModel).toBe('qwen3-embedding:4b');
     expect(result.current.temperature).toBe(0.2);
     expect(result.current.systemPrompt).toBe('one prompt');
 

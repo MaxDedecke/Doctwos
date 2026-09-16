@@ -196,6 +196,43 @@ describe('useChatController', () => {
     });
   });
 
+  it('transmits a Java entity focus without losing its language-neutral identity', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse([
+      { type: 'answer', content: 'Erklärung', agent_steps: [] },
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useControllerHarness({
+      currentMessage: 'Was macht die Methode?',
+      pinnedCode: {
+        filepath: 'src/main/java/com/acme/PaymentService.java',
+        line: 24,
+        endLine: 31,
+        label: 'calculate',
+        sourceId: 55,
+        entityId: 102,
+        entityType: 'method',
+        qualifiedName: 'com.acme.PaymentService#calculate()'
+      },
+    }));
+
+    await act(async () => { await result.current.controller.handleSendChat(); });
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request).toMatchObject({
+      pinned_entity_id: 102,
+      pinned_end_line: 31,
+      metadata: {
+        pinned: {
+          entity_id: 102,
+          entity_type: 'method',
+          qualified_name: 'com.acme.PaymentService#calculate()',
+        },
+        refs: [{ entity_id: 102 }],
+      },
+    });
+  });
+
   it('retries an existing assistant message with its original user metadata', async () => {
     const fetchMock = vi.fn().mockResolvedValue(streamResponse([
       { type: 'answer', content: 'Neue Antwort', agent_steps: [] },

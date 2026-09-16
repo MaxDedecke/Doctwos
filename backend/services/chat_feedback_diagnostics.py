@@ -13,7 +13,9 @@ from models.database import (
 
 
 def get_settings(db: Session) -> ChatFeedbackDiagnosticSettings:
-    settings = db.query(ChatFeedbackDiagnosticSettings).order_by(ChatFeedbackDiagnosticSettings.id).first()
+    settings = (
+        db.query(ChatFeedbackDiagnosticSettings).order_by(ChatFeedbackDiagnosticSettings.id).first()
+    )
     if settings is None:
         settings = ChatFeedbackDiagnosticSettings()
         db.add(settings)
@@ -36,9 +38,11 @@ def capture_downvote_case(db: Session, message: ChatMessage) -> None:
     purge_expired_cases(db, settings.retention_days)
     if not settings.collection_enabled:
         return
-    if db.query(ChatFeedbackDiagnosticCase.id).filter(
-        ChatFeedbackDiagnosticCase.chat_message_id == message.id
-    ).first():
+    if (
+        db.query(ChatFeedbackDiagnosticCase.id)
+        .filter(ChatFeedbackDiagnosticCase.chat_message_id == message.id)
+        .first()
+    ):
         return
 
     session = db.query(ChatSession).filter(ChatSession.id == message.session_id).first()

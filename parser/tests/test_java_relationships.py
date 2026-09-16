@@ -74,7 +74,9 @@ class Child extends Parent implements Runnable {
         for edge in writes + reads
         if edge.dst_name in {"names", "count"}
     )
-    assert next(edge for edge in writes if edge.dst_name == "other.value").resolution == "unresolved"
+    assert (
+        next(edge for edge in writes if edge.dst_name == "other.value").resolution == "unresolved"
+    )
     assert any(edge.resolution == "unresolved" for edge in result.edges)
     assert all(edge.src_start_line == edge.src_end_line for edge in result.edges)
 
@@ -178,7 +180,9 @@ class Client {
     edges = [edge for edge in client.edges if edge.src_name == "app.Client#call()"]
     created = next(edge for edge in edges if edge.type == "INSTANTIATES")
     run = next(edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "run")
-    parsed = next(edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "parse")
+    parsed = next(
+        edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "parse"
+    )
     assert created.meta["target_qualified_name"] == "api.Service#<init>()"
     assert run.meta["target_qualified_name"] == "api.Service#run(int)"
     assert parsed.meta["target_qualified_name"] == "api.Service#parse(int)"
@@ -283,7 +287,9 @@ class Client { void call() { new Service().run(1); } }
     persisted_edges = []
     next_id = 100
     for result in (service, client):
-        source_rows = {row.qualified_name: row for row in persisted_entities if row.file_path == result.path}
+        source_rows = {
+            row.qualified_name: row for row in persisted_entities if row.file_path == result.path
+        }
         for edge in result.edges:
             source = source_rows[edge.src_name]
             persisted_edges.append(
@@ -305,10 +311,7 @@ class Client { void call() { new Service().run(1); } }
     pairs = _java_parse_results(persisted_entities, persisted_edges)
     assert resolve_global_edges(pair[0] for pair in pairs) == 2
     call = next(
-        parsed
-        for _, _, parsed_edges in pairs
-        for parsed in parsed_edges
-        if parsed.type == "CALLS"
+        parsed for _, _, parsed_edges in pairs for parsed in parsed_edges if parsed.type == "CALLS"
     )
     assert call.resolution == "resolved"
     assert call.meta["target_qualified_name"] == "api.Service#run(int)"

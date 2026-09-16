@@ -33,7 +33,9 @@ def test_admin_gating_blocks_every_route_for_a_non_admin(member_client):
     for method, path, payload in ADMIN_GATED_ROUTES:
         kwargs = {"json": payload} if payload is not None else {}
         res = getattr(member_client, method)(path, **kwargs)
-        assert res.status_code == 403, f"{method.upper()} {path} sollte 403 liefern, war {res.status_code}"
+        assert res.status_code == 403, (
+            f"{method.upper()} {path} sollte 403 liefern, war {res.status_code}"
+        )
 
 
 def test_create_list_update_delete_topic(client, db_session):
@@ -88,9 +90,14 @@ def test_deleting_a_topic_cascades_its_node_links(client, db_session):
     _cleanup_topic(db_session)
     try:
         topic_id = client.post("/topics", json={"name": TEST_TOPIC_NAME}).json()["id"]
-        client.post(f"/topics/{topic_id}/nodes", json={
-            "node_type": "project", "node_id": 1, "node_label": "Irgendein Projekt",
-        })
+        client.post(
+            f"/topics/{topic_id}/nodes",
+            json={
+                "node_type": "project",
+                "node_id": 1,
+                "node_label": "Irgendein Projekt",
+            },
+        )
         assert db_session.query(TopicNode).filter(TopicNode.topic_id == topic_id).count() == 1
 
         res = client.delete(f"/topics/{topic_id}")
@@ -105,10 +112,16 @@ def test_attach_list_and_detach_node(client, db_session):
     try:
         topic_id = client.post("/topics", json={"name": TEST_TOPIC_NAME}).json()["id"]
 
-        res = client.post(f"/topics/{topic_id}/nodes", json={
-            "node_type": "project", "node_id": 42, "node_label": "Kernbanking",
-            "node_url": None, "node_meta": {"is_archived": False},
-        })
+        res = client.post(
+            f"/topics/{topic_id}/nodes",
+            json={
+                "node_type": "project",
+                "node_id": 42,
+                "node_label": "Kernbanking",
+                "node_url": None,
+                "node_meta": {"is_archived": False},
+            },
+        )
         assert res.status_code == 201
         node = res.json()
         assert node["node_label"] == "Kernbanking"
@@ -157,9 +170,14 @@ def test_detaching_a_node_from_the_wrong_topic_is_rejected(client, db_session):
     try:
         topic_a = client.post("/topics", json={"name": TEST_TOPIC_NAME}).json()["id"]
         topic_b = client.post("/topics", json={"name": TEST_TOPIC_NAME_2}).json()["id"]
-        node = client.post(f"/topics/{topic_a}/nodes", json={
-            "node_type": "project", "node_id": 1, "node_label": "x",
-        }).json()
+        node = client.post(
+            f"/topics/{topic_a}/nodes",
+            json={
+                "node_type": "project",
+                "node_id": 1,
+                "node_label": "x",
+            },
+        ).json()
 
         res = client.delete(f"/topics/{topic_b}/nodes/{node['id']}")
         assert res.status_code == 404
@@ -176,7 +194,9 @@ def test_search_nodes_finds_a_visible_project(client, db_session):
     db_session.commit()
     db_session.refresh(project)
     try:
-        res = client.get("/topics/search-nodes", params={"q": "TestSearchProjectX", "types": "project"})
+        res = client.get(
+            "/topics/search-nodes", params={"q": "TestSearchProjectX", "types": "project"}
+        )
         assert res.status_code == 200
         results = res.json()
         assert any(r["node_type"] == "project" and r["node_id"] == project.id for r in results)

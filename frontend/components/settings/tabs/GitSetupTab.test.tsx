@@ -124,6 +124,7 @@ describe('GitSetupTab', () => {
       await waitFor(() => expect(apiMocks.createGitSource).toHaveBeenCalledWith({
         name: 'widgets', url: 'https://github.com/acme/widgets.git', branch: 'main',
         username: null, token: null, project_id: null, team_id: undefined,
+        embedding_model: 'bge-m3',
       }));
       expect(settingsValue.setConnectedSources).toHaveBeenCalledOnce();
       expect(settingsValue.setProjects).toHaveBeenCalledOnce();

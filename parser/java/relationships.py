@@ -240,9 +240,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         return self._visit_type(context, context.annotationTypeBody())
 
     def visitMethodDeclaration(self, context):
-        entity = self._entity_for_method(
-            context.identifier().getText(), context.formalParameters()
-        )
+        entity = self._entity_for_method(context.identifier().getText(), context.formalParameters())
         if entity is None:
             return self.visitChildren(context)
         self._scopes.append(entity)
@@ -252,9 +250,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             self._scopes.pop()
 
     def visitInterfaceCommonBodyDeclaration(self, context):
-        entity = self._entity_for_method(
-            context.identifier().getText(), context.formalParameters()
-        )
+        entity = self._entity_for_method(context.identifier().getText(), context.formalParameters())
         if entity is None:
             return self.visitChildren(context)
         self._scopes.append(entity)
@@ -417,7 +413,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
 
     def visitCreator(self, context):
         created_name = context.createdName()
-        if created_name is not None and created_name.primitiveType() is None and context.classCreatorRest() is not None:
+        if (
+            created_name is not None
+            and created_name.primitiveType() is None
+            and context.classCreatorRest() is not None
+        ):
             destination = created_name.getText()
             self._edge(
                 "INSTANTIATES",
@@ -438,7 +438,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         return self.visitChildren(context)
 
     def _field_names(self) -> set[str]:
-        return self._fields_by_type.get(self.current_type.qualified_name, set()) if self.current_type else set()
+        return (
+            self._fields_by_type.get(self.current_type.qualified_name, set())
+            if self.current_type
+            else set()
+        )
 
     def _field_reference(self, context: ParserRuleContext) -> tuple[str, str | None] | None:
         text = context.getText()
@@ -506,7 +510,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             target = children[0] if children else None
             if isinstance(target, ParserRuleContext):
                 target_rule = JavaParser.ruleNames[target.getRuleIndex()]
-                if target_rule != "expression" or getattr(target, "bop", None) is None or target.bop.text != ".":
+                if (
+                    target_rule != "expression"
+                    or getattr(target, "bop", None) is None
+                    or target.bop.text != "."
+                ):
                     self._emit_field_access(target, target.getText(), "READS")
                 self._emit_field_access(target, target.getText(), "WRITES")
 
@@ -516,7 +524,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             and children
             and isinstance(children[-1], ParserRuleContext)
             and JavaParser.ruleNames[children[-1].getRuleIndex()] == "identifier"
-            and not any(JavaParser.ruleNames[c.getRuleIndex()] == "methodCall" for c in children if isinstance(c, ParserRuleContext))
+            and not any(
+                JavaParser.ruleNames[c.getRuleIndex()] == "methodCall"
+                for c in children
+                if isinstance(c, ParserRuleContext)
+            )
             and not (
                 context.parentCtx is not None
                 and JavaParser.ruleNames[context.parentCtx.getRuleIndex()] == "expression"

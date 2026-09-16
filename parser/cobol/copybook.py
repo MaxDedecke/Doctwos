@@ -111,13 +111,21 @@ def scan(
             j = i + 2
 
             library = None
-            if j < n and tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) in ("OF", "IN"):
+            if (
+                j < n
+                and tokens[j].kind == "WORD"
+                and canonical_identifier(tokens[j].value) in ("OF", "IN")
+            ):
                 if j + 1 < n and tokens[j + 1].kind in ("WORD", "LITERAL"):
                     library = _clean_name(tokens[j + 1].value)
                     j += 2
 
             replacing: list[dict] = []
-            if j < n and tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) == "REPLACING":
+            if (
+                j < n
+                and tokens[j].kind == "WORD"
+                and canonical_identifier(tokens[j].value) == "REPLACING"
+            ):
                 j += 1
                 while True:
                     pair, j = _replacing_pair(tokens, j)
@@ -193,9 +201,7 @@ def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | 
     return None
 
 
-def transitive_dependencies(
-    start_paths: list[str], index: CopybookIndex
-) -> tuple[set[str], bool]:
+def transitive_dependencies(start_paths: list[str], index: CopybookIndex) -> tuple[set[str], bool]:
     """O-137: alle über verschachtelte COPY-Vorkommen (transitiv) ab
     `start_paths` erreichten Copybook-Pfade, mit Zyklenschutz (`visited`
     verhindert eine Endlosschleife bei A COPY B COPY A). connectors/git.py
@@ -283,9 +289,7 @@ def _replacing_pair(tokens: list[Token], j: int) -> tuple[dict | None, int]:
         return None, start
     operand1 = _clean_operand(tokens[j].value)
     j += 1
-    if j >= n or not (
-        tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) == "BY"
-    ):
+    if j >= n or not (tokens[j].kind == "WORD" and canonical_identifier(tokens[j].value) == "BY"):
         return None, start
     j += 1
     if j >= n or tokens[j].kind not in _OPERAND_KINDS:

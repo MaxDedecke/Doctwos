@@ -5,6 +5,7 @@ force-exclude = true
 extend-exclude = [
     # Generated from the upstream grammar; regenerate instead of editing.
     "parser/cobol/_antlr",
+    "parser/java/_antlr",
 ]
 
 [lint]

@@ -17,6 +17,7 @@ EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/"
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", OLLAMA_API_KEY)
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
 EMBEDDING_AUTO_PULL = os.getenv("EMBEDDING_AUTO_PULL", "true").lower() in {"1", "true", "yes"}
+EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 
 # O-168: ohne explizites num_ctx faellt Ollama auf sein kleines eingebautes
 # Default-Kontextfenster zurueck und kuerzt bei Ueberlauf stillschweigend von
@@ -132,7 +133,12 @@ async def _get_embeddings_sub_batch(
             # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array.
             response = await client.post(
                 _embedding_url("/api/embed"),
-                json={"model": model, "input": texts},
+                json={
+                    "model": model,
+                    "input": texts,
+                    "dimensions": EMBEDDING_DIMENSION,
+                    "options": {"num_ctx": OLLAMA_NUM_CTX},
+                },
                 headers=_headers(EMBEDDING_API_KEY),
                 timeout=EMBED_BATCH_TIMEOUT,  # Batch braucht mehr Zeit
             )
@@ -232,7 +238,12 @@ async def is_gpu_accelerated(model: str) -> bool:
         client = _get_client()
         await client.post(
             _embedding_url("/api/embed"),
-            json={"model": model, "input": "warmup"},
+            json={
+                "model": model,
+                "input": "warmup",
+                "dimensions": EMBEDDING_DIMENSION,
+                "options": {"num_ctx": OLLAMA_NUM_CTX},
+            },
             headers=_headers(EMBEDDING_API_KEY),
             timeout=EMBED_BATCH_TIMEOUT,
         )

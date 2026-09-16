@@ -216,9 +216,7 @@ def test_entry_statement_is_attributed_to_its_own_program():
     )
     programs, errors, _ = _scan_text(text)
     program = programs[0]
-    tokens = tokenize(
-        embedded.mask(source_format.split_logical_lines(text, "fixed"))[0]
-    )
+    tokens = tokenize(embedded.mask(source_format.split_logical_lines(text, "fixed"))[0])
     procedure.scan(program, tokens)
 
     assert errors == []

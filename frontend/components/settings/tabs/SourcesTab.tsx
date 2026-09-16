@@ -2,6 +2,7 @@
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { DEFAULT_EMBEDDING_MODEL } from '@/hooks/useAiSettings';
 import {
   Select,
   SelectContent,
@@ -58,7 +59,11 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     togglePinSource,
     showToast,
     currentUser,
+    llmProfiles,
+    activeProfileId,
   } = useSettings();
+  const activeEmbeddingModel = llmProfiles.find(profile => profile.id === activeProfileId)?.embeddingModel
+    || DEFAULT_EMBEDDING_MODEL;
   const [reindexingSourceId, setReindexingSourceId] = React.useState<number | null>(null);
 
   const handleDeleteSource = async (sourceId: string | number) => {
@@ -107,7 +112,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
     setReindexingSourceId(idVal);
     try {
-      await api.reindexKnowledgeSource(idVal);
+      await api.reindexKnowledgeSource(idVal, activeEmbeddingModel);
       setConnectedSources(prev => prev.map(source => source.id === idVal ? {
         ...source,
         sync_status: 'pending',
@@ -273,6 +278,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
               const meta = getConnectorMetadata(inst.type);
               const isPinned = pinnedSourceIds.includes(Number(inst.id));
               const project = projects.find((p) => p.id === inst.project_id);
+              const sourceEmbeddingModel = inst.embedding_model || DEFAULT_EMBEDDING_MODEL;
+              const embeddingModelMismatch = sourceEmbeddingModel !== activeEmbeddingModel;
 
               return (
                 <div
@@ -355,6 +362,15 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <GitBranch className="w-3.5 h-3.5 opacity-60" />
                           <span className="opacity-50">{t('settings.sourcesTab.branchLabelColon')}</span>
                           <span className="font-mono text-sm font-bold">{inst.branch || (!Array.isArray(inst.spaces) ? inst.spaces?.branch : undefined)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <span className="opacity-50">{t('settings.sourcesTab.embeddingModelLabel')}</span>
+                        <span className="font-mono font-bold" title={sourceEmbeddingModel}>{sourceEmbeddingModel}</span>
+                      </div>
+                      {embeddingModelMismatch && (
+                        <div className="text-ds-amber-400 font-bold">
+                          {t('settings.sourcesTab.embeddingModelReindexRequired', { model: activeEmbeddingModel })}
                         </div>
                       )}
 
@@ -491,24 +507,25 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           >
                             <RefreshCw className={cn("w-3.5 h-3.5", inst.sync_status === 'syncing' && "animate-spin")} />
                           </button>
-                          {currentUser?.is_admin && inst.type?.toLowerCase() === 'git' && (
-                            <button
-                              type="button"
-                              disabled={inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id}
-                              onClick={(e) => handleFullReindex(inst.id, inst.name, e)}
-                              className={cn(
-                                "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
-                                theme === 'dark'
-                                  ? "bg-ds-amber-500/5 border-ds-amber-500/20 text-ds-amber-400 hover:bg-ds-amber-500/10 hover:text-ds-amber-300"
-                                  : "bg-ds-amber-50 border-ds-amber-200 text-ds-amber-600 hover:bg-ds-amber-100 hover:text-ds-amber-700",
-                                (inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id) && "opacity-50 cursor-not-allowed"
-                              )}
-                              title={t('settings.sourcesTab.fullReindexTitle')}
-                            >
-                              <RefreshCcw className={cn("w-3.5 h-3.5", reindexingSourceId === inst.id && "animate-spin")} />
-                            </button>
-                          )}
                         </>
+                      )}
+
+                      {currentUser?.is_admin && !String(inst.id).includes('conf-init') && (
+                        <button
+                          type="button"
+                          disabled={inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id}
+                          onClick={(e) => handleFullReindex(inst.id, inst.name, e)}
+                          className={cn(
+                            "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
+                            theme === 'dark'
+                              ? "bg-ds-amber-500/5 border-ds-amber-500/20 text-ds-amber-400 hover:bg-ds-amber-500/10 hover:text-ds-amber-300"
+                              : "bg-ds-amber-50 border-ds-amber-200 text-ds-amber-600 hover:bg-ds-amber-100 hover:text-ds-amber-700",
+                            (inst.sync_status === 'syncing' || inst.sync_status === 'pending' || reindexingSourceId === inst.id) && "opacity-50 cursor-not-allowed"
+                          )}
+                          title={t('settings.sourcesTab.fullReindexTitle')}
+                        >
+                          <RefreshCcw className={cn("w-3.5 h-3.5", reindexingSourceId === inst.id && "animate-spin")} />
+                        </button>
                       )}
 
                       {/* Pin button */}

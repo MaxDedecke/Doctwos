@@ -248,6 +248,36 @@ docker compose exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c \
 
 Re-running `seed_demo_architektur.py` should report the existing rows and finish without missing-file warnings. A warning for `Brandschutzkonzept_Lindenhof.pdf` means the checkout predates the completed third fixture or `WATCHED_FOLDER` points at the wrong directory.
 
+## Java-Parser im Release
+
+Der Java-Parser wird während der Entwicklung bzw. beim Build aus der gepinnten
+ANTLR-Grammatik abgeleitet; auf dem Produktiv- oder Offline-Host ist keine
+ANTLR-Generierung erforderlich. Die Provenienz, Lizenz und der vollständig
+lokal mögliche Regenerierungsvorgang stehen in
+`docs/OSS-CLEARING.md` und `parser/java/grammar/README.md`.
+
+Für einen Produktions-Build werden die finalen Runtime-Stages von Backend,
+Parser und Frontend verwendet. Tests, Entwicklungsabhängigkeiten, der
+ANTLR-Generator und der Dev-Testdienst sind nicht Teil des Runtime-Images bzw.
+des Offline-Stacks. Der Testdienst wird ausschließlich explizit mit
+`--profile test` aus `docker-compose.dev.yml` gestartet:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile test \
+  run --rm parser-test python -m pytest tests/test_t51_integration.py -q
+```
+
+Vor der Auslieferung sind die Java-Golden-Tests nach einer Grammatikänderung
+erneut auszuführen. Für die Dimensionierung und die noch fehlenden
+per-Nutzer-/Speicherquoten siehe [Betriebs- und Nutzergrenzen](OPERATIONS_LIMITS.md).
+
+Beim T5.4-Release-Gate am 16.09.2026 meldete `npm audit --omit=dev` zwei
+offene Produktionsbefunde in der aktuellen Frontend-Abhängigkeitslinie:
+eine kritische Next.js- und eine hohe `sharp`-Vulnerability. npm schlägt dafür
+`next@16.3.5` außerhalb des aktuell deklarierten Versionsbereichs vor. Vor
+dem produktiven Deployment ist dieses Update separat zu bewerten und zu testen;
+es wurde im Java-Gate bewusst nicht ungeprüft erzwungen.
+
 ## Path B — Air-Gapped / Offline Installation
 
 Use this when the customer's server has **no internet/registry egress at all** — common for the privacy-strict, on-prem customers Doctus is positioned for. Here, the consultant builds and exports everything on a connected machine; the customer machine only loads and runs.

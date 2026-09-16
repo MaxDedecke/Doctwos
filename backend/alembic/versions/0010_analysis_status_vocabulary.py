@@ -38,7 +38,11 @@ _scan_files = sa.table(
 
 
 def upgrade() -> None:
-    op.execute(_scan_files.update().where(_scan_files.c.parse_status == "ok").values(parse_status="complete"))
+    op.execute(
+        _scan_files.update()
+        .where(_scan_files.c.parse_status == "ok")
+        .values(parse_status="complete")
+    )
     op.execute(
         _scan_files.update()
         .where(_scan_files.c.parse_status == "fallback_text")
@@ -47,7 +51,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(_scan_files.update().where(_scan_files.c.parse_status == "complete").values(parse_status="ok"))
+    op.execute(
+        _scan_files.update()
+        .where(_scan_files.c.parse_status == "complete")
+        .values(parse_status="ok")
+    )
     op.execute(
         _scan_files.update()
         .where(_scan_files.c.parse_status == "partial")
@@ -61,5 +69,7 @@ def downgrade() -> None:
         .values(parse_status="fallback_text")
     )
     op.execute(
-        _scan_files.update().where(_scan_files.c.parse_status == "skipped").values(parse_status=None)
+        _scan_files.update()
+        .where(_scan_files.c.parse_status == "skipped")
+        .values(parse_status=None)
     )

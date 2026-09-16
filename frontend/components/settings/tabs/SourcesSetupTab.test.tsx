@@ -181,6 +181,7 @@ describe('SourcesSetupTab', () => {
         token: 'secret-token',
         project_id: 7,
         spaces: ['ALL'],
+        embedding_model: 'bge-m3',
       }));
       expect(settingsValue.setConnectedSources).toHaveBeenCalledOnce();
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.sourceConnected:Confluence', 'success');
@@ -234,7 +235,7 @@ describe('SourcesSetupTab', () => {
       fireEvent.click(screen.getByText('settings.sourcesSetup.folderConnect'));
 
       await waitFor(() => expect(apiMocks.createFolderWatchSource).toHaveBeenCalledWith({
-        name: 'Docs', folder_path: '/data/docs', project_id: 9,
+        name: 'Docs', folder_path: '/data/docs', project_id: 9, embedding_model: 'bge-m3',
       }));
       expect(settingsValue.setConnectedSources).toHaveBeenCalledOnce();
       expect(onDone).toHaveBeenCalledOnce();

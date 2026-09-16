@@ -124,7 +124,8 @@ def _resolve(
             for c in candidates
             if canonical_identifier(
                 (c.get("effective_parent") if isinstance(c, dict) else c.parent) or ""
-            ) == qualifier
+            )
+            == qualifier
         ]
         if len(matches) == 1:
             return matches[0], "resolved"

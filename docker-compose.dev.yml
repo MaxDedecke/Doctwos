@@ -17,6 +17,33 @@ services:
       - ./parser:/app
       - ./repos:/repos
 
+  parser-test:
+    profiles: ["test"]
+    build:
+      context: ./parser
+      target: dev
+    image: doctus-parser-test:dev
+    command: ["python", "-m", "pytest", "tests/", "-q"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
+      COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
+      ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
+    volumes:
+      - ./parser:/app
+      - ./repos:/repos
+
   frontend:
     build:
       context: ./frontend

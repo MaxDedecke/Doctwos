@@ -158,7 +158,9 @@ def test_update_project_omitted_fields_stay_untouched(client, db_session, test_p
     assert body["description"] == original_description
 
 
-def test_update_project_rejects_non_admin_member(unauthenticated_client, test_project, project_member):
+def test_update_project_rejects_non_admin_member(
+    unauthenticated_client, test_project, project_member
+):
     res = _as(unauthenticated_client, project_member).patch(
         f"/projects/{test_project}", json={"name": "Hijacked"}
     )
@@ -183,18 +185,32 @@ def test_update_project_unknown_id_404(client):
 def test_delete_project_cascades_sources_chunks_and_entities(client, db_session, test_project):
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
-        name="Cascade Source", type="Confluence", project_id=test_project, team_id=proj.team_id, spaces={}
+        name="Cascade Source",
+        type="Confluence",
+        project_id=test_project,
+        team_id=proj.team_id,
+        spaces={},
     )
     db_session.add(source)
     db_session.commit()
     db_session.refresh(source)
 
     chunk = DocumentChunk(
-        project_id=test_project, source_id=source.id, file_path="doc.md", content="x", start_line=1, end_line=2
+        project_id=test_project,
+        source_id=source.id,
+        file_path="doc.md",
+        content="x",
+        start_line=1,
+        end_line=2,
     )
     entity = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="doc.cbl", name="PROG", type="program",
-        start_line=1, end_line=2,
+        project_id=test_project,
+        source_id=source.id,
+        file_path="doc.cbl",
+        name="PROG",
+        type="program",
+        start_line=1,
+        end_line=2,
     )
     db_session.add_all([chunk, entity])
     db_session.commit()
@@ -204,13 +220,20 @@ def test_delete_project_cascades_sources_chunks_and_entities(client, db_session,
     assert res.status_code == 200
 
     assert db_session.query(Project).filter(Project.id == test_project).first() is None
-    assert db_session.query(ProjectMembership).filter(ProjectMembership.project_id == test_project).count() == 0
+    assert (
+        db_session.query(ProjectMembership)
+        .filter(ProjectMembership.project_id == test_project)
+        .count()
+        == 0
+    )
     assert db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first() is None
     assert db_session.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first() is None
     assert db_session.query(CodeEntity).filter(CodeEntity.id == entity_id).first() is None
 
 
-def test_delete_project_rejects_non_admin_member(unauthenticated_client, test_project, project_member):
+def test_delete_project_rejects_non_admin_member(
+    unauthenticated_client, test_project, project_member
+):
     res = _as(unauthenticated_client, project_member).delete(f"/projects/{test_project}")
     assert res.status_code == 403
 
@@ -226,10 +249,18 @@ def test_delete_project_unknown_id_404(client):
 def test_complete_project_promotes_selected_sources_and_archives(client, db_session, test_project):
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
-        name="Promote Me", type="Confluence", project_id=test_project, team_id=proj.team_id, spaces={}
+        name="Promote Me",
+        type="Confluence",
+        project_id=test_project,
+        team_id=proj.team_id,
+        spaces={},
     )
     kept_source = KnowledgeSource(
-        name="Stay Attached", type="Confluence", project_id=test_project, team_id=proj.team_id, spaces={}
+        name="Stay Attached",
+        type="Confluence",
+        project_id=test_project,
+        team_id=proj.team_id,
+        spaces={},
     )
     db_session.add_all([source, kept_source])
     db_session.commit()
@@ -237,17 +268,29 @@ def test_complete_project_promotes_selected_sources_and_archives(client, db_sess
     db_session.refresh(kept_source)
 
     chunk = DocumentChunk(
-        project_id=test_project, source_id=source.id, file_path="doc.md", content="x", start_line=1, end_line=2
+        project_id=test_project,
+        source_id=source.id,
+        file_path="doc.md",
+        content="x",
+        start_line=1,
+        end_line=2,
     )
     entity = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="doc.cbl", name="PROG", type="program",
-        start_line=1, end_line=2,
+        project_id=test_project,
+        source_id=source.id,
+        file_path="doc.cbl",
+        name="PROG",
+        type="program",
+        start_line=1,
+        end_line=2,
     )
     db_session.add_all([chunk, entity])
     db_session.commit()
 
     try:
-        res = client.post(f"/projects/{test_project}/complete", json={"promote_source_ids": [source.id]})
+        res = client.post(
+            f"/projects/{test_project}/complete", json={"promote_source_ids": [source.id]}
+        )
         assert res.status_code == 200
         body = res.json()
         assert body["promoted_source_ids"] == [source.id]
@@ -276,7 +319,11 @@ def test_complete_project_promotes_selected_sources_and_archives(client, db_sess
 def test_complete_project_without_promotion_only_archives(client, db_session, test_project):
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
-        name="Stays Attached", type="Confluence", project_id=test_project, team_id=proj.team_id, spaces={}
+        name="Stays Attached",
+        type="Confluence",
+        project_id=test_project,
+        team_id=proj.team_id,
+        spaces={},
     )
     db_session.add(source)
     db_session.commit()
@@ -299,7 +346,11 @@ def test_complete_project_rejects_source_ids_from_another_project(client, db_ses
     db_session.commit()
     db_session.refresh(other_project)
     foreign_source = KnowledgeSource(
-        name="Foreign", type="Confluence", project_id=other_project.id, team_id=proj.team_id, spaces={}
+        name="Foreign",
+        type="Confluence",
+        project_id=other_project.id,
+        team_id=proj.team_id,
+        spaces={},
     )
     db_session.add(foreign_source)
     db_session.commit()
@@ -318,8 +369,12 @@ def test_complete_project_rejects_source_ids_from_another_project(client, db_ses
         db_session.commit()
 
 
-def test_complete_project_rejects_non_admin_member(unauthenticated_client, test_project, project_member):
-    res = _as(unauthenticated_client, project_member).post(f"/projects/{test_project}/complete", json={})
+def test_complete_project_rejects_non_admin_member(
+    unauthenticated_client, test_project, project_member
+):
+    res = _as(unauthenticated_client, project_member).post(
+        f"/projects/{test_project}/complete", json={}
+    )
     assert res.status_code == 403
 
 
@@ -332,7 +387,9 @@ def test_list_project_files_without_git_source_returns_empty(client, test_projec
     assert res.json() == []
 
 
-def test_list_project_files_lists_worktree_contents(client, db_session, test_project, tmp_path, monkeypatch):
+def test_list_project_files_lists_worktree_contents(
+    client, db_session, test_project, tmp_path, monkeypatch
+):
     monkeypatch.setattr(projects_api, "REPOS_ROOT", str(tmp_path))
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
@@ -355,11 +412,15 @@ def test_list_project_files_lists_worktree_contents(client, db_session, test_pro
 def test_list_project_files_requires_project_membership(
     unauthenticated_client, test_project, team_member_without_project
 ):
-    res = _as(unauthenticated_client, team_member_without_project).get(f"/projects/{test_project}/files")
+    res = _as(unauthenticated_client, team_member_without_project).get(
+        f"/projects/{test_project}/files"
+    )
     assert res.status_code == 403
 
 
-def test_list_project_files_hides_project_from_team_outsider(unauthenticated_client, test_project, team_outsider):
+def test_list_project_files_hides_project_from_team_outsider(
+    unauthenticated_client, test_project, team_outsider
+):
     res = _as(unauthenticated_client, team_outsider).get(f"/projects/{test_project}/files")
     assert res.status_code == 404
 
@@ -367,7 +428,9 @@ def test_list_project_files_hides_project_from_team_outsider(unauthenticated_cli
 # ── GET /{id}/entities ───────────────────────────────────────────────────────
 
 
-def test_get_project_entities_scoped_to_project_and_filterable_by_type(client, db_session, test_project):
+def test_get_project_entities_scoped_to_project_and_filterable_by_type(
+    client, db_session, test_project
+):
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     other_project = Project(name="Other Project For Entities", team_id=proj.team_id)
     db_session.add(other_project)
@@ -375,13 +438,28 @@ def test_get_project_entities_scoped_to_project_and_filterable_by_type(client, d
     db_session.refresh(other_project)
 
     own_program = CodeEntity(
-        project_id=test_project, file_path="ACCOUNT.cbl", name="ACCOUNT", type="program", start_line=1, end_line=10
+        project_id=test_project,
+        file_path="ACCOUNT.cbl",
+        name="ACCOUNT",
+        type="program",
+        start_line=1,
+        end_line=10,
     )
     own_paragraph = CodeEntity(
-        project_id=test_project, file_path="ACCOUNT.cbl", name="INIT-PARA", type="paragraph", start_line=2, end_line=4
+        project_id=test_project,
+        file_path="ACCOUNT.cbl",
+        name="INIT-PARA",
+        type="paragraph",
+        start_line=2,
+        end_line=4,
     )
     foreign_entity = CodeEntity(
-        project_id=other_project.id, file_path="OTHER.cbl", name="OTHER", type="program", start_line=1, end_line=5
+        project_id=other_project.id,
+        file_path="OTHER.cbl",
+        name="OTHER",
+        type="program",
+        start_line=1,
+        end_line=5,
     )
     db_session.add_all([own_program, own_paragraph, foreign_entity])
     db_session.commit()
@@ -405,7 +483,9 @@ def test_get_project_entities_scoped_to_project_and_filterable_by_type(client, d
 def test_get_project_entities_requires_project_membership(
     unauthenticated_client, test_project, team_member_without_project
 ):
-    res = _as(unauthenticated_client, team_member_without_project).get(f"/projects/{test_project}/entities")
+    res = _as(unauthenticated_client, team_member_without_project).get(
+        f"/projects/{test_project}/entities"
+    )
     assert res.status_code == 403
 
 
@@ -440,7 +520,7 @@ def test_get_project_repository_stats_counts_worktree_lines_by_language(
     body = res.json()
     assert body["total_files"] == 2
     assert body["total_lines"] == 4
-    languages = {l["name"]: l for l in body["languages"]}
+    languages = {language["name"]: language for language in body["languages"]}
     assert languages["Python"]["lines"] == 3
     assert languages["Markdown"]["lines"] == 1
 
@@ -448,7 +528,9 @@ def test_get_project_repository_stats_counts_worktree_lines_by_language(
 def test_get_project_repository_stats_requires_project_membership(
     unauthenticated_client, test_project, team_member_without_project
 ):
-    res = _as(unauthenticated_client, team_member_without_project).get(f"/projects/{test_project}/stats")
+    res = _as(unauthenticated_client, team_member_without_project).get(
+        f"/projects/{test_project}/stats"
+    )
     assert res.status_code == 403
 
 
@@ -465,8 +547,13 @@ def test_sync_project_repository_enqueues_task_and_resets_source_status(
 ):
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
-        name="Git Source", type="Git", project_id=test_project, team_id=proj.team_id, spaces={},
-        sync_status="completed", progress=100,
+        name="Git Source",
+        type="Git",
+        project_id=test_project,
+        team_id=proj.team_id,
+        spaces={},
+        sync_status="completed",
+        progress=100,
     )
     db_session.add(source)
     db_session.commit()
@@ -474,7 +561,9 @@ def test_sync_project_repository_enqueues_task_and_resets_source_status(
 
     sent_tasks = []
     monkeypatch.setattr(
-        projects_api.celery_app, "send_task", lambda *args, **kwargs: sent_tasks.append((args, kwargs))
+        projects_api.celery_app,
+        "send_task",
+        lambda *args, **kwargs: sent_tasks.append((args, kwargs)),
     )
 
     res = client.post(f"/projects/{test_project}/sync")
@@ -490,7 +579,9 @@ def test_sync_project_repository_enqueues_task_and_resets_source_status(
 def test_sync_project_repository_requires_project_membership(
     unauthenticated_client, test_project, team_member_without_project
 ):
-    res = _as(unauthenticated_client, team_member_without_project).post(f"/projects/{test_project}/sync")
+    res = _as(unauthenticated_client, team_member_without_project).post(
+        f"/projects/{test_project}/sync"
+    )
     assert res.status_code == 403
 
 
@@ -507,12 +598,21 @@ def test_get_project_references_entity_doc_link_both_directions(client, db_sessi
     db_session.refresh(source)
 
     entity = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="ACCOUNT.cbl", name="ACCOUNT-PARA",
-        type="paragraph", start_line=10, end_line=20,
+        project_id=test_project,
+        source_id=source.id,
+        file_path="ACCOUNT.cbl",
+        name="ACCOUNT-PARA",
+        type="paragraph",
+        start_line=10,
+        end_line=20,
     )
     chunk = DocumentChunk(
-        project_id=test_project, source_id=source.id, file_path="handbuch.md", content="Kontoführung",
-        start_line=1, end_line=5,
+        project_id=test_project,
+        source_id=source.id,
+        file_path="handbuch.md",
+        content="Kontoführung",
+        start_line=1,
+        end_line=5,
     )
     db_session.add_all([entity, chunk])
     db_session.commit()
@@ -520,15 +620,21 @@ def test_get_project_references_entity_doc_link_both_directions(client, db_sessi
     db_session.refresh(chunk)
 
     link = EntityDocLink(
-        project_id=test_project, entity_id=entity.id, chunk_id=chunk.id, doc_title="handbuch.md",
-        status="approved", link_type="manual",
+        project_id=test_project,
+        entity_id=entity.id,
+        chunk_id=chunk.id,
+        doc_title="handbuch.md",
+        status="approved",
+        link_type="manual",
     )
     db_session.add(link)
     db_session.commit()
 
     try:
         # Referenzen DES Dokuments -> das verlinkte Code-Objekt.
-        res = client.get(f"/projects/{test_project}/references", params={"file_path": "handbuch.md"})
+        res = client.get(
+            f"/projects/{test_project}/references", params={"file_path": "handbuch.md"}
+        )
         assert res.status_code == 200
         assert any(r["node_type"] == "entity" and r["name"] == "ACCOUNT-PARA" for r in res.json())
 
@@ -551,8 +657,12 @@ def test_get_project_references_entity_doc_link_both_directions(client, db_sessi
 
 def test_get_project_references_ignores_pending_links(client, db_session, test_project):
     entity = CodeEntity(
-        project_id=test_project, file_path="PENDING.cbl", name="PENDING-PARA", type="paragraph",
-        start_line=1, end_line=2,
+        project_id=test_project,
+        file_path="PENDING.cbl",
+        name="PENDING-PARA",
+        type="paragraph",
+        start_line=1,
+        end_line=2,
     )
     chunk = DocumentChunk(
         project_id=test_project, file_path="pending.md", content="x", start_line=1, end_line=2
@@ -563,7 +673,11 @@ def test_get_project_references_ignores_pending_links(client, db_session, test_p
     db_session.refresh(chunk)
 
     link = EntityDocLink(
-        project_id=test_project, entity_id=entity.id, chunk_id=chunk.id, doc_title="pending.md", status="pending"
+        project_id=test_project,
+        entity_id=entity.id,
+        chunk_id=chunk.id,
+        doc_title="pending.md",
+        status="pending",
     )
     db_session.add(link)
     db_session.commit()
@@ -581,11 +695,19 @@ def test_get_project_references_ignores_pending_links(client, db_session, test_p
 
 def test_get_project_references_includes_approved_knowledge_link(client, db_session, test_project):
     entity = CodeEntity(
-        project_id=test_project, file_path="ZINSBERECH.cbl", name="ZINS-BERECH", type="paragraph",
-        start_line=5, end_line=9,
+        project_id=test_project,
+        file_path="ZINSBERECH.cbl",
+        name="ZINS-BERECH",
+        type="paragraph",
+        start_line=5,
+        end_line=9,
     )
     chunk = DocumentChunk(
-        project_id=test_project, file_path="zinsformel.md", content="Zinsformel", start_line=1, end_line=3
+        project_id=test_project,
+        file_path="zinsformel.md",
+        content="Zinsformel",
+        start_line=1,
+        end_line=3,
     )
     db_session.add_all([entity, chunk])
     db_session.commit()
@@ -611,7 +733,9 @@ def test_get_project_references_includes_approved_knowledge_link(client, db_sess
             params={"file_path": "ZINSBERECH.cbl", "entity_name": "ZINS-BERECH"},
         )
         assert res.status_code == 200
-        assert any(r["node_type"] == "document" and r["name"] == "zinsformel.md" for r in res.json())
+        assert any(
+            r["node_type"] == "document" and r["name"] == "zinsformel.md" for r in res.json()
+        )
     finally:
         db_session.delete(link)
         db_session.delete(entity)

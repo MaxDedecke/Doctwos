@@ -97,7 +97,9 @@ def apply(lines: list[LogicalLine]) -> list[LogicalLine]:
             result.append(line)
             continue
         new_segments = [_substitute_segment(seg, pairs) for seg in line.segments]
-        result.append(_dc_replace(line, segments=new_segments) if new_segments != line.segments else line)
+        result.append(
+            _dc_replace(line, segments=new_segments) if new_segments != line.segments else line
+        )
 
     return result
 

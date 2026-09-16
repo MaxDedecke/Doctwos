@@ -238,14 +238,12 @@ class DocumentChunk(Base):
     # entfernter HNSW-Index degradiert die Suche zum Full Scan, ohne Fehler.
     __table_args__ = (
         Index("ix_document_chunks_project_file", "project_id", "file_path"),
-        Index(
-            "idx_document_chunks_embedding_hnsw",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_with={"m": 16, "ef_construction": 64},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
+
+
+@event.listens_for(DocumentChunk.embedding, "set")
+def _set_embedding_dimension(target, value, oldvalue, initiator):
+    target.embedding_dimension = len(value) if value is not None else None
 
 
 class ChatSession(Base):

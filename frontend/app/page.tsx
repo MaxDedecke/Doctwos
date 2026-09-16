@@ -511,6 +511,7 @@ function AppContent() {
     pinFileFocus,
     pinEntityFocus,
     handlePanelEntitySelect,
+    handlePanelEntitySelectAndOpen,
     handlePanelFileSelect,
     handleDocFocusRequest,
     handleGutterClick,
@@ -728,6 +729,7 @@ function AppContent() {
       referencesTab={referencesTab}
       setReferencesTab={setReferencesTab}
       handlePanelEntitySelect={handlePanelEntitySelect}
+      handlePanelEntitySelectAndOpen={handlePanelEntitySelectAndOpen}
       handleGutterClick={handleGutterClick}
       handleGutterAskEntity={handleGutterAskEntity}
       projectEntities={projectEntities}

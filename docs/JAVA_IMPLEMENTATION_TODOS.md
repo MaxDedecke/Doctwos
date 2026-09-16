@@ -59,9 +59,11 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 - [x] **T2.4 Chunking und Git:** **Abgeschlossen 15.09.2026.** Methoden,
   Konstruktoren, Initializer und Feldgruppen erzeugen Symbol-Chunks; übriger
   Quelltext bleibt als Kontext, nicht parsebare Dateien bekommen markierte
-  Fallback-Chunks. `.java` ist standardmäßig aus und kann pro Quelle über
-  `language_extensions` oder workerweit `DOCTUS_LANGUAGE_EXTENSIONS` aktiviert
-  werden. `target/`, `build/`, `.gradle/`, `bin/`, `out/`, `.idea/` und
+  Fallback-Chunks. Programmiersprachen werden standardmäßig anhand ihrer
+  Dateiendung erkannt; `.java` benötigt kein Opt-in mehr. Die vorhandenen
+  `language_extensions` bzw. `DOCTUS_LANGUAGE_EXTENSIONS` bleiben für
+  kundenspezifische Endungen oder bewusste Overrides verfügbar. `target/`,
+  `build/`, `.gradle/`, `bin/`, `out/`, `.idea/` und
   `.settings/` werden dann ausgeschlossen. Maven-/Gradle-Quellpfade liefern
   `meta.module`. Git-Integrationstest: 1/1.
 - [x] **T2.5 Golden-Korpus:** **Abgeschlossen 15.09.2026.** Sieben Fixtures
@@ -121,27 +123,66 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   dieselbe Darstellungslogik; eine separate Java-Ansicht wurde nicht gebaut.
   Regressionstests prüfen Java-Typen, Web-/Code-/Dokument-Klassifikation und
   stabile unbekannte Typen.
-- [ ] **T4.3 Navigation:** Editor, Suche, Wissensgraph, Link-Manager,
-  Referenzansicht und Nachbarschaften mit Java-Entities durchtesten.
-- [ ] **T4.4 Chat/Retrieval:** Generischen Entity-Fokus und Breadcrumbs
-  übertragen; relevante Java-Nachbarn im Tokenbudget ergänzen.
+- [x] **T4.3 Navigation:** **Abgeschlossen 16.09.2026.** Java-Navigation ist
+  über Editor/Dateiansicht, globale Suche, Wissensgraph, Call-Graph,
+  Link-Manager, Referenz-Drilldown und Entity-Nachbarschaften als
+  Regressionstest abgedeckt. Geprüft werden insbesondere `.java`-Erkennung,
+  Projekt-/Quellenwechsel sowie stabile Datei-, Zeilen- und Entity-IDs für
+  `class`-/`method`-Entities und freie Beziehungstypen wie `CALLS`. Die
+  betroffenen Frontend-Tests laufen mit **118/118** grünen Tests; bestehende
+  COBOL-Navigationsfälle bleiben unverändert.
+- [x] **T4.4 Chat/Retrieval:** **Abgeschlossen 16.09.2026.** Chat-Pins tragen
+  jetzt optional die sprachneutrale `CodeEntity`-ID, Typ, Qualified Name und
+  Breadcrumbs; alte Datei-/Zeilen-Pins bleiben kompatibel. Der Backend-Kontext
+  validiert den Entity-Fokus innerhalb des bestehenden Projekt-/Quellkontexts
+  und verwendet dessen autoritative Zeilengrenzen. Das Chat-Retrieval ergänzt
+  aufgelöste Java-Kanten (`CALLS`, `INSTANTIATES`, `EXTENDS`, `IMPLEMENTS`,
+  `USES_TYPE`, `READS`, `WRITES`) als 1-Hop-Nachbarn im bestehenden harten
+  Tokenbudget. Frontend-/Backend-Regressionen decken Fokus-Persistenz,
+  Breadcrumb-Anzeige, Java-Nachbarn und Budgetgrenze ab; bestehende COBOL-Pins
+  und `CALL`/`COPY`-Erweiterungen bleiben erhalten.
 
 ## Paket 5 – Härtung und Release
 
-- [ ] **T5.1 Integrationssuite:** Mehrdatei-Java-Repo, gemischtes COBOL/Java,
-  Löschungen, abgebrochener Sync und Resume Ende-zu-Ende prüfen.
+- [x] **T5.1 Integrationssuite:** Mehrdatei-Java-Repo, gemischtes COBOL/Java,
+  Löschungen, abgebrochener Sync und Resume Ende-zu-Ende prüfen. **Abgeschlossen
+  16.09.2026:** `parser/tests/test_t51_integration.py` führt Git,
+  Java-/COBOL-Parser, Persistenz, Löschung, synthetischen Abbruch und Resume in
+  einem Lebenszyklus zusammen. Der Lauf im Compose-Testdienst mit aktuellem
+  Workspace-Code ist **1/1 grün**; der Dienst verwendet das interne `db`-/Redis-
+  Netzwerk und verändert das produktive DB-Volume nicht.
 - [ ] **T5.2 Performance:** Parse-Durchsatz, Peak-RAM, Graphgröße und Resolverzeit
   auf Referenzkorpus messen und Grenzfälle absichern.
-- [ ] **T5.3 OSS/Betrieb:** Lizenz-Clearing, Offline-Regenerierung, Runtime-Image
-  und Nutzergrenzen dokumentieren.
-- [ ] **T5.4 Release-Gates:** Parser-Golden, Backend, Frontend, Lint, Lizenz,
-  Docker-Build und Offline-Bundle gemeinsam grün nachweisen.
+- [x] **T5.3 OSS/Betrieb:** **Abgeschlossen 16.09.2026.** Java-Grammatik,
+  Lizenzkopie, Upstream-Pin und Offline-Regenerierung sind in
+  `docs/OSS-CLEARING.md` und `parser/java/grammar/README.md` dokumentiert.
+  `docs/DEPLOYMENT.md` beschreibt die Trennung von finalem Runtime-Image und
+  `docker-compose.dev.yml`-Testdienst. Die wirksamen technischen Grenzen und
+  die derzeit ausdrücklich nicht vorhandenen Nutzer-/Speicherquoten stehen in
+  `docs/OPERATIONS_LIMITS.md`.
+- [x] **T5.4 Release-Gates:** **Abgeschlossen 16.09.2026.** Parser-Suite
+  `391 passed, 4 skipped`, Backend `373 passed, 1 skipped`, Frontend `655
+  passed` in 54 Testdateien, Installer `11 OK`, Ruff und Model-Sync grün.
+  Die isolierten Lizenzscans akzeptieren Backend (142), Parser (55) und
+  Frontend (327) Pakete ausschließlich über Allowlist bzw. dokumentierte
+  Ausnahmen. Die drei produktiven Docker-Images bauen; der Offline-Bundle
+  `dist/doctus-offline-bundle-t54-20260916` ist 4,9 GB groß, seine
+  SHA256SUMS und Offline-Compose-Konfiguration sind validiert.
+- [ ] **T5.5 OSS-Referenzkorpus:** Nach den groben Release-Gates ein großes,
+  externes Open-Source-Java-Projekt (bevorzugt JUnit) auf einen festen Commit
+  ziehen und als separates Testkorpus prüfen. Lizenz/Version/Transitiv-
+  abhängigkeiten werden vor der Nutzung erfasst; das Korpus bleibt außerhalb
+  des Doctus-Release-Bundles. Daraus entsteht ein reproduzierbarer Test für
+  Parser, Chunks, Beziehungen, Persistenz, Suche und Navigation sowie ein
+  messbarer Realbestand für T5.2.
 
 ## Fortschritt
 
 - **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5, T3.1 bis T3.4 sowie T4.1
-  und T4.2.
-- **Aktiv:** Paket 4 wird mit T4.3 (Navigation) fortgesetzt.
-- **Nächstes konkretes TODO:** Editor, Suche, Wissensgraph, Link-Manager,
-  Referenzansicht und Nachbarschaften mit Java-Entities durchtesten.
-- **Noch nicht begonnen:** T4.3 bis T5.4.
+  bis T4.4.
+- **Aktiv:** Paket 5; T5.2 (Performance) und T5.5 (OSS-Referenzkorpus) sind
+  offen. T5.4 ist abgeschlossen.
+- **Nächstes konkretes TODO:** T5.5 — ein großes, fest gepinntes OSS-Java-
+  Projekt (bevorzugt JUnit) außerhalb des Produkt-Bundles importieren und als
+  reproduzierbaren Integrations-/Regressionstest nutzen.
+- **Noch nicht begonnen:** T5.2 und T5.5.

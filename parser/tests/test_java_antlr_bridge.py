@@ -44,9 +44,7 @@ class Matcher {
 
 
 def test_annotation_value_and_named_pair_predicate() -> None:
-    result = parse_java_source(
-        "@A(value) class One {}\n@A(value = 1) class Two {}\n"
-    )
+    result = parse_java_source("@A(value) class One {}\n@A(value = 1) class Two {}\n")
 
     assert result.diagnostics == ()
 
@@ -103,7 +101,9 @@ class Outer {
 
 
 def test_parse_result_records_diagnostics_against_original_crlf_lines() -> None:
-    result = parse_java_file("class Broken {\r\n void f() {\r\n  int x = ;\r\n }\r\n}", "Broken.java")
+    result = parse_java_file(
+        "class Broken {\r\n void f() {\r\n  int x = ;\r\n }\r\n}", "Broken.java"
+    )
 
     assert result.diagnostics
     assert result.diagnostics[0].phase == "parser"

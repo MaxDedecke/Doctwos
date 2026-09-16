@@ -27,8 +27,6 @@ def unsupported_identifier_characters(value: str) -> tuple[str, ...]:
     """Nicht bestätigte Zeichen, in stabiler Fundreihenfolge dedupliziert."""
     return tuple(
         dict.fromkeys(
-            char
-            for char in value
-            if ord(char) > 127 and char not in _SUPPORTED_NON_ASCII
+            char for char in value if ord(char) > 127 and char not in _SUPPORTED_NON_ASCII
         )
     )

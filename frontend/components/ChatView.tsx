@@ -455,7 +455,7 @@ export function ChatView({
                                 const location = `${ref.file.split('/').pop()}:${ref.line}`;
                                 const rawLabel = ref.label || (
                                   pinned?.filepath === ref.file && pinned?.line === ref.line
-                                    ? pinned?.label
+                                    ? (pinned?.breadcrumb || pinned?.label)
                                     : null
                                 );
                                 // A bare gutter-line pin (no enclosing entity) sets its label to
@@ -708,7 +708,7 @@ export function ChatView({
                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-ds-emerald-500 text-[10px] font-semibold tracking-wide shadow-sm max-w-full">
                     <Code className="w-3 h-3 text-ds-emerald-400 shrink-0" />
                     <span className="truncate max-w-[140px] @sm/chat:max-w-[220px]" title={pinnedCode.context || `${pinnedCode.filepath}:${pinnedCode.line}`}>
-                      {t('chatView.pinLabel', { path: pinnedCode.label || `${pinnedCode.filepath.split('/').pop()}:${pinnedCode.line}` })}
+                      {t('chatView.pinLabel', { path: pinnedCode.breadcrumb || pinnedCode.label || `${pinnedCode.filepath.split('/').pop()}:${pinnedCode.line}` })}
                     </span>
                     <button
                       type="button"

@@ -102,3 +102,42 @@ describe('GlobalSearch save-session-without-chat button', () => {
     expect(screen.queryByPlaceholderText('Name der Sitzung')).toBeNull();
   });
 });
+
+describe('GlobalSearch Java entity navigation', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('renders a Java entity result and forwards its parser metadata on selection', async () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    const javaResult = {
+      node_type: 'entity',
+      node_id: 101,
+      node_label: 'PaymentService',
+      node_url: null,
+      node_meta: {
+        project_id: 2,
+        source_id: 55,
+        file_path: 'src/main/java/com/acme/PaymentService.java',
+        start_line: 8,
+        type: 'class',
+      },
+    };
+    const searchGlobal = vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({
+      results: [javaResult],
+      total: 1,
+      counts: { entity: 1 },
+    }));
+    const onSelectResult = vi.fn();
+
+    renderGlobalSearch({ onSelectResult });
+    fireEvent.change(screen.getByPlaceholderText('Programm, Paragraph oder Dokument suchen… (Strg+K)'), {
+      target: { value: 'PaymentService' },
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /PaymentService/ }));
+
+    expect(searchGlobal).toHaveBeenCalledWith('PaymentService', expect.objectContaining({ limit: 6 }));
+    expect(onSelectResult).toHaveBeenCalledWith(javaResult);
+  });
+});

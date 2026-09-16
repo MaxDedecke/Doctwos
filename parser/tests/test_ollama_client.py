@@ -13,10 +13,12 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
     monkeypatch.setattr(ollama_client, "EMBED_BATCH_MAX_CHUNKS", 2)
 
     calls = []
+    payloads = []
 
     async def fake_post(url, json, timeout, headers=None):
         texts = json["input"]
         calls.append(list(texts))
+        payloads.append(json)
         response = MagicMock()
         response.raise_for_status = MagicMock()
         response.json = MagicMock(return_value={"embeddings": [[float(len(t))] for t in texts]})
@@ -32,6 +34,14 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
     assert len(calls) == 3
     assert [len(c) for c in calls] == [2, 2, 1]
     assert embeddings == [[1.0], [2.0], [3.0], [4.0], [1.0]]
+    assert all(
+        payload["dimensions"] == ollama_client.EMBEDDING_DIMENSION
+        for payload in payloads
+    )
+    assert all(
+        payload["options"] == {"num_ctx": ollama_client.OLLAMA_NUM_CTX}
+        for payload in payloads
+    )
 
 
 @pytest.mark.anyio

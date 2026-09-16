@@ -145,7 +145,11 @@ def test_columnar_compiler_cards_are_not_cobol_tokens():
     lines = source_format.split_logical_lines(text, "fixed")
 
     assert [line.text for line in lines if not line.is_comment] == ["DISPLAY 'NORMAL'."]
-    assert [line.directive for line in lines if line.is_comment] == ["CBL DEBUG", "PROCESS FLAG(I)", "SET SOURCEFORMAT"]
+    assert [line.directive for line in lines if line.is_comment] == [
+        "CBL DEBUG",
+        "PROCESS FLAG(I)",
+        "SET SOURCEFORMAT",
+    ]
 
 
 def test_fixed_tabs_are_expanded_to_display_columns_before_slicing():

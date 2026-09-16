@@ -441,7 +441,11 @@ def test_national_and_hex_data_values_keep_their_original_spelling():
     )
     result = parse_program(text, "literals.cbl", profile=BuildProfile(source_format="fixed"))
 
-    fields = {entity.name: entity.meta["value"] for entity in result.entities if entity.type == "data_item"}
+    fields = {
+        entity.name: entity.meta["value"]
+        for entity in result.entities
+        if entity.type == "data_item"
+    }
     assert fields == {"WS-NATIONAL": "N'Grüße'", "WS-HEX": "X'F1F2'"}
 
 

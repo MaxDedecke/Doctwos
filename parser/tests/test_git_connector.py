@@ -77,22 +77,24 @@ def test_resolve_extension_config_prefers_new_key_over_old():
     assert cfg["cobol"] == {".new"}
 
 
-def test_java_extension_is_disabled_by_default_and_opt_in_per_source(monkeypatch):
+def test_common_programming_languages_are_detected_by_default(monkeypatch):
     monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
     monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
     defaults = _resolve_extension_config({})
-    opted_in = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
 
-    assert classify_extension("src/App.java", defaults) == "text"
-    assert classify_extension("src/App.java", opted_in) == "java"
+    assert classify_extension("src/App.java", defaults) == "java"
+    assert classify_extension("src/main.kt", defaults) == "kotlin"
+    assert classify_extension("src/main.py", defaults) == "python"
+    assert classify_extension("src/main.ts", defaults) == "typescript"
+    assert classify_extension("README.md", defaults) == "text"
 
 
-def test_java_extension_can_be_enabled_worker_wide(monkeypatch):
+def test_custom_language_extension_can_be_added_worker_wide(monkeypatch):
     monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
-    monkeypatch.setenv("DOCTUS_LANGUAGE_EXTENSIONS", '{"java": [".java"]}')
+    monkeypatch.setenv("DOCTUS_LANGUAGE_EXTENSIONS", '{"python": [".python-source"]}')
     cfg = _resolve_extension_config({})
 
-    assert classify_extension("src/App.java", cfg) == "java"
+    assert classify_extension("src/tool.python-source", cfg) == "python"
 
 
 def test_java_build_directory_excludes_are_scoped_to_java_sources(monkeypatch):
@@ -356,9 +358,7 @@ async def test_git_connector_classifies_every_file_by_its_own_extension(
         .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "AAAMAIN.CBL")
         .all()
     )
-    assert cobol_chunks and all(
-        c.metadata_json.get("language") == "cobol" for c in cobol_chunks
-    )
+    assert cobol_chunks and all(c.metadata_json.get("language") == "cobol" for c in cobol_chunks)
 
     entities = (
         db_session.query(CodeEntity)
@@ -379,9 +379,7 @@ async def test_git_connector_classifies_every_file_by_its_own_extension(
 
 
 @pytest.mark.anyio
-async def test_git_connector_parses_java_when_source_opts_in(db_session, test_source):
-    test_source.spaces = {"language_extensions": {"java": [".java"]}}
-    db_session.commit()
+async def test_git_connector_parses_java_without_source_setting(db_session, test_source):
     _commit_file(
         test_source.url,
         "src/demo/App.java",
@@ -420,7 +418,12 @@ async def test_git_connector_parses_java_when_source_opts_in(db_session, test_so
     assert chunks
     assert all(chunk.metadata_json.get("language") == "java" for chunk in chunks)
     assert any(chunk.metadata_json.get("symbol_type") == "method" for chunk in chunks)
-    assert {entity.type for entity in entities} >= {"compilation_unit", "package", "class", "method"}
+    assert {entity.type for entity in entities} >= {
+        "compilation_unit",
+        "package",
+        "class",
+        "method",
+    }
     assert not (
         db_session.query(DocumentChunk)
         .filter(
@@ -429,6 +432,8 @@ async def test_git_connector_parses_java_when_source_opts_in(db_session, test_so
         )
         .all()
     )
+
+
 @pytest.mark.anyio
 async def test_git_connector_delta_sync_add_modify_delete(db_session, test_source, git_remote):
     connector1 = GitConnector(test_source.id)

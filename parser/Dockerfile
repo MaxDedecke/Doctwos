@@ -12,6 +12,17 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
+# Development-only test image. The source tree and tests are mounted by the
+# parser-test service in docker-compose.dev.yml; production keeps using the
+# runtime stage below and therefore does not contain pytest or test sources.
+FROM builder AS dev
+
+RUN apt-get update && apt-get install -y git \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir --user -r requirements-dev.txt
+ENV PATH=/root/.local/bin:$PATH
+
 FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
 
 WORKDIR /app

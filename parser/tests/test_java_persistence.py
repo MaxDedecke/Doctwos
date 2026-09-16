@@ -149,9 +149,7 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
     assert call.dst_entity_id == by_qname["api.Service#run(int)"].id
 
     ambiguous = next(
-        edge
-        for edge in edges
-        if edge.type == "USES_TYPE" and edge.dst_name == "Shared"
+        edge for edge in edges if edge.type == "USES_TYPE" and edge.dst_name == "Shared"
     )
     assert ambiguous.resolution == "unresolved"
     assert ambiguous.dst_entity_id is None

@@ -79,7 +79,7 @@ export const api = {
     getProjectStats: (id: number) => axios.get<ProjectStats>(`${API_URL}/projects/${id}/stats`),
     getKnowledgeSources: () => axios.get<KnowledgeSource[]>(`${API_URL}/knowledge-sources`),
     getProjectKnowledgeSources: (projectId: number) => axios.get<KnowledgeSource[]>(`${API_URL}/projects/${projectId}/knowledge-sources`),
-    createKnowledgeSource: (data: { name: string; type: string; url?: string | null; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; spaces?: KnowledgeSource['spaces'] }) => axios.post<KnowledgeSource>(`${API_URL}/knowledge-sources`, data),
+    createKnowledgeSource: (data: { name: string; type: string; url?: string | null; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; spaces?: KnowledgeSource['spaces']; embedding_model?: string }) => axios.post<KnowledgeSource>(`${API_URL}/knowledge-sources`, data),
     updateKnowledgeSourceInterval: (id: number, sync_interval_minutes: number) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { sync_interval_minutes }),
     updateKnowledgeSourceContextNote: (id: number, context_note: string) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { context_note }),
     deleteKnowledgeSource: (id: number) => axios.delete(`${API_URL}/knowledge-sources/${id}`),
@@ -95,9 +95,9 @@ export const api = {
             'Content-Type': 'multipart/form-data',
         },
     }),
-    createFolderWatchSource: (data: { name: string; folder_path: string; project_id?: number | null }) =>
+    createFolderWatchSource: (data: { name: string; folder_path: string; project_id?: number | null; embedding_model?: string }) =>
         axios.post(`${API_URL}/knowledge-sources/folder`, data),
-    createGitSource: (data: { name: string; url: string; branch?: string; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null }) =>
+    createGitSource: (data: { name: string; url: string; branch?: string; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null; embedding_model?: string }) =>
         axios.post(`${API_URL}/knowledge-sources/git`, data),
     getProjectEntities: (id: number) => axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`),
     // projectId ist der aktuelle Projekt-Kontext des Aufrufers (Code-Editor etc.) --
@@ -118,7 +118,7 @@ export const api = {
         }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),
     syncKnowledgeSource: (id: number | string) => axios.post(`${API_URL}/knowledge-sources/${id}/sync`),
-    reindexKnowledgeSource: (id: number) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`),
+    reindexKnowledgeSource: (id: number, embedding_model?: string) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`, embedding_model ? { embedding_model } : undefined),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get<FileReference[]>(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get<ChatSession[]>(`${API_URL}/chat/sessions`),
     // O-038: legt eine benannte Sitzung ohne Chat-Nachricht an -- z.B. ein Befund,

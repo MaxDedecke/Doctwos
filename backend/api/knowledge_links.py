@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 import core.config as cfg
+from sqlalchemy.orm import Session
 from core.db_setup import get_db
 from models.database import (
     KnowledgeLink,
@@ -36,6 +36,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "links_created": run.links_created,
+        "embedding_model": run.embedding_model,
     }
 
 
@@ -515,6 +516,10 @@ def trigger_knowledge_link_computation(
         le=100,
         description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidatenpaar als Vorschlag gespeichert wird.",
     ),
+    embedding_model: Optional[str] = Query(
+        None, min_length=1, max_length=255,
+        description="Embedding-Modell des aktiven AI-Profils.",
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -531,7 +536,12 @@ def trigger_knowledge_link_computation(
         synchronize_session=False
     )
 
-    run = LinkBuilderRun(task_type="knowledge_links", project_id=None, status="pending")
+    run = LinkBuilderRun(
+        task_type="knowledge_links",
+        project_id=None,
+        status="pending",
+        embedding_model=embedding_model.strip() if embedding_model else None,
+    )
     db.add(run)
     db.commit()
     db.refresh(run)
@@ -541,7 +551,11 @@ def trigger_knowledge_link_computation(
         run,
         "compute_knowledge_links",
         [run.id],
-        {"trace_id": get_trace_id(), "min_confidence": min_confidence},
+        {
+            "trace_id": get_trace_id(),
+            "min_confidence": min_confidence,
+            "embedding_model": run.embedding_model or cfg.OLLAMA_EMBED_MODEL,
+        },
     )
     return {"message": "Cross-Source Analyse gestartet", "run_id": run.id}
 

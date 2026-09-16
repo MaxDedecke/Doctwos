@@ -17,31 +17,50 @@ def upgrade() -> None:
         sa.Column("collection_enabled", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("support_export_enabled", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("retention_days", sa.Integer(), nullable=False, server_default="90"),
-        sa.Column("updated_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL")),
+        sa.Column(
+            "updated_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL")
+        ),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
     op.create_table(
         "chat_feedback_diagnostic_cases",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column(
-            "chat_message_id", sa.Integer(), sa.ForeignKey("chat_messages.id", ondelete="CASCADE"),
-            nullable=False, unique=True,
+            "chat_message_id",
+            sa.Integer(),
+            sa.ForeignKey("chat_messages.id", ondelete="CASCADE"),
+            nullable=False,
+            unique=True,
         ),
         sa.Column("project_id", sa.Integer(), sa.ForeignKey("projects.id", ondelete="SET NULL")),
-        sa.Column("source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="SET NULL")),
+        sa.Column(
+            "source_id", sa.Integer(), sa.ForeignKey("knowledge_sources.id", ondelete="SET NULL")
+        ),
         sa.Column("question", sa.String(), nullable=True),
         sa.Column("answer", sa.String(), nullable=False),
         sa.Column("sources_json", sa.JSON(), nullable=True),
         sa.Column("model", sa.String(), nullable=True),
         sa.Column("provider", sa.String(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
     )
-    op.create_index("ix_chat_feedback_diagnostic_cases_id", "chat_feedback_diagnostic_cases", ["id"])
-    op.create_index("ix_chat_feedback_diagnostic_cases_created", "chat_feedback_diagnostic_cases", ["created_at"])
+    op.create_index(
+        "ix_chat_feedback_diagnostic_cases_id", "chat_feedback_diagnostic_cases", ["id"]
+    )
+    op.create_index(
+        "ix_chat_feedback_diagnostic_cases_created",
+        "chat_feedback_diagnostic_cases",
+        ["created_at"],
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_chat_feedback_diagnostic_cases_created", table_name="chat_feedback_diagnostic_cases")
-    op.drop_index("ix_chat_feedback_diagnostic_cases_id", table_name="chat_feedback_diagnostic_cases")
+    op.drop_index(
+        "ix_chat_feedback_diagnostic_cases_created", table_name="chat_feedback_diagnostic_cases"
+    )
+    op.drop_index(
+        "ix_chat_feedback_diagnostic_cases_id", table_name="chat_feedback_diagnostic_cases"
+    )
     op.drop_table("chat_feedback_diagnostic_cases")
     op.drop_table("chat_feedback_diagnostic_settings")

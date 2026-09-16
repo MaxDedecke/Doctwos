@@ -135,7 +135,11 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
             i += 1
             continue
 
-        if tok.kind == "WORD" and canonical_identifier(tok.value) == "GO" and _word_at(proc_tokens, i + 1, "TO"):
+        if (
+            tok.kind == "WORD"
+            and canonical_identifier(tok.value) == "GO"
+            and _word_at(proc_tokens, i + 1, "TO")
+        ):
             j = i + 2
             targets: list[Token] = []
             while (

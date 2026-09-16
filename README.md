@@ -141,6 +141,15 @@ cd backend && python -m pytest tests/
 cd ../parser && python -m pytest tests/
 ```
 
+DB-backed parser integration tests can also run in the Compose network. This
+uses the current workspace source and the existing `db`/`redis` services, so
+the host does not need direct PostgreSQL credentials:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile test \
+  run --rm parser-test python -m pytest tests/test_t51_integration.py -q
+```
+
 The Python test suites use separate dependency environments. Three embedding
 tests require a running Ollama instance with `bge-m3`; they are skipped when it
 is unavailable.

@@ -107,7 +107,7 @@ describe('SourcesTab', () => {
     expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.mockSyncNotAllowed', 'error');
   });
 
-  it('only offers full reindex to admins, and only for git sources', () => {
+  it('only offers full reindex to admins, and uses the active embedding model', () => {
     settingsValue = createSettingsContextValue({
       connectedSources: [gitSource()],
       currentUser: { id: 1, username: 'user', is_admin: false },
@@ -132,7 +132,7 @@ describe('SourcesTab', () => {
     render(<SourcesTab {...baseProps} />);
 
     fireEvent.click(screen.getAllByTitle('settings.sourcesTab.fullReindexTitle')[1]);
-    await waitFor(() => expect(apiMocks.reindexKnowledgeSource).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(apiMocks.reindexKnowledgeSource).toHaveBeenCalledWith(2, 'bge-m3'));
     expect(apiMocks.reindexKnowledgeSource).toHaveBeenCalledOnce();
   });
 

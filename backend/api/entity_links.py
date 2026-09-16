@@ -53,6 +53,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "links_created": run.links_created,
+        "embedding_model": run.embedding_model,
     }
 
 
@@ -88,7 +89,11 @@ def get_link_recommendations(
     # O-114: dito für die Chunks, aus denen serialize_link die Wissensquelle der
     # Doku-Seite liest (für "Doku-Seite öffnen" im Link-Manager).
     chunk_ids = {lnk.chunk_id for lnk in links if lnk.chunk_id}
-    chunks = {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()} if chunk_ids else {}
+    chunks = (
+        {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+        if chunk_ids
+        else {}
+    )
 
     # Calculate counts for UI badges
     counts = {
@@ -173,6 +178,10 @@ def trigger_link_computation(
         le=100,
         description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidat als Vorschlag gespeichert wird.",
     ),
+    embedding_model: Optional[str] = Query(
+        None, min_length=1, max_length=255,
+        description="Embedding-Modell des aktiven AI-Profils.",
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -190,7 +199,12 @@ def trigger_link_computation(
         EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
     ).delete(synchronize_session=False)
 
-    run = LinkBuilderRun(task_type="entity_links", project_id=project_id, status="pending")
+    run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=project_id,
+        status="pending",
+        embedding_model=embedding_model.strip() if embedding_model else None,
+    )
     db.add(run)
     db.commit()
     db.refresh(run)
@@ -200,7 +214,11 @@ def trigger_link_computation(
         run,
         "compute_entity_links",
         [run.id, project_id],
-        {"trace_id": get_trace_id(), "min_confidence": min_confidence},
+        {
+            "trace_id": get_trace_id(),
+            "min_confidence": min_confidence,
+            "embedding_model": run.embedding_model,
+        },
     )
     return {"message": "Link computation started", "project_id": project_id, "run_id": run.id}
 
