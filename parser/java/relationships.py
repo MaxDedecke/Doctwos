@@ -1,11 +1,13 @@
 """Extract Java relationships from the recovered ANTLR syntax tree.
 
-This pass intentionally does not resolve symbols across files.  It records the
-source spelling and enough context for the later local/global resolver to make
-that decision without guessing.
+This pass intentionally does not resolve symbols across files. It records the
+source spelling and enough context for the local resolver and later global
+resolver to make that decision without guessing.
 """
 
 from __future__ import annotations
+
+import re
 
 from antlr4 import ParserRuleContext
 
@@ -324,6 +326,29 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         expression_list = context.expressionList()
         return len(expression_list.expression()) if expression_list is not None else 0
 
+    @staticmethod
+    def _argument_types(context: ParserRuleContext) -> list[str | None]:
+        expression_list = context.expressionList()
+        if expression_list is None:
+            return []
+        result: list[str | None] = []
+        for expression in expression_list.expression():
+            text = expression.getText()
+            if re.fullmatch(r"\d+[lL]?", text):
+                result.append("long" if text[-1:] in {"l", "L"} else "int")
+            elif re.fullmatch(r"\d+\.\d+[fFdD]?", text):
+                result.append("float" if text[-1:] in {"f", "F"} else "double")
+            elif text in {"true", "false"}:
+                result.append("boolean")
+            elif len(text) >= 3 and text[0] == '"' and text[-1] == '"':
+                result.append("String")
+            elif len(text) >= 3 and text[0] == "'" and text[-1] == "'":
+                result.append("char")
+            else:
+                match = re.fullmatch(r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)", text)
+                result.append(match.group(1) if match else None)
+        return result
+
     def visitMethodCall(self, context):
         identifier = context.identifier()
         name = identifier.getText() if identifier is not None else context.getText().rstrip("()")
@@ -348,6 +373,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "method_name": name,
                 "receiver": receiver,
                 "argument_count": self._argument_count(context.arguments()),
+                "argument_types": self._argument_types(context.arguments()),
                 "invocation_kind": invocation_kind,
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
             },
@@ -381,6 +407,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "method_name": name,
                 "receiver": receiver,
                 "argument_count": self._argument_count(arguments),
+                "argument_types": self._argument_types(arguments),
                 "invocation_kind": "virtual" if receiver not in {"super", "this"} else "special",
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
                 "generic": True,
@@ -401,7 +428,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     "argument_count": self._argument_count(context.classCreatorRest().arguments())
                     if context.classCreatorRest() is not None
                     else None,
+                    "argument_types": self._argument_types(context.classCreatorRest().arguments())
+                    if context.classCreatorRest() is not None
+                    else [],
                     "invocation_kind": "constructor",
+                    "owner_type": self.current_type.qualified_name if self.current_type else None,
                 },
             )
         return self.visitChildren(context)

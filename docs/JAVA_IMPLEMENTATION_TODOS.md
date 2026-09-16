@@ -79,8 +79,12 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   Die Kanten bleiben bis zur lokalen bzw. globalen Auflösung bewusst
   `unresolved`; Tests decken Wildcard-/statische Imports, Generics,
   Konstruktoren, verschachtelte Aufrufe, Überladungen und Feldzugriffe ab.
-- [ ] **T3.2 Lokale Auflösung:** Eindeutige Ziele im selben Typ/Dateikontext
-  auflösen; Überladungen anhand normalisierter Signaturen behandeln.
+- [x] **T3.2 Lokale Auflösung:** **Abgeschlossen 16.09.2026.** Eindeutige
+  Typen, Felder, Methoden und Konstruktoren derselben Datei werden über
+  Parent-/Owner-Kontext aufgelöst. Methoden- und Konstruktorüberladungen
+  werden zuerst über Argumentanzahl und dann über sicher erkennbare
+  normalisierte Literaltypen unterschieden; unklare oder mehrdeutige Ziele
+  bleiben `unresolved` und erhalten einen Auflösungsgrund.
 - [ ] **T3.3 Globaler Resolver:** Java-Regeln für Package, Imports, `java.lang`,
   Besitzer-Typ und Argumente ergänzen; mehrdeutige/externe Ziele unresolved
   lassen.
@@ -111,9 +115,10 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1.
-- **Aktiv:** T3.2 (lokale Java-Symbolauflösung).
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.2.
+- **Aktiv:** T3.3 (globaler Java-Resolver).
 - **Nächstes konkretes TODO:** Eindeutige Ziele im selben Typ-/Dateikontext
-  anhand von Parent, Imports und normalisierten Methodensignaturen auflösen;
-  mehrdeutige Ziele bleiben `unresolved`.
-- **Noch nicht begonnen:** T3.3 bis T5.4.
+  sind bereits lokal aufgelöst; als Nächstes Package, Imports, `java.lang`,
+  Besitzer-Typen und dateiübergreifende Ziele ergänzen. Mehrdeutige/externe
+  Ziele bleiben `unresolved`.
+- **Noch nicht begonnen:** T3.4 bis T5.4.

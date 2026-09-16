@@ -11,6 +11,7 @@ from .chunking import chunk_java_source
 from .declarations import JavaDeclarationVisitor
 from .modules import module_from_path
 from .relationships import JavaRelationshipVisitor
+from .resolution import resolve_local_edges
 from ._antlr.JavaParser import JavaParser
 
 
@@ -43,6 +44,7 @@ def parse_java_file(
     relationships = JavaRelationshipVisitor(root, visitor.entities)
     if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
         relationships.visit(parsed.tree)
+    resolve_local_edges(relationships.edges, visitor.entities)
 
     diagnostics = [
         ParseDiagnostic(
