@@ -1203,7 +1203,8 @@
     "reportFailedToast": "Failed to send error report"
   },
   "callGraphView": {
-    "focusFirst": "Please focus a COBOL object first.",
+    "focusFirst": "Please focus a code object first.",
+    "inheritanceLabel": "Inheritance",
     "hopUnit": "Hop",
     "hopUnitPlural": "Hops",
     "reloadTitle": "Reload",

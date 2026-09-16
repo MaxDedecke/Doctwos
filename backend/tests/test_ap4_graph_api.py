@@ -186,6 +186,62 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         db_session.commit()
 
 
+def test_api_and_graph_transport_java_edge_types_and_optional_inheritance(
+    client, db_session, test_project, test_team
+):
+    source, caller, target, copybook, paragraph, _ = _fixture_graph(
+        db_session, test_project, test_team
+    )
+    java_call = CodeEdge(
+        project_id=test_project,
+        source_id=source.id,
+        src_entity_id=caller.id,
+        dst_entity_id=target.id,
+        dst_name="com.example.Target.run",
+        type="CALLS",
+        resolution="resolved",
+    )
+    java_inheritance = CodeEdge(
+        project_id=test_project,
+        source_id=source.id,
+        src_entity_id=caller.id,
+        dst_entity_id=target.id,
+        dst_name="com.example.Target",
+        type="EXTENDS",
+        resolution="resolved",
+    )
+    db_session.add_all([java_call, java_inheritance])
+    db_session.commit()
+    try:
+        default_graph = client.get(
+            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
+        ).json()
+        default_types = {edge["type"] for edge in default_graph["edges"]}
+        assert "CALLS" in default_types
+        assert "EXTENDS" not in default_types
+        assert "CALLS" in default_graph["edge_types"]
+
+        inheritance_graph = client.get(
+            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
+            "&include_inheritance=true"
+        ).json()
+        assert "EXTENDS" in {edge["type"] for edge in inheritance_graph["edges"]}
+
+        explicit_graph = client.get(
+            f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
+            "&types=EXTENDS"
+        ).json()
+        assert {edge["type"] for edge in explicit_graph["edges"]} == {"EXTENDS"}
+
+        overview = client.get(f"/graph?project_id={test_project}").json()
+        code_edge = next(edge for edge in overview["edges"] if edge["id"] == f"code:{java_call.id}")
+        assert code_edge["link_type"] == "CALLS"
+        assert code_edge["type"] == "CALLS"
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
 def test_callgraph_focus_marks_nodes_from_incompletely_analyzed_files(
     client, db_session, test_project, test_team
 ):

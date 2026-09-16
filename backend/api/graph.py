@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from core import config as cfg
 from core.db_setup import get_db
 from models.database import (
+    CodeEdge,
     CodeEntity,
     EntityDocLink,
     KnowledgeLink,
@@ -243,6 +244,59 @@ def get_graph(
         eid = f"entity:{entity.id}"
         nodes[eid] = _entity_node(entity)
 
+    # 1b. Fetch language-neutral code relationships.  ``CodeEdge.type`` is an
+    # open string, so this deliberately does not use a COBOL-specific allowlist
+    # (Java currently contributes CALLS, EXTENDS, IMPLEMENTS, USES_TYPE,
+    # INSTANTIATES, READS and WRITES).
+    code_edge_query = db.query(CodeEdge)
+    if project_id:
+        code_edge_query = code_edge_query.filter(CodeEdge.project_id == project_id)
+    elif visible_project_ids is not None:
+        code_edge_query = code_edge_query.filter(
+            or_(CodeEdge.project_id.in_(exposed_project_ids), CodeEdge.project_id.is_(None))
+        )
+    for code_edge in code_edge_query.order_by(CodeEdge.id).all():
+        source_id = f"entity:{code_edge.src_entity_id}"
+        if source_id not in nodes:
+            continue
+        if code_edge.dst_entity_id is None:
+            target_id = f"unresolved:code:{code_edge.id}"
+            nodes.setdefault(
+                target_id,
+                {
+                    "id": target_id,
+                    "type": "external",
+                    "label": code_edge.dst_name,
+                    "entity_type": None,
+                    "file_path": None,
+                    "start_line": None,
+                    "project_id": code_edge.project_id,
+                    "source_type": None,
+                    "url": None,
+                    "source_id": code_edge.source_id,
+                    "unresolved": True,
+                },
+            )
+        else:
+            target_id = f"entity:{code_edge.dst_entity_id}"
+            if target_id not in nodes:
+                continue
+        edges.append(
+            {
+                "id": f"code:{code_edge.id}",
+                "source": source_id,
+                "target": target_id,
+                "link_type": code_edge.type,
+                "type": code_edge.type,
+                "score": None,
+                "context": None,
+                "resolution": code_edge.resolution,
+                "meta": code_edge.meta_json or {},
+                "start_line": code_edge.src_start_line,
+                "end_line": code_edge.src_end_line,
+            }
+        )
+
     # 2. Fetch all visible Documents (unique file_paths) and add them as nodes
     doc_query = db.query(DocumentChunk)
     if project_id:
@@ -454,6 +508,70 @@ def get_graph_focus(
     edges: list[dict] = []
     focus_id = f"entity:{entity.id}"
     nodes[focus_id] = _entity_node(entity)
+    # Code relationships are part of the same language-neutral graph as
+    # document links.  A focus request gets the direct incoming/outgoing
+    # neighborhood regardless of the parser that produced the edge.
+    code_edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.project_id == project_id,
+            or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
+        )
+        .order_by(CodeEdge.id)
+        .all()
+    )
+    for code_edge in code_edges:
+        source_id = f"entity:{code_edge.src_entity_id}"
+        if code_edge.src_entity_id == entity.id:
+            nodes.setdefault(source_id, _entity_node(entity))
+        else:
+            source_entity = (
+                db.query(CodeEntity).filter(CodeEntity.id == code_edge.src_entity_id).first()
+            )
+            if not source_entity or source_entity.project_id != project_id:
+                continue
+            nodes.setdefault(source_id, _entity_node(source_entity))
+        if code_edge.dst_entity_id is None:
+            target_id = f"unresolved:code:{code_edge.id}"
+            nodes.setdefault(
+                target_id,
+                {
+                    "id": target_id,
+                    "type": "external",
+                    "label": code_edge.dst_name,
+                    "entity_type": None,
+                    "file_path": None,
+                    "start_line": None,
+                    "project_id": project_id,
+                    "source_type": None,
+                    "url": None,
+                    "source_id": code_edge.source_id,
+                    "unresolved": True,
+                },
+            )
+        else:
+            target_entity = (
+                db.query(CodeEntity).filter(CodeEntity.id == code_edge.dst_entity_id).first()
+            )
+            if not target_entity or target_entity.project_id != project_id:
+                continue
+            target_id = f"entity:{target_entity.id}"
+            nodes.setdefault(target_id, _entity_node(target_entity))
+        edges.append(
+            {
+                "id": f"code:{code_edge.id}",
+                "source": source_id,
+                "target": target_id,
+                "link_type": code_edge.type,
+                "type": code_edge.type,
+                "score": None,
+                "context": None,
+                "resolution": code_edge.resolution,
+                "meta": code_edge.meta_json or {},
+                "start_line": code_edge.src_start_line,
+                "end_line": code_edge.src_end_line,
+            }
+        )
     # Code-Referenz-Fanout (CALL/PERFORM/GOTO/COPY/USE) entfernt zusammen mit dem
     # nie produktiv befüllten CodeReference-Modell (siehe TECH_DEBT_CLEANUP_PLAN.md
     # §1) — always-false, damit das Frontend-Truncation-Banner unverändert bleibt.

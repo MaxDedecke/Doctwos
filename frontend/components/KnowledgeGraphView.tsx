@@ -145,6 +145,12 @@ export interface GraphEdge {
   link_type: string;
   score: number | null;
   context: string | null;
+  /** Optional code-edge fields; relationship types remain open strings. */
+  type?: string;
+  resolution?: string | null;
+  meta?: Record<string, unknown>;
+  start_line?: number | null;
+  end_line?: number | null;
 }
 
 interface Props {

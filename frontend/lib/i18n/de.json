@@ -1203,7 +1203,8 @@
     "reportFailedToast": "Fehlerbericht konnte nicht gesendet werden"
   },
   "callGraphView": {
-    "focusFirst": "Bitte zuerst ein COBOL-Objekt fokussieren.",
+    "focusFirst": "Bitte zuerst ein Code-Objekt fokussieren.",
+    "inheritanceLabel": "Vererbung",
     "hopUnit": "Hop",
     "hopUnitPlural": "Hops",
     "reloadTitle": "Neu laden",

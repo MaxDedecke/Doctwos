@@ -34,7 +34,7 @@ export type CallEdge = {
   id: string;
   source: string | CallNode;
   target: string | CallNode;
-  type: 'CALL' | 'PERFORM' | 'GOTO' | 'COPY' | 'CONTAINS';
+  type: string;
   resolution: string;
 };
 
@@ -44,7 +44,25 @@ const EDGE_COLORS: Record<string, string> = {
   GOTO: 'rgb(var(--ds-warning-base))',
   COPY: 'rgb(var(--ds-graph-a-base))',
   CONTAINS: 'rgb(var(--ds-graph-b-base))',
+  CALLS: 'rgb(var(--ds-danger-base))',
+  INSTANTIATES: 'rgb(var(--ds-info-base))',
+  EXTENDS: 'rgb(var(--ds-accent))',
+  IMPLEMENTS: 'rgb(var(--ds-success-base))',
 };
+
+const EDGE_COLOR_FALLBACKS = [
+  'rgb(var(--ds-info-base))',
+  'rgb(var(--ds-graph-a-base))',
+  'rgb(var(--ds-graph-b-base))',
+  'rgb(var(--ds-warning-base))',
+];
+
+function edgeColor(type: string): string {
+  if (EDGE_COLORS[type]) return EDGE_COLORS[type];
+  let hash = 0;
+  for (const char of type) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+  return EDGE_COLOR_FALLBACKS[Math.abs(hash) % EDGE_COLOR_FALLBACKS.length];
+}
 
 interface Props {
   theme: string;
@@ -67,7 +85,9 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hops, setHops] = useState(1);
   const [graph, setGraph] = useState<{ nodes: CallNode[]; edges: CallEdge[] }>({ nodes: [], edges: [] });
+  const [availableTypes, setAvailableTypes] = useState<string[]>(Object.keys(EDGE_COLORS));
   const [enabledTypes, setEnabledTypes] = useState<Set<string>>(new Set(Object.keys(EDGE_COLORS)));
+  const [includeInheritance, setIncludeInheritance] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
@@ -95,10 +115,11 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     setError(null);
     try {
       const projectParam = projectId ? `&project_id=${projectId}` : '';
-      const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}`);
+      const inheritanceParam = includeInheritance ? '&include_inheritance=true' : '';
+      const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}${inheritanceParam}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       type FocusNode = CodeEntity & { analysis_status?: AnalysisStatus; analysis_reasons?: string[] };
-      const data: { nodes: FocusNode[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: CallEdge['type']; resolution: string }>; truncated?: boolean } = await response.json();
+      const data: { nodes: FocusNode[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: string; resolution: string }>; edge_types?: string[]; truncated?: boolean } = await response.json();
       const nodes: CallNode[] = (data.nodes || []).map((node) => ({
         id: `entity:${node.id}`,
         entityId: node.id,
@@ -126,6 +147,12 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
         };
       });
       setGraph({ nodes, edges });
+      const types = Array.from(new Set([
+        ...(data.edge_types || []),
+        ...edges.map(edge => edge.type),
+      ])).sort();
+      setAvailableTypes(types);
+      setEnabledTypes(new Set(types));
       setTruncated(Boolean(data.truncated));
       setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
     } catch (err) {
@@ -133,7 +160,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     } finally {
       setLoading(false);
     }
-  }, [focusedEntity, hops, projectId, t]);
+  }, [focusedEntity, hops, includeInheritance, projectId, t]);
 
   useEffect(() => {
     // queueMicrotask: loadGraph() sets loading/error state before its
@@ -155,7 +182,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
     if (!focusedEntity?.id) return;
     const projectParam = projectId ? `&project_id=${projectId}` : '';
-    const response = await api.fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}`);
+    const inheritanceParam = includeInheritance ? '&include_inheritance=true' : '';
+    const response = await api.fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}${inheritanceParam}`);
     if (!response.ok) return setError(t('callGraphView.exportError', { status: response.status }));
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -181,7 +209,15 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
         <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title={t('callGraphView.fitAllTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
       </div>
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
-        {Object.entries(EDGE_COLORS).map(([type, color]) => <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>)}
+        <button
+          onClick={() => setIncludeInheritance(previous => !previous)}
+          aria-pressed={includeInheritance}
+          className={cn('px-2 py-1 rounded border text-[9px] font-bold', includeInheritance ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}
+        >{t('callGraphView.inheritanceLabel')}</button>
+        {availableTypes.map(type => {
+          const color = edgeColor(type);
+          return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>;
+        })}
         <div className="ml-auto flex items-center gap-1">{(['json', 'csv', 'graphml'] as const).map(format => <button key={format} onClick={() => exportGraph(format)} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase font-bold text-ds-zinc-500 hover:text-ds-indigo-400"><Download className="w-3 h-3" />{format}</button>)}</div>
       </div>
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
@@ -239,7 +275,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
               ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 2 / globalScale);
             }
           }}
-          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? EDGE_COLORS[edge.type] : 'rgb(var(--ds-warning-base))')}
+          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? edgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}

@@ -104,8 +104,15 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Paket 4 – API, Views und Chat
 
-- [ ] **T4.1 API/Graph:** Beliebige Entity-/Kantentypen transportieren;
-  Call-Graph-Filter für Aufrufe und optional Vererbung ergänzen.
+- [x] **T4.1 API/Graph:** **Abgeschlossen 16.09.2026.** Entity- und Kanten-
+  Typen bleiben in API und Frontend offene Strings. Der Wissensgraph liefert
+  jetzt persistierte `CodeEdge`s inklusive Typ, Auflösung, Metadaten und
+  Quellzeilen; das gilt für Übersicht, Fokus und Exporte. Der Call-Graph
+  unterstützt COBOL-Aufrufkanten sowie Java-`CALLS`/`INSTANTIATES`, explizite
+  freie Typfilter (wiederholt oder kommasepariert) und eine optionale
+  `EXTENDS`/`IMPLEMENTS`-Erweiterung. Die View übernimmt Typen dynamisch,
+  färbt unbekannte Typen deterministisch und bietet den Vererbungs-Schalter.
+  Regressionen decken Java-Typen, Filter, Vererbung und Graph-Transport ab.
 - [ ] **T4.2 Gemeinsame Taxonomie:** Typnamen, Farben, Icons und Fallbacks für
   Entities und Kanten zentralisieren; keine separaten Java-Views bauen.
 - [ ] **T4.3 Navigation:** Editor, Suche, Wissensgraph, Link-Manager,
@@ -126,8 +133,8 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.4.
-- **Aktiv:** Paket 4 beginnt mit T4.1 (API/Graph).
-- **Nächstes konkretes TODO:** Generische Entity-/Kantentypen durch API und
-  Graph transportieren und Call-Graph-Filter für Java ergänzen.
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5, T3.1 bis T3.4 und T4.1.
+- **Aktiv:** Paket 4 wird mit T4.2 (gemeinsame Taxonomie) fortgesetzt.
+- **Nächstes konkretes TODO:** Typnamen, Farben, Icons und Fallbacks für
+  Entities und Kanten zentralisieren.
 - **Noch nicht begonnen:** T4.2 bis T5.4.

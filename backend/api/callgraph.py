@@ -1,4 +1,4 @@
-"""Begrenzter COBOL-Callgraph und Export (F-066)."""
+"""Begrenzter sprachneutraler Code-Callgraph und Export (F-066)."""
 
 import csv
 import io
@@ -17,24 +17,64 @@ from models.database import CodeEdge, CodeEntity, User
 
 router = APIRouter(prefix="/callgraph", tags=["callgraph"])
 MAX_NODES = 500
-EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "COPY"}
+"""Relationship types supported by the call-graph default view.
+
+The persisted contract deliberately keeps edge types open strings.  These
+sets only define the useful default view; callers can request any persisted
+type through ``types`` (including types added by a future parser).
+"""
+CALL_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES"}
+INHERITANCE_EDGE_TYPES = {"EXTENDS", "IMPLEMENTS"}
 
 
-def _focus(db: Session, root_id: int, hops: int) -> dict:
+def _requested_edge_types(
+    types: list[str] | None,
+    include_inheritance: bool,
+) -> set[str]:
+    """Normalize repeated and comma-separated query values.
+
+    ``types`` is intentionally not validated against a registry: entity and
+    edge types are an open language-neutral contract.  An explicit request
+    therefore also works for a parser type unknown to this API version.
+    """
+    requested = {
+        item.strip().upper()
+        for value in (types or [])
+        for item in value.split(",")
+        if item.strip()
+    }
+    if requested:
+        return requested
+    defaults = set(CALL_EDGE_TYPES)
+    if include_inheritance:
+        defaults.update(INHERITANCE_EDGE_TYPES)
+    return defaults
+
+
+def _focus(
+    db: Session,
+    root_id: int,
+    hops: int,
+    edge_types: set[str] | None = None,
+) -> dict:
     seen, frontier = {root_id}, {root_id}
     edge_rows: dict[int, CodeEdge] = {}
+    root = db.query(CodeEntity).filter(CodeEntity.id == root_id).first()
+    # Code edges are normally project-local.  Keep the focus graph local even
+    # if a malformed/imported row points across projects; unprojected legacy
+    # entities retain the old unrestricted behavior.
+    project_id = root.project_id if root else None
+    edge_types = edge_types or _requested_edge_types(None, include_inheritance=False)
     for _ in range(hops):
         if not frontier or len(seen) >= MAX_NODES:
             break
-        rows = (
-            db.query(CodeEdge)
-            .filter(
-                CodeEdge.type.in_(EDGE_TYPES),
-                or_(CodeEdge.src_entity_id.in_(frontier), CodeEdge.dst_entity_id.in_(frontier)),
-            )
-            .order_by(CodeEdge.id)
-            .all()
+        query = db.query(CodeEdge).filter(
+            CodeEdge.type.in_(edge_types),
+            or_(CodeEdge.src_entity_id.in_(frontier), CodeEdge.dst_entity_id.in_(frontier)),
         )
+        if project_id is not None:
+            query = query.filter(CodeEdge.project_id == project_id)
+        rows = query.order_by(CodeEdge.id).all()
         next_frontier: set[int] = set()
         for edge in rows:
             edge_rows[edge.id] = edge
@@ -118,6 +158,10 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
     return {
         "root_id": root_id,
         "hops": hops,
+        "edge_types": sorted(
+            {edge.type for edge in edge_rows.values()}
+            | ({"CONTAINS"} if any(entity.parent_id in seen for entity in entities) else set())
+        ),
         "truncated": len(seen) >= MAX_NODES,
         "nodes": nodes,
         "edges": edges,
@@ -128,6 +172,17 @@ def _focus(db: Session, root_id: int, hops: int) -> dict:
 def focus(
     entity_id: int,
     hops: int = Query(1, ge=0, le=3),
+    types: list[str] | None = Query(
+        default=None,
+        description=(
+            "Kantentypen, wiederholt oder kommasepariert. Offen für neue Parser-Typen; "
+            "ohne Angabe werden Aufrufkanten verwendet."
+        ),
+    ),
+    include_inheritance: bool = Query(
+        default=False,
+        description="EXTENDS/IMPLEMENTS zusätzlich zur Aufrufansicht einblenden",
+    ),
     project_id: int | None = Query(
         default=None,
         description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus",
@@ -139,7 +194,12 @@ def focus(
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(entity, user, db, project_id)
-    return _focus(db, entity_id, hops)
+    return _focus(
+        db,
+        entity_id,
+        hops,
+        _requested_edge_types(types, include_inheritance),
+    )
 
 
 @router.get("/export")
@@ -147,6 +207,8 @@ def export_callgraph(
     entity_id: int,
     format: str = Query("json", pattern="^(json|csv|graphml)$"),
     hops: int = Query(3, ge=0, le=3),
+    types: list[str] | None = Query(default=None),
+    include_inheritance: bool = Query(default=False),
     project_id: int | None = Query(
         default=None,
         description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus",
@@ -158,7 +220,12 @@ def export_callgraph(
     if not entity:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(entity, user, db, project_id)
-    graph = _focus(db, entity_id, hops)
+    graph = _focus(
+        db,
+        entity_id,
+        hops,
+        _requested_edge_types(types, include_inheritance),
+    )
     if format == "json":
         return Response(json.dumps(graph, ensure_ascii=False), media_type="application/json")
     if format == "csv":

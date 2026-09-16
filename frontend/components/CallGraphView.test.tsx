@@ -141,7 +141,7 @@ describe('CallGraphView', () => {
 
       renderView({ focusedEntity: null });
 
-      expect(screen.getByText('Bitte zuerst ein COBOL-Objekt fokussieren.')).toBeTruthy();
+      expect(screen.getByText('Bitte zuerst ein Code-Objekt fokussieren.')).toBeTruthy();
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -285,6 +285,28 @@ describe('CallGraphView', () => {
       await waitFor(() => expect(screen.queryByTestId('node-entity:2')).toBeNull());
       // Nur noch der Fokusknoten selbst -- die Ansicht meldet "keine Verbindungen".
       expect(screen.getByText('Keine Call-Graph-Verbindungen für diesen Fokus.')).toBeTruthy();
+    });
+
+    it('transportiert freie Java-Kantentypen und lädt Vererbung optional nach', async () => {
+      const fetchMock = stubFetch({
+        focus: {
+          nodes: FOCUS_RESPONSE.nodes,
+          edges: [
+            { id: 101, source: 1, target: 2, type: 'CALLS', resolution: 'resolved', target_name: 'run' },
+            { id: 102, source: 1, target: 2, type: 'EXTENDS', resolution: 'resolved', target_name: 'Target' },
+          ],
+          edge_types: ['CALLS', 'EXTENDS'],
+          truncated: false,
+        },
+      });
+
+      renderView();
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'CALLS' })).toBeTruthy());
+      expect(screen.getByRole('button', { name: 'EXTENDS' })).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Vererbung' }));
+      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('include_inheritance=true'));
     });
   });
 
