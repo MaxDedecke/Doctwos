@@ -97,6 +97,28 @@ def persist_parse_result(
         .all()
     }
 
+    # Java package entities are shared by all files in a package, while the
+    # historical COBOL entities are file-owned.  The DB key is intentionally
+    # source/variant/QName (not source/file/QName), so reuse an already
+    # persisted QName when a second file contributes to the same package.
+    # Keeping the lookup here also makes the generic persistence contract
+    # explicit for future structure parsers.
+    for entity in result.entities:
+        qname = entity.qualified_name or entity.name
+        if qname in existing:
+            continue
+        shared = (
+            db.query(CodeEntity)
+            .filter(
+                CodeEntity.source_id == source_id,
+                CodeEntity.variant_key == result.variant_key,
+                CodeEntity.qualified_name == qname,
+            )
+            .first()
+        )
+        if shared is not None:
+            existing[qname] = shared
+
     by_qname: dict[str, CodeEntity] = {}
     seen_qnames: set[str] = set()
 
@@ -112,20 +134,25 @@ def persist_parse_result(
                 variant_key=result.variant_key,
             )
             db.add(row)
-        row.name = ent.name
-        row.type = ent.type
-        row.qualified_name = qname
-        row.start_line = ent.start_line
-        row.end_line = ent.end_line
-        row.meta_json = ent.meta or None
-        row.content_hash = content_hash
-        row.parent_id = _parent_id(
-            qname,
-            by_qname,
-            existing,
-            parent_qualified_name=ent.parent_qualified_name,
-            legacy_parent_name=ent.parent_name,
-        )
+        owns_row = row.file_path in {None, file_path}
+        if owns_row:
+            row.name = ent.name
+            row.type = ent.type
+            row.qualified_name = qname
+            # Shared Java package/module rows keep their first owning file. A
+            # newly created row already carries this file path below.
+            row.file_path = file_path
+            row.start_line = ent.start_line
+            row.end_line = ent.end_line
+            row.meta_json = ent.meta or None
+            row.content_hash = content_hash
+            row.parent_id = _parent_id(
+                qname,
+                by_qname,
+                existing,
+                parent_qualified_name=ent.parent_qualified_name,
+                legacy_parent_name=ent.parent_name,
+            )
         # Sofort flushen, damit die eigene id für Kinder verfügbar ist, die
         # in derselben Schleife noch folgen (entities sind laut parse.py
         # immer in Eltern-vor-Kind-Reihenfolge aufgebaut).
@@ -145,7 +172,12 @@ def persist_parse_result(
     for row in by_qname.values():
         by_name.setdefault(row.name.upper(), []).append(row)
 
-    file_entity_ids = [row.id for row in by_qname.values()]
+    # A shared Java package entity can be referenced by several source files.
+    # Only delete edges whose source entity is owned by this file; otherwise a
+    # reparse of file B would delete imports/relations persisted for file A.
+    file_entity_ids = [
+        row.id for row in by_qname.values() if row.file_path == file_path
+    ]
     if file_entity_ids:
         db.query(CodeEdge).filter(
             CodeEdge.source_id == source_id,
@@ -189,6 +221,17 @@ def _parent_id(
 def _find_src(
     edge: ParsedEdge, by_qname: dict[str, CodeEntity], by_name: dict[str, list[CodeEntity]]
 ) -> CodeEntity | None:
+    # Java uses the stable qualified name as the source identity (for example
+    # ``demo.Client#call()``).  COBOL historically used ``src_name`` as a
+    # simple name, so retain that fallback below.
+    direct = by_qname.get(edge.src_name)
+    if direct is not None:
+        return direct
+    source_qname = (edge.meta or {}).get("source_qualified_name")
+    if source_qname:
+        direct = by_qname.get(source_qname)
+        if direct is not None:
+            return direct
     if not edge.src_name:
         # procedure.py/xref.py liefern "" als src_name, wenn eine Anweisung
         # direkt unter PROCEDURE DIVISION ohne umschließenden Paragraphen
@@ -308,6 +351,18 @@ def _build_edge(
             dst_entity = _resolve_local_target(edge, by_qname, by_name)
             if dst_entity is None:
                 resolution = "unresolved"
+    elif (edge.meta or {}).get("language") == "java":
+        # Java has no COBOL-style scope column.  Local and global resolution
+        # is represented by the stable target QName in edge metadata.  Only
+        # mark a DB edge resolved once its target row is actually present;
+        # the DB resolver will fill cross-file targets after the whole sync.
+        target_qname = (edge.meta or {}).get("target_qualified_name")
+        if resolution == "resolved" and target_qname:
+            dst_entity = by_qname.get(target_qname)
+            if dst_entity is None:
+                resolution = "unresolved"
+        elif resolution == "resolved":
+            resolution = "unresolved"
     else:
         # Global (CALL/COPY): copybook.py setzt "resolved" schon zur
         # Parse-Zeit, sobald der Pass-0-Namensindex GENAU EINEN Pfad zu

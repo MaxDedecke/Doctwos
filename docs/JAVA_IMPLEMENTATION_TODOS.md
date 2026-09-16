@@ -91,8 +91,16 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   `java.lang`, Besitzer-Typen sowie normalisierte Argumenttypen. Wildcard-
   Imports werden nur bei genau einem Treffer verwendet; fehlende externe und
   mehrdeutige Ziele bleiben `unresolved` und erhalten einen Auflösungsgrund.
-- [ ] **T3.4 Persistenzintegration:** Generische Kanten-Zieltypen und Resolver
-  integrieren; Mehrdatei-, Mehrdeutigkeits-, Reparse- und Resume-Fälle testen.
+- [x] **T3.4 Persistenzintegration:** **Abgeschlossen 16.09.2026.** Die
+  sprachneutrale Persistenz akzeptiert Java-QNames als Quellen und Ziele,
+  behandelt geteilte Package-Entities über mehrere Dateien stabil und erhält
+  eingehende Kanten beim Reparse. Der DB-Nachlauf adaptiert persistierte Java-
+  Entities/Kanten wieder auf den bestehenden globalen Resolver, sodass auch
+  unveränderte, per Resume übersprungene Zieldateien an Mehrdatei-Auflösung
+  teilnehmen. Mehrdeutige Wildcard-Treffer bleiben mit
+  `resolution_reason="ambiguous_type"` unresolved. Ende-zu-Ende-Tests decken
+  Mehrdatei-Auflösung, Mehrdeutigkeit, Reparse/ID-Erhalt und Resume ohne neues
+  Embedding ab.
 
 ## Paket 4 – API, Views und Chat
 
@@ -118,10 +126,8 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.3.
-- **Aktiv:** T3.4 (Persistenzintegration und Ende-zu-Ende-Fälle).
-- **Nächstes konkretes TODO:** Eindeutige Ziele im selben Typ-/Dateikontext
-  sind bereits lokal und dateiübergreifend auflösbar; als Nächstes den Resolver
-  in Persistenz und Sync-Lifecycle integrieren. Reparse-, Resume- und
-  Mehrdatei-Fälle müssen dort noch Ende zu Ende geprüft werden.
-- **Noch nicht begonnen:** T4.1 bis T5.4.
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.4.
+- **Aktiv:** Paket 4 beginnt mit T4.1 (API/Graph).
+- **Nächstes konkretes TODO:** Generische Entity-/Kantentypen durch API und
+  Graph transportieren und Call-Graph-Filter für Java ergänzen.
+- **Noch nicht begonnen:** T4.2 bis T5.4.

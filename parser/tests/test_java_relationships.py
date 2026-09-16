@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from cobol_persist import _build_edge
 from java.parse import parse_java_file
 from java.resolution import resolve_global_edges
+from models.database import CodeEdge, CodeEntity
+from tasks.edge_resolver import _java_parse_results
 
 
 def test_java_relationships_capture_declarations_calls_and_field_accesses() -> None:
@@ -208,3 +211,104 @@ class Client {
     assert explicit.meta["target_qualified_name"] == "one.Shared"
     created = next(edge for edge in client.edges if edge.type == "INSTANTIATES")
     assert created.resolution == "unresolved"
+
+
+def test_java_edge_persistence_uses_qualified_source_and_target_names() -> None:
+    result = parse_java_file(
+        "package demo; class Local { int count; void caller() { count = 1; } }",
+        "src/demo/Local.java",
+    )
+    entities = {
+        entity.qualified_name: CodeEntity(
+            id=index,
+            file_path=result.path,
+            name=entity.name,
+            type=entity.type,
+            qualified_name=entity.qualified_name,
+        )
+        for index, entity in enumerate(result.entities, start=1)
+        if entity.qualified_name
+    }
+    edge = next(edge for edge in result.edges if edge.type == "WRITES")
+    row = _build_edge(
+        None,
+        42,
+        result.variant_key,
+        edge,
+        entities,
+        {entity.name.upper(): [entity] for entity in entities.values()},
+    )
+
+    assert row is not None
+    assert row.src_entity_id == entities[edge.src_name].id
+    assert row.dst_entity_id == entities[edge.meta["target_qualified_name"]].id
+    assert row.resolution == "resolved"
+
+
+def test_persisted_java_results_resolve_against_unchanged_other_files() -> None:
+    service = parse_java_file(
+        "package api; public class Service { public void run(int value) {} }",
+        "api/Service.java",
+    )
+    client = parse_java_file(
+        """package app;
+import api.Service;
+class Client { void call() { new Service().run(1); } }
+""",
+        "app/Client.java",
+    )
+
+    persisted_entities = []
+    next_id = 1
+    for result in (service, client):
+        rows = {}
+        for entity in result.entities:
+            row = CodeEntity(
+                id=next_id,
+                source_id=9,
+                file_path=result.path,
+                variant_key=result.variant_key,
+                name=entity.name,
+                type=entity.type,
+                qualified_name=entity.qualified_name,
+                meta_json=entity.meta,
+            )
+            rows[entity.qualified_name] = row
+            persisted_entities.append(row)
+            next_id += 1
+        for entity in result.entities:
+            if entity.parent_qualified_name in rows:
+                rows[entity.qualified_name].parent_id = rows[entity.parent_qualified_name].id
+
+    persisted_edges = []
+    next_id = 100
+    for result in (service, client):
+        source_rows = {row.qualified_name: row for row in persisted_entities if row.file_path == result.path}
+        for edge in result.edges:
+            source = source_rows[edge.src_name]
+            persisted_edges.append(
+                CodeEdge(
+                    id=next_id,
+                    source_id=9,
+                    variant_key=result.variant_key,
+                    src_entity_id=source.id,
+                    dst_name=edge.dst_name,
+                    type=edge.type,
+                    resolution=edge.resolution,
+                    src_start_line=edge.src_start_line,
+                    src_end_line=edge.src_end_line,
+                    meta_json=edge.meta,
+                )
+            )
+            next_id += 1
+
+    pairs = _java_parse_results(persisted_entities, persisted_edges)
+    assert resolve_global_edges(pair[0] for pair in pairs) == 2
+    call = next(
+        parsed
+        for _, _, parsed_edges in pairs
+        for parsed in parsed_edges
+        if parsed.type == "CALLS"
+    )
+    assert call.resolution == "resolved"
+    assert call.meta["target_qualified_name"] == "api.Service#run(int)"
