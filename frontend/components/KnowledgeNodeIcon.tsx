@@ -1,27 +1,8 @@
 import { Code2, FileText, Globe2 } from 'lucide-react';
+import { getGraphNodeIconKind, type GraphIconKind, type GraphTaxonomyNode } from '@/lib/graphTaxonomy';
 
-interface IconNode {
-  node_type?: unknown; type?: unknown; kind?: unknown; entity_type?: unknown; entityType?: unknown;
-  source_type?: unknown; sourceType?: unknown; url?: unknown; node_url?: unknown; nodeUrl?: unknown;
-  node_meta?: Record<string, unknown> | null; meta?: Record<string, unknown> | null; file_path?: string; x?: number; y?: number;
-}
-
-export type KnowledgeNodeIconKind = 'code' | 'document' | 'web';
-
-const WEB_SOURCE_TYPES = new Set([
-  'confluence',
-  'jira',
-  'web',
-  'webpage',
-  'webdav',
-  'url',
-  'http',
-  'https',
-]);
-
-function textValue(value: unknown): string {
-  return typeof value === 'string' ? value.toLowerCase() : '';
-}
+export type KnowledgeNodeIconKind = GraphIconKind;
+type IconNode = GraphTaxonomyNode & { x?: number; y?: number };
 
 /**
  * Resolve the visual kind for all node shapes used by graph, search, topics,
@@ -29,38 +10,7 @@ function textValue(value: unknown): string {
  * both API responses and the small view-specific wrapper objects.
  */
 export function getKnowledgeNodeIconKind(node: IconNode | null | undefined): KnowledgeNodeIconKind {
-  if (!node) return 'document';
-
-  const nodeType = textValue(node.node_type || node.type || node.kind);
-  const entityType = textValue(node.entity_type || node.entityType);
-  const meta = node.node_meta || node.meta || {};
-  const metaType = textValue(meta.type || meta.source_type || meta.sourceType);
-  const sourceType = textValue(
-    node.source_type || node.sourceType || meta.source_type || meta.sourceType ||
-    (nodeType === 'knowledge_source' ? meta.type : '')
-  );
-  const url = node.url || node.node_url || node.nodeUrl;
-
-  if (
-    nodeType === 'entity' ||
-    nodeType === 'code' ||
-    nodeType === 'cobol' ||
-    nodeType === 'jcl' ||
-    nodeType === 'git' ||
-    nodeType === 'copybook' ||
-    nodeType === 'external' ||
-    ['program', 'section', 'paragraph', 'data_item', 'file_fd', 'sql_table', 'sql_block', 'entry'].includes(entityType)
-  ) {
-    return 'code';
-  }
-
-  // A document belonging to a Git source is a code file, while a document
-  // from a browser-backed source is represented by a globe.
-  if (sourceType === 'git' || metaType === 'git') return 'code';
-  if (WEB_SOURCE_TYPES.has(sourceType) || WEB_SOURCE_TYPES.has(metaType)) return 'web';
-  if (typeof url === 'string' && /^https?:\/\//i.test(url)) return 'web';
-
-  return 'document';
+  return getGraphNodeIconKind(node);
 }
 
 interface KnowledgeNodeIconProps {

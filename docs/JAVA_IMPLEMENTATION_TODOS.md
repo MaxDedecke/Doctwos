@@ -113,8 +113,14 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   `EXTENDS`/`IMPLEMENTS`-Erweiterung. Die View übernimmt Typen dynamisch,
   färbt unbekannte Typen deterministisch und bietet den Vererbungs-Schalter.
   Regressionen decken Java-Typen, Filter, Vererbung und Graph-Transport ab.
-- [ ] **T4.2 Gemeinsame Taxonomie:** Typnamen, Farben, Icons und Fallbacks für
-  Entities und Kanten zentralisieren; keine separaten Java-Views bauen.
+- [x] **T4.2 Gemeinsame Taxonomie:** **Abgeschlossen 16.09.2026.** Die
+  gemeinsame Frontend-Taxonomie unter `frontend/lib/graphTaxonomy.ts` bündelt
+  Node-Kategorien, Entity-Typnamen, Kantenfarben, lokalisierte Kantenlabels,
+  Icon-Klassen und deterministische Fallbacks für unbekannte Parser-Typen.
+  Knowledge-Graph, Call-Graph, Suche/Referenzen und Node-Icon verwenden damit
+  dieselbe Darstellungslogik; eine separate Java-Ansicht wurde nicht gebaut.
+  Regressionstests prüfen Java-Typen, Web-/Code-/Dokument-Klassifikation und
+  stabile unbekannte Typen.
 - [ ] **T4.3 Navigation:** Editor, Suche, Wissensgraph, Link-Manager,
   Referenzansicht und Nachbarschaften mit Java-Entities durchtesten.
 - [ ] **T4.4 Chat/Retrieval:** Generischen Entity-Fokus und Breadcrumbs
@@ -133,8 +139,9 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5, T3.1 bis T3.4 und T4.1.
-- **Aktiv:** Paket 4 wird mit T4.2 (gemeinsame Taxonomie) fortgesetzt.
-- **Nächstes konkretes TODO:** Typnamen, Farben, Icons und Fallbacks für
-  Entities und Kanten zentralisieren.
-- **Noch nicht begonnen:** T4.2 bis T5.4.
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5, T3.1 bis T3.4 sowie T4.1
+  und T4.2.
+- **Aktiv:** Paket 4 wird mit T4.3 (Navigation) fortgesetzt.
+- **Nächstes konkretes TODO:** Editor, Suche, Wissensgraph, Link-Manager,
+  Referenzansicht und Nachbarschaften mit Java-Entities durchtesten.
+- **Noch nicht begonnen:** T4.3 bis T5.4.

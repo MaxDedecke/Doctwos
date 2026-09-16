@@ -3,6 +3,15 @@ import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import { api, API_URL } from '@/app/services/api';
+import {
+  EDGE_TYPE_COLORS,
+  NODE_TYPE_TAXONOMY,
+  getEntityTypeLabel,
+  getGraphEdgeColor,
+  getGraphEdgeLabelKey,
+  getGraphNodeCategory,
+  getGraphNodeColor,
+} from '@/lib/graphTaxonomy';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -13,51 +22,16 @@ import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
 
-/* ── Color maps ──────────────────────────────────────────────────────────────── */
+/* ── Shared taxonomy (kept exported for existing view consumers/tests) ─────── */
 
-export const UNIFIED_NODE_TYPES: Record<string, { labelDe: string; labelEn: string; color: string }> = {
-  cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))' }, // Blue
-  pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))' }, // Red
-  jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))' }, // Orange
-  confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))' }, // Cyan
-  jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))' }, // Indigo
-  git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))' }, // Green
-  txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))' }, // Slate
-  md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: 'rgb(var(--ds-neutral-500))' }, // Gray
-  copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: 'rgb(var(--ds-graph-a-base))' }, // Violet
-  external:   { labelDe: 'Externe Referenzen', labelEn: 'External References', color: 'rgb(var(--ds-neutral-500))' }, // Gray
-  document:   { labelDe: 'Sonstige Dokumente', labelEn: 'Other Documents', color: 'rgb(var(--ds-neutral-300))' }, // Light Gray
-};
+export const UNIFIED_NODE_TYPES = NODE_TYPE_TAXONOMY;
 
 export function getNodeType(node: GraphNode): string {
-  if (!node) return 'document';
-
-  // 1. Code entities
-  if (node.type === 'entity') return 'git';
-  if (node.type === 'copybook') return 'copybook';
-  if (node.type === 'external') return 'external';
-
-  // 2. For document nodes, check source type first
-  const source = node.source_type || '';
-  if (source === 'Confluence') return 'confluence';
-  if (source === 'Jira') return 'jira';
-  if (source === 'Git') return 'git';
-
-  // 4. File extension checks on label/url/file_path
-  const path = (node.file_path || node.url || node.label || '').toLowerCase();
-  if (path.endsWith('.cbl') || path.endsWith('.cob') || path.endsWith('.cobol')) return 'cobol';
-  if (path.endsWith('.cpy') || path.endsWith('.copy')) return 'copybook';
-  if (path.endsWith('.jcl') || path.endsWith('.proc') || path.endsWith('.prc')) return 'jcl';
-  if (path.endsWith('.pdf')) return 'pdf';
-  if (path.endsWith('.txt')) return 'txt';
-  if (path.endsWith('.md')) return 'md';
-
-  return 'document';
+  return getGraphNodeCategory(node);
 }
 
 export function nodeColor(node: GraphNode): string {
-  const type = getNodeType(node);
-  return UNIFIED_NODE_TYPES[type]?.color ?? 'rgb(var(--ds-neutral-300))';
+  return getGraphNodeColor(node);
 }
 
 function nodeTypeKey(node: GraphNode): string {
@@ -72,36 +46,10 @@ function nodeRadius(node: GraphNode): number {
   return node?.type === 'entity' ? 8 : 7;
 }
 
-export const LINK_COLORS: Record<string, string> = {
-  semantic:  'rgb(var(--ds-accent))',
-  keyword:   'rgb(var(--ds-warning-base))',
-  syntactic: 'rgb(var(--ds-success-base))',
-  coref:     'rgb(var(--ds-graph-b-base))',
-  manual:    'rgb(var(--ds-warning-base))',
-  chat:      'rgb(var(--ds-info-base))',
-  call:      'rgb(var(--ds-danger-base))',
-  perform:   'rgb(var(--ds-success-base))',
-  goto:      'rgb(var(--ds-warning-base))',
-  copy:      'rgb(var(--ds-graph-a-base))',
-  use:       'rgb(var(--ds-info-base))',
-};
-
-const LINK_LABEL_KEYS: Record<string, string> = {
-  semantic:  'graphLabels.linkTypes.semantic',
-  keyword:   'graphLabels.linkTypes.keyword',
-  syntactic: 'graphLabels.linkTypes.syntactic',
-  coref:     'graphLabels.linkTypes.coref',
-  manual:    'graphLabels.linkTypes.manual',
-  chat:      'graphLabels.linkTypes.chat',
-  call:      'graphLabels.linkTypes.call',
-  perform:   'graphLabels.linkTypes.perform',
-  goto:      'graphLabels.linkTypes.goto',
-  copy:      'graphLabels.linkTypes.copy',
-  use:       'graphLabels.linkTypes.use',
-};
+export const LINK_COLORS = EDGE_TYPE_COLORS;
 
 export function getLinkLabel(t: (key: string) => string, type: string): string | undefined {
-  const key = LINK_LABEL_KEYS[type];
+  const key = getGraphEdgeLabelKey(type);
   return key ? t(key) : undefined;
 }
 
@@ -804,7 +752,7 @@ export function KnowledgeGraphView({
               <div className="flex items-baseline gap-2">
                 <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.typeLabel')}</span>
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
-                  {selectedNode.entity_type}
+                  {getEntityTypeLabel(selectedNode.entity_type, language)}
                 </span>
               </div>
             )}
@@ -855,7 +803,7 @@ export function KnowledgeGraphView({
                     <button key={i}
                       onClick={() => { setSelectedNodeId(other.id); setSelectedEdgeId(null); }}
                       className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors', connRow)}>
-                      <span className="w-3 shrink-0" style={{ height: 2, background: LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
+                      <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(l.link_type), display: 'inline-block', borderRadius: 1 }} />
                       <span className={cn('truncate', textMain)}>{other.label}</span>
                     </button>
                   );
@@ -992,7 +940,7 @@ export function KnowledgeGraphView({
       {selectedEdge && !selectedNode && (
         <div className="px-3 py-3 space-y-4 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-5 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
+            <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(selectedEdge.link_type), display: 'inline-block', borderRadius: 1 }} />
             <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
               {getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type}
             </span>
@@ -1074,7 +1022,7 @@ export function KnowledgeGraphView({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.linksLabel')}</span>
             {linkTypes.map(type => {
-              const color = LINK_COLORS[type] ?? 'rgb(var(--ds-neutral-300))';
+              const color = getGraphEdgeColor(type);
               const hidden = hiddenLinkTypes.has(type);
               return (
                 <button key={type} onClick={() => toggleLinkType(type)}
@@ -1193,7 +1141,7 @@ export function KnowledgeGraphView({
               }}
               linkColor={(l: GraphEdge) => {
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
-                return resolveDsColor(LINK_COLORS[l.link_type] ?? 'rgb(var(--ds-neutral-500))');
+                return resolveDsColor(getGraphEdgeColor(l.link_type));
               }}
               linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
               linkDirectionalArrowLength={(l: GraphEdge) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
@@ -1299,7 +1247,7 @@ export function KnowledgeGraphView({
                         {t('knowledgeGraphView.linksLabel')}
                       </p>
                       {linkTypes.map(type => {
-                        const color = LINK_COLORS[type] ?? 'rgb(var(--ds-neutral-300))';
+                        const color = getGraphEdgeColor(type);
                         const label = getLinkLabel(t, type) ?? type;
                         return (
                           <div key={type} className="flex items-center gap-2 text-[10px]">
@@ -1350,7 +1298,7 @@ export function KnowledgeGraphView({
                 <KnowledgeNodeIcon node={selectedNode} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
               )}
               {selectedEdge && !selectedNode && (
-                <span className="w-4 shrink-0" style={{ height: 2, background: LINK_COLORS[selectedEdge.link_type] ?? 'rgb(var(--ds-neutral-300))', display: 'inline-block', borderRadius: 1 }} />
+                <span className="w-4 shrink-0" style={{ height: 2, background: getGraphEdgeColor(selectedEdge.link_type), display: 'inline-block', borderRadius: 1 }} />
               )}
               <span className={cn('text-xs font-semibold truncate flex-1', textMain)}>
                 {selectedNode ? selectedNode.label : (selectedEdge ? (getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type) : '')}

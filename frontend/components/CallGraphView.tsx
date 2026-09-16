@@ -4,6 +4,7 @@ import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
+import { getGraphEdgeColor } from '@/lib/graphTaxonomy';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -38,32 +39,6 @@ export type CallEdge = {
   resolution: string;
 };
 
-const EDGE_COLORS: Record<string, string> = {
-  CALL: 'rgb(var(--ds-danger-base))',
-  PERFORM: 'rgb(var(--ds-success-base))',
-  GOTO: 'rgb(var(--ds-warning-base))',
-  COPY: 'rgb(var(--ds-graph-a-base))',
-  CONTAINS: 'rgb(var(--ds-graph-b-base))',
-  CALLS: 'rgb(var(--ds-danger-base))',
-  INSTANTIATES: 'rgb(var(--ds-info-base))',
-  EXTENDS: 'rgb(var(--ds-accent))',
-  IMPLEMENTS: 'rgb(var(--ds-success-base))',
-};
-
-const EDGE_COLOR_FALLBACKS = [
-  'rgb(var(--ds-info-base))',
-  'rgb(var(--ds-graph-a-base))',
-  'rgb(var(--ds-graph-b-base))',
-  'rgb(var(--ds-warning-base))',
-];
-
-function edgeColor(type: string): string {
-  if (EDGE_COLORS[type]) return EDGE_COLORS[type];
-  let hash = 0;
-  for (const char of type) hash = (hash * 31 + char.charCodeAt(0)) | 0;
-  return EDGE_COLOR_FALLBACKS[Math.abs(hash) % EDGE_COLOR_FALLBACKS.length];
-}
-
 interface Props {
   theme: string;
   focusedEntity: Pick<CodeEntity, 'id' | 'name'> | null;
@@ -85,8 +60,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hops, setHops] = useState(1);
   const [graph, setGraph] = useState<{ nodes: CallNode[]; edges: CallEdge[] }>({ nodes: [], edges: [] });
-  const [availableTypes, setAvailableTypes] = useState<string[]>(Object.keys(EDGE_COLORS));
-  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(new Set(Object.keys(EDGE_COLORS)));
+  const [availableTypes, setAvailableTypes] = useState<string[]>([]);
+  const [enabledTypes, setEnabledTypes] = useState<Set<string>>(new Set());
   const [includeInheritance, setIncludeInheritance] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +190,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
           className={cn('px-2 py-1 rounded border text-[9px] font-bold', includeInheritance ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}
         >{t('callGraphView.inheritanceLabel')}</button>
         {availableTypes.map(type => {
-          const color = edgeColor(type);
+          const color = getGraphEdgeColor(type);
           return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{type}</button>;
         })}
         <div className="ml-auto flex items-center gap-1">{(['json', 'csv', 'graphml'] as const).map(format => <button key={format} onClick={() => exportGraph(format)} className="flex items-center gap-1 px-2 py-1 text-[9px] uppercase font-bold text-ds-zinc-500 hover:text-ds-indigo-400"><Download className="w-3 h-3" />{format}</button>)}</div>
@@ -275,7 +250,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
               ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 2 / globalScale);
             }
           }}
-          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? edgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
+          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? getGraphEdgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
           linkWidth={1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
