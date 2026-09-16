@@ -10,6 +10,7 @@ from sqlalchemy import (
     JSON,
     UniqueConstraint,
     Index,
+    event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -182,6 +183,9 @@ class KnowledgeSource(Base):
     # als vertrauenswürdiger Text in den System-Prompt ein (siehe
     # backend/services/source_context.py) — kein RAG-Chunk, wird nicht embeddet.
     context_note = Column(Text, nullable=True)
+    # Embedding-Modell, mit dem diese Quelle indiziert wird. NULL bei alten
+    # Quellen bedeutet den Deployment-Default (OLLAMA_EMBED_MODEL).
+    embedding_model = Column(String, nullable=True)
 
     # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
     # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen
@@ -211,7 +215,14 @@ class DocumentChunk(Base):
     start_line = Column(Integer)
     end_line = Column(Integer)
     metadata_json = Column(JSON)  # Store symbols, language, etc.
-    embedding = Column(Vector(1024))  # bge-m3
+    # The serving model determines the vector length; retrieval isolates its
+    # vector space through ``embedding_dimension`` and ``embedding_model``.
+    embedding = Column(Vector)
+    embedding_dimension = Column(Integer, nullable=True, index=True)
+    # Persistiert neben dem Vektor, welchem Modell er entstammt. Das verhindert,
+    # dass semantisch inkompatible Modelle trotz gleicher Dimension vermischt
+    # werden. NULL bei Altbeständen wird als Deployment-Default behandelt.
+    embedding_model = Column(String, nullable=True)
 
     # passive_deletes=True: siehe Begruendung bei KnowledgeSource.project oben,
     # derselbe Mechanismus wuerde sonst beim Loeschen eines Projekts/einer
@@ -270,6 +281,81 @@ class ChatMessage(Base):
     feedback = Column(String, nullable=True)  # 'up' | 'down' | null, assistant messages only
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     session = relationship("ChatSession", back_populates="messages")
+
+
+class ChatLinkFeedbackSignal(Base):
+    """Auditierbares Downvote-Signal für einen aus einer Chat-Antwort zitierten Link.
+
+    ``link_type``/``link_id`` sind absichtlich ein generischer Verweis: Ein Signal
+    kann sowohl einen EntityDocLink als auch einen KnowledgeLink betreffen. Beim
+    Zurücknehmen eines Downvotes bleibt der Datensatz für die Nachvollziehbarkeit
+    erhalten, zählt aber ab ``revoked_at`` nicht mehr zur Eskalationsregel.
+    """
+
+    __tablename__ = "chat_link_feedback_signals"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_message_id = Column(
+        Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    chat_session_id = Column(
+        Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    link_type = Column(String(30), nullable=False)  # 'entity_doc' | 'knowledge'
+    link_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    message = relationship("ChatMessage", backref="link_feedback_signals")
+    session = relationship("ChatSession")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "chat_message_id", "link_type", "link_id", name="uq_chat_link_feedback_signal"
+        ),
+        Index("ix_chat_link_feedback_active", "link_type", "link_id", "revoked_at", "created_at"),
+    )
+
+
+class ChatFeedbackDiagnosticSettings(Base):
+    """Deployment-weit gültiges, explizites Admin-Opt-in für O-088."""
+
+    __tablename__ = "chat_feedback_diagnostic_settings"
+    id = Column(Integer, primary_key=True)
+    collection_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    support_export_enabled = Column(Boolean, nullable=False, default=False, server_default="false")
+    retention_days = Column(Integer, nullable=False, default=90, server_default="90")
+    updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    updated_by = relationship("User")
+
+
+class ChatFeedbackDiagnosticCase(Base):
+    """Minimaler, lokaler Support-Fall aus einem bewusst erfassten Downvote."""
+
+    __tablename__ = "chat_feedback_diagnostic_cases"
+    id = Column(Integer, primary_key=True, index=True)
+    chat_message_id = Column(
+        Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+    source_id = Column(
+        Integer, ForeignKey("knowledge_sources.id", ondelete="SET NULL"), nullable=True
+    )
+    question = Column(EncryptedString, nullable=True)
+    answer = Column(EncryptedString, nullable=False)
+    sources_json = Column(JSON, nullable=True)
+    model = Column(String, nullable=True)
+    provider = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    message = relationship("ChatMessage")
+    project = relationship("Project")
+    source = relationship("KnowledgeSource")
 
 
 class MCPToolAuditLog(Base):
@@ -594,6 +680,7 @@ class LinkBuilderRun(Base):
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     links_created = Column(Integer, nullable=False, default=0)
+    embedding_model = Column(String, nullable=True)
 
 
 class DiagnosticsRun(Base):

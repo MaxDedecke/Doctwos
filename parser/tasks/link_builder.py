@@ -37,6 +37,7 @@ from ollama_client import get_embedding, get_chat_json, ensure_model_pulled
 from core import config
 import redis
 from celery import current_app
+from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,12 @@ MERGE_SCORE_THRESHOLD = 0.90
 LLM_MIN_CONFIDENCE = 35
 
 
+def _embedding_model_filter(model: str):
+    if model == config.EMBED_MODEL:
+        return or_(DocumentChunk.embedding_model == model, DocumentChunk.embedding_model.is_(None))
+    return DocumentChunk.embedding_model == model
+
+
 def _keywords_from_entity(entity: CodeEntity) -> list[str]:
     tokens = re.split(r"[-_]", entity.name)
     tokens += re.split(r"[-_]", os.path.splitext(os.path.basename(entity.file_path))[0])
@@ -75,11 +82,15 @@ def _keywords_from_entity(entity: CodeEntity) -> list[str]:
     return result
 
 
-async def _pass_semantic(entity: CodeEntity, project_id: int, db) -> dict[str, tuple]:
+async def _pass_semantic(
+    entity: CodeEntity, project_id: int, db, embedding_model: str | None = None
+) -> dict[str, tuple]:
     """Pass 1: cosine similarity between entity context and doc chunk embeddings."""
+    selected_model = embedding_model or config.EMBED_MODEL
+    model_filter = _embedding_model_filter(selected_model)
     context = f"{entity.type}: {entity.name} in {entity.file_path}"
     try:
-        embedding = await get_embedding(context, model=config.EMBED_MODEL)
+        embedding = await get_embedding(context, model=selected_model)
     except Exception as e:
         logger.error(f"[LinkBuilder] Embedding failed for {entity.name}: {e}")
         return {}
@@ -87,7 +98,12 @@ async def _pass_semantic(entity: CodeEntity, project_id: int, db) -> dict[str, t
     dist_expr = DocumentChunk.embedding.cosine_distance(embedding)
     rows = (
         db.query(DocumentChunk, dist_expr.label("dist"))
-        .filter(DocumentChunk.project_id == project_id, DocumentChunk.source_id.isnot(None))
+        .filter(
+            DocumentChunk.project_id == project_id,
+            DocumentChunk.source_id.isnot(None),
+            model_filter,
+            DocumentChunk.embedding_dimension == len(embedding),
+        )
         .order_by(dist_expr)
         .limit(TOP_CHUNKS_SEMANTIC)
         .all()
@@ -105,20 +121,28 @@ async def _pass_semantic(entity: CodeEntity, project_id: int, db) -> dict[str, t
     return result
 
 
-def _pass_keyword(entity: CodeEntity, project_id: int, db) -> dict[str, tuple]:
+def _pass_keyword(
+    entity: CodeEntity, project_id: int, db, embedding_model: str | None = None
+) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
     DocumentChunk.content is Fernet-encrypted at rest (EncryptedString), so this can no longer
     filter with SQL ILIKE -- candidates are fetched by the existing project_id/source_id scope
     and matched against the keywords in Python after decryption instead.
     """
+    selected_model = embedding_model or config.EMBED_MODEL
+    model_filter = _embedding_model_filter(selected_model)
     keywords = _keywords_from_entity(entity)
     if not keywords:
         return {}
 
     candidates = (
         db.query(DocumentChunk)
-        .filter(DocumentChunk.project_id == project_id, DocumentChunk.source_id.isnot(None))
+        .filter(
+            DocumentChunk.project_id == project_id,
+            DocumentChunk.source_id.isnot(None),
+            model_filter,
+        )
         .all()
     )
 
@@ -221,7 +245,10 @@ async def _llm_review(
 
 
 async def compute_entity_links_async(
-    run_id: int, project_id: int, min_confidence: int | None = None
+    run_id: int,
+    project_id: int,
+    min_confidence: int | None = None,
+    embedding_model: str | None = None,
 ):
     """
     2-pass scan for every CodeEntity in the project:
@@ -255,6 +282,11 @@ async def compute_entity_links_async(
         logger.info(f"[LinkBuilder] Run {run_id} wurde vor dem Start abgebrochen.")
         db.close()
         return
+
+    selected_embedding_model = (
+        embedding_model or run.embedding_model or config.EMBED_MODEL
+    ).strip()
+    run.embedding_model = selected_embedding_model
 
     # Try to acquire the Redis lock with run_id as owner, renewed per entity below.
     acquired = redis_client.set(lock_key, str(run_id), ex=LOCK_LEASE_SECONDS, nx=True)
@@ -313,7 +345,11 @@ async def compute_entity_links_async(
 
         doc_count = (
             db.query(DocumentChunk)
-            .filter(DocumentChunk.project_id == project_id, DocumentChunk.source_id.isnot(None))
+            .filter(
+                DocumentChunk.project_id == project_id,
+                DocumentChunk.source_id.isnot(None),
+                _embedding_model_filter(selected_embedding_model),
+            )
             .count()
         )
         if doc_count == 0:
@@ -329,7 +365,7 @@ async def compute_entity_links_async(
         logger.info(
             f"[LinkBuilder] Projekt {project_id}: starte 3-Pass-Scan ({len(entities)} Entities, {doc_count} Chunks)…"
         )
-        await ensure_model_pulled(config.EMBED_MODEL)
+        await ensure_model_pulled(selected_embedding_model)
 
         for entity in entities:
             db.refresh(run)
@@ -341,8 +377,8 @@ async def compute_entity_links_async(
             # never loses its lock mid-run.
             redis_client.expire(lock_key, LOCK_LEASE_SECONDS)
 
-            semantic = await _pass_semantic(entity, project_id, db)
-            keyword = _pass_keyword(entity, project_id, db)
+            semantic = await _pass_semantic(entity, project_id, db, selected_embedding_model)
+            keyword = _pass_keyword(entity, project_id, db, selected_embedding_model)
 
             top_pages = _merge_passes(
                 (semantic, "semantic"),

@@ -80,11 +80,6 @@ async def embed_text(
                 "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "
                 f"nicht {cfg.EMBEDDING_PROVIDER!r}."
             )
-        if len(embedding) != cfg.EMBEDDING_DIMENSION:
-            raise ValueError(
-                f"Embedding-Modell '{embedding_model}' liefert {len(embedding)} Dimensionen; "
-                f"Doctus erwartet {cfg.EMBEDDING_DIMENSION}."
-            )
         return embedding
 
 
@@ -95,6 +90,7 @@ async def search_project_chunks(
     limit: int = 6,
     metadata_filters: Optional[dict] = None,
     max_distance: Optional[float] = None,
+    embedding_model: Optional[str] = None,
 ) -> list[DocumentChunk]:
     """Embeddet `query` und liefert die nächsten DocumentChunks für ein Projekt
     (=project_id): Chunks mit project_id==project_id ODER source_id einer KnowledgeSource
@@ -104,7 +100,7 @@ async def search_project_chunks(
     max_distance: verwirft Treffer, deren Cosine-Distance darüber liegt — pgvector
     liefert sonst immer die "nächsten" Chunks, egal wie irrelevant sie tatsächlich sind.
     """
-    query_embedding = await embed_text(query, is_query=True)
+    query_embedding = await embed_text(query, is_query=True, model=embedding_model)
 
     source_ids = [
         s.id
@@ -113,6 +109,13 @@ async def search_project_chunks(
     filters = [DocumentChunk.project_id == project_id]
     if source_ids:
         filters.append(DocumentChunk.source_id.in_(source_ids))
+    selected_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
+    if selected_model == cfg.OLLAMA_EMBED_MODEL:
+        filters.append(
+            or_(DocumentChunk.embedding_model == selected_model, DocumentChunk.embedding_model.is_(None))
+        )
+    else:
+        filters.append(DocumentChunk.embedding_model == selected_model)
 
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
     # Größerer Kandidatenpool, falls danach noch in Python gefiltert wird

@@ -20,6 +20,7 @@ from typing import Awaitable, Callable, Optional
 from sqlalchemy import ColumnElement
 
 from models.database import DocumentChunk, EntityDocLink
+from core.config import EMBEDDING_DIMENSION
 
 STALE_NOTE = "[Inhalt bei Re-Index geändert – erneute Prüfung nötig] "
 

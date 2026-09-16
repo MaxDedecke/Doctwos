@@ -10,6 +10,7 @@ from sqlalchemy import (
     JSON,
     UniqueConstraint,
     Index,
+    event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
@@ -182,6 +183,9 @@ class KnowledgeSource(Base):
     # als vertrauenswürdiger Text in den System-Prompt ein (siehe
     # backend/services/source_context.py) — kein RAG-Chunk, wird nicht embeddet.
     context_note = Column(Text, nullable=True)
+    # Embedding-Modell, mit dem diese Quelle indiziert wird. NULL bei alten
+    # Quellen bedeutet den Deployment-Default (OLLAMA_EMBED_MODEL).
+    embedding_model = Column(String, nullable=True)
 
     # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
     # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen
@@ -211,7 +215,15 @@ class DocumentChunk(Base):
     start_line = Column(Integer)
     end_line = Column(Integer)
     metadata_json = Column(JSON)  # Store symbols, language, etc.
-    embedding = Column(Vector(1024))  # bge-m3
+    # Deliberately unbounded: the serving model determines the vector length.
+    # Every retrieval query filters ``embedding_dimension`` before calculating
+    # a distance, so vectors from different spaces are never compared.
+    embedding = Column(Vector)
+    embedding_dimension = Column(Integer, nullable=True, index=True)
+    # Persistiert neben dem Vektor, welchem Modell er entstammt. Das verhindert,
+    # dass semantisch inkompatible Modelle trotz gleicher Dimension vermischt
+    # werden. NULL bei Altbeständen wird als Deployment-Default behandelt.
+    embedding_model = Column(String, nullable=True)
 
     # passive_deletes=True: siehe Begruendung bei KnowledgeSource.project oben,
     # derselbe Mechanismus wuerde sonst beim Loeschen eines Projekts/einer
@@ -227,14 +239,12 @@ class DocumentChunk(Base):
     # entfernter HNSW-Index degradiert die Suche zum Full Scan, ohne Fehler.
     __table_args__ = (
         Index("ix_document_chunks_project_file", "project_id", "file_path"),
-        Index(
-            "idx_document_chunks_embedding_hnsw",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_with={"m": 16, "ef_construction": 64},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
+
+
+@event.listens_for(DocumentChunk.embedding, "set")
+def _set_embedding_dimension(target, value, oldvalue, initiator):
+    target.embedding_dimension = len(value) if value is not None else None
 
 
 class ChatSession(Base):
@@ -669,6 +679,8 @@ class LinkBuilderRun(Base):
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     links_created = Column(Integer, nullable=False, default=0)
+    # Embedding space selected for this run; retained for audit/reproducibility.
+    embedding_model = Column(String, nullable=True)
 
 
 class DiagnosticsRun(Base):

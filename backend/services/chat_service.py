@@ -18,8 +18,9 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from models.database import ChatMessage, DocumentChunk, KnowledgeSource, Project, User
+from models.database import ChatMessage, CodeEntity, DocumentChunk, KnowledgeSource, Project, User
 from services.graph_retrieval import expand_chunks_with_graph
+from services.ollama_client import embed_text
 
 from core.projects import (
     build_document_chunk_code_gate,
@@ -52,10 +53,61 @@ class ChatRetrieval:
     multi_project_names: list[str]
 
 
+def _focused_entity(
+    db: Session,
+    *,
+    entity_id: Optional[int],
+    project_id: Optional[int],
+    source_id: Optional[int],
+    pinned_source_id: Optional[int],
+    pinned_file: Optional[str],
+) -> Optional[CodeEntity]:
+    """Resolve a client focus only inside the already selected chat scope.
+
+    The ID enriches a pin (hierarchy and authoritative bounds); it never broadens
+    retrieval.  The file/project/source checks also make old clients, which only
+    send file/line fields, behave exactly as before.
+    """
+    if entity_id is None:
+        return None
+    entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
+    if not entity:
+        return None
+    if pinned_file and entity.file_path != pinned_file:
+        return None
+    expected_source = pinned_source_id or source_id
+    if expected_source is not None and entity.source_id != expected_source:
+        return None
+    if project_id is not None and entity.project_id != project_id:
+        return None
+    return entity
+
+
+def build_entity_breadcrumb(db: Session, entity: CodeEntity) -> str:
+    """Return a language-neutral ``parent › child`` focus path."""
+    names: list[str] = []
+    current = entity
+    seen: set[int] = set()
+    while current is not None and current.id not in seen:
+        seen.add(current.id)
+        if current.name:
+            names.append(current.name)
+        current = (
+            db.query(CodeEntity).filter(CodeEntity.id == current.parent_id).first()
+            if current.parent_id is not None
+            else None
+        )
+    names.reverse()
+    if names:
+        return " › ".join(names)
+    return entity.qualified_name or entity.name
+
+
 def hybrid_chunk_search(
     base_query, query_embedding: list, query_text: str, limit: int
 ) -> list[DocumentChunk]:
     """Search exact page/section references before topping up with vector results."""
+    base_query = base_query.filter(DocumentChunk.embedding_dimension == len(query_embedding))
     picked: list[DocumentChunk] = []
     picked_ids = set()
 
@@ -89,6 +141,13 @@ def hybrid_chunk_search(
             .all()
         )
     return picked
+
+
+def embedding_model_filter(model: str):
+    """Match vectors from one semantic space; NULL is legacy default data."""
+    if model == cfg.OLLAMA_EMBED_MODEL:
+        return or_(DocumentChunk.embedding_model == model, DocumentChunk.embedding_model.is_(None))
+    return DocumentChunk.embedding_model == model
 
 
 def gate_graph_neighbors(
@@ -125,6 +184,8 @@ async def retrieve_chat_context(
     pinned_label: Optional[str],
     focused_context: Optional[str],
     message: str,
+    pinned_entity_id: Optional[int] = None,
+    embedding_model: Optional[str] = None,
 ) -> ChatRetrieval:
     """Embed a chat question and assemble its permission-scoped context.
 
@@ -153,21 +214,19 @@ async def retrieve_chat_context(
         global_query = global_query.filter(KnowledgeSource.team_id.in_(team_ids))
     global_source_ids = [row.id for row in global_query.all()]
 
+    selected_embedding_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
+    model_filter = embedding_model_filter(selected_embedding_model)
+
     try:
         query_text = message
-        if cfg.OLLAMA_EMBED_MODEL.startswith("nomic-embed-text") and not query_text.startswith(
-            "search_query:"
-        ):
-            query_text = f"search_query: {query_text}"
-        async with httpx.AsyncClient(timeout=60.0) as embed_client:
-            response = await embed_client.post(
-                f"{cfg.OLLAMA_BASE_URL}/api/embeddings",
-                json={"model": cfg.OLLAMA_EMBED_MODEL, "prompt": query_text},
-            )
-            query_embedding = response.json()["embedding"]
+        query_embedding = await embed_text(
+            query_text, is_query=True, model=selected_embedding_model
+        )
 
         if source_id:
-            base_query = db.query(DocumentChunk).filter(DocumentChunk.source_id == source_id)
+            base_query = db.query(DocumentChunk).filter(
+                DocumentChunk.source_id == source_id, model_filter
+            )
             results = hybrid_chunk_search(base_query, query_embedding, query_text, 4)
             results = gate_graph_neighbors(db, expand_chunks_with_graph(db, results), project_id)
             context = "\n\n".join(_format_chunk_context(row, "File") for row in results)
@@ -181,6 +240,7 @@ async def retrieve_chat_context(
             repo_query = db.query(DocumentChunk).filter(
                 DocumentChunk.project_id == project_id,
                 DocumentChunk.source_id.is_(None),
+                model_filter,
             )
             repo_results = hybrid_chunk_search(repo_query, query_embedding, query_text, 4)
             repo_results = gate_graph_neighbors(
@@ -190,7 +250,7 @@ async def retrieve_chat_context(
             project_source_results: list[DocumentChunk] = []
             if project_source_ids:
                 source_query = db.query(DocumentChunk).filter(
-                    DocumentChunk.source_id.in_(project_source_ids)
+                    DocumentChunk.source_id.in_(project_source_ids), model_filter
                 )
                 project_source_results = hybrid_chunk_search(
                     source_query, query_embedding, query_text, 4
@@ -202,7 +262,7 @@ async def retrieve_chat_context(
             global_results: list[DocumentChunk] = []
             if global_source_ids:
                 global_query = db.query(DocumentChunk).filter(
-                    DocumentChunk.source_id.in_(global_source_ids)
+                    DocumentChunk.source_id.in_(global_source_ids), model_filter
                 )
                 global_results = hybrid_chunk_search(global_query, query_embedding, query_text, 2)
                 global_results = gate_graph_neighbors(
@@ -260,6 +320,7 @@ async def retrieve_chat_context(
             if base_query is not None:
                 if code_gate is not None:
                     base_query = base_query.filter(code_gate)
+                base_query = base_query.filter(model_filter)
                 results = hybrid_chunk_search(base_query, query_embedding, query_text, 6)
                 results = gate_graph_neighbors(db, expand_chunks_with_graph(db, results), None)
 
@@ -287,6 +348,24 @@ async def retrieve_chat_context(
         logger.error("Fehler beim Kontext-Retrieval: %s", exc)
         query_text = message
 
+    focused_entity = _focused_entity(
+        db,
+        entity_id=pinned_entity_id,
+        project_id=project_id,
+        source_id=source_id,
+        pinned_source_id=pinned_source_id,
+        pinned_file=pinned_file,
+    )
+    if focused_entity:
+        pinned_file = pinned_file or focused_entity.file_path
+        pinned_line = focused_entity.start_line or pinned_line
+        pinned_end_line = focused_entity.end_line or pinned_end_line or pinned_line
+        pinned_label = pinned_label or focused_entity.name
+        focused_breadcrumb = build_entity_breadcrumb(db, focused_entity)
+        focused_source_id = focused_entity.source_id or focused_source_id
+    else:
+        focused_breadcrumb = None
+
     pinned_chunks = (
         find_pinned_chunks(
             db, project_id, focused_source_id, pinned_file, pinned_line, pinned_end_line
@@ -299,6 +378,7 @@ async def retrieve_chat_context(
         pinned_line=pinned_line,
         pinned_end_line=pinned_end_line,
         pinned_label=pinned_label,
+        focused_breadcrumb=focused_breadcrumb,
         pinned_context=focused_context,
         pinned_chunks=pinned_chunks,
         repository_id=resolved_repo_id,
@@ -596,6 +676,7 @@ def build_pinned_context(
     pinned_context: Optional[str],
     pinned_chunks: list[DocumentChunk],
     repository_id: Optional[int],
+    focused_breadcrumb: Optional[str] = None,
 ) -> str:
     """Build trusted framing plus untrusted text for a user-focused object.
 
@@ -610,6 +691,7 @@ def build_pinned_context(
     about.
     """
     context = ""
+    breadcrumb_note = f"Entity breadcrumb: {focused_breadcrumb}\n" if focused_breadcrumb else ""
     if pinned_file:
         if pinned_chunks:
             if pinned_line and pinned_line > 0:
@@ -637,7 +719,9 @@ def build_pinned_context(
                 "The user explicitly focused the following code object/file and asks about this "
                 "context first:\n"
                 f'<untrusted_pinned_code path="{pinned_file}">\n'
-                f"Focused object: {pinned_label or pinned_file}\n{chunk_context}\n"
+                f"Focused object: {pinned_label or pinned_file}\n"
+                f"{breadcrumb_note}"
+                f"{chunk_context}\n"
                 "</untrusted_pinned_code>\n\n"
             )
         elif repository_id:
@@ -674,6 +758,7 @@ def build_pinned_context(
                         "context first:\n"
                         f'<untrusted_pinned_file path="{pinned_file}">\n'
                         f"Focused object: {pinned_label or pinned_file}\n"
+                        f"{breadcrumb_note}"
                         f"File: {pinned_file}\n{location_note}\n{snippet}\n"
                         "</untrusted_pinned_file>\n\n"
                     )
