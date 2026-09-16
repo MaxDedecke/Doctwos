@@ -85,9 +85,12 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
   werden zuerst über Argumentanzahl und dann über sicher erkennbare
   normalisierte Literaltypen unterschieden; unklare oder mehrdeutige Ziele
   bleiben `unresolved` und erhalten einen Auflösungsgrund.
-- [ ] **T3.3 Globaler Resolver:** Java-Regeln für Package, Imports, `java.lang`,
-  Besitzer-Typ und Argumente ergänzen; mehrdeutige/externe Ziele unresolved
-  lassen.
+- [x] **T3.3 Globaler Resolver:** **Abgeschlossen 16.09.2026.** Der DB-freie
+  Java-Resolver verarbeitet mehrere `ParseResult`s und berücksichtigt
+  vollständige QNames, aktuelles Package, explizite und statische Imports,
+  `java.lang`, Besitzer-Typen sowie normalisierte Argumenttypen. Wildcard-
+  Imports werden nur bei genau einem Treffer verwendet; fehlende externe und
+  mehrdeutige Ziele bleiben `unresolved` und erhalten einen Auflösungsgrund.
 - [ ] **T3.4 Persistenzintegration:** Generische Kanten-Zieltypen und Resolver
   integrieren; Mehrdatei-, Mehrdeutigkeits-, Reparse- und Resume-Fälle testen.
 
@@ -115,10 +118,10 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.2.
-- **Aktiv:** T3.3 (globaler Java-Resolver).
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1 bis T3.3.
+- **Aktiv:** T3.4 (Persistenzintegration und Ende-zu-Ende-Fälle).
 - **Nächstes konkretes TODO:** Eindeutige Ziele im selben Typ-/Dateikontext
-  sind bereits lokal aufgelöst; als Nächstes Package, Imports, `java.lang`,
-  Besitzer-Typen und dateiübergreifende Ziele ergänzen. Mehrdeutige/externe
-  Ziele bleiben `unresolved`.
-- **Noch nicht begonnen:** T3.4 bis T5.4.
+  sind bereits lokal und dateiübergreifend auflösbar; als Nächstes den Resolver
+  in Persistenz und Sync-Lifecycle integrieren. Reparse-, Resume- und
+  Mehrdatei-Fälle müssen dort noch Ende zu Ende geprüft werden.
+- **Noch nicht begonnen:** T4.1 bis T5.4.

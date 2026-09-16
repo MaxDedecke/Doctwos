@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from java.parse import parse_java_file
+from java.resolution import resolve_global_edges
 
 
 def test_java_relationships_capture_declarations_calls_and_field_accesses() -> None:
@@ -143,3 +144,67 @@ class Local {
     write = next(edge for edge in caller_edges if edge.type == "WRITES")
     assert write.resolution == "resolved"
     assert write.meta["target_qualified_name"] == "demo.Local#count"
+
+
+def test_java_global_resolution_applies_imports_and_static_imports() -> None:
+    service = parse_java_file(
+        """package api;
+public class Service {
+    public Service() {}
+    public void run(int value) {}
+    public static int parse(int value) { return value; }
+}
+""",
+        "api/Service.java",
+    )
+    client = parse_java_file(
+        """package app;
+import api.Service;
+import static api.Service.parse;
+class Client {
+    void call() {
+        new Service().run(1);
+        parse(1);
+    }
+}
+""",
+        "app/Client.java",
+    )
+
+    assert resolve_global_edges([service, client]) == 3
+    edges = [edge for edge in client.edges if edge.src_name == "app.Client#call()"]
+    created = next(edge for edge in edges if edge.type == "INSTANTIATES")
+    run = next(edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "run")
+    parsed = next(edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "parse")
+    assert created.meta["target_qualified_name"] == "api.Service#<init>()"
+    assert run.meta["target_qualified_name"] == "api.Service#run(int)"
+    assert parsed.meta["target_qualified_name"] == "api.Service#parse(int)"
+    assert all(edge.meta["resolution_scope"] == "global" for edge in (created, run, parsed))
+
+
+def test_java_global_resolution_does_not_guess_missing_or_ambiguous_imports() -> None:
+    first = parse_java_file("package one; public class Shared {}\n", "one/Shared.java")
+    second = parse_java_file("package two; public class Shared {}\n", "two/Shared.java")
+    client = parse_java_file(
+        """package app;
+import one.*;
+import two.*;
+class Client {
+    Shared value;
+    one.Shared explicit;
+    void missing() { new Unimported(); }
+}
+""",
+        "app/Client.java",
+    )
+
+    assert resolve_global_edges([first, second, client]) == 1
+    usages = [edge for edge in client.edges if edge.type == "USES_TYPE"]
+    ambiguous = next(edge for edge in usages if edge.dst_name == "Shared")
+    explicit = next(edge for edge in usages if edge.dst_name == "one.Shared")
+    assert ambiguous.resolution == "unresolved"
+    assert ambiguous.meta["resolution_reason"] == "ambiguous_type"
+    assert explicit.resolution == "resolved"
+    assert explicit.meta["target_qualified_name"] == "one.Shared"
+    created = next(edge for edge in client.edges if edge.type == "INSTANTIATES")
+    assert created.resolution == "unresolved"
