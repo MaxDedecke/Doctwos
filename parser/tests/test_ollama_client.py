@@ -14,7 +14,7 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
 
     calls = []
 
-    async def fake_post(url, json, timeout):
+    async def fake_post(url, json, timeout, headers=None):
         texts = json["input"]
         calls.append(list(texts))
         response = MagicMock()
@@ -40,7 +40,7 @@ async def test_get_embeddings_batch_uses_configured_timeout(monkeypatch):
 
     seen_timeouts = []
 
-    async def fake_post(url, json, timeout):
+    async def fake_post(url, json, timeout, headers=None):
         seen_timeouts.append(timeout)
         response = MagicMock()
         response.raise_for_status = MagicMock()
@@ -57,6 +57,61 @@ async def test_get_embeddings_batch_uses_configured_timeout(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_get_embeddings_batch_supports_openai_compatible_remote_endpoint(monkeypatch):
+    captured = {}
+
+    async def fake_post(url, json, timeout, headers=None):
+        captured.update(url=url, payload=json, headers=headers)
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(
+            return_value={"data": [{"embedding": [0.1]}, {"embedding": [0.2]}]}
+        )
+        return response
+
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_PROVIDER", "openai")
+    monkeypatch.setattr(ollama_client, "EMBEDDING_BASE_URL", "https://ai.example/v1")
+    monkeypatch.setattr(ollama_client, "EMBEDDING_API_KEY", "secret")
+
+    assert await ollama_client.get_embeddings_batch(["a", "b"], model="bge-m3") == [[0.1], [0.2]]
+    assert captured == {
+        "url": "https://ai.example/v1/embeddings",
+        "payload": {"model": "bge-m3", "input": ["a", "b"]},
+        "headers": {"Content-Type": "application/json", "Authorization": "Bearer secret"},
+    }
+
+
+@pytest.mark.anyio
+async def test_managed_embedding_endpoint_does_not_pull_models(monkeypatch):
+    fake_client = MagicMock()
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_AUTO_PULL", False)
+
+    await ollama_client.ensure_model_pulled("bge-m3")
+
+    fake_client.post.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_get_embedding_uses_openai_compatible_adapter(monkeypatch):
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock()
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_PROVIDER", "openai")
+    monkeypatch.setattr(
+        ollama_client,
+        "get_embeddings_batch",
+        AsyncMock(return_value=[[0.1, 0.2]]),
+    )
+
+    assert await ollama_client.get_embedding("chunk", model="remote-embed") == [0.1, 0.2]
+    ollama_client.get_embeddings_batch.assert_awaited_once_with(["chunk"], model="remote-embed")
+
+
+@pytest.mark.anyio
 async def test_get_embeddings_batch_empty_returns_empty():
     assert await ollama_client.get_embeddings_batch([], model="bge-m3") == []
 
@@ -64,7 +119,7 @@ async def test_get_embeddings_batch_empty_returns_empty():
 def _fake_ps_client(models_response, post_raises=None):
     fake_client = MagicMock()
 
-    async def fake_post(url, json, timeout):
+    async def fake_post(url, json, timeout, headers=None):
         if post_raises:
             raise post_raises
         response = MagicMock()
@@ -132,7 +187,7 @@ async def test_get_chat_json_sets_explicit_num_ctx(monkeypatch):
     monkeypatch.setattr(ollama_client, "OLLAMA_NUM_CTX", 12345)
     captured = {}
 
-    async def fake_post(url, json, timeout):
+    async def fake_post(url, json, timeout, headers=None):
         captured.update(url=url, payload=json)
         response = MagicMock()
         response.raise_for_status = MagicMock()

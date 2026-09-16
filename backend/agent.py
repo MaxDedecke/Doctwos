@@ -496,6 +496,8 @@ async def run_agent_loop(
         if is_ollama:
             url = f"{ollama_base_url}/v1"
             headers = {"Content-Type": "application/json"}
+            if cfg.OLLAMA_API_KEY:
+                headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
             model = cfg.resolve_ollama_model(model_name)
             full_url = f"{url}/chat/completions"
         else:

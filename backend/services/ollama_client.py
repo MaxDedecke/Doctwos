@@ -40,24 +40,52 @@ def _extract_json_object(text: str) -> dict:
     return json.loads(cleaned)
 
 
-async def embed_text(text: str, is_query: bool = True) -> list[float]:
+async def embed_text(
+    text: str, is_query: bool = True, model: Optional[str] = None
+) -> list[float]:
     """Erzeugt ein Embedding via Ollama. nomic-embed-text braucht ein Prefix
     ("search_query:"/"search_document:"), damit Anfragen und Dokumente sauber
     getrennt kodiert werden (siehe api/chat.py:234-236)."""
+    embedding_model = (model or cfg.OLLAMA_EMBED_MODEL).strip()
     prompt = text
-    if cfg.OLLAMA_EMBED_MODEL.startswith("nomic-embed-text") and not text.startswith(
+    if embedding_model.startswith("nomic-embed-text") and not text.startswith(
         ("search_query:", "search_document:")
     ):
         prefix = "search_query: " if is_query else "search_document: "
         prompt = f"{prefix}{text}"
 
+    headers = {"Content-Type": "application/json"}
+    if cfg.EMBEDDING_API_KEY:
+        headers["Authorization"] = f"Bearer {cfg.EMBEDDING_API_KEY}"
+
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            f"{cfg.OLLAMA_BASE_URL}/api/embeddings",
-            json={"model": cfg.OLLAMA_EMBED_MODEL, "prompt": prompt},
-        )
-        resp.raise_for_status()
-        return resp.json()["embedding"]
+        if cfg.EMBEDDING_PROVIDER == "openai":
+            resp = await client.post(
+                f"{cfg.EMBEDDING_BASE_URL}/embeddings",
+                json={"model": embedding_model, "input": prompt},
+                headers=headers,
+            )
+            resp.raise_for_status()
+            embedding = resp.json()["data"][0]["embedding"]
+        elif cfg.EMBEDDING_PROVIDER == "ollama":
+            resp = await client.post(
+                f"{cfg.EMBEDDING_BASE_URL}/api/embeddings",
+                json={"model": embedding_model, "prompt": prompt},
+                headers=headers,
+            )
+            resp.raise_for_status()
+            embedding = resp.json()["embedding"]
+        else:
+            raise ValueError(
+                "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "
+                f"nicht {cfg.EMBEDDING_PROVIDER!r}."
+            )
+        if len(embedding) != cfg.EMBEDDING_DIMENSION:
+            raise ValueError(
+                f"Embedding-Modell '{embedding_model}' liefert {len(embedding)} Dimensionen; "
+                f"Doctus erwartet {cfg.EMBEDDING_DIMENSION}."
+            )
+        return embedding
 
 
 async def search_project_chunks(
@@ -144,6 +172,9 @@ async def ask_llm_json_for_profile(
 
     if provider == "ollama":
         model_to_use = cfg.resolve_ollama_model(model)
+        headers = {"Content-Type": "application/json"}
+        if cfg.OLLAMA_API_KEY:
+            headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
                 f"{cfg.OLLAMA_BASE_URL}/api/chat",
@@ -153,6 +184,7 @@ async def ask_llm_json_for_profile(
                     "format": "json",
                     "stream": False,
                 },
+                headers=headers,
             )
             resp.raise_for_status()
             return _extract_json_object(resp.json()["message"]["content"])

@@ -1,0 +1,16 @@
+# Overlay for a managed remote inference service. Start with:
+#   docker compose -f docker-compose.yml -f docker-compose.remote-inference.yml up -d
+#
+# The base stack keeps its local Ollama default. This overlay excludes it and
+# removes only the two startup dependencies that otherwise require it.
+services:
+  ollama:
+    profiles: ["local-ollama"]
+
+  backend-api:
+    depends_on:
+      ollama: !reset null
+
+  parser-worker:
+    depends_on:
+      ollama: !reset null

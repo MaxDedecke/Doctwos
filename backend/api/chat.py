@@ -1133,6 +1133,8 @@ async def get_typing_statement():
             "stream": False,
         }
         headers = {"Content-Type": "application/json"}
+        if cfg.OLLAMA_API_KEY:
+            headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
             if resp.status_code == 200:

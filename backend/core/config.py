@@ -46,7 +46,14 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
+# Embeddings may be served separately from chat by a managed Ollama/OpenAI API.
+EMBEDDING_BASE_URL: str = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+EMBEDDING_API_KEY: str = os.getenv("EMBEDDING_API_KEY", OLLAMA_API_KEY)
+EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
+# Must stay in sync with the pgvector column and parser/core/config.py.
+EMBEDDING_DIMENSION: int = 1024
 
 # O-168: ohne explizites num_ctx fällt Ollama auf sein eingebautes Default-
 # Kontextfenster zurück (deutlich kleiner als das, was mistral-nemo & Co.

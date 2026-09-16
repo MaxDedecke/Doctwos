@@ -9,6 +9,14 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
+
+# A managed inference endpoint can expose embeddings independently from chat.
+# ``ollama`` uses its native /api/embed format; ``openai`` uses /embeddings.
+EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", OLLAMA_API_KEY)
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
+EMBEDDING_AUTO_PULL = os.getenv("EMBEDDING_AUTO_PULL", "true").lower() in {"1", "true", "yes"}
 
 # O-168: ohne explizites num_ctx faellt Ollama auf sein kleines eingebautes
 # Default-Kontextfenster zurueck und kuerzt bei Ueberlauf stillschweigend von
@@ -34,6 +42,17 @@ EMBED_BATCH_TIMEOUT = float(os.getenv("EMBED_BATCH_TIMEOUT", "120"))
 _loop_clients: Dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
 
 
+def _headers(api_key: str) -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
+def _embedding_url(path: str) -> str:
+    return f"{EMBEDDING_BASE_URL}{path}"
+
+
 def _get_client() -> httpx.AsyncClient:
     """
     Returns a shared httpx.AsyncClient for the currently running event loop.
@@ -57,21 +76,8 @@ def _get_client() -> httpx.AsyncClient:
 
 
 async def get_embedding(text: str, model: str = "bge-m3"):
-    """
-    Calls the local Ollama API to get embeddings for a given text chunk.
-    Reuses a persistent connection pool per event loop.
-    """
-    # Prepend search_document: prefix if using nomic-embed-text as recommended by Nomic
-    if model.startswith("nomic-embed-text"):
-        if not text.startswith("search_document:") and not text.startswith("search_query:"):
-            text = f"search_document: {text}"
-
-    client = _get_client()
-    response = await client.post(
-        f"{OLLAMA_BASE_URL}/api/embeddings", json={"model": model, "prompt": text}
-    )
-    response.raise_for_status()
-    return response.json()["embedding"]
+    """Return one document embedding through the configured provider adapter."""
+    return (await get_embeddings_batch([text], model=model))[0]
 
 
 async def get_embeddings_batch(
@@ -107,10 +113,27 @@ async def _get_embeddings_sub_batch(
 
     for attempt in range(retries):
         try:
-            # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array
+            if EMBEDDING_PROVIDER == "openai":
+                response = await client.post(
+                    _embedding_url("/embeddings"),
+                    json={"model": model, "input": texts},
+                    headers=_headers(EMBEDDING_API_KEY),
+                    timeout=EMBED_BATCH_TIMEOUT,
+                )
+                response.raise_for_status()
+                return [item["embedding"] for item in response.json()["data"]]
+
+            if EMBEDDING_PROVIDER != "ollama":
+                raise ValueError(
+                    "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "
+                    f"nicht {EMBEDDING_PROVIDER!r}."
+                )
+
+            # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array.
             response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/embed",
+                _embedding_url("/api/embed"),
                 json={"model": model, "input": texts},
+                headers=_headers(EMBEDDING_API_KEY),
                 timeout=EMBED_BATCH_TIMEOUT,  # Batch braucht mehr Zeit
             )
             response.raise_for_status()
@@ -179,6 +202,7 @@ async def get_chat_json(
     response = await client.post(
         f"{OLLAMA_BASE_URL}/api/chat",
         json=payload,
+        headers=_headers(OLLAMA_API_KEY),
         timeout=timeout,
     )
     response.raise_for_status()
@@ -201,11 +225,15 @@ async def is_gpu_accelerated(model: str) -> bool:
     (billig, läuft nur einmal pro Sync-Start). Konservativer Fallback
     (CPU-only annehmen) falls Ollama nicht antwortet oder das Feld fehlt.
     """
+    if EMBEDDING_PROVIDER != "ollama":
+        return False
+
     try:
         client = _get_client()
         await client.post(
-            f"{OLLAMA_BASE_URL}/api/embed",
+            _embedding_url("/api/embed"),
             json={"model": model, "input": "warmup"},
+            headers=_headers(EMBEDDING_API_KEY),
             timeout=EMBED_BATCH_TIMEOUT,
         )
         response = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=10.0)
@@ -225,5 +253,14 @@ async def ensure_model_pulled(model: str):
     Ensures that the required embedding model is available in Ollama.
     Reuses a persistent connection pool per event loop.
     """
+    if not EMBEDDING_AUTO_PULL:
+        return
+    if EMBEDDING_PROVIDER != "ollama":
+        return
     client = _get_client()
-    await client.post(f"{OLLAMA_BASE_URL}/api/pull", json={"name": model}, timeout=300.0)
+    await client.post(
+        _embedding_url("/api/pull"),
+        json={"name": model},
+        headers=_headers(EMBEDDING_API_KEY),
+        timeout=300.0,
+    )

@@ -346,6 +346,8 @@ async def stream_standard_rag_events(
             if is_ollama:
                 url = f"{cfg.OLLAMA_BASE_URL}/v1/chat/completions"
                 headers = {"Content-Type": "application/json"}
+                if cfg.OLLAMA_API_KEY:
+                    headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
                 model_to_use = cfg.resolve_ollama_model(model)
                 payload = {
                     "model": model_to_use,
