@@ -34,6 +34,7 @@ ENV PATH=/root/.local/bin:$PATH
 COPY chunk_reindex.py cobol_persist.py code_parser.py db.py git_utils.py \
      healthcheck_beat.py ollama_client.py utils.py worker.py ./
 COPY cobol/ cobol/
+COPY java/ java/
 COPY connectors/ connectors/
 COPY core/ core/
 COPY models/ models/

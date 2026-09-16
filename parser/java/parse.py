@@ -10,6 +10,7 @@ from .antlr_bridge import parse_java_source
 from .chunking import chunk_java_source
 from .declarations import JavaDeclarationVisitor
 from .modules import module_from_path
+from .relationships import JavaRelationshipVisitor
 from ._antlr.JavaParser import JavaParser
 
 
@@ -39,6 +40,9 @@ def parse_java_file(
     visitor = JavaDeclarationVisitor(root)
     if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
         visitor.visit(parsed.tree)
+    relationships = JavaRelationshipVisitor(root, visitor.entities)
+    if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
+        relationships.visit(parsed.tree)
 
     diagnostics = [
         ParseDiagnostic(
@@ -68,6 +72,7 @@ def parse_java_file(
         path=path,
         source_format="free",
         entities=visitor.entities,
+        edges=relationships.edges,
         chunks=chunk_java_source(source, visitor.entities),
         diagnostics=diagnostics,
     )

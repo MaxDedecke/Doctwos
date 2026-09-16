@@ -72,9 +72,13 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Paket 3 – Beziehungen und Auflösung
 
-- [ ] **T3.1 Kantenextraktion:** Imports, Vererbung, Implementierungen,
-  Typnutzung, Aufrufe, Instanziierungen sowie Feldzugriffe mit Quellbeleg
-  erfassen.
+- [x] **T3.1 Kantenextraktion:** **Abgeschlossen 16.09.2026.** Ein eigener
+  ANTLR-Beziehungspass erfasst `IMPORTS`, `EXTENDS`, `IMPLEMENTS`,
+  `USES_TYPE`, `CALLS`, `INSTANTIATES`, `READS` und `WRITES` mit physischen
+  Quellzeilen, Besitzer-/Aufrufmetadaten und sichtbarer Originalschreibweise.
+  Die Kanten bleiben bis zur lokalen bzw. globalen Auflösung bewusst
+  `unresolved`; Tests decken Wildcard-/statische Imports, Generics,
+  Konstruktoren, verschachtelte Aufrufe, Überladungen und Feldzugriffe ab.
 - [ ] **T3.2 Lokale Auflösung:** Eindeutige Ziele im selben Typ/Dateikontext
   auflösen; Überladungen anhand normalisierter Signaturen behandeln.
 - [ ] **T3.3 Globaler Resolver:** Java-Regeln für Package, Imports, `java.lang`,
@@ -107,9 +111,9 @@ prüfbares Abnahmekriterium und soll bestehende COBOL-Ergebnisse erhalten.
 
 ## Fortschritt
 
-- **Abgeschlossen:** T1.1 bis T1.5 und T2.1 bis T2.5.
-- **Aktiv:** T3.1 (Java-Beziehungen extrahieren).
-- **Nächstes konkretes TODO:** Imports, Vererbung, Implementierungen,
-  Typverwendungen, Methoden-/Konstruktoraufrufe und Feldzugriffe samt
-  Quellbelegen als `ParsedEdge` erfassen.
-- **Noch nicht begonnen:** T3.2 bis T5.4.
+- **Abgeschlossen:** T1.1 bis T1.5, T2.1 bis T2.5 und T3.1.
+- **Aktiv:** T3.2 (lokale Java-Symbolauflösung).
+- **Nächstes konkretes TODO:** Eindeutige Ziele im selben Typ-/Dateikontext
+  anhand von Parent, Imports und normalisierten Methodensignaturen auflösen;
+  mehrdeutige Ziele bleiben `unresolved`.
+- **Noch nicht begonnen:** T3.3 bis T5.4.
