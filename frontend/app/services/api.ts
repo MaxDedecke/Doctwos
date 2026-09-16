@@ -148,6 +148,8 @@ export const api = {
     getModelInfo: () => axios.get(`${API_URL}/model-info`),
     getModels: () => axios.get(`${API_URL}/models`),
     updateModelInfo: (data: { llm: string }) => axios.post(`${API_URL}/model-info`, data),
+    getAiSettings: () => axios.get(`${API_URL}/ai-settings`),
+    updateAiSettings: (data: Record<string, string | number | undefined>) => axios.patch(`${API_URL}/ai-settings`, data),
     searchGlobal: (q: string, opts?: { types?: string; projectId?: number; sourceId?: number; limit?: number; signal?: AbortSignal }) =>
         axios.get<{ results: SearchResult[]; total: number; counts: Record<string, number> }>(`${API_URL}/search`, {
             params: { q, types: opts?.types, project_id: opts?.projectId, source_id: opts?.sourceId, limit: opts?.limit },

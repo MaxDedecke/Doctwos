@@ -64,6 +64,7 @@ EMBEDDING_DIMENSION: int = 1024
 # Host per Default in die Knie zu zwingen) und lässt sich pro Deployment
 # hochsetzen, wenn Host-RAM/VRAM es hergeben.
 OLLAMA_NUM_CTX: int = _positive_int_env("OLLAMA_NUM_CTX", 8192)
+EMBEDDING_CONTEXT_LENGTH: int = _positive_int_env("EMBEDDING_CONTEXT_LENGTH", OLLAMA_NUM_CTX)
 
 # ── OpenAI-Reasoning-Modelle ─────────────────────────────────────────────────
 # Klassische o1/o3/o4-Serie sowie die Reasoning-Stufen der GPT-5.6-Familie

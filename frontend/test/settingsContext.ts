@@ -34,6 +34,12 @@ export function createSettingsContextValue(
     setLlmProfiles: vi.fn(),
     activeProfileId: '',
     setActiveProfileId: vi.fn(),
+    embeddingDimension: 1024,
+    setEmbeddingDimension: vi.fn(),
+    embeddingContextLength: 8192,
+    setEmbeddingContextLength: vi.fn(),
+    llmContextLength: 8192,
+    setLlmContextLength: vi.fn(),
 
     editorFontSize: 14,
     setEditorFontSize: vi.fn(),

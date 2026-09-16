@@ -67,6 +67,21 @@ app = Celery("parser", broker=REDIS_URL, backend=REDIS_URL)
 app.conf.worker_hijack_root_logger = False
 
 
+def _refresh_worker_ai_settings() -> None:
+    """Make the current DB profile visible to connector metadata as well as HTTP calls."""
+    try:
+        from core import config
+        from ollama_client import _load_server_settings
+
+        settings = _load_server_settings()
+        if settings:
+            config.EMBED_MODEL = settings["embedding_model"]
+            if os.getenv("LLM_MODEL", "disabled") == config.LLM_MODEL or config.LLM_MODEL == "disabled":
+                config.LLM_MODEL = settings["llm_model"]
+    except Exception:
+        logging.getLogger(__name__).debug("Could not refresh worker AI settings", exc_info=True)
+
+
 def _register_task_id(model, row_id: int, task_id: str | None) -> None:
     """Persist the Celery id so the Job Center can revoke auto-triggered work."""
     if not task_id:
@@ -130,6 +145,7 @@ app.conf.beat_schedule = {
 def process_local_document(task, source_id: int, file_path: str, trace_id: str | None = None):
     """Celery-Task: Hochgeladenes lokales Dokument (PDF, Word, Text) parsen und einbetten."""
     _register_task_id(KnowledgeSource, source_id, task.request.id)
+    _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
         asyncio.run(process_local_document_async(source_id, file_path))
     return {"status": "finished", "source_id": source_id}
@@ -153,6 +169,7 @@ def process_knowledge_source(
     allein einzugrenzen.
     """
     _register_task_id(KnowledgeSource, source_id, task.request.id)
+    _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
         asyncio.run(process_knowledge_source_async(source_id, force_reindex=force_reindex))
     return {"status": "finished", "source_id": source_id}
@@ -166,6 +183,7 @@ def process_knowledge_source(
 @app.task(name="process_confluence_source", bind=True)
 def process_confluence_source(task, source_id: int):
     _register_task_id(KnowledgeSource, source_id, task.request.id)
+    _refresh_worker_ai_settings()
     asyncio.run(process_knowledge_source_async(source_id))
     return {"status": "finished", "source_id": source_id}
 
@@ -173,6 +191,7 @@ def process_confluence_source(task, source_id: int):
 @app.task(name="process_jira_source", bind=True)
 def process_jira_source(task, source_id: int):
     _register_task_id(KnowledgeSource, source_id, task.request.id)
+    _refresh_worker_ai_settings()
     asyncio.run(process_knowledge_source_async(source_id))
     return {"status": "finished", "source_id": source_id}
 
@@ -197,6 +216,7 @@ def compute_entity_links(
     wird. None = Default aus link_builder.LLM_MIN_CONFIDENCE.
     """
     _register_task_id(LinkBuilderRun, run_id, task.request.id)
+    _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
         asyncio.run(
             compute_entity_links_async(
@@ -226,6 +246,7 @@ def compute_knowledge_links(
     Bewertung in cross_link_builder.LLM_MIN_CONFIDENCE.
     """
     _register_task_id(LinkBuilderRun, run_id, task.request.id)
+    _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
         asyncio.run(
             compute_knowledge_links_async(

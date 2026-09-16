@@ -224,6 +224,22 @@ class ModelUpdateRequest(BaseModel):
     llm: str
 
 
+class AISettingsUpdate(BaseModel):
+    """Editable deployment-wide AI profile. Omitted keys remain unchanged."""
+
+    llm_provider: Optional[str] = None
+    llm_model: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    embedding_model: Optional[str] = None
+    embedding_base_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_dimension: Optional[int] = None
+    embedding_context_length: Optional[int] = None
+    llm_context_length: Optional[int] = None
+
+
 class KnowledgeLinkCreate(BaseModel):
     source_a_type: str  # 'entity' | 'document'
     source_a_entity_id: Optional[int] = None

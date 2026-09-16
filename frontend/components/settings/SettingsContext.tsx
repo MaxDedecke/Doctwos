@@ -36,6 +36,12 @@ export interface SettingsContextValue {
   setLlmProfiles: React.Dispatch<React.SetStateAction<LlmProfile[]>>;
   activeProfileId: string;
   setActiveProfileId: (id: string) => void;
+  embeddingDimension: number;
+  setEmbeddingDimension: (value: number) => void;
+  embeddingContextLength: number;
+  setEmbeddingContextLength: (value: number) => void;
+  llmContextLength: number;
+  setLlmContextLength: (value: number) => void;
 
   // Editor states
   editorFontSize: number;

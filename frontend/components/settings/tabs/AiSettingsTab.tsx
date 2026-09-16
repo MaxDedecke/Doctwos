@@ -37,6 +37,12 @@ export const AiSettingsTab: React.FC = () => {
     setLlmProfiles,
     activeProfileId,
     setActiveProfileId,
+    embeddingDimension,
+    setEmbeddingDimension,
+    embeddingContextLength,
+    setEmbeddingContextLength,
+    llmContextLength,
+    setLlmContextLength,
   } = useSettings();
 
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
@@ -144,9 +150,18 @@ export const AiSettingsTab: React.FC = () => {
       localStorage.setItem('doctus-llm-profiles', JSON.stringify(updatedProfiles));
 
       const activeProfile = updatedProfiles.find(p => p.id === activeProfileId);
-      if (activeProfile && activeProfile.provider === 'ollama') {
-        await api.updateModelInfo({
-          llm: activeProfile.model
+      if (activeProfile) {
+        await api.updateAiSettings({
+          llm_provider: activeProfile.provider,
+          llm_model: activeProfile.model,
+          llm_base_url: activeProfile.baseUrl || undefined,
+          llm_api_key: activeProfile.apiKey || undefined,
+          embedding_provider: 'ollama',
+          embedding_model: activeProfile.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+          embedding_base_url: activeProfile.provider === 'ollama' ? activeProfile.baseUrl || undefined : undefined,
+          embedding_dimension: embeddingDimension,
+          embedding_context_length: embeddingContextLength,
+          llm_context_length: llmContextLength,
         });
       }
       showToast(t('settings.toast.aiParamsSaved'), "success");
@@ -386,7 +401,7 @@ export const AiSettingsTab: React.FC = () => {
               </div>
             </div>
 
-            {profileProviderInput === 'openai' && (
+            {(profileProviderInput === 'openai' || profileProviderInput === 'ollama') && (
               <div className="space-y-1.5 animate-in fade-in duration-100">
                 <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.baseUrlLabel')}</label>
                 <input
@@ -402,7 +417,9 @@ export const AiSettingsTab: React.FC = () => {
                   )}
                 />
                 <p className="text-[9px] text-ds-zinc-500 px-0.5">
-                  {t('settings.profilesTab.baseUrlHint')}
+                  {profileProviderInput === 'ollama'
+                    ? t('settings.profilesTab.ollamaBaseUrlHint')
+                    : t('settings.profilesTab.baseUrlHint')}
                 </p>
               </div>
             )}
@@ -489,6 +506,24 @@ export const AiSettingsTab: React.FC = () => {
                 : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
             )}
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-ds-zinc-800/40">
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.embeddingDimensionLabel')}</label>
+            <input type="number" min="1" value={embeddingDimension} onChange={e => setEmbeddingDimension(Number(e.target.value))}
+              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.embeddingContextLabel')}</label>
+            <input type="number" min="1" value={embeddingContextLength} onChange={e => setEmbeddingContextLength(Number(e.target.value))}
+              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.llmContextLabel')}</label>
+            <input type="number" min="1" value={llmContextLength} onChange={e => setLlmContextLength(Number(e.target.value))}
+              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
+          </div>
         </div>
 
         <div className="flex justify-end pt-1">

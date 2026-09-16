@@ -16,14 +16,17 @@ import os
 
 import httpx
 import redis
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import text
 
 import core.config as cfg
-from api.schemas import ModelUpdateRequest
+from api.schemas import AISettingsUpdate, ModelUpdateRequest
+from core.auth_dependency import get_current_user
 from core.teams import require_admin
-from core.db_setup import engine
+from core.db_setup import engine, get_db
 from models.database import User
+from services.ai_settings import apply_runtime_settings, get_settings, serialize_settings
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
@@ -96,14 +99,62 @@ async def model_info():
 @router.post("/model-info")
 async def update_model_info(
     request: ModelUpdateRequest,
+    db: Session = Depends(get_db),
     _user: User = Depends(require_admin),
 ):
-    # Dieser Endpoint mutiert globalen Prozess-State (cfg.OLLAMA_LLM_MODEL) und
-    # wirkt auf ALLE Nutzer. Deshalb darf ihn nur ein globaler Administrator
-    # bedienen; /health, /version und /models bleiben bewusst öffentlich.
-    # Mutation muss auf dem Modul-Objekt passieren, nicht auf einer lokalen Variable
-    cfg.OLLAMA_LLM_MODEL = request.llm
-    return {"llm": cfg.OLLAMA_LLM_MODEL, "embedding": cfg.OLLAMA_EMBED_MODEL}
+    settings = get_settings(db)
+    settings.llm_model = request.llm
+    db.commit()
+    db.refresh(settings)
+    apply_runtime_settings(settings)
+    return {"llm": settings.llm_model, "embedding": settings.embedding_model}
+
+
+@router.get("/ai-settings")
+def read_ai_settings(
+    db: Session = Depends(get_db), _user: User = Depends(get_current_user)
+):
+    settings = get_settings(db)
+    db.commit()
+    return serialize_settings(settings)
+
+
+@router.patch("/ai-settings")
+def update_ai_settings(
+    request: AISettingsUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    values = request.model_dump(exclude_unset=True)
+    for field in (
+        "llm_provider",
+        "llm_model",
+        "llm_base_url",
+        "embedding_provider",
+        "embedding_model",
+        "embedding_base_url",
+    ):
+        if field in values and values[field] is not None:
+            values[field] = values[field].strip()
+            if not values[field]:
+                raise HTTPException(status_code=400, detail=f"{field} darf nicht leer sein")
+
+    for field in ("embedding_dimension", "embedding_context_length", "llm_context_length"):
+        if field in values and (values[field] is None or values[field] < 1):
+            raise HTTPException(status_code=400, detail=f"{field} muss größer als 0 sein")
+
+    settings = get_settings(db)
+    for field, value in values.items():
+        if field in {"llm_api_key", "embedding_api_key"}:
+            # An empty value explicitly clears a key; omitted values preserve it.
+            setattr(settings, field, value or None)
+        elif value is not None:
+            setattr(settings, field, value)
+    settings.updated_by_user_id = user.id
+    db.commit()
+    db.refresh(settings)
+    apply_runtime_settings(settings)
+    return serialize_settings(settings)
 
 
 @router.get("/models")

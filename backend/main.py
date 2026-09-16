@@ -83,7 +83,8 @@ from api import (
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user
-from core.db_setup import bootstrap_superuser
+from core.db_setup import SessionLocal, bootstrap_superuser
+from services.ai_settings import initialize_runtime_settings
 from core.teams import require_admin
 
 app = FastAPI(title="Doctus AI Backend")
@@ -93,6 +94,7 @@ app = FastAPI(title="Doctus AI Backend")
 def _bootstrap() -> None:
     """Erster Start: genau einen Superuser anlegen (F-001). Idempotent."""
     bootstrap_superuser()
+    initialize_runtime_settings(SessionLocal)
 
 
 app.add_middleware(

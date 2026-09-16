@@ -6,7 +6,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
-const apiMocks = vi.hoisted(() => ({ updateModelInfo: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({ updateAiSettings: vi.fn() }));
 
 vi.mock('@/app/services/api', () => ({ API_URL: 'http://api.test', api: apiMocks }));
 vi.mock('@/lib/i18n/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
@@ -203,7 +203,7 @@ describe('AiSettingsTab', () => {
     });
 
     it('sends the correct model for the active Ollama profile and persists temperature/prompt into it', async () => {
-      apiMocks.updateModelInfo.mockResolvedValue(axiosResponse({}));
+      apiMocks.updateAiSettings.mockResolvedValue(axiosResponse({}));
       settingsValue = createSettingsContextValue({
         llmProfiles: [profile({ id: 'p1', model: 'llama3' })],
         activeProfileId: 'p1',
@@ -213,7 +213,7 @@ describe('AiSettingsTab', () => {
       render(<AiSettingsTab />);
       fireEvent.click(screen.getByText('settings.profilesTab.saveAiSettings'));
 
-      await waitFor(() => expect(apiMocks.updateModelInfo).toHaveBeenCalledWith({ llm: 'llama3' }));
+      await waitFor(() => expect(apiMocks.updateAiSettings).toHaveBeenCalledWith(expect.objectContaining({ llm_model: 'llama3' })));
       expect(settingsValue.setLlmProfiles).toHaveBeenCalledWith([
         expect.objectContaining({ id: 'p1', temperature: 0.5, systemPrompt: 'Sei präzise.' }),
       ]);
@@ -229,11 +229,11 @@ describe('AiSettingsTab', () => {
       fireEvent.click(screen.getByText('settings.profilesTab.saveAiSettings'));
 
       await waitFor(() => expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.aiParamsSaved', 'success'));
-      expect(apiMocks.updateModelInfo).not.toHaveBeenCalled();
+      expect(apiMocks.updateAiSettings).toHaveBeenCalled();
     });
 
     it('shows a failure toast when the local LLM is unreachable', async () => {
-      apiMocks.updateModelInfo.mockRejectedValue(new Error('ECONNREFUSED'));
+      apiMocks.updateAiSettings.mockRejectedValue(new Error('ECONNREFUSED'));
       render(<AiSettingsTab />);
       fireEvent.click(screen.getByText('settings.profilesTab.saveAiSettings'));
 

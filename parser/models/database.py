@@ -332,6 +332,28 @@ class ChatFeedbackDiagnosticSettings(Base):
     updated_by = relationship("User")
 
 
+class AISettings(Base):
+    """Mirror of the deployment-wide AI profile used by the parser worker."""
+
+    __tablename__ = "ai_settings"
+    id = Column(Integer, primary_key=True)
+    llm_provider = Column(String(32), nullable=False, server_default="ollama")
+    llm_model = Column(String, nullable=False, server_default="disabled")
+    llm_base_url = Column(String, nullable=True)
+    llm_api_key = Column(EncryptedString, nullable=True)
+    embedding_provider = Column(String(32), nullable=False, server_default="ollama")
+    embedding_model = Column(String, nullable=False, server_default="bge-m3")
+    embedding_base_url = Column(String, nullable=True)
+    embedding_api_key = Column(EncryptedString, nullable=True)
+    embedding_dimension = Column(Integer, nullable=False, server_default="1024")
+    embedding_context_length = Column(Integer, nullable=False, server_default="8192")
+    llm_context_length = Column(Integer, nullable=False, server_default="8192")
+    updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    updated_by = relationship("User")
+
+
 class ChatFeedbackDiagnosticCase(Base):
     """Minimaler, lokaler Support-Fall aus einem bewusst erfassten Downvote."""
 

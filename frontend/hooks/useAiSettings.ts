@@ -102,6 +102,9 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [llmProfiles, setLlmProfiles] = useState<LlmProfile[]>([]);
   const [activeProfileId, setActiveProfileIdState] = useState('ollama-default');
+  const [embeddingDimension, setEmbeddingDimension] = useState(1024);
+  const [embeddingContextLength, setEmbeddingContextLength] = useState(8192);
+  const [llmContextLength, setLlmContextLength] = useState(8192);
 
   useEffect(() => {
     const profiles = readProfiles(t);
@@ -136,6 +139,33 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
       })
       .catch(error => console.error('Failed to load model info:', error));
 
+    // The deployment profile is authoritative for the shared parser/backend.
+    // Keep the browser profile list for chat switching, but hydrate its active
+    // Ollama entry so a fresh browser sees the same profile as every worker.
+    api.getAiSettings?.()
+      .then(res => {
+        const settings = res.data;
+        if (settings.llm_model) setActiveLlmModel(settings.llm_model);
+        if (settings.embedding_model) setActiveEmbeddingModel(settings.embedding_model);
+        if (settings.embedding_dimension) setEmbeddingDimension(settings.embedding_dimension);
+        if (settings.embedding_context_length) setEmbeddingContextLength(settings.embedding_context_length);
+        if (settings.llm_context_length) setLlmContextLength(settings.llm_context_length);
+        setLlmProfiles(previous => {
+          const next = previous.map(profile => profile.id === initialActiveProfileId(previous)
+            ? {
+                ...profile,
+                provider: settings.llm_provider || profile.provider,
+                model: settings.llm_model || profile.model,
+                embeddingModel: settings.embedding_model || profile.embeddingModel,
+                baseUrl: settings.llm_base_url || profile.baseUrl,
+              }
+            : profile);
+          localStorage.setItem('doctus-llm-profiles', JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch(error => console.error('Failed to load persisted AI settings:', error));
+
     api.getModels()
       .then(res => {
         if (res.data.models) setAvailableModels(res.data.models);
@@ -169,5 +199,16 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     setLlmProfiles,
     activeProfileId,
     setActiveProfileId,
+    embeddingDimension,
+    setEmbeddingDimension,
+    embeddingContextLength,
+    setEmbeddingContextLength,
+    llmContextLength,
+    setLlmContextLength,
   };
+}
+
+function initialActiveProfileId(profiles: LlmProfile[]): string {
+  const stored = localStorage.getItem('doctus-active-profile-id');
+  return stored && profiles.some(profile => profile.id === stored) ? stored : profiles[0]?.id || 'ollama-default';
 }

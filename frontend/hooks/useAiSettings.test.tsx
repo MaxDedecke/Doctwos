@@ -7,6 +7,7 @@ vi.mock('@/app/services/api', () => ({
   api: {
     getModelInfo: vi.fn(),
     getModels: vi.fn(),
+    getAiSettings: vi.fn(),
   },
 }));
 
@@ -20,6 +21,7 @@ describe('useAiSettings', () => {
     vi.resetAllMocks();
     mockedApi.getModelInfo.mockResolvedValue({ data: { llm: 'llama3', embedding: 'bge-m3' } } as never);
     mockedApi.getModels.mockResolvedValue({ data: { models: ['llama3', 'qwen'] } } as never);
+    mockedApi.getAiSettings.mockResolvedValue({ data: {} } as never);
   });
 
   it('migrates the legacy model settings and restores the active profile parameters', async () => {

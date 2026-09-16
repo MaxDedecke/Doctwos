@@ -74,7 +74,7 @@ async def embed_text(
                     "model": embedding_model,
                     "input": prompt,
                     "dimensions": cfg.EMBEDDING_DIMENSION,
-                    "options": {"num_ctx": cfg.OLLAMA_NUM_CTX},
+                    "options": {"num_ctx": cfg.EMBEDDING_CONTEXT_LENGTH},
                 },
                 headers=headers,
             )

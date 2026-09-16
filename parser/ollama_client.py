@@ -6,6 +6,10 @@ import re
 import asyncio
 from typing import Dict, Optional
 
+from sqlalchemy import text as sql_text
+
+from db import SessionLocal
+
 logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
@@ -27,6 +31,7 @@ EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 # gelesen, weil dieses Modul (anders als backend/agent.py) nicht von
 # core.config importiert.
 OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+EMBEDDING_CONTEXT_LENGTH = int(os.getenv("EMBEDDING_CONTEXT_LENGTH", str(OLLAMA_NUM_CTX)))
 
 # E-8: get_embeddings_batch() schickte bisher alle Chunks eines Dokuments in
 # einem einzigen Request. Ein Lasttest mit synthetischem COBOL-Korpus zeigte:
@@ -41,6 +46,63 @@ EMBED_BATCH_TIMEOUT = float(os.getenv("EMBED_BATCH_TIMEOUT", "120"))
 
 # Keep track of active clients per event loop to ensure thread-safety and loop-safety
 _loop_clients: Dict[asyncio.AbstractEventLoop, httpx.AsyncClient] = {}
+
+
+def _load_server_settings() -> Optional[dict]:
+    """Read the admin-configured profile from the shared DB.
+
+    The parser is a separate container, so process-local backend state would
+    never reach it. Missing tables/DB connectivity intentionally fall back to
+    the worker environment, preserving compatibility during migrations and in
+    isolated unit tests.
+    """
+    try:
+        db = SessionLocal()
+        try:
+            row = db.execute(
+                sql_text(
+                    "SELECT llm_model, llm_base_url, llm_api_key, "
+                    "embedding_provider, embedding_model, embedding_base_url, "
+                    "embedding_api_key, embedding_dimension, embedding_context_length, "
+                    "llm_context_length FROM ai_settings ORDER BY id LIMIT 1"
+                )
+            ).mappings().first()
+            return dict(row) if row else None
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.debug("AI settings DB lookup unavailable; using worker env: %s", exc)
+        return None
+
+
+def _effective_embedding_settings(model: Optional[str] = None) -> dict:
+    settings = _load_server_settings()
+    configured_model = os.getenv("EMBED_MODEL", "bge-m3")
+    use_server_model = settings and (model is None or model == configured_model)
+    return {
+        "provider": settings["embedding_provider"] if settings else EMBEDDING_PROVIDER,
+        "base_url": (settings["embedding_base_url"] or OLLAMA_BASE_URL).rstrip("/")
+        if settings and settings["embedding_base_url"]
+        else EMBEDDING_BASE_URL,
+        "api_key": settings["embedding_api_key"] if settings else EMBEDDING_API_KEY,
+        "model": settings["embedding_model"] if use_server_model else (model or configured_model),
+        "dimension": settings["embedding_dimension"] if settings else EMBEDDING_DIMENSION,
+        "context": settings["embedding_context_length"] if settings else EMBEDDING_CONTEXT_LENGTH,
+    }
+
+
+def _effective_llm_settings(model: str) -> dict:
+    settings = _load_server_settings()
+    configured_model = os.getenv("LLM_MODEL", "disabled")
+    use_server_model = settings and model in (configured_model, "disabled")
+    return {
+        "base_url": settings["llm_base_url"].rstrip("/")
+        if use_server_model and settings and settings["llm_base_url"]
+        else OLLAMA_BASE_URL,
+        "api_key": settings["llm_api_key"] if use_server_model and settings else OLLAMA_API_KEY,
+        "model": settings["llm_model"] if use_server_model and settings else model,
+        "context": settings["llm_context_length"] if use_server_model and settings else OLLAMA_NUM_CTX,
+    }
 
 
 def _headers(api_key: str) -> dict[str, str]:
@@ -76,13 +138,13 @@ def _get_client() -> httpx.AsyncClient:
     return _loop_clients[loop]
 
 
-async def get_embedding(text: str, model: str = "bge-m3"):
+async def get_embedding(text: str, model: Optional[str] = None):
     """Return one document embedding through the configured provider adapter."""
     return (await get_embeddings_batch([text], model=model))[0]
 
 
 async def get_embeddings_batch(
-    texts: list[str], model: str = "bge-m3", retries=3
+    texts: list[str], model: Optional[str] = None, retries=3
 ) -> list[list[float]]:
     """Batched embeddings — mehrere Requests à max. EMBED_BATCH_MAX_CHUNKS Texte
     mit Exponential Backoff Retry je Sub-Batch (E-8: verhindert, dass ein
@@ -90,6 +152,8 @@ async def get_embeddings_batch(
     if not texts:
         return []
 
+    effective = _effective_embedding_settings(model)
+    model = effective["model"]
     if model.startswith("nomic-embed-text"):
         processed_texts = [
             f"search_document: {t}"
@@ -103,28 +167,29 @@ async def get_embeddings_batch(
     embeddings: list[list[float]] = []
     for i in range(0, len(processed_texts), EMBED_BATCH_MAX_CHUNKS):
         sub_batch = processed_texts[i : i + EMBED_BATCH_MAX_CHUNKS]
-        embeddings.extend(await _get_embeddings_sub_batch(sub_batch, model, retries))
+        embeddings.extend(await _get_embeddings_sub_batch(sub_batch, model, retries, effective))
     return embeddings
 
 
 async def _get_embeddings_sub_batch(
-    texts: list[str], model: str, retries: int
+    texts: list[str], model: str, retries: int, settings: Optional[dict] = None
 ) -> list[list[float]]:
+    settings = settings or _effective_embedding_settings(model)
     client = _get_client()
 
     for attempt in range(retries):
         try:
-            if EMBEDDING_PROVIDER == "openai":
+            if settings["provider"] == "openai":
                 response = await client.post(
-                    _embedding_url("/embeddings"),
+                    f"{settings['base_url']}/embeddings",
                     json={"model": model, "input": texts},
-                    headers=_headers(EMBEDDING_API_KEY),
+                    headers=_headers(settings["api_key"]),
                     timeout=EMBED_BATCH_TIMEOUT,
                 )
                 response.raise_for_status()
                 return [item["embedding"] for item in response.json()["data"]]
 
-            if EMBEDDING_PROVIDER != "ollama":
+            if settings["provider"] != "ollama":
                 raise ValueError(
                     "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "
                     f"nicht {EMBEDDING_PROVIDER!r}."
@@ -136,10 +201,10 @@ async def _get_embeddings_sub_batch(
                 json={
                     "model": model,
                     "input": texts,
-                    "dimensions": EMBEDDING_DIMENSION,
-                    "options": {"num_ctx": OLLAMA_NUM_CTX},
+                    "dimensions": settings["dimension"],
+                    "options": {"num_ctx": settings["context"]},
                 },
-                headers=_headers(EMBEDDING_API_KEY),
+                headers=_headers(settings["api_key"]),
                 timeout=EMBED_BATCH_TIMEOUT,  # Batch braucht mehr Zeit
             )
             response.raise_for_status()
@@ -195,20 +260,21 @@ async def get_chat_json(
             "LLM_MODEL auf einem ausreichend dimensionierten Host konfigurieren."
         )
 
+    settings = _effective_llm_settings(model)
     payload = {
-        "model": model,
+        "model": settings["model"],
         "messages": [{"role": "user", "content": prompt}],
         "format": "json",
         "stream": False,
-        "options": {"num_ctx": OLLAMA_NUM_CTX},
+        "options": {"num_ctx": settings["context"]},
     }
     if think is not None:
         payload["think"] = think
     client = _get_client()
     response = await client.post(
-        f"{OLLAMA_BASE_URL}/api/chat",
+        f"{settings['base_url']}/api/chat",
         json=payload,
-        headers=_headers(OLLAMA_API_KEY),
+        headers=_headers(settings["api_key"]),
         timeout=timeout,
     )
     response.raise_for_status()
@@ -231,23 +297,26 @@ async def is_gpu_accelerated(model: str) -> bool:
     (billig, läuft nur einmal pro Sync-Start). Konservativer Fallback
     (CPU-only annehmen) falls Ollama nicht antwortet oder das Feld fehlt.
     """
-    if EMBEDDING_PROVIDER != "ollama":
+    settings = _effective_embedding_settings(model)
+    configured_model = os.getenv("EMBED_MODEL", "bge-m3")
+    model = settings["model"] if model == configured_model else model
+    if settings["provider"] != "ollama":
         return False
 
     try:
         client = _get_client()
         await client.post(
-            _embedding_url("/api/embed"),
+            f"{settings['base_url']}/api/embed",
             json={
                 "model": model,
                 "input": "warmup",
-                "dimensions": EMBEDDING_DIMENSION,
-                "options": {"num_ctx": OLLAMA_NUM_CTX},
+                "dimensions": settings["dimension"],
+                "options": {"num_ctx": settings["context"]},
             },
-            headers=_headers(EMBEDDING_API_KEY),
+            headers=_headers(settings["api_key"]),
             timeout=EMBED_BATCH_TIMEOUT,
         )
-        response = await client.get(f"{OLLAMA_BASE_URL}/api/ps", timeout=10.0)
+        response = await client.get(f"{settings['base_url']}/api/ps", timeout=10.0)
         response.raise_for_status()
         for entry in response.json().get("models", []):
             if entry.get("model") == model or entry.get("name") == model:
@@ -264,14 +333,17 @@ async def ensure_model_pulled(model: str):
     Ensures that the required embedding model is available in Ollama.
     Reuses a persistent connection pool per event loop.
     """
+    settings = _effective_embedding_settings(model)
+    configured_model = os.getenv("EMBED_MODEL", "bge-m3")
+    model = settings["model"] if model == configured_model else model
     if not EMBEDDING_AUTO_PULL:
         return
-    if EMBEDDING_PROVIDER != "ollama":
+    if settings["provider"] != "ollama":
         return
     client = _get_client()
     await client.post(
-        _embedding_url("/api/pull"),
+        f"{settings['base_url']}/api/pull",
         json={"name": model},
-        headers=_headers(EMBEDDING_API_KEY),
+        headers=_headers(settings["api_key"]),
         timeout=300.0,
     )
