@@ -186,6 +186,8 @@ class KnowledgeSource(Base):
     # Embedding-Modell, mit dem diese Quelle indiziert wird. NULL bei alten
     # Quellen bedeutet den Deployment-Default (OLLAMA_EMBED_MODEL).
     embedding_model = Column(String, nullable=True)
+    # O-177: exact project/source scope used by a cross-source run.
+    scope_json = Column(JSON, nullable=True)
 
     # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
     # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen

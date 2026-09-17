@@ -236,6 +236,8 @@ def compute_knowledge_links(
     trace_id: str | None = None,
     min_confidence: int | None = None,
     embedding_model: str | None = None,
+    project_id: int | None = None,
+    source_ids: list[int] | None = None,
 ):
     """
     Celery-Task: Cross-Source Analyse starten. Findet semantische Verknüpfungen
@@ -253,6 +255,8 @@ def compute_knowledge_links(
                 run_id,
                 min_confidence=min_confidence,
                 embedding_model=embedding_model,
+                project_id=project_id,
+                source_ids=source_ids,
             )
         )
     return {"status": "finished", "run_id": run_id}

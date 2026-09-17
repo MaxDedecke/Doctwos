@@ -518,14 +518,20 @@ def test_llm_review_hides_invisible_link_as_404(
 # ── POST /knowledge-links/compute ─────────────────────────────────────────────
 
 
-def test_trigger_computation_dispatches_task_and_creates_run(client, db_session):
+def test_trigger_computation_dispatches_task_and_creates_run(client, db_session, two_chunks):
+    source, chunk_a, chunk_b = two_chunks
+    project_id = chunk_a.project_id
     calls = []
 
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
         calls.append((task_name, args, kwargs))
 
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
-        res = client.post("/knowledge-links/compute", params={"min_confidence": 70})
+        res = client.post("/knowledge-links/compute", params={
+            "project_id": project_id,
+            "source_ids": [source.id],
+            "min_confidence": 70,
+        })
     assert res.status_code == 200
     run_id = res.json()["run_id"]
 
@@ -534,6 +540,8 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session)
     assert task_name == "compute_knowledge_links"
     assert args == [run_id]
     assert kwargs["min_confidence"] == 70
+    assert kwargs["project_id"] == project_id
+    assert kwargs["source_ids"] == [source.id]
 
     run = db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == run_id).first()
     assert run is not None
@@ -554,7 +562,10 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     rejected_id = _make_link(db_session, chunk_a, chunk_b, status="rejected").id
 
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
-        res = client.post("/knowledge-links/compute")
+        res = client.post("/knowledge-links/compute", params={
+            "project_id": chunk_a.project_id,
+            "source_ids": [source.id],
+        })
     assert res.status_code == 200
     run_id = res.json()["run_id"]
 

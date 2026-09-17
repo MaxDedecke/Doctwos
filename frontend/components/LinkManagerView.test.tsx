@@ -80,6 +80,7 @@ interface Routes {
   postError?: string;
   llmReview?: { score?: number; context?: string; detail?: string };
   llmReviewOk?: boolean;
+  projectSources?: Array<{ id: number; name: string }>;
 }
 
 /** fetch-Stub, der die Endpunkte der Ansicht nach URL + Methode beantwortet. */
@@ -95,6 +96,7 @@ function stubFetch(routes: Routes = {}) {
     if (method === 'POST') return json(routes.postOk === false ? { detail: routes.postError ?? 'Serverfehler' } : {}, routes.postOk !== false);
 
     if (url.includes('/doc-chunks/search')) return json(routes.docSearch ?? []);
+    if (url.includes('/knowledge-sources')) return json(routes.projectSources ?? [{ id: 7, name: 'Code' }, { id: 9, name: 'Handbuch' }]);
     if (url.includes('/entities')) return json(routes.entities ?? []);
     if (url.includes('/link-recommendations')) {
       return json({
@@ -276,6 +278,9 @@ describe('LinkManagerView', () => {
       fireEvent.click(screen.getByRole('button', { name: /Automatisch verknüpfen/ }));
 
       await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').some(u => u.includes('min_confidence=70'))).toBe(true));
+      expect(calls(fetchMock, '/knowledge-links/compute', 'POST').some(u =>
+        u.includes('project_id=3') && u.includes('source_ids=7') && u.includes('source_ids=9')
+      )).toBe(true);
       expect(screen.getByText(/Suche gestartet/)).toBeTruthy();
     });
 

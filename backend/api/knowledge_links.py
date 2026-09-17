@@ -17,10 +17,11 @@ from api.serializers import serialize_knowledge_link
 from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
-from core.projects import get_visible_project_ids
+from core.projects import assert_project_visible, get_visible_project_ids
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
 from services.job_control import send_tracked_task
+from sqlalchemy import or_
 from sqlalchemy.sql import func
 
 router = APIRouter(prefix="/knowledge-links", tags=["knowledge-links"])
@@ -38,6 +39,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "links_created": run.links_created,
         "embedding_model": run.embedding_model,
+        "scope": run.scope_json,
     }
 
 
@@ -517,6 +519,8 @@ def delete_knowledge_link(
 
 @router.post("/compute")
 def trigger_knowledge_link_computation(
+    project_id: Optional[int] = Query(None, ge=1, description="Projektkontext des Cross-Source-Laufs."),
+    source_ids: Optional[list[int]] = Query(None, min_length=1, description="Wissensquellen im Run-Scope."),
     min_confidence: Optional[int] = Query(
         None,
         ge=0,
@@ -535,21 +539,50 @@ def trigger_knowledge_link_computation(
     # Only admins can trigger cross-source computation
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
+    if project_id is None or not source_ids:
+        raise HTTPException(status_code=422, detail="Projekt und mindestens eine Wissensquelle im Scope angeben")
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_project_visible(project_id, user, db)
+    selected_source_ids = sorted(set(source_ids))
+    if not selected_source_ids:
+        raise HTTPException(status_code=422, detail="Mindestens eine Wissensquelle auswählen")
+    visible_source_ids = {
+        row[0]
+        for row in db.query(KnowledgeSource.id)
+        .filter(
+            KnowledgeSource.id.in_(selected_source_ids),
+            KnowledgeSource.team_id == project.team_id,
+            or_(KnowledgeSource.project_id == project_id, KnowledgeSource.project_id.is_(None)),
+        )
+        .all()
+    }
+    if visible_source_ids != set(selected_source_ids):
+        raise HTTPException(status_code=400, detail="Mindestens eine Wissensquelle gehört nicht zum Projektkontext")
 
     # Ein Refresh startet den Cross-Source-Scan von neuem — bisher unbestätigte
     # (pending) Vorschläge sind noch nicht reviewt und würden sonst als
     # Karteileichen neben den frisch berechneten liegen bleiben, da
     # compute_knowledge_links_async einen bestehenden Link (jeden Status) pro
     # Chunk-Paar nie überschreibt. Approved/rejected Links bleiben unangetastet.
-    db.query(KnowledgeLink).filter(KnowledgeLink.status == "pending").delete(
-        synchronize_session=False
-    )
+    scoped_chunk_ids = db.query(DocumentChunk.id).filter(
+        DocumentChunk.project_id == project_id,
+        DocumentChunk.source_id.in_(selected_source_ids),
+    ).subquery()
+    db.query(KnowledgeLink).filter(
+        KnowledgeLink.status == "pending",
+        KnowledgeLink.source_a_chunk_id.in_(scoped_chunk_ids),
+        KnowledgeLink.source_b_chunk_id.in_(scoped_chunk_ids),
+    ).delete(synchronize_session=False)
 
     run = LinkBuilderRun(
         task_type="knowledge_links",
-        project_id=None,
+        project_id=project_id,
         status="pending",
         embedding_model=embedding_model.strip() if embedding_model else None,
+        scope_json={"project_id": project_id, "source_ids": selected_source_ids},
     )
     db.add(run)
     db.commit()
@@ -564,9 +597,11 @@ def trigger_knowledge_link_computation(
             "trace_id": get_trace_id(),
             "min_confidence": min_confidence,
             "embedding_model": run.embedding_model or cfg.OLLAMA_EMBED_MODEL,
+            "project_id": project_id,
+            "source_ids": selected_source_ids,
         },
     )
-    return {"message": "Cross-Source Analyse gestartet", "run_id": run.id}
+    return {"message": "Cross-Source Analyse gestartet", "run_id": run.id, "scope": run.scope_json}
 
 
 @router.get("/runs")

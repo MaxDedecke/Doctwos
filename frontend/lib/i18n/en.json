@@ -1068,6 +1068,9 @@
     "acceptAllTooltip": "Approves all pending links with a 100% match at once, so you can focus on the less obvious ones.",
     "minConfidenceLabel": "Minimum probability",
     "minConfidenceTooltip": "Minimum probability (%): only candidates the LLM rates at least this confident are saved as a suggestion on the next run.",
+    "scopeLabel": "Scope ({{count}} sources)",
+    "scopeHint": "The cross-source run is limited to the selected project and at least two sources.",
+    "scopeNoSources": "No project sources available.",
     "manualLabel": "Manual",
     "tabLabels": {
       "pending": "Pending",
@@ -1126,7 +1129,8 @@
     "computeMessages": {
       "started": "Search started — candidates are being scored in the background…",
       "newLinks": "{{count}} new link(s) found.",
-      "noneFound": "Search complete. No new links found."
+      "noneFound": "Search complete. No new links found.",
+      "scopeRequired": "Select a project and at least two knowledge sources for the scope."
     },
     "toast": {
       "approved": "Link to \"{{title}}\" confirmed.",

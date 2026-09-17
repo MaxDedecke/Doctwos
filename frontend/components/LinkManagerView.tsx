@@ -38,6 +38,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { TopicsPanel } from './TopicsPanel';
+import type { KnowledgeSource } from '@/types/domain';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -199,6 +200,8 @@ export function LinkManagerView({
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
   const [isAcceptingAll, setIsAcceptingAll] = useState(false);
+  const [projectSources, setProjectSources] = useState<KnowledgeSource[]>([]);
+  const [selectedScopeSourceIds, setSelectedScopeSourceIds] = useState<number[]>([]);
   const [reviewingLinkIds, setReviewingLinkIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: 'info' | 'success' | 'empty'; text: string } | null>(null);
   const [showManualForm, setShowManualForm] = useState(false);
@@ -350,6 +353,33 @@ export function LinkManagerView({
     }
   }, [segment, fetchEntityLinks, fetchKnowledgeLinks]);
 
+  // O-177: Cross-source analysis is always visibly scoped to the selected
+  // project and an explicit set of its knowledge sources. Selecting all
+  // sources is a convenience, never a global fallback.
+  useEffect(() => {
+    let cancelled = false;
+    if (!projectId) {
+      setProjectSources([]);
+      setSelectedScopeSourceIds([]);
+      return () => { cancelled = true; };
+    }
+    api.fetch(`${API_URL}/projects/${projectId}/knowledge-sources`)
+      .then(response => response.json())
+      .then((data: KnowledgeSource[]) => {
+        if (cancelled) return;
+        const sources = (Array.isArray(data) ? data : []).filter(source => Number.isFinite(Number(source.id)));
+        setProjectSources(sources);
+        setSelectedScopeSourceIds(sources.map(source => Number(source.id)));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProjectSources([]);
+          setSelectedScopeSourceIds([]);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [projectId]);
+
   useEffect(() => {
     if (projectId && manualKind === 'entity' && entities.length === 0) {
       api.fetch(`${API_URL}/projects/${projectId}/entities`)
@@ -407,17 +437,25 @@ export function LinkManagerView({
 
   const triggerAutoLink = async () => {
     if (isComputing) return;
+    if (!projectId || selectedScopeSourceIds.length < 2) {
+      setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.scopeRequired') });
+      return;
+    }
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
     const confidenceParam = `min_confidence=${minConfidence}`;
     const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
+    const scopeParams = new URLSearchParams({
+      project_id: String(projectId),
+      min_confidence: String(minConfidence),
+      embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
+    });
+    selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
     await Promise.all([
-      projectId
-        ? api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {})
-        : Promise.resolve(),
-      api.fetch(`${API_URL}/knowledge-links/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {}),
+      api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {}),
+      api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }).catch(() => {}),
     ]);
 
     const poll = async (attempt: number) => {
@@ -919,6 +957,31 @@ export function LinkManagerView({
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
                   <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
+                <details className="relative">
+                  <summary className={cn('cursor-pointer list-none text-[10px] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
+                    {t('linkManagerView.scopeLabel', { count: selectedScopeSourceIds.length })}
+                  </summary>
+                  <div className={cn('absolute right-0 top-full z-30 mt-1 w-64 rounded-md border p-3 shadow-lg', dropdownBg)}>
+                    <p className={cn('mb-2 text-[10px] leading-relaxed', subText)}>{t('linkManagerView.scopeHint')}</p>
+                    {projectSources.length === 0 ? (
+                      <p className={cn('text-xs', cardMuted)}>{t('linkManagerView.scopeNoSources')}</p>
+                    ) : projectSources.map(source => {
+                      const sourceId = Number(source.id);
+                      return (
+                        <label key={sourceId} className={cn('flex items-center gap-2 py-1 text-xs', cardLabel)}>
+                          <input
+                            type="checkbox"
+                            checked={selectedScopeSourceIds.includes(sourceId)}
+                            onChange={event => setSelectedScopeSourceIds(current => event.target.checked
+                              ? [...current, sourceId]
+                              : current.filter(id => id !== sourceId))}
+                          />
+                          <span className="truncate">{source.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </details>
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
                   className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />

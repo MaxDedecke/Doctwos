@@ -1068,6 +1068,9 @@
     "acceptAllTooltip": "Bestätigt alle offenen Verknüpfungen mit 100 % Übereinstimmung auf einmal, damit du dich auf die weniger eindeutigen konzentrieren kannst.",
     "minConfidenceLabel": "Mindest-Wahrscheinlichkeit",
     "minConfidenceTooltip": "Mindest-Wahrscheinlichkeit (%): Nur Kandidaten, die das LLM mit mindestens dieser Sicherheit bewertet, werden beim nächsten Lauf als Vorschlag gespeichert.",
+    "scopeLabel": "Scope ({{count}} Quellen)",
+    "scopeHint": "Der Cross-Source-Lauf bleibt auf das ausgewählte Projekt und mindestens zwei Quellen begrenzt.",
+    "scopeNoSources": "Keine Projektquellen verfügbar.",
     "manualLabel": "Manuell",
     "tabLabels": {
       "pending": "Offen",
@@ -1126,7 +1129,8 @@
     "computeMessages": {
       "started": "Suche gestartet — Kandidaten werden im Hintergrund bewertet…",
       "newLinks": "{{count}} neue Verknüpfung(en) gefunden.",
-      "noneFound": "Suche abgeschlossen. Keine neuen Verknüpfungen gefunden."
+      "noneFound": "Suche abgeschlossen. Keine neuen Verknüpfungen gefunden.",
+      "scopeRequired": "Bitte ein Projekt und mindestens zwei Wissensquellen im Scope auswählen."
     },
     "toast": {
       "approved": "Verknüpfung zu „{{title}}\" bestätigt.",

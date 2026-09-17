@@ -55,6 +55,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "links_created": run.links_created,
         "embedding_model": run.embedding_model,
+        "scope": run.scope_json,
     }
 
 

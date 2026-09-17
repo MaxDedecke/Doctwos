@@ -187,14 +187,21 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
 
 def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     run = LinkBuilderRun(
-        task_type=previous.task_type, project_id=previous.project_id, status="pending"
+        task_type=previous.task_type,
+        project_id=previous.project_id,
+        status="pending",
+        embedding_model=previous.embedding_model,
+        scope_json=previous.scope_json,
     )
     db.add(run)
     db.commit()
     db.refresh(run)
     task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
     args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
-    send_tracked_task(db, run, task, args, {"trace_id": get_trace_id()})
+    task_kwargs = {"trace_id": get_trace_id()}
+    if run.task_type == "knowledge_links" and run.scope_json:
+        task_kwargs.update(run.scope_json)
+    send_tracked_task(db, run, task, args, task_kwargs)
     return {"message": "Job gestartet", "key": f"link_builder:{run.id}"}
 
 
@@ -406,7 +413,11 @@ def resume_job(
         if project_ids is not None and previous.project_id not in project_ids:
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
         run = LinkBuilderRun(
-            task_type=previous.task_type, project_id=previous.project_id, status="pending"
+            task_type=previous.task_type,
+            project_id=previous.project_id,
+            status="pending",
+            embedding_model=previous.embedding_model,
+            scope_json=previous.scope_json,
         )
         db.add(run)
         db.commit()
@@ -415,7 +426,10 @@ def resume_job(
             "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
         )
         args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
-        send_tracked_task(db, run, task, args, trace)
+        task_kwargs = dict(trace)
+        if run.task_type == "knowledge_links" and run.scope_json:
+            task_kwargs.update(run.scope_json)
+        send_tracked_task(db, run, task, args, task_kwargs)
         return {"message": "Job wiederaufgenommen", "key": f"link_builder:{run.id}"}
 
     if kind == "diagnostics" and is_admin(user):

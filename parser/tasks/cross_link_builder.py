@@ -98,6 +98,8 @@ async def compute_knowledge_links_async(
     run_id: int,
     min_confidence: int | None = None,
     embedding_model: str | None = None,
+    project_id: int | None = None,
+    source_ids: list[int] | None = None,
 ):
     """
     run_id points at a LinkBuilderRun row (created by the caller as "pending",
@@ -119,6 +121,19 @@ async def compute_knowledge_links_async(
         db.close()
         return
 
+    scope = run.scope_json or {}
+    selected_project_id = project_id or scope.get("project_id") or run.project_id
+    selected_source_ids = sorted(set(source_ids or scope.get("source_ids") or []))
+    if not selected_project_id or not selected_source_ids:
+        run.status = "failed"
+        run.error_message = "Cross-Source-Lauf ohne verpflichtenden Projekt- und Quellen-Scope."
+        run.finished_at = datetime.now(timezone.utc)
+        db.commit()
+        db.close()
+        return
+    run.project_id = selected_project_id
+    run.scope_json = {"project_id": selected_project_id, "source_ids": selected_source_ids}
+
     selected_embedding_model = (
         embedding_model or run.embedding_model or config.EMBED_MODEL
     ).strip()
@@ -134,6 +149,8 @@ async def compute_knowledge_links_async(
         # For efficiency in a real system, we'd only process "new" or "dirty" chunks
         model_filter = _embedding_model_filter(selected_embedding_model)
         chunks = db.query(DocumentChunk).filter(
+            DocumentChunk.project_id == selected_project_id,
+            DocumentChunk.source_id.in_(selected_source_ids),
             DocumentChunk.embedding.isnot(None), model_filter
         ).all()
 
@@ -149,6 +166,8 @@ async def compute_knowledge_links_async(
 
             # Query for similar chunks
             query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
+                DocumentChunk.project_id == selected_project_id,
+                DocumentChunk.source_id.in_(selected_source_ids),
                 DocumentChunk.id != chunk.id,
                 DocumentChunk.embedding.isnot(None),
                 model_filter,

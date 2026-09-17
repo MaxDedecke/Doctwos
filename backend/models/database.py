@@ -816,6 +816,8 @@ class LinkBuilderRun(Base):
     links_created = Column(Integer, nullable=False, default=0)
     # Embedding space selected for this run; retained for audit/reproducibility.
     embedding_model = Column(String, nullable=True)
+    # O-177: exact project/source scope used by a cross-source run.
+    scope_json = Column(JSON, nullable=True)
 
 
 class DiagnosticsRun(Base):
