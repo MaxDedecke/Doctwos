@@ -42,7 +42,6 @@ from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible
 from core.projects import (
     assert_project_visible,
-    build_document_chunk_code_gate,
     get_globally_exposed_project_ids,
     get_visible_project_ids,
     is_document_chunk_code_visible_in_context,
@@ -173,9 +172,7 @@ def _is_side_visible(
             return False
         # Team-Sichtbarkeit ist die Basis; Code-Analyse-Objekte (Entities) brauchen
         # außerhalb ihres eigenen Projekt-Kontexts zusätzlich das explizite Opt-in
-        # expose_code_analysis_globally (siehe core/projects.py) -- Dokumente (unten)
-        # sind davon bewusst nicht betroffen, die sind absichtlich projektübergreifend
-        # durchsuchbar.
+        # expose_code_analysis_globally (siehe core/projects.py).
         return (
             _is_project_visible(ent.project_id, team_ids, project_ids, db)
             and _is_source_visible(ent.source_id, team_ids, project_ids, db)
@@ -184,6 +181,11 @@ def _is_side_visible(
     elif source_type == "document" and chunk_id is not None:
         chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
         if not chunk:
+            return False
+        # "Allgemein" zeigt nur wirklich globale Dokumente. Projektgebundene
+        # PDFs/Confluence-/Jira-Chunks dürfen dort nicht über eine KnowledgeLink-
+        # Kante wieder in den Graphen gelangen.
+        if requesting_project_id is None and chunk.project_id is not None:
             return False
         return (
             _is_project_visible(chunk.project_id, team_ids, project_ids, db)
@@ -302,19 +304,11 @@ def get_graph(
     if project_id:
         doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
     else:
-        if team_ids is not None:
-            project_ids = visible_project_ids or []
-            doc_query = doc_query.filter(
-                or_(DocumentChunk.project_id.in_(project_ids), DocumentChunk.project_id.is_(None))
-            )
-        # Dieselbe Opt-in-Einschränkung wie beim Entity-Node-Fetch oben, aber nur für
-        # Chunks aus einer Git-Wissensquelle (rohe Repo-Quelldateien = Code-Analyse-
-        # Inhalt) -- sonst blieben die als verwaiste Knoten übrig, sobald ihre
-        # zugehörigen Entities (oben) ausgeblendet sind. Echte Doku-Quellen
-        # (Confluence/Jira/Upload) bleiben unverändert projektübergreifend sichtbar.
-        gate = build_document_chunk_code_gate(db, exposed_project_ids)
-        if gate is not None:
-            doc_query = doc_query.filter(gate)
+        # Der Allgemein-Graph ist ein globaler Quellenkontext, kein Sammelgraph
+        # aller Projekte des Benutzers. Projektgebundene Dokumente (insbesondere
+        # Uploads/PDFs) bleiben deshalb im jeweiligen Projektkontext und werden
+        # hier auch für Administratoren nicht geladen.
+        doc_query = doc_query.filter(DocumentChunk.project_id.is_(None))
 
     min_ids_subquery = (
         doc_query.with_entities(func.min(DocumentChunk.id))
@@ -342,6 +336,10 @@ def get_graph(
         # dieser Zweig unfreigegebene Projekt-Entities über den Doc-Link-Pfad wieder
         # als Node in den Graphen zurückholen.
         eq = eq.filter(EntityDocLink.project_id.in_(exposed_project_ids))
+        # Auch wenn ein Projekt seine Code-Analyse global freigibt, dürfen
+        # projektgebundene Dokumentziele nicht über EntityDocLink in den
+        # Allgemein-Graphen zurückgelangen.
+        eq = eq.filter(EntityDocLink.chunk_id.is_(None))
     entity_links = eq.all()
 
     if entity_links:

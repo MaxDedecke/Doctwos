@@ -68,14 +68,11 @@ def test_general_graph_hides_project_entities_unless_opted_in(
         db_session.commit()
 
 
-def test_general_graph_hides_git_source_chunks_but_keeps_real_docs(
+def test_general_graph_hides_project_documents_and_git_source_chunks(
     client, db_session, test_project, test_team
 ):
-    """Chunks einer Git-Wissensquelle sind rohe Repo-Quelldateien (Code-Analyse-Inhalt,
-    keine echte Dokumentation) und folgen deshalb demselben Opt-in wie CodeEntity --
-    sonst blieben sie in "Allgemein" als verwaiste Knoten übrig, sobald ihre
-    zugehörigen Entities ausgeblendet sind (siehe build_document_chunk_code_gate).
-    Chunks einer echten Doku-Quelle (hier: Confluence) bleiben davon unberührt."""
+    """Projektgebundene Chunks bleiben auch dann im Projektkontext, wenn es sich
+    um echte Dokumentation wie ein PDF/Confluence-Dokument handelt."""
     git_source = KnowledgeSource(
         name="scope-git-source",
         type="Git",
@@ -120,21 +117,21 @@ def test_general_graph_hides_git_source_chunks_but_keeps_real_docs(
         assert scoped.status_code == 200
         assert {"doc:SCOPED.CBL", "doc:Runbook"} <= _doc_node_ids(scoped.json())
 
-        # "Allgemein" -- der Git-Chunk ist ohne Opt-in nicht sichtbar, der echte
-        # Doku-Chunk (Confluence) bleibt projektübergreifend sichtbar.
+        # "Allgemein" -- kein projektgebundener Chunk ist sichtbar.
         general = client.get("/graph")
         assert general.status_code == 200
         general_docs = _doc_node_ids(general.json())
         assert "doc:SCOPED.CBL" not in general_docs
-        assert "doc:Runbook" in general_docs
+        assert "doc:Runbook" not in general_docs
 
-        # Nach Opt-in erscheint auch der Git-Chunk im Allgemein-Graph.
+        # Das Opt-in betrifft nur Code-Analyse; die Doku bleibt projektgebunden.
         db_session.query(Project).filter(Project.id == test_project).update(
             {"expose_code_analysis_globally": True}
         )
         db_session.commit()
         general_after_optin = client.get("/graph")
-        assert "doc:SCOPED.CBL" in _doc_node_ids(general_after_optin.json())
+        assert "doc:SCOPED.CBL" not in _doc_node_ids(general_after_optin.json())
+        assert "doc:Runbook" not in _doc_node_ids(general_after_optin.json())
     finally:
         db_session.query(Project).filter(Project.id == test_project).update(
             {"expose_code_analysis_globally": False}
