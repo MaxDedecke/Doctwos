@@ -91,6 +91,8 @@ export interface GraphEdge {
   source: string | GraphNode;
   target: string | GraphNode;
   link_type: string;
+  /** Broad graph relationship family, e.g. `documented` for EntityDocLink. */
+  relation_type?: string;
   score: number | null;
   context: string | null;
   /** Optional code-edge fields; relationship types remain open strings. */
@@ -99,6 +101,10 @@ export interface GraphEdge {
   meta?: Record<string, unknown>;
   start_line?: number | null;
   end_line?: number | null;
+}
+
+function graphEdgeType(edge: Pick<GraphEdge, 'link_type' | 'relation_type'>): string {
+  return edge.relation_type ?? edge.link_type;
 }
 
 interface Props {
@@ -441,7 +447,7 @@ export function KnowledgeGraphView({
     const visibleEdges = rawEdges.filter(e => {
       const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
       const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-      return !hiddenLinkTypes.has(e.link_type) && visibleIds.has(src) && visibleIds.has(tgt);
+      return !hiddenLinkTypes.has(graphEdgeType(e)) && visibleIds.has(src) && visibleIds.has(tgt);
     });
     return { nodes: visibleNodes, links: visibleEdges };
   }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes]);
@@ -515,7 +521,7 @@ export function KnowledgeGraphView({
 
   const linkTypes = useMemo(() => {
     const s = new Set<string>();
-    rawEdges.forEach(e => s.add(e.link_type));
+    rawEdges.forEach(e => s.add(graphEdgeType(e)));
     return Array.from(s);
   }, [rawEdges]);
 
@@ -803,7 +809,7 @@ export function KnowledgeGraphView({
                     <button key={i}
                       onClick={() => { setSelectedNodeId(other.id); setSelectedEdgeId(null); }}
                       className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors', connRow)}>
-                      <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(l.link_type), display: 'inline-block', borderRadius: 1 }} />
+                      <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(l)), display: 'inline-block', borderRadius: 1 }} />
                       <span className={cn('truncate', textMain)}>{other.label}</span>
                     </button>
                   );
@@ -940,9 +946,9 @@ export function KnowledgeGraphView({
       {selectedEdge && !selectedNode && (
         <div className="px-3 py-3 space-y-4 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(selectedEdge.link_type), display: 'inline-block', borderRadius: 1 }} />
+            <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
             <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
-              {getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type}
+              {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
             </span>
             {selectedEdge.score !== null && (
               <span className="text-[10px] font-mono text-ds-emerald-500">
@@ -1141,7 +1147,7 @@ export function KnowledgeGraphView({
               }}
               linkColor={(l: GraphEdge) => {
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
-                return resolveDsColor(getGraphEdgeColor(l.link_type));
+                return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
               }}
               linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
               linkDirectionalArrowLength={(l: GraphEdge) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
@@ -1298,10 +1304,10 @@ export function KnowledgeGraphView({
                 <KnowledgeNodeIcon node={selectedNode} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
               )}
               {selectedEdge && !selectedNode && (
-                <span className="w-4 shrink-0" style={{ height: 2, background: getGraphEdgeColor(selectedEdge.link_type), display: 'inline-block', borderRadius: 1 }} />
+                <span className="w-4 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
               )}
               <span className={cn('text-xs font-semibold truncate flex-1', textMain)}>
-                {selectedNode ? selectedNode.label : (selectedEdge ? (getLinkLabel(t, selectedEdge.link_type) ?? selectedEdge.link_type) : '')}
+                {selectedNode ? selectedNode.label : (selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '')}
               </span>
               <button onClick={(e) => { e.stopPropagation(); setSelectedNodeId(null); setSelectedEdgeId(null); }}
                 className={cn('p-1 rounded transition-colors shrink-0', iconBtn)}>

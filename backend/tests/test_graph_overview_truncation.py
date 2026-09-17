@@ -11,6 +11,7 @@ auch unverlinkte Entities -- die sind beim Kappen der uninteressanteste Teil).
 
 from unittest.mock import patch
 
+from api.graph import _capped_overview
 from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
@@ -213,3 +214,22 @@ def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
             db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_graph_overview_keeps_one_file_node_per_source_when_capped():
+    """A source's PDF/handbook remains discoverable even without a link yet."""
+    nodes = {
+        "entity:1": {"id": "entity:1", "type": "entity", "source_id": 1},
+        "entity:2": {"id": "entity:2", "type": "entity", "source_id": 1},
+        "entity:3": {"id": "entity:3", "type": "entity", "source_id": 1},
+        "doc:scanned-handbook.pdf": {
+            "id": "doc:scanned-handbook.pdf",
+            "type": "document",
+            "source_id": 2,
+        },
+    }
+    with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
+        body = _capped_overview(nodes, [])
+    node_ids = {node["id"] for node in body["nodes"]}
+    assert "doc:scanned-handbook.pdf" in node_ids
+    assert body["truncated"] is True

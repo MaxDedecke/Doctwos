@@ -39,6 +39,7 @@ export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
   confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))', icon: 'web' },
   jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))', icon: 'web' },
   git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))', icon: 'code' },
+  file:       { labelDe: 'Datei', labelEn: 'File', color: 'rgb(var(--ds-danger-base))', icon: 'document' },
   txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))', icon: 'document' },
   md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: 'rgb(var(--ds-neutral-500))', icon: 'document' },
   copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: 'rgb(var(--ds-graph-a-base))', icon: 'code' },
@@ -78,6 +79,7 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
 export const EDGE_TYPE_COLORS: Record<string, string> = {
   semantic: 'rgb(var(--ds-accent))',
   keyword: 'rgb(var(--ds-warning-base))',
+  documented: 'rgb(var(--ds-danger-base))',
   syntactic: 'rgb(var(--ds-success-base))',
   coref: 'rgb(var(--ds-graph-b-base))',
   manual: 'rgb(var(--ds-warning-base))',
@@ -111,6 +113,7 @@ const EDGE_TYPE_LABEL_KEYS: Record<string, string> = {
   syntactic: 'graphLabels.linkTypes.syntactic',
   coref: 'graphLabels.linkTypes.coref',
   manual: 'graphLabels.linkTypes.manual',
+  documented: 'graphLabels.linkTypes.documented',
   chat: 'graphLabels.linkTypes.chat',
   call: 'graphLabels.linkTypes.call',
   perform: 'graphLabels.linkTypes.perform',
@@ -191,10 +194,11 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   if (/\.(cbl|cob|cobol)$/.test(path)) return 'cobol';
   if (/\.(cpy|copy)$/.test(path)) return 'copybook';
   if (/\.(jcl|proc|prc)$/.test(path)) return 'jcl';
-  if (path.endsWith('.pdf')) return 'pdf';
-  if (path.endsWith('.txt')) return 'txt';
-  if (path.endsWith('.md')) return 'md';
-  return 'document';
+  if (path.endsWith('.pdf') || path.endsWith('.txt') || path.endsWith('.md')) return 'file';
+  // Non-web DocumentChunks are files from the user's indexed sources. Keep
+  // them in one filter group so a PDF is not hidden behind a format-specific
+  // badge that users do not know to look for.
+  return 'file';
 }
 
 export function getGraphNodeColor(node: GraphTaxonomyNode | null | undefined): string {

@@ -80,6 +80,10 @@ def test_graph_csv_export_contains_the_approved_link_as_an_edge_row(
             "0.87",
             "passt inhaltlich",
         ) in data_rows
+
+        graph = client.get(f"/graph?project_id={test_project}").json()
+        edge = next(edge for edge in graph["edges"] if edge["id"] == f"edl:{link.id}")
+        assert edge["relation_type"] == "documented"
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()

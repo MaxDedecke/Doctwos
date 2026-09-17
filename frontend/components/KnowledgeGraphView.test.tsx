@@ -128,6 +128,21 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
   });
 
+  it('exposes indexed PDF nodes through the shared Datei badge', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [{ id: 'doc:scanned-handbook.pdf', type: 'document', label: 'scanned-handbook.pdf', file_path: 'scanned-handbook.pdf' }],
+        edges: [],
+      }),
+    }));
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByTestId('node-doc:scanned-handbook.pdf')).toBeTruthy());
+    expect(screen.getAllByText('Datei').length).toBeGreaterThan(0);
+  });
+
   it('navigates from a Java entity node while preserving its file, line and source', async () => {
     const javaNode: GraphNode = {
       id: 'entity:101',

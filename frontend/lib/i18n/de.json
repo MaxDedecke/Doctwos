@@ -925,6 +925,7 @@
       "syntactic": "syntaktisch",
       "coref": "Referenz",
       "manual": "manuell",
+      "documented": "dokumentiert",
       "chat": "Chat",
       "call": "CALL",
       "perform": "PERFORM",

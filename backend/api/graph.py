@@ -372,6 +372,7 @@ def get_graph(
                     "source": eid,
                     "target": did,
                     "link_type": lnk.link_type,
+                    "relation_type": "documented",
                     "score": lnk.score,
                     "context": lnk.context,
                 }
@@ -469,7 +470,27 @@ def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
         if edge["target"] in degree:
             degree[edge["target"]] += 1
 
-    kept_ids = set(sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))[:limit])
+    ranked_ids = sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))
+
+    # Keep one representative file node per source even when it has no link.
+    # A large code repository can otherwise consume the whole cap with highly
+    # connected code nodes and silently hide an indexed PDF/handbook. The graph
+    # deliberately represents a file by one node (chunks remain the retrieval
+    # units), so this small source-diversity reservation is enough to make the
+    # document source discoverable without removing the cap.
+    representative_ids: list[str] = []
+    represented_sources: set[object] = set()
+    for nid in ranked_ids:
+        node = nodes[nid]
+        source_id = node.get("source_id")
+        if node.get("type") != "document" or source_id is None or source_id in represented_sources:
+            continue
+        represented_sources.add(source_id)
+        representative_ids.append(nid)
+
+    kept_order = representative_ids[:limit]
+    kept_order.extend(nid for nid in ranked_ids if nid not in kept_order)
+    kept_ids = set(kept_order[:limit])
     kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
     kept_edges = [e for e in edges if e["source"] in kept_ids and e["target"] in kept_ids]
     return {
@@ -604,6 +625,7 @@ def get_graph_focus(
                 "source": focus_id,
                 "target": did,
                 "link_type": lnk.link_type,
+                "relation_type": "documented",
                 "score": lnk.score,
                 "context": lnk.context,
             }
