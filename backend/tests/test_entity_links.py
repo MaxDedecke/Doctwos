@@ -375,14 +375,12 @@ def test_trigger_link_computation_dispatches_task_and_creates_run(client, db_ses
     db_session.commit()
 
 
-def test_trigger_link_computation_clears_pending_but_keeps_reviewed_links(
+def test_trigger_link_computation_preserves_pending_and_reviewed_links(
     client, db_session, test_project, source_entity_chunk
 ):
     source, entity, chunk = source_entity_chunk
-    # IDs vorab festhalten: die Route löscht "pending" serverseitig per Bulk-
-    # DELETE (synchronize_session=False), was die Python-Objekte dieser
-    # Session nach dem nächsten Commit als "expired" zurücklässt — ein
-    # Attributzugriff auf `pending` danach würfe ObjectDeletedError.
+    # O-180: Die Route löscht Pending-Vorschläge nicht global. Der Worker
+    # invalidiert sie nur, wenn der zugehörige Entity-/Chunk-Endpunkt dirty ist.
     pending_id = _make_link(db_session, test_project, entity, chunk, status="pending").id
     approved_id = _make_link(db_session, test_project, entity, chunk, status="approved").id
     rejected_id = _make_link(db_session, test_project, entity, chunk, status="rejected").id
@@ -397,12 +395,14 @@ def test_trigger_link_computation_clears_pending_but_keeps_reviewed_links(
             EntityDocLink.id.in_([pending_id, approved_id, rejected_id])
         )
     }
-    assert remaining_ids == {approved_id, rejected_id}
+    assert remaining_ids == {pending_id, approved_id, rejected_id}
 
     db_session.query(LinkBuilderRun).filter(LinkBuilderRun.project_id == test_project).delete(
         synchronize_session=False
     )
-    db_session.query(EntityDocLink).filter(EntityDocLink.id.in_([approved_id, rejected_id])).delete(
+    db_session.query(EntityDocLink).filter(
+        EntityDocLink.id.in_([pending_id, approved_id, rejected_id])
+    ).delete(
         synchronize_session=False
     )
     db_session.commit()

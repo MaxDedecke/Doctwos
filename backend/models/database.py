@@ -224,6 +224,10 @@ class DocumentChunk(Base):
     # dass semantisch inkompatible Modelle trotz gleicher Dimension vermischt
     # werden. NULL bei Altbeständen wird als Deployment-Default behandelt.
     embedding_model = Column(String, nullable=True)
+    # O-180: fingerprint and revision used to decide whether link candidates
+    # need to be recalculated after an incremental source sync.
+    content_hash = Column(String(64), nullable=True, index=True)
+    link_revision = Column(Integer, nullable=False, server_default="0")
 
     # passive_deletes=True: siehe Begruendung bei KnowledgeSource.project oben,
     # derselbe Mechanismus wuerde sonst beim Loeschen eines Projekts/einer
@@ -458,6 +462,13 @@ class CodeEntity(Base):
     meta_json = Column(JSON, nullable=True)
     # Inkrementalität: unveränderte Datei → Entities/Kanten nicht neu schreiben
     content_hash = Column(String(64), nullable=True)
+    # O-180: incremented when the entity content changes. The link builder uses
+    # this together with the entity hash to keep link decisions reproducible.
+    link_revision = Column(Integer, nullable=False, server_default="0")
+    # Model used for the persisted entity-side retrieval embedding during the
+    # last link run. Entities do not store a vector yet, but the model belongs
+    # to the entity-side link state and must be auditable.
+    embedding_model = Column(String, nullable=True)
 
     children = relationship(
         "CodeEntity",
@@ -545,10 +556,46 @@ class EntityDocLink(Base):
     created_by = Column(String, default="auto")  # "auto" | "user"
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # O-180: snapshot of both link endpoints at recommendation time. Approved
+    # and rejected decisions can therefore survive unrelated delta-syncs while
+    # pending recommendations can be invalidated precisely.
+    entity_content_hash = Column(String(64), nullable=True)
+    chunk_content_hash = Column(String(64), nullable=True)
+    embedding_model = Column(String, nullable=True)
+    entity_link_revision = Column(Integer, nullable=True)
+    chunk_link_revision = Column(Integer, nullable=True)
 
     project = relationship("Project", backref="entity_doc_links")
     entity = relationship("CodeEntity", backref="doc_links")
     chunk = relationship("DocumentChunk", backref="entity_links")
+
+
+class LinkBuilderDirtyItem(Base):
+    """Coalesced work item for incremental entity/document link building."""
+
+    __tablename__ = "link_builder_dirty_items"
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    entity_id = Column(Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True)
+    chunk_id = Column(Integer, ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True, index=True)
+    reason = Column(String(40), nullable=False, server_default="content_changed")
+    status = Column(String(20), nullable=False, server_default="pending", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
+
+    project = relationship("Project")
+    entity = relationship("CodeEntity")
+    chunk = relationship("DocumentChunk")
+
+    __table_args__ = (
+        Index(
+            "ix_link_builder_dirty_pending_scope",
+            "project_id",
+            "status",
+            "entity_id",
+            "chunk_id",
+        ),
+    )
 
 
 class Topic(Base):

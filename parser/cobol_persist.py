@@ -48,6 +48,7 @@ from sqlalchemy.orm import Session
 
 from cobol.model import ParsedEdge, ParseResult
 from models.database import CodeEdge, CodeEntity
+from link_dirty import enqueue_dirty_item
 
 # Welche Entity-Typen als Ziel einer lokalen Kantenart infrage kommen —
 # verhindert z.B., dass ein Datenfeld fälschlich als PERFORM-Ziel durchgeht,
@@ -126,6 +127,8 @@ def persist_parse_result(
         qname = ent.qualified_name or ent.name
         seen_qnames.add(qname)
         row = existing.get(qname)
+        was_new = row is None
+        previous_hash = row.content_hash if row is not None else None
         if row is None:
             row = CodeEntity(
                 source_id=source_id,
@@ -146,6 +149,8 @@ def persist_parse_result(
             row.end_line = ent.end_line
             row.meta_json = ent.meta or None
             row.content_hash = content_hash
+            if was_new or previous_hash != content_hash:
+                row.link_revision = (row.link_revision or 0) + 1
             if not (ent.meta.get("language") == "java" and ent.type in {"package", "module"}):
                 row.parent_id = _parent_id(
                     qname,
@@ -165,6 +170,13 @@ def persist_parse_result(
         # immer in Eltern-vor-Kind-Reihenfolge aufgebaut).
         db.flush()
         by_qname[qname] = row
+        if project_id is not None and (was_new or previous_hash != content_hash):
+            enqueue_dirty_item(
+                db,
+                project_id=project_id,
+                entity_id=row.id,
+                reason="content_changed" if not was_new else "entity_added",
+            )
 
     stale_qnames = set(existing) - seen_qnames
     if stale_qnames:

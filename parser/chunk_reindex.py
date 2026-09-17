@@ -20,7 +20,7 @@ from typing import Awaitable, Callable, Optional
 from sqlalchemy import ColumnElement
 
 from models.database import DocumentChunk, EntityDocLink
-from core.config import EMBEDDING_DIMENSION
+from link_dirty import enqueue_dirty_item
 
 STALE_NOTE = "[Inhalt bei Re-Index geändert – erneute Prüfung nötig] "
 
@@ -82,8 +82,11 @@ async def reindex_chunks_preserving_links(
     old_chunk_ids = [c.id for c in old_chunks]
 
     links_by_old_fingerprint: dict[str, list[EntityDocLink]] = {}
+    old_fingerprint_by_chunk_id: dict[int, str] = {}
     if old_chunks:
-        old_fingerprint_by_chunk_id = {c.id: content_fingerprint(c.content) for c in old_chunks}
+        old_fingerprint_by_chunk_id = {
+            c.id: c.content_hash or content_fingerprint(c.content) for c in old_chunks
+        }
         affected_links = (
             db.query(EntityDocLink)
             .filter(EntityDocLink.chunk_id.in_(old_fingerprint_by_chunk_id.keys()))
@@ -105,6 +108,15 @@ async def reindex_chunks_preserving_links(
     # delete runs means the FK action either skips the row (already pointing
     # elsewhere) or trivially satisfies the constraint (no longer approved).
     embedded_count = 0
+    old_chunks_by_fingerprint: dict[str, list[DocumentChunk]] = {}
+    for old_chunk in old_chunks:
+        old_chunks_by_fingerprint.setdefault(
+            old_fingerprint_by_chunk_id[old_chunk.id], []
+        ).append(old_chunk)
+    old_count_by_fingerprint = {
+        fingerprint: len(matches)
+        for fingerprint, matches in old_chunks_by_fingerprint.items()
+    }
     # Values are lists, not a single id: two chunks can share a fingerprint
     # (repeated boilerplate clauses, headers/footers, standard legal
     # citations). A dict last-wins here would silently rewire an approved
@@ -126,17 +138,48 @@ async def reindex_chunks_preserving_links(
                 continue
 
         db_chunk = build_chunk(chunk, embedding)
+        fingerprint = content_fingerprint(chunk["content"])
+        db_chunk.content_hash = fingerprint
+
+        # A chunk gets a new database id on every re-index. Reuse the link
+        # revision only when this occurrence has the same content and model as
+        # an old occurrence; otherwise it is a new dirty candidate.
+        matching_old = old_chunks_by_fingerprint.get(fingerprint, [])
+        old_match = matching_old.pop(0) if matching_old else None
+        old_model = old_match.embedding_model if old_match is not None else None
+        new_model = db_chunk.embedding_model
+        model_changed = old_match is not None and old_model != new_model
+        if old_match is not None and not model_changed:
+            db_chunk.link_revision = old_match.link_revision or 0
+        else:
+            db_chunk.link_revision = 1
+
         db.add(db_chunk)
+        db.flush()  # assign id for link rewiring and the dirty queue
+        if (
+            project_id is not None
+            and db_chunk.source_id is not None
+            and (old_match is None or model_changed)
+        ):
+            enqueue_dirty_item(
+                db,
+                project_id=project_id,
+                chunk_id=db_chunk.id,
+                reason="embedding_model_changed" if model_changed else "content_changed",
+            )
         if links_by_old_fingerprint:
-            db.flush()  # assign db_chunk.id so it can be matched below
             new_chunk_ids_by_fingerprint.setdefault(
-                content_fingerprint(chunk["content"]), []
+                fingerprint, []
             ).append(db_chunk.id)
         embedded_count += 1
 
     for fingerprint, links in links_by_old_fingerprint.items():
         candidates = new_chunk_ids_by_fingerprint.get(fingerprint, [])
-        new_chunk_id = candidates[0] if len(candidates) == 1 else None
+        new_chunk_id = (
+            candidates[0]
+            if len(candidates) == 1 and old_count_by_fingerprint.get(fingerprint) == 1
+            else None
+        )
         for link in links:
             if new_chunk_id is not None:
                 link.chunk_id = new_chunk_id
@@ -146,6 +189,11 @@ async def reindex_chunks_preserving_links(
                 link.reviewed_at = None
                 if not (link.context or "").startswith(STALE_NOTE):
                     link.context = STALE_NOTE + (link.context or "")
+            elif link.status == "pending" and link.created_by == "auto":
+                # Pending recommendations are derived work products. Once the
+                # old passage has no unambiguous successor, remove only this
+                # stale automatic suggestion; manual links remain untouched.
+                db.delete(link)
     if links_by_old_fingerprint:
         db.flush()
 

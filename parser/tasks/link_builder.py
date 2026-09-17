@@ -28,13 +28,22 @@ Bestehende approved/rejected Links werden nie überschrieben.
 """
 
 import logging
+import hashlib
+import json
 import os
 import re
 from datetime import datetime, timezone
 from db import SessionLocal, REDIS_URL
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, LinkBuilderRun
+from models.database import (
+    CodeEntity,
+    DocumentChunk,
+    EntityDocLink,
+    LinkBuilderDirtyItem,
+    LinkBuilderRun,
+)
 from ollama_client import get_embedding, get_chat_json, ensure_model_pulled
 from core import config
+from chunk_reindex import content_fingerprint
 import redis
 from celery import current_app
 from sqlalchemy import or_
@@ -83,7 +92,11 @@ def _keywords_from_entity(entity: CodeEntity) -> list[str]:
 
 
 async def _pass_semantic(
-    entity: CodeEntity, project_id: int, db, embedding_model: str | None = None
+    entity: CodeEntity,
+    project_id: int,
+    db,
+    embedding_model: str | None = None,
+    candidate_chunk_ids: set[int] | None = None,
 ) -> dict[str, tuple]:
     """Pass 1: cosine similarity between entity context and doc chunk embeddings."""
     selected_model = embedding_model or config.EMBED_MODEL
@@ -96,18 +109,15 @@ async def _pass_semantic(
         return {}
 
     dist_expr = DocumentChunk.embedding.cosine_distance(embedding)
-    rows = (
-        db.query(DocumentChunk, dist_expr.label("dist"))
-        .filter(
-            DocumentChunk.project_id == project_id,
-            DocumentChunk.source_id.isnot(None),
-            model_filter,
-            DocumentChunk.embedding_dimension == len(embedding),
-        )
-        .order_by(dist_expr)
-        .limit(TOP_CHUNKS_SEMANTIC)
-        .all()
+    query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
+        DocumentChunk.project_id == project_id,
+        DocumentChunk.source_id.isnot(None),
+        model_filter,
+        DocumentChunk.embedding_dimension == len(embedding),
     )
+    if candidate_chunk_ids is not None:
+        query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
+    rows = query.order_by(dist_expr).limit(TOP_CHUNKS_SEMANTIC).all()
 
     result: dict[str, tuple] = {}
     for chunk, dist in rows:
@@ -122,7 +132,11 @@ async def _pass_semantic(
 
 
 def _pass_keyword(
-    entity: CodeEntity, project_id: int, db, embedding_model: str | None = None
+    entity: CodeEntity,
+    project_id: int,
+    db,
+    embedding_model: str | None = None,
+    candidate_chunk_ids: set[int] | None = None,
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -136,15 +150,14 @@ def _pass_keyword(
     if not keywords:
         return {}
 
-    candidates = (
-        db.query(DocumentChunk)
-        .filter(
-            DocumentChunk.project_id == project_id,
-            DocumentChunk.source_id.isnot(None),
-            model_filter,
-        )
-        .all()
+    query = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == project_id,
+        DocumentChunk.source_id.isnot(None),
+        model_filter,
     )
+    if candidate_chunk_ids is not None:
+        query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
+    candidates = query.all()
 
     result: dict[str, tuple] = {}
     matched_chunks = 0
@@ -244,6 +257,37 @@ async def _llm_review(
         ]
 
 
+def _entity_content_hash(entity: CodeEntity) -> str:
+    """Return a stable fallback for legacy entities without a parser hash."""
+    if entity.content_hash:
+        return entity.content_hash
+    payload = json.dumps(
+        {
+            "type": entity.type,
+            "name": entity.name,
+            "file_path": entity.file_path,
+            "qualified_name": entity.qualified_name,
+            "meta": entity.meta_json or {},
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _stamp_link_snapshot(link: EntityDocLink, entity: CodeEntity, chunk: DocumentChunk, model: str) -> None:
+    """Persist the exact endpoint state used for one recommendation."""
+    link.entity_content_hash = _entity_content_hash(entity)
+    link.chunk_content_hash = chunk.content_hash or content_fingerprint(chunk.content or "")
+    link.embedding_model = model
+    link.entity_link_revision = entity.link_revision or 0
+    link.chunk_link_revision = chunk.link_revision or 0
+
+
+def _is_auto_link(link: EntityDocLink) -> bool:
+    return link.created_by == "auto" and link.link_type in {"semantic", "keyword", "syntactic"}
+
+
 async def compute_entity_links_async(
     run_id: int,
     project_id: int,
@@ -332,8 +376,8 @@ async def compute_entity_links_async(
         run.status = "running"
         db.commit()
 
-        entities = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).all()
-        if not entities:
+        all_entities = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).all()
+        if not all_entities:
             logger.info(
                 f"[LinkBuilder] Projekt {project_id}: keine Code-Entities gefunden — übersprungen."
             )
@@ -362,9 +406,89 @@ async def compute_entity_links_async(
             db.commit()
             return
 
-        logger.info(
-            f"[LinkBuilder] Projekt {project_id}: starte 3-Pass-Scan ({len(entities)} Entities, {doc_count} Chunks)…"
+        dirty_items = (
+            db.query(LinkBuilderDirtyItem)
+            .filter(
+                LinkBuilderDirtyItem.project_id == project_id,
+                LinkBuilderDirtyItem.status == "pending",
+            )
+            .all()
         )
+        # Existing installations have no queue rows yet. The first run is a
+        # one-time backfill; all later runs are driven exclusively by queue
+        # entries created by ingestion.
+        has_previous_run = (
+            db.query(LinkBuilderRun)
+            .filter(
+                LinkBuilderRun.project_id == project_id,
+                LinkBuilderRun.task_type == "entity_links",
+                LinkBuilderRun.status == "completed",
+                LinkBuilderRun.id != run_id,
+            )
+            .first()
+            is not None
+        )
+        bootstrap = not dirty_items and not has_previous_run
+        dirty_entity_ids = {item.entity_id for item in dirty_items if item.entity_id is not None}
+        dirty_chunk_ids = {item.chunk_id for item in dirty_items if item.chunk_id is not None}
+        if bootstrap:
+            entities = all_entities
+            queue_ids: set[int] = set()
+            logger.info(
+                f"[LinkBuilder] Projekt {project_id}: einmaliger Backfill ({len(entities)} Entities, {doc_count} Chunks)…"
+            )
+        elif dirty_chunk_ids:
+            # A changed chunk may become relevant to any code entity, while an
+            # entity-only change can be limited to that entity below.
+            entities = all_entities
+            queue_ids = {item.id for item in dirty_items}
+            logger.info(
+                f"[LinkBuilder] Projekt {project_id}: inkrementeller Lauf ({len(dirty_entity_ids)} Entities, {len(dirty_chunk_ids)} Chunks)…"
+            )
+        else:
+            entities = [entity for entity in all_entities if entity.id in dirty_entity_ids]
+            queue_ids = {item.id for item in dirty_items}
+            logger.info(
+                f"[LinkBuilder] Projekt {project_id}: inkrementeller Lauf ({len(entities)} geänderte Entities)…"
+            )
+
+        if not entities:
+            run.status = "completed"
+            run.progress_message = "Keine neuen oder geänderten Link-Kandidaten."
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            return
+
+        # Only pending automatic recommendations are stale work products.
+        # Human-created links and approved/rejected decisions are never erased.
+        if bootstrap:
+            pass
+        elif dirty_entity_ids:
+            for link in (
+                db.query(EntityDocLink)
+                .filter(
+                    EntityDocLink.project_id == project_id,
+                    EntityDocLink.entity_id.in_(dirty_entity_ids),
+                    EntityDocLink.status == "pending",
+                )
+                .all()
+            ):
+                if _is_auto_link(link):
+                    db.delete(link)
+        if dirty_chunk_ids:
+            for link in (
+                db.query(EntityDocLink)
+                .filter(
+                    EntityDocLink.project_id == project_id,
+                    EntityDocLink.chunk_id.in_(dirty_chunk_ids),
+                    EntityDocLink.status == "pending",
+                )
+                .all()
+            ):
+                if _is_auto_link(link):
+                    db.delete(link)
+        db.flush()
+
         await ensure_model_pulled(selected_embedding_model)
 
         for entity in entities:
@@ -377,8 +501,19 @@ async def compute_entity_links_async(
             # never loses its lock mid-run.
             redis_client.expire(lock_key, LOCK_LEASE_SECONDS)
 
-            semantic = await _pass_semantic(entity, project_id, db, selected_embedding_model)
-            keyword = _pass_keyword(entity, project_id, db, selected_embedding_model)
+            if not bootstrap and entity.id not in dirty_entity_ids and dirty_chunk_ids:
+                candidate_chunk_ids = dirty_chunk_ids
+            elif bootstrap or entity.id in dirty_entity_ids:
+                candidate_chunk_ids = None
+            else:
+                continue
+
+            semantic = await _pass_semantic(
+                entity, project_id, db, selected_embedding_model, candidate_chunk_ids
+            )
+            keyword = _pass_keyword(
+                entity, project_id, db, selected_embedding_model, candidate_chunk_ids
+            )
 
             top_pages = _merge_passes(
                 (semantic, "semantic"),
@@ -407,44 +542,46 @@ async def compute_entity_links_async(
                     entity, undecided_pages, min_confidence=effective_min_confidence
                 )
 
-            db.query(EntityDocLink).filter(
-                EntityDocLink.entity_id == entity.id,
-                # "syntactic" no longer produced (Pass 3 removed) but still cleared
-                # here so any pre-existing pending suggestions of that type from
-                # before this change don't linger forever unreviewed.
-                EntityDocLink.link_type.in_(["semantic", "keyword", "syntactic"]),
-                EntityDocLink.status == "pending",
-            ).delete(synchronize_session=False)
-
             for chunk, score, link_type, context in reviewed_pages:
-                # Double check to prevent duplicate insertion
-                already_decided = (
+                existing_link = (
                     db.query(EntityDocLink)
                     .filter(
                         EntityDocLink.entity_id == entity.id,
                         EntityDocLink.chunk_id == chunk.id,
-                        EntityDocLink.status.in_(["approved", "rejected"]),
                     )
                     .first()
                 )
-                if already_decided:
+                if existing_link and existing_link.status in {"approved", "rejected"}:
                     continue
                 meta = chunk.metadata_json or {}
-                db.add(
-                    EntityDocLink(
+                link = existing_link
+                if link is None:
+                    link = EntityDocLink(
                         project_id=project_id,
                         entity_id=entity.id,
                         chunk_id=chunk.id,
-                        doc_title=meta.get("title") or chunk.file_path,
-                        doc_url=meta.get("url"),
-                        source_type=meta.get("source_type"),
-                        score=round(score, 4),
-                        link_type=link_type,
-                        context=context,
                         status="pending",
                         created_by="auto",
                     )
-                )
+                    db.add(link)
+                if _is_auto_link(link) or link.created_by == "auto":
+                    link.doc_title = meta.get("title") or chunk.file_path
+                    link.doc_url = meta.get("url")
+                    link.source_type = meta.get("source_type")
+                    link.score = round(score, 4)
+                    link.link_type = link_type
+                    link.context = context
+                    link.status = "pending"
+                    _stamp_link_snapshot(link, entity, chunk, selected_embedding_model)
+
+            entity.embedding_model = selected_embedding_model
+            for item_id in queue_ids:
+                item = db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id == item_id).first()
+                if item is not None and (
+                    item.entity_id == entity.id
+                    or item.chunk_id in (candidate_chunk_ids or set())
+                ):
+                    db.delete(item)
 
             db.commit()
 

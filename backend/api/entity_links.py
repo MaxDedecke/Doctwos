@@ -191,13 +191,9 @@ def trigger_link_computation(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    # Ein Refresh startet den Scan von neuem — bisher unbestätigte (pending)
-    # Vorschläge sind per Definition noch nicht reviewt und würden sonst neben
-    # den frisch berechneten Vorschlägen als Karteileichen liegen bleiben.
-    # Approved/rejected Links bleiben unangetastet.
-    db.query(EntityDocLink).filter(
-        EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
-    ).delete(synchronize_session=False)
+    # O-180: Der Worker verarbeitet nur die persistente Dirty-Queue. Pending-
+    # Vorschläge werden dort nur für tatsächlich geänderte Entity-/Chunk-
+    # Endpunkte invalidiert; ein unveränderter Folgelauf bleibt dadurch billig.
 
     run = LinkBuilderRun(
         task_type="entity_links",
