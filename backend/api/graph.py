@@ -164,6 +164,13 @@ def _is_side_visible(
     db: Session,
     requesting_project_id: Optional[int] = None,
 ) -> bool:
+    # This context rule also applies to administrators. Admin visibility may
+    # bypass team/project membership checks, but it must not turn a project
+    # scoped document into a global document in the "Allgemein" graph.
+    if source_type == "document" and chunk_id is not None and requesting_project_id is None:
+        chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
+        if not chunk or chunk.project_id is not None:
+            return False
     if team_ids is None:
         return True
     if source_type == "entity" and entity_id is not None:
@@ -185,8 +192,6 @@ def _is_side_visible(
         # "Allgemein" zeigt nur wirklich globale Dokumente. Projektgebundene
         # PDFs/Confluence-/Jira-Chunks dürfen dort nicht über eine KnowledgeLink-
         # Kante wieder in den Graphen gelangen.
-        if requesting_project_id is None and chunk.project_id is not None:
-            return False
         return (
             _is_project_visible(chunk.project_id, team_ids, project_ids, db)
             and _is_source_visible(chunk.source_id, team_ids, project_ids, db)

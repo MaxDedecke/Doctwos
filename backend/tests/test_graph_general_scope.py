@@ -4,7 +4,7 @@ das der Nutzer irgendeine Team-/Projekt-Sichtbarkeit hatte -- unabhängig vom
 Projekt-Kontext. Jetzt braucht das Ziel-Projekt dafür das explizite Opt-in
 `expose_code_analysis_globally` (siehe core/projects.py, backend/api/graph.py)."""
 
-from models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project
+from models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource, Project
 
 
 def _entity_node_ids(response_json: dict) -> set[str]:
@@ -139,4 +139,60 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
         db_session.query(KnowledgeSource).filter(
             KnowledgeSource.id.in_([git_source.id, doc_source.id])
         ).delete(synchronize_session=False)
+        db_session.commit()
+
+
+def test_general_graph_hides_project_documents_through_knowledge_links(
+    client, db_session, test_project, test_team
+):
+    """Admin visibility must not let a project PDF re-enter Allgemein through
+    an approved cross-source KnowledgeLink."""
+    source = KnowledgeSource(
+        name="scope-link-source", type="Local", project_id=test_project, team_id=test_team
+    )
+    db_session.add(source)
+    db_session.flush()
+    project_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="private.pdf",
+        content="private project document",
+        start_line=1,
+        end_line=1,
+    )
+    global_chunk = DocumentChunk(
+        project_id=None,
+        source_id=None,
+        file_path="global.md",
+        content="global document",
+        start_line=1,
+        end_line=1,
+    )
+    db_session.add_all([project_chunk, global_chunk])
+    db_session.flush()
+    link = KnowledgeLink(
+        source_a_type="document",
+        source_a_chunk_id=global_chunk.id,
+        source_a_title="global.md",
+        source_b_type="document",
+        source_b_chunk_id=project_chunk.id,
+        source_b_title="private.pdf",
+        status="approved",
+        link_type="semantic",
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    try:
+        general = client.get("/graph")
+        assert general.status_code == 200
+        docs = _doc_node_ids(general.json())
+        assert "doc:global.md" in docs
+        assert "doc:private.pdf" not in docs
+    finally:
+        db_session.delete(link)
+        db_session.query(DocumentChunk).filter(
+            DocumentChunk.id.in_([project_chunk.id, global_chunk.id])
+        ).delete(synchronize_session=False)
+        db_session.delete(source)
         db_session.commit()
