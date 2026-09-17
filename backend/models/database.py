@@ -362,9 +362,15 @@ class AISettings(Base):
     active_profile_id = Column(
         Integer, ForeignKey("ai_profiles.id", ondelete="SET NULL"), nullable=True
     )
+    active_embedding_profile_id = Column(
+        Integer, ForeignKey("embedding_profiles.id", ondelete="SET NULL"), nullable=True
+    )
 
     updated_by = relationship("User")
     active_profile = relationship("AIProfile", foreign_keys=[active_profile_id])
+    active_embedding_profile = relationship(
+        "EmbeddingProfile", foreign_keys=[active_embedding_profile_id]
+    )
 
 
 class AIProfile(Base):
@@ -388,6 +394,25 @@ class AIProfile(Base):
     embedding_dimension = Column(Integer, nullable=False, server_default="1024")
     embedding_context_length = Column(Integer, nullable=False, server_default="8192")
     llm_context_length = Column(Integer, nullable=False, server_default="8192")
+    is_system = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class EmbeddingProfile(Base):
+    """Independent embedding endpoint used by imports and retrieval."""
+
+    __tablename__ = "embedding_profiles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), nullable=False)
+    provider = Column(String(32), nullable=False, server_default="ollama")
+    model = Column(String, nullable=False)
+    base_url = Column(String, nullable=False)
+    path = Column(String, nullable=False, server_default="/api/embed")
+    api_key = Column(EncryptedString, nullable=True)
+    dimension = Column(Integer, nullable=False, server_default="1024")
+    context_length = Column(Integer, nullable=False, server_default="8192")
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

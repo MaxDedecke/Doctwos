@@ -176,6 +176,16 @@ export function KnowledgeGraphView({
   const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
   const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
 
+  // Keep the expensive initial overview alive while a node neighborhood is shown.
+  // The neighborhood replaces the rendered data temporarily, but must not discard
+  // the large overview which the user already waited for.
+  const overviewCacheRef = useRef<{
+    projectId: number | null;
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+    truncation: { shown: number; total: number } | null;
+  } | null>(null);
+
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
   const [linkPickerQuery, setLinkPickerQuery] = useState('');
@@ -222,23 +232,45 @@ export function KnowledgeGraphView({
     return () => ro.disconnect();
   }, []);
 
-  const loadOverview = useCallback(async () => {
+  const loadOverview = useCallback(async (force = false) => {
     /** Loads all approved links of the repository from the backend. */
+    const projectId = selectedProject?.id ?? null;
+    const cachedOverview = overviewCacheRef.current;
+    if (!force && cachedOverview?.projectId === projectId) {
+      setRawNodes(cachedOverview.nodes);
+      setRawEdges(cachedOverview.edges);
+      setOverviewTruncation(cachedOverview.truncation);
+      setViewMode('overview');
+      setNeighborhoodError(null);
+      setSelectedEdgeId(null);
+
+      if (selectedDoc) {
+        const docNode = cachedOverview.nodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
+        setSelectedNodeId(docNode?.id ?? null);
+      } else {
+        setSelectedNodeId(null);
+      }
+      return;
+    }
+
     setIsLoading(true);
     setNeighborhoodError(null);
     try {
       const params = new URLSearchParams({ status: 'approved' });
-      if (selectedProject?.id) params.set('project_id', String(selectedProject.id));
+      if (projectId) params.set('project_id', String(projectId));
       const res = await api.fetch(`${API_URL}/graph?${params}`);
       const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       const nodes = data.nodes ?? [];
+      const edges = data.edges ?? [];
+      const truncation = data.truncated ? { shown: nodes.length, total: data.total_nodes ?? nodes.length } : null;
+      overviewCacheRef.current = { projectId, nodes, edges, truncation };
       setRawNodes(nodes);
-      setRawEdges(data.edges ?? []);
+      setRawEdges(edges);
       setViewMode('overview');
       // O-053: GET /graph caps at KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES for large
       // projects and reports the true totals alongside the (possibly smaller)
       // returned set -- surfaced as a banner, see truncatedOverviewNotice below.
-      setOverviewTruncation(data.truncated ? { shown: nodes.length, total: data.total_nodes ?? nodes.length } : null);
+      setOverviewTruncation(truncation);
 
       // Auto-select document node if active
       if (selectedDoc) {
@@ -1075,7 +1107,7 @@ export function KnowledgeGraphView({
             className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => loadOverview()}
+          <button onClick={() => loadOverview(true)}
             disabled={isLoading} title={t('knowledgeGraphView.reloadTitle')}
             className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
             <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />

@@ -1,6 +1,5 @@
 "use client";
 import { apiErrorDetail } from '@/lib/apiError';
-import { DEFAULT_EMBEDDING_MODEL } from '@/hooks/useAiSettings';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -26,10 +25,8 @@ interface SourcesSetupTabProps {
 export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceType, selectedSourceRepoId, onDone }) => {
   const { t } = useLanguage();
   const {
-    theme, showToast, setConnectedSources, projects, llmProfiles, activeProfileId,
+    theme, showToast, setConnectedSources, projects, activeEmbeddingModel,
   } = useSettings();
-  const activeEmbeddingModel = llmProfiles.find(p => p.id === activeProfileId)?.embeddingModel
-    || DEFAULT_EMBEDDING_MODEL;
 
   const [sourceInstanceName, setSourceInstanceName] = useState("");
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);

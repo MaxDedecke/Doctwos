@@ -112,6 +112,10 @@ function AppContent() {
     setLlmProfiles,
     activeProfileId,
     setActiveProfileId,
+    embeddingProfiles,
+    setEmbeddingProfiles,
+    activeEmbeddingProfileId,
+    setActiveEmbeddingProfileId,
     embeddingDimension,
     setEmbeddingDimension,
     embeddingContextLength,
@@ -188,7 +192,7 @@ function AppContent() {
     setSelectedLine, activeRightTab, setActiveRightTab, fileContent, setFileContent,
     fileContentFormat, setFileContentFormat, isLoadingFile, setIsLoadingFile,
     isEditorMaximized, setIsEditorMaximized, workspaceSplit, setWorkspaceSplit,
-    splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, setSplitPercent, isDragging, panelConfigs, setPanelConfigs,
+    splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, setSplitPercent, isDragging, panelConfigs, panelIds, setPanelConfigs,
     layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
     pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen,
     panelFocusObject, setPanelFocusObject, panelSelections,
@@ -370,6 +374,7 @@ function AppContent() {
     temperature,
     systemPrompt,
     activeProfileId,
+    activeEmbeddingModel,
     llmProfiles,
     projects,
     connectedSources,
@@ -643,6 +648,10 @@ function AppContent() {
     setLlmProfiles,
     activeProfileId,
     setActiveProfileId,
+    embeddingProfiles,
+    setEmbeddingProfiles,
+    activeEmbeddingProfileId,
+    setActiveEmbeddingProfileId,
     embeddingDimension,
     setEmbeddingDimension,
     embeddingContextLength,
@@ -675,6 +684,7 @@ function AppContent() {
     editorFontSize,
     editorMinimap,
     llmProfiles,
+    activeEmbeddingModel,
     pinnedSourceIds,
     projectStats,
     projects,
@@ -929,6 +939,7 @@ function AppContent() {
           activeMobileTab={activeMobileTab}
           setActiveMobileTab={setActiveMobileTab}
           panelConfigs={panelConfigs}
+          panelIds={panelIds}
           layoutMode={layoutMode}
           splitPercent={splitPercent}
           gridColumnPercent={gridColumnPercent}

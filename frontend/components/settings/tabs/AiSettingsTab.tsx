@@ -4,7 +4,7 @@ import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, profileFromApi, type LlmProfile } from '@/hooks/useAiSettings';
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, embeddingProfileFromApi, profileFromApi, type EmbeddingProfile, type LlmProfile } from '@/hooks/useAiSettings';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ const inputClass = 'w-full h-9 border rounded-lg px-3 text-xs bg-transparent';
 export const AiSettingsTab: React.FC = () => {
   const { t } = useLanguage();
   const features = useFeatures();
-  const { theme, showToast, llmProfiles, setLlmProfiles, activeProfileId, setActiveProfileId } = useSettings();
+  const { theme, showToast, llmProfiles, setLlmProfiles, activeProfileId, setActiveProfileId, embeddingProfiles, setEmbeddingProfiles, activeEmbeddingProfileId, setActiveEmbeddingProfileId } = useSettings();
   const [editing, setEditing] = useState<LlmProfile | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -149,8 +149,93 @@ export const AiSettingsTab: React.FC = () => {
         <details className="text-xs"><summary className="cursor-pointer font-medium">{t('settings.profilesTab.advanced')}</summary><div className="grid sm:grid-cols-2 gap-3 mt-3"><Field label="Chat path" value={llmPath} set={setLlmPath} /><Field label="Embedding model" value={embeddingModel} set={setEmbeddingModel} />{kind === 'remote' && <><Field label="Embedding URL" value={embeddingBaseUrl} set={setEmbeddingBaseUrl} /><Field label="Embedding path" value={embeddingPath} set={setEmbeddingPath} /><Field label="Embedding API key" value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} /></>}<NumberField label="Embedding dimension" value={dimension} set={setDimension} /><NumberField label="Embedding context" value={embeddingContext} set={setEmbeddingContext} /><NumberField label="LLM context" value={llmContext} set={setLlmContext} /></div></details>
         <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button><Button onClick={save}>{t('settings.profilesTab.saveProfile')}</Button></div>
       </div>}
+      <EmbeddingProfilesPanel
+        theme={theme}
+        showToast={showToast}
+        profiles={embeddingProfiles}
+        setProfiles={setEmbeddingProfiles}
+        activeProfileId={activeEmbeddingProfileId}
+        setActiveProfileId={setActiveEmbeddingProfileId}
+      />
   </div>;
 };
+
+function EmbeddingProfilesPanel({
+  theme, showToast, profiles = [], setProfiles, activeProfileId, setActiveProfileId,
+}: {
+  theme: string;
+  showToast: (message: string, kind?: 'success' | 'error', error?: unknown) => void;
+  profiles?: EmbeddingProfile[];
+  setProfiles: React.Dispatch<React.SetStateAction<EmbeddingProfile[]>>;
+  activeProfileId: string;
+  setActiveProfileId: (id: string) => void;
+}) {
+  const [editing, setEditing] = useState<EmbeddingProfile | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [provider, setProvider] = useState<'ollama' | 'openai'>('openai');
+  const [model, setModel] = useState(DEFAULT_EMBEDDING_MODEL);
+  const [baseUrl, setBaseUrl] = useState('');
+  const [path, setPath] = useState('/embeddings');
+  const [apiKey, setApiKey] = useState('');
+  const [dimension, setDimension] = useState(1024);
+  const [contextLength, setContextLength] = useState(8192);
+
+  const reset = () => {
+    setEditing(null); setName(''); setProvider('openai'); setModel(DEFAULT_EMBEDDING_MODEL);
+    setBaseUrl(''); setPath('/embeddings'); setApiKey(''); setDimension(1024); setContextLength(8192);
+  };
+  const edit = (profile: EmbeddingProfile) => {
+    setEditing(profile); setName(profile.name); setProvider(profile.provider === 'ollama' ? 'ollama' : 'openai');
+    setModel(profile.model); setBaseUrl(profile.baseUrl); setPath(profile.path); setApiKey('');
+    setDimension(profile.dimension); setContextLength(profile.contextLength); setShowForm(true);
+  };
+  const save = async () => {
+    if (!name.trim() || !model.trim() || !baseUrl.trim()) return;
+    const payload = { name: name.trim(), provider, model: model.trim(), base_url: baseUrl.trim(), path: path.trim(), ...(apiKey ? { api_key: apiKey } : {}), dimension, context_length: contextLength };
+    try {
+      const response = editing
+        ? await api.updateEmbeddingProfile(Number(editing.id), payload)
+        : await api.createEmbeddingProfile(payload);
+      const saved = embeddingProfileFromApi(response.data as Record<string, unknown>);
+      setProfiles(editing ? profiles.map(item => item.id === saved.id ? saved : item) : [...profiles, saved]);
+      setShowForm(false); reset(); showToast('Embedding-Profil gespeichert', 'success');
+    } catch (error) { showToast('Embedding-Profil konnte nicht gespeichert werden', 'error', error); }
+  };
+  const activate = async (profile: EmbeddingProfile) => {
+    try {
+      await api.activateEmbeddingProfile(Number(profile.id));
+      setActiveProfileId(profile.id);
+      setProfiles(profiles.map(item => ({ ...item, isActive: item.id === profile.id })));
+      showToast('Embedding-Profil aktiviert', 'success');
+    } catch (error) { showToast('Embedding-Profil konnte nicht aktiviert werden', 'error', error); }
+  };
+  const test = async (profile: EmbeddingProfile) => {
+    try { await api.testEmbeddingProfile(Number(profile.id)); showToast('Embedding-Endpunkt erreichbar', 'success'); }
+    catch (error) { showToast('Embedding-Endpunkt nicht erreichbar oder Dimension falsch', 'error', error); }
+  };
+
+  return <section className={cn('rounded-xl border p-4 space-y-4', theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+    <div className="flex items-start justify-between gap-4">
+      <div><h4 className="text-sm font-semibold">Embedding-Profile</h4><p className="text-xs text-ds-zinc-500 mt-1">Unabhängig vom LLM. Das aktive Profil wird für Import und semantische Suche verwendet.</p></div>
+      {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" />Embedding-Profil hinzufügen</Button>}
+    </div>
+    {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn('rounded-lg border p-3 flex items-center gap-2', profile.id === activeProfileId && 'border-ds-indigo-500 bg-ds-indigo-500/5')}>
+      <div className="flex-1 min-w-0"><div className="flex gap-2 items-center"><span className="font-semibold text-sm truncate">{profile.name}</span>{profile.id === activeProfileId && <Check className="w-4 h-4 text-ds-indigo-500" />}</div><div className="text-xs text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div></div>
+      <Button variant="ghost" size="sm" onClick={() => test(profile)}><PlugZap className="w-4 h-4" /></Button>
+      {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)}>Aktivieren</Button>}
+      <Button variant="ghost" size="sm" onClick={() => edit(profile)}><Edit className="w-4 h-4" /></Button>
+      <Button variant="ghost" size="sm" disabled={profile.isSystem || profile.id === activeProfileId} onClick={async () => { await api.deleteEmbeddingProfile(Number(profile.id)); setProfiles(profiles.filter(item => item.id !== profile.id)); }}> <Trash2 className="w-4 h-4" /></Button>
+    </div>)}</div> : <div className="grid sm:grid-cols-2 gap-3">
+      <Field label="Name" value={name} set={setName} />
+      <label className="text-xs">Provider<Select value={provider} onValueChange={value => { const next = value as 'ollama' | 'openai'; setProvider(next); setPath(next === 'openai' ? '/embeddings' : '/api/embed'); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI-kompatibel</SelectItem><SelectItem value="ollama">Ollama API</SelectItem></SelectContent></Select></label>
+      <Field label="Modell" value={model} set={setModel} /><Field label="Base-URL" value={baseUrl} set={setBaseUrl} placeholder="https://host.example/v1" />
+      <Field label="Embedding-Pfad" value={path} set={setPath} /><Field label="API-Key" value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />
+      <NumberField label="Dimension" value={dimension} set={setDimension} /><NumberField label="Context-Länge" value={contextLength} set={setContextLength} />
+      <div className="sm:col-span-2 flex justify-end gap-2"><Button variant="ghost" onClick={() => { setShowForm(false); reset(); }}>Abbrechen</Button><Button onClick={save}>Speichern</Button></div>
+    </div>}
+  </section>;
+}
 
 const Field = ({ label, value, set, secret = false, placeholder = '' }: { label: string; value: string; set: (value: string) => void; secret?: boolean; placeholder?: string }) => <label className="text-xs">{label}<input type={secret ? 'password' : 'text'} className={inputClass} value={value} placeholder={placeholder} onChange={event => set(event.target.value)} /></label>;
 const NumberField = ({ label, value, set }: { label: string; value: number; set: (value: number) => void }) => <label className="text-xs">{label}<input type="number" min="1" className={inputClass} value={value} onChange={event => set(Number(event.target.value))} /></label>;

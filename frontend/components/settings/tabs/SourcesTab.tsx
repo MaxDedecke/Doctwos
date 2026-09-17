@@ -59,11 +59,8 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     togglePinSource,
     showToast,
     currentUser,
-    llmProfiles,
-    activeProfileId,
+    activeEmbeddingModel,
   } = useSettings();
-  const activeEmbeddingModel = llmProfiles.find(profile => profile.id === activeProfileId)?.embeddingModel
-    || DEFAULT_EMBEDDING_MODEL;
   const [reindexingSourceId, setReindexingSourceId] = React.useState<number | null>(null);
 
   const handleDeleteSource = async (sourceId: string | number) => {

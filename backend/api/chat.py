@@ -68,7 +68,7 @@ from services.chat_service import (
     stream_standard_rag_events,
 )
 from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
-from services.ai_settings import get_profile
+from services.ai_settings import get_active_embedding_profile, get_profile
 
 # Compatibility imports for focused regression tests and downstream callers. The
 # implementation now lives in services.chat_service with the rest of retrieval.
@@ -597,6 +597,7 @@ async def chat(
 
         async def inner_generator():
             nonlocal answer, sources, agent_steps
+            active_embedding_profile = get_active_embedding_profile(db)
             retrieval = await retrieve_chat_context(
                 db=db,
                 user=user,
@@ -610,8 +611,8 @@ async def chat(
                 pinned_entity_id=request.pinned_entity_id,
                 focused_context=request.pinned_context,
                 message=request.message,
-                embedding_model=selected_profile.embedding_model,
-                embedding_profile=selected_profile,
+                embedding_model=active_embedding_profile.model,
+                embedding_profile=active_embedding_profile,
             )
             results = retrieval.results
             prompt = retrieval.prompt

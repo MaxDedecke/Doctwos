@@ -102,6 +102,7 @@ interface LinkManagerViewProps {
   currentUser?: { is_admin?: boolean } | null;
   llmProfiles?: LlmProfile[];
   activeProfileId?: string;
+  activeEmbeddingModel?: string;
   setActiveProfileId?: (val: string) => void;
   showToast?: (msg: string, type: 'success' | 'error') => void;
   // O-114: dieselben Navigations-Rückrufe, die jedes andere Panel schon über
@@ -178,7 +179,7 @@ function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }
 
 export function LinkManagerView({
   selectedProject, theme, currentUser,
-  llmProfiles = [], activeProfileId, setActiveProfileId, showToast,
+  llmProfiles = [], activeProfileId, activeEmbeddingModel, setActiveProfileId, showToast,
   onOpenCode, onOpenDoc,
 }: LinkManagerViewProps) {
   const { t } = useLanguage();
@@ -411,7 +412,7 @@ export function LinkManagerView({
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
     const confidenceParam = `min_confidence=${minConfidence}`;
-    const embeddingParam = `embedding_model=${encodeURIComponent(activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
+    const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
     await Promise.all([
       projectId
         ? api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {})

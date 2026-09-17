@@ -7,7 +7,7 @@ import asyncio
 from typing import Dict, Optional
 
 from db import SessionLocal
-from models.database import AIProfile, AISettings
+from models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,13 @@ def _load_server_settings() -> Optional[dict]:
                 profile = (
                     db.query(AIProfile).filter(AIProfile.id == settings.active_profile_id).first()
                 )
+            embedding_profile = None
+            if settings.active_embedding_profile_id is not None:
+                embedding_profile = (
+                    db.query(EmbeddingProfile)
+                    .filter(EmbeddingProfile.id == settings.active_embedding_profile_id)
+                    .first()
+                )
             if profile is not None:
                 return {
                     "llm_model": profile.llm_model,
@@ -73,13 +80,13 @@ def _load_server_settings() -> Optional[dict]:
                     "llm_api_key": profile.llm_api_key,
                     "protocol": profile.protocol,
                     "llm_path": profile.llm_path,
-                    "embedding_provider": profile.embedding_provider,
-                    "embedding_model": profile.embedding_model,
-                    "embedding_base_url": profile.embedding_base_url,
-                    "embedding_api_key": profile.embedding_api_key,
-                    "embedding_path": profile.embedding_path,
-                    "embedding_dimension": profile.embedding_dimension,
-                    "embedding_context_length": profile.embedding_context_length,
+                    "embedding_provider": embedding_profile.provider if embedding_profile else profile.embedding_provider,
+                    "embedding_model": embedding_profile.model if embedding_profile else profile.embedding_model,
+                    "embedding_base_url": embedding_profile.base_url if embedding_profile else profile.embedding_base_url,
+                    "embedding_api_key": embedding_profile.api_key if embedding_profile else profile.embedding_api_key,
+                    "embedding_path": embedding_profile.path if embedding_profile else profile.embedding_path,
+                    "embedding_dimension": embedding_profile.dimension if embedding_profile else profile.embedding_dimension,
+                    "embedding_context_length": embedding_profile.context_length if embedding_profile else profile.embedding_context_length,
                     "llm_context_length": profile.llm_context_length,
                 }
             return {
@@ -88,13 +95,13 @@ def _load_server_settings() -> Optional[dict]:
                 "llm_api_key": settings.llm_api_key,
                 "protocol": "ollama" if settings.llm_provider == "ollama" else "openai_chat",
                 "llm_path": None,
-                "embedding_provider": settings.embedding_provider,
-                "embedding_model": settings.embedding_model,
-                "embedding_base_url": settings.embedding_base_url,
-                "embedding_api_key": settings.embedding_api_key,
+                "embedding_provider": embedding_profile.provider if embedding_profile else settings.embedding_provider,
+                "embedding_model": embedding_profile.model if embedding_profile else settings.embedding_model,
+                "embedding_base_url": embedding_profile.base_url if embedding_profile else settings.embedding_base_url,
+                "embedding_api_key": embedding_profile.api_key if embedding_profile else settings.embedding_api_key,
                 "embedding_path": None,
-                "embedding_dimension": settings.embedding_dimension,
-                "embedding_context_length": settings.embedding_context_length,
+                "embedding_dimension": embedding_profile.dimension if embedding_profile else settings.embedding_dimension,
+                "embedding_context_length": embedding_profile.context_length if embedding_profile else settings.embedding_context_length,
                 "llm_context_length": settings.llm_context_length,
             }
         finally:

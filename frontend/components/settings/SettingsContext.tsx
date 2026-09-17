@@ -1,6 +1,6 @@
 "use client";
 import type { ShowToast } from '@/components/Toast';
-import type { LlmProfile } from '@/hooks/useAiSettings';
+import type { EmbeddingProfile, LlmProfile } from '@/hooks/useAiSettings';
 import type { KnowledgeSource, Project, ProjectStats, User } from '@/types/domain';
 
 import React, { createContext, useContext } from 'react';
@@ -36,6 +36,10 @@ export interface SettingsContextValue {
   setLlmProfiles: React.Dispatch<React.SetStateAction<LlmProfile[]>>;
   activeProfileId: string;
   setActiveProfileId: (id: string) => void;
+  embeddingProfiles: EmbeddingProfile[];
+  setEmbeddingProfiles: React.Dispatch<React.SetStateAction<EmbeddingProfile[]>>;
+  activeEmbeddingProfileId: string;
+  setActiveEmbeddingProfileId: (id: string) => void;
   embeddingDimension: number;
   setEmbeddingDimension: (value: number) => void;
   embeddingContextLength: number;

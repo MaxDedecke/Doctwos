@@ -217,7 +217,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.getByText('Zurück zur Übersicht')).toBeTruthy();
   });
 
-  it('going back to the overview after a neighborhood focus re-fetches GET /graph', async () => {
+  it('restores the cached overview after a neighborhood focus without re-fetching GET /graph', async () => {
     const overviewResponse = {
       nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 }],
       edges: [],
@@ -232,8 +232,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
-      .mockResolvedValueOnce({ ok: true, json: async () => focusResponse })
-      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse });
+      .mockResolvedValueOnce({ ok: true, json: async () => focusResponse });
     vi.stubGlobal('fetch', fetchMock);
 
     renderGraph();
@@ -245,8 +244,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
     fireEvent.click(await screen.findByText('Zurück zur Übersicht'));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(String(fetchMock.mock.calls[2][0])).toContain('/graph?');
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText('Zurück zur Übersicht')).toBeNull());
   });
 });

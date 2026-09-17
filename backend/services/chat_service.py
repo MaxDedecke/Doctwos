@@ -222,13 +222,21 @@ async def retrieve_chat_context(
         query_text = message
         embed_kwargs = {}
         if embedding_profile is not None:
+            profile_provider = getattr(embedding_profile, "embedding_provider", None) or getattr(embedding_profile, "provider", None)
+            profile_base_url = getattr(embedding_profile, "embedding_base_url", None) or getattr(embedding_profile, "base_url", None)
+            profile_path = getattr(embedding_profile, "embedding_path", None) or getattr(embedding_profile, "path", None)
+            profile_api_key = getattr(embedding_profile, "embedding_api_key", None)
+            if profile_api_key is None:
+                profile_api_key = getattr(embedding_profile, "api_key", None)
+            profile_dimension = getattr(embedding_profile, "embedding_dimension", None) or getattr(embedding_profile, "dimension", None)
+            profile_context = getattr(embedding_profile, "embedding_context_length", None) or getattr(embedding_profile, "context_length", None)
             embed_kwargs = {
-                "provider": embedding_profile.embedding_provider,
-                "base_url": embedding_profile.embedding_base_url,
-                "path": embedding_profile.embedding_path,
-                "api_key": embedding_profile.embedding_api_key,
-                "dimension": embedding_profile.embedding_dimension,
-                "context_length": embedding_profile.embedding_context_length,
+                "provider": profile_provider,
+                "base_url": profile_base_url,
+                "path": profile_path,
+                "api_key": profile_api_key,
+                "dimension": profile_dimension,
+                "context_length": profile_context,
             }
         query_embedding = await embed_text(
             query_text, is_query=True, model=selected_embedding_model, **embed_kwargs

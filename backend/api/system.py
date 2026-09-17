@@ -20,18 +20,29 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import text
 
 import core.config as cfg
-from api.schemas import AIProfileCreate, AIProfileUpdate, AISettingsUpdate, ModelUpdateRequest
+from api.schemas import (
+    AIProfileCreate,
+    AIProfileUpdate,
+    AISettingsUpdate,
+    EmbeddingProfileCreate,
+    EmbeddingProfileUpdate,
+    ModelUpdateRequest,
+)
 from core.auth_dependency import get_current_user
 from core.teams import require_admin
 from core.db_setup import engine, get_db
-from models.database import AIProfile, User
+from models.database import AIProfile, AISettings, EmbeddingProfile, User
 from services.ai_settings import (
     apply_profile,
     apply_runtime_settings,
     ensure_profiles,
     get_settings,
     serialize_profile,
+    serialize_embedding_profile,
+    ensure_embedding_profiles,
+    get_active_embedding_profile,
     serialize_settings,
+    apply_embedding_profile,
 )
 from sqlalchemy.orm import Session
 
@@ -110,6 +121,23 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
         value = values.get(field, getattr(existing, field, None) if existing else None)
         if not isinstance(value, str) or not value.strip():
             raise HTTPException(status_code=400, detail=f"{field} darf nicht leer sein")
+
+
+def _validate_embedding_profile_values(values: dict, existing: EmbeddingProfile | None = None) -> None:
+    provider = values.get("provider", existing.provider if existing else None)
+    if provider not in {"ollama", "openai"}:
+        raise HTTPException(status_code=400, detail="Unbekannter Embedding-Provider")
+    for field in ("name", "model", "base_url"):
+        value = values.get(field, getattr(existing, field, None) if existing else None)
+        if not isinstance(value, str) or not value.strip():
+            raise HTTPException(status_code=400, detail=f"{field} darf nicht leer sein")
+    path = values.get("path", existing.path if existing else None)
+    if not isinstance(path, str) or not path.startswith("/"):
+        raise HTTPException(status_code=400, detail="path muss mit / beginnen")
+    for field in ("dimension", "context_length"):
+        value = values.get(field, getattr(existing, field, None) if existing else None)
+        if value is not None and value < 1:
+            raise HTTPException(status_code=400, detail=f"{field} muss größer als 0 sein")
 
 
 @router.get("/")
@@ -209,6 +237,125 @@ def read_ai_profiles(db: Session = Depends(get_db), _user: User = Depends(get_cu
             serialize_profile(profile, active_id=settings.active_profile_id) for profile in profiles
         ],
     }
+
+
+@router.get("/embedding-profiles")
+def list_embedding_profiles(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+    settings = get_settings(db)
+    profiles = ensure_embedding_profiles(db, settings)
+    db.commit()
+    return {
+        "active_embedding_profile_id": settings.active_embedding_profile_id,
+        "profiles": [serialize_embedding_profile(p, active_id=settings.active_embedding_profile_id) for p in profiles],
+    }
+
+
+@router.post("/embedding-profiles", status_code=201)
+def create_embedding_profile(
+    request: EmbeddingProfileCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    values = request.model_dump()
+    _validate_embedding_profile_values(values)
+    profile = EmbeddingProfile(**values, created_by_user_id=user.id, is_system=False)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return serialize_embedding_profile(profile)
+
+
+@router.patch("/embedding-profiles/{profile_id}")
+def update_embedding_profile(
+    profile_id: int,
+    request: EmbeddingProfileUpdate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(EmbeddingProfile).filter(EmbeddingProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
+    values = request.model_dump(exclude_unset=True)
+    _validate_embedding_profile_values(values, profile)
+    for field, value in values.items():
+        if field == "api_key":
+            if value is not None:
+                setattr(profile, field, value or None)
+        elif value is not None:
+            setattr(profile, field, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(profile)
+    settings = get_settings(db)
+    if settings.active_embedding_profile_id == profile.id:
+        apply_embedding_profile(settings, profile)
+        db.commit()
+    return serialize_embedding_profile(profile, active_id=settings.active_embedding_profile_id)
+
+
+@router.delete("/embedding-profiles/{profile_id}", status_code=204)
+def delete_embedding_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(EmbeddingProfile).filter(EmbeddingProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
+    settings = get_settings(db)
+    if profile.is_system or settings.active_embedding_profile_id == profile.id:
+        raise HTTPException(status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden")
+    db.delete(profile)
+    db.commit()
+
+
+@router.post("/embedding-profiles/{profile_id}/activate")
+def activate_embedding_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    profile = db.query(EmbeddingProfile).filter(EmbeddingProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
+    settings = get_settings(db)
+    apply_embedding_profile(settings, profile)
+    settings.updated_by_user_id = user.id
+    db.commit()
+    return serialize_embedding_profile(profile, active_id=profile.id)
+
+
+@router.post("/embedding-profiles/{profile_id}/test")
+async def test_embedding_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(EmbeddingProfile).filter(EmbeddingProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
+    headers = {"Content-Type": "application/json"}
+    if profile.api_key:
+        headers["Authorization"] = f"Bearer {profile.api_key}"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                _joined_url(profile.base_url, profile.path),
+                json={"model": profile.model, "input": "Doctus connection test"},
+                headers=headers,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if profile.provider == "openai":
+                embedding = payload["data"][0]["embedding"]
+            else:
+                embedding = payload["embeddings"][0]
+            if len(embedding) != profile.dimension:
+                raise ValueError(
+                    f"Endpunkt liefert {len(embedding)} Dimensionen, Profil erwartet {profile.dimension}"
+                )
+        return {"ok": True, "dimension": len(embedding)}
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=502, detail=f"Embedding-Endpunkt fehlgeschlagen: {exc}") from exc
 
 
 @router.post("/ai-profiles", status_code=201)

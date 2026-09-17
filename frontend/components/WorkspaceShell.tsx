@@ -18,6 +18,7 @@ interface WorkspaceShellProps {
   activeMobileTab: MobileTab;
   setActiveMobileTab: (tab: MobileTab) => void;
   panelConfigs: string[];
+  panelIds?: string[];
   layoutMode: LayoutMode;
   splitPercent: number;
   gridColumnPercent: number;
@@ -55,6 +56,7 @@ export function WorkspaceShell({
   activeMobileTab,
   setActiveMobileTab,
   panelConfigs,
+  panelIds,
   layoutMode,
   splitPercent,
   gridColumnPercent,
@@ -118,7 +120,7 @@ export function WorkspaceShell({
           <div className="flex-1 p-2 h-full overflow-hidden">
             <div className={cn('h-full w-full', layoutMode === '4-grid' ? 'relative grid gap-2' : cn('flex', layoutMode !== '1-pane' && 'gap-2'))} style={gridStyle}>
             {panelConfigs.map((_, index) => (
-              <React.Fragment key={index}>
+              <React.Fragment key={panelIds?.[index] ?? `panel-${index}`}>
                 {layoutMode === 'split' && index === 1 && (
                   <WorkspaceDivider onPointerDown={handleDividerMouseDown} isDragging={isDragging} />
                 )}

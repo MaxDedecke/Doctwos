@@ -26,6 +26,20 @@ export interface LlmProfile {
   systemPrompt?: string;
 }
 
+export interface EmbeddingProfile {
+  id: string;
+  name: string;
+  provider: 'ollama' | 'openai' | string;
+  model: string;
+  baseUrl: string;
+  path: string;
+  apiKeySet?: boolean;
+  dimension: number;
+  contextLength: number;
+  isSystem?: boolean;
+  isActive?: boolean;
+}
+
 type Translator = (key: string, values?: Record<string, string | number>) => string;
 
 interface UseAiSettingsOptions {
@@ -55,6 +69,17 @@ export function profileFromApi(profile: Record<string, unknown>): LlmProfile {
     embeddingDimension: profile.embedding_dimension as number,
     embeddingContextLength: profile.embedding_context_length as number,
     llmContextLength: profile.llm_context_length as number,
+    isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
+  };
+}
+
+export function embeddingProfileFromApi(profile: Record<string, unknown>): EmbeddingProfile {
+  return {
+    id: String(profile.id), name: profile.name as string,
+    provider: profile.provider as string, model: profile.model as string,
+    baseUrl: profile.base_url as string, path: profile.path as string,
+    apiKeySet: Boolean(profile.api_key_set), dimension: profile.dimension as number,
+    contextLength: profile.context_length as number,
     isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
   };
 }
@@ -136,6 +161,8 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [llmProfiles, setLlmProfiles] = useState<LlmProfile[]>([]);
   const [activeProfileId, setActiveProfileIdState] = useState('ollama-default');
+  const [embeddingProfiles, setEmbeddingProfiles] = useState<EmbeddingProfile[]>([]);
+  const [activeEmbeddingProfileId, setActiveEmbeddingProfileIdState] = useState('');
   const [embeddingDimension, setEmbeddingDimension] = useState(1024);
   const [embeddingContextLength, setEmbeddingContextLength] = useState(8192);
   const [llmContextLength, setLlmContextLength] = useState(8192);
@@ -183,12 +210,22 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
         setActiveProfileIdState(active.id);
         localStorage.setItem('doctus-active-profile-id', String(active.id));
         setActiveLlmModel(active.model);
-        setActiveEmbeddingModel(active.embeddingModel || DEFAULT_EMBEDDING_MODEL);
-        setEmbeddingDimension(active.embeddingDimension || 1024);
-        setEmbeddingContextLength(active.embeddingContextLength || 8192);
         setLlmContextLength(active.llmContextLength || 8192);
       })
       .catch(error => console.error('Failed to load persisted AI settings:', error));
+
+    api.getEmbeddingProfiles?.()
+      .then(res => {
+        const profiles: EmbeddingProfile[] = (res.data.profiles || []).map(embeddingProfileFromApi);
+        if (!profiles.length) return;
+        const active = profiles.find(profile => profile.id === String(res.data.active_embedding_profile_id)) || profiles[0];
+        setEmbeddingProfiles(profiles);
+        setActiveEmbeddingProfileIdState(active.id);
+        setActiveEmbeddingModel(active.model);
+        setEmbeddingDimension(active.dimension || 1024);
+        setEmbeddingContextLength(active.contextLength || 8192);
+      })
+      .catch(error => console.error('Failed to load embedding profiles:', error));
 
     api.getModels()
       .then(res => {
@@ -206,8 +243,13 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     if (profile?.systemPrompt !== undefined) setSystemPrompt(profile.systemPrompt);
   }, [llmProfiles]);
 
-  const activeProfileEmbeddingModel = llmProfiles.find(profile => profile.id === activeProfileId)?.embeddingModel;
-  const effectiveActiveEmbeddingModel = activeProfileEmbeddingModel || activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL;
+  // Legacy browser profiles may still carry the embedding model until the
+  // server-side independent profile has been loaded. Keep that migration
+  // fallback, but never couple new runtime selection to the LLM profile.
+  const legacyEmbeddingModel = llmProfiles.find(profile => profile.id === activeProfileId)?.embeddingModel;
+  const effectiveActiveEmbeddingModel = embeddingProfiles.length > 0
+    ? (activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)
+    : (legacyEmbeddingModel || activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL);
 
   return {
     activeLlmModel,
@@ -223,6 +265,18 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     setLlmProfiles,
     activeProfileId,
     setActiveProfileId,
+    embeddingProfiles,
+    setEmbeddingProfiles,
+    activeEmbeddingProfileId,
+    setActiveEmbeddingProfileId: (id: string) => {
+      setActiveEmbeddingProfileIdState(id);
+      const profile = embeddingProfiles.find(candidate => candidate.id === id);
+      if (profile) {
+        setActiveEmbeddingModel(profile.model);
+        setEmbeddingDimension(profile.dimension);
+        setEmbeddingContextLength(profile.contextLength);
+      }
+    },
     embeddingDimension,
     setEmbeddingDimension,
     embeddingContextLength,

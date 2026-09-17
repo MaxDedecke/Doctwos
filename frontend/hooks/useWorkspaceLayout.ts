@@ -88,6 +88,10 @@ export function useWorkspaceLayout({
   const [threeColRightPercent, setThreeColRightPercent] = useState((100 / 3) * 2);
   const [isDragging, setIsDragging] = useState(false);
   const [panelConfigs, setPanelConfigs] = useState<string[]>(['chat']);
+  // Panel positions are not stable identities: closing the first panel shifts
+  // every later panel one index to the left. Keep a separate identity so React
+  // can preserve an expensive graph component instead of remounting it.
+  const [panelIds, setPanelIds] = useState<string[]>(['panel-0']);
   const [fileNavStack, setFileNavStack] = useState<Array<{
     file: string | null;
     doc: WorkspaceDocument | null;
@@ -117,6 +121,7 @@ export function useWorkspaceLayout({
   const activePanelIndexRef = useRef(0);
   const pendingPanelTypesRef = useRef<Set<string>>(new Set());
   const pendingPanelCountRef = useRef(0);
+  const panelIdCounterRef = useRef(1);
   const isRestoringSnapshotRef = useRef(false);
   const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -248,6 +253,7 @@ export function useWorkspaceLayout({
   const closePanel = useCallback((index: number) => {
     if (panelConfigs.length <= 1) return;
     setPanelConfigs((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
+    setPanelIds((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelFrozen((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelSelections((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelHistory((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
@@ -271,6 +277,7 @@ export function useWorkspaceLayout({
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
+    setPanelIds((previous) => [...previous, `panel-${panelIdCounterRef.current++}`]);
     return true;
   }, [panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
 
@@ -547,6 +554,12 @@ export function useWorkspaceLayout({
     setSelectedEntity(primary.selectedEntity ?? null);
     setSelectedLine(primary.selectedLine ?? null);
     setPanelConfigs(Array.isArray(snapshot.panelConfigs) && snapshot.panelConfigs.length > 0 ? snapshot.panelConfigs : ['chat']);
+    setPanelIds(
+      Array.from(
+        { length: restoredSelections.length },
+        () => `panel-${panelIdCounterRef.current++}`,
+      ),
+    );
     setPanelFrozen(Array.isArray(snapshot.panelFrozen) ? snapshot.panelFrozen : restoredSelections.map(() => false));
     setPanelSelections(restoredSelections);
     setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
@@ -580,6 +593,7 @@ export function useWorkspaceLayout({
     setPinnedCode(null);
     setFileNavStack([]);
     setPanelConfigs(['chat']);
+    setPanelIds([`panel-${panelIdCounterRef.current++}`]);
     setPanelSelections([EMPTY_PANEL_SELECTION]);
     setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
@@ -625,6 +639,7 @@ export function useWorkspaceLayout({
     isDragging,
     panelConfigs,
     setPanelConfigs,
+    panelIds,
     layoutMode: (panelConfigs.length === 1 ? '1-pane' : panelConfigs.length === 2 ? 'split' : panelConfigs.length === 3 ? '3-col' : '4-grid') as LayoutMode,
     fileNavStack,
     setFileNavStack,

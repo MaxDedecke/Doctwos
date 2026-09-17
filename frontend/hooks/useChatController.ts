@@ -41,6 +41,7 @@ interface ChatControllerOptions {
   temperature: number;
   systemPrompt: string;
   activeProfileId: string;
+  activeEmbeddingModel?: string;
   llmProfiles: LlmProfile[];
   projects: Project[];
   connectedSources: KnowledgeSource[];
@@ -71,6 +72,7 @@ export function useChatController({
   temperature,
   systemPrompt,
   activeProfileId,
+  activeEmbeddingModel,
   llmProfiles,
   projects,
   connectedSources,
@@ -425,10 +427,10 @@ export function useChatController({
       llm_provider: activeProfile?.provider || 'ollama',
       llm_model: activeProfile?.model || undefined,
       llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
-      embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+      embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: newUserMsg.metadata || {}
     }, targetIndex);
-  }, [activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
+  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 
   const handleRetryMessage = useCallback(async (index: number) => {
     if (isLoading) return;
@@ -468,11 +470,11 @@ export function useChatController({
       llm_provider: activeProfile?.provider || 'ollama',
       llm_model: activeProfile?.model || undefined,
       llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
-      embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
+      embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: createChatMetadata(turnFocus, userMsg.metadata),
       retry_of_message_id: assistantMsg.id
     }, index);
-  }, [activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
+  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
 
   const handleSessionSelect = useCallback(async (session: ChatSession) => {
     ignoreUrlSyncRef.current = true;

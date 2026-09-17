@@ -1,6 +1,5 @@
 "use client";
 import { apiErrorDetail } from '@/lib/apiError';
-import { DEFAULT_EMBEDDING_MODEL } from '@/hooks/useAiSettings';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
@@ -47,10 +46,8 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   const { t } = useLanguage();
   const {
     theme, showToast, setProjects, setConnectedSources, currentUser,
-    llmProfiles, activeProfileId,
+    activeEmbeddingModel,
   } = useSettings();
-  const activeEmbeddingModel = llmProfiles.find(p => p.id === activeProfileId)?.embeddingModel
-    || DEFAULT_EMBEDDING_MODEL;
 
   // F-041: eine Quelle ohne Projekt (targetProjectId === null) braucht ein Team, um
   // KnowledgeSource.team_id zu füllen (siehe docs/ACCESS_CONTROL.md).

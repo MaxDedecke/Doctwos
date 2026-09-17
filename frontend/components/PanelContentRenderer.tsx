@@ -171,6 +171,7 @@ export function PanelContentRenderer({
         currentUser={currentUser}
         llmProfiles={llmProfiles}
         activeProfileId={activeProfileId}
+        activeEmbeddingModel={activeEmbeddingModel}
         setActiveProfileId={setActiveProfileId}
         showToast={showToast}
         // O-114: dieselben Rückrufe, die jedes andere Panel schon bekommt (z. B.

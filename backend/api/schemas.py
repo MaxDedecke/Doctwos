@@ -280,6 +280,28 @@ class AIProfileUpdate(BaseModel):
     llm_context_length: Optional[int] = None
 
 
+class EmbeddingProfileCreate(BaseModel):
+    name: str
+    provider: str = "ollama"
+    model: str
+    base_url: str
+    path: str = "/api/embed"
+    api_key: Optional[str] = None
+    dimension: int = 1024
+    context_length: int = 8192
+
+
+class EmbeddingProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    base_url: Optional[str] = None
+    path: Optional[str] = None
+    api_key: Optional[str] = None
+    dimension: Optional[int] = None
+    context_length: Optional[int] = None
+
+
 class KnowledgeLinkCreate(BaseModel):
     source_a_type: str  # 'entity' | 'document'
     source_a_entity_id: Optional[int] = None

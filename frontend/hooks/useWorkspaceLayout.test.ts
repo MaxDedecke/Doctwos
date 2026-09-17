@@ -157,6 +157,24 @@ describe('useWorkspaceLayout 3-col divider resize', () => {
   });
 });
 
+describe('useWorkspaceLayout panel identity', () => {
+  it('keeps a graph panel identity when an earlier chat panel closes', () => {
+    const { result } = renderLayout();
+
+    act(() => {
+      result.current.addPanel('graph');
+    });
+    const graphPanelId = result.current.panelIds[1];
+
+    act(() => {
+      result.current.closePanel(0);
+    });
+
+    expect(result.current.panelConfigs).toEqual(['graph']);
+    expect(result.current.panelIds).toEqual([graphPanelId]);
+  });
+});
+
 /**
  * Regressionstests für den O-038-Folgefix: die debounced Snapshot-Autosave
  * aktualisiert nach einem erfolgreichen PATCH .../snapshot jetzt auch den

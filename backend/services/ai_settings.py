@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import core.config as cfg
-from models.database import AIProfile, AISettings
+from models.database import AIProfile, AISettings, EmbeddingProfile
 from sqlalchemy.orm import Session
 
 
@@ -55,6 +55,29 @@ def ensure_profiles(db: Session, settings: AISettings) -> list[AIProfile]:
     return [local]
 
 
+def ensure_embedding_profiles(db: Session, settings: AISettings) -> list[EmbeddingProfile]:
+    profiles = db.query(EmbeddingProfile).order_by(EmbeddingProfile.id).all()
+    if profiles:
+        if settings.active_embedding_profile_id is None:
+            settings.active_embedding_profile_id = profiles[0].id
+        return profiles
+    profile = EmbeddingProfile(
+        name="Standard-Embedding",
+        provider=settings.embedding_provider or cfg.EMBEDDING_PROVIDER,
+        model=settings.embedding_model or cfg.OLLAMA_EMBED_MODEL,
+        base_url=settings.embedding_base_url or cfg.EMBEDDING_BASE_URL,
+        path="/embeddings" if (settings.embedding_provider or cfg.EMBEDDING_PROVIDER) == "openai" else "/api/embed",
+        api_key=settings.embedding_api_key or None,
+        dimension=settings.embedding_dimension,
+        context_length=settings.embedding_context_length,
+        is_system=True,
+    )
+    db.add(profile)
+    db.flush()
+    settings.active_embedding_profile_id = profile.id
+    return [profile]
+
+
 def get_active_profile(db: Session) -> AIProfile:
     settings = get_settings(db)
     profiles = ensure_profiles(db, settings)
@@ -69,6 +92,29 @@ def get_profile(db: Session, profile_id: int | None) -> AIProfile:
     if profile is None:
         raise LookupError("AI-Profil nicht gefunden")
     return profile
+
+
+def get_active_embedding_profile(db: Session) -> EmbeddingProfile:
+    settings = get_settings(db)
+    profiles = ensure_embedding_profiles(db, settings)
+    profile = next((item for item in profiles if item.id == settings.active_embedding_profile_id), None)
+    return profile or profiles[0]
+
+
+def serialize_embedding_profile(profile: EmbeddingProfile, *, active_id: int | None = None) -> dict[str, Any]:
+    return {
+        "id": profile.id,
+        "name": profile.name,
+        "provider": profile.provider,
+        "model": profile.model,
+        "base_url": profile.base_url,
+        "path": profile.path,
+        "api_key_set": bool(profile.api_key),
+        "dimension": profile.dimension,
+        "context_length": profile.context_length,
+        "is_system": profile.is_system,
+        "is_active": active_id == profile.id,
+    }
 
 
 def serialize_profile(profile: AIProfile, *, active_id: int | None = None) -> dict[str, Any]:
@@ -137,19 +183,30 @@ def apply_runtime_settings(settings: AISettings) -> None:
     cfg.EMBEDDING_CONTEXT_LENGTH = settings.embedding_context_length
 
 
+def apply_embedding_profile(settings: AISettings, profile: EmbeddingProfile) -> None:
+    """Mirror the independent embedding profile into legacy runtime fields."""
+    settings.active_embedding_profile_id = profile.id
+    settings.embedding_provider = profile.provider
+    settings.embedding_model = profile.model
+    settings.embedding_base_url = profile.base_url
+    settings.embedding_api_key = profile.api_key
+    settings.embedding_dimension = profile.dimension
+    settings.embedding_context_length = profile.context_length
+    cfg.OLLAMA_EMBED_MODEL = profile.model
+    cfg.EMBEDDING_PROVIDER = profile.provider.lower()
+    cfg.EMBEDDING_BASE_URL = profile.base_url.rstrip("/")
+    cfg.EMBEDDING_API_KEY = profile.api_key or ""
+    cfg.EMBEDDING_DIMENSION = profile.dimension
+    cfg.EMBEDDING_CONTEXT_LENGTH = profile.context_length
+
+
 def apply_profile(settings: AISettings, profile: AIProfile) -> None:
-    """Mirror the active profile into legacy runtime fields for old call sites."""
+    """Apply only LLM fields; embedding selection is independent."""
     settings.active_profile_id = profile.id
     settings.llm_provider = profile.provider
     settings.llm_model = profile.llm_model
     settings.llm_base_url = profile.llm_base_url
     settings.llm_api_key = profile.llm_api_key
-    settings.embedding_provider = profile.embedding_provider
-    settings.embedding_model = profile.embedding_model
-    settings.embedding_base_url = profile.embedding_base_url
-    settings.embedding_api_key = profile.embedding_api_key
-    settings.embedding_dimension = profile.embedding_dimension
-    settings.embedding_context_length = profile.embedding_context_length
     settings.llm_context_length = profile.llm_context_length
     apply_runtime_settings(settings)
     cfg.ACTIVE_LLM_PROTOCOL = profile.protocol
@@ -163,10 +220,13 @@ def initialize_runtime_settings(session_factory) -> None:
     try:
         settings = get_settings(db)
         profiles = ensure_profiles(db, settings)
+        ensure_embedding_profiles(db, settings)
         profile = next(
             (item for item in profiles if item.id == settings.active_profile_id), profiles[0]
         )
         apply_profile(settings, profile)
+        embedding_profile = get_active_embedding_profile(db)
+        apply_embedding_profile(settings, embedding_profile)
         db.commit()
     except Exception:
         db.rollback()
@@ -189,4 +249,5 @@ def serialize_settings(settings: AISettings) -> dict[str, Any]:
         "embedding_context_length": settings.embedding_context_length,
         "llm_context_length": settings.llm_context_length,
         "updated_at": settings.updated_at.isoformat() if settings.updated_at else None,
+        "active_embedding_profile_id": settings.active_embedding_profile_id,
     }
