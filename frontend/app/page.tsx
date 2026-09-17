@@ -161,12 +161,14 @@ function AppContent() {
     showToast,
   });
   const chatState = useChatSessions({ isLoggedIn, t, showToast });
+  const linkManagerEnabled = features.views.linkManager && currentUser?.is_admin === true;
   const workspaceState = useWorkspaceLayout({
     activeSessionId: chatState.activeSessionId,
     selectedProject: projectState.selectedProject,
     selectedSource: sourceState.selectedSource,
     t,
     setSessions: chatState.setSessions,
+    linkManagerEnabled,
   });
 
   const {
@@ -768,6 +770,7 @@ function AppContent() {
   );
 
   const handlePanelContentTypeChange = (index: number, newType: string) => {
+    if (newType === 'linkmanager' && !linkManagerEnabled) return;
     setPanelConfigs((previous) => {
       const next = [...previous];
       next[index] = newType;
@@ -800,7 +803,7 @@ function AppContent() {
         panelFrozen={Boolean(panelFrozen[index])}
         panelCount={panelConfigs.length}
         panelHistory={panelHistory[index]}
-        linkManagerEnabled={features.views.linkManager}
+        linkManagerEnabled={linkManagerEnabled}
         onContentTypeChange={handlePanelContentTypeChange}
         onMouseEnter={setActivePanelIndex}
         onHistoryBack={goBackPanel}

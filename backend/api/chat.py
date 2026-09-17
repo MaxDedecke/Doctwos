@@ -908,12 +908,12 @@ def create_chat_session(
         project_id=body.project_id,
         source_id=body.source_id,
         owner_id=user.id,
-        snapshot_json=body.snapshot,
+        snapshot_json=_sanitize_workspace_snapshot(body.snapshot, user),
     )
     db.add(session)
     db.commit()
     db.refresh(session)
-    return _serialize_session(session)
+    return _serialize_session(session, user)
 
 
 @router.get("/chat/sessions")
@@ -926,7 +926,7 @@ def get_chat_sessions(db: Session = Depends(get_db), user: User = Depends(get_cu
         .order_by(ChatSession.created_at.desc())
         .all()
     )
-    return [_serialize_session(s) for s in sessions]
+    return [_serialize_session(s, user) for s in sessions]
 
 
 @router.get("/chat/sessions/by-uuid/{session_uuid}")
@@ -938,7 +938,7 @@ def get_chat_session_by_uuid(
     # UUID unerreichbar, auch für andere angemeldete Nutzer.
     if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
-    return _serialize_session(session)
+    return _serialize_session(session, user)
 
 
 @router.get("/chat/sessions/by-uuid/{session_uuid}/messages")
@@ -976,7 +976,7 @@ def share_chat_session(
     if not session.is_public:
         session.is_public = True
         db.commit()
-    return _serialize_session(session)
+    return _serialize_session(session, user)
 
 
 @router.patch("/chat/sessions/{session_id}/snapshot")
@@ -992,7 +992,7 @@ def update_chat_session_snapshot(
     session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session or not _session_accessible(session, user):
         raise HTTPException(status_code=404, detail="Session nicht gefunden")
-    session.snapshot_json = body.snapshot
+    session.snapshot_json = _sanitize_workspace_snapshot(body.snapshot, user)
     db.commit()
     return {"message": "Snapshot gespeichert"}
 
@@ -1108,7 +1108,36 @@ def delete_chat_session(
 # ── Serialisierungshelfer ─────────────────────────────────────────────────────
 
 
-def _serialize_session(s: ChatSession) -> dict:
+def _sanitize_workspace_snapshot(snapshot: dict | None, user: User) -> dict | None:
+    """Never disclose or restore the privileged Link-Manager panel to members.
+
+    A shared admin session can contain any panel type. The server therefore
+    strips the panel and all index-aligned state before returning it to a
+    non-admin; frontend filtering is only a second defensive layer.
+    """
+    if not isinstance(snapshot, dict) or is_admin(user):
+        return snapshot
+    configs = snapshot.get("panelConfigs")
+    if not isinstance(configs, list) or "linkmanager" not in configs:
+        return snapshot
+    keep = [index for index, panel_type in enumerate(configs) if panel_type != "linkmanager"]
+    sanitized = dict(snapshot)
+    sanitized["panelConfigs"] = [configs[index] for index in keep] or ["chat"]
+    for key in ("panelFrozen", "panelSelections", "panelFocusObject"):
+        values = snapshot.get(key)
+        if isinstance(values, list):
+            sanitized[key] = [values[index] for index in keep if index < len(values)]
+    if isinstance(sanitized.get("panelSelections"), list) and not sanitized["panelSelections"]:
+        sanitized["panelSelections"] = [{
+            "selectedFile": None,
+            "selectedDoc": None,
+            "selectedEntity": None,
+            "selectedLine": None,
+        }]
+    return sanitized
+
+
+def _serialize_session(s: ChatSession, user: User) -> dict:
     return {
         "id": s.id,
         "uuid": str(s.uuid) if s.uuid else None,
@@ -1126,7 +1155,7 @@ def _serialize_session(s: ChatSession) -> dict:
         "source": {"id": s.source.id, "name": s.source.name, "type": s.source.type}
         if s.source
         else None,
-        "snapshot_json": s.snapshot_json,
+        "snapshot_json": _sanitize_workspace_snapshot(s.snapshot_json, user),
         "is_public": s.is_public,
         "created_at": s.created_at.isoformat() if s.created_at else None,
     }

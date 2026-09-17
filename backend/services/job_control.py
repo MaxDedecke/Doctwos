@@ -9,13 +9,19 @@ logger = logging.getLogger(__name__)
 
 
 def send_tracked_task(
-    db, record: Any, task_name: str, args: list[Any], kwargs: dict[str, Any] | None = None
+    db,
+    record: Any,
+    task_name: str,
+    args: list[Any],
+    kwargs: dict[str, Any] | None = None,
+    queue: str | None = None,
 ):
     """Dispatch a task and retain its broker identifier on the visible job record."""
+    send_kwargs = {"queue": queue} if queue else {}
     if kwargs is None:
-        result = celery_app.send_task(task_name, args=args)
+        result = celery_app.send_task(task_name, args=args, **send_kwargs)
     else:
-        result = celery_app.send_task(task_name, args=args, kwargs=kwargs)
+        result = celery_app.send_task(task_name, args=args, kwargs=kwargs, **send_kwargs)
     task_id = getattr(result, "id", None)
     if task_id:
         record.celery_task_id = task_id

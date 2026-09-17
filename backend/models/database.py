@@ -818,6 +818,10 @@ class LinkBuilderRun(Base):
     embedding_model = Column(String, nullable=True)
     # O-177: exact project/source scope used by a cross-source run.
     scope_json = Column(JSON, nullable=True)
+    # Audit trail for privileged/global runs (O-178).
+    triggered_by_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
+    )
 
 
 class DiagnosticsRun(Base):

@@ -509,7 +509,7 @@ export function GlobalSearch({
                     mirror the first and can never be closed. Hide it once one exists. */}
                 {ADD_VIEW_TYPES.filter(type =>
                   (type !== 'chat' || !panelConfigs.includes('chat')) &&
-                  (type !== 'linkmanager' || features.views.linkManager)
+                  (type !== 'linkmanager' || (features.views.linkManager && currentUser?.is_admin === true))
                 ).map((type) => (
                   <button
                     key={type}

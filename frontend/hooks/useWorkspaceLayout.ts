@@ -33,6 +33,8 @@ interface UseWorkspaceLayoutOptions {
   // entirely missing (see O-038 follow-up fix). Optional so existing/test
   // callers that never touch the session list don't need to wire it up.
   setSessions?: Dispatch<SetStateAction<ChatSession[]>>;
+  /** Link-Manager is a privileged panel; shared snapshots must not open it for members. */
+  linkManagerEnabled?: boolean;
 }
 
 export interface PinnedCode {
@@ -65,6 +67,7 @@ export function useWorkspaceLayout({
   selectedSource,
   t,
   setSessions,
+  linkManagerEnabled = false,
 }: UseWorkspaceLayoutOptions) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -263,6 +266,7 @@ export function useWorkspaceLayout({
 
   /** Returns false when the four-panel cap blocked the new panel (see D-2). */
   const addPanel = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
+    if (type === 'linkmanager' && !linkManagerEnabled) return false;
     // React state from the current render is stale during same-tick bursts.
     // This counter makes the four-panel cap atomic until the next commit.
     if (panelConfigs.length + pendingPanelCountRef.current >= 4) return false;
@@ -279,7 +283,7 @@ export function useWorkspaceLayout({
     setPanelConfigs((previous) => [...previous, type]);
     setPanelIds((previous) => [...previous, `panel-${panelIdCounterRef.current++}`]);
     return true;
-  }, [panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
+  }, [linkManagerEnabled, panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
 
   useEffect(() => {
     pendingPanelTypesRef.current.clear();
@@ -291,10 +295,11 @@ export function useWorkspaceLayout({
    * was needed and the four-panel cap blocked it (see D-2).
    */
   const ensurePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
+    if (type === 'linkmanager' && !linkManagerEnabled) return false;
     if (panelConfigs.includes(type) || pendingPanelTypesRef.current.has(type)) return true;
     pendingPanelTypesRef.current.add(type);
     return addPanel(type, selectionOverride, frozenOverride);
-  }, [addPanel, panelConfigs]);
+  }, [addPanel, linkManagerEnabled, panelConfigs]);
 
   /**
    * Like ensurePanelType, but a frozen panel does not count as available:
@@ -304,11 +309,12 @@ export function useWorkspaceLayout({
    * ensurePanelType -- a pin reaches a frozen chat panel as well (PS-20).
    */
   const ensureLivePanelType = useCallback((type: string, selectionOverride?: Partial<PanelSelection>, frozenOverride?: boolean): boolean => {
+    if (type === 'linkmanager' && !linkManagerEnabled) return false;
     const hasLivePanel = panelConfigs.some((config, index) => config === type && !panelFrozen[index]);
     if (hasLivePanel || pendingPanelTypesRef.current.has(type)) return true;
     pendingPanelTypesRef.current.add(type);
     return addPanel(type, selectionOverride, frozenOverride);
-  }, [addPanel, panelConfigs, panelFrozen]);
+  }, [addPanel, linkManagerEnabled, panelConfigs, panelFrozen]);
 
   const cellCls = (expanded: string) => cn('h-full min-w-0 min-h-0', expanded);
 
@@ -545,25 +551,37 @@ export function useWorkspaceLayout({
 
   const restoreWorkspaceSnapshot = useCallback((snapshot: WorkspaceSnapshot) => {
     isRestoringSnapshotRef.current = true;
-    const restoredSelections = Array.isArray(snapshot.panelSelections) && snapshot.panelSelections.length > 0
-      ? snapshot.panelSelections
-      : [EMPTY_PANEL_SELECTION];
+    const rawPanelConfigs = Array.isArray(snapshot.panelConfigs) && snapshot.panelConfigs.length > 0
+      ? snapshot.panelConfigs
+      : ['chat'];
+    const allowedPanelIndexes = rawPanelConfigs
+      .map((type, index) => ({ type, index }))
+      .filter(({ type }) => type !== 'linkmanager' || linkManagerEnabled);
+    const restoredSelections = allowedPanelIndexes.map(({ index }) =>
+      Array.isArray(snapshot.panelSelections) ? (snapshot.panelSelections[index] || EMPTY_PANEL_SELECTION) : EMPTY_PANEL_SELECTION,
+    );
+    const restoredPanelConfigs = allowedPanelIndexes.map(({ type }) => type);
+    if (restoredSelections.length === 0) restoredSelections.push(EMPTY_PANEL_SELECTION);
+    const filterParallel = <T,>(values: T[] | undefined, fallback: T): T[] => {
+      const filtered = allowedPanelIndexes.map(({ index }) => values?.[index] ?? fallback);
+      return filtered.length > 0 ? filtered : restoredSelections.map(() => fallback);
+    };
     const primary = restoredSelections[0];
     setSelectedFile(primary.selectedFile ?? null);
     setSelectedDoc(primary.selectedDoc ?? null);
     setSelectedEntity(primary.selectedEntity ?? null);
     setSelectedLine(primary.selectedLine ?? null);
-    setPanelConfigs(Array.isArray(snapshot.panelConfigs) && snapshot.panelConfigs.length > 0 ? snapshot.panelConfigs : ['chat']);
+    setPanelConfigs(restoredPanelConfigs.length > 0 ? restoredPanelConfigs : ['chat']);
     setPanelIds(
       Array.from(
         { length: restoredSelections.length },
         () => `panel-${panelIdCounterRef.current++}`,
       ),
     );
-    setPanelFrozen(Array.isArray(snapshot.panelFrozen) ? snapshot.panelFrozen : restoredSelections.map(() => false));
+    setPanelFrozen(Array.isArray(snapshot.panelFrozen) ? filterParallel(snapshot.panelFrozen, false) : restoredSelections.map(() => false));
     setPanelSelections(restoredSelections);
     setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
-    setPanelFocusObject(Array.isArray(snapshot.panelFocusObject) ? snapshot.panelFocusObject : restoredSelections.map(() => null));
+    setPanelFocusObject(Array.isArray(snapshot.panelFocusObject) ? filterParallel(snapshot.panelFocusObject, null) : restoredSelections.map(() => null));
     setFileNavStack(Array.isArray(snapshot.fileNavStack) ? snapshot.fileNavStack : []);
     setPinnedCode(snapshot.pinnedCode ?? null);
     if (typeof snapshot.activeRightTab === 'string') setActiveRightTab(snapshot.activeRightTab);
@@ -580,7 +598,7 @@ export function useWorkspaceLayout({
       setThreeColRightPercent(right);
     }
     setTimeout(() => { isRestoringSnapshotRef.current = false; }, 0);
-  }, []);
+  }, [linkManagerEnabled]);
 
   const resetWorkspace = useCallback(() => {
     setSelectedDoc(null);

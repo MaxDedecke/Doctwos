@@ -192,6 +192,7 @@ def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
         status="pending",
         embedding_model=previous.embedding_model,
         scope_json=previous.scope_json,
+        triggered_by_user_id=previous.triggered_by_user_id,
     )
     db.add(run)
     db.commit()
@@ -201,7 +202,14 @@ def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     task_kwargs = {"trace_id": get_trace_id()}
     if run.task_type == "knowledge_links" and run.scope_json:
         task_kwargs.update(run.scope_json)
-    send_tracked_task(db, run, task, args, task_kwargs)
+    send_tracked_task(
+        db,
+        run,
+        task,
+        args,
+        task_kwargs,
+        queue="global_link_runs" if run.task_type == "knowledge_links" else None,
+    )
     return {"message": "Job gestartet", "key": f"link_builder:{run.id}"}
 
 
@@ -418,6 +426,7 @@ def resume_job(
             status="pending",
             embedding_model=previous.embedding_model,
             scope_json=previous.scope_json,
+            triggered_by_user_id=user.id,
         )
         db.add(run)
         db.commit()
@@ -429,7 +438,14 @@ def resume_job(
         task_kwargs = dict(trace)
         if run.task_type == "knowledge_links" and run.scope_json:
             task_kwargs.update(run.scope_json)
-        send_tracked_task(db, run, task, args, task_kwargs)
+        send_tracked_task(
+            db,
+            run,
+            task,
+            args,
+            task_kwargs,
+            queue="global_link_runs" if run.task_type == "knowledge_links" else None,
+        )
         return {"message": "Job wiederaufgenommen", "key": f"link_builder:{run.id}"}
 
     if kind == "diagnostics" and is_admin(user):

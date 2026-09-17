@@ -164,6 +164,7 @@ export function PanelContentRenderer({
   }
 
   if (contentType === 'linkmanager') {
+    if (currentUser?.is_admin !== true) return null;
     return (
       <LinkManagerView
         selectedProject={selectedProject}

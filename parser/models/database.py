@@ -801,6 +801,9 @@ class LinkBuilderRun(Base):
     finished_at = Column(DateTime(timezone=True), nullable=True)
     links_created = Column(Integer, nullable=False, default=0)
     embedding_model = Column(String, nullable=True)
+    triggered_by_user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
+    )
 
 
 class DiagnosticsRun(Base):

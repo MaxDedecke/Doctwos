@@ -538,6 +538,7 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
             "project_id": project_id,
             "source_ids": [source.id, second_source.id],
             "min_confidence": 70,
+            "confirm": True,
         })
     assert res.status_code == 200
     run_id = res.json()["run_id"]
@@ -583,6 +584,7 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
         res = client.post("/knowledge-links/compute", params={
             "project_id": chunk_a.project_id,
             "source_ids": [source.id, second_source.id],
+            "confirm": True,
         })
     assert res.status_code == 200
     run_id = res.json()["run_id"]
@@ -607,6 +609,40 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
 def test_trigger_computation_rejects_non_admin(member_client):
     res = member_client.post("/knowledge-links/compute")
     assert res.status_code == 403
+
+
+def test_trigger_computation_requires_explicit_confirmation(client, db_session, two_chunks):
+    source, chunk_a, _ = two_chunks
+    project = db_session.query(Project).filter(Project.id == chunk_a.project_id).first()
+    second_source = KnowledgeSource(
+        name="KL Confirmation Source", type="Local", project_id=project.id, team_id=project.team_id
+    )
+    db_session.add(second_source)
+    db_session.commit()
+    before_ids = {
+        row.id
+        for row in db_session.query(LinkBuilderRun.id).filter(
+            LinkBuilderRun.task_type == "knowledge_links",
+            LinkBuilderRun.project_id == project.id,
+        )
+    }
+    try:
+        res = client.post("/knowledge-links/compute", params={
+            "project_id": project.id,
+            "source_ids": [source.id, second_source.id],
+        })
+        assert res.status_code == 428
+        after_ids = {
+            row.id
+            for row in db_session.query(LinkBuilderRun.id).filter(
+                LinkBuilderRun.task_type == "knowledge_links",
+                LinkBuilderRun.project_id == project.id,
+            )
+        }
+        assert after_ids == before_ids
+    finally:
+        db_session.delete(second_source)
+        db_session.commit()
 
 
 def test_trigger_computation_requires_login(unauthenticated_client):

@@ -441,6 +441,10 @@ export function LinkManagerView({
       setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.scopeRequired') });
       return;
     }
+    const confirmed = window.confirm(
+      `Globaler Cross-Source-Lauf für ${selectedScopeSourceIds.length} Wissensquellen im aktuellen Projekt starten? Dieser Batch-Lauf kann viele Embeddings und LLM-Prüfungen auslösen.`,
+    );
+    if (!confirmed) return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
@@ -451,6 +455,7 @@ export function LinkManagerView({
       project_id: String(projectId),
       min_confidence: String(minConfidence),
       embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
+      confirm: 'true',
     });
     selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
     await Promise.all([

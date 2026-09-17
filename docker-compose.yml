@@ -201,6 +201,22 @@ services:
       # reads every service's log file directly off disk, since parser-worker
       # has no Docker socket/CLI to shell out to `docker compose logs` with.
       - ./data/logs:/var/log/doctus
+    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=celery"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+
+  # O-178: privileged cross-source link runs use their own broker queue and a
+  # single worker slot, so a large global batch cannot occupy normal ingestion
+  # capacity. The image and environment are inherited from parser-worker.
+  link-worker:
+    extends:
+      service: parser-worker
+    container_name: doctus-link-worker
+    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=global_link_runs", "--concurrency=1"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
       interval: 30s

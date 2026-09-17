@@ -103,6 +103,26 @@ describe('GlobalSearch save-session-without-chat button', () => {
   });
 });
 
+describe('GlobalSearch privileged views', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('hides the Link-Manager from non-admin users even when the feature is enabled', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch({ currentUser: { is_admin: false } });
+    fireEvent.click(screen.getByTitle('Ansicht hinzufügen'));
+    expect(screen.queryByText('🔗 Link Manager')).toBeNull();
+  });
+
+  it('shows the Link-Manager only to admins', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch({ currentUser: { is_admin: true } });
+    fireEvent.click(screen.getByTitle('Ansicht hinzufügen'));
+    expect(screen.getByText('🔗 Link Manager')).toBeTruthy();
+  });
+});
+
 describe('GlobalSearch Java entity navigation', () => {
   afterEach(() => {
     vi.restoreAllMocks();

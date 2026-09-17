@@ -143,6 +143,7 @@ describe('LinkManagerView', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
+    vi.stubGlobal('confirm', vi.fn(() => true));
   });
 
   afterEach(() => {

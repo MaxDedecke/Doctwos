@@ -40,6 +40,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "links_created": run.links_created,
         "embedding_model": run.embedding_model,
         "scope": run.scope_json,
+        "triggered_by_user_id": run.triggered_by_user_id,
     }
 
 
@@ -533,12 +534,15 @@ def trigger_knowledge_link_computation(
         max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
+    confirm: bool = Query(False, description="Explizite Bestätigung des teuren Batch-Laufs."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     # Only admins can trigger cross-source computation
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
+    if not confirm:
+        raise HTTPException(status_code=428, detail="Der globale Batch-Lauf muss ausdrücklich bestätigt werden")
     if project_id is None or not source_ids:
         raise HTTPException(status_code=422, detail="Projekt und mindestens zwei Wissensquellen im Scope angeben")
 
@@ -582,7 +586,13 @@ def trigger_knowledge_link_computation(
         project_id=project_id,
         status="pending",
         embedding_model=embedding_model.strip() if embedding_model else None,
-        scope_json={"project_id": project_id, "source_ids": selected_source_ids},
+        scope_json={
+            "project_id": project_id,
+            "source_ids": selected_source_ids,
+            "queue": "global_link_runs",
+            "confirmed": True,
+        },
+        triggered_by_user_id=user.id,
     )
     db.add(run)
     db.commit()
@@ -600,6 +610,7 @@ def trigger_knowledge_link_computation(
             "project_id": project_id,
             "source_ids": selected_source_ids,
         },
+        queue="global_link_runs",
     )
     return {"message": "Cross-Source Analyse gestartet", "run_id": run.id, "scope": run.scope_json}
 
