@@ -38,6 +38,9 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
           {node.label}
         </button>
       ))}
+      {props.graphData.links.map((link) => (
+        <span key={link.id} data-testid={`link-${link.id}`} />
+      ))}
     </div>
   );
 });
@@ -126,6 +129,30 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
     await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
     expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
+  });
+
+  it('shows only the first relationship type initially and lets each other type be enabled', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [
+          { id: 'entity:1', type: 'entity', label: 'PROG1' },
+          { id: 'doc:runbook', type: 'document', label: 'Runbook' },
+        ],
+        edges: [
+          { id: 'semantic:1', source: 'entity:1', target: 'doc:runbook', link_type: 'semantic', score: 0.9, context: null },
+          { id: 'documented:1', source: 'entity:1', target: 'doc:runbook', link_type: 'documented', score: 0.8, context: null },
+        ],
+      }),
+    }));
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByTestId('link-semantic:1')).toBeTruthy());
+    expect(screen.queryByTestId('link-documented:1')).toBeNull();
+
+    fireEvent.click(screen.getAllByText('dokumentiert')[0]);
+    await waitFor(() => expect(screen.getByTestId('link-documented:1')).toBeTruthy());
   });
 
   it('exposes indexed PDF nodes through the shared Datei badge', async () => {

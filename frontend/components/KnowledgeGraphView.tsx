@@ -207,6 +207,7 @@ export function KnowledgeGraphView({
 
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [hiddenLinkTypes, setHiddenLinkTypes] = useState<Set<string>>(new Set());
+  const [linkFilterResetToken, setLinkFilterResetToken] = useState(0);
   const [isLegendOpen, setIsLegendOpen] = useState(true);
 
   const handleZoomIn = () => {
@@ -243,6 +244,7 @@ export function KnowledgeGraphView({
       setViewMode('overview');
       setNeighborhoodError(null);
       setSelectedEdgeId(null);
+      setLinkFilterResetToken(previous => previous + 1);
 
       if (selectedDoc) {
         const docNode = cachedOverview.nodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
@@ -267,6 +269,7 @@ export function KnowledgeGraphView({
       setRawNodes(nodes);
       setRawEdges(edges);
       setViewMode('overview');
+      setLinkFilterResetToken(previous => previous + 1);
       // O-053: GET /graph caps at KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES for large
       // projects and reports the true totals alongside the (possibly smaller)
       // returned set -- surfaced as a banner, see truncatedOverviewNotice below.
@@ -317,6 +320,7 @@ export function KnowledgeGraphView({
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
       setViewMode('neighborhood');
+      setLinkFilterResetToken(previous => previous + 1);
       setOverviewTruncation(null);
       setSelectedNodeId(data.focus_id ?? node.id);
       setSelectedEdgeId(null);
@@ -556,6 +560,18 @@ export function KnowledgeGraphView({
     rawEdges.forEach(e => s.add(graphEdgeType(e)));
     return Array.from(s);
   }, [rawEdges]);
+
+  // Large graphs start with only the first relationship family visible. The
+  // reset token changes on each newly loaded dataset, while ordinary chip
+  // toggles leave it untouched so they never reset a user's manual selection.
+  const lastLinkFilterResetRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (linkTypes.length === 0) return;
+    const filterKey = `${selectedProject?.id ?? 'general'}:${linkFilterResetToken}`;
+    if (lastLinkFilterResetRef.current === filterKey) return;
+    lastLinkFilterResetRef.current = filterKey;
+    setHiddenLinkTypes(new Set(linkTypes.slice(1)));
+  }, [linkFilterResetToken, linkTypes, selectedProject?.id]);
 
   // Tune the force simulation whenever the visible node/link set changes. The
   // library's defaults (charge -30, no collision force) are tuned for small
