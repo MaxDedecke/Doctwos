@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes loading-slide {
+  0% { transform: translateX(-140%); }
+  50% { transform: translateX(130%); }
+  100% { transform: translateX(280%); }
+}
+
 /* Doctwos "Structured Intelligence" design system. RGB channels keep
    Tailwind opacity modifiers working. */
 @layer base {

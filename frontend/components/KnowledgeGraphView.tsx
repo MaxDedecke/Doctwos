@@ -1144,8 +1144,27 @@ export function KnowledgeGraphView({
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative">
           {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Loader2 className={cn('w-6 h-6 animate-spin', textMuted)} />
+            <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/75' : 'bg-white/80')}>
+              <div className="flex w-[min(90%,22rem)] flex-col items-center gap-3 rounded-xl border border-ds-indigo-500/20 bg-ds-indigo-500/[0.04] px-6 py-7 text-center shadow-lg backdrop-blur-sm">
+                <div className="relative h-16 w-28" aria-hidden="true">
+                  <span className="absolute left-3 top-8 h-px w-20 bg-ds-indigo-400/40" />
+                  <span className="absolute left-8 top-3 h-12 w-px rotate-[55deg] bg-ds-indigo-400/30" />
+                  <span className="absolute left-[4.5rem] top-3 h-12 w-px -rotate-[55deg] bg-ds-indigo-400/30" />
+                  <span className="absolute left-1 top-6 h-3 w-3 rounded-full bg-ds-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.8)] animate-pulse" />
+                  <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ds-indigo-500 shadow-[0_0_16px_rgba(99,102,241,0.9)] animate-pulse" />
+                  <span className="absolute right-1 top-6 h-3 w-3 rounded-full bg-ds-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.8)] animate-pulse" />
+                  <span className="absolute bottom-0 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-ds-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.8)] animate-pulse" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-ds-indigo-400" />
+                  <p className={cn('text-sm font-medium', textMain)}>{t('knowledgeGraphView.loadingTitle')}</p>
+                </div>
+                <p className={cn('max-w-xs text-xs leading-relaxed', textMuted)}>{t('knowledgeGraphView.loadingDescription')}</p>
+                <div className="h-1.5 w-48 overflow-hidden rounded-full bg-ds-indigo-500/15" role="progressbar" aria-label={t('knowledgeGraphView.loadingTitle')} aria-valuetext={t('knowledgeGraphView.loadingProgress')}>
+                  <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-ds-indigo-500/30 via-ds-indigo-400 to-ds-blue-400 animate-[loading-slide_1.6s_ease-in-out_infinite]" />
+                </div>
+                <p className={cn('text-[10px]', textMuted)}>{t('knowledgeGraphView.loadingProgress')}</p>
+              </div>
             </div>
           )}
 
