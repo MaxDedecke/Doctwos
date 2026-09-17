@@ -520,7 +520,7 @@ def delete_knowledge_link(
 @router.post("/compute")
 def trigger_knowledge_link_computation(
     project_id: Optional[int] = Query(None, ge=1, description="Projektkontext des Cross-Source-Laufs."),
-    source_ids: Optional[list[int]] = Query(None, min_length=1, description="Wissensquellen im Run-Scope."),
+    source_ids: Optional[list[int]] = Query(None, min_length=2, description="Mindestens zwei Wissensquellen im Run-Scope."),
     min_confidence: Optional[int] = Query(
         None,
         ge=0,
@@ -540,15 +540,15 @@ def trigger_knowledge_link_computation(
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
     if project_id is None or not source_ids:
-        raise HTTPException(status_code=422, detail="Projekt und mindestens eine Wissensquelle im Scope angeben")
+        raise HTTPException(status_code=422, detail="Projekt und mindestens zwei Wissensquellen im Scope angeben")
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
     selected_source_ids = sorted(set(source_ids))
-    if not selected_source_ids:
-        raise HTTPException(status_code=422, detail="Mindestens eine Wissensquelle auswählen")
+    if len(selected_source_ids) < 2:
+        raise HTTPException(status_code=422, detail="Mindestens zwei Wissensquellen auswählen")
     visible_source_ids = {
         row[0]
         for row in db.query(KnowledgeSource.id)

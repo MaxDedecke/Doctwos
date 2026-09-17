@@ -124,7 +124,7 @@ async def compute_knowledge_links_async(
     scope = run.scope_json or {}
     selected_project_id = project_id or scope.get("project_id") or run.project_id
     selected_source_ids = sorted(set(source_ids or scope.get("source_ids") or []))
-    if not selected_project_id or not selected_source_ids:
+    if not selected_project_id or len(selected_source_ids) < 2:
         run.status = "failed"
         run.error_message = "Cross-Source-Lauf ohne verpflichtenden Projekt- und Quellen-Scope."
         run.finished_at = datetime.now(timezone.utc)

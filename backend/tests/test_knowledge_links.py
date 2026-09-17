@@ -521,6 +521,13 @@ def test_llm_review_hides_invisible_link_as_404(
 def test_trigger_computation_dispatches_task_and_creates_run(client, db_session, two_chunks):
     source, chunk_a, chunk_b = two_chunks
     project_id = chunk_a.project_id
+    project = db_session.query(Project).filter(Project.id == project_id).first()
+    second_source = KnowledgeSource(
+        name="KL Second Source", type="Local", project_id=project_id, team_id=project.team_id
+    )
+    db_session.add(second_source)
+    db_session.commit()
+    db_session.refresh(second_source)
     calls = []
 
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
@@ -529,7 +536,7 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
         res = client.post("/knowledge-links/compute", params={
             "project_id": project_id,
-            "source_ids": [source.id],
+            "source_ids": [source.id, second_source.id],
             "min_confidence": 70,
         })
     assert res.status_code == 200
@@ -541,12 +548,13 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
     assert args == [run_id]
     assert kwargs["min_confidence"] == 70
     assert kwargs["project_id"] == project_id
-    assert kwargs["source_ids"] == [source.id]
+    assert kwargs["source_ids"] == [source.id, second_source.id]
 
     run = db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == run_id).first()
     assert run is not None
     assert run.task_type == "knowledge_links"
     db_session.delete(run)
+    db_session.delete(second_source)
     db_session.commit()
 
 
@@ -554,6 +562,16 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     client, db_session, two_chunks
 ):
     source, chunk_a, chunk_b = two_chunks
+    project = db_session.query(Project).filter(Project.id == chunk_a.project_id).first()
+    second_source = KnowledgeSource(
+        name="KL Refresh Source", type="Local", project_id=chunk_a.project_id, team_id=project.team_id
+    )
+    db_session.add(second_source)
+    db_session.commit()
+    db_session.refresh(second_source)
+    original_source_id = chunk_b.source_id
+    chunk_b.source_id = second_source.id
+    db_session.commit()
     # IDs vorab festhalten: die Route löscht "pending" serverseitig per Bulk-
     # DELETE (synchronize_session=False), ein Attributzugriff danach auf das
     # Python-Objekt würfe ObjectDeletedError.
@@ -564,7 +582,7 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
         res = client.post("/knowledge-links/compute", params={
             "project_id": chunk_a.project_id,
-            "source_ids": [source.id],
+            "source_ids": [source.id, second_source.id],
         })
     assert res.status_code == 200
     run_id = res.json()["run_id"]
@@ -581,6 +599,8 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     db_session.query(KnowledgeLink).filter(KnowledgeLink.id.in_([approved_id, rejected_id])).delete(
         synchronize_session=False
     )
+    chunk_b.source_id = original_source_id
+    db_session.delete(second_source)
     db_session.commit()
 
 
