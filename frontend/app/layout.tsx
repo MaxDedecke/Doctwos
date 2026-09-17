@@ -57,7 +57,7 @@ export default async function RootLayout({
             // shadcn CSS vars in globals.css) is set before first paint —
             // otherwise the page flashes the light "drafting paper" palette
             // before app/page.tsx's theme useEffect corrects it.
-            __html: `(function(){try{var t=localStorage.getItem('doctus-theme');document.documentElement.classList.toggle('dark',t!=='light');}catch(e){document.documentElement.classList.add('dark');}})();`,
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)doctus-theme=(light|dark)(?:;|$)/);var t=m?m[1]:localStorage.getItem('doctus-theme');document.documentElement.classList.toggle('dark',t!=='light');}catch(e){document.documentElement.classList.add('dark');}})();`,
           }}
         />
         <script

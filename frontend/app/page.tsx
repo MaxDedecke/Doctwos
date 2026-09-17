@@ -814,6 +814,7 @@ function AppContent() {
   if (!isLoggedIn) {
     return (
       <LoginView
+        theme={theme}
         onAuthenticated={() => {
           api.getMe()
             .then((res) => { setIsLoggedIn(true); setCurrentUser(res.data); })

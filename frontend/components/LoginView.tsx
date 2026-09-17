@@ -16,10 +16,13 @@ const MIN_PASSWORD_LENGTH = 12;
 interface LoginViewProps {
   /** Wird nach erfolgreicher Anmeldung (inkl. ggf. erzwungenem Wechsel) aufgerufen. */
   onAuthenticated?: () => void;
+  /** Persisted display preference from the workspace, also available while logged out. */
+  theme?: string;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = 'dark' }) => {
   const { t } = useLanguage();
+  const isDark = theme === 'dark';
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -111,22 +114,39 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
     }
   };
 
-  const inputClass = "w-full h-11 rounded-md bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-2 focus-visible:ring-ds-zinc-400 focus-visible:border-ds-zinc-400";
+  const inputClass = cn(
+    "w-full h-11 rounded-md focus-visible:ring-2 focus-visible:border-transparent",
+    isDark
+      ? "bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 placeholder:text-ds-zinc-600 focus-visible:ring-ds-zinc-400"
+      : "bg-ds-white border-ds-zinc-300 text-ds-zinc-900 placeholder:text-ds-zinc-400 focus-visible:ring-ds-zinc-500",
+  );
 
   return (
-    <div className="min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] bg-ds-zinc-950 text-ds-zinc-200 font-sans overflow-hidden">
-      <section className="hidden lg:flex relative flex-col justify-between border-r border-ds-zinc-800 p-12 doctus-canvas overflow-hidden">
+    <div className={cn(
+      "min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] font-sans overflow-hidden",
+      isDark ? "bg-ds-zinc-950 text-ds-zinc-200" : "bg-ds-zinc-50 text-ds-zinc-900",
+    )}>
+      <section className={cn(
+        "hidden lg:flex relative flex-col justify-between border-r p-12 doctus-canvas overflow-hidden",
+        isDark ? "border-ds-zinc-800" : "border-ds-zinc-200",
+      )}>
         <div className="absolute left-0 top-0 h-full w-2 doctus-brand-gradient" />
         <div className="flex items-center gap-3">
           <DoctusIcon className="h-10 w-10" />
-          <DoctusWordmark className="h-9 w-32" theme="dark" />
+          <DoctusWordmark className="h-9 w-32" theme={theme} />
         </div>
         <div className="max-w-2xl">
-          <p className="doctus-kicker text-ds-zinc-400 mb-5">{t('loginView.heroKicker')}</p>
-          <h1 className="font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em] text-ds-zinc-100">
+          <p className={cn("doctus-kicker mb-5", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.heroKicker')}</p>
+          <h1 className={cn(
+            "font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em]",
+            isDark ? "text-ds-zinc-100" : "text-ds-zinc-900",
+          )}>
             {t('loginView.heroHeadline')}
           </h1>
-          <div className="mt-10 grid grid-cols-3 border-y border-ds-zinc-800 py-5 text-ds-zinc-400">
+          <div className={cn(
+            "mt-10 grid grid-cols-3 border-y py-5",
+            isDark ? "border-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-200 text-ds-zinc-600",
+          )}>
             <span className="doctus-kicker">{t('loginView.heroTraceWord')}</span>
             <span className="doctus-kicker">{t('loginView.heroExplainWord')}</span>
             <span className="doctus-kicker">{t('loginView.heroModernizeWord')}</span>
@@ -135,7 +155,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
         <div aria-hidden="true" />
       </section>
 
-      <section className="relative flex items-center justify-center p-6 sm:p-12 bg-ds-zinc-900">
+      <section className={cn(
+        "relative flex items-center justify-center p-6 sm:p-12",
+        isDark ? "bg-ds-zinc-900" : "bg-ds-white",
+      )}>
       <div className="absolute inset-x-0 top-0 h-1 doctus-brand-gradient lg:hidden" />
       <div className="w-full max-w-[420px] z-10">
 
@@ -144,20 +167,28 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
-          className="relative border-t-2 border-ds-zinc-700 bg-ds-zinc-950 p-7 sm:p-9 space-y-7 shadow-[10px_10px_0_rgb(var(--ds-neutral-800))]"
+          className={cn(
+            "relative border-t-2 p-7 sm:p-9 space-y-7",
+            isDark
+              ? "border-ds-zinc-700 bg-ds-zinc-950 shadow-[10px_10px_0_rgb(var(--ds-neutral-800))]"
+              : "border-ds-zinc-300 bg-ds-white shadow-[10px_10px_0_rgb(var(--ds-neutral-200))]",
+          )}
         >
           <div className="flex items-center justify-between lg:hidden select-none">
             <div className="flex items-center gap-3">
               <DoctusIcon className="h-9 w-9" />
-              <DoctusWordmark className="h-8 w-28" theme="dark" />
+              <DoctusWordmark className="h-8 w-28" theme={theme} />
             </div>
           </div>
 
-          <div className="space-y-2 border-b border-ds-zinc-800 pb-6">
-            <h2 className="text-3xl font-heading font-semibold text-ds-zinc-100 tracking-[-0.035em]">
+          <div className={cn("space-y-2 border-b pb-6", isDark ? "border-ds-zinc-800" : "border-ds-zinc-200")}>
+            <h2 className={cn(
+              "text-3xl font-heading font-semibold tracking-[-0.035em]",
+              isDark ? "text-ds-zinc-100" : "text-ds-zinc-900",
+            )}>
               {mustChangePassword ? t('loginView.changeTitle') : t('loginView.title')}
             </h2>
-            <p className="text-sm text-ds-zinc-500">
+            <p className={cn("text-sm", isDark ? "text-ds-zinc-500" : "text-ds-zinc-600")}>
               {mustChangePassword ? t('loginView.changeHint') : t('loginView.description')}
             </p>
           </div>
@@ -165,7 +196,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           {mustChangePassword ? (
             <form className="space-y-3" onSubmit={handleChangePassword}>
               <div className="space-y-1.5">
-                <label htmlFor="new-password" className="text-[11px] text-ds-zinc-400">{t('loginView.newPasswordLabel')}</label>
+                <label htmlFor="new-password" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordLabel')}</label>
                 <Input
                   id="new-password"
                   type="password"
@@ -176,7 +207,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="new-password-repeat" className="text-[11px] text-ds-zinc-400">{t('loginView.newPasswordRepeatLabel')}</label>
+                <label htmlFor="new-password-repeat" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordRepeatLabel')}</label>
                 <Input
                   id="new-password-repeat"
                   type="password"
@@ -209,22 +240,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                   type="button"
                   onClick={handleSsoLogin}
                   className={cn(
-                    "w-full h-11 rounded-md bg-ds-zinc-100 text-ds-zinc-900 font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer hover:bg-ds-zinc-300",
+                    "w-full h-11 rounded-md font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
+                    isDark
+                      ? "bg-ds-zinc-100 text-ds-zinc-900 hover:bg-ds-zinc-300"
+                      : "bg-ds-zinc-900 text-ds-white hover:bg-ds-zinc-700",
                     "active:scale-[0.98]"
                   )}
                 >
                   <span>{t('loginView.ssoButton')}</span>
                 </Button>
-                <div className="flex items-center gap-3 text-[11px] text-ds-zinc-500">
-                  <div className="h-px flex-1 bg-ds-zinc-800" />
+                <div className={cn("flex items-center gap-3 text-[11px]", isDark ? "text-ds-zinc-500" : "text-ds-zinc-600")}>
+                  <div className={cn("h-px flex-1", isDark ? "bg-ds-zinc-800" : "bg-ds-zinc-200")} />
                   <span>{t('loginView.ssoDivider')}</span>
-                  <div className="h-px flex-1 bg-ds-zinc-800" />
+                  <div className={cn("h-px flex-1", isDark ? "bg-ds-zinc-800" : "bg-ds-zinc-200")} />
                 </div>
               </div>
             )}
             <form className="space-y-3" onSubmit={handleLogin}>
               <div className="space-y-1.5">
-                <label htmlFor="username" className="text-[11px] text-ds-zinc-400">{t('loginView.usernameLabel')}</label>
+                <label htmlFor="username" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.usernameLabel')}</label>
                 <Input
                   id="username"
                   type="text"
@@ -236,7 +270,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="password" className="text-[11px] text-ds-zinc-400">{t('loginView.passwordLabel')}</label>
+                <label htmlFor="password" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.passwordLabel')}</label>
                 <Input
                   id="password"
                   type="password"

@@ -12,10 +12,10 @@ import { LoginView } from './LoginView';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import * as featuresModule from '@/lib/features';
 
-function renderLoginView() {
+function renderLoginView(theme = 'dark') {
   return render(
     <LanguageProvider>
-      <LoginView />
+      <LoginView theme={theme} />
     </LanguageProvider>
   );
 }
@@ -24,6 +24,15 @@ describe('LoginView SSO button', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     window.history.replaceState({}, '', '/');
+  });
+
+  it('renders the persisted light theme when the workspace preference is light', () => {
+    const { container } = renderLoginView('light');
+    const root = container.firstElementChild;
+
+    expect(root?.classList.contains('bg-ds-zinc-50')).toBe(true);
+    expect(root?.classList.contains('text-ds-zinc-900')).toBe(true);
+    expect(screen.getByRole('heading', { name: 'Anmelden' }).className).toContain('text-ds-zinc-900');
   });
 
   it('is hidden when this deployment has no SSO configured', () => {

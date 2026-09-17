@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useDisplaySettings } from './useDisplaySettings';
 
 describe('useDisplaySettings', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    document.cookie = 'doctus-theme=; Max-Age=0; Path=/';
+  });
 
   it('restores and persists the visual editor preferences', async () => {
     localStorage.setItem('doctus-theme', 'light');
@@ -26,8 +29,18 @@ describe('useDisplaySettings', () => {
     });
 
     expect(localStorage.getItem('doctus-theme')).toBe('dark');
+    expect(document.cookie).toContain('doctus-theme=dark');
     expect(localStorage.getItem('doctus-editor-font-size')).toBe('18');
     expect(localStorage.getItem('doctus-editor-minimap')).toBe('true');
     expect(localStorage.getItem('doctus-editor-font-family')).toBe("'Fira Code', monospace");
+  });
+
+  it('prefers the theme cookie so the unauthenticated page can use it', async () => {
+    localStorage.setItem('doctus-theme', 'light');
+    document.cookie = 'doctus-theme=dark; Path=/';
+
+    const { result } = renderHook(() => useDisplaySettings());
+
+    await waitFor(() => expect(result.current.theme).toBe('dark'));
   });
 });
