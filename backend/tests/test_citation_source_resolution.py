@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import api.chat as chat_module
 from api.chat import (
     _attach_analysis_status,
+    _append_agent_source_fallback,
     _extract_tool_sources,
     _record_agent_source,
     _resolve_citation_source_id,
@@ -120,6 +121,26 @@ def test_record_agent_source_still_dedupes_by_file_and_lines():
     _record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
 
     assert len(agent_sources) == 1
+
+
+def test_agent_source_fallback_adds_exact_location_when_model_omits_citation():
+    answer = "Die Methode verarbeitet die Zahlungsdaten."
+    result = _append_agent_source_fallback(
+        answer,
+        [{"file": "src/main/java/PaymentService.java", "lines": [42, 68]}],
+    )
+
+    assert "`src/main/java/PaymentService.java:42`" in result
+
+
+def test_agent_source_fallback_keeps_a_valid_model_citation_unchanged():
+    answer = "Die Validierung steht in `src/main/java/PaymentService.java:55`."
+    result = _append_agent_source_fallback(
+        answer,
+        [{"file": "src/main/java/PaymentService.java", "lines": [42, 68]}],
+    )
+
+    assert result == answer
 
 
 def test_attach_analysis_status_marks_a_partial_citation(db_session, test_project, test_team):

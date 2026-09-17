@@ -223,3 +223,76 @@ async def test_openai_compatible_agent_uses_profile_subpath(monkeypatch):
         },
     }
     assert events[-1]["type"] == "answer"
+
+
+@pytest.mark.asyncio
+async def test_openai_responses_agent_executes_function_call(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._data
+
+    async def mock_post(self, url, **kwargs):
+        requests.append(json.loads(json.dumps(kwargs["json"])))
+        if len(requests) == 1:
+            return FakeResponse(
+                {
+                    "output": [
+                        {
+                            "type": "function_call",
+                            "call_id": "call-1",
+                            "name": "big_lookup",
+                            "arguments": "{}",
+                        }
+                    ]
+                }
+            )
+        return FakeResponse(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Fertig"}],
+                    }
+                ],
+                "output_text": "Fertig",
+            }
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="openai_responses",
+            model_name="gpt-5.6-luna",
+            api_key="secret",
+            base_url="https://api.openai.com/v1",
+            endpoint_path="/responses",
+            system_prompt="System",
+            prompt="Frage",
+            temperature=0.2,
+            repo_id=None,
+            db_session=SimpleNamespace(),
+            mcp_clients=[_FakeMcpClient("Ergebnis")],
+        )
+    ]
+
+    assert events[-1]["type"] == "answer"
+    assert events[-1]["content"] == "Fertig"
+    assert any(event["type"] == "tool_call" for event in events)
+    assert any(event["type"] == "tool_result" for event in events)
+    assert requests[0]["tools"][0]["type"] == "function"
+    assert requests[1]["input"][-1] == {
+        "type": "function_call_output",
+        "call_id": "call-1",
+        "output": "Ergebnis",
+    }
+    assert "temperature" not in requests[0]

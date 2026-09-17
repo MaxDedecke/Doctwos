@@ -301,6 +301,38 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
     return resolved
 
 
+def _append_agent_source_fallback(answer: str, agent_sources: list[dict]) -> str:
+    """Make tool-read code locations visible if the model omitted the citation syntax.
+
+    Models sometimes use a different citation style even after being instructed to
+    emit ``path/to/file.java:line``.  The locations below are not inferred: they
+    come from repository tools that actually ran during this answer.  Keep this
+    fallback explicit so the user can distinguish it from model-written prose.
+    """
+    if not agent_sources or any(_FILE_EXT_RE.search(source.get("file", "")) for source in agent_sources):
+        if _parse_citations(answer, {source.get("file", "") for source in agent_sources}):
+            return answer
+    if not agent_sources:
+        return answer
+
+    references = []
+    seen = set()
+    for source in agent_sources:
+        file_path = source.get("file")
+        lines = source.get("lines") or []
+        if not file_path or not lines:
+            continue
+        line = lines[0] or 1
+        key = (file_path.lower(), line)
+        if key in seen:
+            continue
+        seen.add(key)
+        references.append(f"- `{file_path}:{line}`")
+    if not references:
+        return answer
+    return answer.rstrip() + "\n\nVom Agenten gelesene Code-Stellen:\n" + "\n".join(references)
+
+
 def _attach_analysis_status(db: Session, sources: list[dict]) -> list[dict]:
     """O-120: eine zitierte Datei kann strukturell nur teilweise/gar nicht
     analysiert worden sein (COBOL-Diagnosen, F-029-Textfallback) oder beim
@@ -684,6 +716,7 @@ async def chat(
             agent_steps = []
             answer = ""
             agent_ran = False
+            agent_sources = []
             mcp_clients = []
             team_ids = get_visible_team_ids(user, db)
 
@@ -719,14 +752,17 @@ async def chat(
 
                 mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
 
-                agent_supported = selected_profile.protocol != "openai_responses" and not (
+                agent_supported = not (
                     selected_profile.kind == "remote" and selected_profile.protocol == "ollama"
                 )
                 if (request.project_id or mcp_clients) and agent_supported:
                     agent_ran = True
-                    agent_sources = []
                     async for event in stream_agent_events(
-                        provider=provider,
+                        provider=(
+                            "openai_responses"
+                            if selected_profile.protocol == "openai_responses"
+                            else provider
+                        ),
                         model_name=selected_profile.llm_model,
                         api_key=selected_profile.llm_api_key,
                         base_url=selected_profile.llm_base_url,
@@ -739,7 +775,7 @@ async def chat(
                         ollama_base_url=selected_profile.llm_base_url or cfg.OLLAMA_BASE_URL,
                         endpoint_path=(
                             selected_profile.llm_path
-                            if selected_profile.protocol == "openai_chat"
+                            if selected_profile.protocol in {"openai_chat", "openai_responses"}
                             else None
                         ),
                         history=[{"role": m.role, "content": m.content} for m in history_messages],
@@ -795,6 +831,8 @@ async def chat(
                     if event["type"] == "error":
                         return
 
+            if agent_ran:
+                answer = _append_agent_source_fallback(answer, agent_sources)
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):
                 sources.insert(0, pinned_source)

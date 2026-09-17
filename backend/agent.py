@@ -388,6 +388,9 @@ async def run_agent_loop(
         "Nutze diese Werkzeuge proaktiv, um Fragen präzise und fundiert zu beantworten. "
         "Formuliere deine internen Gedanken (Thoughts) über deine Vorgehensweise, bevor du ein Tool aufrufst, "
         "damit der Benutzer deine Zwischenschritte nachvollziehen kann.\n\n"
+        "Wenn du ein Repository-Werkzeug verwendet hast, muss deine finale Antwort mindestens eine tatsächlich "
+        "verwendete Code-Stelle im exakten Format `pfad/zur/datei.ext:zeile` enthalten. Verwende dafür die "
+        "Datei- und Zeilenangaben aus dem Werkzeugergebnis; erfinde niemals Pfade oder Zeilennummern.\n"
         "Wenn du dich in deiner finalen Antwort auf eine bestimmte Datei beziehst, zitiere sie inline in Backticks "
         "im Format `pfad/zur/datei.ext:zeile` (z.B. `grundriss.dwg:42`). Wissensquellen-Seiten ohne Dateiendung "
         "(z.B. Confluence- oder Jira-Seiten) zitierst du auf dieselbe Weise in Backticks, aber mit ihrem exakten "
@@ -490,6 +493,143 @@ async def run_agent_loop(
 
     # --- Run provider specific loops ---
     max_turns = 8
+
+    if provider == "openai_responses":
+        # The Responses API has a different tool contract from the
+        # OpenAI-compatible Chat Completions API.  In particular, tool
+        # definitions are flat and follow-up results are sent as
+        # ``function_call_output`` input items instead of role=tool messages.
+        url = (base_url or "https://api.openai.com/v1").rstrip("/")
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        full_url = f"{url}/{(endpoint_path or '/responses').lstrip('/')}"
+        model = model_name or "gpt-4o"
+        responses_tools = [
+            {
+                "type": "function",
+                "name": tool["name"],
+                "description": tool.get("description", ""),
+                "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
+            }
+            for tool in all_tools
+        ]
+
+        response_input: list[dict[str, Any]] = []
+        if chat_history:
+            response_input.extend(
+                {"role": msg["role"], "content": msg["content"]} for msg in chat_history
+            )
+        response_input.append({"role": "user", "content": prompt})
+
+        async with httpx.AsyncClient(timeout=120.0) as client_http:
+            for turn in range(max_turns):
+                payload = {
+                    "model": model,
+                    "instructions": full_system_prompt,
+                    "input": response_input,
+                    "tools": responses_tools,
+                    "stream": False,
+                }
+                if cfg.openai_model_supports_custom_temperature(model):
+                    payload["temperature"] = temperature if temperature is not None else 0.7
+
+                resp = await client_http.post(full_url, json=payload, headers=headers)
+                resp.raise_for_status()
+                response_data = resp.json()
+                output_items = response_data.get("output", [])
+                answer_parts: list[str] = []
+                function_calls: list[dict[str, Any]] = []
+
+                for item in output_items:
+                    item_type = item.get("type")
+                    if item_type == "message":
+                        for content in item.get("content", []):
+                            if content.get("type") == "output_text" and content.get("text"):
+                                answer_parts.append(content["text"])
+                    elif item_type == "function_call":
+                        function_calls.append(item)
+
+                thought_content = "".join(answer_parts)
+                if thought_content:
+                    agent_steps.append({"type": "thought", "content": thought_content})
+                    yield {"type": "content_chunk", "content": thought_content}
+
+                # Preserve the model's output items for the next Responses
+                # request. The API uses these items as the assistant turn that
+                # introduced the function calls.
+                response_input.extend(output_items)
+
+                if function_calls:
+                    for index, function_call in enumerate(function_calls):
+                        fn_name = function_call.get("name", "")
+                        call_id = function_call.get("call_id") or function_call.get("id")
+                        tc_id = call_id or f"tc-{turn}-{index}"
+                        raw_args = function_call.get("arguments", "")
+                        try:
+                            fn_args = json.loads(raw_args) if raw_args else {}
+                        except (TypeError, json.JSONDecodeError):
+                            fn_args = raw_args
+
+                        agent_steps.append(
+                            {
+                                "type": "tool_call",
+                                "name": fn_name,
+                                "arguments": fn_args,
+                                "id": tc_id,
+                            }
+                        )
+                        yield {
+                            "type": "tool_call",
+                            "name": fn_name,
+                            "arguments": fn_args,
+                            "id": tc_id,
+                        }
+
+                        tool_res = await execute_tool(fn_name, fn_args)
+                        truncated = _tool_result_was_truncated(tool_res)
+                        agent_steps.append(
+                            {
+                                "type": "tool_result",
+                                "name": fn_name,
+                                "result": tool_res,
+                                "id": tc_id,
+                                "truncated": truncated,
+                            }
+                        )
+                        yield {
+                            "type": "tool_result",
+                            "name": fn_name,
+                            "result": tool_res,
+                            "id": tc_id,
+                            "truncated": truncated,
+                        }
+                        response_input.append(
+                            {
+                                "type": "function_call_output",
+                                "call_id": tc_id,
+                                "output": tool_res,
+                            }
+                        )
+
+                    yield {"type": "turn_completed", "has_tool_calls": True}
+                    continue
+
+                yield {"type": "turn_completed", "has_tool_calls": False}
+                yield {
+                    "type": "answer",
+                    "content": thought_content or response_data.get("output_text", ""),
+                    "agent_steps": agent_steps,
+                }
+                return
+
+        yield {
+            "type": "answer",
+            "content": "Agent: Maximale Anzahl von Durchläufen überschritten.",
+            "agent_steps": agent_steps,
+        }
+        return
+
     if provider == "openai" or provider == "ollama":
         # Both support standard OpenAI-like JSON interface
         is_ollama = provider == "ollama"
