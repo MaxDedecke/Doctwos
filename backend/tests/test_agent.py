@@ -176,3 +176,50 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
 
     assert captured["payload"]["num_ctx"] == cfg.OLLAMA_NUM_CTX
     assert [e["type"] for e in events][-1] == "answer"
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_agent_uses_profile_subpath(monkeypatch):
+    captured = {}
+
+    @contextlib.asynccontextmanager
+    async def mock_stream(self, method, url, **kwargs):
+        captured.update(url=url, headers=kwargs["headers"])
+        response = SimpleNamespace()
+        response.raise_for_status = lambda: None
+
+        async def lines():
+            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Antwort"}}]})
+            yield "data: [DONE]"
+
+        response.aiter_lines = lines
+        yield response
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="openai",
+            model_name="remote-model",
+            api_key="remote-secret",
+            base_url="https://inference.internal:8443/tenant/v1",
+            endpoint_path="/custom/chat/completions",
+            system_prompt="System",
+            prompt="Frage",
+            temperature=0.2,
+            repo_id=None,
+            db_session=SimpleNamespace(),
+            mcp_clients=[],
+            project_id=1,
+        )
+    ]
+
+    assert captured == {
+        "url": "https://inference.internal:8443/tenant/v1/custom/chat/completions",
+        "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer remote-secret",
+        },
+    }
+    assert events[-1]["type"] == "answer"

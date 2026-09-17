@@ -194,6 +194,7 @@ export interface ChatRequest {
   llm_model?: string;
   llm_api_key?: string;
   llm_base_url?: string;
+  llm_profile_id?: number;
   embedding_model?: string;
   metadata: ChatMetadata;
   retry_of_message_id?: number;

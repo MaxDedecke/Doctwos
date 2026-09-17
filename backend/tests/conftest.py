@@ -225,7 +225,13 @@ def make_fake_llm_json(confidence: float = 87, reason: str = "Deckt sich inhaltl
     zweier getrennt gepflegter Kopien."""
 
     async def _fake(
-        prompt, provider="ollama", model=None, api_key=None, base_url=None, timeout=60.0
+        prompt,
+        provider="ollama",
+        model=None,
+        api_key=None,
+        base_url=None,
+        timeout=60.0,
+        **_kwargs,
     ):
         return {"confidence": confidence, "reason": reason}
 

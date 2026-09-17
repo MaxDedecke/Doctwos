@@ -8,6 +8,7 @@ vi.mock('@/app/services/api', () => ({
     getModelInfo: vi.fn(),
     getModels: vi.fn(),
     getAiSettings: vi.fn(),
+    getAiProfiles: vi.fn(),
   },
 }));
 
@@ -22,6 +23,7 @@ describe('useAiSettings', () => {
     mockedApi.getModelInfo.mockResolvedValue({ data: { llm: 'llama3', embedding: 'bge-m3' } } as never);
     mockedApi.getModels.mockResolvedValue({ data: { models: ['llama3', 'qwen'] } } as never);
     mockedApi.getAiSettings.mockResolvedValue({ data: {} } as never);
+    mockedApi.getAiProfiles.mockResolvedValue({ data: { active_profile_id: 1, profiles: [] } } as never);
   });
 
   it('migrates the legacy model settings and restores the active profile parameters', async () => {
@@ -37,9 +39,10 @@ describe('useAiSettings', () => {
     expect(result.current.llmProfiles[1]).toMatchObject({
       provider: 'openai',
       model: 'gpt-4o',
-      apiKey: 'secret',
+      apiKeySet: true,
       baseUrl: 'https://example.test',
     });
+    expect(localStorage.getItem('doctus-llm-api-key')).toBeNull();
     expect(localStorage.getItem('doctus-active-profile-id')).toBe('ollama-default');
   });
 

@@ -271,6 +271,7 @@ async def run_agent_loop(
     audit_user_id: Optional[int] = None,
     audit_chat_session_id: Optional[int] = None,
     audit_chat_message_id: Optional[int] = None,
+    endpoint_path: Optional[str] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -508,7 +509,7 @@ async def run_agent_loop(
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
             model = model_name or "gpt-4o"
-            full_url = url if "/chat/completions" in url else f"{url}/chat/completions"
+            full_url = f"{url}/{(endpoint_path or '/chat/completions').lstrip('/')}"
 
         openai_tools = []
         for t in all_tools:

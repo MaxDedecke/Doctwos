@@ -41,7 +41,16 @@ def _extract_json_object(text: str) -> dict:
 
 
 async def embed_text(
-    text: str, is_query: bool = True, model: Optional[str] = None
+    text: str,
+    is_query: bool = True,
+    model: Optional[str] = None,
+    *,
+    provider: Optional[str] = None,
+    base_url: Optional[str] = None,
+    path: Optional[str] = None,
+    api_key: Optional[str] = None,
+    dimension: Optional[int] = None,
+    context_length: Optional[int] = None,
 ) -> list[float]:
     """Erzeugt ein Embedding via Ollama. nomic-embed-text braucht ein Prefix
     ("search_query:"/"search_document:"), damit Anfragen und Dokumente sauber
@@ -54,27 +63,30 @@ async def embed_text(
         prefix = "search_query: " if is_query else "search_document: "
         prompt = f"{prefix}{text}"
 
+    selected_provider = (provider or cfg.EMBEDDING_PROVIDER).lower()
+    selected_base = (base_url or cfg.EMBEDDING_BASE_URL).rstrip("/")
+    selected_key = cfg.EMBEDDING_API_KEY if api_key is None else api_key
     headers = {"Content-Type": "application/json"}
-    if cfg.EMBEDDING_API_KEY:
-        headers["Authorization"] = f"Bearer {cfg.EMBEDDING_API_KEY}"
+    if selected_key:
+        headers["Authorization"] = f"Bearer {selected_key}"
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        if cfg.EMBEDDING_PROVIDER == "openai":
+        if selected_provider == "openai":
             resp = await client.post(
-                f"{cfg.EMBEDDING_BASE_URL}/embeddings",
+                f"{selected_base}/{(path or '/embeddings').lstrip('/')}",
                 json={"model": embedding_model, "input": prompt},
                 headers=headers,
             )
             resp.raise_for_status()
             embedding = resp.json()["data"][0]["embedding"]
-        elif cfg.EMBEDDING_PROVIDER == "ollama":
+        elif selected_provider == "ollama":
             resp = await client.post(
-                f"{cfg.EMBEDDING_BASE_URL}/api/embed",
+                f"{selected_base}/{(path or '/api/embed').lstrip('/')}",
                 json={
                     "model": embedding_model,
                     "input": prompt,
-                    "dimensions": cfg.EMBEDDING_DIMENSION,
-                    "options": {"num_ctx": cfg.EMBEDDING_CONTEXT_LENGTH},
+                    "dimensions": dimension or cfg.EMBEDDING_DIMENSION,
+                    "options": {"num_ctx": context_length or cfg.EMBEDDING_CONTEXT_LENGTH},
                 },
                 headers=headers,
             )
@@ -82,8 +94,7 @@ async def embed_text(
             embedding = resp.json()["embeddings"][0]
         else:
             raise ValueError(
-                "EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, "
-                f"nicht {cfg.EMBEDDING_PROVIDER!r}."
+                f"EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, nicht {selected_provider!r}."
             )
         return embedding
 
@@ -117,7 +128,10 @@ async def search_project_chunks(
     selected_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
     if selected_model == cfg.OLLAMA_EMBED_MODEL:
         filters.append(
-            or_(DocumentChunk.embedding_model == selected_model, DocumentChunk.embedding_model.is_(None))
+            or_(
+                DocumentChunk.embedding_model == selected_model,
+                DocumentChunk.embedding_model.is_(None),
+            )
         )
     else:
         filters.append(DocumentChunk.embedding_model == selected_model)
@@ -165,6 +179,8 @@ async def ask_llm_json_for_profile(
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     timeout: float = 60.0,
+    protocol: Optional[str] = None,
+    path: Optional[str] = None,
 ) -> dict:
     """Single-Shot-JSON-LLM-Aufruf für ein beliebiges LLM-Profil (lokales Ollama
     oder Cloud-Opt-in OpenAI/Gemini/Anthropic) — Provider-Dispatch analog
@@ -180,12 +196,14 @@ async def ask_llm_json_for_profile(
 
     if provider == "ollama":
         model_to_use = cfg.resolve_ollama_model(model)
+        selected_base = (base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
+        selected_key = cfg.OLLAMA_API_KEY if api_key is None else api_key
         headers = {"Content-Type": "application/json"}
-        if cfg.OLLAMA_API_KEY:
-            headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
+        if selected_key:
+            headers["Authorization"] = f"Bearer {selected_key}"
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
-                f"{cfg.OLLAMA_BASE_URL}/api/chat",
+                f"{selected_base}/{(path or '/api/chat').lstrip('/')}",
                 json={
                     "model": model_to_use,
                     "messages": [{"role": "user", "content": prompt}],
@@ -199,7 +217,28 @@ async def ask_llm_json_for_profile(
 
     if provider == "openai":
         base = (base_url or "https://api.openai.com/v1").rstrip("/")
-        url = base if "/chat/completions" in base else f"{base}/chat/completions"
+        if protocol == "openai_responses":
+            url = f"{base}/{(path or '/responses').lstrip('/')}"
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            payload = {
+                "model": model or "gpt-6-astra",
+                "input": prompt,
+                "instructions": "Return only a valid JSON object.",
+            }
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+                content = data.get("output_text") or "".join(
+                    part.get("text", "")
+                    for item in data.get("output", [])
+                    for part in item.get("content", [])
+                    if part.get("type") == "output_text"
+                )
+                return _extract_json_object(content)
+        url = f"{base}/{(path or '/chat/completions').lstrip('/')}"
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -215,7 +254,11 @@ async def ask_llm_json_for_profile(
 
     if provider == "gemini":
         model_name = model or "gemini-1.5-flash"
-        full_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key or ''}"
+        gemini_base = (base_url or "https://generativelanguage.googleapis.com").rstrip("/")
+        gemini_path = (path or "/v1beta/models/{model}:generateContent").replace(
+            "{model}", model_name
+        )
+        full_url = f"{gemini_base}/{gemini_path.lstrip('/')}?key={api_key or ''}"
         payload = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {"response_mime_type": "application/json"},
@@ -241,7 +284,10 @@ async def ask_llm_json_for_profile(
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
-                "https://api.anthropic.com/v1/messages", json=payload, headers=headers
+                f"{(base_url or 'https://api.anthropic.com/v1').rstrip('/')}/"
+                f"{(path or '/messages').lstrip('/')}",
+                json=payload,
+                headers=headers,
             )
             resp.raise_for_status()
             text = resp.json()["content"][0]["text"]

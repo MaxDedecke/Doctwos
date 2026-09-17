@@ -536,8 +536,7 @@ export function LinkManagerView({
         body: JSON.stringify({
           llm_provider: activeProfile?.provider || 'ollama',
           llm_model: activeProfile?.model || undefined,
-          llm_api_key: activeProfile?.apiKey || undefined,
-          llm_base_url: activeProfile?.baseUrl || undefined,
+          llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
         }),
       });
       if (!res.ok) {

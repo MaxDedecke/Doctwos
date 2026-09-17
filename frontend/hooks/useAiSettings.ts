@@ -4,12 +4,24 @@ import { api } from '@/app/services/api';
 export interface LlmProfile {
   id: string;
   name: string;
+  kind?: 'local' | 'remote' | 'cloud';
   provider: string;
+  protocol?: 'ollama' | 'openai_chat' | 'openai_responses' | 'anthropic' | 'gemini';
   model: string;
   /** Local Ollama embedding model used for ingestion and retrieval. */
   embeddingModel?: string;
-  apiKey?: string;
   baseUrl?: string;
+  llmPath?: string;
+  apiKeySet?: boolean;
+  embeddingProvider?: string;
+  embeddingBaseUrl?: string;
+  embeddingPath?: string;
+  embeddingApiKeySet?: boolean;
+  embeddingDimension?: number;
+  embeddingContextLength?: number;
+  llmContextLength?: number;
+  isSystem?: boolean;
+  isActive?: boolean;
   temperature?: number;
   systemPrompt?: string;
 }
@@ -29,14 +41,34 @@ export const DEFAULT_SYSTEM_PROMPT =
   + 'Antworte präzise und begründet, stütze dich ausschließlich auf die dir bereitgestellten und indexierten Inhalte, '
   + 'und mache transparent, wenn dir Informationen fehlen oder unsicher sind.';
 
+export function profileFromApi(profile: Record<string, unknown>): LlmProfile {
+  return {
+    id: String(profile.id), name: profile.name as string,
+    kind: profile.kind as LlmProfile['kind'], provider: profile.provider as string,
+    protocol: profile.protocol as LlmProfile['protocol'], model: profile.llm_model as string,
+    baseUrl: profile.llm_base_url as string | undefined, llmPath: profile.llm_path as string | undefined,
+    apiKeySet: Boolean(profile.llm_api_key_set), embeddingProvider: profile.embedding_provider as string,
+    embeddingModel: profile.embedding_model as string,
+    embeddingBaseUrl: profile.embedding_base_url as string | undefined,
+    embeddingPath: profile.embedding_path as string | undefined,
+    embeddingApiKeySet: Boolean(profile.embedding_api_key_set),
+    embeddingDimension: profile.embedding_dimension as number,
+    embeddingContextLength: profile.embedding_context_length as number,
+    llmContextLength: profile.llm_context_length as number,
+    isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
+  };
+}
+
 function readProfiles(t: Translator): LlmProfile[] {
   const savedProfiles = localStorage.getItem('doctus-llm-profiles');
   if (savedProfiles) {
     try {
       const parsed = JSON.parse(savedProfiles);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.map(profile => ({
-          ...profile,
+        return parsed.map(profile => {
+          const { apiKey: _discardedSecret, ...safeProfile } = profile;
+          return ({
+          ...safeProfile,
           model: !profile.model || profile.model === 'qwen2.5:1.5b'
             ? DEFAULT_LLM_MODEL
             : profile.model,
@@ -46,7 +78,8 @@ function readProfiles(t: Translator): LlmProfile[] {
           embeddingModel: !profile.embeddingModel || profile.embeddingModel === 'bge-m3'
             ? DEFAULT_EMBEDDING_MODEL
             : profile.embeddingModel,
-        }));
+        });
+        });
       }
     } catch (error) {
       console.error('Failed to restore LLM profiles:', error);
@@ -77,13 +110,14 @@ function readProfiles(t: Translator): LlmProfile[] {
         : t('page.defaultLlmProfiles.providerModel', { provider: legacyProvider.toUpperCase() }),
       provider: legacyProvider,
       model: legacyModel,
-      apiKey: legacyApiKey,
+          apiKeySet: Boolean(legacyApiKey),
       baseUrl: legacyBaseUrl,
       embeddingModel: DEFAULT_EMBEDDING_MODEL,
     });
   }
 
   localStorage.setItem('doctus-llm-profiles', JSON.stringify(profiles));
+  localStorage.removeItem('doctus-llm-api-key');
   return profiles;
 }
 
@@ -139,30 +173,20 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
       })
       .catch(error => console.error('Failed to load model info:', error));
 
-    // The deployment profile is authoritative for the shared parser/backend.
-    // Keep the browser profile list for chat switching, but hydrate its active
-    // Ollama entry so a fresh browser sees the same profile as every worker.
-    api.getAiSettings?.()
+    api.getAiProfiles?.()
       .then(res => {
-        const settings = res.data;
-        if (settings.llm_model) setActiveLlmModel(settings.llm_model);
-        if (settings.embedding_model) setActiveEmbeddingModel(settings.embedding_model);
-        if (settings.embedding_dimension) setEmbeddingDimension(settings.embedding_dimension);
-        if (settings.embedding_context_length) setEmbeddingContextLength(settings.embedding_context_length);
-        if (settings.llm_context_length) setLlmContextLength(settings.llm_context_length);
-        setLlmProfiles(previous => {
-          const next = previous.map(profile => profile.id === initialActiveProfileId(previous)
-            ? {
-                ...profile,
-                provider: settings.llm_provider || profile.provider,
-                model: settings.llm_model || profile.model,
-                embeddingModel: settings.embedding_model || profile.embeddingModel,
-                baseUrl: settings.llm_base_url || profile.baseUrl,
-              }
-            : profile);
-          localStorage.setItem('doctus-llm-profiles', JSON.stringify(next));
-          return next;
-        });
+        const profiles: LlmProfile[] = (res.data.profiles || []).map(profileFromApi);
+        if (!profiles.length) return;
+        localStorage.removeItem('doctus-llm-profiles');
+        const active = profiles.find(profile => profile.id === String(res.data.active_profile_id)) || profiles[0];
+        setLlmProfiles(profiles);
+        setActiveProfileIdState(active.id);
+        localStorage.setItem('doctus-active-profile-id', String(active.id));
+        setActiveLlmModel(active.model);
+        setActiveEmbeddingModel(active.embeddingModel || DEFAULT_EMBEDDING_MODEL);
+        setEmbeddingDimension(active.embeddingDimension || 1024);
+        setEmbeddingContextLength(active.embeddingContextLength || 8192);
+        setLlmContextLength(active.llmContextLength || 8192);
       })
       .catch(error => console.error('Failed to load persisted AI settings:', error));
 

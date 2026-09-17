@@ -31,6 +31,7 @@ import pytest
 import api.knowledge_links as knowledge_links_api
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from models.database import (
+    AIProfile,
     CodeEntity,
     DocumentChunk,
     KnowledgeLink,
@@ -447,12 +448,33 @@ def test_llm_review_rejects_disabled_cloud_provider(client, db_session, two_chun
     monkeypatch.setattr(knowledge_links_api.cfg, "cloud_llm_allowed", lambda: False)
     source, chunk_a, chunk_b = two_chunks
     link = _make_link(db_session, chunk_a, chunk_b, status="pending")
+    profile = AIProfile(
+        name="OpenAI guard test",
+        kind="cloud",
+        provider="openai",
+        protocol="openai_responses",
+        llm_model="gpt-6-astra",
+        llm_base_url="https://api.openai.com/v1",
+        llm_path="/responses",
+        embedding_provider="ollama",
+        embedding_model="bge-m3",
+        embedding_base_url="http://ollama:11434",
+        embedding_path="/api/embed",
+        embedding_dimension=1024,
+        embedding_context_length=8192,
+        llm_context_length=8192,
+    )
+    db_session.add(profile)
+    db_session.commit()
     try:
-        res = client.post(f"/knowledge-links/{link.id}/llm-review", json={"llm_provider": "openai"})
+        res = client.post(
+            f"/knowledge-links/{link.id}/llm-review", json={"llm_profile_id": profile.id}
+        )
         assert res.status_code == 403
         assert "allowCloudProviders" in res.json()["detail"]
     finally:
         db_session.query(KnowledgeLink).filter(KnowledgeLink.id == link.id).delete()
+        db_session.delete(profile)
         db_session.commit()
 
 

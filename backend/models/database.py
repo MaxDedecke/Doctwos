@@ -241,9 +241,7 @@ class DocumentChunk(Base):
     # trotzdem hierher: was das ORM nicht kennt, will `alembic revision
     # --autogenerate` beim nächsten Mal löschen — und ein stillschweigend
     # entfernter HNSW-Index degradiert die Suche zum Full Scan, ohne Fehler.
-    __table_args__ = (
-        Index("ix_document_chunks_project_file", "project_id", "file_path"),
-    )
+    __table_args__ = (Index("ix_document_chunks_project_file", "project_id", "file_path"),)
 
 
 @event.listens_for(DocumentChunk.embedding, "set")
@@ -361,8 +359,39 @@ class AISettings(Base):
     llm_context_length = Column(Integer, nullable=False, server_default="8192")
     updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    active_profile_id = Column(
+        Integer, ForeignKey("ai_profiles.id", ondelete="SET NULL"), nullable=True
+    )
 
     updated_by = relationship("User")
+    active_profile = relationship("AIProfile", foreign_keys=[active_profile_id])
+
+
+class AIProfile(Base):
+    """Server-side inference profile; secrets never leave the API service."""
+
+    __tablename__ = "ai_profiles"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), nullable=False)
+    kind = Column(String(32), nullable=False)  # local | remote | cloud
+    provider = Column(String(32), nullable=False)
+    protocol = Column(String(32), nullable=False)
+    llm_model = Column(String, nullable=False)
+    llm_base_url = Column(String, nullable=True)
+    llm_path = Column(String, nullable=True)
+    llm_api_key = Column(EncryptedString, nullable=True)
+    embedding_provider = Column(String(32), nullable=False, server_default="ollama")
+    embedding_model = Column(String, nullable=False, server_default="bge-m3")
+    embedding_base_url = Column(String, nullable=True)
+    embedding_path = Column(String, nullable=True)
+    embedding_api_key = Column(EncryptedString, nullable=True)
+    embedding_dimension = Column(Integer, nullable=False, server_default="1024")
+    embedding_context_length = Column(Integer, nullable=False, server_default="8192")
+    llm_context_length = Column(Integer, nullable=False, server_default="8192")
+    is_system = Column(Boolean, nullable=False, default=False, server_default="false")
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class ChatFeedbackDiagnosticCase(Base):
@@ -575,9 +604,15 @@ class LinkBuilderDirtyItem(Base):
 
     __tablename__ = "link_builder_dirty_items"
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
-    entity_id = Column(Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True)
-    chunk_id = Column(Integer, ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True, index=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_id = Column(
+        Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    chunk_id = Column(
+        Integer, ForeignKey("document_chunks.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     reason = Column(String(40), nullable=False, server_default="content_changed")
     status = Column(String(20), nullable=False, server_default="pending", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

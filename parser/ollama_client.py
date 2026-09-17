@@ -6,9 +6,8 @@ import re
 import asyncio
 from typing import Dict, Optional
 
-from sqlalchemy import text as sql_text
-
 from db import SessionLocal
+from models.database import AIProfile, AISettings
 
 logger = logging.getLogger(__name__)
 
@@ -59,15 +58,45 @@ def _load_server_settings() -> Optional[dict]:
     try:
         db = SessionLocal()
         try:
-            row = db.execute(
-                sql_text(
-                    "SELECT llm_model, llm_base_url, llm_api_key, "
-                    "embedding_provider, embedding_model, embedding_base_url, "
-                    "embedding_api_key, embedding_dimension, embedding_context_length, "
-                    "llm_context_length FROM ai_settings ORDER BY id LIMIT 1"
+            settings = db.query(AISettings).order_by(AISettings.id).first()
+            if settings is None:
+                return None
+            profile = None
+            if settings.active_profile_id is not None:
+                profile = (
+                    db.query(AIProfile).filter(AIProfile.id == settings.active_profile_id).first()
                 )
-            ).mappings().first()
-            return dict(row) if row else None
+            if profile is not None:
+                return {
+                    "llm_model": profile.llm_model,
+                    "llm_base_url": profile.llm_base_url,
+                    "llm_api_key": profile.llm_api_key,
+                    "protocol": profile.protocol,
+                    "llm_path": profile.llm_path,
+                    "embedding_provider": profile.embedding_provider,
+                    "embedding_model": profile.embedding_model,
+                    "embedding_base_url": profile.embedding_base_url,
+                    "embedding_api_key": profile.embedding_api_key,
+                    "embedding_path": profile.embedding_path,
+                    "embedding_dimension": profile.embedding_dimension,
+                    "embedding_context_length": profile.embedding_context_length,
+                    "llm_context_length": profile.llm_context_length,
+                }
+            return {
+                "llm_model": settings.llm_model,
+                "llm_base_url": settings.llm_base_url,
+                "llm_api_key": settings.llm_api_key,
+                "protocol": "ollama" if settings.llm_provider == "ollama" else "openai_chat",
+                "llm_path": None,
+                "embedding_provider": settings.embedding_provider,
+                "embedding_model": settings.embedding_model,
+                "embedding_base_url": settings.embedding_base_url,
+                "embedding_api_key": settings.embedding_api_key,
+                "embedding_path": None,
+                "embedding_dimension": settings.embedding_dimension,
+                "embedding_context_length": settings.embedding_context_length,
+                "llm_context_length": settings.llm_context_length,
+            }
         finally:
             db.close()
     except Exception as exc:
@@ -85,6 +114,7 @@ def _effective_embedding_settings(model: Optional[str] = None) -> dict:
         if settings and settings["embedding_base_url"]
         else EMBEDDING_BASE_URL,
         "api_key": settings["embedding_api_key"] if settings else EMBEDDING_API_KEY,
+        "path": settings.get("embedding_path") if settings else None,
         "model": settings["embedding_model"] if use_server_model else (model or configured_model),
         "dimension": settings["embedding_dimension"] if settings else EMBEDDING_DIMENSION,
         "context": settings["embedding_context_length"] if settings else EMBEDDING_CONTEXT_LENGTH,
@@ -101,7 +131,13 @@ def _effective_llm_settings(model: str) -> dict:
         else OLLAMA_BASE_URL,
         "api_key": settings["llm_api_key"] if use_server_model and settings else OLLAMA_API_KEY,
         "model": settings["llm_model"] if use_server_model and settings else model,
-        "context": settings["llm_context_length"] if use_server_model and settings else OLLAMA_NUM_CTX,
+        "context": settings["llm_context_length"]
+        if use_server_model and settings
+        else OLLAMA_NUM_CTX,
+        "protocol": settings.get("protocol", "ollama")
+        if use_server_model and settings
+        else "ollama",
+        "path": settings.get("llm_path") if use_server_model and settings else None,
     }
 
 
@@ -181,7 +217,7 @@ async def _get_embeddings_sub_batch(
         try:
             if settings["provider"] == "openai":
                 response = await client.post(
-                    f"{settings['base_url']}/embeddings",
+                    f"{settings['base_url']}/{(settings.get('path') or '/embeddings').lstrip('/')}",
                     json={"model": model, "input": texts},
                     headers=_headers(settings["api_key"]),
                     timeout=EMBED_BATCH_TIMEOUT,
@@ -197,7 +233,7 @@ async def _get_embeddings_sub_batch(
 
             # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array.
             response = await client.post(
-                _embedding_url("/api/embed"),
+                f"{settings['base_url']}/{(settings.get('path') or '/api/embed').lstrip('/')}",
                 json={
                     "model": model,
                     "input": texts,
@@ -261,6 +297,40 @@ async def get_chat_json(
         )
 
     settings = _effective_llm_settings(model)
+    if settings["protocol"] in {"openai_chat", "openai_responses"}:
+        if settings["protocol"] == "openai_responses":
+            payload = {
+                "model": settings["model"],
+                "input": prompt,
+                "instructions": "Return only a valid JSON object.",
+            }
+            default_path = "/responses"
+        else:
+            payload = {
+                "model": settings["model"],
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+            }
+            default_path = "/chat/completions"
+        client = _get_client()
+        response = await client.post(
+            f"{settings['base_url']}/{(settings.get('path') or default_path).lstrip('/')}",
+            json=payload,
+            headers=_headers(settings["api_key"]),
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if settings["protocol"] == "openai_responses":
+            content = data.get("output_text") or "".join(
+                part.get("text", "")
+                for item in data.get("output", [])
+                for part in item.get("content", [])
+                if part.get("type") == "output_text"
+            )
+        else:
+            content = data["choices"][0]["message"]["content"]
+        return _parse_json_content(content)
     payload = {
         "model": settings["model"],
         "messages": [{"role": "user", "content": prompt}],
@@ -272,7 +342,7 @@ async def get_chat_json(
         payload["think"] = think
     client = _get_client()
     response = await client.post(
-        f"{settings['base_url']}/api/chat",
+        f"{settings['base_url']}/{(settings.get('path') or '/api/chat').lstrip('/')}",
         json=payload,
         headers=_headers(settings["api_key"]),
         timeout=timeout,
@@ -306,7 +376,7 @@ async def is_gpu_accelerated(model: str) -> bool:
     try:
         client = _get_client()
         await client.post(
-            f"{settings['base_url']}/api/embed",
+            f"{settings['base_url']}/{(settings.get('path') or '/api/embed').lstrip('/')}",
             json={
                 "model": model,
                 "input": "warmup",

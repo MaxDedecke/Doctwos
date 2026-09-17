@@ -235,6 +235,44 @@ async def test_standard_rag_stream_normalizes_openai_events(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_responses_stream_does_not_send_temperature(monkeypatch):
+    captured = {}
+
+    @contextlib.asynccontextmanager
+    async def mock_stream(self, method, url, **kwargs):
+        captured.update(url=url, payload=kwargs["json"])
+        response = SimpleNamespace()
+        response.raise_for_status = lambda: None
+
+        async def lines():
+            yield "event: response.output_text.delta"
+            yield 'data: {"type":"response.output_text.delta","delta":"Hallo"}'
+
+        response.aiter_lines = lines
+        yield response
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+    events = [
+        event
+        async for event in stream_standard_rag_events(
+            provider="openai",
+            protocol="openai_responses",
+            model="gpt-6-astra",
+            api_key="secret",
+            base_url="https://api.openai.com/v1",
+            path="/responses",
+            temperature=0.7,
+            system_prompt="System",
+            history=[],
+            prompt="Frage",
+        )
+    ]
+    assert captured["url"] == "https://api.openai.com/v1/responses"
+    assert "temperature" not in captured["payload"]
+    assert events[-1]["content"] == "Hallo"
+
+
+@pytest.mark.asyncio
 async def test_ollama_stream_sets_explicit_num_ctx(monkeypatch):
     """O-168: ohne num_ctx faellt Ollama auf sein kleines, stillschweigend
     kuerzendes Default-Kontextfenster zurueck."""
@@ -247,8 +285,8 @@ async def test_ollama_stream_sets_explicit_num_ctx(monkeypatch):
         response.raise_for_status = lambda: None
 
         async def lines():
-            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Hi"}}]})
-            yield "data: [DONE]"
+            yield json.dumps({"message": {"content": "Hi"}, "done": False})
+            yield json.dumps({"message": {"content": ""}, "done": True})
 
         response.aiter_lines = lines
         yield response
@@ -268,4 +306,4 @@ async def test_ollama_stream_sets_explicit_num_ctx(monkeypatch):
         )
     ]
 
-    assert captured["payload"]["num_ctx"] == cfg.OLLAMA_NUM_CTX
+    assert captured["payload"]["options"]["num_ctx"] == cfg.OLLAMA_NUM_CTX

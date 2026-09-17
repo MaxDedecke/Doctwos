@@ -34,13 +34,9 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
     assert len(calls) == 3
     assert [len(c) for c in calls] == [2, 2, 1]
     assert embeddings == [[1.0], [2.0], [3.0], [4.0], [1.0]]
+    assert all(payload["dimensions"] == ollama_client.EMBEDDING_DIMENSION for payload in payloads)
     assert all(
-        payload["dimensions"] == ollama_client.EMBEDDING_DIMENSION
-        for payload in payloads
-    )
-    assert all(
-        payload["options"] == {"num_ctx": ollama_client.OLLAMA_NUM_CTX}
-        for payload in payloads
+        payload["options"] == {"num_ctx": ollama_client.OLLAMA_NUM_CTX} for payload in payloads
     )
 
 
@@ -90,6 +86,41 @@ async def test_get_embeddings_batch_supports_openai_compatible_remote_endpoint(m
     assert captured == {
         "url": "https://ai.example/v1/embeddings",
         "payload": {"model": "bge-m3", "input": ["a", "b"]},
+        "headers": {"Content-Type": "application/json", "Authorization": "Bearer secret"},
+    }
+
+
+@pytest.mark.anyio
+async def test_get_embeddings_batch_uses_active_profile_subpath(monkeypatch):
+    captured = {}
+
+    async def fake_post(url, json, timeout, headers=None):
+        captured.update(url=url, headers=headers)
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value={"embeddings": [[0.1]]})
+        return response
+
+    monkeypatch.setattr(
+        ollama_client,
+        "_load_server_settings",
+        lambda: {
+            "embedding_provider": "ollama",
+            "embedding_model": "remote-embed",
+            "embedding_base_url": "https://inference.internal:8443/ollama",
+            "embedding_api_key": "secret",
+            "embedding_path": "/tenant/api/embed",
+            "embedding_dimension": 1024,
+            "embedding_context_length": 4096,
+        },
+    )
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.get_embeddings_batch(["a"]) == [[0.1]]
+    assert captured == {
+        "url": "https://inference.internal:8443/ollama/tenant/api/embed",
         "headers": {"Content-Type": "application/json", "Authorization": "Bearer secret"},
     }
 

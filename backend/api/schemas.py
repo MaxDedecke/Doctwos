@@ -71,6 +71,7 @@ class ChatRequest(BaseModel):
     llm_model: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
+    llm_profile_id: Optional[int] = None
     # Optionales Embedding-Modell des aktiven LLM-Profils. Fehlt es, verwendet
     # das Backend den Deployment-Default.
     embedding_model: Optional[str] = None
@@ -210,6 +211,7 @@ class LlmReviewRequest(BaseModel):
     llm_model: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
+    llm_profile_id: Optional[int] = None
 
 
 class ManualLinkCreate(BaseModel):
@@ -234,6 +236,44 @@ class AISettingsUpdate(BaseModel):
     embedding_provider: Optional[str] = None
     embedding_model: Optional[str] = None
     embedding_base_url: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_dimension: Optional[int] = None
+    embedding_context_length: Optional[int] = None
+    llm_context_length: Optional[int] = None
+
+
+class AIProfileCreate(BaseModel):
+    name: str
+    kind: str
+    provider: str
+    protocol: str
+    llm_model: str
+    llm_base_url: Optional[str] = None
+    llm_path: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    embedding_provider: str = "ollama"
+    embedding_model: str
+    embedding_base_url: Optional[str] = None
+    embedding_path: Optional[str] = None
+    embedding_api_key: Optional[str] = None
+    embedding_dimension: int = 1024
+    embedding_context_length: int = 8192
+    llm_context_length: int = 8192
+
+
+class AIProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    kind: Optional[str] = None
+    provider: Optional[str] = None
+    protocol: Optional[str] = None
+    llm_model: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_path: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    embedding_model: Optional[str] = None
+    embedding_base_url: Optional[str] = None
+    embedding_path: Optional[str] = None
     embedding_api_key: Optional[str] = None
     embedding_dimension: Optional[int] = None
     embedding_context_length: Optional[int] = None

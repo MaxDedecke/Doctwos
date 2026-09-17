@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import core.config as cfg
-from models.database import AISettings
+from models.database import AIProfile, AISettings
 from sqlalchemy.orm import Session
 
 
@@ -21,6 +21,78 @@ class RuntimeAISettings:
     embedding_dimension: int
     embedding_context_length: int
     llm_context_length: int
+
+
+LOCAL_OLLAMA_URL = "http://ollama:11434"
+
+
+def ensure_profiles(db: Session, settings: AISettings) -> list[AIProfile]:
+    profiles = db.query(AIProfile).order_by(AIProfile.id).all()
+    if profiles:
+        if settings.active_profile_id is None:
+            settings.active_profile_id = profiles[0].id
+        return profiles
+    local = AIProfile(
+        name="Lokales Ollama",
+        kind="local",
+        provider="ollama",
+        protocol="ollama",
+        llm_model=settings.llm_model or cfg.OLLAMA_LLM_MODEL,
+        llm_base_url=LOCAL_OLLAMA_URL,
+        llm_path="/api/chat",
+        embedding_provider="ollama",
+        embedding_model=settings.embedding_model or cfg.OLLAMA_EMBED_MODEL,
+        embedding_base_url=LOCAL_OLLAMA_URL,
+        embedding_path="/api/embed",
+        embedding_dimension=settings.embedding_dimension,
+        embedding_context_length=settings.embedding_context_length,
+        llm_context_length=settings.llm_context_length,
+        is_system=True,
+    )
+    db.add(local)
+    db.flush()
+    settings.active_profile_id = local.id
+    return [local]
+
+
+def get_active_profile(db: Session) -> AIProfile:
+    settings = get_settings(db)
+    profiles = ensure_profiles(db, settings)
+    profile = next((item for item in profiles if item.id == settings.active_profile_id), None)
+    return profile or profiles[0]
+
+
+def get_profile(db: Session, profile_id: int | None) -> AIProfile:
+    if profile_id is None:
+        return get_active_profile(db)
+    profile = db.query(AIProfile).filter(AIProfile.id == profile_id).first()
+    if profile is None:
+        raise LookupError("AI-Profil nicht gefunden")
+    return profile
+
+
+def serialize_profile(profile: AIProfile, *, active_id: int | None = None) -> dict[str, Any]:
+    return {
+        "id": profile.id,
+        "name": profile.name,
+        "kind": profile.kind,
+        "provider": profile.provider,
+        "protocol": profile.protocol,
+        "llm_model": profile.llm_model,
+        "llm_base_url": profile.llm_base_url,
+        "llm_path": profile.llm_path,
+        "llm_api_key_set": bool(profile.llm_api_key),
+        "embedding_provider": profile.embedding_provider,
+        "embedding_model": profile.embedding_model,
+        "embedding_base_url": profile.embedding_base_url,
+        "embedding_path": profile.embedding_path,
+        "embedding_api_key_set": bool(profile.embedding_api_key),
+        "embedding_dimension": profile.embedding_dimension,
+        "embedding_context_length": profile.embedding_context_length,
+        "llm_context_length": profile.llm_context_length,
+        "is_system": profile.is_system,
+        "is_active": active_id == profile.id,
+    }
 
 
 def get_settings(db: Session) -> AISettings:
@@ -50,15 +122,38 @@ def apply_runtime_settings(settings: AISettings) -> None:
     cfg.OLLAMA_LLM_MODEL = settings.llm_model
     cfg.OLLAMA_BASE_URL = (settings.llm_base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
     cfg.OLLAMA_API_KEY = settings.llm_api_key or ""
+    cfg.ACTIVE_LLM_PROTOCOL = (
+        "ollama" if settings.llm_provider.lower() == "ollama" else "openai_chat"
+    )
+    cfg.ACTIVE_LLM_PATH = (
+        "/api/chat" if cfg.ACTIVE_LLM_PROTOCOL == "ollama" else "/chat/completions"
+    )
     cfg.OLLAMA_EMBED_MODEL = settings.embedding_model
     cfg.EMBEDDING_PROVIDER = settings.embedding_provider.lower()
-    cfg.EMBEDDING_BASE_URL = (
-        settings.embedding_base_url or cfg.OLLAMA_BASE_URL
-    ).rstrip("/")
+    cfg.EMBEDDING_BASE_URL = (settings.embedding_base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
     cfg.EMBEDDING_API_KEY = settings.embedding_api_key or ""
     cfg.EMBEDDING_DIMENSION = settings.embedding_dimension
     cfg.OLLAMA_NUM_CTX = settings.llm_context_length
     cfg.EMBEDDING_CONTEXT_LENGTH = settings.embedding_context_length
+
+
+def apply_profile(settings: AISettings, profile: AIProfile) -> None:
+    """Mirror the active profile into legacy runtime fields for old call sites."""
+    settings.active_profile_id = profile.id
+    settings.llm_provider = profile.provider
+    settings.llm_model = profile.llm_model
+    settings.llm_base_url = profile.llm_base_url
+    settings.llm_api_key = profile.llm_api_key
+    settings.embedding_provider = profile.embedding_provider
+    settings.embedding_model = profile.embedding_model
+    settings.embedding_base_url = profile.embedding_base_url
+    settings.embedding_api_key = profile.embedding_api_key
+    settings.embedding_dimension = profile.embedding_dimension
+    settings.embedding_context_length = profile.embedding_context_length
+    settings.llm_context_length = profile.llm_context_length
+    apply_runtime_settings(settings)
+    cfg.ACTIVE_LLM_PROTOCOL = profile.protocol
+    cfg.ACTIVE_LLM_PATH = profile.llm_path
 
 
 def initialize_runtime_settings(session_factory) -> None:
@@ -67,8 +162,12 @@ def initialize_runtime_settings(session_factory) -> None:
     db = session_factory()
     try:
         settings = get_settings(db)
+        profiles = ensure_profiles(db, settings)
+        profile = next(
+            (item for item in profiles if item.id == settings.active_profile_id), profiles[0]
+        )
+        apply_profile(settings, profile)
         db.commit()
-        apply_runtime_settings(settings)
     except Exception:
         db.rollback()
         # Keep startup compatible with pre-migration test/dev databases.

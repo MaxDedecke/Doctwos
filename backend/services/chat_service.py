@@ -186,6 +186,7 @@ async def retrieve_chat_context(
     message: str,
     pinned_entity_id: Optional[int] = None,
     embedding_model: Optional[str] = None,
+    embedding_profile: Optional[Any] = None,
 ) -> ChatRetrieval:
     """Embed a chat question and assemble its permission-scoped context.
 
@@ -219,8 +220,18 @@ async def retrieve_chat_context(
 
     try:
         query_text = message
+        embed_kwargs = {}
+        if embedding_profile is not None:
+            embed_kwargs = {
+                "provider": embedding_profile.embedding_provider,
+                "base_url": embedding_profile.embedding_base_url,
+                "path": embedding_profile.embedding_path,
+                "api_key": embedding_profile.embedding_api_key,
+                "dimension": embedding_profile.embedding_dimension,
+                "context_length": embedding_profile.embedding_context_length,
+            }
         query_embedding = await embed_text(
-            query_text, is_query=True, model=selected_embedding_model
+            query_text, is_query=True, model=selected_embedding_model, **embed_kwargs
         )
 
         if source_id:
@@ -412,6 +423,9 @@ async def stream_standard_rag_events(
     system_prompt: str,
     history: list[ChatMessage],
     prompt: str,
+    protocol: Optional[str] = None,
+    path: Optional[str] = None,
+    context_length: Optional[int] = None,
 ) -> AsyncIterator[dict[str, Any]]:
     """Stream a non-agent provider response as normalized chat events.
 
@@ -421,13 +435,16 @@ async def stream_standard_rag_events(
     """
     answer = ""
     try:
-        if provider in ("openai", "ollama"):
-            is_ollama = provider == "ollama"
+        selected_protocol = protocol or ("ollama" if provider == "ollama" else "openai_chat")
+        if selected_protocol in ("openai_chat", "ollama"):
+            is_ollama = selected_protocol == "ollama"
             if is_ollama:
-                url = f"{cfg.OLLAMA_BASE_URL}/v1/chat/completions"
+                base = (base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
+                url = f"{base}/{(path or '/api/chat').lstrip('/')}"
                 headers = {"Content-Type": "application/json"}
-                if cfg.OLLAMA_API_KEY:
-                    headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
+                selected_key = cfg.OLLAMA_API_KEY if api_key is None else api_key
+                if selected_key:
+                    headers["Authorization"] = f"Bearer {selected_key}"
                 model_to_use = cfg.resolve_ollama_model(model)
                 payload = {
                     "model": model_to_use,
@@ -436,11 +453,11 @@ async def stream_standard_rag_events(
                     "stream": True,
                     # O-168: explizites Kontextfenster statt Ollamas kleinem,
                     # stillschweigend kürzendem Default.
-                    "num_ctx": cfg.OLLAMA_NUM_CTX,
+                    "options": {"num_ctx": context_length or cfg.OLLAMA_NUM_CTX},
                 }
             else:
                 base = (base_url or "https://api.openai.com/v1").rstrip("/")
-                url = base if "/chat/completions" in base else f"{base}/chat/completions"
+                url = f"{base}/{(path or '/chat/completions').lstrip('/')}"
                 headers = {"Content-Type": "application/json"}
                 if api_key:
                     headers["Authorization"] = f"Bearer {api_key}"
@@ -462,23 +479,62 @@ async def stream_standard_rag_events(
                 async with client.stream("POST", url, json=payload, headers=headers) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
-                        if not line.strip() or not line.startswith("data: "):
+                        if not line.strip():
                             continue
-                        data = line[6:].strip()
+                        if is_ollama:
+                            data = line.strip()
+                        elif line.startswith("data: "):
+                            data = line[6:].strip()
+                        else:
+                            continue
                         if data == "[DONE]":
                             break
                         try:
                             chunk = json.loads(data)
-                            if not chunk.get("choices"):
-                                continue
-                            content = chunk["choices"][0].get("delta", {}).get("content")
+                            if is_ollama:
+                                content = chunk.get("message", {}).get("content")
+                            else:
+                                if not chunk.get("choices"):
+                                    continue
+                                content = chunk["choices"][0].get("delta", {}).get("content")
                             if content:
                                 answer += content
                                 yield {"type": "content_chunk", "content": content}
                         except Exception as exc:
                             logger.error("Fehler beim Parsen des Stream-Chunks: %s", exc)
 
-        elif provider == "gemini":
+        elif selected_protocol == "openai_responses":
+            base = (base_url or "https://api.openai.com/v1").rstrip("/")
+            url = f"{base}/{(path or '/responses').lstrip('/')}"
+            headers = {"Content-Type": "application/json"}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+            input_messages = [
+                {"role": message.role, "content": message.content} for message in history
+            ]
+            input_messages.append({"role": "user", "content": prompt})
+            payload = {
+                "model": model,
+                "instructions": system_prompt,
+                "input": input_messages,
+                "stream": True,
+            }
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", url, json=payload, headers=headers) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        try:
+                            event = json.loads(line[6:])
+                        except json.JSONDecodeError:
+                            continue
+                        if event.get("type") == "response.output_text.delta":
+                            content = event.get("delta", "")
+                            answer += content
+                            yield {"type": "content_chunk", "content": content}
+
+        elif selected_protocol == "gemini":
             model_name = model or "gemini-1.5-flash"
             contents = [
                 {
@@ -496,10 +552,11 @@ async def stream_standard_rag_events(
             }
             if system_prompt:
                 payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
-            full_url = (
-                "https://generativelanguage.googleapis.com/v1beta/models/"
-                f"{model_name}:generateContent?key={api_key or ''}"
+            gemini_base = (base_url or "https://generativelanguage.googleapis.com").rstrip("/")
+            gemini_path = (path or "/v1beta/models/{model}:generateContent").replace(
+                "{model}", model_name
             )
+            full_url = f"{gemini_base}/{gemini_path.lstrip('/')}?key={api_key or ''}"
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     full_url, json=payload, headers={"Content-Type": "application/json"}
@@ -508,7 +565,7 @@ async def stream_standard_rag_events(
                 answer = response.json()["candidates"][0]["content"]["parts"][0]["text"]
             yield {"type": "content_chunk", "content": answer}
 
-        elif provider == "anthropic":
+        elif selected_protocol == "anthropic":
             model_name = model or "claude-3-5-sonnet-20241022"
             messages = [{"role": message.role, "content": message.content} for message in history]
             messages.append({"role": "user", "content": prompt})
@@ -522,7 +579,8 @@ async def stream_standard_rag_events(
                 payload["system"] = system_prompt
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                    f"{(base_url or 'https://api.anthropic.com/v1').rstrip('/')}/"
+                    f"{(path or '/messages').lstrip('/')}",
                     json=payload,
                     headers={
                         "Content-Type": "application/json",
@@ -555,6 +613,7 @@ async def stream_agent_events(
     db: Session,
     mcp_clients: list,
     ollama_base_url: str,
+    endpoint_path: Optional[str] = None,
     history: list[dict[str, Any]],
     project_id: Optional[int],
     user_id: int,
@@ -580,6 +639,7 @@ async def stream_agent_events(
         db_session=db,
         mcp_clients=mcp_clients,
         ollama_base_url=ollama_base_url,
+        endpoint_path=endpoint_path,
         chat_history=history,
         project_id=project_id,
         audit_user_id=user_id,

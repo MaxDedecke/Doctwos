@@ -68,6 +68,7 @@ from services.chat_service import (
     stream_standard_rag_events,
 )
 from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
+from services.ai_settings import get_profile
 
 # Compatibility imports for focused regression tests and downstream callers. The
 # implementation now lives in services.chat_service with the rest of retrieval.
@@ -423,8 +424,12 @@ async def chat(
     route owns authorization and session lifecycle; chat transformations live in
     :mod:`services.chat_service`.
     """
-    requested_provider = (request.llm_provider or "ollama").lower()
-    if requested_provider in cfg.CLOUD_LLM_PROVIDERS and not cfg.cloud_llm_allowed():
+    try:
+        selected_profile = get_profile(db, request.llm_profile_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    requested_provider = selected_profile.provider.lower()
+    if selected_profile.kind == "cloud" and not cfg.cloud_llm_allowed():
         raise HTTPException(
             status_code=403,
             detail=(
@@ -573,7 +578,8 @@ async def chat(
                 pinned_entity_id=request.pinned_entity_id,
                 focused_context=request.pinned_context,
                 message=request.message,
-                embedding_model=request.embedding_model,
+                embedding_model=selected_profile.embedding_model,
+                embedding_profile=selected_profile,
             )
             results = retrieval.results
             prompt = retrieval.prompt
@@ -581,7 +587,7 @@ async def chat(
             resolved_repo_id = retrieval.resolved_repo_id
             focused_source_id = retrieval.focused_source_id
 
-            provider = (request.llm_provider or "ollama").lower()
+            provider = selected_profile.provider.lower()
 
             effective_system_prompt = request.system_prompt
             if (
@@ -713,21 +719,29 @@ async def chat(
 
                 mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
 
-                if request.project_id or mcp_clients:
+                agent_supported = selected_profile.protocol != "openai_responses" and not (
+                    selected_profile.kind == "remote" and selected_profile.protocol == "ollama"
+                )
+                if (request.project_id or mcp_clients) and agent_supported:
                     agent_ran = True
                     agent_sources = []
                     async for event in stream_agent_events(
                         provider=provider,
-                        model_name=request.llm_model,
-                        api_key=request.llm_api_key,
-                        base_url=request.llm_base_url,
+                        model_name=selected_profile.llm_model,
+                        api_key=selected_profile.llm_api_key,
+                        base_url=selected_profile.llm_base_url,
                         system_prompt=full_system_prompt_for_chat,
                         prompt=prompt,
                         temperature=request.temperature,
                         repository_id=resolved_repo_id,
                         db=db,
                         mcp_clients=mcp_clients,
-                        ollama_base_url=cfg.OLLAMA_BASE_URL,
+                        ollama_base_url=selected_profile.llm_base_url or cfg.OLLAMA_BASE_URL,
+                        endpoint_path=(
+                            selected_profile.llm_path
+                            if selected_profile.protocol == "openai_chat"
+                            else None
+                        ),
                         history=[{"role": m.role, "content": m.content} for m in history_messages],
                         project_id=request.project_id,
                         user_id=user.id,
@@ -764,13 +778,16 @@ async def chat(
             if not agent_ran:
                 async for event in stream_standard_rag_events(
                     provider=provider,
-                    model=request.llm_model,
-                    api_key=request.llm_api_key,
-                    base_url=request.llm_base_url,
+                    model=selected_profile.llm_model,
+                    api_key=selected_profile.llm_api_key,
+                    base_url=selected_profile.llm_base_url,
                     temperature=request.temperature,
                     system_prompt=full_system_prompt_for_chat,
                     history=history_messages,
                     prompt=prompt,
+                    protocol=selected_profile.protocol,
+                    path=selected_profile.llm_path,
+                    context_length=selected_profile.llm_context_length,
                 ):
                     if event["type"] == "answer":
                         answer = event["content"]
@@ -789,8 +806,7 @@ async def chat(
                 session_id=session_id,
                 answer=answer,
                 sources=sources,
-                model=request.llm_model
-                or (cfg.OLLAMA_LLM_MODEL if provider == "ollama" else "default"),
+                model=selected_profile.llm_model,
                 provider=provider,
                 agent_steps=agent_steps,
                 previous_message=old_assistant_msg,

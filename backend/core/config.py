@@ -47,6 +47,11 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
+# Runtime metadata for the active server-side profile.  The legacy names above
+# remain because many call sites still consume them, but they can now point to
+# an Ollama-native or OpenAI-compatible endpoint.
+ACTIVE_LLM_PROTOCOL: str = "ollama"
+ACTIVE_LLM_PATH: str = "/api/chat"
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 # Embeddings may be served separately from chat by a managed Ollama/OpenAI API.
 EMBEDDING_BASE_URL: str = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")

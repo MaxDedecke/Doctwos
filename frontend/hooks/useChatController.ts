@@ -424,8 +424,7 @@ export function useChatController({
       system_prompt: systemPrompt,
       llm_provider: activeProfile?.provider || 'ollama',
       llm_model: activeProfile?.model || undefined,
-      llm_api_key: activeProfile?.apiKey || undefined,
-      llm_base_url: activeProfile?.baseUrl || undefined,
+      llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
       embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: newUserMsg.metadata || {}
     }, targetIndex);
@@ -468,8 +467,7 @@ export function useChatController({
       system_prompt: systemPrompt,
       llm_provider: activeProfile?.provider || 'ollama',
       llm_model: activeProfile?.model || undefined,
-      llm_api_key: activeProfile?.apiKey || undefined,
-      llm_base_url: activeProfile?.baseUrl || undefined,
+      llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
       embedding_model: activeProfile?.embeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: createChatMetadata(turnFocus, userMsg.metadata),
       retry_of_message_id: assistantMsg.id

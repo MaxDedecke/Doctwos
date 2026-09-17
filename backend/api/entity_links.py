@@ -39,6 +39,7 @@ from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
 from services.ollama_client import ask_llm_json_for_profile
+from services.ai_settings import get_profile
 from services.job_control import send_tracked_task
 
 
@@ -179,7 +180,9 @@ def trigger_link_computation(
         description="Vom Nutzer eingestellte Mindest-Wahrscheinlichkeit (%) für die LLM-Bewertung, ab der ein Kandidat als Vorschlag gespeichert wird.",
     ),
     embedding_model: Optional[str] = Query(
-        None, min_length=1, max_length=255,
+        None,
+        min_length=1,
+        max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
     db: Session = Depends(get_db),
@@ -290,8 +293,12 @@ async def llm_review_link(
     LLM-Profil (body.llm_*, vom Frontend mitgeschickt) statt fix das lokale Ollama —
     für Cloud-Provider greift dasselbe Opt-in-Gate wie beim normalen Chat (api/chat.py).
     """
-    requested_provider = (body.llm_provider or "ollama").lower()
-    if requested_provider in cfg.CLOUD_LLM_PROVIDERS and not cfg.cloud_llm_allowed():
+    try:
+        selected_profile = get_profile(db, body.llm_profile_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    requested_provider = selected_profile.provider.lower()
+    if selected_profile.kind == "cloud" and not cfg.cloud_llm_allowed():
         raise HTTPException(
             status_code=403,
             detail=(
@@ -339,9 +346,11 @@ async def llm_review_link(
         data = await ask_llm_json_for_profile(
             prompt,
             provider=requested_provider,
-            model=body.llm_model,
-            api_key=body.llm_api_key,
-            base_url=body.llm_base_url,
+            model=selected_profile.llm_model,
+            api_key=selected_profile.llm_api_key,
+            base_url=selected_profile.llm_base_url,
+            protocol=selected_profile.protocol,
+            path=selected_profile.llm_path,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM-Prüfung fehlgeschlagen: {e}")

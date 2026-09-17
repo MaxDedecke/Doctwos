@@ -20,16 +20,96 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import text
 
 import core.config as cfg
-from api.schemas import AISettingsUpdate, ModelUpdateRequest
+from api.schemas import AIProfileCreate, AIProfileUpdate, AISettingsUpdate, ModelUpdateRequest
 from core.auth_dependency import get_current_user
 from core.teams import require_admin
 from core.db_setup import engine, get_db
-from models.database import User
-from services.ai_settings import apply_runtime_settings, get_settings, serialize_settings
+from models.database import AIProfile, User
+from services.ai_settings import (
+    apply_profile,
+    apply_runtime_settings,
+    ensure_profiles,
+    get_settings,
+    serialize_profile,
+    serialize_settings,
+)
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
+
+_PROFILE_KINDS = {"local", "remote", "cloud"}
+_PROFILE_PROTOCOLS = {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
+
+
+def _joined_url(base: str, path: str) -> str:
+    return f"{base.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _active_discovery_request() -> tuple[str, dict[str, str]]:
+    """Return the model-discovery URL and auth for the active profile."""
+    path = "/api/tags" if cfg.ACTIVE_LLM_PROTOCOL == "ollama" else "/models"
+    headers: dict[str, str] = {}
+    if cfg.OLLAMA_API_KEY:
+        headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
+    return _joined_url(cfg.OLLAMA_BASE_URL, path), headers
+
+
+def _validate_profile_values(values: dict, existing: AIProfile | None = None) -> None:
+    kind = values.get("kind", existing.kind if existing else None)
+    protocol = values.get("protocol", existing.protocol if existing else None)
+    if kind not in _PROFILE_KINDS:
+        raise HTTPException(status_code=400, detail="kind muss local, remote oder cloud sein")
+    if protocol not in _PROFILE_PROTOCOLS:
+        raise HTTPException(status_code=400, detail="Unbekanntes LLM-Protokoll")
+    provider = values.get("provider", existing.provider if existing else None)
+    llm_base_url = values.get("llm_base_url", existing.llm_base_url if existing else None)
+    embedding_base_url = values.get(
+        "embedding_base_url", existing.embedding_base_url if existing else None
+    )
+    if kind == "local" and (
+        provider != "ollama"
+        or protocol != "ollama"
+        or llm_base_url != "http://ollama:11434"
+        or embedding_base_url != "http://ollama:11434"
+    ):
+        raise HTTPException(
+            status_code=400, detail="Lokale Profile verwenden den internen Ollama-Dienst"
+        )
+    if kind == "remote" and not llm_base_url:
+        raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine URL")
+    if kind == "remote" and not embedding_base_url:
+        raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine Embedding-URL")
+    if protocol == "ollama" and provider != "ollama":
+        raise HTTPException(status_code=400, detail="Ollama-Protokoll benötigt den Ollama-Provider")
+    if protocol in {"openai_chat", "openai_responses"} and provider != "openai":
+        raise HTTPException(status_code=400, detail="OpenAI-Protokoll benötigt den OpenAI-Provider")
+    if protocol in {"anthropic", "gemini"} and provider != protocol:
+        raise HTTPException(status_code=400, detail="Protokoll und Provider passen nicht zusammen")
+    if kind == "remote" and protocol not in {"ollama", "openai_chat"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Remote-Profile unterstützen Ollama oder OpenAI-kompatible APIs",
+        )
+    if kind == "cloud" and provider not in cfg.CLOUD_LLM_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unbekannter Cloud-Provider")
+    embedding_provider = values.get(
+        "embedding_provider", existing.embedding_provider if existing else None
+    )
+    if embedding_provider not in {"ollama", "openai"}:
+        raise HTTPException(status_code=400, detail="Unbekannter Embedding-Provider")
+    for field in ("llm_path", "embedding_path"):
+        value = values.get(field, getattr(existing, field, None) if existing else None)
+        if value and not value.startswith("/"):
+            raise HTTPException(status_code=400, detail=f"{field} muss mit / beginnen")
+    for field in ("embedding_dimension", "embedding_context_length", "llm_context_length"):
+        value = values.get(field, getattr(existing, field, None) if existing else None)
+        if value is not None and value < 1:
+            raise HTTPException(status_code=400, detail=f"{field} muss größer als 0 sein")
+    for field in ("name", "provider", "llm_model", "embedding_provider", "embedding_model"):
+        value = values.get(field, getattr(existing, field, None) if existing else None)
+        if not isinstance(value, str) or not value.strip():
+            raise HTTPException(status_code=400, detail=f"{field} darf nicht leer sein")
 
 
 @router.get("/")
@@ -63,8 +143,9 @@ async def health(response: Response):
         checks["redis"] = f"error: {e}"
 
     try:
+        discovery_url, headers = _active_discovery_request()
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(f"{cfg.OLLAMA_BASE_URL}/api/tags")
+            resp = await client.get(discovery_url, headers=headers)
             checks["ollama"] = (
                 "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
             )
@@ -111,12 +192,159 @@ async def update_model_info(
 
 
 @router.get("/ai-settings")
-def read_ai_settings(
-    db: Session = Depends(get_db), _user: User = Depends(get_current_user)
-):
+def read_ai_settings(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
     settings = get_settings(db)
     db.commit()
     return serialize_settings(settings)
+
+
+@router.get("/ai-profiles")
+def read_ai_profiles(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+    settings = get_settings(db)
+    profiles = ensure_profiles(db, settings)
+    db.commit()
+    return {
+        "active_profile_id": settings.active_profile_id,
+        "profiles": [
+            serialize_profile(profile, active_id=settings.active_profile_id) for profile in profiles
+        ],
+    }
+
+
+@router.post("/ai-profiles", status_code=201)
+def create_ai_profile(
+    request: AIProfileCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    values = request.model_dump()
+    _validate_profile_values(values)
+    profile = AIProfile(**values, created_by_user_id=user.id, is_system=False)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return serialize_profile(profile)
+
+
+@router.patch("/ai-profiles/{profile_id}")
+def update_ai_profile(
+    profile_id: int,
+    request: AIProfileUpdate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(AIProfile).filter(AIProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
+    values = request.model_dump(exclude_unset=True)
+    _validate_profile_values(values, profile)
+    for field, value in values.items():
+        if field in {"llm_api_key", "embedding_api_key"}:
+            if value is not None:
+                setattr(profile, field, value or None)
+        elif value is not None:
+            setattr(profile, field, value.strip() if isinstance(value, str) else value)
+    db.commit()
+    db.refresh(profile)
+    settings = get_settings(db)
+    if settings.active_profile_id == profile.id:
+        apply_profile(settings, profile)
+        db.commit()
+    return serialize_profile(profile, active_id=settings.active_profile_id)
+
+
+@router.delete("/ai-profiles/{profile_id}", status_code=204)
+def delete_ai_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(AIProfile).filter(AIProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
+    settings = get_settings(db)
+    if profile.is_system or settings.active_profile_id == profile.id:
+        raise HTTPException(
+            status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden"
+        )
+    db.delete(profile)
+    db.commit()
+
+
+@router.post("/ai-profiles/{profile_id}/activate")
+def activate_ai_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    profile = db.query(AIProfile).filter(AIProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
+    if profile.kind == "cloud" and not cfg.cloud_llm_allowed():
+        raise HTTPException(status_code=403, detail="Cloud-LLM-Provider sind deaktiviert")
+    settings = get_settings(db)
+    apply_profile(settings, profile)
+    settings.updated_by_user_id = user.id
+    db.commit()
+    return serialize_profile(profile, active_id=profile.id)
+
+
+@router.post("/ai-profiles/{profile_id}/test")
+async def test_ai_profile(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_admin),
+):
+    profile = db.query(AIProfile).filter(AIProfile.id == profile_id).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
+    probes: list[tuple[str, str, str | None]] = []
+    if profile.protocol == "ollama":
+        probes.append(
+            (
+                "chat",
+                _joined_url(profile.llm_base_url or "http://ollama:11434", "/api/tags"),
+                profile.llm_api_key,
+            )
+        )
+    elif profile.protocol in {"openai_chat", "openai_responses"}:
+        probes.append(
+            (
+                "chat",
+                _joined_url(profile.llm_base_url or "https://api.openai.com/v1", "/models"),
+                profile.llm_api_key,
+            )
+        )
+    if profile.embedding_provider in {"ollama", "openai"}:
+        discovery_path = "/api/tags" if profile.embedding_provider == "ollama" else "/models"
+        probes.append(
+            (
+                "embedding",
+                _joined_url(
+                    profile.embedding_base_url or "http://ollama:11434",
+                    discovery_path,
+                ),
+                profile.embedding_api_key,
+            )
+        )
+
+    results = {"chat": "configuration-valid", "embedding": "configuration-valid"}
+    label = "profile"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for label, url, api_key in probes:
+                headers = {"Content-Type": "application/json"}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                results[label] = "reachable"
+        return {"ok": True, **results}
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"{label.capitalize()}-Endpunkt nicht erreichbar: {exc}",
+        ) from exc
 
 
 @router.patch("/ai-settings")
@@ -159,12 +387,16 @@ def update_ai_settings(
 
 @router.get("/models")
 async def get_models():
-    """Gibt die installierten Ollama-Modelle zurück. Fallback: konfigurietes LLM + Embedding-Modell."""
+    """List models exposed by the active Ollama/OpenAI-compatible profile."""
     try:
+        discovery_url, headers = _active_discovery_request()
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{cfg.OLLAMA_BASE_URL}/api/tags")
+            resp = await client.get(discovery_url, headers=headers)
             if resp.status_code == 200:
-                models = [m["name"] for m in resp.json().get("models", [])]
+                if cfg.ACTIVE_LLM_PROTOCOL == "ollama":
+                    models = [m["name"] for m in resp.json().get("models", [])]
+                else:
+                    models = [m["id"] for m in resp.json().get("data", [])]
                 return {"models": models}
     except Exception as e:
         logger.error(f"Fehler beim Abrufen der Ollama-Modelle: {e}")

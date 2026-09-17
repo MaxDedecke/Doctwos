@@ -1,542 +1,156 @@
 "use client";
-import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, type LlmProfile } from '@/hooks/useAiSettings';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, profileFromApi, type LlmProfile } from '@/hooks/useAiSettings';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { cn } from "@/lib/utils";
-import { Edit, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Check, Edit, Plus, PlugZap, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'ai'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
-// Schritt 2). Die LLM-Profil-Formularzustände lagen zuvor auf Modal-Ebene, wurden
-// aber ausschließlich von diesem Tab genutzt und sind jetzt hier lokal gekapselt.
-// Die zugehörigen Handler (Add/Edit/Delete/Save Profile, Save AI-Params) sind
-// mitgewandert. Der geteilte AI-Zustand und sein localStorage/API-Lifecycle
-// kommen via useSettings() aus dem Context, der intern useAiSettings nutzt.
+type ProfileKind = 'local' | 'remote' | 'cloud';
+const inputClass = 'w-full h-9 border rounded-lg px-3 text-xs bg-transparent';
+
 export const AiSettingsTab: React.FC = () => {
   const { t } = useLanguage();
   const features = useFeatures();
-  const {
-    theme,
-    showToast,
-    temperature,
-    setTemperature,
-    systemPrompt,
-    setSystemPrompt,
-    llmProfiles,
-    setLlmProfiles,
-    activeProfileId,
-    setActiveProfileId,
-    embeddingDimension,
-    setEmbeddingDimension,
-    embeddingContextLength,
-    setEmbeddingContextLength,
-    llmContextLength,
-    setLlmContextLength,
-  } = useSettings();
+  const { theme, showToast, llmProfiles, setLlmProfiles, activeProfileId, setActiveProfileId } = useSettings();
+  const [editing, setEditing] = useState<LlmProfile | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<ProfileKind>('local');
+  const [provider, setProvider] = useState('ollama');
+  const [protocol, setProtocol] = useState<LlmProfile['protocol']>('ollama');
+  const [model, setModel] = useState(DEFAULT_LLM_MODEL);
+  const [baseUrl, setBaseUrl] = useState('http://ollama:11434');
+  const [llmPath, setLlmPath] = useState('/api/chat');
+  const [apiKey, setApiKey] = useState('');
+  const [embeddingProvider, setEmbeddingProvider] = useState('ollama');
+  const [embeddingModel, setEmbeddingModel] = useState(DEFAULT_EMBEDDING_MODEL);
+  const [embeddingBaseUrl, setEmbeddingBaseUrl] = useState('http://ollama:11434');
+  const [embeddingPath, setEmbeddingPath] = useState('/api/embed');
+  const [embeddingKey, setEmbeddingKey] = useState('');
+  const [dimension, setDimension] = useState(1024);
+  const [embeddingContext, setEmbeddingContext] = useState(8192);
+  const [llmContext, setLlmContext] = useState(8192);
 
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [profileNameInput, setProfileNameInput] = useState("");
-  const [profileProviderInput, setProfileProviderInput] = useState("ollama");
-  const [profileModelInput, setProfileModelInput] = useState("");
-  const [profileEmbeddingModelInput, setProfileEmbeddingModelInput] = useState(DEFAULT_EMBEDDING_MODEL);
-  const [profileApiKeyInput, setProfileApiKeyInput] = useState("");
-  const [profileBaseUrlInput, setProfileBaseUrlInput] = useState("");
-  const [showProfileForm, setShowProfileForm] = useState(false);
-
-  const handleStartAddProfile = () => {
-    setEditingProfileId(null);
-    setProfileNameInput("");
-    setProfileProviderInput("ollama");
-    setProfileModelInput(DEFAULT_LLM_MODEL);
-    setProfileEmbeddingModelInput(DEFAULT_EMBEDDING_MODEL);
-    setProfileApiKeyInput("");
-    setProfileBaseUrlInput("");
-    setShowProfileForm(true);
-  };
-
-  const handleStartEditProfile = (prof: LlmProfile) => {
-    setEditingProfileId(prof.id);
-    setProfileNameInput(prof.name);
-    setProfileProviderInput(prof.provider);
-    setProfileModelInput(prof.model);
-    setProfileEmbeddingModelInput(prof.embeddingModel || DEFAULT_EMBEDDING_MODEL);
-    setProfileApiKeyInput(prof.apiKey || "");
-    setProfileBaseUrlInput(prof.baseUrl || "");
-    setShowProfileForm(true);
-  };
-
-  const handleDeleteProfile = (id: string) => {
-    // Der Löschen-Button ist bereits disabled={llmProfiles.length <= 1} (siehe unten) —
-    // dieser Pfad ist von der Oberfläche aus nie erreichbar.
-    const updated = llmProfiles.filter(p => p.id !== id);
-    setLlmProfiles(updated);
-    localStorage.setItem('doctus-llm-profiles', JSON.stringify(updated));
-    if (activeProfileId === id) {
-      const nextActiveId = updated[0].id;
-      setActiveProfileId(nextActiveId);
-    }
-    showToast(t('settings.toast.profileDeleted'), "success");
-  };
-
-  const handleSaveProfile = () => {
-    if (!profileNameInput.trim()) {
-      showToast(t('settings.toast.profileNameRequired'), "error");
-      return;
-    }
-    if (!profileModelInput.trim()) {
-      showToast(t('settings.toast.modelNameRequired'), "error");
-      return;
-    }
-
-    let updatedProfiles = [...llmProfiles];
-    if (editingProfileId) {
-      // Edit
-      updatedProfiles = updatedProfiles.map(p => {
-        if (p.id === editingProfileId) {
-          return {
-            ...p,
-            name: profileNameInput,
-            provider: profileProviderInput,
-            model: profileModelInput,
-            embeddingModel: profileEmbeddingModelInput.trim() || undefined,
-            apiKey: profileApiKeyInput,
-            baseUrl: profileBaseUrlInput
-          };
-        }
-        return p;
-      });
-      showToast(t('settings.toast.profileUpdated'), "success");
+  const applyKind = (next: ProfileKind) => {
+    setKind(next);
+    if (next === 'local') {
+      setProvider('ollama'); setProtocol('ollama'); setModel(DEFAULT_LLM_MODEL);
+      setBaseUrl('http://ollama:11434'); setLlmPath('/api/chat');
+      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl('http://ollama:11434'); setEmbeddingPath('/api/embed');
+    } else if (next === 'remote') {
+      setProvider('ollama'); setProtocol('ollama'); setBaseUrl(''); setLlmPath('/api/chat');
+      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl(''); setEmbeddingPath('/api/embed');
     } else {
-      // Add
-      const newProf = {
-        id: "prof-" + Date.now(),
-        name: profileNameInput,
-        provider: profileProviderInput,
-        model: profileModelInput,
-        embeddingModel: profileEmbeddingModelInput.trim() || undefined,
-        apiKey: profileApiKeyInput,
-        baseUrl: profileBaseUrlInput
-      };
-      updatedProfiles.push(newProf);
-      showToast(t('settings.toast.profileCreated'), "success");
+      setProvider('openai'); setProtocol('openai_responses'); setModel('gpt-6-astra');
+      setBaseUrl('https://api.openai.com/v1'); setLlmPath('/responses');
+      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl('http://ollama:11434'); setEmbeddingPath('/api/embed');
     }
-
-    setLlmProfiles(updatedProfiles);
-    localStorage.setItem('doctus-llm-profiles', JSON.stringify(updatedProfiles));
-    setShowProfileForm(false);
   };
 
-  const handleSaveAiParams = async () => {
+  const applyCloudProvider = (next: string) => {
+    setProvider(next);
+    if (next === 'openai') {
+      setProtocol('openai_responses'); setModel('gpt-6-astra');
+      setBaseUrl('https://api.openai.com/v1'); setLlmPath('/responses');
+    } else if (next === 'anthropic') {
+      setProtocol('anthropic'); setModel('claude-sonnet-4-5');
+      setBaseUrl('https://api.anthropic.com/v1'); setLlmPath('/messages');
+    } else {
+      setProtocol('gemini'); setModel('gemini-2.5-pro');
+      setBaseUrl('https://generativelanguage.googleapis.com');
+      setLlmPath('/v1beta/models/{model}:generateContent');
+    }
+  };
+
+  const startAdd = () => {
+    setEditing(null); setName(''); setApiKey(''); setEmbeddingKey('');
+    setEmbeddingModel(DEFAULT_EMBEDDING_MODEL); setDimension(1024); setEmbeddingContext(8192); setLlmContext(8192);
+    applyKind('local'); setShowForm(true);
+  };
+
+  const startEdit = (profile: LlmProfile) => {
+    setEditing(profile); setName(profile.name); setKind(profile.kind || 'local'); setProvider(profile.provider);
+    setProtocol(profile.protocol || 'ollama'); setModel(profile.model); setBaseUrl(profile.baseUrl || '');
+    setLlmPath(profile.llmPath || ''); setApiKey(''); setEmbeddingProvider(profile.embeddingProvider || 'ollama');
+    setEmbeddingModel(profile.embeddingModel || DEFAULT_EMBEDDING_MODEL);
+    setEmbeddingBaseUrl(profile.embeddingBaseUrl || ''); setEmbeddingPath(profile.embeddingPath || '');
+    setEmbeddingKey(''); setDimension(profile.embeddingDimension || 1024);
+    setEmbeddingContext(profile.embeddingContextLength || 8192); setLlmContext(profile.llmContextLength || 8192);
+    setShowForm(true);
+  };
+
+  const profilePayload = () => ({
+    name: name.trim(), kind, provider, protocol, llm_model: model.trim(), llm_base_url: baseUrl.trim() || undefined,
+    llm_path: llmPath.trim() || undefined, ...(apiKey ? { llm_api_key: apiKey } : {}),
+    embedding_provider: embeddingProvider, embedding_model: embeddingModel.trim(),
+    embedding_base_url: embeddingBaseUrl.trim() || undefined, embedding_path: embeddingPath.trim() || undefined,
+    ...(embeddingKey ? { embedding_api_key: embeddingKey } : {}), embedding_dimension: dimension,
+    embedding_context_length: embeddingContext, llm_context_length: llmContext,
+  });
+
+  const save = async () => {
+    if (!name.trim() || !model.trim() || !embeddingModel.trim()) {
+      showToast(t('settings.toast.profileNameRequired'), 'error'); return;
+    }
     try {
-      // Save to active profile for profile-specific persistence
-      const updatedProfiles = llmProfiles.map(p => {
-        if (p.id === activeProfileId) {
-          return { ...p, temperature, systemPrompt };
-        }
-        return p;
-      });
-      setLlmProfiles(updatedProfiles);
-      localStorage.setItem('doctus-llm-profiles', JSON.stringify(updatedProfiles));
-
-      const activeProfile = updatedProfiles.find(p => p.id === activeProfileId);
-      if (activeProfile) {
-        await api.updateAiSettings({
-          llm_provider: activeProfile.provider,
-          llm_model: activeProfile.model,
-          llm_base_url: activeProfile.baseUrl || undefined,
-          llm_api_key: activeProfile.apiKey || undefined,
-          embedding_provider: 'ollama',
-          embedding_model: activeProfile.embeddingModel || DEFAULT_EMBEDDING_MODEL,
-          embedding_base_url: activeProfile.provider === 'ollama' ? activeProfile.baseUrl || undefined : undefined,
-          embedding_dimension: embeddingDimension,
-          embedding_context_length: embeddingContextLength,
-          llm_context_length: llmContextLength,
-        });
-      }
-      showToast(t('settings.toast.aiParamsSaved'), "success");
-    } catch (err) {
-      console.error("Failed to save model info:", err);
-      showToast(t('settings.toast.aiParamsSaveFailed'), "error", err);
-    }
+      const response = editing
+        ? await api.updateAiProfile(Number(editing.id), profilePayload())
+        : await api.createAiProfile(profilePayload());
+      const saved = profileFromApi(response.data as Record<string, unknown>);
+      setLlmProfiles(editing ? llmProfiles.map(item => item.id === saved.id ? saved : item) : [...llmProfiles, saved]);
+      setShowForm(false);
+      showToast(editing ? t('settings.toast.profileUpdated') : t('settings.toast.profileCreated'), 'success');
+    } catch (error) { showToast(t('settings.toast.aiParamsSaveFailed'), 'error', error); }
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-200 w-full min-w-0">
-      <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.profilesTab.title')}</h4>
-        <p className={cn("text-xs leading-relaxed", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
-          {t('settings.profilesTab.description')}
-        </p>
-      </div>
+  const activate = async (profile: LlmProfile) => {
+    try {
+      await api.activateAiProfile(Number(profile.id)); setActiveProfileId(profile.id);
+      setLlmProfiles(llmProfiles.map(item => ({ ...item, isActive: item.id === profile.id })));
+      showToast(t('settings.toast.aiParamsSaved'), 'success');
+    } catch (error) { showToast(t('settings.toast.aiParamsSaveFailed'), 'error', error); }
+  };
 
-      {/* Profiles Manager list / view */}
-      <div className={cn(
-        "space-y-4 border rounded-lg p-4 transition-colors",
-        theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
-      )}>
+  const testProfile = async (profile: LlmProfile) => {
+    try { await api.testAiProfile(Number(profile.id)); showToast(t('settings.profilesTab.testSuccess'), 'success'); }
+    catch (error) { showToast(t('settings.profilesTab.testFailed'), 'error', error); }
+  };
 
-        {!showProfileForm ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-ds-zinc-500 uppercase tracking-wider">{t('settings.profilesTab.configuredProfiles')}</span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleStartAddProfile}
-                className="bg-ds-indigo-600 hover:bg-ds-indigo-700 text-ds-white rounded-lg text-xs font-semibold px-3 h-7 flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{t('settings.profilesTab.addProfile')}</span>
-              </Button>
-            </div>
+  const remove = async (profile: LlmProfile) => {
+    try { await api.deleteAiProfile(Number(profile.id)); setLlmProfiles(llmProfiles.filter(item => item.id !== profile.id)); showToast(t('settings.toast.profileDeleted'), 'success'); }
+    catch (error) { showToast(t('settings.toast.aiParamsSaveFailed'), 'error', error); }
+  };
 
-            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-              {llmProfiles.map((prof) => {
-                const isActive = activeProfileId === prof.id;
-                return (
-                  <div
-                    key={prof.id}
-                    className={cn(
-                      "p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all",
-                      isActive
-                        ? (theme === 'dark' ? "bg-ds-indigo-500/10 border-ds-indigo-500/50" : "bg-ds-indigo-50/50 border-ds-indigo-300")
-                        : (theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-850 hover:bg-ds-zinc-850/60" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50")
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={cn("text-xs font-semibold truncate", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
-                          {prof.name}
-                        </span>
-                        {isActive && (
-                          <span className={cn(
-                            "text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded border",
-                            theme === 'dark' ? "bg-ds-indigo-500/20 border-ds-indigo-500/30 text-ds-indigo-400" : "bg-ds-indigo-100 border-ds-indigo-200 text-ds-indigo-700"
-                          )}>
-                            {t('settings.profilesTab.active')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-ds-zinc-500">
-                        <span className="uppercase">{prof.provider}</span>
-                        <span>•</span>
-                        <span className="truncate">{prof.model}</span>
-                        {prof.embeddingModel && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate" title={t('settings.profilesTab.embeddingModelLabel')}>E: {prof.embeddingModel}</span>
-                          </>
-                        )}
-                        {prof.baseUrl && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate max-w-[120px]">{prof.baseUrl}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleStartEditProfile(prof)}
-                        className={cn("h-7 w-7 rounded-lg", theme === 'dark' ? "text-ds-zinc-400 hover:text-ds-zinc-200 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-150")}
-                        title={t('settings.profilesTab.editProfileTitle')}
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={llmProfiles.length <= 1}
-                        onClick={() => handleDeleteProfile(prof.id)}
-                        className={cn(
-                          "h-7 w-7 rounded-lg",
-                          theme === 'dark'
-                            ? "text-ds-zinc-500 hover:text-ds-red-400 hover:bg-ds-zinc-800 disabled:opacity-30"
-                            : "text-ds-zinc-400 hover:text-ds-red-600 hover:bg-ds-zinc-150 disabled:opacity-30"
-                        )}
-                        title={t('settings.profilesTab.deleteProfileTitle')}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
-            <div className="flex items-center justify-between border-b pb-2 mb-2"
-                 style={{ borderColor: theme === 'dark' ? 'rgba(63, 63, 70, 0.4)' : 'rgba(228, 228, 231, 0.6)' }}>
-              <span className="text-[10px] font-bold text-ds-indigo-500 uppercase tracking-wider">
-                {editingProfileId ? t('settings.profilesTab.editProfileHeading') : t('settings.profilesTab.newProfileHeading')}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.profileNameLabel')}</label>
-                <input
-                  type="text"
-                  placeholder={t('settings.profilesTab.profileNamePlaceholder')}
-                  value={profileNameInput}
-                  onChange={e => setProfileNameInput(e.target.value)}
-                  className={cn(
-                    "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-                  )}
-                />
-              </div>
-
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.providerLabel')}</label>
-                <Select
-                  value={profileProviderInput}
-                  onValueChange={val => {
-                    setProfileProviderInput(val);
-                    const defaults = [DEFAULT_LLM_MODEL, "qwen2.5:1.5b", "gpt-4o", "gemini-1.5-flash", "claude-3-5-sonnet-20241022"];
-                    if (!profileModelInput || defaults.includes(profileModelInput)) {
-                      if (val === 'ollama') setProfileModelInput(DEFAULT_LLM_MODEL);
-                      else if (val === 'openai') setProfileModelInput("gpt-4o");
-                      else if (val === 'gemini') setProfileModelInput("gemini-1.5-flash");
-                      else if (val === 'anthropic') setProfileModelInput("claude-3-5-sonnet-20241022");
-                    }
-                  }}
-                >
-                  <SelectTrigger className={cn(
-                    "w-full h-8 text-xs focus:ring-0",
-                    theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
-                  )}>
-                    <SelectValue placeholder={t('settings.profilesTab.providerPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
-                    <SelectItem value="ollama">{t('settings.profilesTab.providerOptions.ollama')}</SelectItem>
-                    {features.llm.allowCloudProviders && (
-                      <>
-                        <SelectItem value="openai">{t('settings.profilesTab.providerOptions.openai')}</SelectItem>
-                        <SelectItem value="gemini">{t('settings.profilesTab.providerOptions.gemini')}</SelectItem>
-                        <SelectItem value="anthropic">{t('settings.profilesTab.providerOptions.anthropic')}</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
-                {t('settings.profilesTab.embeddingModelLabel')}
-              </label>
-              <input
-                type="text"
-                placeholder={DEFAULT_EMBEDDING_MODEL}
-                value={profileEmbeddingModelInput}
-                onChange={e => setProfileEmbeddingModelInput(e.target.value)}
-                className={cn(
-                  "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
-                  theme === 'dark'
-                    ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                    : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-                )}
-              />
-              <p className="text-[9px] text-ds-zinc-500 px-0.5">{t('settings.profilesTab.embeddingModelHint')}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.modelNameLabel')}</label>
-                <input
-                  type="text"
-                  placeholder={
-                    profileProviderInput === 'ollama' ? DEFAULT_LLM_MODEL :
-                    profileProviderInput === 'openai' ? "gpt-4o, gpt-3.5-turbo, etc." :
-                    profileProviderInput === 'gemini' ? "gemini-1.5-flash" :
-                    "claude-3-5-sonnet-20241022"
-                  }
-                  value={profileModelInput}
-                  onChange={e => setProfileModelInput(e.target.value)}
-                  className={cn(
-                    "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-                  )}
-                />
-              </div>
-
-              <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
-                  {profileProviderInput === 'ollama' ? t('settings.profilesTab.apiKeyOptionalLabel') : t('settings.profilesTab.apiKeyLabel')}
-                </label>
-                <input
-                  type="password"
-                  placeholder={t('settings.profilesTab.apiKeyPlaceholder')}
-                  value={profileApiKeyInput}
-                  onChange={e => setProfileApiKeyInput(e.target.value)}
-                  className={cn(
-                    "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-                  )}
-                />
-              </div>
-            </div>
-
-            {(profileProviderInput === 'openai' || profileProviderInput === 'ollama') && (
-              <div className="space-y-1.5 animate-in fade-in duration-100">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.baseUrlLabel')}</label>
-                <input
-                  type="text"
-                  placeholder={t('settings.profilesTab.baseUrlPlaceholder')}
-                  value={profileBaseUrlInput}
-                  onChange={e => setProfileBaseUrlInput(e.target.value)}
-                  className={cn(
-                    "w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none font-sans",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-                  )}
-                />
-                <p className="text-[9px] text-ds-zinc-500 px-0.5">
-                  {profileProviderInput === 'ollama'
-                    ? t('settings.profilesTab.ollamaBaseUrlHint')
-                    : t('settings.profilesTab.baseUrlHint')}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-2 border-t"
-                 style={{ borderColor: theme === 'dark' ? 'rgba(63, 63, 70, 0.4)' : 'rgba(228, 228, 231, 0.6)' }}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowProfileForm(false)}
-                className={cn("h-8 text-xs font-semibold px-4 rounded-lg", theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800" : "text-ds-zinc-550 hover:bg-ds-zinc-100")}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveProfile}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-5 h-8 text-xs font-semibold shadow-md"
-              >
-                {t('settings.profilesTab.saveProfile')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Global AI parameters */}
-      <div className={cn(
-        "space-y-4 border rounded-lg p-4 transition-colors",
-        theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
-      )}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.activeProfileLabel')}</label>
-            <Select
-              value={activeProfileId}
-              onValueChange={setActiveProfileId}
-            >
-              <SelectTrigger className={cn(
-                "w-full h-8 text-xs focus:ring-0",
-                theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
-              )}>
-                <SelectValue placeholder={t('settings.profilesTab.profilePlaceholder')} />
-              </SelectTrigger>
-              <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
-                {llmProfiles.map(p => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name} ({p.model})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5 flex justify-between">
-              <span>{t('settings.profilesTab.temperatureLabel')}</span>
-              <span className="text-ds-indigo-600 font-mono font-semibold">{temperature}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={temperature}
-              onChange={e => setTemperature(parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-ds-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 mt-2.5"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.systemPromptLabel')}</label>
-          <textarea
-            rows={3}
-            value={systemPrompt}
-            onChange={e => setSystemPrompt(e.target.value)}
-            className={cn(
-              "w-full border rounded-lg p-2.5 text-xs focus:outline-none resize-none font-sans",
-              theme === 'dark'
-                ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 focus:border-ds-zinc-700"
-                : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-zinc-300"
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-ds-zinc-800/40">
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.embeddingDimensionLabel')}</label>
-            <input type="number" min="1" value={embeddingDimension} onChange={e => setEmbeddingDimension(Number(e.target.value))}
-              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.embeddingContextLabel')}</label>
-            <input type="number" min="1" value={embeddingContextLength} onChange={e => setEmbeddingContextLength(Number(e.target.value))}
-              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.profilesTab.llmContextLabel')}</label>
-            <input type="number" min="1" value={llmContextLength} onChange={e => setLlmContextLength(Number(e.target.value))}
-              className={cn("w-full h-8 border rounded-lg px-2.5 text-xs focus:outline-none", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900")} />
-          </div>
-        </div>
-
-        <div className="flex justify-end pt-1">
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSaveAiParams}
-            className="bg-ds-indigo-600 hover:bg-ds-indigo-700 text-ds-white rounded-lg text-xs font-semibold px-4 h-8"
-          >
-            {t('settings.profilesTab.saveAiSettings')}
-          </Button>
-        </div>
-      </div>
+  return <div className="space-y-5">
+    <div className="flex items-start justify-between gap-4">
+      <div><h4 className="text-sm font-semibold">{t('settings.profilesTab.title')}</h4><p className="text-xs text-ds-zinc-500 mt-1">{t('settings.profilesTab.description')}</p></div>
+      {!showForm && <Button size="sm" onClick={startAdd}><Plus className="w-4 h-4 mr-1" />{t('settings.profilesTab.addProfile')}</Button>}
     </div>
-  );
+    {!showForm ? <div className="space-y-2">{llmProfiles.map(profile =>
+      <div key={profile.id} className={cn('rounded-xl border p-4 flex items-center gap-2', profile.id === activeProfileId ? 'border-ds-indigo-500 bg-ds-indigo-500/5' : theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+        <div className="flex-1 min-w-0"><div className="flex gap-2 items-center"><span className="font-semibold text-sm truncate">{profile.name}</span><span className="text-[10px] uppercase text-ds-zinc-500">{profile.kind}</span>{profile.id === activeProfileId && <Check className="w-4 h-4 text-ds-indigo-500" />}</div><div className="text-xs text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div></div>
+        <Button variant="ghost" size="sm" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')}><PlugZap className="w-4 h-4" /></Button>
+        {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)}>{t('settings.profilesTab.activate')}</Button>}
+        <Button variant="ghost" size="sm" onClick={() => startEdit(profile)}><Edit className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="sm" disabled={profile.isSystem || profile.id === activeProfileId} onClick={() => remove(profile)}><Trash2 className="w-4 h-4" /></Button>
+      </div>)}</div> :
+      <div className={cn('rounded-xl border p-4 space-y-4', theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+        <div className="grid sm:grid-cols-2 gap-3"><Field label={t('settings.profilesTab.profileNameLabel')} value={name} set={setName} /><label className="text-xs">{t('settings.profilesTab.profileType')}<Select value={kind} onValueChange={value => applyKind(value as ProfileKind)} disabled={Boolean(editing?.isSystem)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="local">{t('settings.profilesTab.local')}</SelectItem><SelectItem value="remote">{t('settings.profilesTab.remote')}</SelectItem>{features.llm.allowCloudProviders && <SelectItem value="cloud">{t('settings.profilesTab.cloud')}</SelectItem>}</SelectContent></Select></label></div>
+        {kind === 'remote' && <label className="text-xs">{t('settings.profilesTab.protocol')}<Select value={protocol} onValueChange={value => { const next = value as LlmProfile['protocol']; setProtocol(next); setProvider(next === 'ollama' ? 'ollama' : 'openai'); setLlmPath(next === 'ollama' ? '/api/chat' : '/chat/completions'); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ollama">Ollama API</SelectItem><SelectItem value="openai_chat">OpenAI-kompatibel</SelectItem></SelectContent></Select></label>}
+        {kind === 'cloud' && <label className="text-xs">{t('settings.profilesTab.providerLabel')}<Select value={provider} onValueChange={applyCloudProvider}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem><SelectItem value="gemini">Gemini</SelectItem></SelectContent></Select></label>}
+        <div className="grid sm:grid-cols-2 gap-3"><Field label={t('settings.profilesTab.modelNameLabel')} value={model} set={setModel} />{kind !== 'local' && <Field label={t('settings.profilesTab.apiKeyLabel')} value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />}</div>
+        {kind === 'remote' && <Field label={t('settings.profilesTab.baseUrlLabel')} value={baseUrl} set={setBaseUrl} placeholder="https://host:11434/subpath" />}
+        <details className="text-xs"><summary className="cursor-pointer font-medium">{t('settings.profilesTab.advanced')}</summary><div className="grid sm:grid-cols-2 gap-3 mt-3"><Field label="Chat path" value={llmPath} set={setLlmPath} /><Field label="Embedding model" value={embeddingModel} set={setEmbeddingModel} />{kind === 'remote' && <><Field label="Embedding URL" value={embeddingBaseUrl} set={setEmbeddingBaseUrl} /><Field label="Embedding path" value={embeddingPath} set={setEmbeddingPath} /><Field label="Embedding API key" value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} /></>}<NumberField label="Embedding dimension" value={dimension} set={setDimension} /><NumberField label="Embedding context" value={embeddingContext} set={setEmbeddingContext} /><NumberField label="LLM context" value={llmContext} set={setLlmContext} /></div></details>
+        <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button><Button onClick={save}>{t('settings.profilesTab.saveProfile')}</Button></div>
+      </div>}
+  </div>;
 };
+
+const Field = ({ label, value, set, secret = false, placeholder = '' }: { label: string; value: string; set: (value: string) => void; secret?: boolean; placeholder?: string }) => <label className="text-xs">{label}<input type={secret ? 'password' : 'text'} className={inputClass} value={value} placeholder={placeholder} onChange={event => set(event.target.value)} /></label>;
+const NumberField = ({ label, value, set }: { label: string; value: number; set: (value: number) => void }) => <label className="text-xs">{label}<input type="number" min="1" className={inputClass} value={value} onChange={event => set(Number(event.target.value))} /></label>;
