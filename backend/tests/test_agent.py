@@ -175,6 +175,8 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
     ]
 
     assert captured["payload"]["num_ctx"] == cfg.OLLAMA_NUM_CTX
+    tool_names = {tool["function"]["name"] for tool in captured["payload"]["tools"]}
+    assert {"get_repo_entities", "trace_call_flow"}.issubset(tool_names)
     assert [e["type"] for e in events][-1] == "answer"
 
 

@@ -168,7 +168,7 @@ def _focus(
 @router.get("/focus")
 def focus(
     entity_id: int,
-    hops: int = Query(1, ge=0, le=3),
+    hops: int = Query(1, ge=0, le=5),
     types: list[str] | None = Query(
         default=None,
         description=(
@@ -203,7 +203,7 @@ def focus(
 def export_callgraph(
     entity_id: int,
     format: str = Query("json", pattern="^(json|csv|graphml)$"),
-    hops: int = Query(3, ge=0, le=3),
+    hops: int = Query(3, ge=0, le=5),
     types: list[str] | None = Query(default=None),
     include_inheritance: bool = Query(default=False),
     project_id: int | None = Query(

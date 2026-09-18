@@ -142,6 +142,11 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
             f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"
         ).json()
         assert {n["id"] for n in graph["nodes"]} == {caller.id, target.id, copybook.id}
+        # Der Graph ist weiterhin durch MAX_NODES begrenzt, erlaubt für eine
+        # technische Ablaufanalyse aber nun bis zu fünf Beziehungsebenen.
+        assert client.get(
+            f"/callgraph/focus?entity_id={target.id}&hops=5&project_id={test_project}"
+        ).status_code == 200
         assert (
             client.get(
                 f"/callgraph/export?entity_id={target.id}&format=json&project_id={test_project}"

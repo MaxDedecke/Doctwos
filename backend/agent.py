@@ -8,6 +8,7 @@ import core.config as cfg
 from mcp_client import MCPClient
 from models.database import CodeEntity
 from services.mcp_audit import record_mcp_tool_call
+from services.call_flow import trace_call_flow
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +197,9 @@ def get_repo_entities(project_id: int, db_session, query: str = "") -> dict:
         entities = db_query.limit(80).all()
         entities_list = [
             {
+                "id": e.id,
                 "name": e.name,
+                "qualified_name": e.qualified_name,
                 "type": e.type,
                 "file_path": e.file_path,
                 "start_line": e.start_line,
@@ -360,6 +363,37 @@ async def run_agent_loop(
                 },
             }
         )
+        local_tools_def.append(
+            {
+                "name": "trace_call_flow",
+                "description": (
+                    "Follows the indexed, directed call flow from one code entity for up to "
+                    "five hops. Use get_repo_entities first to obtain an entity ID. The result "
+                    "contains code locations and Mermaid flowchart source for a chat diagram."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "entity_id": {
+                            "type": "integer",
+                            "description": "ID returned by get_repo_entities.",
+                        },
+                        "hops": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 5,
+                            "description": "Number of call hops to trace; defaults to 5.",
+                        },
+                        "direction": {
+                            "type": "string",
+                            "enum": ["outgoing", "incoming", "both"],
+                            "description": "outgoing explains what happens after an entry point is called.",
+                        },
+                    },
+                    "required": ["entity_id"],
+                },
+            }
+        )
 
     # 2. Gather MCP tools
     mcp_tools_def = []
@@ -391,6 +425,10 @@ async def run_agent_loop(
         "Wenn du ein Repository-Werkzeug verwendet hast, muss deine finale Antwort mindestens eine tatsächlich "
         "verwendete Code-Stelle im exakten Format `pfad/zur/datei.ext:zeile` enthalten. Verwende dafür die "
         "Datei- und Zeilenangaben aus dem Werkzeugergebnis; erfinde niemals Pfade oder Zeilennummern.\n"
+        "Wenn die Frage nach einem technischen Ablauf, Endpunkt oder einer Aufrufkette fragt, ermittle zuerst "
+        "die passende Entität und nutze `trace_call_flow`. Erkläre dabei nur die tatsächlich zurückgegebenen "
+        "Kanten. Gib dessen Feld `mermaid` unverändert in einem ```mermaid-Codeblock aus, sofern es eine "
+        "Ablaufgrafik ergibt. Weise auf unaufgelöste oder gekürzte Kanten ausdrücklich hin.\n"
         "Wenn du dich in deiner finalen Antwort auf eine bestimmte Datei beziehst, zitiere sie inline in Backticks "
         "im Format `pfad/zur/datei.ext:zeile` (z.B. `grundriss.dwg:42`). Wissensquellen-Seiten ohne Dateiendung "
         "(z.B. Confluence- oder Jira-Seiten) zitierst du auf dieselbe Weise in Backticks, aber mit ihrem exakten "
@@ -449,6 +487,15 @@ async def run_agent_loop(
         elif name == "get_repo_entities" and project_id:
             query_val = args.get("query", "")
             res = get_repo_entities(project_id, db_session, query_val)
+            return json.dumps(res)
+        elif name == "trace_call_flow" and project_id:
+            res = trace_call_flow(
+                db_session,
+                project_id=project_id,
+                entity_id=args.get("entity_id"),
+                hops=args.get("hops", 5),
+                direction=args.get("direction", "outgoing"),
+            )
             return json.dumps(res)
 
         # Check MCP tools

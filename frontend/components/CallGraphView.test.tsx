@@ -349,6 +349,17 @@ describe('CallGraphView', () => {
       await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('hops=3'));
     });
 
+    it('erlaubt die Ablaufanalyse über bis zu fünf Hops', async () => {
+      const fetchMock = stubFetch();
+
+      renderView();
+      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+
+      fireEvent.click(screen.getByRole('button', { name: '5 Hop' }));
+
+      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('hops=5'));
+    });
+
     it('hebt die aktive Hop-Zahl hervor', async () => {
       stubFetch();
 

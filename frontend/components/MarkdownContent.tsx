@@ -1,6 +1,7 @@
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip } from '@/lib/analysisStatus';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
+import { MermaidDiagram } from '@/components/MermaidDiagram';
 import { BookOpen, Check, Code, Layers } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -17,6 +18,12 @@ interface CodeBlockProps {
 export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) => {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
+
+  if (language.toLowerCase() === 'mermaid') {
+    // Ein Key erzeugt bei geändertem Diagramm oder Farbschema eine frische
+    // Renderer-Instanz; dadurch bleibt kein SVG der vorherigen Antwort sichtbar.
+    return <MermaidDiagram key={`${theme}:${code}`} code={code} theme={theme} />;
+  }
 
   const handleCopy = async () => {
     const success = await copyToClipboard(code);

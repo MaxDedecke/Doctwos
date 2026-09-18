@@ -114,7 +114,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
     if event.get("type") != "tool_result":
         return
     tool_name = event.get("name")
-    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities"):
+    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow"):
         return
 
     result = event.get("result")
@@ -147,6 +147,20 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                 )
     elif tool_name == "get_repo_entities":
         for entity in result.get("entities", [])[:8]:
+            if entity.get("file_path"):
+                _record_agent_source(
+                    agent_sources,
+                    entity["file_path"],
+                    entity.get("start_line", 1),
+                    entity.get("end_line", 1),
+                    source_id,
+                )
+    elif tool_name == "trace_call_flow":
+        # Damit die vom Agenten aus dem Ablauftrace genannten Schritte nicht
+        # nur als Mermaid sichtbar, sondern auch als Code-Zitat anklickbar
+        # werden. Der Tool-Trace ist bereits auf 150 Knoten begrenzt; für die
+        # Quellenliste genügen die ersten 16, um die Antwort schlank zu halten.
+        for entity in result.get("nodes", [])[:16]:
             if entity.get("file_path"):
                 _record_agent_source(
                     agent_sources,

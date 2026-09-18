@@ -115,6 +115,27 @@ def test_agent_tool_sources_without_a_resolved_repository_stay_none():
     assert agent_sources == [{"file": "cbl/OTHER.cbl", "lines": [5, 5], "source_id": None}]
 
 
+def test_call_flow_tool_sources_make_traced_steps_citable():
+    agent_sources: list = []
+    event = {
+        "type": "tool_result",
+        "name": "trace_call_flow",
+        "result": {
+            "nodes": [
+                {"file_path": "api/orders.py", "start_line": 12, "end_line": 24},
+                {"file_path": "services/orders.py", "start_line": 40, "end_line": 58},
+            ]
+        },
+    }
+
+    _extract_tool_sources(event, agent_sources, source_id=99)
+
+    assert agent_sources == [
+        {"file": "api/orders.py", "lines": [12, 24], "source_id": 99},
+        {"file": "services/orders.py", "lines": [40, 58], "source_id": 99},
+    ]
+
+
 def test_record_agent_source_still_dedupes_by_file_and_lines():
     agent_sources: list = []
     _record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)

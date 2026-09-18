@@ -17,6 +17,7 @@ zusätzliche Grenzen der jeweiligen Kundenumgebung.
 | Embedding-Batch | 20 Chunks | `EMBED_BATCH_MAX_CHUNKS` im Git-Konnektor; große Läufe werden in kleinere Ollama-Anfragen geteilt. |
 | Knowledge-Graph-Übersicht | 2.000 Nodes | `KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES`; per Env anpassbar. Die API meldet eine abgeschnittene Übersicht. |
 | Call-Graph-Fokus | 500 Nodes | `backend/api/callgraph.py::MAX_NODES`; verhindert unbounded BFS und übergroße Browser-Graphen. |
+| Agenten-Ablauftrace | 150 Nodes, maximal 5 Hops | `backend/services/call_flow.py`; begrenzt Tool-Kontext und Mermaid-Diagramme bei hoher Aufruffächerung. |
 | Graph-Retrieval im Chat | 1.800 Tokens | `backend/services/graph_retrieval.py::DEFAULT_GRAPH_TOKEN_BUDGET`; bleibt innerhalb des bestehenden Chat-Kontextbudgets. |
 | MCP-Tool-Ergebnis im Agenten | 8.000 Zeichen | `backend/agent.py::MAX_MCP_TOOL_RESULT_CHARS`; lange Tool-Ergebnisse werden begrenzt. |
 | MCP-Auditwerte | String 500 / Fehler 1.000 Zeichen, 50 Collection-Elemente, Tiefe 6 | `backend/services/mcp_audit.py`; sensible Werte werden vor der Speicherung redigiert. |
