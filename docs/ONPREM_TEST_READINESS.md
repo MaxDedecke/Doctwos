@@ -945,6 +945,24 @@ werden ohne Datenbankfehler indiziert; alle Abhängigkeiten bleiben als eigene E
 **Abnahme:** Lokalisierte Java-Properties-Dateien in ISO-8859-1 werden ohne Dekodierungsfehler
 als Text indexiert und gechunkt; Sonderzeichen und Umlaute bleiben im Volltext suchbar.
 
+### O-257 – P1 / Jobs: Verwaiste und doppelte LinkBuilder-Runs im JobCenter bereinigen und Queue-Deduplikation absichern
+
+- [ ] In `backend/api/jobs.py` und `backend/api/knowledge_links.py` Deduplikation für
+  `knowledge_links`-Runs implementieren: Ist für ein Projekt / einen Scope bereits ein Run im
+  Status `pending` oder `running` vorhanden, keinen zweiten Datensatz anlegen, sondern den
+  bestehenden Run zurückmelden.
+- [ ] Verwaiste Runs bereinigen: Wenn das zugehörige Projekt gelöscht wurde (`project_id IS NULL`
+  und Zielprojekt im `scope_json` existiert nicht mehr), den Run auf `cancelled` setzen,
+  damit er nicht dauerhaft als aktiver Job im JobCenter ("In Warteschlange") verharrt.
+- [ ] Stuck-State-Erkennung: Runs, die ohne `celery_task_id` oder nach einem Timeout im Status
+  `pending` verharren, als `cancelled`/`failed` markieren.
+- [ ] Datenbank bereinigen: Die beiden verwaisten Alt-Einträge (Run-IDs 82 und 87 aus gelöschten
+  Testprojekten 573 und 662) auf `cancelled` setzen.
+- [ ] Regressionstests in `backend/tests/test_jobs.py` und `backend/tests/test_knowledge_links.py`.
+
+**Abnahme:** Das JobCenter zeigt pro Scope maximal einen aktiven Wissens-Verknüpfungs-Job an;
+gelöschte Testprojekte hinterlassen keine endlosen Geister-Jobs in der Warteschlange.
+
 ### Empfohlene Umsetzung für diesen Bestand
 
 1. O-200–O-215 und O-240/O-241 klären: Zielhost, Qwen-Endpunkte, Quellcodezugang,
