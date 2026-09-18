@@ -119,18 +119,29 @@ describe('PanelContentRenderer', () => {
   });
 
   describe('Panel-Typ → Ansicht', () => {
-    it('rendert für "chat" die Chat-Ansicht', () => {
-      renderPanel({ contentType: 'chat' });
+    it('rendert für "chat" die Chat-Ansicht und reicht onOpenCallFlow durch', () => {
+      const onOpenCallFlow = vi.fn();
+      renderPanel({ contentType: 'chat', onOpenCallFlow });
 
       expect(screen.getByTestId('chat-view')).toBeTruthy();
       expect(screen.queryByTestId('split-pane')).toBeNull();
+      expect(getCaptured('chat-view').onOpenCallFlow).toBe(onOpenCallFlow);
     });
 
-    it('rendert für "callgraph" die Call-Graph-Ansicht mit dem fokussierten Objekt', () => {
-      renderPanel({ contentType: 'callgraph' });
+    it('rendert für "callgraph" die Call-Graph-Ansicht mit dem fokussierten Objekt und optionalem customFlow', () => {
+      const customFlow = {
+        root: { id: 10, name: 'root_fn' },
+        hops: 2,
+        direction: 'outgoing' as const,
+        truncated: false,
+        nodes: [{ id: 10, name: 'root_fn' }],
+        edges: [],
+      };
+      renderPanel({ contentType: 'callgraph', selection: { ...SELECTION, customCallFlow: customFlow } });
 
       expect(screen.getByTestId('callgraph-view')).toBeTruthy();
       expect(getCaptured('callgraph-view').focusedEntity).toBe(SELECTION.selectedEntity);
+      expect(getCaptured('callgraph-view').customFlow).toBe(customFlow);
       expect(getCaptured('callgraph-view').projectId).toBe(3);
     });
 

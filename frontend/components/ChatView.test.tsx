@@ -439,4 +439,68 @@ describe('ChatView', () => {
       expect(screen.getByText('Pin: com.acme › PaymentService › calculate')).toBeTruthy();
     });
   });
+
+  describe('Call-Graph-Aufforderungskarte', () => {
+    const TRACE_MESSAGE = {
+      id: 99,
+      role: 'assistant' as const,
+      content: 'Hier ist der Ablauf.',
+      metadata: {
+        agent_steps: [
+          {
+            type: 'tool_result' as const,
+            name: 'trace_call_flow',
+            result: JSON.stringify({
+              root: { id: 10, name: 'process_payment' },
+              hops: 2,
+              direction: 'outgoing',
+              truncated: false,
+              nodes: [
+                { id: 10, name: 'process_payment' },
+                { id: 20, name: 'charge_card' },
+              ],
+              edges: [
+                { id: 1, source: 10, target: 20, type: 'CALL', resolution: 'resolved', target_name: 'charge_card' },
+              ],
+            }),
+          },
+        ],
+      },
+    };
+
+    it('zeigt die Nachfragekarte mit "Ja, öffnen" und "Nein", wenn ein Ablauf vorliegt', () => {
+      renderChat({ chatMessages: [TRACE_MESSAGE] });
+
+      expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
+      expect(screen.getByText('Darf ich die Call Graph View öffnen, um dir diesen Ablauf im Graphen zu zeigen?')).toBeTruthy();
+      expect(screen.getByText('Ja, öffnen')).toBeTruthy();
+      expect(screen.getByText('Nein')).toBeTruthy();
+    });
+
+    it('blendet die Karte aus, wenn der Nutzer auf "Nein" klickt', () => {
+      renderChat({ chatMessages: [TRACE_MESSAGE] });
+
+      expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
+      fireEvent.click(screen.getByText('Nein'));
+
+      expect(screen.queryByTestId('callgraph-prompt-card')).toBeNull();
+      // Es verbleibt ein dezenter Link zum späteren Öffnen
+      expect(screen.getByText('Ablauf im Graph anzeigen')).toBeTruthy();
+    });
+
+    it('ruft onOpenCallFlow auf, wenn der Nutzer auf "Ja, öffnen" klickt', () => {
+      const onOpenCallFlow = vi.fn().mockReturnValue(true);
+      renderChat({ chatMessages: [TRACE_MESSAGE], onOpenCallFlow });
+
+      fireEvent.click(screen.getByText('Ja, öffnen'));
+
+      expect(onOpenCallFlow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          root: expect.objectContaining({ id: 10, name: 'process_payment' }),
+          hops: 2,
+        })
+      );
+      expect(screen.getByText(/Im Call-Graph geöffnet/)).toBeTruthy();
+    });
+  });
 });

@@ -513,4 +513,54 @@ describe('CallGraphView', () => {
       await waitFor(() => expect(screen.queryByText('Auf 500 Knoten begrenzt')).toBeNull());
     });
   });
+
+  describe('Agenten-Ablauf (customFlow)', () => {
+    const CUSTOM_FLOW = {
+      root: { id: 10, name: 'process_payment', type: 'function', file_path: 'src/pay.py', start_line: 5 },
+      hops: 2,
+      direction: 'outgoing' as const,
+      truncated: false,
+      nodes: [
+        { id: 10, name: 'process_payment', type: 'function', file_path: 'src/pay.py', start_line: 5 },
+        { id: 20, name: 'charge_card', type: 'function', file_path: 'src/stripe.py', start_line: 15 },
+      ],
+      edges: [
+        { id: 100, source: 10, target: 20, target_name: 'charge_card', type: 'CALL', resolution: 'resolved' },
+      ],
+      mermaid: 'flowchart TD\n  n10 --> n20',
+    };
+
+    it('rendert den Ablauf direkt aus customFlow ohne API-Aufruf', async () => {
+      const fetchMock = stubFetch();
+      renderView({ customFlow: CUSTOM_FLOW, focusedEntity: null });
+
+      await waitFor(() => expect(screen.getByTestId('node-entity:10')).toBeTruthy());
+      expect(screen.getByTestId('node-entity:20')).toBeTruthy();
+      expect(screen.getByText('Agenten-Ablauf')).toBeTruthy();
+      expect(screen.getByText(/Ausgehend · 2 Hops \(2 Knoten\)/)).toBeTruthy();
+      // Kein API-Aufruf
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('navigiert beim Klick auf einen Knoten im Ablauf zur Datei', async () => {
+      stubFetch();
+      const { onFileSelect } = renderView({ customFlow: CUSTOM_FLOW, focusedEntity: null });
+
+      await waitFor(() => expect(screen.getByTestId('node-entity:20')).toBeTruthy());
+      fireEvent.click(screen.getByTestId('node-entity:20'));
+
+      expect(onFileSelect).toHaveBeenCalledWith('src/stripe.py', 15, undefined);
+    });
+
+    it('ruft onClearCustomFlow auf, wenn auf "Standard-Graph laden" geklickt wird', async () => {
+      stubFetch();
+      const onClearCustomFlow = vi.fn();
+      renderView({ customFlow: CUSTOM_FLOW, onClearCustomFlow });
+
+      await waitFor(() => expect(screen.getByTitle('Standard-Graph laden')).toBeTruthy());
+      fireEvent.click(screen.getByTitle('Standard-Graph laden'));
+
+      expect(onClearCustomFlow).toHaveBeenCalledTimes(1);
+    });
+  });
 });

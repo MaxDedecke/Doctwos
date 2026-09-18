@@ -1,5 +1,6 @@
 import type { ChatPinnedFocus, ChatTurnFocus } from '@/lib/chatFocus';
 import type { PanelSelection } from '@/lib/panelHistory';
+export type { CallFlowData, CallFlowNode, CallFlowEdge } from '@/lib/callFlow';
 
 /** Project list and session summaries share identity; repository fields exist only on full projects. */
 export interface Project {

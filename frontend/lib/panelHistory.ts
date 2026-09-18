@@ -1,9 +1,11 @@
 import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
+import type { CallFlowData } from './callFlow';
 export type PanelSelection = {
   selectedFile: string | null;
   selectedDoc: WorkspaceDocument | null;
   selectedEntity: CodeEntity | null;
   selectedLine: number | null;
+  customCallFlow?: CallFlowData | null;
 };
 
 export type PanelHistoryEntry = {
@@ -18,13 +20,15 @@ export const EMPTY_PANEL_SELECTION: PanelSelection = {
   selectedDoc: null,
   selectedEntity: null,
   selectedLine: null,
+  customCallFlow: null,
 };
 
 export function panelSelectionsEqual(a: PanelSelection, b: PanelSelection): boolean {
   return a.selectedFile === b.selectedFile &&
     a.selectedDoc === b.selectedDoc &&
     a.selectedEntity === b.selectedEntity &&
-    a.selectedLine === b.selectedLine;
+    a.selectedLine === b.selectedLine &&
+    a.customCallFlow === b.customCallFlow;
 }
 
 /**

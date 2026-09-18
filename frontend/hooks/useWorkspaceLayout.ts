@@ -278,6 +278,7 @@ export function useWorkspaceLayout({
       selectedDoc: selectionOverride?.selectedDoc ?? selectedDoc,
       selectedEntity: selectionOverride?.selectedEntity ?? selectedEntity,
       selectedLine: selectionOverride?.selectedLine ?? null,
+      customCallFlow: selectionOverride?.customCallFlow ?? null,
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
@@ -322,7 +323,7 @@ export function useWorkspaceLayout({
     const previousSelection = panelSelections[index];
     setPanelSelections((previous) => {
       const next = [...previous];
-      next[index] = { ...next[index], selectedEntity: entity };
+      next[index] = { ...next[index], selectedEntity: entity, customCallFlow: null };
       return next;
     });
     if (panelFrozen[index] && !isPanelHistoryNavRef.current && previousSelection &&

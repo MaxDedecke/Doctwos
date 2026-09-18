@@ -3,6 +3,8 @@ import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { CallFlowData } from '@/lib/callFlow';
+import { extractCallFlowData } from '@/lib/callFlow';
 
 import { api } from '@/app/services/api';
 import { DoctusIcon } from "@/components/Logo";
@@ -76,6 +78,7 @@ interface ChatViewProps {
   selectedSource: KnowledgeSource | null;
   setSelectedSource: (source: KnowledgeSource | null) => void;
   connectedSources: KnowledgeSource[];
+  onOpenCallFlow?: (flow: CallFlowData) => boolean;
 }
 
 /** Renders a `[start, end]` line pair as "43" for a single line, "43-50" otherwise. */
@@ -112,9 +115,24 @@ export function ChatView({
   chatEndRef,
   selectedSource,
   setSelectedSource,
-  connectedSources
+  connectedSources,
+  onOpenCallFlow,
 }: ChatViewProps) {
   const { t } = useLanguage();
+
+  const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
+
+  const handleOpenFlow = (flow: CallFlowData, key: string | number) => {
+    if (!onOpenCallFlow) return;
+    const opened = onOpenCallFlow(flow);
+    if (opened) {
+      setCallFlowDecisions((prev) => {
+        const next: Record<string, 'open' | 'declined'> = { ...prev };
+        next[String(key)] = 'open';
+        return next;
+      });
+    }
+  };
 
   const [detectedLph, setDetectedLph] = React.useState<number | null>(null);
   const [recommendedChecklists, setRecommendedChecklists] = React.useState<string[]>([]);
@@ -508,6 +526,108 @@ export function ChatView({
                               <span className="text-[11px] italic">{t('chatView.agentWorking')}</span>
                             </div>
                           )}
+
+                          {/* Call Graph Prompt Card if an execution trace was produced */}
+                          {(() => {
+                            const callFlow = extractCallFlowData(m);
+                            if (!callFlow) return null;
+                            const decisionKey = m.id ?? i;
+                            const decision = callFlowDecisions[decisionKey];
+
+                            if (decision === 'declined') {
+                              return (
+                                <div className="mt-2.5 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
+                                    title={t('chatView.callGraphReopen')}
+                                  >
+                                    <GitBranch className="w-3.5 h-3.5 text-ds-indigo-500" />
+                                    <span>{t('chatView.callGraphReopen')}</span>
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            if (decision === 'open') {
+                              return (
+                                <div className={cn(
+                                  "mt-3 px-3 py-2 rounded-lg border flex items-center justify-between gap-2 text-xs",
+                                  theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100/60 border-ds-zinc-200 text-ds-zinc-600"
+                                )}>
+                                  <div className="flex items-center gap-2">
+                                    <Check className="w-3.5 h-3.5 text-ds-emerald-500" />
+                                    <span className="font-medium text-ds-zinc-300">{t('chatView.callGraphOpened')} ({callFlow.root.name})</span>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
+                                  >
+                                    {t('chatView.callGraphReopen')}
+                                  </Button>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                data-testid="callgraph-prompt-card"
+                                className={cn(
+                                  "mt-3.5 p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm transition-all",
+                                  theme === 'dark'
+                                    ? "bg-ds-indigo-950/20 border-ds-indigo-500/30 text-ds-zinc-200"
+                                    : "bg-ds-indigo-50/60 border-ds-indigo-200 text-ds-zinc-800"
+                                )}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className={cn(
+                                    "p-1.5 rounded-md border shrink-0",
+                                    theme === 'dark' ? "bg-ds-indigo-950/60 border-ds-indigo-500/30 text-ds-indigo-400" : "bg-ds-indigo-100 border-ds-indigo-200 text-ds-indigo-600"
+                                  )}>
+                                    <GitBranch className="w-4 h-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold tracking-tight">
+                                      {t('chatView.callGraphPrompt')}
+                                    </p>
+                                    <p className="text-[10px] text-ds-zinc-500 truncate">
+                                      {callFlow.root.name} · {callFlow.hops} {callFlow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')} ({callFlow.nodes.length} Knoten)
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    id={`chat-callgraph-decline-btn-${i}`}
+                                    onClick={() => setCallFlowDecisions((prev) => {
+                                      const next: Record<string, 'open' | 'declined'> = { ...prev };
+                                      next[String(decisionKey)] = 'declined';
+                                      return next;
+                                    })}
+                                    className="h-7 px-3 text-xs text-ds-zinc-500 hover:text-ds-zinc-700 dark:hover:text-ds-zinc-300 cursor-pointer"
+                                  >
+                                    {t('chatView.callGraphDismissButton')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    id={`chat-callgraph-open-btn-${i}`}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                  >
+                                    <GitBranch className="w-3.5 h-3.5 mr-1.5" />
+                                    {t('chatView.callGraphOpenButton')}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })()}
 
                           {/* Sources display if returned from query context */}
                           {m.sources && m.sources.length > 0 && (!isLoading || i !== chatMessages.length - 1) && (

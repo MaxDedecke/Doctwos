@@ -8,6 +8,7 @@ import { CallGraphView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
+import type { CallFlowData } from '@/lib/callFlow';
 import type { PanelSelection } from '@/lib/panelHistory';
 import React from 'react';
 
@@ -65,6 +66,7 @@ type PanelContentRendererProps = {
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
   chatEndRef: React.RefObject<HTMLDivElement>;
   currentUser: User | null;
+  onOpenCallFlow?: (flow: CallFlowData) => boolean;
 };
 
 /**
@@ -118,6 +120,7 @@ export function PanelContentRenderer({
   layoutMode,
   chatEndRef,
   currentUser,
+  onOpenCallFlow,
 }: PanelContentRendererProps) {
   if (contentType === 'chat') {
     return (
@@ -148,6 +151,7 @@ export function PanelContentRenderer({
         selectedSource={selectedSource}
         setSelectedSource={setSelectedSource}
         connectedSources={connectedSources}
+        onOpenCallFlow={onOpenCallFlow}
       />
     );
   }
@@ -158,6 +162,12 @@ export function PanelContentRenderer({
         theme={theme}
         focusedEntity={selection.selectedEntity}
         projectId={selectedProject?.id}
+        customFlow={selection.customCallFlow}
+        onClearCustomFlow={() => {
+          if (selection.selectedEntity || selection.customCallFlow?.root) {
+            handlePanelEntitySelect(index, (selection.selectedEntity || selection.customCallFlow?.root) as CodeEntity);
+          }
+        }}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
       />
     );

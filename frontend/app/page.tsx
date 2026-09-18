@@ -1,6 +1,7 @@
 "use client";
 import type { PanelSelection } from '@/lib/panelHistory';
-import type { ChatSession, Project, SearchResult, User } from '@/types/domain';
+import type { CallFlowData } from '@/lib/callFlow';
+import type { ChatSession, CodeEntity, Project, SearchResult, User } from '@/types/domain';
 import type { editor as MonacoEditor } from 'monaco-editor';
 
 import { AnimatePresence, motion } from 'framer-motion';
@@ -719,6 +720,44 @@ function AppContent() {
 
   // Divider interaction lives in useWorkspaceLayout.
 
+  const handleOpenCallFlow = useCallback((flowData: CallFlowData): boolean => {
+    const existingCallGraphIndex = panelConfigs.findIndex((cfg, idx) => cfg === 'callgraph' && !panelFrozen[idx]);
+    const anyCallGraphIndex = panelConfigs.findIndex(cfg => cfg === 'callgraph');
+    const targetIndex = existingCallGraphIndex !== -1 ? existingCallGraphIndex : anyCallGraphIndex;
+
+    const entity = flowData.root as unknown as CodeEntity;
+
+    if (targetIndex !== -1) {
+      setPanelSelections(prev => {
+        const next = [...prev];
+        next[targetIndex] = {
+          ...next[targetIndex],
+          selectedEntity: entity,
+          customCallFlow: flowData,
+        };
+        return next;
+      });
+      setActiveMobileTab('graph');
+      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'info');
+      return true;
+    }
+
+    if (panelConfigs.length >= 4) {
+      showToast(t('chatView.callGraphNoSpace'), 'warning');
+      return false;
+    }
+
+    const added = addPanel('callgraph', {
+      selectedEntity: entity,
+      customCallFlow: flowData,
+    });
+    if (added) {
+      setActiveMobileTab('graph');
+      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'info');
+    }
+    return added;
+  }, [addPanel, panelConfigs, panelFrozen, setActiveMobileTab, setPanelSelections, showToast, t]);
+
   const renderPanelContent = (index: number, contentType: string, selection: PanelSelection) => (
     <PanelContentRenderer
       index={index}
@@ -766,6 +805,7 @@ function AppContent() {
       layoutMode={layoutMode}
       chatEndRef={chatEndRef}
       currentUser={currentUser}
+      onOpenCallFlow={handleOpenCallFlow}
     />
   );
 

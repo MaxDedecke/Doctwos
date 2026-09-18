@@ -1,6 +1,7 @@
 "use client";
 import type { CodeEntity } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
+import type { CallFlowData } from '@/lib/callFlow';
 
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
@@ -49,9 +50,11 @@ interface Props {
   // (Allgemein-Modus) oder gehört die Entity zu einem ANDEREN Projekt, greift
   // serverseitig das Default-Deny-Opt-in (Project.expose_code_analysis_globally).
   projectId?: number | null;
+  customFlow?: CallFlowData | null;
+  onClearCustomFlow?: () => void;
 }
 
-export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }: Props) {
+export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,8 +84,49 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     return () => observer.disconnect();
   }, []);
 
+  const effectiveEntity = customFlow?.root ? { id: customFlow.root.id, name: customFlow.root.name } : focusedEntity;
+
+  useEffect(() => {
+    if (!customFlow) return;
+    setLoading(false);
+    setError(null);
+    const nodes: CallNode[] = (customFlow.nodes || []).map((node) => ({
+      id: `entity:${node.id}`,
+      entityId: node.id,
+      name: node.name,
+      type: node.type || 'entity',
+      file_path: node.file_path || undefined,
+      start_line: node.start_line,
+      source_id: node.source_id,
+      analysis_status: node.analysis_status,
+      analysis_reasons: node.analysis_reasons,
+    }));
+    const known = new Set(nodes.map(node => node.id));
+    const edges: CallEdge[] = (customFlow.edges || []).map((edge) => {
+      let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
+      if (!known.has(target)) {
+        nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
+        known.add(target);
+      }
+      return {
+        id: `edge:${edge.id}`,
+        source: `entity:${edge.source}`,
+        target,
+        type: edge.type,
+        resolution: edge.resolution,
+      };
+    });
+    setGraph({ nodes, edges });
+    const types = Array.from(new Set(edges.map(edge => edge.type))).sort();
+    setAvailableTypes(types);
+    setEnabledTypes(new Set(types));
+    setTruncated(Boolean(customFlow.truncated));
+    setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
+  }, [customFlow]);
+
   const loadGraph = useCallback(async () => {
-    if (!focusedEntity?.id) {
+    if (customFlow) return;
+    if (!effectiveEntity?.id) {
       setGraph({ nodes: [], edges: [] });
       return;
     }
@@ -91,7 +135,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     try {
       const projectParam = projectId ? `&project_id=${projectId}` : '';
       const inheritanceParam = includeInheritance ? '&include_inheritance=true' : '';
-      const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${focusedEntity.id}&hops=${hops}${projectParam}${inheritanceParam}`);
+      const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${effectiveEntity.id}&hops=${hops}${projectParam}${inheritanceParam}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       type FocusNode = CodeEntity & { analysis_status?: AnalysisStatus; analysis_reasons?: string[] };
       const data: { nodes: FocusNode[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: string; resolution: string }>; edge_types?: string[]; truncated?: boolean } = await response.json();
@@ -135,7 +179,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
     } finally {
       setLoading(false);
     }
-  }, [focusedEntity, hops, includeInheritance, projectId, t]);
+  }, [customFlow, effectiveEntity, hops, includeInheritance, projectId, t]);
 
   useEffect(() => {
     // queueMicrotask: loadGraph() sets loading/error state before its
@@ -146,42 +190,86 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
 
   const filtered = useMemo(() => {
     const links = graph.edges.filter(edge => enabledTypes.has(edge.type));
-    const usedIds = new Set<string>([`entity:${focusedEntity?.id}`]);
+    const usedIds = new Set<string>([`entity:${effectiveEntity?.id}`]);
     links.forEach(edge => {
       usedIds.add(typeof edge.source === 'string' ? edge.source : edge.source.id);
       usedIds.add(typeof edge.target === 'string' ? edge.target : edge.target.id);
     });
     return { nodes: graph.nodes.filter(node => usedIds.has(node.id)), links };
-  }, [graph, enabledTypes, focusedEntity?.id]);
+  }, [graph, enabledTypes, effectiveEntity?.id]);
 
   const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
-    if (!focusedEntity?.id) return;
+    if (customFlow && format === 'json') {
+      const blob = new Blob([JSON.stringify(customFlow, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `callflow-${effectiveEntity?.name || 'export'}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+    if (!effectiveEntity?.id) return;
     const projectParam = projectId ? `&project_id=${projectId}` : '';
     const inheritanceParam = includeInheritance ? '&include_inheritance=true' : '';
-    const response = await api.fetch(`${API_URL}/callgraph/export?entity_id=${focusedEntity.id}&hops=${hops}&format=${format}${projectParam}${inheritanceParam}`);
+    const response = await api.fetch(`${API_URL}/callgraph/export?entity_id=${effectiveEntity.id}&hops=${hops}&format=${format}${projectParam}${inheritanceParam}`);
     if (!response.ok) return setError(t('callGraphView.exportError', { status: response.status }));
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `callgraph-${focusedEntity.name || focusedEntity.id}.${format === 'graphml' ? 'graphml' : format}`;
+    anchor.download = `callgraph-${effectiveEntity.name || effectiveEntity.id}.${format === 'graphml' ? 'graphml' : format}`;
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
-  if (!focusedEntity?.id) {
+  if (!effectiveEntity?.id) {
     return <div className="h-full flex flex-col items-center justify-center gap-2 text-ds-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">{t('callGraphView.focusFirst')}</p></div>;
   }
 
   return (
     <div className={cn('h-full flex flex-col', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
       <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
-        <div className="min-w-0 mr-auto"><div className="text-xs font-bold truncate">{focusedEntity.name}</div><div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">Call-Graph · {hops} {hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')}</div></div>
-        {[1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
-        <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomIn className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><ZoomOut className="w-3.5 h-3.5" /></button>
-        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title={t('callGraphView.fitAllTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400"><Maximize2 className="w-3.5 h-3.5" /></button>
+        <div className="min-w-0 mr-auto">
+          <div className="text-xs font-bold truncate flex items-center gap-1.5">
+            <span>{effectiveEntity.name}</span>
+            {customFlow && (
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-ds-indigo-500/15 text-ds-indigo-400 border border-ds-indigo-500/30">
+                {t('callGraphView.flowTitle')}
+              </span>
+            )}
+          </div>
+          <div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">
+            {customFlow ? (
+              <>
+                {customFlow.direction === 'outgoing'
+                  ? t('callGraphView.flowDirectionOutgoing')
+                  : customFlow.direction === 'incoming'
+                    ? t('callGraphView.flowDirectionIncoming')
+                    : t('callGraphView.flowDirectionBoth')} · {customFlow.hops} {customFlow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')} ({customFlow.nodes.length} Knoten)
+              </>
+            ) : (
+              <>
+                Call-Graph · {hops} {hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')}
+              </>
+            )}
+          </div>
+        </div>
+        {customFlow && onClearCustomFlow && (
+          <button
+            type="button"
+            onClick={onClearCustomFlow}
+            className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[10px] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors cursor-pointer"
+            title={t('callGraphView.switchToFocusView')}
+          >
+            {t('callGraphView.switchToFocusView')}
+          </button>
+        )}
+        {!customFlow && [1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
+        <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomIn className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomOut className="w-3.5 h-3.5" /></button>
+        <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title={t('callGraphView.fitAllTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><Maximize2 className="w-3.5 h-3.5" /></button>
       </div>
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         <button
@@ -212,16 +300,16 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId }:
               ? `${base} — ${formatAnalysisStatusTooltip({ status: node.analysis_status, reasons: node.analysis_reasons || [] }, t)}`
               : base;
           }}
-          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === focusedEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
-          nodeVal={(node: CallNode) => node.entityId === focusedEntity.id ? 7 : 4}
+          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === effectiveEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
+          nodeVal={(node: CallNode) => node.entityId === effectiveEntity.id ? 7 : 4}
           nodeCanvasObjectMode={() => 'replace'}
           nodeCanvasObject={(node: CallNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            const radius = node.entityId === focusedEntity.id ? 8 : 7;
+            const radius = node.entityId === effectiveEntity.id ? 8 : 7;
             ctx.beginPath();
             ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
             ctx.fillStyle = node.unresolved
               ? resolveDsColor('rgb(var(--ds-warning-base))')
-              : node.entityId === focusedEntity.id
+              : node.entityId === effectiveEntity.id
                 ? resolveDsColor('rgb(var(--ds-accent))')
                 : resolveDsColor('rgb(var(--ds-info-base))');
             ctx.fill();

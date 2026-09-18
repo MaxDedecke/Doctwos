@@ -799,6 +799,12 @@
     "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy.",
     "askDirectlyTitle": "Ask directly",
     "userAvatarAlt": "Illustrative employee avatar for your message",
+    "callGraphPrompt": "May I open the Call Graph View to show you this flow in the graph?",
+    "callGraphOpenButton": "Yes, open",
+    "callGraphDismissButton": "No",
+    "callGraphOpened": "Opened in Call Graph",
+    "callGraphReopen": "Show flow in Graph",
+    "callGraphNoSpace": "No space in workspace for another panel (maximum 4). Please close a panel first.",
     "typingFallbacks": {
       "makeCobolKnowledgeVisible": "Make COBOL knowledge visible",
       "navigateMainframeCode": "Navigate mainframe code with clarity",
@@ -1247,8 +1253,14 @@
     "fitAllTitle": "Fit all",
     "truncatedNotice": "Limited to 500 nodes",
     "noConnections": "No call graph connections for this focus.",
-    "loadError": "Failed to load call graph",
-    "exportError": "Export failed (HTTP {{status}})"
+    "loadError": "Could not load call graph",
+    "exportError": "Export failed (HTTP {{status}})",
+    "flowTitle": "Agent Flow",
+    "flowDirectionOutgoing": "Outgoing",
+    "flowDirectionIncoming": "Incoming",
+    "flowDirectionBoth": "Both directions",
+    "switchToFocusView": "Load standard graph",
+    "flowLoadedToast": "Call flow for {{name}} opened in Call Graph View"
   },
   "sourceNetworkGraph": {
     "title": "Source network",
