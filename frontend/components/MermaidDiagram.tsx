@@ -30,6 +30,7 @@ function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
           startOnLoad: false,
           securityLevel: 'strict',
           theme: theme === 'dark' ? 'dark' : 'default',
+          fontFamily: 'Archivo, Arial, sans-serif',
           flowchart: { htmlLabels: false },
         });
         const result = await mermaid.render(`doctus-mermaid-${reactId}`, code);

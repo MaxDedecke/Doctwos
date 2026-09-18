@@ -149,7 +149,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                 <div className="flex-1 min-w-0 pt-0.5">
                                     {isThought && (
                                         <div className={cn(
-                                            "p-3 rounded-lg border italic font-serif leading-relaxed",
+                                            "p-3 rounded-lg border font-sans italic leading-relaxed",
                                             theme === 'dark'
                                                 ? "bg-ds-zinc-900/30 border-ds-zinc-800 text-ds-zinc-300"
                                                 : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700"

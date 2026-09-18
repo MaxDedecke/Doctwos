@@ -6,7 +6,7 @@ import { MermaidDiagram } from './MermaidDiagram';
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
-    render: vi.fn().mockResolvedValue({ svg: '<svg viewBox="0 0 100 50"><text>Flow</text></svg>' }),
+    render: vi.fn().mockResolvedValue({ svg: '<svg viewBox="0 0 100 50"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">Flow</div></foreignObject></svg>' }),
   },
 }));
 
