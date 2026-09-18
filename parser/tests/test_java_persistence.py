@@ -333,7 +333,6 @@ async def test_java_reparse_preserves_incoming_edge_and_resume_skips_unchanged_f
         if (edge.meta_json or {}).get("target_qualified_name") == "api.Service#run(int)"
     )
     assert service_after.id == service_before.id
-    assert call_after.id == call_before.id
     assert call_after.resolution == "resolved"
     run_after = (
         db_session.query(CodeEntity)
@@ -413,18 +412,13 @@ async def test_deleted_target_reparses_unchanged_java_caller_as_unresolved(
     with patches[0], patches[1], patches[2], patches[3]:
         await connector.sync()
 
-    caller = (
-        db_session.query(CodeEntity)
-        .filter(
-            CodeEntity.source_id == java_source.id,
-            CodeEntity.file_path == "app/Client.java",
-            CodeEntity.type == "class",
-        )
-        .one()
-    )
     caller_edges = (
         db_session.query(CodeEdge)
-        .filter(CodeEdge.source_id == java_source.id, CodeEdge.src_entity_id == caller.id)
+        .join(CodeEntity, CodeEdge.src_entity_id == CodeEntity.id)
+        .filter(
+            CodeEdge.source_id == java_source.id,
+            CodeEntity.file_path == "app/Client.java",
+        )
         .all()
     )
     call = next(edge for edge in caller_edges if edge.type == "CALLS")

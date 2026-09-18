@@ -34,7 +34,10 @@ LLM_MODEL: str = os.getenv("LLM_MODEL", "disabled")
 # in Timeouts, die still als llm_error gezählt wurden (kein Verdikt für das
 # Bauteil). Auf GPU-Hosts kostet der höhere Wert nichts, da die Antwort lange
 # vorher da ist. Auf sehr kleinen CPU-Hosts ggf. weiter erhöhen.
-COMPLIANCE_LLM_TIMEOUT: float = float(os.getenv("COMPLIANCE_LLM_TIMEOUT", "180"))
+# Compose expands an explicitly empty value from `.env` to an empty string.
+# Treat it like an omitted optional setting so a non-LLM parser/import run can
+# start with the documented default.
+COMPLIANCE_LLM_TIMEOUT: float = float(os.getenv("COMPLIANCE_LLM_TIMEOUT") or "180")
 
 # ── Datenbank & Queue ─────────────────────────────────────────────────────────
 

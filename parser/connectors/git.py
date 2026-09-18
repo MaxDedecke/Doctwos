@@ -102,6 +102,22 @@ def _delete_file_entities(db, *, source_id: int, file_path: str) -> None:
     deleting file-owned declarations; otherwise the self-referential CASCADE
     removes the package and declarations from unchanged files as well.
     """
+    # Keep incoming references as explicit unresolved evidence.  PostgreSQL's
+    # FK cascade would otherwise erase a caller edge together with a deleted
+    # target before the unchanged caller gets reparsed, making a deletion look
+    # like it never had a relationship at all.
+    file_entity_ids = [
+        entity_id
+        for (entity_id,) in db.query(CodeEntity.id)
+        .filter(CodeEntity.source_id == source_id, CodeEntity.file_path == file_path)
+        .all()
+    ]
+    if file_entity_ids:
+        db.query(CodeEdge).filter(CodeEdge.dst_entity_id.in_(file_entity_ids)).update(
+            {CodeEdge.dst_entity_id: None, CodeEdge.resolution: "unresolved"},
+            synchronize_session=False,
+        )
+
     shared_types = ("package", "module")
     shared = (
         db.query(CodeEntity)

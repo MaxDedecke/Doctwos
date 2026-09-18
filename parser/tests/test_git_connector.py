@@ -538,13 +538,13 @@ async def test_git_connector_reembeds_all_files_when_embedding_model_changes(
 
     connector = GitConnector(test_source.id)
     p1, embed_batch, p3, p4 = _patched_sync(connector)
-    with p1, embed_batch, p3, p4:
+    with p1, embed_batch as embed_batch_mock, p3, p4:
         await connector.sync()
 
-    assert embed_batch.await_count > 0
+    assert embed_batch_mock.await_count > 0
     assert all(
         call.kwargs.get("model") == "replacement-embedding-model"
-        for call in embed_batch.call_args_list
+        for call in embed_batch_mock.call_args_list
     )
     after = {
         row.file_path: row.analysis_fingerprint
