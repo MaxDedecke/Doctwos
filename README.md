@@ -219,7 +219,7 @@ Important entry points:
 
 - `parser/cobol/parse.py` — COBOL parser orchestration
 - `parser/connectors/git.py` — resumable Git ingestion
-- `parser/cobol_persist.py` — entity and edge persistence
+- `parser/structure_persist.py` — entity and edge persistence
 - `backend/api/auth.py` — local authentication
 - `backend/api/entities.py` and `backend/api/callgraph.py` — graph APIs
 - `frontend/app/page.tsx` — workspace orchestration

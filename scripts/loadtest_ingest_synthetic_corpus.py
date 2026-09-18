@@ -36,7 +36,7 @@ from pathlib import Path
 sys.path.insert(0, "/app")
 
 from cobol.parse import parse_program, parse_copybook  # noqa: E402
-from cobol_persist import persist_parse_result  # noqa: E402
+from structure_persist import persist_parse_result  # noqa: E402
 from tasks.edge_resolver import resolve_global_edges  # noqa: E402
 from db import SessionLocal  # noqa: E402
 from models.database import CodeEntity, CodeEdge  # noqa: E402
