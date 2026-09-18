@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MermaidDiagram } from './MermaidDiagram';
+import { getMermaidRenderConfig, MermaidDiagram } from './MermaidDiagram';
 
 vi.mock('mermaid', () => ({
   default: {
@@ -24,5 +24,13 @@ describe('MermaidDiagram', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
 
     expect(screen.queryByRole('dialog', { name: 'Ablaufdiagramm in Großansicht' })).toBeNull();
+  });
+
+  it('disables Mermaid HTML labels globally so flowchart labels use native SVG text', () => {
+    expect(getMermaidRenderConfig('dark')).toMatchObject({
+      theme: 'dark',
+      securityLevel: 'strict',
+      htmlLabels: false,
+    });
   });
 });

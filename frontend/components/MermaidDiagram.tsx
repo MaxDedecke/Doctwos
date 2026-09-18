@@ -3,6 +3,7 @@
 import { sanitizeSvg } from '@/lib/sanitize';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Loader2, Maximize2, X } from 'lucide-react';
+import type { MermaidConfig } from 'mermaid';
 import React, { useEffect, useId, useState } from 'react';
 
 interface MermaidDiagramProps {
@@ -12,6 +13,20 @@ interface MermaidDiagramProps {
 
 interface MermaidSvgProps extends MermaidDiagramProps {
   expanded?: boolean;
+}
+
+export function getMermaidRenderConfig(theme: string): MermaidConfig {
+  return {
+    startOnLoad: false,
+    securityLevel: 'strict' as const,
+    theme: theme === 'dark' ? 'dark' : 'default',
+    fontFamily: 'Archivo, Arial, sans-serif',
+    // Mermaid 11 evaluates the global setting before the deprecated
+    // flowchart-local one. Setting it globally makes ordinary flowcharts use
+    // native SVG <text> labels, which are reliable in both the compact chat
+    // card and the large dialog.
+    htmlLabels: false,
+  };
 }
 
 /** Render Mermaid supplied by an agent answer without trusting its SVG output. */
@@ -26,13 +41,7 @@ function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
     void (async () => {
       try {
         const { default: mermaid } = await import('mermaid');
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: 'strict',
-          theme: theme === 'dark' ? 'dark' : 'default',
-          fontFamily: 'Archivo, Arial, sans-serif',
-          flowchart: { htmlLabels: false },
-        });
+        mermaid.initialize(getMermaidRenderConfig(theme));
         const result = await mermaid.render(`doctus-mermaid-${reactId}`, code);
         if (!cancelled) setSvg(sanitizeSvg(result.svg));
       } catch {
