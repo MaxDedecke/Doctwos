@@ -60,6 +60,7 @@ from core.projects import (
     resolve_repository_id,
 )
 from services.chat_service import (
+    classify_chat_intent,
     find_pinned_chunks,
     hybrid_chunk_search,
     persist_assistant_message,
@@ -76,6 +77,20 @@ _hybrid_chunk_search = hybrid_chunk_search
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
+
+# The agent loop has provider-specific tool contracts for these protocols.  In
+# particular, ``ollama`` is also the protocol used by remote Ollama profiles:
+# the loop talks to their OpenAI-compatible ``/v1/chat/completions`` endpoint.
+# Keep capability selection protocol-based rather than treating ``remote`` as
+# synonymous with "no tools" (O-259).
+_AGENT_TOOL_PROTOCOLS = frozenset(
+    {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
+)
+
+
+def _agent_profile_supports_tools(profile) -> bool:
+    """Return whether the selected profile has a corresponding tool loop."""
+    return (getattr(profile, "protocol", "") or "").lower() in _AGENT_TOOL_PROTOCOLS
 
 
 def _session_accessible(session: ChatSession, user: User) -> bool:
@@ -611,28 +626,43 @@ async def chat(
 
         async def inner_generator():
             nonlocal answer, sources, agent_steps
-            active_embedding_profile = get_active_embedding_profile(db)
-            retrieval = await retrieve_chat_context(
-                db=db,
-                user=user,
+            chat_intent = classify_chat_intent(
+                request.message,
                 project_id=request.project_id,
-                source_id=request.source_id,
-                pinned_source_id=request.pinned_source_id,
                 pinned_file=request.pinned_file,
-                pinned_line=request.pinned_line,
-                pinned_end_line=request.pinned_end_line,
-                pinned_label=request.pinned_label,
-                pinned_entity_id=request.pinned_entity_id,
-                focused_context=request.pinned_context,
-                message=request.message,
-                embedding_model=active_embedding_profile.model,
-                embedding_profile=active_embedding_profile,
+                mcp_scope=bool(request.source_id),
             )
-            results = retrieval.results
-            prompt = retrieval.prompt
-            pinned_chunks = retrieval.pinned_chunks
-            resolved_repo_id = retrieval.resolved_repo_id
-            focused_source_id = retrieval.focused_source_id
+            if chat_intent.use_retrieval:
+                active_embedding_profile = get_active_embedding_profile(db)
+                retrieval = await retrieve_chat_context(
+                    db=db,
+                    user=user,
+                    project_id=request.project_id,
+                    source_id=request.source_id,
+                    pinned_source_id=request.pinned_source_id,
+                    pinned_file=request.pinned_file,
+                    pinned_line=request.pinned_line,
+                    pinned_end_line=request.pinned_end_line,
+                    pinned_label=request.pinned_label,
+                    pinned_entity_id=request.pinned_entity_id,
+                    focused_context=request.pinned_context,
+                    message=request.message,
+                    embedding_model=active_embedding_profile.model,
+                    embedding_profile=active_embedding_profile,
+                )
+                results = retrieval.results
+                prompt = retrieval.prompt
+                pinned_chunks = retrieval.pinned_chunks
+                resolved_repo_id = retrieval.resolved_repo_id
+                focused_source_id = retrieval.focused_source_id
+            else:
+                # Greetings and other smalltalk must not pay the retrieval cost or
+                # accidentally turn project context into a forced agent/tool turn.
+                results = []
+                prompt = request.message
+                pinned_chunks = []
+                resolved_repo_id = None
+                focused_source_id = None
 
             provider = selected_profile.provider.lower()
 
@@ -721,7 +751,7 @@ async def chat(
                         },
                     )
             pinned_source = None
-            if request.pinned_file:
+            if request.pinned_file and chat_intent.use_retrieval:
                 pinned_source = {
                     "file": request.pinned_file,
                     "lines": [request.pinned_line, request.pinned_line],
@@ -736,7 +766,7 @@ async def chat(
             team_ids = get_visible_team_ids(user, db)
 
             try:
-                if request.source_id:
+                if chat_intent.use_agent and request.source_id:
                     mcp_sources = (
                         db.query(KnowledgeSource)
                         .filter(
@@ -745,7 +775,7 @@ async def chat(
                         )
                         .all()
                     )
-                elif request.project_id:
+                elif chat_intent.use_agent and request.project_id:
                     mcp_sources = (
                         db.query(KnowledgeSource)
                         .filter(
@@ -754,7 +784,7 @@ async def chat(
                         )
                         .all()
                     )
-                else:
+                elif chat_intent.use_agent:
                     mcp_query = db.query(KnowledgeSource).filter(
                         KnowledgeSource.project_id.is_(None),
                         KnowledgeSource.type.in_(["confluence", "jira"]),
@@ -763,14 +793,16 @@ async def chat(
                         mcp_query = mcp_query.filter(KnowledgeSource.team_id.in_(team_ids))
                     mcp_sources = mcp_query.all()
 
-                from mcp_client import init_mcp_clients_for_sources
+                if chat_intent.use_agent:
+                    from mcp_client import init_mcp_clients_for_sources
 
-                mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
+                    mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
 
-                agent_supported = not (
-                    selected_profile.kind == "remote" and selected_profile.protocol == "ollama"
-                )
-                if (request.project_id or mcp_clients) and agent_supported:
+                if (
+                    chat_intent.use_agent
+                    and (request.project_id or mcp_clients)
+                    and _agent_profile_supports_tools(selected_profile)
+                ):
                     agent_ran = True
                     async for event in stream_agent_events(
                         provider=(
@@ -798,6 +830,12 @@ async def chat(
                         user_id=user.id,
                         session_id=session_id,
                         user_message_id=user_msg.id,
+                        pinned_file=request.pinned_file,
+                        pinned_line=request.pinned_line,
+                        pinned_end_line=request.pinned_end_line,
+                        # Projekt-/MCP-Fragen müssen vor der Antwort mindestens
+                        # eine belastbare Quelle über ein Tool erheben.
+                        require_initial_tool_call=True,
                     ):
                         if event["type"] == "answer":
                             answer = event["content"]

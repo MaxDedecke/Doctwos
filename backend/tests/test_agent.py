@@ -138,11 +138,11 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
     """Ohne num_ctx faellt Ollama auf sein kleines, stillschweigend kuerzendes
     Default-Kontextfenster zurueck (siehe O-168) -- die Agent-Schleife muss es
     also explizit im Request-Payload setzen, genau wie stream_standard_rag_events."""
-    captured = {}
+    captured = {"payloads": []}
 
     @contextlib.asynccontextmanager
     async def mock_stream(self, method, url, **kwargs):
-        captured.update(payload=kwargs["json"])
+        captured["payloads"].append(kwargs["json"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
 
@@ -171,13 +171,72 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
             mcp_clients=[],
             ollama_base_url="http://ollama:11434",
             project_id=1,  # schaltet das get_repo_entities-Werkzeug frei, ohne die DB zu berühren
+            require_initial_tool_call=True,
         )
     ]
 
-    assert captured["payload"]["num_ctx"] == cfg.OLLAMA_NUM_CTX
-    tool_names = {tool["function"]["name"] for tool in captured["payload"]["tools"]}
+    assert all(payload["num_ctx"] == cfg.OLLAMA_NUM_CTX for payload in captured["payloads"])
+    # Project turns now receive a deterministic repository bootstrap before the
+    # first model request, so the model can choose follow-up tools normally.
+    assert all(payload.get("tool_choice") is None for payload in captured["payloads"])
+    tool_names = {tool["function"]["name"] for tool in captured["payloads"][0]["tools"]}
     assert {"get_repo_entities", "trace_call_flow"}.issubset(tool_names)
     assert [e["type"] for e in events][-1] == "answer"
+
+
+@pytest.mark.asyncio
+async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp_path):
+    """A pinned repository question must have deterministic file evidence even
+    when the Ollama endpoint ignores ``tool_choice=required``."""
+    (tmp_path / "config.sh").write_text("#!/bin/sh\nMODE=prod\n", encoding="utf-8")
+    captured = {}
+
+    monkeypatch.setattr("agent.get_repo_path", lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path))
+
+    @contextlib.asynccontextmanager
+    async def mock_stream(self, method, url, **kwargs):
+        captured["payload"] = kwargs["json"]
+        response = SimpleNamespace()
+        response.raise_for_status = lambda: None
+
+        async def lines():
+            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Belegt."}}]})
+            yield "data: [DONE]"
+
+        response.aiter_lines = lines
+        yield response
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="ollama",
+            model_name="test-model",
+            api_key=None,
+            base_url=None,
+            system_prompt="System",
+            prompt="Was passiert hier?",
+            temperature=0.2,
+            repo_id=1,
+            db_session=SimpleNamespace(),
+            mcp_clients=[],
+            ollama_base_url="http://ollama:11434",
+            project_id=1,
+            pinned_file="config.sh",
+            pinned_line=2,
+            require_initial_tool_call=True,
+        )
+    ]
+
+    assert [event["type"] for event in events[:2]] == ["tool_call", "tool_result"]
+    assert events[0]["name"] == "view_repo_file"
+    bootstrap_call = captured["payload"]["messages"][2]["tool_calls"][0]
+    assert '"file_path": "config.sh"' in bootstrap_call["function"]["arguments"]
+    assert captured["payload"]["messages"][3]["role"] == "tool"
+    assert "tool_choice" not in captured["payload"]
+    assert events[-1]["type"] == "answer"
+    assert any(step["type"] == "tool_result" for step in events[-1]["agent_steps"])
 
 
 @pytest.mark.asyncio

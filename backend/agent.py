@@ -187,14 +187,18 @@ def search_repo_code(repo_id: int, query: str) -> dict:
         return {"error": str(e)}
 
 
-def get_repo_entities(project_id: int, db_session, query: str = "") -> dict:
+def get_repo_entities(project_id: int, db_session, query: str = "", limit: int = 80) -> dict:
     """Retrieves parsed program symbols/code entities (like classes, functions, etc.) from the DB."""
     try:
+        try:
+            limit = max(1, min(int(limit), 80))
+        except (TypeError, ValueError):
+            limit = 80
         db_query = db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id)
         if query:
             db_query = db_query.filter(CodeEntity.name.ilike(f"%{query}%"))
 
-        entities = db_query.limit(80).all()
+        entities = db_query.limit(limit).all()
         entities_list = [
             {
                 "id": e.id,
@@ -271,10 +275,14 @@ async def run_agent_loop(
     ollama_base_url: str = "http://ollama:11434",
     chat_history: Optional[List[Dict[str, str]]] = None,
     project_id: Optional[int] = None,
+    pinned_file: Optional[str] = None,
+    pinned_line: Optional[int] = None,
+    pinned_end_line: Optional[int] = None,
     audit_user_id: Optional[int] = None,
     audit_chat_session_id: Optional[int] = None,
     audit_chat_message_id: Optional[int] = None,
     endpoint_path: Optional[str] = None,
+    require_initial_tool_call: bool = False,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -358,7 +366,13 @@ async def run_agent_loop(
                         "query": {
                             "type": "string",
                             "description": "Optional search filter for entity name.",
-                        }
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 80,
+                            "description": "Optional maximum number of entities to return.",
+                        },
                     },
                 },
             }
@@ -488,7 +502,7 @@ async def run_agent_loop(
             return json.dumps(res)
         elif name == "get_repo_entities" and project_id:
             query_val = args.get("query", "")
-            res = get_repo_entities(project_id, db_session, query_val)
+            res = get_repo_entities(project_id, db_session, query_val, args.get("limit", 80))
             return json.dumps(res)
         elif name == "trace_call_flow" and project_id:
             res = trace_call_flow(
@@ -540,6 +554,56 @@ async def run_agent_loop(
 
         return f"Fehler: Werkzeug '{name}' ist nicht registriert."
 
+    # Ollama's OpenAI-compatible endpoint does not reliably honor
+    # ``tool_choice=required``. Make the first evidence-producing action
+    # deterministic and feed its result into the model before it formulates
+    # an answer.
+    bootstrap_tool: Optional[dict[str, Any]] = None
+    if require_initial_tool_call and project_id:
+        if pinned_file and repo_available:
+            start_line = pinned_line or 1
+            end_line = pinned_end_line
+            if end_line is None:
+                end_line = start_line + 30
+                start_line = max(1, start_line - 15)
+            bootstrap_args = {
+                "file_path": pinned_file,
+                "start_line": start_line,
+                "end_line": end_line,
+            }
+            bootstrap_name = "view_repo_file"
+        else:
+            # Unpinned project questions still need a grounded first step.
+            # Keep the result small; the model can issue a more specific
+            # get_repo_entities/search tool call afterwards if needed.
+            bootstrap_args = {"limit": 20}
+            bootstrap_name = "get_repo_entities"
+        bootstrap_id = "bootstrap-0"
+        bootstrap_result = await execute_tool(bootstrap_name, bootstrap_args)
+        bootstrap_tool = {
+            "name": bootstrap_name,
+            "arguments": bootstrap_args,
+            "result": bootstrap_result,
+            "id": bootstrap_id,
+            "truncated": _tool_result_was_truncated(bootstrap_result),
+        }
+        agent_steps.append(
+            {
+                "type": "tool_call",
+                "name": bootstrap_name,
+                "arguments": bootstrap_args,
+                "id": bootstrap_id,
+            }
+        )
+        yield {
+            "type": "tool_call",
+            "name": bootstrap_name,
+            "arguments": bootstrap_args,
+            "id": bootstrap_id,
+        }
+        agent_steps.append({"type": "tool_result", **bootstrap_tool})
+        yield {"type": "tool_result", **bootstrap_tool}
+
     # --- Run provider specific loops ---
     max_turns = 8
 
@@ -570,8 +634,25 @@ async def run_agent_loop(
                 {"role": msg["role"], "content": msg["content"]} for msg in chat_history
             )
         response_input.append({"role": "user", "content": prompt})
+        if bootstrap_tool:
+            response_input.extend(
+                [
+                    {
+                        "type": "function_call",
+                        "call_id": bootstrap_tool["id"],
+                        "name": bootstrap_tool["name"],
+                        "arguments": json.dumps(bootstrap_tool["arguments"]),
+                    },
+                    {
+                        "type": "function_call_output",
+                        "call_id": bootstrap_tool["id"],
+                        "output": bootstrap_tool["result"],
+                    },
+                ]
+            )
 
         async with httpx.AsyncClient(timeout=120.0) as client_http:
+            required_tool_retry = False
             for turn in range(max_turns):
                 payload = {
                     "model": model,
@@ -582,6 +663,12 @@ async def run_agent_loop(
                 }
                 if cfg.openai_model_supports_custom_temperature(model):
                     payload["temperature"] = temperature if temperature is not None else 0.7
+                if (
+                    require_initial_tool_call
+                    and not bootstrap_tool
+                    and (turn == 0 or required_tool_retry)
+                ):
+                    payload["tool_choice"] = "required"
 
                 resp = await client_http.post(full_url, json=payload, headers=headers)
                 resp.raise_for_status()
@@ -686,8 +773,13 @@ async def run_agent_loop(
         if is_ollama:
             url = f"{ollama_base_url}/v1"
             headers = {"Content-Type": "application/json"}
-            if cfg.OLLAMA_API_KEY:
-                headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
+            # A remote Ollama profile may carry its own credential.  The
+            # process-global value is only the fallback for the local/default
+            # profile; otherwise the active profile could never authenticate
+            # its agent tool-loop independently (O-259).
+            ollama_api_key = api_key or cfg.OLLAMA_API_KEY
+            if ollama_api_key:
+                headers["Authorization"] = f"Bearer {ollama_api_key}"
             model = cfg.resolve_ollama_model(model_name)
             full_url = f"{url}/chat/completions"
         else:
@@ -720,8 +812,34 @@ async def run_agent_loop(
             for msg in chat_history:
                 messages.append({"role": msg["role"], "content": msg["content"]})
         messages.append({"role": "user", "content": prompt})
+        if bootstrap_tool:
+            messages.extend(
+                [
+                    {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": bootstrap_tool["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": bootstrap_tool["name"],
+                                    "arguments": json.dumps(bootstrap_tool["arguments"]),
+                                },
+                            }
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "tool_call_id": bootstrap_tool["id"],
+                        "name": bootstrap_tool["name"],
+                        "content": bootstrap_tool["result"],
+                    },
+                ]
+            )
 
         async with httpx.AsyncClient(timeout=120.0) as client_http:
+            required_tool_retry = False
             for turn in range(max_turns):
                 payload = {
                     "model": model,
@@ -737,6 +855,14 @@ async def run_agent_loop(
                     # relevant, weil die Werkzeugschleife über bis zu
                     # max_turns Runden Zwischenergebnisse an `messages` anhängt.
                     payload["num_ctx"] = cfg.OLLAMA_NUM_CTX
+                if (
+                    require_initial_tool_call
+                    and not bootstrap_tool
+                    and (turn == 0 or required_tool_retry)
+                ):
+                    # Erst recherchieren, danach wieder automatisch zwischen
+                    # weiteren Werkzeugaufrufen und der finalen Antwort wählen.
+                    payload["tool_choice"] = "required"
 
                 accumulated_content = ""
                 accumulated_tool_calls = {}
@@ -761,7 +887,14 @@ async def run_agent_loop(
                                 content_chunk = delta.get("content")
                                 if content_chunk:
                                     accumulated_content += content_chunk
-                                    yield {"type": "content_chunk", "content": content_chunk}
+                                    # Do not stream an answer that may have to be
+                                    # discarded when Ollama ignores required tool use.
+                                    if not (
+                                        require_initial_tool_call
+                                        and not bootstrap_tool
+                                        and turn in (0, 1)
+                                    ):
+                                        yield {"type": "content_chunk", "content": content_chunk}
 
                                 tool_calls_delta = delta.get("tool_calls")
                                 if tool_calls_delta:
@@ -809,10 +942,24 @@ async def run_agent_loop(
                     msg["tool_calls"] = tool_calls_list
                 messages.append(msg)
 
-                if accumulated_content:
+                if accumulated_content and (
+                    tool_calls_list
+                    or not (
+                        require_initial_tool_call
+                        and not bootstrap_tool
+                        and turn in (0, 1)
+                    )
+                ):
                     agent_steps.append({"type": "thought", "content": accumulated_content})
 
                 if tool_calls_list:
+                    if (
+                        accumulated_content
+                        and require_initial_tool_call
+                        and not bootstrap_tool
+                        and turn in (0, 1)
+                    ):
+                        yield {"type": "content_chunk", "content": accumulated_content}
                     for tc in tool_calls_list:
                         tc_id = tc["id"]
                         fn_name = tc["function"]["name"]
@@ -868,6 +1015,27 @@ async def run_agent_loop(
 
                     yield {"type": "turn_completed", "has_tool_calls": True}
                 else:
+                    if require_initial_tool_call and not bootstrap_tool and turn == 0:
+                        # Some Ollama releases silently treat required as auto.
+                        # Remove the discarded assistant turn and retry once;
+                        # no unverified text reaches the user or the audit log.
+                        messages.pop()
+                        required_tool_retry = True
+                        logger.warning(
+                            "LLM ignorierte tool_choice=required; erzwinge einen zweiten Tool-Versuch"
+                        )
+                        continue
+                    if require_initial_tool_call and not bootstrap_tool and required_tool_retry:
+                        yield {"type": "turn_completed", "has_tool_calls": False}
+                        yield {
+                            "type": "answer",
+                            "content": (
+                                "Ich konnte die projektbezogene Frage nicht verlässlich über "
+                                "das Repository-Tool prüfen. Bitte wiederhole die Frage kurz."
+                            ),
+                            "agent_steps": agent_steps,
+                        }
+                        return
                     yield {"type": "turn_completed", "has_tool_calls": False}
                     yield {
                         "type": "answer",

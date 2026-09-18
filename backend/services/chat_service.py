@@ -37,6 +37,58 @@ logger = logging.getLogger(__name__)
 _PAGE_QUERY_RE = re.compile(r"(?:seite|page|s\.)\s*(\d+)", re.IGNORECASE)
 _SECTION_NUMBER_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){1,4}\b")
 _SECTION_MATCH_SCAN_LIMIT = 3000
+_SMALLTALK_RE = re.compile(
+    r"^(?:hallo|hi|hey|moin|servus|guten morgen|guten tag|guten abend|danke|vielen dank|"
+    r"ok|okay|alles klar|tsch(?:u|ü)ss|bye|auf wiedersehen|erzähl mir einen witz|"
+    r"erzaehl mir einen witz)[!.?\s]*$",
+    re.IGNORECASE,
+)
+_GRAPH_INTENT_RE = re.compile(
+    r"\b(?:ablauf|ablaufdiagramm|call[ -]?flow|call[ -]?graph|aufrufkette|"
+    r"abhängigkeit|abhaengigkeit|visualisier|diagramm|kanten|knoten)\b",
+    re.IGNORECASE,
+)
+_CODE_INTENT_RE = re.compile(
+    r"\b(?:code|datei|klasse|funktion|methode|zeile|skript|script|repository|repo|"
+    r"projekt|build|fehler|bug|implementierung|konfiguration|config)\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class ChatIntent:
+    """Server-side policy decision made before expensive retrieval starts."""
+
+    kind: str
+    use_retrieval: bool
+    use_agent: bool
+
+
+def classify_chat_intent(
+    message: str,
+    *,
+    project_id: Optional[int] = None,
+    pinned_file: Optional[str] = None,
+    mcp_scope: bool = False,
+) -> ChatIntent:
+    """Choose the chat path before RAG gives the model an answer shortcut.
+
+    Smalltalk is deliberately handled without project context or tools. For a
+    selected project, the conservative default remains the agent path so that
+    an ambiguous question is researched instead of answered from model memory.
+    """
+    normalized = re.sub(r"\s+", " ", (message or "").strip())
+    if _SMALLTALK_RE.fullmatch(normalized):
+        return ChatIntent("smalltalk", use_retrieval=False, use_agent=False)
+    if _GRAPH_INTENT_RE.search(normalized):
+        return ChatIntent("call_graph", use_retrieval=True, use_agent=bool(project_id))
+    if pinned_file:
+        return ChatIntent("code_question", use_retrieval=True, use_agent=bool(project_id))
+    if project_id or mcp_scope:
+        return ChatIntent("project_question", use_retrieval=True, use_agent=True)
+    if _CODE_INTENT_RE.search(normalized):
+        return ChatIntent("code_question", use_retrieval=True, use_agent=False)
+    return ChatIntent("general", use_retrieval=True, use_agent=False)
 
 
 @dataclass
@@ -627,6 +679,10 @@ async def stream_agent_events(
     user_id: int,
     session_id: int,
     user_message_id: int,
+    pinned_file: Optional[str] = None,
+    pinned_line: Optional[int] = None,
+    pinned_end_line: Optional[int] = None,
+    require_initial_tool_call: bool = False,
 ) -> AsyncIterator[dict]:
     """Yield the agent tool-loop events for one chat turn.
 
@@ -650,9 +706,13 @@ async def stream_agent_events(
         endpoint_path=endpoint_path,
         chat_history=history,
         project_id=project_id,
+        pinned_file=pinned_file,
+        pinned_line=pinned_line,
+        pinned_end_line=pinned_end_line,
         audit_user_id=user_id,
         audit_chat_session_id=session_id,
         audit_chat_message_id=user_message_id,
+        require_initial_tool_call=require_initial_tool_call,
     ):
         yield event
 
