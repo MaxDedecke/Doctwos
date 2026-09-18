@@ -26,6 +26,40 @@ def test_auth_me_returns_user_info_with_valid_session(client):
     assert resp.json()["email"] == "fixture-user@example.com"
 
 
+def test_protected_endpoint_with_deactivated_user_cookie_returns_401(
+    unauthenticated_client, db_session
+):
+    """O-162: get_current_user muss is_active prüfen — ein deaktivierter Nutzer
+    mit noch gültiger Session-Cookie muss sofort 401 bekommen."""
+    user = User(
+        username="test-deactivated-session-user",
+        name="Deactivated User",
+        email="deactivated@example.com",
+        password_hash=None,
+        role="user",
+        is_active=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    try:
+        cookie_value = create_session_cookie_value(user.id)
+        unauthenticated_client.cookies.set(SESSION_COOKIE_NAME, cookie_value)
+
+        # 1. /auth/me (direkt get_current_user)
+        resp_me = unauthenticated_client.get("/auth/me")
+        assert resp_me.status_code == 401
+        assert resp_me.json()["detail"] == "Konto ist deaktiviert"
+
+        # 2. /projects (über Router-Dependencies _authenticated)
+        resp_proj = unauthenticated_client.get("/projects")
+        assert resp_proj.status_code == 401
+        assert resp_proj.json()["detail"] == "Konto ist deaktiviert"
+    finally:
+        db_session.query(User).filter(User.username == "test-deactivated-session-user").delete()
+        db_session.commit()
+
+
 def test_health_endpoint_does_not_require_auth(unauthenticated_client):
     resp = unauthenticated_client.get("/health")
 

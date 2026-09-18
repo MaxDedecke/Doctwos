@@ -82,9 +82,22 @@ def test_new_user_can_log_in_and_deactivation_stops_that(client, cleanup_user):
         res = anon.post("/auth/login", json={"username": NEW_USERNAME, "password": password})
         assert res.status_code == 200
         assert res.json()["must_change_password"] is True
+        session_cookie = anon.cookies.get(SESSION_COOKIE_NAME)
+        assert session_cookie
+        # Vor Deaktivierung: bestehende Session funktioniert
+        assert anon.get("/auth/me").status_code == 200
 
+    # Admin deaktiviert den Nutzer
     assert client.patch(f"/users/{user_id}", json={"is_active": False}).json()["is_active"] is False
 
+    # O-162: Bestehende Session-Cookie wird jetzt sofort mit 401 abgelehnt
+    with as_nobody(client) as anon:
+        anon.cookies.set(SESSION_COOKIE_NAME, session_cookie)
+        res_existing = anon.get("/auth/me")
+        assert res_existing.status_code == 401
+        assert res_existing.json()["detail"] == "Konto ist deaktiviert"
+
+    # Neuer Login-Versuch wird ebenfalls abgewiesen
     with as_nobody(client) as anon:
         res = anon.post("/auth/login", json={"username": NEW_USERNAME, "password": password})
     # 401 und nicht 403: ob ein Konto deaktiviert ist oder das Passwort falsch war,

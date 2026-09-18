@@ -49,4 +49,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if not user:
         logger.warning("401 – user_id %s nicht in DB", payload.get("user_id"))
         raise HTTPException(status_code=401, detail="Nutzer nicht gefunden")
+    if not user.is_active:
+        logger.warning("401 – user_id %s ist deaktiviert", user.id)
+        raise HTTPException(status_code=401, detail="Konto ist deaktiviert")
     return user
