@@ -374,6 +374,30 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
             },
         )
+        # Class-literal receivers prove java.lang.Class resource semantics.
+        # Arbitrary methods named getResource are not sufficient evidence.
+        if name in {"getResource", "getResourceAsStream"} and receiver and receiver.endswith(".class"):
+            arguments = context.arguments().expressionList()
+            expressions = arguments.expression() if arguments is not None else []
+            if len(expressions) == 1:
+                expression = expressions[0].getText()
+                literal = re.fullmatch(r'"([^"\\]*)"', expression)
+                value = literal.group(1) if literal else None
+                # Relative Class resources require the receiver's package; only
+                # the current class is known without external type resolution.
+                owner = receiver[:-6]
+                current = self.current_type
+                known_owner = current and owner in {current.name, current.qualified_name}
+                target = value.lstrip("/") if value and value.startswith("/") else (
+                    "/".join(filter(None, [(self._package_name or "").replace(".", "/"), value]))
+                    if value and known_owner else None
+                )
+                self._edge("USES_RESOURCE", value or expression, context, meta={
+                    "resource_base": "classpath", "target_file_path": target,
+                    "resource_expression": expression, "receiver": receiver,
+                })
+                if not literal:
+                    self.edges[-1].resolution = "dynamic"
         return self.visitChildren(context)
 
     def visitExplicitGenericInvocation(self, context):

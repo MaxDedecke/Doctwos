@@ -28,6 +28,16 @@ RETRIEVAL_EDGE_TYPES = frozenset(
         "USES_TYPE",
         "READS",
         "WRITES",
+        "USES_RESOURCE",
+        "INCLUDES",
+        "IMPORTS",
+        "READS_XML",
+        "LINKS_TO",
+        "TRANSFORMS_WITH",
+        "SOURCES",
+        "EXECUTES_SCRIPT",
+        "STARTS_JAVA",
+        "REFERENCES_RESOURCE",
     }
 )
 

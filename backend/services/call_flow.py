@@ -19,7 +19,11 @@ from models.database import CodeEdge, CodeEntity
 
 CALL_FLOW_MAX_HOPS = 5
 CALL_FLOW_MAX_NODES = 150
-CALL_FLOW_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES"}
+CALL_FLOW_EDGE_TYPES = {
+    "CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES",
+    "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
+    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "LINKS_TO",
+}
 CallFlowDirection = Literal["outgoing", "incoming", "both"]
 
 
@@ -30,6 +34,7 @@ def _node_json(entity: CodeEntity) -> dict:
         "qualified_name": entity.qualified_name,
         "type": entity.type,
         "file_path": entity.file_path,
+        "source_id": entity.source_id,
         "start_line": entity.start_line,
         "end_line": entity.end_line,
     }
@@ -142,6 +147,7 @@ def trace_call_flow(
             "target_name": edge.dst_name,
             "type": edge.type,
             "resolution": edge.resolution,
+            "meta": edge.meta_json or {},
             "start_line": edge.src_start_line,
             "end_line": edge.src_end_line,
         }

@@ -48,7 +48,9 @@
       "meta": {
         "is_file_root": true,
         "language": "java",
-        "module": "billing"
+        "module": "billing",
+        "source_kind": "source",
+        "source_set": "main"
       },
       "name": "BillingService.java",
       "parent_qualified_name": null,
@@ -61,7 +63,9 @@
       "meta": {
         "language": "java",
         "module": "billing",
-        "package": "corpus.billing"
+        "package": "corpus.billing",
+        "source_kind": "source",
+        "source_set": "main"
       },
       "name": "corpus.billing",
       "parent_qualified_name": "billing/src/main/java/corpus/billing/BillingService.java",
@@ -78,6 +82,8 @@
           "public"
         ],
         "module": "billing",
+        "source_kind": "source",
+        "source_set": "main",
         "visibility": "public"
       },
       "name": "BillingService",
@@ -100,6 +106,8 @@
         ],
         "return_type": "int",
         "signature": "calculate(int)",
+        "source_kind": "source",
+        "source_set": "main",
         "visibility": "public"
       },
       "name": "calculate",

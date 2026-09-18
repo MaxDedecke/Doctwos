@@ -21,6 +21,7 @@ export interface CallFlowEdge {
   target_name: string;
   type: string;
   resolution: string;
+  meta?: { resolution_reason?: string; source_file_path?: string };
   start_line?: number | null;
   end_line?: number | null;
 }

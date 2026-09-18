@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from cobol.copybook import strip_copybook_extension
 from core.model import Entity, ParseResult, ParsedEdge
+from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
 
@@ -370,6 +371,10 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_xslt_edges(db, source_id)
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)
-    if resolved:
-        db.commit()
+    resolved += resolve_resource_edges(
+        db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all(),
+        db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all(),
+    )
+    # Open reasons and invalidated resource targets must also be persisted.
+    db.commit()
     return resolved

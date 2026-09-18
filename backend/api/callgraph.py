@@ -24,6 +24,10 @@ sets only define the useful default view; callers can request any persisted
 type through ``types`` (including types added by a future parser).
 """
 CALL_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES"}
+RESOURCE_EDGE_TYPES = {
+    "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
+    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "LINKS_TO",
+}
 INHERITANCE_EDGE_TYPES = {"EXTENDS", "IMPLEMENTS"}
 
 
@@ -43,6 +47,7 @@ def _requested_edge_types(
     if requested:
         return requested
     defaults = set(CALL_EDGE_TYPES)
+    defaults.update(RESOURCE_EDGE_TYPES)
     if include_inheritance:
         defaults.update(INHERITANCE_EDGE_TYPES)
     return defaults

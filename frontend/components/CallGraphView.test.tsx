@@ -21,6 +21,8 @@ import { CallGraphView } from './CallGraphView';
 type GraphStubProps = {
   graphData: { nodes: CallNode[]; links: CallEdge[] };
   onNodeClick: (node: CallNode) => void;
+  onLinkClick?: (edge: CallEdge) => void;
+  linkLabel?: (edge: CallEdge) => string;
   // O-120: exponiert, damit ein Test den tatsächlich berechneten Tooltip-
   // Text prüfen kann, ohne echtes Canvas.
   nodeLabel?: (node: CallNode) => string;
@@ -43,7 +45,7 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
         </button>
       ))}
       {props.graphData.links.map((link) => (
-        <span key={link.id} data-testid={`link-${link.id}`} />
+        <button key={link.id} data-testid={`link-${link.id}`} title={props.linkLabel?.(link)} onClick={() => props.onLinkClick?.(link)} />
       ))}
     </div>
   );
@@ -136,6 +138,18 @@ describe('CallGraphView', () => {
   });
 
   describe('Fokus-Laden', () => {
+    it('öffnet die Originalzeile einer Ressourcenkante und zeigt den Auflösungsgrund', async () => {
+      stubFetch({ focus: { ...FOCUS_RESPONSE, edges: [{
+        ...FOCUS_RESPONSE.edges[0], type: 'USES_RESOURCE', start_line: 17,
+        meta: { resolution_reason: 'exact_resource_target' },
+      }] } });
+      const onFileSelect = vi.fn();
+      renderView({ onFileSelect });
+      const edge = await screen.findByTestId('link-edge:100');
+      expect(edge.title).toContain('exact_resource_target');
+      fireEvent.click(edge);
+      expect(onFileSelect).toHaveBeenCalledWith('src/HAUPT.cbl', 17, 5);
+    });
     it('verlangt zuerst einen Fokus und ruft ohne ihn gar nicht erst ab', () => {
       const fetchMock = stubFetch();
 

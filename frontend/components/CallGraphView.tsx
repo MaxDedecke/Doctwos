@@ -1,7 +1,7 @@
 "use client";
 import type { CodeEntity } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
-import type { CallFlowData } from '@/lib/callFlow';
+import type { CallFlowData, CallFlowEdge } from '@/lib/callFlow';
 
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
@@ -38,6 +38,8 @@ export type CallEdge = {
   target: string | CallNode;
   type: string;
   resolution: string;
+  start_line?: number | null;
+  meta?: CallFlowEdge['meta'];
 };
 
 interface Props {
@@ -115,6 +117,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
           target,
           type: edge.type,
           resolution: edge.resolution,
+          start_line: edge.start_line,
+          meta: edge.meta,
         };
       });
       setGraph({ nodes, edges });
@@ -140,7 +144,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
       const response = await api.fetch(`${API_URL}/callgraph/focus?entity_id=${effectiveEntity.id}&hops=${hops}${projectParam}${inheritanceParam}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       type FocusNode = CodeEntity & { analysis_status?: AnalysisStatus; analysis_reasons?: string[] };
-      const data: { nodes: FocusNode[]; edges: Array<{ id: number; source: number; target: number | null; target_name: string; type: string; resolution: string }>; edge_types?: string[]; truncated?: boolean } = await response.json();
+      const data: { nodes: FocusNode[]; edges: CallFlowEdge[]; edge_types?: string[]; truncated?: boolean } = await response.json();
       const nodes: CallNode[] = (data.nodes || []).map((node) => ({
         id: `entity:${node.id}`,
         entityId: node.id,
@@ -165,6 +169,8 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
           target,
           type: edge.type,
           resolution: edge.resolution,
+          start_line: edge.start_line,
+          meta: edge.meta,
         };
       });
       setGraph({ nodes, edges });
@@ -345,7 +351,12 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
           linkLineDash={(edge: CallEdge) => edge.resolution === 'resolved' ? null : [4, 3]}
-          linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.resolution}`}
+          linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.resolution}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
+          onLinkClick={(edge: CallEdge) => {
+            const source = typeof edge.source === 'string'
+              ? graph.nodes.find(node => node.id === edge.source) : edge.source;
+            if (source?.file_path) onFileSelect(source.file_path, edge.start_line ?? source.start_line, source.source_id);
+          }}
           onNodeClick={(node: CallNode) => { if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id); }}
         />}
       </div>

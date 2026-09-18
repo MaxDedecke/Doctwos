@@ -70,6 +70,9 @@ def _method_candidates(
     meta = edge.meta or {}
     receiver = meta.get("receiver")
     owner_type = meta.get("owner_type")
+    if receiver == "super" or (receiver and receiver.endswith(".super")):
+        meta["resolution_reason"] = "super_dispatch_requires_hierarchy"
+        return []
     if receiver and receiver not in {"this", "super"}:
         owner_simple = owner_type.rsplit(".", 1)[-1] if owner_type else None
         if receiver != owner_simple:
@@ -109,6 +112,9 @@ def _argument_matches(parameter: str, argument: str) -> bool:
 
 
 def _resolve_overload(edge: ParsedEdge, candidates: list[Entity]) -> Entity | None:
+    count = (edge.meta or {}).get("argument_count")
+    if count is not None:
+        candidates = [item for item in candidates if len(item.meta.get("parameter_types", ())) == count]
     if len(candidates) == 1:
         return candidates[0]
     argument_types = (edge.meta or {}).get("argument_types")
@@ -142,6 +148,8 @@ def _mark_resolved(edge: ParsedEdge, target: Entity, *, reason: str) -> None:
     edge.meta["target_qualified_name"] = target.qualified_name
     edge.meta["resolution_scope"] = "local"
     edge.meta["resolution_reason"] = reason
+    if edge.type == "CALLS":
+        edge.meta["dispatch_scope"] = "static_declaration_only"
 
 
 def resolve_local_edges(edges: list[ParsedEdge], entities: list[Entity]) -> None:
@@ -324,7 +332,9 @@ def _static_import_owners(result: ParseResult, method_name: str) -> list[str]:
             continue
         imported = edge.dst_name[:-2] if edge.meta.get("wildcard") else edge.dst_name
         if edge.meta.get("wildcard") or imported.rsplit(".", 1)[-1] == method_name:
-            owner = imported.rsplit(".", 1)[0] if "." in imported else None
+            owner = imported if edge.meta.get("wildcard") else (
+                imported.rsplit(".", 1)[0] if "." in imported else None
+            )
             if owner:
                 owners.append(owner)
     return owners
@@ -342,6 +352,9 @@ def _global_method_candidates(
     method_name = meta.get("method_name", edge.dst_name.rsplit(".", 1)[-1])
     receiver = meta.get("receiver")
     source_owner = _source_owner(edge)
+    if receiver == "super" or (receiver and receiver.endswith(".super")):
+        meta["resolution_reason"] = "super_dispatch_requires_hierarchy"
+        return [], None
     owner_candidates: list[Entity] = []
     owner_reason: str | None = None
 
@@ -457,4 +470,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     resolved += 1
                 elif len(candidates) > 1:
                     meta["resolution_reason"] = "ambiguous_overload"
+                else:
+                    meta.setdefault("resolution_reason", "receiver_or_classpath_not_resolved")
+                meta["dispatch_scope"] = "static_declaration_only"
     return resolved

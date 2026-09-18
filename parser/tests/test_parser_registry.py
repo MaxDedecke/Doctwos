@@ -34,7 +34,7 @@ def test_shared_registry_declares_roots_and_parser_analysis_inputs():
 
     java_entry = registry.STRUCTURE_PARSERS["java"]
     assert java_entry.root_entity_types == ("compilation_unit",)
-    assert java_entry.parser_version == "java-structure-1"
+    assert java_entry.parser_version == "java-structure-2"
     assert len(java_entry.grammar_fingerprint()) == 64
 
 

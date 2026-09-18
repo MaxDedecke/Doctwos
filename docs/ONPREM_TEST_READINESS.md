@@ -708,6 +708,16 @@ Analyse benötigt weder Build-Downloads noch Ausführung von Gradle-/Ant-Skripte
 
 ### O-245 – P1 / Java: Aufrufauflösung und Unsicherheit fachlich prüfen
 
+**Stand 18.09.2026:** JUnit-Referenzbestand `a468b7a42ec2cb3cd12af8b70e713011adbc7124`
+mit `parser/audit_java_calls.py` geprüft: 1.739 Java-Dateien, 66 Syntaxdiagnosen,
+70.727 Aufrufe; 16.595 statisch aufgelöst, 54.132 offen mit Begründung.
+Korrigiert: falsche Selbstzuordnung von `super`, Besitzer statischer Wildcard-Imports
+und fehlende Argumentanzahlprüfung bei globalen Aufrufen. Regression am echten
+`JupiterTestEngine.java:86` und synthetische Referenztests ergänzt.
+Vererbungsauflösung und Empfängertypen über Felder/lokale Variablen bleiben begrenzt;
+O-245 ist damit noch keine vollständige fachliche Freigabe. Graph und Chat erhalten
+Auflösungsgründe; aufgelöste Java-Aufrufe bezeichnen statische Deklarationen.
+
 - [ ] Gegen Referenzfälle prüfen: Überladung, Vererbung, Interfaces, statische
   Imports, Empfänger über Felder/lokale Variablen und dateiübergreifende Aufrufe.
 - [ ] Nur nachgewiesene Resolver-Lücken gezielt schließen; Methodennamen allein
@@ -776,6 +786,23 @@ und kein automatischer Abruf referenzierter Ressourcen im Browser. Kompilierte
 Servlet-Details nicht ohne vorhandene Belege erfinden.
 
 ### O-250 – P2 / Sprachübergreifend: Java–XSLT–Shell–JSP-Ketten erklären
+
+**Implementierungsstand 18.09.2026:** Gemeinsame Ressourcenauflösung verbindet
+Shell-Java-Starts (bei belegter Signatur bis `main`), Class-Literal-Ressourcenaufrufe
+aus Java, XSLT-Abhängigkeiten und JSP/HTML-Dateiverweise. Classpath-Ressourcen
+werden im konventionellen Ressourcenverzeichnis desselben Moduls gesucht;
+mehrdeutige, dynamische und verschwundene Ziele bleiben explizit offen.
+Kanten tragen Herkunft und Originalzeile, sind im Graph standardmäßig sichtbar
+und öffnen per Klick die Belegzeile. Chat-Abläufe erhalten Typ und Metadaten.
+Servlet-Mappings, beliebige Classloader und nichtstandardisierte Ressourcenlayouts
+werden weiterhin nicht erraten; fachliche Abnahme eines O-240-Ablaufs bleibt offen.
+
+Validierung: 44 Parser-/Java-Tests, 30 Graph-UI-Tests, 8 Backend-Graph-/Chat-Tests
+auf isolierter Datenbank sowie TypeScript-Prüfung erfolgreich. Eine bereits
+veraltete Java-Golden-Datei an die vorhandenen Source-Set-Metadaten angepasst.
+Die zusätzlichen Java-Git-Persistenztests scheiterten beim Fixture-Aufbau an
+einem Schema-/Modellunterschied der frisch migrierten Testdatenbank; keine
+erfolgreiche Persistenzabnahme behauptet. Änderungen noch nicht deployed/reindexiert.
 
 - [ ] Auf Basis von O-246–O-249 belegte Ressourcenbezüge verbinden, zum Beispiel
   Java-Transformation mit Stylesheet, Shell-Start mit Java-Klasse oder Servlet mit
