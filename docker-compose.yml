@@ -143,6 +143,11 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_DEFAULT_TEAM: ${OIDC_DEFAULT_TEAM:-}
+      OIDC_ROLES_CLAIM: ${OIDC_ROLES_CLAIM:-}
+      OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-}
+      OIDC_ADMIN_ROLES: ${OIDC_ADMIN_ROLES:-}
+      OIDC_TEAM_MAPPING: ${OIDC_TEAM_MAPPING:-}
     volumes:
       - ./repos:/repos
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro

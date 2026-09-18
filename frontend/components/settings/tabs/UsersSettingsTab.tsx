@@ -27,6 +27,7 @@ interface ManagedUser {
   name: string | null;
   email: string | null;
   role: 'superuser' | 'user';
+  auth_provider?: 'oidc' | 'local';
   is_active: boolean;
   is_locked: boolean;
   must_change_password: boolean;
@@ -278,6 +279,11 @@ export const UsersSettingsTab: React.FC = () => {
                     {user.role === 'superuser' && (
                       <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" aria-label={t('settings.users.roleSuperuser')} />
                     )}
+                    {user.auth_provider === 'oidc' && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-ds-sky-500/10 text-ds-sky-600 dark:text-ds-sky-400 border border-ds-sky-500/20 shrink-0">
+                        SSO
+                      </span>
+                    )}
                     {user.is_locked && (
                       <span className="flex items-center gap-1 text-[10px] font-bold text-ds-red-500 shrink-0">
                         <Lock className="w-3 h-3" />
@@ -325,17 +331,19 @@ export const UsersSettingsTab: React.FC = () => {
                     </Button>
                   )}
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={isBusy}
-                    onClick={() => handleResetPassword(user)}
-                    title={t('settings.users.resetPasswordTitle')}
-                    className="h-8 w-8 rounded-lg text-ds-zinc-500 hover:bg-ds-zinc-500/10"
-                  >
-                    {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
-                  </Button>
+                  {user.auth_provider !== 'oidc' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={isBusy}
+                      onClick={() => handleResetPassword(user)}
+                      title={t('settings.users.resetPasswordTitle')}
+                      className="h-8 w-8 rounded-lg text-ds-zinc-500 hover:bg-ds-zinc-500/10"
+                    >
+                      {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
 
                   <Button
                     type="button"

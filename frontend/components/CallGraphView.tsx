@@ -88,40 +88,42 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
 
   useEffect(() => {
     if (!customFlow) return;
-    setLoading(false);
-    setError(null);
-    const nodes: CallNode[] = (customFlow.nodes || []).map((node) => ({
-      id: `entity:${node.id}`,
-      entityId: node.id,
-      name: node.name,
-      type: node.type || 'entity',
-      file_path: node.file_path || undefined,
-      start_line: node.start_line,
-      source_id: node.source_id,
-      analysis_status: node.analysis_status,
-      analysis_reasons: node.analysis_reasons,
-    }));
-    const known = new Set(nodes.map(node => node.id));
-    const edges: CallEdge[] = (customFlow.edges || []).map((edge) => {
-      let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
-      if (!known.has(target)) {
-        nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
-        known.add(target);
-      }
-      return {
-        id: `edge:${edge.id}`,
-        source: `entity:${edge.source}`,
-        target,
-        type: edge.type,
-        resolution: edge.resolution,
-      };
+    queueMicrotask(() => {
+      setLoading(false);
+      setError(null);
+      const nodes: CallNode[] = (customFlow.nodes || []).map((node) => ({
+        id: `entity:${node.id}`,
+        entityId: node.id,
+        name: node.name,
+        type: node.type || 'entity',
+        file_path: node.file_path || undefined,
+        start_line: node.start_line,
+        source_id: node.source_id,
+        analysis_status: node.analysis_status,
+        analysis_reasons: node.analysis_reasons,
+      }));
+      const known = new Set(nodes.map(node => node.id));
+      const edges: CallEdge[] = (customFlow.edges || []).map((edge) => {
+        let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
+        if (!known.has(target)) {
+          nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
+          known.add(target);
+        }
+        return {
+          id: `edge:${edge.id}`,
+          source: `entity:${edge.source}`,
+          target,
+          type: edge.type,
+          resolution: edge.resolution,
+        };
+      });
+      setGraph({ nodes, edges });
+      const types = Array.from(new Set(edges.map(edge => edge.type))).sort();
+      setAvailableTypes(types);
+      setEnabledTypes(new Set(types));
+      setTruncated(Boolean(customFlow.truncated));
+      setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
     });
-    setGraph({ nodes, edges });
-    const types = Array.from(new Set(edges.map(edge => edge.type))).sort();
-    setAvailableTypes(types);
-    setEnabledTypes(new Set(types));
-    setTruncated(Boolean(customFlow.truncated));
-    setTimeout(() => graphRef.current?.zoomToFit(350, 50), 100);
   }, [customFlow]);
 
   const loadGraph = useCallback(async () => {

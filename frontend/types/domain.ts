@@ -243,6 +243,7 @@ export interface User {
   name?: string | null;
   email?: string | null;
   role?: string;
+  auth_provider?: 'oidc' | 'local';
   is_admin?: boolean;
   is_active?: boolean;
   must_change_password?: boolean;
@@ -261,3 +262,53 @@ export interface ProjectAccessRequest { id: number; user_id: number; user_name: 
 export interface DiscoverableProject extends Project { team_name?: string; member_count?: number; request_status?: string | null }
 export interface DiagnosticsRun { id: number; status: string; error?: string | null }
 export interface McpAuditEntry { id: number; status: string; created_at?: string; tool_name: string; server_name: string; user_name?: string; duration_ms?: number; project_name?: string; trace_id?: string; arguments?: unknown; error_message?: string }
+
+export interface SystemConfigResponse {
+  sso: {
+    enabled: boolean;
+    issuer: string | null;
+    client_id: string | null;
+    client_secret_configured: boolean;
+    redirect_uri: string | null;
+    default_team: string | null;
+    default_team_exists: boolean | null;
+    admin_roles: string[];
+    team_mapping: Record<string, string>;
+    roles_claim: string;
+    groups_claim: string;
+  };
+  system: {
+    version: string;
+    api_url: string;
+    frontend_url: string;
+    log_level: string;
+    mcp_audit_retention_days: number;
+    watched_folder: string | null;
+    llm_model: string;
+    embed_model: string;
+    context_window: number;
+  };
+  secrets: {
+    master_encryption_key_configured: boolean;
+    session_secret_key_configured: boolean;
+  };
+  existing_teams: string[];
+}
+
+export interface OidcConnectionTestResult {
+  success: boolean;
+  duration_ms?: number;
+  issuer?: string;
+  authorization_endpoint?: string;
+  token_endpoint?: string;
+  userinfo_endpoint?: string;
+  jwks_uri?: string;
+  end_session_endpoint?: string;
+  error?: string;
+}
+
+export interface OidcMappingSimulationResult {
+  computed_role: 'superuser' | 'user';
+  extracted_items: string[];
+  teams: Array<{ name: string; exists: boolean }>;
+}

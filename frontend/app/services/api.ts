@@ -1,4 +1,4 @@
-import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, Project, ProjectStats, SearchResult, StoredChatMessage, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
@@ -206,4 +206,8 @@ export const api = {
     startJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/start`),
     stopJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/stop`),
     deleteJob: (kind: string, id: number) => axios.delete(`${API_URL}/jobs/${kind}/${id}`),
+    getSystemConfig: () => axios.get<SystemConfigResponse>(`${API_URL}/config/system`),
+    testOidcConnection: () => axios.post<OidcConnectionTestResult>(`${API_URL}/config/oidc/test-connection`),
+    simulateOidcMapping: (data: { roles: string[]; groups: string[] }) =>
+        axios.post<OidcMappingSimulationResult>(`${API_URL}/config/oidc/simulate-mapping`, data),
 };

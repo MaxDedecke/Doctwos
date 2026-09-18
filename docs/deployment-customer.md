@@ -180,6 +180,8 @@ Eine eigene Variable für die OIDC-Redirect-URI gibt es **nicht** — Doctus bil
 
 Diesen Abschnitt überspringen, wenn der Kunde beim Passwort-Login bleibt — Doctus läuft dann vollständig, nur ohne SSO-Knopf auf der Anmeldeseite.
 
+Die ausführliche Schritt-für-Schritt-Anleitung für Administratoren steht in [SSO_ADMIN_ANLEITUNG.md](SSO_ADMIN_ANLEITUNG.md).
+
 Vom Kunden-IT-Team erfragt (oder Test-Setup aus Abschnitt 8 nutzen):
 
 ```

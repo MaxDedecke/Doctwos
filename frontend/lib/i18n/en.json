@@ -130,12 +130,14 @@
       "ai": "AI Parameters",
       "logs": "Logs & Status",
       "layout": "Layout & Design",
-      "users": "Users"
+      "users": "Users",
+      "systemConfig": "System & SSO"
     },
     "header": {
       "projectSetup": "New Project",
       "gitSetupWizard": "Git Setup Wizard",
-      "sourcesSetup": "Knowledge Source Setup"
+      "sourcesSetup": "Knowledge Source Setup",
+      "systemConfig": "System & SSO Configuration"
     },
     "toast": {
       "darkModeEnabled": "Dark mode enabled",
