@@ -29,7 +29,16 @@ DOC_PATHS = [
 REALM_PATH = os.path.join(REPO_ROOT, ".github", "keycloak", "doctus-realm.json")
 
 # Die Namen, die core/config.py tatsaechlich aus der Umgebung liest.
-SUPPORTED_OIDC_VARS = {"OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET"}
+SUPPORTED_OIDC_VARS = {
+    "OIDC_ISSUER",
+    "OIDC_CLIENT_ID",
+    "OIDC_CLIENT_SECRET",
+    "OIDC_DEFAULT_TEAM",
+    "OIDC_ROLES_CLAIM",
+    "OIDC_GROUPS_CLAIM",
+    "OIDC_ADMIN_ROLES",
+    "OIDC_TEAM_MAPPING",
+}
 
 
 def _documents() -> list[tuple[str, str]]:

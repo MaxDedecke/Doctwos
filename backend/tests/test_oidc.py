@@ -20,7 +20,7 @@ from joserfc.jwk import RSAKey
 
 import core.oidc as oidc
 from core.users import get_by_oidc_subject
-from models.database import User
+from models.database import Team, TeamMembership, User
 
 ISSUER = "https://idp.example.com"
 CLIENT_ID = "doctus-client"
@@ -387,10 +387,14 @@ def test_exchange_code_cooldown_prevents_hammering_idp_on_unknown_kid(monkeypatc
 @pytest.fixture
 def cleanup_oidc_users(db_session):
     def _delete():
-        db_session.query(User).filter(User.oidc_subject.like("test-oidc-%")).delete(
-            synchronize_session=False
-        )
-        db_session.commit()
+        users = db_session.query(User).filter(User.oidc_subject.like("test-oidc-%")).all()
+        user_ids = [u.id for u in users]
+        if user_ids:
+            db_session.query(TeamMembership).filter(TeamMembership.user_id.in_(user_ids)).delete(
+                synchronize_session=False
+            )
+            db_session.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session=False)
+            db_session.commit()
 
     _delete()
     yield
@@ -452,3 +456,154 @@ def test_provision_or_link_user_rejects_deactivated_account(db_session, cleanup_
 def test_provision_or_link_user_requires_a_subject_claim(db_session, cleanup_oidc_users):
     with pytest.raises(oidc.OidcError):
         oidc.provision_or_link_user({"email": "no-sub@example.com"}, db_session)
+
+
+# ── O-164: Rollen- und Teamzuordnung ─────────────────────────────────────────
+
+
+def test_extract_idp_roles_and_groups(monkeypatch):
+    claims = {
+        "roles": ["dev", "lead"],
+        "groups": ["/engineers", "testers"],
+        "realm_access": {"roles": ["default-roles-master", "admin"]},
+        "resource_access": {
+            "doctus-app": {"roles": ["app-user"]},
+            "account": {"roles": ["manage-account"]},
+        },
+        "custom_roles": "custom1, custom2",
+        "nested": {"department": ["secops"]},
+    }
+    monkeypatch.setattr("core.config.OIDC_ROLES_CLAIM", "custom_roles")
+    monkeypatch.setattr("core.config.OIDC_GROUPS_CLAIM", "nested.department")
+
+    extracted = oidc.extract_idp_roles_and_groups(claims)
+    assert "dev" in extracted
+    assert "lead" in extracted
+    assert "/engineers" in extracted
+    assert "testers" in extracted
+    assert "admin" in extracted
+    assert "app-user" in extracted
+    assert "custom1" in extracted
+    assert "custom2" in extracted
+    assert "secops" in extracted
+
+
+def test_get_oidc_user_role(monkeypatch):
+    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "")
+    assert oidc.get_oidc_user_role({"admin", "user"}) == "user"
+
+    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin, sysadmin")
+    assert oidc.get_oidc_user_role({"user", "guest"}) == "user"
+    assert oidc.get_oidc_user_role({"doctus-admin"}) == "superuser"
+    assert oidc.get_oidc_user_role({"sysadmin", "other"}) == "superuser"
+
+
+def test_get_oidc_target_teams(monkeypatch):
+    monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "All-Staff")
+    monkeypatch.setattr(
+        "core.config.OIDC_TEAM_MAPPING",
+        '{"/engineering": "Engineering", "sec": "Security Team"}',
+    )
+
+    # Leere IdP-Claims -> nur Default-Team
+    assert oidc.get_oidc_target_teams(set()) == {"All-Staff"}
+
+    # Exakter Treffer sowie Treffer mit führendem Slash
+    teams = oidc.get_oidc_target_teams({"/engineering", "sec", "unknown"})
+    assert teams == {"All-Staff", "Engineering", "Security Team"}
+
+    # Test mit key=value / key:value Format
+    monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "")
+    monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", "dev=DevTeam, ops:OpsTeam")
+    assert oidc.get_oidc_target_teams({"dev", "ops"}) == {"DevTeam", "OpsTeam"}
+
+
+def test_provision_or_link_user_with_admin_role_and_team_mapping(
+    db_session, cleanup_oidc_users, monkeypatch
+):
+    team_a = Team(name="TestOIDCTeamA")
+    team_b = Team(name="TestOIDCTeamB")
+    db_session.add_all([team_a, team_b])
+    db_session.commit()
+
+    try:
+        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-superadmin")
+        monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "TestOIDCTeamA")
+        monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"eng": "TestOIDCTeamB"}')
+
+        claims = {
+            "sub": "test-oidc-mapped-admin",
+            "email": "admin@example.com",
+            "name": "Admin User",
+            "roles": ["doctus-superadmin", "eng"],
+        }
+        user = oidc.provision_or_link_user(claims, db_session)
+
+        assert user.role == "superuser"
+
+        memberships = (
+            db_session.query(TeamMembership).filter(TeamMembership.user_id == user.id).all()
+        )
+        team_ids = {m.team_id for m in memberships}
+        assert team_a.id in team_ids
+        assert team_b.id in team_ids
+    finally:
+        db_session.query(TeamMembership).filter(
+            TeamMembership.team_id.in_([team_a.id, team_b.id])
+        ).delete(synchronize_session=False)
+        db_session.query(Team).filter(Team.id.in_([team_a.id, team_b.id])).delete(
+            synchronize_session=False
+        )
+        db_session.commit()
+
+
+def test_provision_or_link_user_syncs_on_repeat_login(db_session, cleanup_oidc_users, monkeypatch):
+    team_a = Team(name="TestOIDCSyncTeamA")
+    team_b = Team(name="TestOIDCSyncTeamB")
+    db_session.add_all([team_a, team_b])
+    db_session.commit()
+
+    try:
+        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin")
+        monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "TestOIDCSyncTeamA")
+        monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"lead": "TestOIDCSyncTeamB"}')
+
+        # Erstes Login: normaler User, nur Default-Team
+        claims1 = {
+            "sub": "test-oidc-sync-user",
+            "email": "sync@example.com",
+            "roles": ["developer"],
+        }
+        user1 = oidc.provision_or_link_user(claims1, db_session)
+        assert user1.role == "user"
+
+        memberships1 = (
+            db_session.query(TeamMembership).filter(TeamMembership.user_id == user1.id).all()
+        )
+        assert len(memberships1) == 1
+        assert memberships1[0].team_id == team_a.id
+
+        # Folge-Login: IdP meldet Rolle doctus-admin und Gruppe lead
+        claims2 = {
+            "sub": "test-oidc-sync-user",
+            "email": "sync@example.com",
+            "roles": ["developer", "doctus-admin", "lead"],
+        }
+        user2 = oidc.provision_or_link_user(claims2, db_session)
+        assert user2.id == user1.id
+        assert user2.role == "superuser"
+
+        memberships2 = (
+            db_session.query(TeamMembership).filter(TeamMembership.user_id == user2.id).all()
+        )
+        team_ids2 = {m.team_id for m in memberships2}
+        assert team_a.id in team_ids2
+        assert team_b.id in team_ids2
+    finally:
+        db_session.query(TeamMembership).filter(
+            TeamMembership.team_id.in_([team_a.id, team_b.id])
+        ).delete(synchronize_session=False)
+        db_session.query(Team).filter(Team.id.in_([team_a.id, team_b.id])).delete(
+            synchronize_session=False
+        )
+        db_session.commit()

@@ -20,6 +20,7 @@ Verfahren (bis hin zu "none") es geprüft wird.
 Design-Entscheidungen im Detail: docs/ENTSCHEIDUNGEN.md E-12.
 """
 
+import json
 import logging
 import re
 import secrets
@@ -36,7 +37,8 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.users import create_oidc_user, get_by_oidc_subject
-from models.database import User
+from models.database import Team, TeamMembership, User
+
 
 logger = logging.getLogger(__name__)
 
@@ -227,9 +229,138 @@ def _unique_username(db: Session, base: str) -> str:
     return username
 
 
+def _collect_claim_values(claims: dict, claim_path: str) -> set[str]:
+    """Liest einen Wert oder eine Liste von Werten aus verschachtelten Dicts (z. B. 'realm_access.roles')."""
+    if not claim_path:
+        return set()
+    curr = claims
+    for part in claim_path.split("."):
+        if isinstance(curr, dict) and part in curr:
+            curr = curr[part]
+        else:
+            return set()
+    if isinstance(curr, list):
+        return {str(x).strip() for x in curr if x}
+    if isinstance(curr, str):
+        return {s.strip() for s in curr.split(",") if s.strip()}
+    return set()
+
+
+def extract_idp_roles_and_groups(claims: dict) -> set[str]:
+    """Extrahiert alle Rollen- und Gruppennamen aus den Token-Claims.
+
+    Durchsucht die konfigurierten Claim-Schlüssel (cfg.OIDC_ROLES_CLAIM,
+    cfg.OIDC_GROUPS_CLAIM) sowie Standard-Pfade für Keycloak, Entra ID und Okta.
+    """
+    results: set[str] = set()
+
+    for key in [cfg.OIDC_ROLES_CLAIM, cfg.OIDC_GROUPS_CLAIM, "roles", "groups"]:
+        if key:
+            results.update(_collect_claim_values(claims, key))
+
+    # Keycloak realm_access.roles
+    realm_access = claims.get("realm_access")
+    if isinstance(realm_access, dict):
+        roles = realm_access.get("roles")
+        if isinstance(roles, list):
+            results.update(str(r).strip() for r in roles if r)
+
+    # Keycloak resource_access.<client_id>.roles
+    resource_access = claims.get("resource_access")
+    if isinstance(resource_access, dict):
+        for client_data in resource_access.values():
+            if isinstance(client_data, dict):
+                r_roles = client_data.get("roles")
+                if isinstance(r_roles, list):
+                    results.update(str(r).strip() for r in r_roles if r)
+
+    return results
+
+
+def get_oidc_user_role(idp_items: set[str]) -> str:
+    """Ermittelt die Doctus-Rolle ('superuser' oder 'user') anhand von OIDC_ADMIN_ROLES."""
+    if not cfg.OIDC_ADMIN_ROLES:
+        return "user"
+    admin_roles = {r.strip() for r in cfg.OIDC_ADMIN_ROLES.split(",") if r.strip()}
+    if idp_items & admin_roles:
+        return "superuser"
+    return "user"
+
+
+def get_oidc_target_teams(idp_items: set[str]) -> set[str]:
+    """Ermittelt die Namen der Doctus-Teams anhand OIDC_DEFAULT_TEAM und OIDC_TEAM_MAPPING."""
+    target_teams: set[str] = set()
+
+    if cfg.OIDC_DEFAULT_TEAM:
+        target_teams.add(cfg.OIDC_DEFAULT_TEAM.strip())
+
+    if cfg.OIDC_TEAM_MAPPING:
+        mapping: dict[str, str] = {}
+        mapping_str = cfg.OIDC_TEAM_MAPPING.strip()
+        if mapping_str.startswith("{"):
+            try:
+                mapping = json.loads(mapping_str)
+            except Exception as exc:
+                logger.warning("Ungültiges JSON in OIDC_TEAM_MAPPING: %s", exc)
+        else:
+            for pair in mapping_str.split(","):
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    mapping[k.strip()] = v.strip()
+                elif ":" in pair:
+                    k, v = pair.split(":", 1)
+                    mapping[k.strip()] = v.strip()
+
+        for item in idp_items:
+            # Exakter Treffer oder ohne führenden Schrägstrich (z. B. "/dev" -> "dev")
+            team_name = mapping.get(item) or mapping.get(item.lstrip("/"))
+            if team_name:
+                target_teams.add(team_name)
+
+    return target_teams
+
+
+def sync_oidc_user_teams_and_role(db: Session, user: User, claims: dict) -> None:
+    """Aktualisiert Rolle und Team-Mitgliedschaften basierend auf den IdP-Claims."""
+    idp_items = extract_idp_roles_and_groups(claims)
+
+    if cfg.OIDC_ADMIN_ROLES:
+        new_role = get_oidc_user_role(idp_items)
+        if user.role != new_role:
+            logger.info(
+                "OIDC-Rolle für Nutzer %s aktualisiert: %s -> %s",
+                user.username,
+                user.role,
+                new_role,
+            )
+            user.role = new_role
+
+    target_team_names = get_oidc_target_teams(idp_items)
+    if target_team_names:
+        for team_name in target_team_names:
+            team = db.query(Team).filter(Team.name == team_name).first()
+            if not team:
+                logger.warning(
+                    "OIDC-Team '%s' existiert in Doctus nicht — Zuordnung für %s übersprungen.",
+                    team_name,
+                    user.username,
+                )
+                continue
+            existing = (
+                db.query(TeamMembership)
+                .filter(TeamMembership.user_id == user.id, TeamMembership.team_id == team.id)
+                .first()
+            )
+            if not existing:
+                db.add(TeamMembership(user_id=user.id, team_id=team.id))
+                logger.info("OIDC-Nutzer %s zu Team '%s' hinzugefügt.", user.username, team_name)
+
+
 def provision_or_link_user(claims: dict, db: Session) -> User:
-    """Erster Login: legt einen neuen Nutzer an (Rolle 'user', kein lokales
+    """Erster Login: legt einen neuen Nutzer an (Standardrolle 'user', kein lokales
     Passwort). Jeder weitere Login findet ihn über 'sub' wieder.
+    Wurden OIDC_ADMIN_ROLES oder OIDC_DEFAULT_TEAM / OIDC_TEAM_MAPPING konfiguriert
+    (O-164), werden Rolle und Teamzugehörigkeiten synchronisiert.
 
     Bewusst KEIN automatisches Verknüpfen über die E-Mail-Adresse mit einem
     bestehenden lokalen Konto (E-12) — die Claims kommen zwar vom vertrauten
@@ -246,6 +377,8 @@ def provision_or_link_user(claims: dict, db: Session) -> User:
     if user is not None:
         if not user.is_active:
             raise OidcError("Dieses Konto ist deaktiviert.")
+        sync_oidc_user_teams_and_role(db, user, claims)
+        db.commit()
         return user
 
     email = claims.get("email")
@@ -255,4 +388,21 @@ def provision_or_link_user(claims: dict, db: Session) -> User:
     username = _unique_username(db, _slugify_username(base_candidate))
     name = claims.get("name") or email or username
 
-    return create_oidc_user(db, username=username, subject=subject, name=name, email=email)
+    idp_items = extract_idp_roles_and_groups(claims)
+    role = get_oidc_user_role(idp_items)
+
+    user = create_oidc_user(
+        db,
+        username=username,
+        subject=subject,
+        name=name,
+        email=email,
+        role=role,
+        commit=False,
+    )
+    db.flush()
+    sync_oidc_user_teams_and_role(db, user, claims)
+    db.commit()
+    db.refresh(user)
+
+    return user

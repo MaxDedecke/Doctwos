@@ -87,16 +87,16 @@ def create_oidc_user(
     subject: str,
     name: Optional[str] = None,
     email: Optional[str] = None,
+    role: str = "user",
     commit: bool = True,
 ) -> User:
     """Legt ein Konto aus IdP-Claims an (E-12, core/oidc.py::provision_or_link_user).
 
     Kein lokales Passwort (`password_hash=None`) — die feste IdP-Kennung `subject`
-    ist ab jetzt der einzige Weg, wie dieser Nutzer sich anmeldet. Rolle bleibt der
-    Default 'user': Rechte kommen weiterhin aus Doctus selbst, nicht aus
-    IdP-Gruppen/-Claims, ein Administrator stuft bei Bedarf über die normale
-    Nutzerverwaltung hoch. `must_change_password` bleibt False — es gibt kein
-    lokales Passwort, das gewechselt werden könnte.
+    ist ab jetzt der einzige Weg, wie dieser Nutzer sich anmeldet. Standardrolle ist
+    'user', konfigurierte Admin-Rollen können 'superuser' übergeben (O-164).
+    `must_change_password` bleibt False — es gibt kein lokales Passwort, das
+    gewechselt werden könnte.
     """
     user = User(
         username=username,
@@ -104,7 +104,7 @@ def create_oidc_user(
         email=email,
         password_hash=None,
         oidc_subject=subject,
-        role="user",
+        role=role,
         is_active=True,
         must_change_password=False,
     )

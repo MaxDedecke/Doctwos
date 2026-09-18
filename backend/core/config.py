@@ -158,6 +158,13 @@ OIDC_ISSUER: str = os.getenv("OIDC_ISSUER", "").rstrip("/")
 OIDC_CLIENT_ID: str = os.getenv("OIDC_CLIENT_ID", "")
 OIDC_CLIENT_SECRET: str = os.getenv("OIDC_CLIENT_SECRET", "")
 
+# O-164: Optionale Rollen- und Teamzuordnung für SSO-Nutzer
+OIDC_DEFAULT_TEAM: str = os.getenv("OIDC_DEFAULT_TEAM", "").strip()
+OIDC_ROLES_CLAIM: str = os.getenv("OIDC_ROLES_CLAIM", "roles").strip()
+OIDC_GROUPS_CLAIM: str = os.getenv("OIDC_GROUPS_CLAIM", "groups").strip()
+OIDC_ADMIN_ROLES: str = os.getenv("OIDC_ADMIN_ROLES", "").strip()
+OIDC_TEAM_MAPPING: str = os.getenv("OIDC_TEAM_MAPPING", "").strip()
+
 
 def oidc_enabled() -> bool:
     return bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)

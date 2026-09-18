@@ -202,7 +202,7 @@ BOOTSTRAP_SUPERUSER_PASSWORD=
 BOOTSTRAP_SUPERUSER_EMAIL=vorname.nachname@kundenfirma.de
 ```
 
-Nutzer, die sich später über SSO anmelden, werden automatisch angelegt — immer als gewöhnliche Nutzer. Administrator-Rechte vergibt der Administrator selbst unter *Einstellungen > Nutzer*. Eine Variable, die Admin-Rechte anhand der E-Mail-Adresse vergibt, gibt es nicht.
+Nutzer, die sich später über SSO anmelden, werden standardmäßig als gewöhnliche Nutzer (Rolle `user`) angelegt. Administrator-Rechte können entweder manuell unter *Einstellungen > Nutzer* vergeben werden oder automatisiert über `OIDC_ADMIN_ROLES` anhand von IdP-Rollen (O-164). Ebenso können Nutzer über `OIDC_DEFAULT_TEAM` oder `OIDC_TEAM_MAPPING` automatisch Teams zugeordnet werden. Eine Variable, die Admin-Rechte anhand der E-Mail-Adresse vergibt, gibt es nicht.
 
 ---
 
