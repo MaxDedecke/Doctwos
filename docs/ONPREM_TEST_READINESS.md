@@ -800,9 +800,10 @@ werden weiterhin nicht erraten; fachliche Abnahme eines O-240-Ablaufs bleibt off
 Validierung: 44 Parser-/Java-Tests, 30 Graph-UI-Tests, 8 Backend-Graph-/Chat-Tests
 auf isolierter Datenbank sowie TypeScript-Prüfung erfolgreich. Eine bereits
 veraltete Java-Golden-Datei an die vorhandenen Source-Set-Metadaten angepasst.
-Die zusätzlichen Java-Git-Persistenztests scheiterten beim Fixture-Aufbau an
-einem Schema-/Modellunterschied der frisch migrierten Testdatenbank; keine
-erfolgreiche Persistenzabnahme behauptet. Änderungen noch nicht deployed/reindexiert.
+Die Schemaabweichung zwischen ORM und Testdatenbank ist mit Migration 0024
+behoben; die Java-Git-Persistenztests liefern im Anschluss derzeit noch keine
+Entities und benötigen eine getrennte Connector-Diagnose. Keine vollständige
+Persistenzabnahme behauptet. Änderungen noch nicht deployed/reindexiert.
 
 - [ ] Auf Basis von O-246–O-249 belegte Ressourcenbezüge verbinden, zum Beispiel
   Java-Transformation mit Stylesheet, Shell-Start mit Java-Klasse oder Servlet mit
