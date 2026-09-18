@@ -27,6 +27,17 @@ from models.database import DocumentChunk, KnowledgeSource
 logger = logging.getLogger(__name__)
 
 
+def _validate_embedding(embedding: object, expected_dimension: int) -> list[float]:
+    """Reject provider vectors that cannot safely enter the active vector space."""
+    if not isinstance(embedding, list) or len(embedding) != expected_dimension:
+        actual = len(embedding) if isinstance(embedding, list) else type(embedding).__name__
+        raise ValueError(
+            "Embedding-Endpunkt lieferte eine falsche Dimension: "
+            f"erwartet {expected_dimension}, erhalten {actual}."
+        )
+    return embedding
+
+
 def _extract_json_object(text: str) -> dict:
     """Parst ein JSON-Objekt aus einer LLM-Textantwort, die (anders als Ollamas
     format="json" oder OpenAIs response_format=json_object) in einen ```json
@@ -70,7 +81,16 @@ async def embed_text(
     if selected_key:
         headers["Authorization"] = f"Bearer {selected_key}"
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    expected_dimension = dimension or cfg.EMBEDDING_DIMENSION
+    context_budget = context_length or cfg.EMBEDDING_CONTEXT_LENGTH
+    input_upper_bound = len(prompt.encode("utf-8"))
+    if input_upper_bound > context_budget:
+        raise ValueError(
+            "Embedding-Eingabe überschreitet das konfigurierte Tokenbudget: "
+            f"benötigt höchstens {input_upper_bound} UTF-8-Bytes, "
+            f"erlaubt sind {context_budget}."
+        )
+    async with httpx.AsyncClient(timeout=120.0) as client:
         if selected_provider == "openai":
             resp = await client.post(
                 f"{selected_base}/{(path or '/embeddings').lstrip('/')}",
@@ -96,7 +116,7 @@ async def embed_text(
             raise ValueError(
                 f"EMBEDDING_PROVIDER muss 'ollama' oder 'openai' sein, nicht {selected_provider!r}."
             )
-        return embedding
+        return _validate_embedding(embedding, expected_dimension)
 
 
 async def search_project_chunks(

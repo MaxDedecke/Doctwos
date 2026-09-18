@@ -30,7 +30,9 @@ EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "1024"))
 # gelesen, weil dieses Modul (anders als backend/agent.py) nicht von
 # core.config importiert.
 OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "8192"))
-EMBEDDING_CONTEXT_LENGTH = int(os.getenv("EMBEDDING_CONTEXT_LENGTH", str(OLLAMA_NUM_CTX)))
+# O-251: do not derive the embedding limit from the chat context. The Qwen
+# embedding deployment is configured for 8100 tokens.
+EMBEDDING_CONTEXT_LENGTH = int(os.getenv("EMBEDDING_CONTEXT_LENGTH", "8100"))
 
 # E-8: get_embeddings_batch() schickte bisher alle Chunks eines Dokuments in
 # einem einzigen Request. Ein Lasttest mit synthetischem COBOL-Korpus zeigte:
@@ -207,6 +209,8 @@ async def get_embeddings_batch(
     else:
         processed_texts = texts
 
+    _ensure_embedding_inputs_fit(processed_texts, effective["context"])
+
     embeddings: list[list[float]] = []
     for i in range(0, len(processed_texts), EMBED_BATCH_MAX_CHUNKS):
         sub_batch = processed_texts[i : i + EMBED_BATCH_MAX_CHUNKS]
@@ -230,7 +234,10 @@ async def _get_embeddings_sub_batch(
                     timeout=EMBED_BATCH_TIMEOUT,
                 )
                 response.raise_for_status()
-                return [item["embedding"] for item in response.json()["data"]]
+                embeddings = [item["embedding"] for item in response.json()["data"]]
+                return _validate_embedding_response(
+                    embeddings, expected_count=len(texts), expected_dimension=settings["dimension"]
+                )
 
             if settings["provider"] != "ollama":
                 raise ValueError(
@@ -251,7 +258,11 @@ async def _get_embeddings_sub_batch(
                 timeout=EMBED_BATCH_TIMEOUT,  # Batch braucht mehr Zeit
             )
             response.raise_for_status()
-            return response.json()["embeddings"]
+            return _validate_embedding_response(
+                response.json()["embeddings"],
+                expected_count=len(texts),
+                expected_dimension=settings["dimension"],
+            )
         except (httpx.TimeoutException, httpx.HTTPStatusError, httpx.RequestError) as e:
             if attempt == retries - 1:
                 logger.error(f"Ollama final failure after {retries} attempts: {e}")
@@ -261,6 +272,45 @@ async def _get_embeddings_sub_batch(
             await asyncio.sleep(wait)
 
     return []
+
+
+def _validate_embedding_response(
+    embeddings: object, *, expected_count: int, expected_dimension: int
+) -> list[list[float]]:
+    """Reject incomplete or mixed vector spaces before persistence."""
+    if not isinstance(embeddings, list) or len(embeddings) != expected_count:
+        raise ValueError(
+            "Embedding-Endpunkt lieferte eine falsche Anzahl Vektoren: "
+            f"erwartet {expected_count}, erhalten "
+            f"{len(embeddings) if isinstance(embeddings, list) else type(embeddings).__name__}."
+        )
+    for index, embedding in enumerate(embeddings):
+        if not isinstance(embedding, list) or len(embedding) != expected_dimension:
+            actual = len(embedding) if isinstance(embedding, list) else type(embedding).__name__
+            raise ValueError(
+                "Embedding-Endpunkt lieferte eine falsche Dimension für Vektor "
+                f"{index}: erwartet {expected_dimension}, erhalten {actual}."
+            )
+    return embeddings
+
+
+def _ensure_embedding_inputs_fit(texts: list[str], context_length: int) -> None:
+    """Reject inputs whose UTF-8 byte upper bound exceeds the token budget.
+
+    Qwen's tokenizer is not bundled with the worker, so pretending that a
+    character count equals tokens would be incorrect. UTF-8 bytes are a
+    conservative upper bound for byte-pair tokenizers: an input that fits the
+    bound cannot be silently truncated by exceeding the configured context.
+    Normal source chunks (1000 characters) remain well below this limit.
+    """
+    for index, text in enumerate(texts):
+        upper_bound = len(text.encode("utf-8"))
+        if upper_bound > context_length:
+            raise ValueError(
+                "Embedding-Eingabe überschreitet das konfigurierte Tokenbudget: "
+                f"Element {index} benötigt höchstens {upper_bound} UTF-8-Bytes, "
+                f"erlaubt sind {context_length}."
+            )
 
 
 _JSON_FENCE_OPEN_RE = re.compile(r"^```(?:json)?\s*", re.IGNORECASE)

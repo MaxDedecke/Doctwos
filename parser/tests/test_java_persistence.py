@@ -62,6 +62,50 @@ class Ambiguous { Shared value; }
 """,
         "ambiguous",
     )
+    _commit_file(path, "run.sh", "#!/bin/sh\njava -cp app.jar app.Main\n", "launcher")
+    _commit_file(
+        path,
+        "app/src/main/java/app/Main.java",
+        """package app;
+public class Main {
+  public static void main(String[] args) {
+    Main.class.getResource("/templates/report.xsl");
+    Main.class.getResource("/views/result.jsp");
+    Main.class.getResource(path);
+  }
+}
+""",
+        "cross-language entrypoint",
+    )
+    _commit_file(
+        path,
+        "app/src/main/resources/templates/report.xsl",
+        """<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+  <xsl:template match="/">
+    <xsl:value-of select="document('input.xml')/root/value"/>
+  </xsl:template>
+</xsl:stylesheet>
+""",
+        "cross-language stylesheet",
+    )
+    _commit_file(
+        path,
+        "app/src/main/resources/templates/input.xml",
+        "<root><value>ok</value></root>\n",
+        "cross-language input",
+    )
+    _commit_file(
+        path,
+        "app/src/main/resources/views/result.jsp",
+        '<jsp:include page="fragment.jsp" />\n',
+        "cross-language view",
+    )
+    _commit_file(
+        path,
+        "app/src/main/resources/views/fragment.jsp",
+        "<p>fragment</p>\n",
+        "cross-language fragment",
+    )
     return path
 
 
@@ -140,13 +184,21 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
     with patches[0], patches[1], patches[2], patches[3]:
         await connector.sync()
 
+    db_session.expire_all()
+    source_state = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == java_source.id).one()
+    assert source_state.sync_status == "completed", source_state.last_error
     entities = db_session.query(CodeEntity).filter(CodeEntity.source_id == java_source.id).all()
     by_qname = {entity.qualified_name: entity for entity in entities}
     assert "api.Service" in by_qname
     assert "app.Client#call()" in by_qname
 
     edges = db_session.query(CodeEdge).filter(CodeEdge.source_id == java_source.id).all()
-    call = next(edge for edge in edges if edge.type == "CALLS")
+    call = next(
+        edge
+        for edge in edges
+        if edge.type == "CALLS"
+        and (edge.meta_json or {}).get("target_qualified_name") == "api.Service#run(int)"
+    )
     assert call.resolution == "resolved"
     assert call.dst_entity_id == by_qname["api.Service#run(int)"].id
 
@@ -156,6 +208,51 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
     assert ambiguous.resolution == "unresolved"
     assert ambiguous.dst_entity_id is None
     assert ambiguous.meta_json["resolution_reason"] == "ambiguous_type"
+
+    roots = {
+        entity.file_path: entity
+        for entity in entities
+        if (entity.meta_json or {}).get("is_file_root")
+    }
+    main = (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == java_source.id,
+            CodeEntity.file_path == "app/src/main/java/app/Main.java",
+            CodeEntity.type == "method",
+            CodeEntity.qualified_name.like("%#main(%)"),
+        )
+        .one()
+    )
+    cross_edges = [
+        edge
+        for edge in edges
+        if edge.type in {"STARTS_JAVA", "USES_RESOURCE", "READS_XML", "INCLUDES"}
+    ]
+    assert {edge.type for edge in cross_edges} == {
+        "STARTS_JAVA", "USES_RESOURCE", "READS_XML", "INCLUDES"
+    }
+    assert next(edge for edge in cross_edges if edge.type == "STARTS_JAVA").dst_entity_id == main.id
+    assert next(
+        edge for edge in cross_edges
+        if edge.type == "USES_RESOURCE" and edge.dst_entity_id == roots["app/src/main/resources/templates/report.xsl"].id
+    ).resolution == "resolved"
+    assert next(
+        edge for edge in cross_edges
+        if edge.type == "READS_XML" and edge.dst_entity_id == roots["app/src/main/resources/templates/input.xml"].id
+    ).resolution == "resolved"
+    assert next(
+        edge for edge in cross_edges
+        if edge.type == "INCLUDES" and edge.dst_entity_id == roots["app/src/main/resources/views/fragment.jsp"].id
+    ).resolution == "resolved"
+    assert all(
+        edge.meta_json["evidence"]["source"]["file_path"]
+        == db_session.get(CodeEntity, edge.src_entity_id).file_path
+        for edge in cross_edges
+    )
+    dynamic = next(edge for edge in cross_edges if edge.type == "USES_RESOURCE" and edge.resolution == "dynamic")
+    assert dynamic.dst_entity_id is None
+    assert dynamic.meta_json["resolution_reason"] == "dynamic_resource_expression"
 
 
 @pytest.mark.anyio
@@ -195,10 +292,12 @@ async def test_java_reparse_preserves_incoming_edge_and_resume_skips_unchanged_f
         )
         .one()
     )
-    call_before = (
-        db_session.query(CodeEdge)
+    call_before = next(
+        edge
+        for edge in db_session.query(CodeEdge)
         .filter(CodeEdge.source_id == java_source.id, CodeEdge.type == "CALLS")
-        .one()
+        .all()
+        if (edge.meta_json or {}).get("target_qualified_name") == "api.Service#run(int)"
     )
 
     _commit_file(
@@ -221,10 +320,12 @@ async def test_java_reparse_preserves_incoming_edge_and_resume_skips_unchanged_f
         )
         .one()
     )
-    call_after = (
-        db_session.query(CodeEdge)
+    call_after = next(
+        edge
+        for edge in db_session.query(CodeEdge)
         .filter(CodeEdge.source_id == java_source.id, CodeEdge.type == "CALLS")
-        .one()
+        .all()
+        if (edge.meta_json or {}).get("target_qualified_name") == "api.Service#run(int)"
     )
     assert service_after.id == service_before.id
     assert call_after.id == call_before.id

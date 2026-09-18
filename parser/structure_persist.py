@@ -103,8 +103,8 @@ def persist_parse_result(
         # unique in a Maven multi-module source tree; sharing it would merge
         # same-named classes from independent modules.
         share_container = (
-            (ent.meta or {}).get("language") == "java"
-            and ent.type in {"package", "module"}
+            (entity.meta or {}).get("language") == "java"
+            and entity.type in {"package", "module"}
         )
         shared = (
             db.query(CodeEntity)

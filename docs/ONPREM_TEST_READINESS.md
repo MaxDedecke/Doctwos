@@ -797,13 +797,24 @@ und öffnen per Klick die Belegzeile. Chat-Abläufe erhalten Typ und Metadaten.
 Servlet-Mappings, beliebige Classloader und nichtstandardisierte Ressourcenlayouts
 werden weiterhin nicht erraten; fachliche Abnahme eines O-240-Ablaufs bleibt offen.
 
+**Nachbesserung und Abnahme 18.09.2026:** Der neue parser-level Akzeptanztest
+`parser/tests/test_o250_cross_language_acceptance.py` führt einen vollständigen
+source-backed Beispielbestand durch den tatsächlichen Parser- und Resolverpfad:
+Shell→Java-`main`, Java→XSLT/JSP, XSLT→XML und JSP→JSP. Er prüft zusätzlich
+Belegdatei/-zeile, Beziehungstyp und dynamische Nichtauflösung; die bestehenden
+Resolver-Regressionen decken zusätzlich verschwundene und mehrdeutige Ziele ab.
+Die Persistenzabnahme über den GitConnector ist mit PostgreSQL ebenfalls grün:
+`parser/tests/test_java_persistence.py` importiert den Mehrsprachen-Bestand,
+persistiert Entities und Kanten, prüft Cross-Language-Auflösung, Belegmetadaten,
+Mehrdeutigkeit sowie Reparse/Resume. Rollout und Reindex des Zielbestands bleiben
+noch offen.
+
 Validierung: 44 Parser-/Java-Tests, 30 Graph-UI-Tests, 8 Backend-Graph-/Chat-Tests
 auf isolierter Datenbank sowie TypeScript-Prüfung erfolgreich. Eine bereits
 veraltete Java-Golden-Datei an die vorhandenen Source-Set-Metadaten angepasst.
 Die Schemaabweichung zwischen ORM und Testdatenbank ist mit Migration 0024
-behoben; die Java-Git-Persistenztests liefern im Anschluss derzeit noch keine
-Entities und benötigen eine getrennte Connector-Diagnose. Keine vollständige
-Persistenzabnahme behauptet. Änderungen noch nicht deployed/reindexiert.
+behoben; zusätzlich wurden fehlende Parser-ORM-Felder und ein Fehler in der
+Java-Container-Persistenz korrigiert. Änderungen noch nicht deployed/reindexiert.
 
 - [ ] Auf Basis von O-246–O-249 belegte Ressourcenbezüge verbinden, zum Beispiel
   Java-Transformation mit Stylesheet, Shell-Start mit Java-Klasse oder Servlet mit
@@ -820,12 +831,27 @@ Java-Aufrufgraph pressen; semantische Ähnlichkeit ersetzt keine belegte Abhäng
 
 - [ ] Java-Symbole und Text-/XML-/JSP-Chunks mit dem vorgeschriebenen Qwen-4B-
   Embedding-Endpunkt prüfen. 8100 Tokens nicht mit 8100 Zeichen gleichsetzen.
-- [ ] Einzelne sehr lange Java-/XML-/HTML-Zeilen sowie zusammengesetzte Anfrage-
+- [x] Einzelne sehr lange Java-/XML-/HTML-Zeilen sowie zusammengesetzte Anfrage-
   Präfixe berücksichtigen; begrenzte Chunks mit stabilen Quellenpositionen erzeugen.
 - [ ] Prüfen, ob der Endpunkt Modellpräfixe, einen Dimensionsparameter oder andere
   dokumentierte Anfrageoptionen benötigt; nicht aus dem Modellnamen erraten.
-- [ ] Batch-/Parallelitätswerte nach dem Serverlimit konfigurieren, Timeout- und
+- [x] Batch-/Parallelitätswerte nach dem Serverlimit konfigurieren, Timeout- und
   Überlängenfehler sichtbar machen; keine unbemerkte Trunkierung akzeptieren.
+
+**Lokale Nachbesserung 18.09.2026:** Parser und API senden den Embedding-Kontext
+explizit als `8100` und die Dimension als `1024`; diese Werte sind unabhängig vom
+Chat-Kontext konfiguriert. Provider-Antworten werden auf Vektoranzahl und Dimension
+geprüft, damit weder still verkürzte Batches noch ein gemischter Vektorraum in die
+Persistenz gelangen. Migration `0025_o251_qwen_embedding_context` korrigiert das
+alte systemseitige Qwen-Standardprofil von 8192 auf 8100; individuelle Profile
+bleiben unverändert. Die lokalen Qwen-Vertragstests und die Langzeilen-/Boundary-
+Regressionen sind grün. Überlange Eingaben werden vor dem Request anhand einer
+konservativen UTF-8-Byte-Obergrenze abgewiesen; diese wird ausdrücklich nicht als
+Zeichen- oder exakte Tokenzählung ausgegeben. Die Remote-Abnahme ist noch offen:
+der in `.env`
+konfigurierte Host lieferte am 18.09.2026 für `/api/embed`, `/embeddings`, `/` sowie
+`/api/tags` und `/v1/models` HTTP 404. Modellkennung, Basis-URL und Pfad müssen dort
+noch bestätigt werden; ein Pfad wird nicht aus dem Modellnamen erraten.
 
 **Abnahme:** Alle erfolgreichen Embeddings haben 1024 Dimensionen. Deutsche
 Fachfragen und exakte Java-/XSLT-Bezeichner finden erwartete Stellen, auch in den

@@ -708,6 +708,11 @@ class SourceScanFile(Base):
     # GitConnector._record_skip) — vorher komplett unsichtbar (nur Sync-Log).
     parse_status = Column(String, nullable=True)
     parse_error = Column(Text, nullable=True)
+    # O-242: Klassifikation und tatsächlich verwendetes Encoding für den
+    # nachvollziehbaren Importbericht. Das Sprachlabel verspricht keinen
+    # vorhandenen Strukturparser.
+    language = Column(String(50), nullable=True)
+    encoding = Column(String(50), nullable=True)
     # O-137: {pfad: content_hash} der beim letzten erfolgreichen Parsen
     # eindeutig aufgelösten, (transitiv) verwendeten Copybooks - ermöglicht
     # connectors/git.py eine präzise statt konservative (voller Bestand)

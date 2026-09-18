@@ -46,9 +46,14 @@ REPOS_ROOT: str = "/repos"
 
 # ── Chunking ──────────────────────────────────────────────────────────────────
 
-# Maximale Zeichenanzahl pro Dokument-Chunk vor dem Einbetten.
+# Maximale Zeichenanzahl pro Dokument-Chunk vor dem Einbetten. This is a
+# character limit, not the embedding endpoint's token limit.
 # Größere Chunks = mehr Kontext pro Suchtreffer, aber langsameres Embedding.
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
+
+# O-251: keep the provider/token limit independent from chunk characters and
+# from the chat context window.
+EMBEDDING_CONTEXT_LENGTH: int = int(os.getenv("EMBEDDING_CONTEXT_LENGTH", "8100"))
 
 # Anzahl paralleler Chunk+Embed-Tasks im Git-Konnektor (Producer/Consumer-Loop,
 # Plan §7.3/NF-004). Env-steuerbar, damit eine schwächere Ollama-Instanz

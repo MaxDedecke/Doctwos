@@ -11,6 +11,7 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
     in einem einzigen Request landen — sonst droht bei CPU-only-Embedding
     wieder der 120s-Timeout aus dem AP-9-Lasttest."""
     monkeypatch.setattr(ollama_client, "EMBED_BATCH_MAX_CHUNKS", 2)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_DIMENSION", 1)
 
     calls = []
     payloads = []
@@ -36,13 +37,15 @@ async def test_get_embeddings_batch_splits_into_sub_batches(monkeypatch):
     assert embeddings == [[1.0], [2.0], [3.0], [4.0], [1.0]]
     assert all(payload["dimensions"] == ollama_client.EMBEDDING_DIMENSION for payload in payloads)
     assert all(
-        payload["options"] == {"num_ctx": ollama_client.OLLAMA_NUM_CTX} for payload in payloads
+        payload["options"] == {"num_ctx": ollama_client.EMBEDDING_CONTEXT_LENGTH}
+        for payload in payloads
     )
 
 
 @pytest.mark.anyio
 async def test_get_embeddings_batch_uses_configured_timeout(monkeypatch):
     monkeypatch.setattr(ollama_client, "EMBED_BATCH_TIMEOUT", 42.0)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_DIMENSION", 1)
 
     seen_timeouts = []
 
@@ -81,6 +84,7 @@ async def test_get_embeddings_batch_supports_openai_compatible_remote_endpoint(m
     monkeypatch.setattr(ollama_client, "EMBEDDING_PROVIDER", "openai")
     monkeypatch.setattr(ollama_client, "EMBEDDING_BASE_URL", "https://ai.example/v1")
     monkeypatch.setattr(ollama_client, "EMBEDDING_API_KEY", "secret")
+    monkeypatch.setattr(ollama_client, "EMBEDDING_DIMENSION", 1)
 
     assert await ollama_client.get_embeddings_batch(["a", "b"], model="bge-m3") == [[0.1], [0.2]]
     assert captured == {
@@ -110,7 +114,7 @@ async def test_get_embeddings_batch_uses_active_profile_subpath(monkeypatch):
             "embedding_base_url": "https://inference.internal:8443/ollama",
             "embedding_api_key": "secret",
             "embedding_path": "/tenant/api/embed",
-            "embedding_dimension": 1024,
+            "embedding_dimension": 1,
             "embedding_context_length": 4096,
         },
     )
@@ -155,6 +159,69 @@ async def test_get_embedding_uses_openai_compatible_adapter(monkeypatch):
 @pytest.mark.anyio
 async def test_get_embeddings_batch_empty_returns_empty():
     assert await ollama_client.get_embeddings_batch([], model="bge-m3") == []
+
+
+@pytest.mark.anyio
+async def test_qwen_embedding_contract_uses_token_context_and_1024_dimensions(monkeypatch):
+    payloads = []
+
+    async def fake_post(url, json, timeout, headers=None):
+        payloads.append(json)
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value={"embeddings": [[0.0] * 1024]})
+        return response
+
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_DIMENSION", 1024)
+    monkeypatch.setattr(ollama_client, "EMBEDDING_CONTEXT_LENGTH", 8100)
+
+    result = await ollama_client.get_embeddings_batch(
+        ["Deutsche Fachfrage zu app.Main#run(int)"], model="qwen3-embedding:4b"
+    )
+
+    assert len(result[0]) == 1024
+    assert payloads == [
+        {
+            "model": "qwen3-embedding:4b",
+            "input": ["Deutsche Fachfrage zu app.Main#run(int)"],
+            "dimensions": 1024,
+            "options": {"num_ctx": 8100},
+        }
+    ]
+
+
+@pytest.mark.anyio
+async def test_embedding_contract_rejects_wrong_dimension_or_count(monkeypatch):
+    monkeypatch.setattr(ollama_client, "EMBEDDING_DIMENSION", 2)
+
+    async def fake_post(url, json, timeout, headers=None):
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        response.json = MagicMock(return_value={"embeddings": [[0.0]]})
+        return response
+
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=fake_post)
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    with pytest.raises(ValueError, match="falsche Dimension"):
+        await ollama_client.get_embeddings_batch(["x"])
+
+
+@pytest.mark.anyio
+async def test_embedding_contract_rejects_input_over_token_budget(monkeypatch):
+    monkeypatch.setattr(ollama_client, "EMBEDDING_CONTEXT_LENGTH", 10)
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock()
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    with pytest.raises(ValueError, match="Tokenbudget"):
+        await ollama_client.get_embeddings_batch(["12345678901"])
+
+    fake_client.post.assert_not_awaited()
 
 
 def _fake_ps_client(models_response, post_raises=None):
