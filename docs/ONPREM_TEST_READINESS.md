@@ -648,16 +648,25 @@ importierbar. Bei funktionierendem internem Git keinen unnötigen zweiten Import
 
 ### O-242 – P1 / Abdeckung: Spracherkennung und Importbericht für den Mischbestand
 
-- [ ] XSLT, HTML und JSP einschließlich tatsächlich vorhandener Varianten
+- [x] XSLT, HTML und JSP einschließlich tatsächlich vorhandener Varianten
   (`.xsl`, `.xslt`, `.html`, `.htm`, `.jsp`, gegebenenfalls `.jspx/.jspf/.tag/.tagx`)
-  eindeutig erkennen; Endungen und Inhaltsprüfung sinnvoll kombinieren.
-- [ ] Shell ohne Endung anhand begrenzter Shebang-Prüfung erkennen, ohne Inhalt
+  eindeutig erkennen; die Labels bleiben bewusst unabhängig von einem
+  Strukturparser. Die Inhaltsprüfung ergänzt die Endungserkennung bei
+  endungslosen Dateien.
+- [x] Shell ohne Endung anhand begrenzter Shebang-Prüfung erkennen, ohne Inhalt
   auszuführen. Konfigurierbare Endungszuordnungen erhalten.
-- [ ] Pro Sprache und Quelle melden: erkannt, strukturell geparst, nur als Text
+- [x] Pro Sprache und Quelle melden: erkannt, strukturell geparst, nur als Text
   indexiert, fehlerhaft oder übersprungen, jeweils mit nachvollziehbarem Grund.
-- [ ] Encoding-, Größen- und Ausschlussregeln mit dem Bestand prüfen; Build-/Vendor-
+- [x] Encoding-, Größen- und Ausschlussregeln mit dem Bestand prüfen; Build-/Vendor-
   Kopien begrenzen, fachlich nötige Ressourcen und generierte Quellen nicht unbemerkt
   verlieren. JAR/WAR/Class-Dateien nicht als analysierten Java-Quellcode zählen.
+
+**Umsetzung:** `SourceScanFile.language` und `SourceScanFile.encoding` bilden die
+Klassifikation und das verwendete Codec ab. `parse_status` unterscheidet
+`complete`, `text_fallback`, `partial`, `error` und `skipped`; `parse_error` enthält
+die Begründung. Der Datei-Endpunkt liefert zusätzlich `scan_summary.by_language`,
+`by_status` und `by_encoding`. Build-/IDE-Ausschlüsse werden nach dem Entfernen
+alter Chunks als sichtbare `skipped`-Einträge protokolliert.
 
 **Abnahme:** Inventar und importierte Dateien lassen sich abgleichen. Ein Sprachlabel
 behauptet keine Strukturunterstützung. XML/Properties/Builddateien bleiben auffindbar,

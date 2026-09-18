@@ -288,9 +288,11 @@ def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
     return {k: {e.lower() for e in exts} for k, exts in cfg.items()}
 
 
-def classify_extension(path: str, extensions: dict[str, set[str]]) -> str:
+def classify_extension(
+    path: str, extensions: dict[str, set[str]], content: str | bytes | None = None
+) -> str:
     """Backward-compatible name for the repository language detector."""
-    return detect_language(path, extensions)
+    return detect_language(path, extensions, content=content)
 
 
 def _is_java_build_excluded(path: str, extensions: dict[str, set[str]]) -> bool:
@@ -666,8 +668,10 @@ class GitConnector(BaseConnector):
                 content_hash = doc["extra_meta"]["content_hash"]
                 fingerprint = doc["extra_meta"].get("analysis_fingerprint")
 
-                parse_status = None
-                parse_error = None
+                language = doc["extra_meta"].get("language", "text")
+                encoding = doc["extra_meta"].get("encoding")
+                parse_status = "text_fallback"
+                parse_error = f"Sprache '{language}' hat keinen Strukturparser; als Text indexiert."
                 if parse_result is not None:
                     # O-120: `errors == []` allein hieß bisher "ok" -- das
                     # übersah die O-119-Diagnosen (z.B. ein ANTLR-Syntaxfehler,
@@ -715,6 +719,8 @@ class GitConnector(BaseConnector):
                 if existing:
                     existing.content_hash = content_hash
                     existing.analysis_fingerprint = fingerprint
+                    existing.language = language
+                    existing.encoding = encoding
                     if parse_result is not None:
                         existing.parse_status = parse_status
                         existing.parse_error = parse_error
@@ -728,6 +734,8 @@ class GitConnector(BaseConnector):
                             analysis_fingerprint=fingerprint,
                             parse_status=parse_status,
                             parse_error=parse_error,
+                            language=language,
+                            encoding=encoding,
                             copybook_dependencies=(
                                 copybook_dependencies if parse_result is not None else None
                             ),
@@ -765,6 +773,8 @@ class GitConnector(BaseConnector):
                     existing.analysis_fingerprint = fingerprint
                     existing.parse_status = "error"
                     existing.parse_error = error_msg
+                    existing.language = doc["extra_meta"].get("language", "text")
+                    existing.encoding = doc["extra_meta"].get("encoding")
                 else:
                     self.db.add(
                         SourceScanFile(
@@ -774,13 +784,24 @@ class GitConnector(BaseConnector):
                             analysis_fingerprint=fingerprint,
                             parse_status="error",
                             parse_error=error_msg,
+                            language=doc["extra_meta"].get("language", "text"),
+                            encoding=doc["extra_meta"].get("encoding"),
                         )
                     )
                 self.db.commit()
 
             return 0
 
-    def _record_skip(self, path: str, content_hash: str, fingerprint: str, reason: str) -> None:
+    def _record_skip(
+        self,
+        path: str,
+        content_hash: str,
+        fingerprint: str,
+        reason: str,
+        *,
+        language: str = "text",
+        encoding: str | None = None,
+    ) -> None:
         """O-120: eine Datei, die wegen `_SKIPPED_BINARY_EXTENSIONS`, der
         Größengrenze oder fehlgeschlagener UTF-8-Erkennung nie an
         `_save_document_chunks()` geht, hinterließ bisher NUR eine
@@ -801,6 +822,8 @@ class GitConnector(BaseConnector):
             existing.analysis_fingerprint = fingerprint
             existing.parse_status = "skipped"
             existing.parse_error = reason
+            existing.language = language
+            existing.encoding = encoding
         else:
             self.db.add(
                 SourceScanFile(
@@ -810,6 +833,8 @@ class GitConnector(BaseConnector):
                     analysis_fingerprint=fingerprint,
                     parse_status="skipped",
                     parse_error=reason,
+                    language=language,
+                    encoding=encoding,
                 )
             )
         self.db.commit()
@@ -893,10 +918,10 @@ class GitConnector(BaseConnector):
             .filter(SourceScanFile.source_id == self.source_id)
             .all()
         }
-        deleted_paths = sorted(
-            (set(existing_records) - set(current_hashes))
-            | (set(existing_records) & excluded_java_paths)
-        )
+        # Excluded build/vendor files are deliberately journaled as skipped
+        # below. They first pass through the deletion path so stale chunks and
+        # entities cannot remain searchable, then receive a visible skip row.
+        deleted_paths = sorted((set(existing_records) - set(current_hashes)) | excluded_java_paths)
 
         if worktree_is_new or not old_commit:
             self._log("Vollständige Ersteinlesung des Worktrees…")
@@ -933,10 +958,9 @@ class GitConnector(BaseConnector):
         # (0 Zeilen bestandsweit bestätigt, nicht nur bei CardDemo).
         copybook_index = self._prepared_by_lang.get("cobol")
         to_process: list[tuple[str, str, str, str]] = []
+        excluded_fingerprints: dict[str, tuple[str, str, str]] = {}
         self._profiles_by_path.clear()
         for path, blob_sha in sorted(current_hashes.items()):
-            if path in excluded_java_paths:
-                continue
             content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
             profile = profiles_by_path.get(path)
@@ -945,7 +969,7 @@ class GitConnector(BaseConnector):
                 source_revision=blob_sha,
                 profile=profile,
                 parser_version=(
-                    parser_entry.parser_version if parser_entry else "generic-chunker-1"
+                    parser_entry.parser_version if parser_entry else "generic-chunker-2"
                 ),
                 grammar_version=(
                     parser_entry.grammar_fingerprint()
@@ -956,8 +980,16 @@ class GitConnector(BaseConnector):
                     path, language, existing_records.get(path), copybook_hashes, copybook_index
                 ),
             )
+            if path in excluded_java_paths:
+                excluded_fingerprints[path] = (content_hash, fingerprint, language)
+                continue
             existing = existing_records.get(path)
-            if not force_reindex and existing and existing.analysis_fingerprint == fingerprint:
+            if (
+                not force_reindex
+                and existing
+                and existing.language is not None
+                and existing.analysis_fingerprint == fingerprint
+            ):
                 continue
             self._profiles_by_path[path] = profile
             to_process.append((path, content_hash, fingerprint, language))
@@ -985,11 +1017,23 @@ class GitConnector(BaseConnector):
                 extra_meta={"language": "text", "branch": branch, "deleted": True},
             )
 
+        for path in sorted(excluded_java_paths):
+            content_hash, fingerprint, language = excluded_fingerprints[path]
+            reason = "Build-/IDE-Verzeichnis ausgeschlossen; nicht als Quellcode indexiert."
+            self._log(f"[SKIP] '{path}' {reason}")
+            self._record_skip(
+                path,
+                content_hash,
+                fingerprint,
+                reason,
+                language=language,
+            )
+
         for path, content_hash, analysis_fp, language in to_process:
             if os.path.splitext(path)[1].lower() in _SKIPPED_BINARY_EXTENSIONS:
                 reason = "Binärformat ohne Textextraktion, wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist ein {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason, language="binary")
                 continue
             full_path = os.path.join(wt, path)
             try:
@@ -999,7 +1043,7 @@ class GitConnector(BaseConnector):
             if file_size > MAX_READ_BYTES:
                 reason = f"überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB, nicht embedded."
                 self._log(f"[SKIP] '{path}' {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason, language=language)
                 continue
             try:
                 with open(full_path, "rb") as f:
@@ -1015,14 +1059,24 @@ class GitConnector(BaseConnector):
             except SourceDecodeError as error:
                 reason = f"{error} (vermutlich Binärdaten), wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason)
+                self._record_skip(path, content_hash, analysis_fp, reason, language=language)
                 continue
+            # The bounded content signal completes extension-based detection
+            # for extensionless shell scripts without executing them.
+            language = classify_extension(path, extensions, content=content)
             if not looks_like_text(content, _MAX_CONTROL_CHAR_RATIO):
                 reason = (
                     f"kein sinnvoller {codec}-Text (zu viele Steuerzeichen), wird nicht embedded."
                 )
                 self._log(f"[SKIP] '{path}' ist {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason)
+                self._record_skip(
+                    path,
+                    content_hash,
+                    analysis_fp,
+                    reason,
+                    language=language,
+                    encoding=codec,
+                )
                 continue
             # O-175: looks_like_text() lässt leeren Inhalt bewusst durch (siehe
             # test_looks_like_text_accepts_empty_content) -- eine 0-Byte-Datei ist
@@ -1036,7 +1090,14 @@ class GitConnector(BaseConnector):
             if not content.strip():
                 reason = "leer (keine Textinhalte), wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason)
+                self._record_skip(
+                    path,
+                    content_hash,
+                    analysis_fp,
+                    reason,
+                    language=language,
+                    encoding=codec,
+                )
                 continue
 
             yield Document(

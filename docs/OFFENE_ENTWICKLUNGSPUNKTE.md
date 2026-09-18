@@ -49,6 +49,17 @@ LLM-Reviews und ungebündelte DB-Zugriffe.
 
 **Ergänzung 18.09.2026 (4):** O-164 erledigt — Konfigurierbare Rollen- und Teamzuordnung für SSO/OIDC implementiert. Über `OIDC_DEFAULT_TEAM`, `OIDC_ROLES_CLAIM`, `OIDC_GROUPS_CLAIM`, `OIDC_ADMIN_ROLES` und `OIDC_TEAM_MAPPING` können IdP-Rollen und -Gruppen (Keycloak `realm_access.roles`, Entra ID, Okta etc.) automatisch auf Doctus-Teams und Superuser-Rechte abgebildet werden. Synchronisation greift beim initialen JIT-Provisioning und bei Folge-Logins (ohne manuell zugewiesene Teams zu überschreiben). Ohne Konfiguration bleibt das E-12-Verhalten vollständig abwärtskompatibel erhalten. Tests in `backend/tests/test_oidc.py` (27 Tests) und `backend/tests/test_oidc_docs_match_code.py` (5 Tests) erfolgreich.
 
+**Ergänzung 18.09.2026 (5):** O-242 erledigt — der Git-Import klassifiziert jetzt
+HTML/XHTML, JSP-/Tag-Dateien, XSLT, XML und Properties über eigene Sprachlabels;
+Shell-Skripte ohne Endung werden ausschließlich über eine begrenzte Shebang-Prüfung
+erkannt. `SourceScanFile` speichert Sprache und Encoding, unterscheidet Textfallback,
+Fehler und Überspringen und macht Ausschlussgründe für Build-/IDE-Verzeichnisse sowie
+JAR/WAR/Class-Dateien sichtbar. `GET /knowledge-sources/{id}/files` liefert zusätzlich
+eine nach Sprache, Status und Encoding aufgeschlüsselte `scan_summary`. Die Labels
+behaupten keinen Strukturparser — XML/HTML/JSP werden für O-242 nachvollziehbar als
+Text indexiert; die Strukturabdeckung folgt in O-247/O-249. Migration `0022` und
+Regressionstests für Erkennung und Bericht ergänzt.
+
 ## Aktuell offen
 
 | ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
@@ -473,7 +484,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 |---|---|---|
 | O-240 | P1 / siehe Detail | Bestandssteckbrief, repräsentative Probe und fachliche Analyseziele festlegen. |
 | O-241 | P1 / siehe Detail | Git-/Snapshot-Importweg für vollständige Offline-Quellcodeanalyse absichern. |
-| O-242 | P1 / siehe Detail | Spracherkennung, Encodings, Ausschlüsse und Importabdeckung nachvollziehbar machen. |
+| O-242 | P1 / siehe Detail | **Erledigt 18.09.2026:** Sprach-, Encoding-, Status- und Ausschlussbericht für den Mischbestand im Git-Import ergänzt; XML/HTML/JSP/XSLT/Properties bleiben auffindbar. |
 | O-243 | P1 / siehe Detail | Vorhandene Java-Syntax-/Strukturunterstützung am Zielbestand absichern. |
 | O-244 | P1 / siehe Detail | Java-Module, Source-Sets und Build-Metadaten unterscheiden. |
 | O-245 | P1 / siehe Detail | Java-Aufrufauflösung und Unsicherheit anhand belegter Referenzfälle prüfen. |

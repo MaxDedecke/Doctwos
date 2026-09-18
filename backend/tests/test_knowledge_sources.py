@@ -236,6 +236,8 @@ def test_source_files_includes_skipped_files_and_their_status(client, make_proje
                 file_path="PROG.CBL",
                 content_hash="a",
                 parse_status="complete",
+                language="cobol",
+                encoding="utf-8",
             ),
             SourceScanFile(
                 source_id=source_id,
@@ -243,6 +245,7 @@ def test_source_files_includes_skipped_files_and_their_status(client, make_proje
                 content_hash="b",
                 parse_status="skipped",
                 parse_error="Binärformat ohne Textextraktion, wird nicht embedded.",
+                language="text",
             ),
         ]
     )
@@ -257,7 +260,17 @@ def test_source_files_includes_skipped_files_and_their_status(client, make_proje
         "diagrams/architecture.png": {
             "status": "skipped",
             "reasons": ["Binärformat ohne Textextraktion, wird nicht embedded."],
+            "language": "text",
         }
+    }
+    assert body["scan_summary"] == {
+        "total_files": 2,
+        "by_status": {"complete": 1, "skipped": 1},
+        "by_encoding": {"utf-8": 1},
+        "by_language": {
+            "cobol": {"total_files": 1, "by_status": {"complete": 1}},
+            "text": {"total_files": 1, "by_status": {"skipped": 1}},
+        },
     }
 
 

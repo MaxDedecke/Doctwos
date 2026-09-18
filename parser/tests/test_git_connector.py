@@ -86,7 +86,21 @@ def test_common_programming_languages_are_detected_by_default(monkeypatch):
     assert classify_extension("src/main.kt", defaults) == "kotlin"
     assert classify_extension("src/main.py", defaults) == "python"
     assert classify_extension("src/main.ts", defaults) == "typescript"
+    assert classify_extension("web/templates/page.html", defaults) == "html"
+    assert classify_extension("web/templates/page.jspx", defaults) == "jsp"
+    assert classify_extension("web/styles/main.xslt", defaults) == "xslt"
+    assert classify_extension("config/application.properties", defaults) == "properties"
+    assert classify_extension("build/pom.xml", defaults) == "xml"
     assert classify_extension("README.md", defaults) == "text"
+
+
+def test_extensionless_shell_script_is_detected_from_bounded_shebang(monkeypatch):
+    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    defaults = _resolve_extension_config({})
+
+    assert classify_extension("bin/start", defaults, "#!/usr/bin/env bash\nset -eu\n") == "shell"
+    assert classify_extension("bin/start", defaults, "#!/usr/bin/python3\nprint('x')\n") == "text"
 
 
 def test_custom_language_extension_can_be_added_worker_wide(monkeypatch):
@@ -830,6 +844,7 @@ async def test_git_connector_skips_known_binary_formats_instead_of_embedding_gar
     assert scan_file is not None
     assert scan_file.parse_status == "skipped"
     assert "Binärformat" in scan_file.parse_error
+    assert scan_file.language == "binary"
 
     # The legitimate COBOL/Markdown files must still be processed normally --
     # this must not turn into a blanket skip.

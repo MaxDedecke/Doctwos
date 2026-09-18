@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import shutil
+from collections import Counter, defaultdict
 from typing import Optional
 
 import httpx
@@ -470,17 +471,50 @@ def get_knowledge_source_files(
     # von einer Datei, die nie synchronisiert wurde. scan_rows liefert außerdem
     # gleich den Status für jede nicht uneingeschränkt analysierte Datei mit.
     scan_rows = (
-        db.query(SourceScanFile.file_path, SourceScanFile.parse_status, SourceScanFile.parse_error)
+        db.query(
+            SourceScanFile.file_path,
+            SourceScanFile.parse_status,
+            SourceScanFile.parse_error,
+            SourceScanFile.language,
+            SourceScanFile.encoding,
+        )
         .filter(SourceScanFile.source_id == source_id)
         .all()
     )
     file_status: dict[str, dict] = {}
-    for path, status, error in scan_rows:
+    by_language: dict[str, Counter] = defaultdict(Counter)
+    by_status: Counter = Counter()
+    by_encoding: Counter = Counter()
+    for path, status, error, language, encoding in scan_rows:
         files.add(path)
+        language = language or "unknown"
+        status = status or "unreported"
+        by_language[language][status] += 1
+        by_status[status] += 1
+        if encoding:
+            by_encoding[encoding] += 1
         if status and status != "complete":
-            file_status[path] = {"status": status, "reasons": error.split("; ") if error else []}
+            details = {"status": status, "reasons": error.split("; ") if error else []}
+            if language != "unknown":
+                details["language"] = language
+            if encoding:
+                details["encoding"] = encoding
+            file_status[path] = details
 
-    return {"files": sorted(files), "file_status": file_status}
+    scan_summary = {
+        "total_files": len(scan_rows),
+        "by_status": dict(sorted(by_status.items())),
+        "by_encoding": dict(sorted(by_encoding.items())),
+        "by_language": {
+            language: {
+                "total_files": sum(statuses.values()),
+                "by_status": dict(sorted(statuses.items())),
+            }
+            for language, statuses in sorted(by_language.items())
+        },
+    }
+
+    return {"files": sorted(files), "file_status": file_status, "scan_summary": scan_summary}
 
 
 @router.get("/{source_id}/content")
