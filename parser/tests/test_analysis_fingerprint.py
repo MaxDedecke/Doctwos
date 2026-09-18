@@ -49,6 +49,12 @@ def test_fingerprint_changes_for_every_parse_relevant_input():
     assert fingerprint != analysis_fingerprint(
         **{**base, "libraries": {"LIB/COMMON.CPY": "d" * 40}}
     )
+    assert fingerprint != analysis_fingerprint(
+        **{**base, "dependencies": {"source:templates/shared.xsl:content_hash": "d" * 40}}
+    )
+    assert fingerprint != analysis_fingerprint(
+        **{**base, "embedding_model": "qwen3-embedding:4b"}
+    )
 
 
 def test_empty_profile_has_an_explicit_stable_payload():

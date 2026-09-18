@@ -880,7 +880,10 @@ def build_chat_prompt(
     citation_note = (
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "
         "`path/to/file.ext:line`, with exactly one line number. Cite extensionless knowledge "
-        "sources by their exact title without a line number. Do not cite uninvolved context.\n\n"
+        "sources by their exact title without a line number. Do not cite uninvolved context. "
+        "Treat Java, XSLT, XML, JSP/HTML and shell files as distinct languages: describe only "
+        "source-backed relationships visible in the context. Text retrieval alone is evidence "
+        "of a matching passage, never proof of a complete call graph.\n\n"
     )
     return (
         "Context:\n<untrusted_context>\n"

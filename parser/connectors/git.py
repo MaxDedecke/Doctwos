@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import uuid
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
@@ -45,7 +46,8 @@ from core.registry import STRUCTURE_PARSERS
 from structure_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
-from models.database import CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
+from java.modules import module_from_path
+from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
 from ollama_client import (
     ensure_model_pulled,
     get_embeddings_batch,
@@ -79,6 +81,15 @@ _JAVA_BUILD_EXCLUDED_DIRS = {
     "out",
     ".idea",
     ".settings",
+}
+
+_JAVA_MODULE_METADATA_NAMES = {
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    "gradle.properties",
 }
 
 
@@ -369,6 +380,65 @@ def _discover_copybook_dependencies(
     return None if ambiguous else visited
 
 
+def _analysis_dependency_paths(db, source_id: int) -> dict[str, set[str]]:
+    """Return persisted file-to-file analysis dependencies for one source.
+
+    The resolver stores resource targets in edge metadata, while code and
+    resource edges may also already have a concrete ``dst_entity_id``. Using
+    both forms means a changed, deleted, or moved target invalidates its
+    unchanged caller on the next sync instead of leaving a stale edge behind.
+    """
+    entities = {
+        entity.id: entity.file_path
+        for entity in db.query(CodeEntity)
+        .filter(CodeEntity.source_id == source_id)
+        .all()
+        if entity.file_path
+    }
+    dependencies: dict[str, set[str]] = defaultdict(set)
+    for edge in db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all():
+        source_path = entities.get(edge.src_entity_id)
+        if not source_path:
+            continue
+        metadata = edge.meta_json or {}
+        target_path = metadata.get("target_file_path")
+        if not target_path and edge.dst_entity_id:
+            target_path = entities.get(edge.dst_entity_id)
+        if target_path and target_path != source_path:
+            dependencies[source_path].add(target_path)
+    return dependencies
+
+
+def _java_module_metadata_paths(path: str, current_paths: set[str]) -> set[str]:
+    """Find checked-in build/module descriptors affecting a Java source file.
+
+    This is intentionally path-based and conservative: Doctus does not run a
+    Maven/Gradle build or resolve external dependencies. A module descriptor
+    or build file changing is nevertheless enough reason to reparse the Java
+    sources in that module.
+    """
+    module = module_from_path(path)
+    module_root = "" if module in (None, ".") else module.strip("/")
+    prefixes = [""]
+    if module_root:
+        parts = module_root.split("/")
+        prefixes.extend("/".join(parts[:index]) for index in range(1, len(parts) + 1))
+
+    dependencies: set[str] = set()
+    for prefix in prefixes:
+        for name in _JAVA_MODULE_METADATA_NAMES:
+            candidate = f"{prefix}/{name}" if prefix else name
+            if candidate in current_paths:
+                dependencies.add(candidate)
+
+    for candidate in current_paths:
+        if not candidate.endswith("/module-info.java"):
+            continue
+        if not module_root or candidate.startswith(module_root + "/"):
+            dependencies.add(candidate)
+    return dependencies
+
+
 _PROFILE_FIELDS = {
     "compiler_family",
     "compiler_version",
@@ -452,7 +522,7 @@ def _reuse_unchanged_embeddings(
         if chunk.embedding is not None
         and (
             embedding_model is None
-            or getattr(chunk, "embedding_model", None) in (None, embedding_model)
+            or getattr(chunk, "embedding_model", None) == embedding_model
         )
     }
     for chunk in chunks:
@@ -936,6 +1006,7 @@ class GitConnector(BaseConnector):
             if os.path.splitext(path)[1].lower() in extensions.get("copybook", set())
         }
         self._copybook_hashes = copybook_hashes
+        analysis_dependencies = _analysis_dependency_paths(self.db, self.source_id)
 
         # Resumability (NF-004) bleibt erhalten, jetzt aber über sämtliche
         # Analyse-Eingaben. O-137: statt IMMER der gesamten Copybook-Sammlung
@@ -960,26 +1031,60 @@ class GitConnector(BaseConnector):
         to_process: list[tuple[str, str, str, str]] = []
         excluded_fingerprints: dict[str, tuple[str, str, str]] = {}
         self._profiles_by_path.clear()
+        fingerprint_inputs: dict[str, dict[str, Any]] = {}
         for path, blob_sha in sorted(current_hashes.items()):
-            content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
             profile = profiles_by_path.get(path)
             parser_entry = STRUCTURE_PARSERS.get(language)
-            fingerprint = analysis_fingerprint(
-                source_revision=blob_sha,
-                profile=profile,
-                parser_version=(
+            dependencies = {
+                f"module:{dependency}": current_hashes[dependency]
+                for dependency in _java_module_metadata_paths(path, current_hashes)
+            }
+            fingerprint_inputs[path] = {
+                "source_revision": blob_sha,
+                "profile": profile,
+                "parser_version": (
                     parser_entry.parser_version if parser_entry else "generic-chunker-2"
                 ),
-                grammar_version=(
+                "grammar_version": (
                     parser_entry.grammar_fingerprint()
                     if parser_entry and parser_entry.grammar_fingerprint
                     else "not-applicable"
                 ),
-                libraries=_fingerprint_libraries(
+                "libraries": _fingerprint_libraries(
                     path, language, existing_records.get(path), copybook_hashes, copybook_index
                 ),
-            )
+                "dependencies": dependencies,
+                "embedding_model": self.embedding_model,
+            }
+        base_fingerprints = {
+            path: analysis_fingerprint(**inputs)
+            for path, inputs in fingerprint_inputs.items()
+        }
+
+        def expected_fingerprint(path: str, stack: frozenset[str] = frozenset()) -> str:
+            """Build the current fingerprint including persisted dependencies."""
+            inputs = fingerprint_inputs.get(path)
+            if inputs is None:
+                existing = existing_records.get(path)
+                return existing.analysis_fingerprint or "" if existing else ""
+            if path in stack:
+                # Cyclic includes/imports are valid. The base fingerprint keeps
+                # the cycle finite while direct content/model/parser changes
+                # still invalidate every member of the cycle.
+                return base_fingerprints[path]
+            dependencies = dict(inputs.get("dependencies") or {})
+            for dependency in sorted(analysis_dependencies.get(path, ())):
+                dependencies[f"source:{dependency}:content_hash"] = current_hashes.get(dependency, "")
+                dependencies[f"source:{dependency}:analysis_fingerprint"] = expected_fingerprint(
+                    dependency, stack | {path}
+                )
+            return analysis_fingerprint(**{**inputs, "dependencies": dependencies})
+
+        for path, blob_sha in sorted(current_hashes.items()):
+            content_hash = git_utils.blob_content_hash(blob_sha)
+            language = classify_extension(path, extensions)
+            fingerprint = expected_fingerprint(path)
             if path in excluded_java_paths:
                 excluded_fingerprints[path] = (content_hash, fingerprint, language)
                 continue
@@ -991,7 +1096,7 @@ class GitConnector(BaseConnector):
                 and existing.analysis_fingerprint == fingerprint
             ):
                 continue
-            self._profiles_by_path[path] = profile
+            self._profiles_by_path[path] = profiles_by_path.get(path)
             to_process.append((path, content_hash, fingerprint, language))
 
         total = len(to_process) + len(deleted_paths)

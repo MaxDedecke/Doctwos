@@ -37,6 +37,8 @@ def test_prompt_keeps_the_pinned_file_as_primary_context():
     )
 
     assert "pinned code as the primary subject" in prompt
+    assert "Text retrieval alone is evidence" in prompt
+    assert "never proof of a complete call graph" in prompt
     assert "Question: What does it do?" in prompt
     assert "<untrusted_context>" in prompt
 

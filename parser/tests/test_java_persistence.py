@@ -29,6 +29,11 @@ def _commit_file(repo: str, rel_path: str, content: str, message: str) -> None:
     subprocess.run(["git", "-C", repo, "commit", "-m", message], check=True, capture_output=True)
 
 
+def _delete_file(repo: str, rel_path: str, message: str) -> None:
+    subprocess.run(["git", "-C", repo, "rm", rel_path], check=True, capture_output=True)
+    subprocess.run(["git", "-C", repo, "commit", "-m", message], check=True, capture_output=True)
+
+
 @pytest.fixture
 def java_remote(tmp_path):
     path = str(tmp_path / "java-remote.git")
@@ -347,3 +352,81 @@ async def test_java_reparse_preserves_incoming_edge_and_resume_skips_unchanged_f
     with patches[0], patches[1] as embed_batch, patches[2], patches[3]:
         await connector.sync()
     assert embed_batch.await_count == 0
+
+
+@pytest.mark.anyio
+async def test_resource_target_change_reparses_unchanged_include_source(
+    db_session, java_source, java_remote
+):
+    """O-252: a changed included resource invalidates its unchanged source."""
+    connector = GitConnector(java_source.id)
+    patches = _embedding_patches()
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    result_before = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == java_source.id,
+            SourceScanFile.file_path == "app/src/main/resources/views/result.jsp",
+        )
+        .one()
+    )
+    result_fingerprint_before = result_before.analysis_fingerprint
+
+    _commit_file(
+        java_remote,
+        "app/src/main/resources/views/fragment.jsp",
+        "<p>changed fragment</p>\n",
+        "change included resource",
+    )
+    connector = GitConnector(java_source.id)
+    patches = _embedding_patches()
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    db_session.expire_all()
+    result_after = (
+        db_session.query(SourceScanFile)
+        .filter(
+            SourceScanFile.source_id == java_source.id,
+            SourceScanFile.file_path == "app/src/main/resources/views/result.jsp",
+        )
+        .one()
+    )
+    assert result_after.analysis_fingerprint != result_fingerprint_before
+
+
+@pytest.mark.anyio
+async def test_deleted_target_reparses_unchanged_java_caller_as_unresolved(
+    db_session, java_source, java_remote
+):
+    """O-252: deleting a target must not silently remove its caller edge."""
+    connector = GitConnector(java_source.id)
+    patches = _embedding_patches()
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    _delete_file(java_remote, "api/Service.java", "remove service")
+    connector = GitConnector(java_source.id)
+    patches = _embedding_patches()
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    caller = (
+        db_session.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == java_source.id,
+            CodeEntity.file_path == "app/Client.java",
+            CodeEntity.type == "class",
+        )
+        .one()
+    )
+    caller_edges = (
+        db_session.query(CodeEdge)
+        .filter(CodeEdge.source_id == java_source.id, CodeEdge.src_entity_id == caller.id)
+        .all()
+    )
+    call = next(edge for edge in caller_edges if edge.type == "CALLS")
+    assert call.dst_entity_id is None
+    assert call.resolution == "unresolved"

@@ -32,4 +32,10 @@ describe('graph taxonomy', () => {
     expect(getGraphEdgeLabelKey('EXTENDS')).toBe('graphLabels.linkTypes.extends');
     expect(getGraphEdgeLabelKey('uses_type')).toBe('graphLabels.linkTypes.usesType');
   });
+
+  it('labels the structured companion languages as code instead of COBOL fallbacks', () => {
+    expect(getEntityTypeLabel('xslt_template', 'de')).toBe('XSLT-Template');
+    expect(getEntityTypeLabel('jsp_page', 'en')).toBe('JSP page');
+    expect(getGraphNodeIconKind({ type: 'entity', entity_type: 'shell_script' })).toBe('code');
+  });
 });

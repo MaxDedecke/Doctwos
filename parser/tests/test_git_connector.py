@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, patch
 from cobol.model import Chunk, ParseResult
 from cobol.profile import BuildProfile, SourceColumns
 from core.analysis_fingerprint import analysis_fingerprint
+from core import config
 from core.registry import ParserEntry
 from db import SessionLocal
 from models.database import CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
@@ -517,6 +518,51 @@ async def test_git_connector_force_reindex_reprocesses_unchanged_commit(db_sessi
 
 
 @pytest.mark.anyio
+async def test_git_connector_reembeds_all_files_when_embedding_model_changes(
+    db_session, test_source
+):
+    """O-252: a model change must not be hidden by the content fingerprint."""
+    connector = GitConnector(test_source.id)
+    patches = _patched_sync(connector)
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    before = {
+        row.file_path: row.analysis_fingerprint
+        for row in db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id)
+        .all()
+    }
+    test_source.embedding_model = "replacement-embedding-model"
+    db_session.commit()
+
+    connector = GitConnector(test_source.id)
+    p1, embed_batch, p3, p4 = _patched_sync(connector)
+    with p1, embed_batch, p3, p4:
+        await connector.sync()
+
+    assert embed_batch.await_count > 0
+    assert all(
+        call.kwargs.get("model") == "replacement-embedding-model"
+        for call in embed_batch.call_args_list
+    )
+    after = {
+        row.file_path: row.analysis_fingerprint
+        for row in db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id)
+        .all()
+    }
+    assert after["PROG.CBL"] != before["PROG.CBL"]
+    assert after["README.md"] != before["README.md"]
+    assert {
+        chunk.embedding_model
+        for chunk in db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id)
+        .all()
+    } == {"replacement-embedding-model"}
+
+
+@pytest.mark.anyio
 async def test_git_connector_resumes_via_content_hash(
     db_session, test_source, monkeypatch, tmp_path
 ):
@@ -543,6 +589,7 @@ async def test_git_connector_resumes_via_content_hash(
                 profile=BuildProfile(),
                 parser_version="cobol-structure-3",
                 libraries={},
+                embedding_model=config.EMBED_MODEL,
             ),
         )
     )
@@ -1119,6 +1166,19 @@ def test_reuse_unchanged_embeddings_only_returns_new_content_for_embedding():
 
     assert chunks[0]["embedding"] == [0.25] * 1024
     assert to_embed == [{"content": "new source"}]
+
+
+def test_reuse_unchanged_embeddings_rejects_unknown_or_old_model_vectors():
+    old_chunks = [
+        SimpleNamespace(content="legacy vector", embedding=[0.25] * 1024, embedding_model=None),
+        SimpleNamespace(content="old model vector", embedding=[0.5] * 1024, embedding_model="old"),
+    ]
+    chunks = [{"content": "legacy vector"}, {"content": "old model vector"}]
+
+    to_embed = _reuse_unchanged_embeddings(chunks, old_chunks, "new")
+
+    assert to_embed == chunks
+    assert all("embedding" not in chunk for chunk in chunks)
 
 
 @pytest.mark.anyio

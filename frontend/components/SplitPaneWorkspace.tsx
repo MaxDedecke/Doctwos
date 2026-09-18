@@ -36,7 +36,10 @@ import { cn } from "@/lib/utils";
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
 
 // Help detect file extensions in Monaco editor
-const detectLanguage = (filename: string | null) => {
+/** Map the ingestion language families to Monaco ids.  This is deliberately
+ * independent from the COBOL parser: a Java repository commonly contains
+ * XSLT, JSP and launch scripts as first-class, navigable source files. */
+export const detectLanguage = (filename: string | null) => {
   if (!filename) return 'text';
   const ext = filename.split('.').pop()?.toLowerCase();
   switch(ext) {
@@ -51,8 +54,25 @@ const detectLanguage = (filename: string | null) => {
     case 'json': return 'json';
     case 'md': return 'markdown';
     case 'html': return 'html';
+    case 'htm':
+    case 'xhtml':
+    case 'jsp':
+    case 'jspx':
+    case 'jspf':
+    case 'tag':
+    case 'tagx': return 'html';
+    case 'xml':
+    case 'xsd':
+    case 'wsdl':
+    case 'xjb':
+    case 'xsl':
+    case 'xslt': return 'xml';
+    case 'properties': return 'ini';
     case 'css': return 'css';
     case 'sh': return 'shell';
+    case 'bash':
+    case 'zsh':
+    case 'fish': return 'shell';
     case 'yml':
     case 'yaml': return 'yaml';
     case 'java': return 'java';

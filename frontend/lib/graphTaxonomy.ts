@@ -71,6 +71,18 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   field: { de: 'Feld', en: 'Field' },
   enum_constant: { de: 'Enum-Konstante', en: 'Enum constant' },
   initializer: { de: 'Initializer', en: 'Initializer' },
+  xslt_stylesheet: { de: 'XSLT-Stylesheet', en: 'XSLT stylesheet' },
+  xslt_template: { de: 'XSLT-Template', en: 'XSLT template' },
+  xslt_section: { de: 'XSLT-Abschnitt', en: 'XSLT section' },
+  xml_document: { de: 'XML-Dokument', en: 'XML document' },
+  jsp_page: { de: 'JSP-Seite', en: 'JSP page' },
+  jsp_taglib: { de: 'JSP-Tag-Bibliothek', en: 'JSP tag library' },
+  jsp_scriptlet: { de: 'JSP-Scriptlet', en: 'JSP scriptlet' },
+  jsp_el_expression: { de: 'JSP-EL-Ausdruck', en: 'JSP EL expression' },
+  html_document: { de: 'HTML-Dokument', en: 'HTML document' },
+  html_form: { de: 'HTML-Formular', en: 'HTML form' },
+  shell_script: { de: 'Shell-Skript', en: 'Shell script' },
+  shell_function: { de: 'Shell-Funktion', en: 'Shell function' },
   jcl_job: { de: 'JCL-Job', en: 'JCL job' },
   jcl_step: { de: 'JCL-Schritt', en: 'JCL step' },
 };
@@ -141,6 +153,9 @@ const CODE_ENTITY_TYPES = new Set([
   'sql_table', 'sql_block', 'entry', 'compilation_unit', 'package', 'module',
   'class', 'interface', 'enum', 'record', 'annotation_type', 'method',
   'constructor', 'field', 'enum_constant', 'initializer', 'jcl_job', 'jcl_step',
+  'xslt_stylesheet', 'xslt_template', 'xslt_section', 'xml_document', 'jsp_page',
+  'jsp_taglib', 'jsp_scriptlet', 'jsp_el_expression', 'html_document', 'html_form',
+  'shell_script', 'shell_function',
 ]);
 
 const WEB_SOURCE_TYPES = new Set([

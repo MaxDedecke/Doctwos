@@ -19,7 +19,7 @@ import { api } from '@/app/services/api';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SplitPaneWorkspace } from './SplitPaneWorkspace';
+import { detectLanguage, SplitPaneWorkspace } from './SplitPaneWorkspace';
 
 const graphProps: Partial<React.ComponentProps<typeof KnowledgeGraphView>> = {};
 
@@ -128,6 +128,15 @@ function makeProps(overrides: Partial<React.ComponentProps<typeof SplitPaneWorks
     ...overrides,
   };
 }
+
+describe('mixed-language editor detection', () => {
+  it('uses Monaco modes for Java companion languages', () => {
+    expect(detectLanguage('web/report.xsl')).toBe('xml');
+    expect(detectLanguage('web/view.jsp')).toBe('html');
+    expect(detectLanguage('bin/import.bash')).toBe('shell');
+    expect(detectLanguage('config/messages.properties')).toBe('ini');
+  });
+});
 
 function renderWorkspace(overrides: Partial<React.ComponentProps<typeof SplitPaneWorkspace>> = {}) {
   const props = makeProps(overrides);

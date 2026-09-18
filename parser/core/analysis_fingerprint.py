@@ -78,12 +78,15 @@ def analysis_fingerprint(
     parser_version: str = COBOL_PARSER_VERSION,
     grammar_version: str | None = None,
     libraries: Mapping[str, str] | None = None,
+    dependencies: Mapping[str, str] | None = None,
+    embedding_model: str | None = None,
 ) -> str:
     """Bildet alle parse-relevanten Eingaben auf einen SHA-256-Wert ab.
 
     ``libraries`` ist Pfad -> Git-Blob-SHA der für die Quelle verfügbaren
-    Copybooks. Sortierung und kompaktes JSON vermeiden maschinen- oder
-    Einfügereihenfolge-abhängige Ergebnisse.
+    Copybooks. ``dependencies`` enthält zusätzlich belegte Aufrufer-, Modul-
+    und Ressourcenabhängigkeiten. Sortierung und kompaktes JSON vermeiden
+    maschinen- oder Einfügereihenfolge-abhängige Ergebnisse.
     """
     payload = {
         "source_revision": source_revision,
@@ -92,6 +95,17 @@ def analysis_fingerprint(
         "grammar_version": grammar_version or grammar_fingerprint(),
         "libraries": dict(sorted((libraries or {}).items())),
     }
+    # Dependencies are deliberately separate from the historical ``libraries``
+    # field: callers, module descriptors and resource files are not Copybooks,
+    # but they are still parse-relevant inputs for incremental repository
+    # analysis. Empty values are omitted for backwards-stable fingerprints.
+    if dependencies:
+        payload["dependencies"] = dict(sorted(dependencies.items()))
+    # A model change must force a full re-embedding. Keeping the model in the
+    # same per-file resume key makes this deterministic and also covers files
+    # whose source content did not change.
+    if embedding_model is not None:
+        payload["embedding_model"] = embedding_model
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
         "utf-8"
     )
