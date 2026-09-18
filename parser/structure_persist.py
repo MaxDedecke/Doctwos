@@ -98,6 +98,14 @@ def persist_parse_result(
         qname = entity.qualified_name or entity.name
         if qname in existing:
             continue
+        # Only Java package/module containers are intentionally shared across
+        # files.  A class QName such as ``com.example.App`` is *not* globally
+        # unique in a Maven multi-module source tree; sharing it would merge
+        # same-named classes from independent modules.
+        share_container = (
+            (ent.meta or {}).get("language") == "java"
+            and ent.type in {"package", "module"}
+        )
         shared = (
             db.query(CodeEntity)
             .filter(
@@ -106,6 +114,8 @@ def persist_parse_result(
                 CodeEntity.qualified_name == qname,
             )
             .first()
+            if share_container
+            else None
         )
         if shared is not None:
             existing[qname] = shared

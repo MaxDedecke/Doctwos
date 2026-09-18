@@ -500,7 +500,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 | O-241 | P1 / siehe Detail | Git-/Snapshot-Importweg für vollständige Offline-Quellcodeanalyse absichern. |
 | O-242 | P1 / siehe Detail | **Erledigt 18.09.2026:** Sprach-, Encoding-, Status- und Ausschlussbericht für den Mischbestand im Git-Import ergänzt; XML/HTML/JSP/XSLT/Properties bleiben auffindbar. |
 | O-243 | P1 / siehe Detail | Vorhandene Java-Syntax-/Strukturunterstützung am Zielbestand absichern. |
-| O-244 | P1 / siehe Detail | **In Arbeit 18.09.2026:** Java-Module, Source-Sets und Maven-Build-Metadaten statisch unterscheiden; Maven wird nicht ausgeführt und lädt keine Abhängigkeiten. |
+| O-244 | P1 / siehe Detail | **Erledigt 18.09.2026:** Java-Module, Source-Sets/-Kinds und Maven-Build-Metadaten statisch unterscheiden; gleiche Java-QNames aus getrennten Modulen bleiben getrennt. Maven wird nicht ausgeführt und lädt keine Abhängigkeiten. Gradle/Ant nur bei tatsächlichem Referenzbedarf. |
 | O-245 | P1 / siehe Detail | Java-Aufrufauflösung und Unsicherheit anhand belegter Referenzfälle prüfen. |
 | O-246 | P2 / bedarfsabhängig | Vorhandene Framework-Einstiegspunkte und Konfiguration bedingt verbinden. |
 | O-247 | P2 / bedarfsabhängig | **Erledigt 18.09.2026:** XSLT-/XML-Strukturparser über die Registry, Template-/Parameter-/Variablen-/Abschnitts-Entities, template-spezifische Chunks sowie Include-, Import-, Call-, Apply- und XML-Ressourcenkanten ergänzt; externe DTDs/URLs werden nicht geladen. |

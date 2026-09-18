@@ -215,6 +215,36 @@ def parse_maven_pom(source: str, path: str, **_: object) -> ParseResult:
             )
 
     build = next((item for item in list(project) if _local_name(item.tag) == "build"), None)
+    # Conventional roots are facts about the Maven model, not guesses about
+    # files that happen to exist. Custom roots are retained literally (even
+    # with ${...}) and never expanded or fetched.
+    source_roots = [
+        ("main", "source", "src/main/java"), ("test", "source", "src/test/java"),
+        ("main", "resource", "src/main/resources"), ("test", "resource", "src/test/resources"),
+    ]
+    if build is not None:
+        for element_name, source_set in (("sourceDirectory", "main"), ("testSourceDirectory", "test")):
+            value = _child_text(build, element_name)
+            if value:
+                source_roots.append((source_set, "source", value))
+        resources = next((item for item in list(build) if _local_name(item.tag) == "resources"), None)
+        test_resources = next((item for item in list(build) if _local_name(item.tag) == "testResources"), None)
+        for container, source_set in ((resources, "main"), (test_resources, "test")):
+            if container is not None:
+                for resource in _children(container, "resource"):
+                    directory = _child_text(resource, "directory")
+                    if directory:
+                        source_roots.append((source_set, "resource", directory))
+    for source_set, source_kind, directory in dict.fromkeys(source_roots):
+        line, cursor = _line_for(source, directory, cursor)
+        qname = f"{root_qname}::source-root:{source_set}:{source_kind}:{directory}"
+        child = _add_entity(entities, entity_type="maven_source_root", name=directory,
+            qualified_name=qname, path=path, parent=root, line=line,
+            meta={"source_set": source_set, "source_kind": source_kind, "directory": directory,
+                  "conventional": directory.startswith("src/")})
+        edges.append(ParsedEdge(type="DECLARES_SOURCE_ROOT", src_name=root_qname,
+            dst_name=child.qualified_name or child.name, resolution="resolved", src_start_line=line,
+            src_end_line=line, meta={"language": "maven", "target_qualified_name": child.qualified_name}))
     plugins = next((item for item in list(build or []) if _local_name(item.tag) == "plugins"), None)
     if plugins is not None:
         for plugin in _children(plugins, "plugin"):

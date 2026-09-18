@@ -534,8 +534,9 @@ class CodeEntity(Base):
         UniqueConstraint(
             "source_id",
             "variant_key",
+            "file_path",
             "qualified_name",
-            name="uq_code_entities_source_variant_qname",
+            name="uq_code_entities_source_variant_file_qname",
         ),
         Index("ix_code_entities_source_type", "source_id", "type"),
     )

@@ -690,15 +690,15 @@ generierte ANTLR-Dateien funktionieren im endgültigen Offline-Runtime-Image.
 
 ### O-244 – P1 / Java: Module, Source-Sets und Build-Metadaten unterscheiden
 
-- [x] Maven-POMs statisch als Projekte, Module, Dependencies, Plugins und
+- [x] **Erledigt 18.09.2026:** Maven-POMs statisch als Projekte, Module, Dependencies, Plugins und
   Properties erfassen; keine vollständige Buildausführung voraussetzen.
-- [x] Java-Entities um `module` und `source_set` aus konventionellen Maven-
+- [x] **Erledigt 18.09.2026:** Java-Entities um `module`, `source_set` und `source_kind` aus konventionellen Maven-
   Pfaden (`src/main/java`, `src/test/java`, `src/it/java` usw.) ergänzen.
 - [ ] Gradle-/Ant-Metadaten nach demselben Vertrag ergänzen, sobald der
   Referenzbestand sie tatsächlich benötigt.
-- [ ] Produktions-, Test- und generierte Quellen sowie Ressourcensets getrennt
+- [x] **Erledigt 18.09.2026:** Produktions-, Test- und generierte Quellen sowie Ressourcensets getrennt
   kennzeichnen. Doppelte vollqualifizierte Klassennamen zwischen Modulen prüfen.
-- [ ] Abhängigkeiten nur soweit aus vorhandenen Dateien belegbar übernehmen;
+- [x] **Erledigt 18.09.2026:** Abhängigkeiten nur soweit aus vorhandenen Dateien belegbar übernehmen;
   dynamische Buildskripte und fehlende externe Artefakte als unbekannt behandeln.
 
 **Abnahme:** Gleichnamige Klassen aus getrennten Modulen werden nicht fälschlich

@@ -9,7 +9,7 @@ from core.model import Entity, ParseDiagnostic, ParseResult
 from .antlr_bridge import parse_java_source
 from .chunking import chunk_java_source
 from .declarations import JavaDeclarationVisitor
-from .modules import module_from_path, source_set_from_path
+from .modules import module_from_path, source_kind_from_path, source_set_from_path
 from .relationships import JavaRelationshipVisitor
 from .resolution import resolve_local_edges
 from ._antlr.JavaParser import JavaParser
@@ -28,11 +28,14 @@ def parse_java_file(
     root_name = Path(path).name or normalized_path or "<memory>"
     module = module_from_path(normalized_path)
     source_set = source_set_from_path(normalized_path)
+    source_kind = source_kind_from_path(normalized_path)
     root_meta = {"language": "java", "is_file_root": True}
     if module is not None:
         root_meta["module"] = module
     if source_set is not None:
         root_meta["source_set"] = source_set
+    if source_kind is not None:
+        root_meta["source_kind"] = source_kind
     root = Entity(
         type="compilation_unit",
         name=root_name,

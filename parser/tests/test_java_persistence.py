@@ -50,6 +50,8 @@ class Client { void call() { new Service().run(1); } }
     )
     _commit_file(path, "one/Shared.java", "package one; public class Shared {}\n", "one")
     _commit_file(path, "two/Shared.java", "package two; public class Shared {}\n", "two")
+    _commit_file(path, "module-a/src/main/java/duplicate/App.java", "package duplicate; public class App {}\n", "module a app")
+    _commit_file(path, "module-b/src/main/java/duplicate/App.java", "package duplicate; public class App {}\n", "module b app")
     _commit_file(
         path,
         "app/Ambiguous.java",
@@ -154,6 +156,26 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
     assert ambiguous.resolution == "unresolved"
     assert ambiguous.dst_entity_id is None
     assert ambiguous.meta_json["resolution_reason"] == "ambiguous_type"
+
+
+@pytest.mark.anyio
+async def test_java_same_qualified_class_in_separate_modules_is_not_merged(db_session, java_source):
+    connector = GitConnector(java_source.id)
+    patches = _embedding_patches()
+    with patches[0], patches[1], patches[2], patches[3]:
+        await connector.sync()
+
+    apps = (
+        db_session.query(CodeEntity)
+        .filter(CodeEntity.source_id == java_source.id, CodeEntity.qualified_name == "duplicate.App")
+        .order_by(CodeEntity.file_path)
+        .all()
+    )
+    assert [app.file_path for app in apps] == [
+        "module-a/src/main/java/duplicate/App.java",
+        "module-b/src/main/java/duplicate/App.java",
+    ]
+    assert {app.meta_json["module"] for app in apps} == {"module-a", "module-b"}
 
 
 @pytest.mark.anyio
