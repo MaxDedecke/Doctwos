@@ -13,20 +13,25 @@ vi.mock('mermaid', () => ({
 describe('MermaidDiagram', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('opens the compact chat diagram in an almost full-window dialog and closes it with Escape', () => {
+  it('opens the compact chat diagram in a browser top-layer dialog and closes it with Escape', () => {
     render(<MermaidDiagram code="flowchart TD\nA --> B" theme="dark" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Diagramm maximieren' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'Ablaufdiagramm in Großansicht' });
-    expect(dialog).toBeTruthy();
+    // jsdom does not implement showModal(), therefore the closed native
+    // dialog is not represented in its accessibility tree yet.
+    const dialog = document.querySelector<HTMLDialogElement>('dialog[aria-label="Ablaufdiagramm in Großansicht"]');
+    if (!dialog) throw new Error('Mermaid dialog was not rendered');
     expect(dialog.parentElement).toBe(document.body);
+    expect(dialog.tagName).toBe('DIALOG');
     expect(dialog.className).toContain('z-[3000]');
     expect(screen.getByText('Ablaufdiagramm')).toBeTruthy();
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    // Browser Escape dispatches the cancellable `cancel` event on a modal
+    // dialog; jsdom does not implement showModal(), so dispatch it directly.
+    fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));
 
-    expect(screen.queryByRole('dialog', { name: 'Ablaufdiagramm in Großansicht' })).toBeNull();
+    expect(document.querySelector('dialog[aria-label="Ablaufdiagramm in Großansicht"]')).toBeNull();
   });
 
   it('disables Mermaid HTML labels globally so flowchart labels use native SVG text', () => {

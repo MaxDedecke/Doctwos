@@ -4,7 +4,7 @@ import { sanitizeSvg } from '@/lib/sanitize';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Loader2, Maximize2, X } from 'lucide-react';
 import type { MermaidConfig } from 'mermaid';
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface MermaidDiagramProps {
@@ -71,14 +71,18 @@ function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
 /** A compact chat diagram with a large, distraction-free inspection dialog. */
 export function MermaidDiagram({ code, theme }: MermaidDiagramProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!isExpanded) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsExpanded(false);
+    const dialog = dialogRef.current;
+    // showModal() moves the element into the browser's top layer. That layer
+    // sits above every application stacking context, including the sidebar,
+    // header, and any fixed workspace overlays.
+    if (dialog && typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+    return () => {
+      if (dialog?.open) dialog.close();
     };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
   }, [isExpanded]);
 
   const isDark = theme === 'dark';
@@ -98,14 +102,16 @@ export function MermaidDiagram({ code, theme }: MermaidDiagramProps) {
       </div>
 
       {isExpanded && typeof document !== 'undefined' && createPortal(
-        <div
+        <dialog
+          ref={dialogRef}
           role="dialog"
-          aria-modal="true"
           aria-label="Ablaufdiagramm in Großansicht"
-          className="fixed inset-0 z-[3000] flex items-center justify-center bg-ds-black/80 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[3000] m-0 h-screen max-h-none w-screen max-w-none border-0 bg-ds-black/80 p-3 backdrop:bg-ds-black/80 backdrop:backdrop-blur-sm sm:p-6"
+          onCancel={(event) => { event.preventDefault(); setIsExpanded(false); }}
+          onClose={() => setIsExpanded(false)}
           onMouseDown={(event) => { if (event.target === event.currentTarget) setIsExpanded(false); }}
         >
-          <section className={cn('flex h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border shadow-2xl sm:h-[calc(100dvh-3rem)] sm:w-[calc(100vw-3rem)]', isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-900')}>
+          <section className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border shadow-2xl', isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-900')}>
             <header className={cn('flex shrink-0 items-center justify-between border-b px-4 py-3', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
               <h2 className="text-sm font-semibold">Ablaufdiagramm</h2>
               <button
@@ -122,7 +128,7 @@ export function MermaidDiagram({ code, theme }: MermaidDiagramProps) {
               <MermaidSvg code={code} theme={theme} expanded />
             </div>
           </section>
-        </div>,
+        </dialog>,
         document.body,
       )}
     </>
