@@ -12,6 +12,9 @@ from core.model import ParseResult
 from java.fingerprint import grammar_fingerprint as java_grammar_fingerprint
 from java.parse import parse_java_file
 from maven.parse import parse_maven_pom
+from markup.parse import parse_xml_document
+from markup.jsp_html import parse_jsp_or_html
+from xslt.parse import parse_xslt_file
 
 
 class StructureParser(Protocol):
@@ -81,4 +84,19 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         root_entity_types=("maven_project",),
         parser_version="maven-structure-1",
     ),
+    "xslt": ParserEntry(
+        parse=parse_xslt_file,
+        root_entity_types=("xslt_stylesheet",),
+        parser_version="xslt-structure-1",
+    ),
+    # XML gets a deliberately small document-root parser so XSLT's static
+    # READS_XML relationships can point at a navigable entity.  Vocabulary-
+    # specific semantics remain the responsibility of future parsers.
+    "xml": ParserEntry(
+        parse=parse_xml_document,
+        root_entity_types=("xml_document",),
+        parser_version="xml-root-1",
+    ),
+    "html": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("html_document",), parser_version="html-structure-1"),
+    "jsp": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("jsp_page",), parser_version="jsp-structure-1"),
 }

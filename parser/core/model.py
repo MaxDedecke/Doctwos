@@ -5,7 +5,7 @@ Sprachneutrale Datenstrukturen der Parser-Pipeline (Plan §6.2/§6.3).
 
 O-078: Vorher standen `ParseResult`/`Entity`/`ParsedEdge`/`Chunk` in
 `parser/cobol/model.py`, obwohl an ihnen selbst nichts COBOL-Spezifisches
-hängt — `cobol_persist.py::persist_parse_result` könnte sie unverändert für
+hängt — `structure_persist.py::persist_parse_result` kann sie unverändert für
 jede Sprache verarbeiten. Das erzwang für einen künftigen zweiten Struktur-
 Parser (siehe O-077, `core/registry.py::STRUCTURE_PARSERS`) die falsche
 Kopplung `from cobol.model import ParseResult`. Diese vier Typen (plus die

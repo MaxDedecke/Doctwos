@@ -15,8 +15,9 @@ import re
 
 # Keep this mapping intentionally conservative. The labels describe the
 # detected source family; they do not promise that a structure parser exists.
-# O-242 deliberately keeps XML-like resources discoverable as text until the
-# later structure-analysis work (O-247/O-249) provides dedicated parsers.
+# XML-like resources remain distinct language labels so the registry can apply
+# the smallest safe structure parser available (XSLT/XML in O-247, HTML/JSP in
+# O-249) without pretending that every vocabulary has full semantic support.
 DEFAULT_LANGUAGE_EXTENSIONS: dict[str, set[str]] = {
     "c": {".c", ".h"},
     "cpp": {".cc", ".cpp", ".cxx", ".hxx", ".hpp"},

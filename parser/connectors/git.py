@@ -42,7 +42,7 @@ from cobol import copybook as copybook_mod
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
-from cobol_persist import persist_parse_result
+from structure_persist import persist_parse_result
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
 from models.database import CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
@@ -660,7 +660,7 @@ class GitConnector(BaseConnector):
                 ).delete()
                 # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
                 # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
-                # korrekt, anders als beim Reparse-Fall in cobol_persist.py.
+                # korrekt, anders als beim Reparse-Fall in structure_persist.py.
                 # Java-Package-/Module-Entities sind allerdings dateiübergreifend
                 # geteilt und werden deshalb vor dem Löschen umgehängt.
                 _delete_file_entities(self.db, source_id=self.source_id, file_path=path)

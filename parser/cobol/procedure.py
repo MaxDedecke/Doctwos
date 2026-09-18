@@ -19,7 +19,7 @@ Auflösung passiert erst im Nachlauf-Pass (Plan §6.4 Pass 2).
 O-138: `program` ist bei mehreren bzw. verschachtelten Programmen pro Datei
 ausschließlich EIN CobolProgram mit seinen eigenen Paragraphen/Sections -
 `meta["program"]` trägt den Programmnamen zusätzlich auf jeder Kante mit, weil
-`cobol_persist.py` bei gleichnamigen Paragraphen/Feldern verschiedener
+`structure_persist.py` bei gleichnamigen Paragraphen/Feldern verschiedener
 Programme derselben Datei sonst nicht mehr zwischen ihnen unterscheiden kann
 (reine Namensgleichheit über `by_name`, ohne Programmzugehörigkeit).
 """

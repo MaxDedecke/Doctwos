@@ -14,7 +14,7 @@ ersten Mal geparst wurde, unabhängig davon, wie viele Syncs dazwischen liegen.
 
 Rein programmlokale Kantenarten (PERFORM/GOTO/USES, `scope_entity_id` gesetzt)
 sind hier absichtlich außen vor — die sind laut E-1 schon beim Parsen
-vollständig auflösbar (parser/cobol_persist.py) und dürfen NIE global über
+vollständig auflösbar (parser/structure_persist.py) und dürfen NIE global über
 dst_name gejoint werden (Paragraphen-/Feldnamen wie „INIT-PARA"/„WS-STATUS"
 sind in hunderten Programmen gleich benannt).
 """
@@ -213,6 +213,121 @@ def _resolve_java_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _resolve_xslt_edges(db: Session, source_id: int) -> int:
+    """Resolve XSLT module/resource and unambiguous template references.
+
+    XSLT parsing is intentionally file-local.  Includes, imports and XML
+    inputs can therefore only be connected after the repository has been
+    persisted.  Named templates and match/mode pairs are resolved only when
+    exactly one candidate exists; cycles and ambiguous modes remain visible as
+    unresolved edges instead of being guessed.
+    """
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    edges = (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .all()
+    )
+    if not edges:
+        return 0
+
+    by_variant_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
+    templates_by_name: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
+    templates_by_match_mode: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
+    for entity in entities:
+        if entity.qualified_name:
+            by_variant_qname[(entity.variant_key, entity.qualified_name)].append(entity)
+        if entity.type != "xslt_template":
+            continue
+        meta = entity.meta_json or {}
+        name = meta.get("template_name")
+        mode = meta.get("mode") or "#default"
+        match = meta.get("match")
+        if name:
+            templates_by_name[(entity.variant_key, name)].append(entity)
+        if match:
+            templates_by_match_mode[(entity.variant_key, match, mode)].append(entity)
+
+    resolved = 0
+    for edge in edges:
+        meta = edge.meta_json or {}
+        if meta.get("language") != "xslt":
+            continue
+        candidates: list[CodeEntity] = []
+        target_qname = meta.get("target_qualified_name")
+        target_file = meta.get("target_file_path")
+        target_type = meta.get("target_entity_type")
+        if target_qname and not target_file:
+            candidates = [
+                entity
+                for entity in by_variant_qname.get((edge.variant_key, target_qname), [])
+                if not target_type or entity.type == target_type
+            ]
+        elif target_file:
+            candidates = [
+                entity
+                for entity in entities
+                if entity.variant_key == edge.variant_key
+                and entity.file_path == target_file
+                and (not target_type or entity.type == target_type)
+                and (not target_qname or entity.qualified_name == target_qname)
+            ]
+        elif edge.type == "CALLS_TEMPLATE" and meta.get("template_name"):
+            candidates = templates_by_name.get(
+                (edge.variant_key, meta["template_name"]), []
+            )
+        elif edge.type == "APPLIES_TEMPLATES":
+            mode = meta.get("mode") or "#default"
+            select = (meta.get("select") or "").strip()
+            candidates = templates_by_match_mode.get(
+                (edge.variant_key, select, mode), []
+            )
+
+        if len(candidates) == 1:
+            edge.dst_entity_id = candidates[0].id
+            edge.resolution = "resolved"
+            meta["target_qualified_name"] = candidates[0].qualified_name
+            meta["resolution_scope"] = "source"
+            edge.meta_json = meta
+            resolved += 1
+    return resolved
+
+
+def _resolve_markup_edges(db: Session, source_id: int) -> int:
+    """Connect only literal repository-relative JSP/HTML resource references.
+
+    Form actions deliberately stay unresolved: mapping a URL to a servlet or
+    controller requires framework configuration (O-246), which is not inferred
+    from a page alone. Includes and literal links do have a file-level proof.
+    """
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    edges = db.query(CodeEdge).filter(
+        CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved"
+    ).all()
+    resolved = 0
+    for edge in edges:
+        meta = edge.meta_json or {}
+        if meta.get("language") not in {"jsp", "html"}:
+            continue
+        target_file = meta.get("target_file_path")
+        if not target_file:
+            continue
+        target_type = meta.get("target_entity_type")
+        candidates = [
+            entity for entity in entities
+            if entity.variant_key == edge.variant_key and entity.file_path == target_file
+            and (not target_type or entity.type == target_type)
+        ]
+        if len(candidates) == 1:
+            edge.dst_entity_id = candidates[0].id
+            edge.resolution = "resolved"
+            meta["target_qualified_name"] = candidates[0].qualified_name
+            meta["resolution_scope"] = "source"
+            edge.meta_json = meta
+            resolved += 1
+    return resolved
+
+
 def resolve_global_edges(db: Session, source_id: int) -> int:
     """Resolve persisted COBOL and Java edges for one source.
 
@@ -222,6 +337,8 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     """
     resolved = _resolve_cobol_edges(db, source_id)
     resolved += _resolve_java_edges(db, source_id)
+    resolved += _resolve_xslt_edges(db, source_id)
+    resolved += _resolve_markup_edges(db, source_id)
     if resolved:
         db.commit()
     return resolved

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from cobol_persist import _build_edge
+from structure_persist import _build_edge
 from java.parse import parse_java_file
 from java.resolution import resolve_global_edges
 from models.database import CodeEdge, CodeEntity

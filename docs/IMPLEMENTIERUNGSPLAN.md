@@ -488,7 +488,7 @@ Konfigurierbar über `DOCTUS_COBOL_EXTENSIONS` (Env) + Wissensquellen-Feld — e
 
 > **Läuft, Stand 31.07.2026.** Pass 0-2 (§6.4) sind umgesetzt: `parser/
 > connectors/git.py::_build_copybook_index` (Pass 0), `parser/
-> cobol_persist.py` (Pass 1 — Entity-/Kanten-UPSERT mit ID-Erhalt über
+> structure_persist.py` (Pass 1 — Entity-/Kanten-UPSERT mit ID-Erhalt über
 > Reparse hinweg, siehe Docstring dort für die dabei gefundene CASCADE-
 > Falle), `parser/tasks/edge_resolver.py::resolve_global_edges` (Pass 2).
 > `parse.py` bekam `parse_copybook()` für eigenständige Copybook-Entities

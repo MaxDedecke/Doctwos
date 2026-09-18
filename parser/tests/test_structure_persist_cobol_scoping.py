@@ -1,5 +1,5 @@
 """
-O-138: cobol_persist.py darf einen PERFORM/GOTO/USES niemals auf einen
+O-138: structure_persist.py darf einen PERFORM/GOTO/USES niemals auf einen
 gleichnamigen Paragraphen/ein gleichnamiges Feld eines ANDEREN Programms
 derselben Datei auflösen, nur weil er zufällig der einzige (oder erste)
 Namenstreffer ist - Abnahme "gleiche Paragraph-/Feldnamen bleiben
@@ -10,7 +10,11 @@ Session.
 """
 
 from cobol.model import ParsedEdge
-from cobol_persist import _belongs_to_program, _find_src, _parent_id, _resolve_local_target
+from cobol.persistence import belongs_to_program as _belongs_to_program
+from cobol.persistence import find_source as _find_src
+from cobol.persistence import parent_name as _parent_name
+from cobol.persistence import resolve_local_target as _resolve_local_target
+from structure_persist import _parent_id
 from models.database import CodeEntity
 
 

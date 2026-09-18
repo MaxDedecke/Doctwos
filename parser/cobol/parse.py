@@ -244,7 +244,7 @@ def _build_entities(
     # derselben Datei kollidieren (uq_code_entities_source_qname). Eigene
     # Sections/Paragraphen/Felder bleiben trotzdem am einfachen `program.name`
     # verankert (siehe unten) - das ist die Invariante, auf die sich
-    # cobol_persist.py::_belongs_to_program() verlässt.
+    # structure_persist.py::_belongs_to_program() verlässt.
     entities.append(
         Entity(
             type="program",

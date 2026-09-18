@@ -1,0 +1,1 @@
+"""Static XSLT structure analysis."""

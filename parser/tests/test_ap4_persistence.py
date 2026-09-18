@@ -1,5 +1,5 @@
 """
-AP-4: Entity-/Kanten-Persistenz (Pass 1, cobol_persist.py) + globale
+AP-4: Entity-/Kanten-Persistenz (Pass 1, structure_persist.py) + globale
 Nachauflösung (Pass 2, tasks/edge_resolver.py) end-to-end über
 GitConnector.sync() -- braucht einen erreichbaren DB-Host, siehe
 test_git_connector.py fuer denselben Docker-Netz-Vorbehalt.

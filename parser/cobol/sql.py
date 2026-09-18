@@ -20,7 +20,7 @@ Disambiguierung, also bleibt Mehrdeutigkeit hier immer unresolved.
 
 O-138: `own_range` grenzt `blocks` bei mehreren/verschachtelten Programmen
 auf die EXEC-SQL-Vorkommen DIESES Programms ein, und `meta["program"]` macht
-die Programmzugehörigkeit für `cobol_persist.py` sichtbar - siehe
+die Programmzugehörigkeit für `structure_persist.py` sichtbar - siehe
 procedure.py-Docstring für die ausführliche Begründung.
 """
 

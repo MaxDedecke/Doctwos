@@ -72,7 +72,7 @@ class ParseResult:
   USES/DEFINES) und `None` für global aufzulösende (CALL/COPY,
   docs/ENTSCHEIDUNGEN.md E-1) — eine neue Kantenart in dieselbe Kategorie
   einsortieren, keine dritte Auflösungsart erfinden. **Wichtiger Fallstrick:**
-  `cobol_persist.py::persist_parse_result` erzwingt für jede globale Kante
+  `structure_persist.py::persist_parse_result` erzwingt für jede globale Kante
   `resolution="unresolved"` (außer `"dynamic"`), egal was der Parser meldet
   — DB-seitig gilt "resolved" erst, wenn Pass 2
   (`parser/tasks/edge_resolver.py`) tatsächlich eine Ziel-Entity gefunden
@@ -127,7 +127,7 @@ was Schritt 3 registriert.
 
 Eigenes Paket `parser/<sprache>/` analog `parser/cobol/` — reine
 Parse-Logik, komplett DB-frei (E-6), kein Import aus `connectors/`,
-`models/` oder `cobol_persist.py`. Einstiegsfunktion mit der Signatur, die
+`models/` oder `structure_persist.py`. Einstiegsfunktion mit der Signatur, die
 `StructureParser` in `core/registry.py` verlangt:
 
 ```python
@@ -216,8 +216,8 @@ den langsameren Haupt-Job angewiesen.
 Das ist der eigentliche Beleg für "skalierbar" — nicht die Behauptung,
 sondern dass diese Liste tatsächlich leer bleibt:
 
-- **`cobol_persist.py::persist_parse_result`** — trotz des Dateinamens
-  bereits vollständig sprachneutral: nimmt ein `ParseResult` entgegen und
+- **`structure_persist.py::persist_parse_result`** — vollständig
+  sprachneutral: nimmt ein `ParseResult` entgegen und
   schreibt es generisch nach `code_entities`/`code_edges` (UPSERT über
   `(source_id, file_path, qualified_name)`). Kein einziges COBOL-spezifisches
   Verhalten im Code selbst.

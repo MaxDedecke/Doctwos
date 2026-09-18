@@ -1,11 +1,11 @@
 """
-parser/cobol_persist.py
+parser/structure_persist.py
 =========================
 Pass 1 (Plan §6.4, docs/ENTSCHEIDUNGEN.md E-6): schreibt ein `ParseResult`
-(`cobol.parse.parse_program()`/`parse_copybook()`, rein in-memory, kein
-DB-Zugriff) für **eine** Datei nach `code_entities`/`code_edges`. Bewusst
-außerhalb von `parser/cobol/` — dieses Paket bleibt komplett DB-frei (E-6),
-genau wie `chunk_reindex.py` neben dem generischen `code_parser.py` sitzt.
+aus jedem registrierten Strukturparser (rein in-memory, kein DB-Zugriff) für
+**eine** Datei nach `code_entities`/`code_edges`. Bewusst außerhalb der
+sprachspezifischen Parserpakete — COBOL, Java, Maven, XSLT und XML verwenden
+denselben Persistenzvertrag.
 
 Zentrale Entwurfsentscheidung: Entities werden per (source_id, file_path,
 qualified_name) UPSERT geschrieben, nicht gelöscht+neu eingefügt. Ein Reparse
@@ -18,18 +18,16 @@ die Kante deshalb bis zum nächsten vollständigen Sync von C verloren bliebe.
 Nur wirklich verschwundene Entities (z.B. ein gelöschter Paragraph) werden
 gezielt per qualified_name entfernt — CASCADE greift dann zu Recht.
 
-Kanten dieser Datei (src liegt laut Konstruktion in procedure.py/copybook.py/
-sql.py/xref.py immer in derselben Datei) werden dagegen vollständig ersetzt —
+Kanten dieser Datei werden dagegen vollständig ersetzt —
 anders als bei Entities gibt es keine Fremdreferenz von außen auf eine
 einzelne Kantenzeile.
 
-Globale Kantenarten (CALL/COPY, scope=None) bleiben hier unresolved/dynamic —
-ihre Auflösung ist Pass 2 (parser/tasks/edge_resolver.py), weil das Ziel
-typischerweise in einer anderen, möglicherweise noch nicht geparsten Datei
-liegt. Lokale Kantenarten (PERFORM/GOTO/USES, scope gesetzt) sind laut E-1
-schon beim Parsen vollständig auflösbar und werden hier sofort verdrahtet.
+Globale Kantenarten bleiben hier unresolved/dynamic — ihre Auflösung ist Pass 2
+(parser/tasks/edge_resolver.py), weil das Ziel typischerweise in einer anderen,
+möglicherweise noch nicht geparsten Datei liegt. Sprachspezifische lokale
+Kanten dürfen dagegen bereits beim Parsen verdrahtet werden.
 
-Wichtig für COPY: `copybook.py` setzt `ParsedEdge.resolution="resolved"`
+Wichtig für COBOL-COPY: `copybook.py` setzt `ParsedEdge.resolution="resolved"`
 bereits, sobald der Pass-0-Namensindex GENAU EINEN Pfad zu `dst_name` kennt —
 das ist eine reine Namensauflösung zur Parse-Zeit, keine DB-Auflösung (die
 Ziel-Entity existiert zu diesem Zeitpunkt evtl. noch gar nicht in
@@ -46,30 +44,22 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from cobol.model import ParsedEdge, ParseResult
+from core.model import ParsedEdge, ParseResult
 from models.database import CodeEdge, CodeEntity
 from link_dirty import enqueue_dirty_item
 
-# Welche Entity-Typen als Ziel einer lokalen Kantenart infrage kommen —
-# verhindert z.B., dass ein Datenfeld fälschlich als PERFORM-Ziel durchgeht,
-# nur weil es zufällig denselben Namen wie ein Paragraph trägt.
-_LOCAL_TARGET_TYPES: dict[str, tuple[str, ...]] = {
-    "PERFORM": ("paragraph", "section"),
-    "GOTO": ("paragraph", "section"),
-    "USES": ("data_item",),
-    "DEFINES": ("data_item",),
-}
 
-# Plausible Herkunftstypen einer Kante, je Kantenart — grenzt den Bereich
-# beim Auflösen von edge.src_name (Paragraph-/Programmname oder ein
-# synthetischer SQL-Block-Name) ein.
-_SRC_TYPES: dict[str, tuple[str, ...]] = {
-    "CALL": ("program", "paragraph"),
-    "PERFORM": ("program", "paragraph"),
-    "GOTO": ("program", "paragraph"),
-    "COPY": ("program", "paragraph"),
-    "USES": ("program", "paragraph", "sql_block"),
-}
+def _result_language(result: ParseResult) -> str | None:
+    """Return the parser language without making persistence parser-specific."""
+    for entity in result.entities:
+        language = (entity.meta or {}).get("language")
+        if language:
+            return language
+    root_type = result.entities[0].type if result.entities else None
+    return {
+        "program": "cobol",
+        "copybook": "copybook",
+    }.get(root_type)
 
 
 def persist_parse_result(
@@ -203,8 +193,17 @@ def persist_parse_result(
         ).delete(synchronize_session=False)
 
     edge_count = 0
+    language = _result_language(result)
     for edge in result.edges:
-        row = _build_edge(project_id, source_id, result.variant_key, edge, by_qname, by_name)
+        row = _build_edge(
+            project_id,
+            source_id,
+            result.variant_key,
+            edge,
+            by_qname,
+            by_name,
+            language=language,
+        )
         if row is None:
             continue
         db.add(row)
@@ -236,11 +235,18 @@ def _parent_id(
 
 
 def _find_src(
-    edge: ParsedEdge, by_qname: dict[str, CodeEntity], by_name: dict[str, list[CodeEntity]]
+    edge: ParsedEdge,
+    by_qname: dict[str, CodeEntity],
+    by_name: dict[str, list[CodeEntity]],
+    *,
+    language: str | None = None,
 ) -> CodeEntity | None:
-    # Java uses the stable qualified name as the source identity (for example
-    # ``demo.Client#call()``).  COBOL historically used ``src_name`` as a
-    # simple name, so retain that fallback below.
+    """Find an edge source using a qualified identity where available.
+
+    COBOL's simple-name/program-scope fallback is delegated to its own policy
+    module. Other languages must provide a stable qualified source name or an
+    unambiguous simple-name match.
+    """
     direct = by_qname.get(edge.src_name)
     if direct is not None:
         return direct
@@ -249,93 +255,12 @@ def _find_src(
         direct = by_qname.get(source_qname)
         if direct is not None:
             return direct
-    if not edge.src_name:
-        # procedure.py/xref.py liefern "" als src_name, wenn eine Anweisung
-        # direkt unter PROCEDURE DIVISION ohne umschließenden Paragraphen
-        # steht (seltener, aber gültiger Fall) - die Quelle ist dann das
-        # Programm selbst. O-138: bei mehreren Programmen pro Datei reicht
-        # "irgendeine program-Entity dieser Datei" nicht mehr - meta["program"]
-        # (von procedure.py/xref.py/copybook.py/sql.py gesetzt) grenzt auf das
-        # tatsächlich umschließende Programm ein; ohne den Hinweis (ältere/
-        # synthetische ParsedEdge ohne meta, z.B. in Tests) bleibt der alte
-        # "erstes Programm der Datei"-Fallback erhalten.
-        program_hint = (edge.meta or {}).get("program")
-        if program_hint:
-            hinted = [c for c in by_name.get(program_hint.upper(), []) if c.type == "program"]
-            if len(hinted) == 1:
-                return hinted[0]
-        return next((row for row in by_qname.values() if row.type == "program"), None)
+    if language in {"cobol", "copybook"} or edge.scope is not None:
+        from cobol.persistence import find_source
 
-    allowed = _SRC_TYPES.get(edge.type)
-    candidates = [
-        c for c in by_name.get(edge.src_name.upper(), []) if allowed is None or c.type in allowed
-    ]
-    if len(candidates) == 1:
-        return candidates[0]
-    if len(candidates) > 1:
-        # Anders als bei der Zielauflösung (E-2 "kein Raten") geht es hier nur
-        # um die Herkunft einer bereits geparsten Kante, nicht um eine neue
-        # fachliche Aussage - eine Namenskollision am Quellknoten (z.B. zwei
-        # gleichnamige Paragraphen in unterschiedlichen Sections) ist ein
-        # seltener Randfall, der Sicht auf die Kante nicht verlieren soll.
-        return candidates[0]
-    return None
-
-
-def _resolve_local_target(
-    edge: ParsedEdge, by_qname: dict[str, CodeEntity], by_name: dict[str, list[CodeEntity]]
-) -> CodeEntity | None:
-    allowed = _LOCAL_TARGET_TYPES.get(edge.type)
-    candidates = [
-        c for c in by_name.get(edge.dst_name.upper(), []) if allowed is None or c.type in allowed
-    ]
-
-    # O-138: ein PERFORM/GOTO/USES ist laut E-1 programmlokal - ein
-    # gleichnamiger Paragraph/ein gleichnamiges Feld in einem ANDEREN
-    # Programm derselben Datei ist deshalb kein gültiges Ziel, auch wenn er
-    # gerade der einzige Namenstreffer ist. meta["program"] (vom jeweiligen
-    # Scan-Modul gesetzt) grenzt zuerst auf Entities desselben Programms ein;
-    # bleibt danach nichts übrig, ist die Kante unresolved statt geraten -
-    # genau der Fehler, den O-138 beheben soll. Ohne den Hinweis (Kante ohne
-    # meta["program"]) bleibt das alte, ungegrenzte Verhalten erhalten.
-    program_hint = (edge.meta or {}).get("program")
-    if program_hint:
-        scoped = [c for c in candidates if _belongs_to_program(c, program_hint)]
-        if len(scoped) != len(candidates):
-            candidates = scoped
-
-    if len(candidates) == 1:
-        return candidates[0]
-    if len(candidates) > 1:
-        parent_hint = (edge.meta or {}).get("parent")
-        if parent_hint:
-            narrowed = [
-                c
-                for c in candidates
-                if (_parent_name(c, by_qname) or "").upper() == parent_hint.upper()
-            ]
-            if len(narrowed) == 1:
-                return narrowed[0]
-    return None
-
-
-def _belongs_to_program(row: CodeEntity, program_name: str) -> bool:
-    """O-138: das erste Segment eines qualified_name ist immer der einfache
-    Name des Programms, das die Entity gebaut hat (parse.py::_build_entities
-    qualifiziert Sections/Paragraphen/Felder IMMER relativ zu `program.name`,
-    nie zu dessen ggf. selbst schon qualifiziertem eigenen qualified_name -
-    siehe cobol/model.py::CobolProgram-Docstring) - ein einfacher Split
-    reicht deshalb, unabhängig von Verschachtelungstiefe."""
-    if not row.qualified_name:
-        return False
-    return row.qualified_name.split(".", 1)[0].upper() == program_name.upper()
-
-
-def _parent_name(row: CodeEntity, by_qname: dict[str, CodeEntity]) -> str | None:
-    if not row.qualified_name or "." not in row.qualified_name:
-        return None
-    parent = by_qname.get(row.qualified_name.rsplit(".", 1)[0])
-    return parent.name if parent else None
+        return find_source(edge, by_qname, by_name)
+    candidates = by_name.get(edge.src_name.upper(), []) if edge.src_name else []
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def _build_edge(
@@ -345,8 +270,11 @@ def _build_edge(
     edge: ParsedEdge,
     by_qname: dict[str, CodeEntity],
     by_name: dict[str, list[CodeEntity]],
+    *,
+    language: str | None = None,
 ) -> CodeEdge | None:
-    src = _find_src(edge, by_qname, by_name)
+    language = language or (edge.meta or {}).get("language")
+    src = _find_src(edge, by_qname, by_name, language=language)
     if src is None:
         # Inkonsistenz zwischen Parser-Modul und Entity-Bau (sollte nicht
         # vorkommen) - kein Abbruch (Plan §6.1 Regel 2), die Kante wird
@@ -365,14 +293,16 @@ def _build_edge(
             # und wird nach dem vollständigen Sync pfadgenau nachaufgelöst.
             resolution = "unresolved"
         elif resolution == "resolved":
-            dst_entity = _resolve_local_target(edge, by_qname, by_name)
+            from cobol.persistence import resolve_local_target
+
+            dst_entity = resolve_local_target(edge, by_qname, by_name)
             if dst_entity is None:
                 resolution = "unresolved"
-    elif (edge.meta or {}).get("language") == "java":
-        # Java has no COBOL-style scope column.  Local and global resolution
-        # is represented by the stable target QName in edge metadata.  Only
-        # mark a DB edge resolved once its target row is actually present;
-        # the DB resolver will fill cross-file targets after the whole sync.
+    elif (edge.meta or {}).get("language") in {"java", "xslt", "jsp", "html"}:
+        # Java and XSLT have no COBOL-style scope column.  Local resolution is
+        # represented by a stable target QName in edge metadata.  Only mark a
+        # DB edge resolved once its target row is actually present; the
+        # language-specific/global resolver fills cross-file targets later.
         target_qname = (edge.meta or {}).get("target_qualified_name")
         if resolution == "resolved" and target_qname:
             dst_entity = by_qname.get(target_qname)

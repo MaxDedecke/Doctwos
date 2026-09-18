@@ -49,6 +49,20 @@ def test_java_registry_entry_produces_entities_and_symbol_chunks():
     assert any(chunk.meta.get("symbol_type") == "method" for chunk in result.chunks)
 
 
+def test_markup_registry_entries_produce_navigable_roots():
+    xslt = registry.STRUCTURE_PARSERS["xslt"].parse(
+        '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"/>',
+        "styles/main.xsl",
+    )
+    xml = registry.STRUCTURE_PARSERS["xml"].parse("<root/>", "input.xml")
+
+    assert registry.STRUCTURE_PARSERS["xslt"].root_entity_types == ("xslt_stylesheet",)
+    assert registry.STRUCTURE_PARSERS["xml"].root_entity_types == ("xml_document",)
+    assert xslt.entities[0].type == "xslt_stylesheet"
+    assert xml.entities[0].type == "xml_document"
+    assert registry.STRUCTURE_PARSERS["jsp"].parse("${order.id}", "view.jsp").entities[0].type == "jsp_page"
+
+
 def test_registry_inputs_preserve_existing_cobol_analysis_fingerprint():
     entry = registry.STRUCTURE_PARSERS["cobol"]
     shared_fingerprint = analysis_fingerprint(

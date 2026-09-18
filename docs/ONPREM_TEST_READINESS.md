@@ -735,12 +735,12 @@ als nicht anwendbar abschließen.
 
 ### O-247 – P2 / XSLT: Templates und Transformationsabhängigkeiten analysieren
 
-- [ ] XSLT über die bestehende Parser-Registry anbinden: Stylesheet, Templates mit
+- [x] **Erledigt 18.09.2026:** XSLT über die bestehende Parser-Registry anbinden: Stylesheet, Templates mit
   `name`/`match`/`mode`, Parameter/Variablen und Abschnitte sinnvoll erfassen.
-- [ ] `xsl:include`, `xsl:import`, `xsl:call-template` und belegbare
+- [x] **Erledigt 18.09.2026:** `xsl:include`, `xsl:import`, `xsl:call-template` und belegbare
   `xsl:apply-templates`-Beziehungen aufnehmen. Namespaces, relative Pfade und
   Import-Prioritäten im vereinbarten Versionsumfang berücksichtigen.
-- [ ] XPath-Ausdrücke als Quellbelege erhalten; dynamische Dokument- und Template-
+- [x] **Erledigt 18.09.2026:** XPath-Ausdrücke als Quellbelege erhalten; dynamische Dokument- und Template-
   Auswahl nicht zu vermeintlich eindeutigen Aufrufen vereinfachen.
 
 **Abnahme:** Referenz-Stylesheets liefern suchbare Template-Chunks und navigierbare
@@ -763,10 +763,10 @@ Bei nicht unterstütztem Dialekt expliziter Textfallback statt falscher Aufrufgr
 
 ### O-249 – P2 / JSP und HTML: Ansichten, Includes und Serverbezüge sichtbar machen
 
-- [ ] JSP-Mischinhalte unterscheiden: Direktiven, Includes, Taglibs, EL und Java-
+- [x] **Erledigt 18.09.2026:** JSP-Mischinhalte unterscheiden: Direktiven, Includes, Taglibs, EL und Java-
   Scriptlets. HTML-Formularziele und statische Ressourcenbezüge erfassen, soweit
   sie im Bestand für Analysefragen gebraucht werden.
-- [ ] Java-Fragmente mit Originalpositionen verbinden; JSP nicht als vollständige
+- [x] **Erledigt 18.09.2026:** Java-Fragmente mit Originalpositionen verbinden; JSP nicht als vollständige
   Java-Quelldatei behandeln. Eigene Tag-Dateien und Konfiguration bedingt einbeziehen.
 
 **Abnahme:** Eine relevante JSP-/HTML-Seite ist als Quelltext navigierbar; belegte
