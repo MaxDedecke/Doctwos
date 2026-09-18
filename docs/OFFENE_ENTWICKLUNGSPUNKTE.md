@@ -60,6 +60,15 @@ behaupten keinen Strukturparser — XML/HTML/JSP werden für O-242 nachvollziehb
 Text indexiert; die Strukturabdeckung folgt in O-247/O-249. Migration `0022` und
 Regressionstests für Erkennung und Bericht ergänzt.
 
+**Ergänzung 18.09.2026 (6):** Zweiter Referenzimport für die XML-/Java-/Web-
+Abdeckung vorgemerkt: **Apache Syncope 2.1.14**. Die feste Java-8-Reihe bringt
+Maven, SOAP/XML, CXF, HTML/XSLT, Shell-Skripte und eine große Enterprise-
+Anwendungsstruktur zusammen. Import erst nach Abschluss der Maven-Unterstützung;
+für die Analyse wird eine feste Releasequelle verwendet, kein laufender Build.
+Quellen: [Repository](https://github.com/apache/syncope),
+[Java-8-Anforderungen](https://syncope.apache.org/docs/2.1/getting-started.pdf),
+[Maven-Build](https://syncope.apache.org/building).
+
 ## Aktuell offen
 
 | ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
@@ -486,7 +495,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 | O-241 | P1 / siehe Detail | Git-/Snapshot-Importweg für vollständige Offline-Quellcodeanalyse absichern. |
 | O-242 | P1 / siehe Detail | **Erledigt 18.09.2026:** Sprach-, Encoding-, Status- und Ausschlussbericht für den Mischbestand im Git-Import ergänzt; XML/HTML/JSP/XSLT/Properties bleiben auffindbar. |
 | O-243 | P1 / siehe Detail | Vorhandene Java-Syntax-/Strukturunterstützung am Zielbestand absichern. |
-| O-244 | P1 / siehe Detail | Java-Module, Source-Sets und Build-Metadaten unterscheiden. |
+| O-244 | P1 / siehe Detail | **In Arbeit 18.09.2026:** Java-Module, Source-Sets und Maven-Build-Metadaten statisch unterscheiden; Maven wird nicht ausgeführt und lädt keine Abhängigkeiten. |
 | O-245 | P1 / siehe Detail | Java-Aufrufauflösung und Unsicherheit anhand belegter Referenzfälle prüfen. |
 | O-246 | P2 / bedarfsabhängig | Vorhandene Framework-Einstiegspunkte und Konfiguration bedingt verbinden. |
 | O-247 | P2 / bedarfsabhängig | XSLT-Templates und Transformationsabhängigkeiten statisch analysieren. |

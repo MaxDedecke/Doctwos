@@ -153,7 +153,9 @@ def test_maven_module_path_is_attached_to_root_and_nested_entities() -> None:
     )
 
     assert result.entities[0].meta["module"] == "billing"
+    assert result.entities[0].meta["source_set"] == "main"
     assert all(entity.meta["module"] == "billing" for entity in result.entities)
+    assert all(entity.meta["source_set"] == "main" for entity in result.entities)
 
 
 def test_java_chunks_follow_symbols_and_keep_source_context() -> None:

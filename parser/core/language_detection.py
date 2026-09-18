@@ -100,6 +100,11 @@ def detect_language(
     """
 
     configured = extensions or DEFAULT_LANGUAGE_EXTENSIONS
+    # Maven descriptors are XML files syntactically, but their build
+    # semantics matter for the source graph. Keep them distinguishable so a
+    # dedicated static parser can inspect them without executing Maven.
+    if os.path.basename(path).lower() == "pom.xml":
+        return "maven"
     suffix = os.path.splitext(path)[1].lower()
     for language, suffixes in configured.items():
         if suffix in suffixes:

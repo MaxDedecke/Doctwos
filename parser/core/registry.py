@@ -11,6 +11,7 @@ from core.analysis_fingerprint import grammar_fingerprint as cobol_grammar_finge
 from core.model import ParseResult
 from java.fingerprint import grammar_fingerprint as java_grammar_fingerprint
 from java.parse import parse_java_file
+from maven.parse import parse_maven_pom
 
 
 class StructureParser(Protocol):
@@ -74,5 +75,10 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         root_entity_types=("compilation_unit",),
         parser_version="java-structure-1",
         grammar_fingerprint=java_grammar_fingerprint,
+    ),
+    "maven": ParserEntry(
+        parse=parse_maven_pom,
+        root_entity_types=("maven_project",),
+        parser_version="maven-structure-1",
     ),
 }

@@ -594,7 +594,7 @@ Chat-Antwort weiterlaufen; Werkzeugstatus und Nutzeranzeige behaupten keinen Erf
 | Shell | `.sh`, `.bash`, `.zsh`, `.fish` werden erkannt | Generisches Text-Chunking; kein Shell-Strukturparser in der Registry; Dateien ohne Endung werden so nicht als Shell erkannt |
 | HTML / JSP | Im Git-Pfad grundsätzlich Text-Chunking | Keine eigenen Standard-Sprachlabels für HTML/JSP und keine Strukturparser; JSP ist eine Mischsprache |
 | Quellcode-Anlieferung | Git-Connector führt die Strukturparser aus | Ordnerquelle erlaubt aktuell nur `.pdf/.docx/.doc/.txt/.md`; normaler Upload ebenfalls nur Dokumentformate, kein Java-Projekt-/ZIP-Import |
-| Build-Kontext | Java-Modulhinweis aus `src/<set>/java`-Pfad; Importauflösung | Keine Maven-/Gradle-/Ant-Buildgraph-Auswertung in `java/modules.py`; alternative Layouts und Klassenpfadgrenzen prüfen |
+| Build-Kontext | Java-Modul- und Source-Set-Hinweis aus `src/<set>/java`-Pfad; statische Maven-POM-Entities für Projekte, Module, Dependencies und Plugins | Kein Maven-/Gradle-/Ant-Build und keine Auflösung externer Artefakte; alternative Layouts und Klassenpfadgrenzen prüfen |
 | Java-Chunking | Symbolorientiert, standardmäßig ca. 1000 Zeichen | `_split_range` teilt nur an Zeilengrenzen; eine einzelne sehr lange Zeile kann die gewünschte Chunkgröße überschreiten |
 
 Quellen: [Spracherkennung](../parser/core/language_detection.py),
@@ -690,8 +690,12 @@ generierte ANTLR-Dateien funktionieren im endgültigen Offline-Runtime-Image.
 
 ### O-244 – P1 / Java: Module, Source-Sets und Build-Metadaten unterscheiden
 
-- [ ] Vorhandenen Pfadhinweis um die im Bestand nötigen Maven-/Gradle-/Ant-
-  Metadaten ergänzen; keine vollständige Buildausführung voraussetzen.
+- [x] Maven-POMs statisch als Projekte, Module, Dependencies, Plugins und
+  Properties erfassen; keine vollständige Buildausführung voraussetzen.
+- [x] Java-Entities um `module` und `source_set` aus konventionellen Maven-
+  Pfaden (`src/main/java`, `src/test/java`, `src/it/java` usw.) ergänzen.
+- [ ] Gradle-/Ant-Metadaten nach demselben Vertrag ergänzen, sobald der
+  Referenzbestand sie tatsächlich benötigt.
 - [ ] Produktions-, Test- und generierte Quellen sowie Ressourcensets getrennt
   kennzeichnen. Doppelte vollqualifizierte Klassennamen zwischen Modulen prüfen.
 - [ ] Abhängigkeiten nur soweit aus vorhandenen Dateien belegbar übernehmen;

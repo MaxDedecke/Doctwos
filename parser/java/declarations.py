@@ -54,6 +54,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         self._parents = [root]
         self._package_name: str | None = None
         self._module_path = root.meta.get("module")
+        self._source_set = root.meta.get("source_set")
         self._lombok_policies: list[set[str]] = []
         self._explicit_method_keys: list[set[tuple[str, tuple[str, ...]]]] = []
 
@@ -215,6 +216,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             meta={
                 "language": "java",
                 **({"module": self._module_path} if self._module_path is not None else {}),
+                **({"source_set": self._source_set} if self._source_set is not None else {}),
                 **(meta or {}),
             },
         )

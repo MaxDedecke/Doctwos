@@ -90,7 +90,7 @@ def test_common_programming_languages_are_detected_by_default(monkeypatch):
     assert classify_extension("web/templates/page.jspx", defaults) == "jsp"
     assert classify_extension("web/styles/main.xslt", defaults) == "xslt"
     assert classify_extension("config/application.properties", defaults) == "properties"
-    assert classify_extension("build/pom.xml", defaults) == "xml"
+    assert classify_extension("build/pom.xml", defaults) == "maven"
     assert classify_extension("README.md", defaults) == "text"
 
 
