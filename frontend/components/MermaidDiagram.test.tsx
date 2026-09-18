@@ -18,7 +18,10 @@ describe('MermaidDiagram', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Diagramm maximieren' }));
 
-    expect(screen.getByRole('dialog', { name: 'Ablaufdiagramm in Großansicht' })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Ablaufdiagramm in Großansicht' });
+    expect(dialog).toBeTruthy();
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog.className).toContain('z-[3000]');
     expect(screen.getByText('Ablaufdiagramm')).toBeTruthy();
 
     fireEvent.keyDown(window, { key: 'Escape' });

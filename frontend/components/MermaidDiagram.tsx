@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { AlertTriangle, Loader2, Maximize2, X } from 'lucide-react';
 import type { MermaidConfig } from 'mermaid';
 import React, { useEffect, useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface MermaidDiagramProps {
   code: string;
@@ -96,12 +97,12 @@ export function MermaidDiagram({ code, theme }: MermaidDiagramProps) {
         <MermaidSvg code={code} theme={theme} />
       </div>
 
-      {isExpanded && (
+      {isExpanded && typeof document !== 'undefined' && createPortal(
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Ablaufdiagramm in Großansicht"
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-ds-black/80 p-3 backdrop-blur-sm sm:p-6"
+          className="fixed inset-0 z-[3000] flex items-center justify-center bg-ds-black/80 p-3 backdrop-blur-sm sm:p-6"
           onMouseDown={(event) => { if (event.target === event.currentTarget) setIsExpanded(false); }}
         >
           <section className={cn('flex h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border shadow-2xl sm:h-[calc(100dvh-3rem)] sm:w-[calc(100vw-3rem)]', isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-900')}>
@@ -121,7 +122,8 @@ export function MermaidDiagram({ code, theme }: MermaidDiagramProps) {
               <MermaidSvg code={code} theme={theme} expanded />
             </div>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
