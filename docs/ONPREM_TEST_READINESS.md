@@ -929,6 +929,22 @@ Abdeckung zusagen. Offline-Generalprobe O-228–O-239 mit diesem Profil durchfü
 **Abnahme:** POMs mit mehrfach deklarierten Abhängigkeiten (z. B. Standard + Javadoc/Test-Jar)
 werden ohne Datenbankfehler indiziert; alle Abhängigkeiten bleiben als eigene Entities auffindbar.
 
+### O-256 – P1 / Ingest: ISO-8859-1-Fallback für Java-.properties und Resource-Bundles
+
+- [ ] In `parser/connectors/git.py` und `parser/core/source_decoder.py` für `.properties`-Dateien
+  (und Resource-Bundles) einen automatischen Fallback auf `ISO-8859-1` (den historischen Standard
+  für `java.util.Properties`) implementieren, wenn kein Profil vorgegeben ist und striktes UTF-8
+  fehlschlägt.
+- [ ] Nach erfolgreicher ISO-8859-1-Dekodierung die bestehende `looks_like_text`-Prüfung
+  anwenden, sodass echte Binärdateien weiterhin zuverlässig abgelehnt werden.
+- [ ] Regressionstests in `parser/tests/test_source_decoder.py` und `parser/tests/test_git_connector.py`
+  für ISO-8859-1-kodierte Umlaute/Akzente (z. B. `\xe9` in französischen/deutschen Bundles) ergänzen.
+- [ ] Nach Deployment die 87 im Syncope-Import übersprungenen `.properties`-Dateien
+  reindizieren und vollständigen Textindex verifizieren.
+
+**Abnahme:** Lokalisierte Java-Properties-Dateien in ISO-8859-1 werden ohne Dekodierungsfehler
+als Text indexiert und gechunkt; Sonderzeichen und Umlaute bleiben im Volltext suchbar.
+
 ### Empfohlene Umsetzung für diesen Bestand
 
 1. O-200–O-215 und O-240/O-241 klären: Zielhost, Qwen-Endpunkte, Quellcodezugang,
