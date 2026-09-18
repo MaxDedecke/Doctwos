@@ -37,12 +37,13 @@ const EMPTY: PanelSelection = { selectedFile: null, selectedDoc: null, selectedE
 // Synchronisation zählen: globale Auswahl setzen und ensurePanelType() rufen.
 // Genau diese Sequenz wird hier gefahren, ohne den I/O-Teil der Seite.
 
-function renderLayout() {
+function renderLayout(linkManagerEnabled = true) {
   return renderHook(() => useWorkspaceLayout({
     activeSessionId: null,
     selectedProject: null,
     selectedSource: null,
     t: (key: string) => key,
+    linkManagerEnabled,
   }));
 }
 

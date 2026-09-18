@@ -6,6 +6,15 @@ set -e
 bundle_dir=$(cd "$(dirname "$0")" && pwd)
 cd "$bundle_dir"
 
+remote_inference=0
+for arg in "$@"; do
+    case "$arg" in
+        --remote-inference|--remote-ai)
+            remote_inference=1
+            ;;
+    esac
+done
+
 if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required but not found." >&2
     exit 1
@@ -30,7 +39,16 @@ tar xzf ollama-models.tar.gz -C data/ollama
 
 . scripts/lib/env-bootstrap.sh
 bootstrap_env "$bundle_dir"
-sync_compose_file "$bundle_dir" "docker-compose.offline.yml"
+sync_compose_file "$bundle_dir" "docker-compose.offline.yml" "$remote_inference"
+
+if [ "$remote_inference" = "1" ]; then
+    echo
+    echo "NOTE: Remote inference active (docker-compose.remote-inference.yml)."
+    echo "Verify that OLLAMA_BASE_URL and EMBEDDING_BASE_URL in .env point to your remote Ollama host."
+    echo "You can test connectivity with: ./test-remote-inference.sh"
+    echo "Local Ollama remains available in profile 'local-ollama' (run: docker compose --profile local-ollama up -d)."
+    echo
+fi
 
 echo "==> Starting services (no build — images come from the loaded bundle)"
 # No -f here: sync_compose_file above set COMPOSE_FILE in .env to

@@ -56,19 +56,83 @@ The parser sends an `Authorization: Bearer …` header whenever a key is set.
 For managed endpoints set `EMBEDDING_AUTO_PULL=false`; Doctus then never calls
 Ollama's privileged `/api/pull` endpoint.
 
-## Existing installations
+## On-Premise Two-Machine Architecture (Machine A + Machine B)
 
-Migration `0018_ai_profiles` creates the immutable local profile. If the old
-deployment-wide `ai_settings` row points at an external URL, it is retained as
-**Remote (migriert)** and selected, including its encrypted credentials.
+In typical high-security on-premise enterprise environments, Doctus operates across two machines in the same private LAN without internet access:
 
-## Before first indexing
+- **Machine A (Doctus Host)**: Runs PostgreSQL (pgvector), Valkey, backend-api, parser-workers, and frontend. It also retains the local Ollama container and model weights as an instant offline fallback.
+- **Machine B (Inference/GPU Host)**: Runs a dedicated Ollama container or service with GPU acceleration (NVIDIA Container Toolkit).
 
-The embedding model must return exactly 1024 dimensions, matching Doctus'
-pgvector column. Reindex sources after changing an embedding model or service;
-mixing vectors from different models in one index is intentionally prevented.
+### 1. Setting up Machine B (Inference Host)
 
-Confirm with the service owner which exact chat and embedding paths they expose,
-the model IDs, and whether their key uses a Bearer header. If their API differs
-from native Ollama or OpenAI-compatible embeddings, add a small provider adapter
-instead of guessing the path or response format.
+1. **Network Binding**:
+   By default, Ollama only listens on `127.0.0.1`. To allow Machine A to reach Ollama over the internal LAN, configure Ollama on Machine B to listen on all interfaces:
+   ```bash
+   # If running via systemd:
+   # In /etc/systemd/system/ollama.service.d/override.conf:
+   [Service]
+   Environment="OLLAMA_HOST=0.0.0.0"
+
+   # If running via Docker:
+   docker run -d --gpus all \
+     -v ollama:/root/.ollama \
+     -p 0.0.0.0:11434:11434 \
+     -e OLLAMA_HOST=0.0.0.0 \
+     --name ollama \
+     ollama/ollama:latest
+   ```
+
+2. **LAN Firewall Restriction (Crucial for Security)**:
+   Because Ollama has no built-in authentication, restrict port 11434 so **only Machine A** can communicate with Machine B:
+   ```bash
+   sudo ufw allow from <IP-OF-MACHINE-A> to any port 11434 proto tcp
+   ```
+
+3. **Required Models on Machine B**:
+   The pgvector database schema requires **exactly 1024 dimensions**. The required embedding model is `bge-m3`:
+   ```bash
+   ollama pull bge-m3
+   # Optional chat model (e.g. qwen2.5-coder:14b):
+   ollama pull qwen2.5-coder:14b
+   ```
+
+### 2. Pre-Flight Verification from Machine A
+
+Before ingesting projects, verify that Machine A can communicate with Machine B and that the embedding dimensions match:
+
+```bash
+./scripts/test-remote-inference.sh http://<IP-OF-MACHINE-B>:11434
+```
+
+The script verifies:
+1. HTTP connectivity to `/api/tags`
+2. Presence of the `bge-m3` model
+3. Live embedding generation
+4. Strict 1024-dimension vector verification
+
+### 3. Deploying Machine A & Ad-Hoc Switching
+
+The offline delivery bundle (`dist/doctus-offline-bundle-...`) is completely self-contained and contains all Docker images including the Ollama container and model weights.
+
+- **Primary Remote Operation**:
+  Run the installer with `--remote-inference`:
+  ```bash
+  ./install-offline.sh --remote-inference
+  ```
+  This activates `docker-compose.remote-inference.yml`, placing the local Ollama container in the `local-ollama` standby profile so it consumes 0 CPU/RAM on Machine A.
+
+- **Ad-Hoc Switch to Local Operation**:
+  If Machine B or the LAN connection becomes unavailable, switch to local operation instantly without re-downloading or re-shipping anything:
+  ```bash
+  # 1. Bring up the local Ollama container from standby:
+  docker compose --profile local-ollama up -d ollama
+
+  # 2. In Doctus UI (Settings → AI):
+  #    Click "Aktivieren" on the pre-configured "Lokales Ollama" profile.
+  ```
+
+- **Air-Gapped Guarantee (Zero External Network Calls)**:
+  - **Fonts**: All UI typography (Archivo, Space Grotesk, IBM Plex Mono) is bundled statically inside the frontend image. No requests to Google Fonts or CDNs are made.
+  - **Code Viewer**: Monaco Editor is pre-packaged locally (`/monaco/vs/`); it never requests CDN scripts.
+  - **Model Pulling**: `EMBEDDING_AUTO_PULL=false` by default; Doctus never attempts to pull models over the internet.
+

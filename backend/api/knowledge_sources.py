@@ -648,10 +648,9 @@ def get_knowledge_source_raw(
                 <head>
                     <meta charset="utf-8">
                     <title>{os.path.basename(file_path)}</title>
-                    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
                     <style>
                         body {{
-                            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
                             background-color: {bg_color};
                             color: {text_color};
                             padding: 2.5rem;

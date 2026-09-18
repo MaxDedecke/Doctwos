@@ -72,11 +72,16 @@ gpu_ready_for_docker() {
 sync_compose_file() {
     repo_root="$1"
     base_compose_file="$2"
+    remote_inference="${3:-0}"
     env_file="$repo_root/.env"
     [ -f "$env_file" ] || return 0
 
     compose_files="$base_compose_file"
-    if gpu_ready_for_docker; then
+    if [ "$remote_inference" = "1" ] || [ "$remote_inference" = "true" ]; then
+        echo "Remote inference mode selected — activating docker-compose.remote-inference.yml overlay."
+        echo "Local Ollama container is kept on standby in profile 'local-ollama' (ready to start ad-hoc at any time)."
+        compose_files="$compose_files:docker-compose.remote-inference.yml"
+    elif gpu_ready_for_docker; then
         echo "NVIDIA GPU + Container Toolkit detected — enabling GPU passthrough for Ollama (docker-compose.gpu.yml)."
         compose_files="$compose_files:docker-compose.gpu.yml"
     elif command -v nvidia-smi >/dev/null 2>&1; then

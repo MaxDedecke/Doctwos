@@ -71,7 +71,10 @@ function MonacoStub(props: EditorProps) {
   return <div data-testid="monaco-editor" data-language={props.defaultLanguage}>{props.value}</div>;
 }
 
-vi.mock('@monaco-editor/react', () => ({ default: (props: EditorProps) => <MonacoStub {...props} /> }));
+vi.mock('@monaco-editor/react', () => ({
+  default: (props: EditorProps) => <MonacoStub {...props} />,
+  loader: { config: vi.fn() },
+}));
 
 vi.mock('./KnowledgeGraphView', () => ({
   KnowledgeGraphView: (props: React.ComponentProps<typeof KnowledgeGraphView>) => {

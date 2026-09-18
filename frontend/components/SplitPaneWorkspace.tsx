@@ -1,9 +1,15 @@
 import type { CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocument } from '@/types/domain';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 import type { editor as MonacoEditor } from 'monaco-editor';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+// In air-gapped / on-premise environments, prevent Monaco loader from attempting
+// to reach cdn.jsdelivr.net by loading pre-bundled static assets from the local server.
+if (typeof window !== 'undefined') {
+  loader.config({ paths: { vs: '/monaco/vs' } });
+}
 
 import {
   BookOpen,

@@ -27,7 +27,9 @@ echo "Building offline bundle ${DOCTUS_VERSION} into ${bundle_dir}"
 rm -rf "$bundle_dir"
 mkdir -p "$bundle_dir"
 
-echo "==> Building doctus-backend-api, doctus-parser-worker, doctus-frontend:${DOCTUS_VERSION}"
+export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
+
+echo "==> Building doctus-backend-api, doctus-parser-worker, doctus-frontend:${DOCTUS_VERSION} (platform: ${DOCKER_DEFAULT_PLATFORM})"
 docker compose build backend-api
 docker compose build parser-worker
 docker compose build frontend
@@ -88,11 +90,14 @@ rm -rf "$models_dir"
 
 echo "==> Assembling bundle"
 cp docker-compose.offline.yml "$bundle_dir/"
+cp docker-compose.remote-inference.yml "$bundle_dir/"
 cp docker-compose.gpu.yml "$bundle_dir/"
 cp scripts/install-offline.sh "$bundle_dir/"
+cp scripts/test-remote-inference.sh "$bundle_dir/"
 mkdir -p "$bundle_dir/scripts/lib"
 cp scripts/lib/env-bootstrap.sh "$bundle_dir/scripts/lib/"
 [ -f docs/DEPLOYMENT.md ] && cp docs/DEPLOYMENT.md "$bundle_dir/"
+[ -f docs/REMOTE_INFERENCE.md ] && cp docs/REMOTE_INFERENCE.md "$bundle_dir/"
 [ -f docs/OSS-CLEARING.md ] && cp docs/OSS-CLEARING.md "$bundle_dir/"
 
 # Pin DOCTUS_VERSION and LLM_MODEL in the shipped .env.example to whatever was
