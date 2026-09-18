@@ -328,6 +328,36 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _resolve_shell_edges(db: Session, source_id: int) -> int:
+    """Resolve literal script/XSLT paths and unambiguous Java main classes."""
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    edges = db.query(CodeEdge).filter(
+        CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved"
+    ).all()
+    resolved = 0
+    for edge in edges:
+        meta = edge.meta_json or {}
+        if meta.get("language") != "shell":
+            continue
+        target_file = meta.get("target_file_path")
+        target_qname = meta.get("target_qualified_name")
+        target_type = meta.get("target_entity_type")
+        candidates = [
+            entity for entity in entities
+            if entity.variant_key == edge.variant_key
+            and ((target_file and entity.file_path == target_file) or (target_qname and entity.qualified_name == target_qname))
+            and (not target_type or entity.type == target_type)
+        ]
+        if len(candidates) == 1:
+            edge.dst_entity_id = candidates[0].id
+            edge.resolution = "resolved"
+            meta["target_qualified_name"] = candidates[0].qualified_name
+            meta["resolution_scope"] = "source"
+            edge.meta_json = meta
+            resolved += 1
+    return resolved
+
+
 def resolve_global_edges(db: Session, source_id: int) -> int:
     """Resolve persisted COBOL and Java edges for one source.
 
@@ -339,6 +369,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_java_edges(db, source_id)
     resolved += _resolve_xslt_edges(db, source_id)
     resolved += _resolve_markup_edges(db, source_id)
+    resolved += _resolve_shell_edges(db, source_id)
     if resolved:
         db.commit()
     return resolved

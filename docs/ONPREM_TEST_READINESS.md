@@ -751,9 +751,9 @@ Konstrukte fallen nachvollziehbar auf Textanalyse zurück.
 
 ### O-248 – P2 / Shell: Start- und Verarbeitungsskripte statisch erfassen
 
-- [ ] Im vereinbarten Dialekt Funktionen, `source`/`.`-Includes und nachvollziehbare
+- [x] **Erledigt 18.09.2026:** Im vereinbarten POSIX-/Bash-nahen Dialekt Funktionen, `source`/`.`-Includes und nachvollziehbare
   Aufrufe von Skripten, Java-Entrypoints und Transformationswerkzeugen erfassen.
-- [ ] Quoting, Zeilenfortsetzungen, Here-Documents und variable Pfade berücksichtigen;
+- [x] **Erledigt 18.09.2026:** Quoting, Zeilenfortsetzungen, Here-Documents und variable Pfade berücksichtigen;
   dynamische Expansionen als unbekannt erhalten.
 
 **Abnahme:** Relevante Start-/Batchskripte sind suchbar und zeigen belegte Beziehungen

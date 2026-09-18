@@ -14,6 +14,7 @@ from java.parse import parse_java_file
 from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
+from shell.parse import parse_shell_file
 from xslt.parse import parse_xslt_file
 
 
@@ -99,4 +100,5 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     ),
     "html": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("html_document",), parser_version="html-structure-1"),
     "jsp": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("jsp_page",), parser_version="jsp-structure-1"),
+    "shell": ParserEntry(parse=parse_shell_file, root_entity_types=("shell_script",), parser_version="shell-structure-1"),
 }

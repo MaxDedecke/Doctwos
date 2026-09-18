@@ -504,7 +504,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 | O-245 | P1 / siehe Detail | Java-Aufrufauflösung und Unsicherheit anhand belegter Referenzfälle prüfen. |
 | O-246 | P2 / bedarfsabhängig | Vorhandene Framework-Einstiegspunkte und Konfiguration bedingt verbinden. |
 | O-247 | P2 / bedarfsabhängig | **Erledigt 18.09.2026:** XSLT-/XML-Strukturparser über die Registry, Template-/Parameter-/Variablen-/Abschnitts-Entities, template-spezifische Chunks sowie Include-, Import-, Call-, Apply- und XML-Ressourcenkanten ergänzt; externe DTDs/URLs werden nicht geladen. |
-| O-248 | P2 / bedarfsabhängig | Shell-Start-/Verarbeitungsskripte ohne Ausführung analysieren. |
+| O-248 | P2 / bedarfsabhängig | **Erledigt 18.09.2026:** POSIX-/Bash-nahe Shell-Skripte ohne Ausführung analysieren: Funktionen, Includes sowie literale Java-/XSLT-/Skriptbezüge; dynamische Expansionen bleiben offen. |
 | O-249 | P2 / bedarfsabhängig | **Erledigt 18.09.2026:** JSP-/HTML-Ansichten, Direktiven/Taglibs/EL/Scriptlets sowie Include-, Link- und Formularbezüge statisch erfassen; nur literale Repository-Ziele werden aufgelöst. |
 | O-250 | P2 / bedarfsabhängig | Belegte Java–XSLT–Shell–JSP-Ketten sprachübergreifend verbinden. |
 | O-251 | P1 / siehe Detail | Chunking und Retrieval mit Qwen 4B, 8100 Tokens und 1024 Dimensionen absichern. |

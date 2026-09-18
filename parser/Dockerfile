@@ -49,6 +49,7 @@ COPY java/ java/
 COPY maven/ maven/
 COPY markup/ markup/
 COPY xslt/ xslt/
+COPY shell/ shell/
 COPY connectors/ connectors/
 COPY core/ core/
 COPY models/ models/
