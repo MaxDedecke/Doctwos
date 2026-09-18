@@ -32,6 +32,7 @@ def _reset_oidc_caches(monkeypatch):
     sonst leckt eine gemockte Antwort in den nächsten Test."""
     monkeypatch.setattr(oidc, "_metadata_cache", None)
     monkeypatch.setattr(oidc, "_jwks_cache", None)
+    monkeypatch.setattr(oidc, "_last_jwks_fetch", 0.0)
     monkeypatch.setattr("core.config.OIDC_ISSUER", ISSUER)
     monkeypatch.setattr("core.config.OIDC_CLIENT_ID", CLIENT_ID)
     monkeypatch.setattr("core.config.OIDC_CLIENT_SECRET", "secret")
@@ -114,7 +115,7 @@ def _patch_discovery(monkeypatch, jwks):
             "jwks_uri": f"{ISSUER}/jwks",
         },
     )
-    monkeypatch.setattr(oidc, "_jwks", lambda: jwks)
+    monkeypatch.setattr(oidc, "_jwks", lambda force_refresh=False: jwks)
 
 
 # ── build_authorization_url / verify_state_cookie ────────────────────────────
@@ -275,6 +276,109 @@ def test_exchange_code_handles_unreachable_token_endpoint(monkeypatch, rsa_jwk):
 
     with pytest.raises(oidc.OidcError):
         oidc.exchange_code("some-code", expected_nonce="expected-nonce")
+
+
+def test_exchange_code_reloads_jwks_on_unknown_kid_after_rotation(monkeypatch, rsa_jwk):
+    """O-160: Rotiert der IdP seine Signaturschlüssel, liefert das Token
+    einen neuen kid, der im aktuellen JWKS-Cache noch fehlt. exchange_code()
+    muss den JWKS-Cache genau einmal aktualisieren und danach erfolgreich decodieren.
+    """
+    new_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    new_pem = new_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    new_jwk = RSAKey.import_key(new_pem, {"kid": "rotated-new-key"})
+
+    refresh_called = []
+
+    def mock_jwks(force_refresh=False):
+        if force_refresh:
+            refresh_called.append(True)
+            return {"keys": [rsa_jwk.as_dict(private=False), new_jwk.as_dict(private=False)]}
+        return _jwks_for(rsa_jwk)
+
+    monkeypatch.setattr(
+        oidc,
+        "_discover",
+        lambda: {
+            "authorization_endpoint": f"{ISSUER}/auth",
+            "token_endpoint": f"{ISSUER}/token",
+            "jwks_uri": f"{ISSUER}/jwks",
+        },
+    )
+    monkeypatch.setattr(oidc, "_jwks", mock_jwks)
+
+    header = {"alg": "RS256", "kid": "rotated-new-key"}
+    id_token = jose_jwt.encode(header, _valid_claims(), new_jwk)
+
+    monkeypatch.setattr(
+        oidc, "_http_client", lambda: _FakeHttpClient(_FakeTokenResponse(id_token=id_token))
+    )
+
+    claims = oidc.exchange_code("some-code", expected_nonce="expected-nonce")
+    assert claims["sub"] == "idp-subject-123"
+    assert len(refresh_called) == 1
+
+
+def test_exchange_code_cooldown_prevents_hammering_idp_on_unknown_kid(monkeypatch, rsa_jwk):
+    """O-160: Ungültige/unbekannte kids dürfen den IdP nicht bei jedem
+    Request bombardieren (Cooldown-Schutz)."""
+    fetch_count = [0]
+
+    monkeypatch.setattr(
+        oidc,
+        "_discover",
+        lambda: {
+            "authorization_endpoint": f"{ISSUER}/auth",
+            "token_endpoint": f"{ISSUER}/token",
+            "jwks_uri": f"{ISSUER}/jwks",
+        },
+    )
+
+    bogus_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    bogus_pem = bogus_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    bogus_jwk = RSAKey.import_key(bogus_pem, {"kid": "unknown-never-registered-key"})
+    bogus_token = jose_jwt.encode(
+        {"alg": "RS256", "kid": "unknown-never-registered-key"}, _valid_claims(), bogus_jwk
+    )
+
+    class _MockHttpClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def post(self, url, data=None):
+            return _FakeTokenResponse(id_token=bogus_token)
+
+        def get(self, url):
+            fetch_count[0] += 1
+            return httpx.Response(200, json=_jwks_for(rsa_jwk), request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(oidc, "_http_client", lambda: _MockHttpClient())
+
+    # Cache ist älter als der Cooldown (z. B. vor 60s gefüllt)
+    oidc._jwks_cache = _jwks_for(rsa_jwk)
+    oidc._last_jwks_fetch = time.monotonic() - 60.0
+
+    # 1. Login-Versuch mit unbekanntem kid:
+    # Da Cache > 10s alt ist, wird genau 1x beim IdP nachgeladen (GET)
+    with pytest.raises(oidc.OidcError):
+        oidc.exchange_code("code-1", expected_nonce="expected-nonce")
+    assert fetch_count[0] == 1
+
+    # 2. Direkter Folge-Login-Versuch innerhalb des Cooldowns:
+    # Kein weiterer GET-Aufruf an den IdP!
+    with pytest.raises(oidc.OidcError):
+        oidc.exchange_code("code-2", expected_nonce="expected-nonce")
+    assert fetch_count[0] == 1
 
 
 # ── provision_or_link_user: JIT-Provisioning gegen die echte DB ─────────────

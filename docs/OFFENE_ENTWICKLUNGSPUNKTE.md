@@ -43,6 +43,8 @@ GPU-/SSD-Hardware plausibel; die Punkte betreffen ausschließlich optionale,
 potenziell globale Link-Berechnungen und verhindern ungebremste Vollscans,
 LLM-Reviews und ungebündelte DB-Zugriffe.
 
+**Ergänzung 18.09.2026 (2):** O-160 erledigt — `core/oidc.py::exchange_code()` fängt `InvalidKeyIdError` ab und lädt über `_jwks(force_refresh=True)` bei Key-Rotation den JWKS-Cache einmalig neu. Ein Cooldown-Schutz (`_JWKS_MIN_REFRESH_INTERVAL_SECONDS = 10.0`) verhindert DoS/Hammering des IdP bei ungültigen Tokens. Vollständig durch Unit-Tests abgesichert. O-158 technisch analysiert: `mcp-atlassian 0.23.1` behebt FastMCP-CVEs und eliminiert `diskcache`, zieht jedoch `orjson`/`pathspec` (MPL-2.0) ein, die erst im OSS-Clearing freigegeben werden müssen; betroffene Codepfade sind in Doctus ohnehin toter Code.
+
 ## Aktuell offen
 
 | ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
@@ -296,7 +298,7 @@ erfasst, nicht umgesetzt.
 
 | ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
 |---|---|---|---|---|
-| O-160 | SSO / Betriebsrisiko | `core/oidc.py::_jwks()` und `_discover()` füllen ihren Cache einmal pro Prozess und verwerfen ihn nie. Rotiert der IdP seine Signaturschlüssel — Keycloak tut das im Normalbetrieb —, findet `KeySet.import_key_set(_jwks())` den `kid` des neuen Tokens nicht mehr, und **jeder** SSO-Login scheitert an der Signaturprüfung, bis jemand `backend-api` neu startet. Der Modul-Docstring nennt den Neustart als bewusste Annahme („Deployment, das den IdP wechselt oder dessen Signaturschlüssel rotiert, braucht ohnehin einen Neustart"); für den Kunden ist es ein Login-Ausfall ohne erkennbaren Anlass, und die Fehlermeldung („Anmeldung fehlgeschlagen") zeigt nicht auf die Ursache. Betrifft nur SSO, der Passwort-Login läuft weiter. | Beim Verifizieren eines ID-Tokens einmalig neu laden, wenn der `kid` unbekannt ist (JWKS erneut holen, Cache ersetzen, genau einen zweiten Versuch), statt sofort zu scheitern. Begrenzen, damit ein kaputter IdP nicht bei jedem Loginversuch einen Abruf auslöst. Test: Token mit rotiertem Schlüssel gegen einen Cache mit dem alten JWKS. | Keine |
+| O-160 | SSO / Betriebsrisiko | `core/oidc.py::_jwks()` und `_discover()` füllen ihren Cache einmal pro Prozess und verwerfen ihn nie. Rotiert der IdP seine Signaturschlüssel — Keycloak tut das im Normalbetrieb —, findet `KeySet.import_key_set(_jwks())` den `kid` des neuen Tokens nicht mehr, und **jeder** SSO-Login scheitert an der Signaturprüfung, bis jemand `backend-api` neu startet. Der Modul-Docstring nennt den Neustart als bewusste Annahme („Deployment, das den IdP wechselt oder dessen Signaturschlüssel rotiert, braucht ohnehin einen Neustart"); für den Kunden ist es ein Login-Ausfall ohne erkennbaren Anlass, und die Fehlermeldung („Anmeldung fehlgeschlagen") zeigt nicht auf die Ursache. Betrifft nur SSO, der Passwort-Login läuft weiter. | **Erledigt 18.09.2026:** In `backend/core/oidc.py` fängt `exchange_code()` `InvalidKeyIdError` ab und löst über `_jwks(force_refresh=True)` genau einen gezielten Cache-Refresh aus. Ein Cooldown-Schutz (`_JWKS_MIN_REFRESH_INTERVAL_SECONDS = 10.0`) verhindert DoS/Hammering des IdP bei fehlerhaften oder angreifenden Tokens. Neue Tests `test_exchange_code_reloads_jwks_on_unknown_kid_after_rotation` und `test_exchange_code_cooldown_prevents_hammering_idp_on_unknown_kid` in `backend/tests/test_oidc.py`; volle OIDC- und Auth-Suite (45 Tests) sowie Ruff-Linting und Formatierung sauber. | Keine |
 | O-161 | SSO / Abmeldung | `POST /auth/logout` (`api/auth.py`) löscht nur die eigene Session-Cookie; das `end_session_endpoint` des IdP wird nirgends aufgerufen (im gesamten `core/oidc.py` kein Treffer). Nach „Abmelden" lebt die IdP-Sitzung weiter — ein Klick auf den SSO-Knopf meldet dieselbe Person ohne jede Eingabe sofort wieder an. Auf einem geteilten Arbeitsplatz sieht der Nutzer eine Abmeldung, die faktisch keine ist. | RP-initiated Logout ergänzen: nach dem lokalen Abmelden zum `end_session_endpoint` weiterleiten (mit `id_token_hint` und `post_logout_redirect_uri`). Setzt voraus, dass das ID-Token (oder wenigstens dessen `sid`) für die Dauer der Sitzung verfügbar bleibt — heute wird es nach der Prüfung verworfen, das ist der eigentliche Umbau. Fachlich zu entscheiden: soll „Abmelden" auch die IdP-Sitzung beenden (und damit andere Anwendungen mit abmelden) oder nur Doctus? | Fachliche Entscheidung zum Umfang der Abmeldung |
 | O-162 | Sicherheit / Sitzungen | **Sicherheitsrelevant, betrifft beide Anmeldewege:** `core/auth_dependency.py::get_current_user` lädt den Nutzer über die `user_id` aus der signierten Cookie und prüft **nicht**, ob `is_active` noch gesetzt ist. `is_active` wird nur beim Login geprüft (`api/auth.py`, `core/oidc.py::provision_or_link_user`). Ein deaktiviertes Konto behält damit vollen Zugriff, bis seine Cookie abläuft — bis zu 14 Tage (`SESSION_MAX_AGE_SECONDS`). Die Deaktivierung in der Nutzerverwaltung wirkt also erst beim nächsten Anmeldeversuch, nicht sofort; genau das erwartet aber jeder, der ein Konto sperrt. | `get_current_user` um die `is_active`-Prüfung ergänzen (401 bei deaktiviertem Konto) — kleiner Eingriff, aber an der zentralen Stelle jedes Requests, deshalb mit Test für beide Richtungen. Beim Umsetzen mitentscheiden, ob eine Rollenänderung (superuser → user) ebenso sofort greifen soll. | Keine |
 | O-163 | SSO / Sitzungsdauer | Doctus stellt nach dem SSO-Login seine **eigene** Sitzung über 14 Tage aus und hält danach keinerlei Verbindung zum IdP: weder Refresh-Token noch Ablauf der IdP-Sitzung spielen eine Rolle. Sperrt der Kunde jemanden im IdP, kommt die Person mit einer bestehenden Doctus-Sitzung bis zu zwei Wochen weiter herein (O-162 behebt nur den Fall, dass das Konto **in Doctus** deaktiviert wird). Für die compliance-getriebene Zielgruppe ist das eine Frage, die im Kundengespräch kommt. | Zuerst fachlich festlegen, welche Zusage gelten soll: kürzere Sitzung für SSO-Konten, regelmäßige Nachprüfung beim IdP (Refresh-Token bzw. Userinfo-Abruf) oder bewusst beibehalten und im Kundendokument benennen. Erst danach umsetzen — die drei Varianten unterscheiden sich stark im Aufwand. | Fachliche Entscheidung; sinnvoll gemeinsam mit O-162 |
@@ -375,6 +377,111 @@ aufgenommen (keine akuten Bugs).
 | O-172 | Ingestion / Produktidee | Kollegenfrage 14.09.2026: Gibt es eine Möglichkeit, Wissen aus Köpfen (nicht nur aus Dokumenten) einzupflegen? Idee: ein LLM führt ein strukturiertes Interview mit einem Wissensträger, verfasst daraus einen Entwurf und lässt ihn vor dem Speichern noch einmal durchlesen/freigeben, statt ihn direkt in die Wissensbasis zu schreiben. Wäre eine neue, sechste Ingestion-Quelle neben Git/Confluence/Jira/Folder-Watch/WebDAV/lokalem Upload — bislang deckt keine davon nicht-schriftlich vorliegendes Wissen ab. | Scope klären (freies Interview vs. geführter Fragebogen; ein Freigabeschritt vor dem Speichern ist harte Voraussetzung, kein Auto-Ingest von LLM-Text ohne Gegenlesen). Bei Zuschnitt als eigener Connector nach dem bestehenden `BaseConnector`-Muster umsetzen (nur `fetch_documents()`), Persistenz/Graph/Embedding bleiben unverändert. | Fachliche Priorisierung nötig |
 | O-173 | Backend / Suche | Kollegenfrage 14.09.2026 ("nur RAG oder auch Volltextsuche?"): Die Chat-Retrieval (`hybrid_chunk_search`, `backend/services/chat_service.py`) kombiniert Vektorsuche (pgvector-Cosine auf `bge-m3`-Embeddings) mit **Exakttreffern auf Seiten-/Abschnittsnummern** (Regex gegen die Nutzerfrage) — keine echte Volltextsuche (kein `tsvector`/GIN-Index, kein `ILIKE`). Grund ist architektonisch, nicht vergessen: `DocumentChunk.content` ist at rest verschlüsselt (`EncryptedString`, siehe `backend/models/crypto_types.py`), ein SQL-seitiger Textindex auf Chiffretext ist dadurch unmöglich. Der Link-Builder (`parser/tasks/link_builder.py`, Pass 2) löst dasselbe Problem bereits, indem er Kandidaten erst lädt und danach in Python nach dem Entschlüsseln gegen Schlagworte matcht — für Chat-Retrieval fehlt ein vergleichbarer Keyword-Fallback über den ganzen Bestand (nur die Seiten-/Abschnitts-Regex existiert). Für exakte COBOL-Bezeichner/-Begriffe, die die Embeddings verwischen könnten, ist das potenziell eine Recall-Lücke. | Nicht akut (kein gemeldeter Nutzerfall mit schlechtem Recall bislang). Bei Bedarf evaluieren: entweder ein Python-seitiger Keyword-Fallback nach Link-Builder-Vorbild (funktioniert, skaliert aber wie dort nur über einen begrenzten Kandidatensatz), oder eine durchsuchbare Verschlüsselung (Blind-Index/deterministisch verschlüsselte Tokens für einen echten Index) — Letzteres ist ein größeres kryptographisches Vorhaben und noch nicht bewertet. | Nutzerfall mit belegtem Recall-Problem bzw. Kapazität für eine Krypto-Bewertung |
 | O-174 | Parser / Ingestion-Qualität | Kollegenfrage 14.09.2026 nach dem "PDF-to-Markdown-Konverter" — den gibt es in diesem Sinn nicht: PDFs werden über `pypdf` (Text-Layer) bzw. `pdf2image`+`pytesseract` (OCR-Fallback für Bild-PDFs, `lang="deu+eng"`, siehe `parser/utils.py::extract_text_from_pdf_ocr`) als **Rohtext** extrahiert, ohne Struktur (Überschriften, Tabellen) zu rekonstruieren — anders als bei Confluence, wo O-082/O-083 bereits Section-Metadaten und section-bewusste Chunk-Grenzen eingeführt haben. Die vom Nutzer gemeinte "Markdown-Ansicht" ist `frontend/components/MarkdownContent.tsx` — ein selbstgeschriebener Renderer für die (markdown-formatierten) LLM-**Antworten** im Chat, kein Ingestion-Baustein. | Evaluieren, ob strukturarme PDF-Extraktion bei komplexen Handbuch-PDFs (Tabellen, Kapitelüberschriften) tatsächlich Retrieval-Qualität kostet — falls ja, analog zu O-082/O-083 eine struktur-bewusste PDF-Extraktion (z. B. Layout-Heuristiken aus `pypdf`s Textpositionen) nachziehen. | O-082/O-083 als Vorbild; zunächst ein belegter Qualitätsfall nötig |
+
+## Chat-Agent: Ansichten während der Arbeit
+
+Ergänzung 18.09.2026 auf Nutzerwunsch. Alle folgenden Punkte sind offen;
+Detailumfang, Reihenfolge und prüfbare Abnahmekriterien stehen in der
+[On-Prem-Checkliste, Abschnitt 5](ONPREM_TEST_READINESS.md#5-chat-agent-ansichten-während-der-arbeit).
+Dies sind Produktverbesserungen, keine pauschalen zusätzlichen Versandblocker.
+
+| ID | Priorität | Aufgabe | Abhängigkeit |
+|---|---|---|---|
+| O-190 | P1 | Typisierte Ansicht-Aktionen während des Chat-Streams; Berechtigungen, Panel-Schutz, Status und abschaltbare Automatik. | Bestehende Chat-/Panel-Navigation |
+| O-191 | P1 | Codefundstellen im Editor öffnen und Zeilen markieren. | O-190 |
+| O-192 | P1 | Dokumente und konkrete Belegstellen in der Quellenansicht öffnen. | O-190 |
+| O-193 | P2 | Suchergebnisse mit nachvollziehbarem Projekt-/Quellenfilter als Ansicht öffnen. | O-190 |
+| O-194 | P2 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern anzeigen. | O-190 |
+| O-195 | P1 | Vorhandenes `trace_call_flow` an Live-Öffnung der Call-Graph-Ansicht anbinden. | O-190 |
+| O-196 | P3 | Änderungsfolgen anhand belegter Aufrufer und Abhängigkeiten lesend untersuchen. | O-191, O-194/O-195 |
+| O-197 | P2 | Link-Manager auf konkrete Verknüpfung und ihre Belege fokussieren. | O-190, O-191/O-192 |
+| O-198 | P3 | Quellen-/Jobstatus im Job Center lesend öffnen. | O-190 |
+| O-199 | P1 | Ziel-Qwen-Abnahme, Streaming, Berechtigungen und Panel-Regeln gezielt absichern. | Begleitend zu O-190–O-198; Abnahme je umgesetztem Umfang |
+
+## On-Prem-Deployment und Analyse des Java-Mischbestands
+
+Ergänzung 18.09.2026: Alle bisherigen Umgebungs-, Deployment- und Abnahmeaufgaben
+dieses Chats sind nun als O-200–O-239 erfasst (ersetzt U01–U16, T01–T12 und
+A01–A12). O-240–O-254 leiten sich aus dem angegebenen Java-/XSLT-/Shell-/HTML-/
+JSP-Bestand und einer Prüfung der vorhandenen Parser ab. Alle Aufgaben sind offen.
+Verbindliche Details, Checkboxen, Abnahmekriterien und Nachweise stehen in
+[ONPREM_TEST_READINESS.md](ONPREM_TEST_READINESS.md); hier keine parallelen
+Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
+
+### Zielumgebung
+
+| ID | Priorität / Art | Aufgabe |
+|---|---|---|
+| O-200 | Klärung | Linux-Distribution, Version und Architektur bestätigen. |
+| O-201 | Klärung | CPU, RAM, Speicher und Datenpfade bestätigen. |
+| O-202 | Klärung | Docker-/Compose-Versionen und Installationsrechte klären. |
+| O-203 | Klärung | Internetzugang und Offline-Bereitstellung der Host-Werkzeuge klären. |
+| O-204 | Klärung | Erreichbare Frontend-/API-Adressen festlegen. |
+| O-205 | Klärung | HTTPS, Reverse-Proxy und Ports festlegen. |
+| O-206 | Klärung | Qwen-32B-Chat-Endpunkt, Modellkennung und Fähigkeiten bestätigen. |
+| O-207 | Klärung | Qwen-4B-Embedding-Endpunkt und Dimensionsparameter bestätigen. |
+| O-208 | Klärung | Kontext-, Batch-, Parallelitäts- und Zeitlimits erfragen. |
+| O-209 | Klärung | API-Authentifizierung und Unternehmens-CA klären. |
+| O-210 | Klärung | DNS, Routing, Firewall und Proxy für Container prüfen. |
+| O-211 | Klärung | Funktionierende Chat-/Embedding-Beispielanfragen beschaffen. |
+| O-212 | Klärung | Pilotquellen, Testdaten und Berechtigungen festlegen. |
+| O-213 | Klärung | Transportlimits und Archivfilter aller Übergabestationen prüfen. |
+| O-214 | Klärung | Installationsverantwortung, Backup-Ziel und Schlüsselverwahrung festlegen. |
+| O-215 | Klärung | Mitgelieferte lokale Modelle und Ersatzbetrieb festlegen. |
+
+### Deployment-Technik
+
+| ID | Priorität / Art | Aufgabe |
+|---|---|---|
+| O-216 | Pflicht / siehe Detail | Remote-Compose: Ollama-Abhängigkeit des Link-Workers korrigieren. |
+| O-217 | Pflicht / siehe Detail | Remote-Erststart: lokale Profilaktivierung und Healthcheck-Blockade korrigieren. |
+| O-218 | Pflicht / siehe Detail | Unabhängige Chat-/Embedding-Konfiguration ohne Image-Neubau absichern. |
+| O-219 | Pflicht / siehe Detail | Offline-Schlüsselerzeugung und Host-Voraussetzungen absichern. |
+| O-220 | Pflicht / siehe Detail | Offline-Stack um Scheduler, benötigte Mounts und Feature-Konfiguration ergänzen. |
+| O-221 | Pflicht / siehe Detail | Feste bge-m3-Annahmen entfernen und automatische Modell-Pulls abschalten. |
+| O-222 | Pflicht / siehe Detail | Verbindliche Vorab- und Abschlussprüfung im Installer ergänzen. |
+| O-223 | Pflicht / siehe Detail | Remote-Qwen-Funktionstest aus Backend und Worker ergänzen. |
+| O-224 | Pflicht / siehe Detail | Image-Export und Offline-Import vollständig absichern. |
+| O-225 | Pflicht / siehe Detail | Versioniertes ZIP64-Lieferpaket mit Manifest, Prüfsummen und Anleitung erstellen. |
+| O-226 | Pflicht / siehe Detail | Unternehmens-CA, Netzwerk und wirksame Docker-Firewall bedingt integrieren. |
+| O-227 | Pflicht / siehe Detail | Updates, Versionstags, stabile Datenpfade und Wiederherstellung absichern. |
+
+### Generalprobe und Versand
+
+| ID | Priorität / Art | Aufgabe |
+|---|---|---|
+| O-228 | Abnahme / siehe Detail | Leere Linux-Testmaschine mit Zielarchitektur vorbereiten. |
+| O-229 | Abnahme / siehe Detail | Installation nur aus ZIP ohne Internet und vorhandene Caches prüfen. |
+| O-230 | Abnahme / siehe Detail | Separaten OpenAI-kompatiblen Qwen-Modellserver in der Probe verwenden. |
+| O-231 | Abnahme / siehe Detail | Erststart, Migrationen, Healthchecks und Login vom zweiten Rechner prüfen. |
+| O-232 | Abnahme / siehe Detail | Import, Embeddings, Suche, Chat und vereinbarte Graph-/Agentenfunktionen prüfen. |
+| O-233 | Abnahme / siehe Detail | Automatische Synchronisation und gegebenenfalls Ordnerquellen prüfen. |
+| O-234 | Abnahme / siehe Detail | Host-Neustart und zeitweisen Modellserver-Ausfall prüfen. |
+| O-235 | Abnahme / siehe Detail | Backup und Wiederherstellung von Datenbank, Dateien und Schlüsseln prüfen. |
+| O-236 | Abnahme / siehe Detail | Vereinbarten lokalen Ollama-Betrieb ohne Vermischung der Vektorräume prüfen. |
+| O-237 | Abnahme / siehe Detail | Tatsächlichen Transportweg mit ähnlich großem Archiv erproben. |
+| O-238 | Abnahme / siehe Detail | Exakt abgenommenes ZIP mit Hash und Version zum Versand freigeben. |
+| O-239 | Abnahme / siehe Detail | Prüfsummen und grundlegenden Funktionstest auf dem Zielhost wiederholen. |
+
+### Java-/XSLT-/Shell-/HTML-/JSP-Analyse
+
+| ID | Priorität / Art | Aufgabe |
+|---|---|---|
+| O-240 | P1 / siehe Detail | Bestandssteckbrief, repräsentative Probe und fachliche Analyseziele festlegen. |
+| O-241 | P1 / siehe Detail | Git-/Snapshot-Importweg für vollständige Offline-Quellcodeanalyse absichern. |
+| O-242 | P1 / siehe Detail | Spracherkennung, Encodings, Ausschlüsse und Importabdeckung nachvollziehbar machen. |
+| O-243 | P1 / siehe Detail | Vorhandene Java-Syntax-/Strukturunterstützung am Zielbestand absichern. |
+| O-244 | P1 / siehe Detail | Java-Module, Source-Sets und Build-Metadaten unterscheiden. |
+| O-245 | P1 / siehe Detail | Java-Aufrufauflösung und Unsicherheit anhand belegter Referenzfälle prüfen. |
+| O-246 | P2 / bedarfsabhängig | Vorhandene Framework-Einstiegspunkte und Konfiguration bedingt verbinden. |
+| O-247 | P2 / bedarfsabhängig | XSLT-Templates und Transformationsabhängigkeiten statisch analysieren. |
+| O-248 | P2 / bedarfsabhängig | Shell-Start-/Verarbeitungsskripte ohne Ausführung analysieren. |
+| O-249 | P2 / bedarfsabhängig | JSP-/HTML-Ansichten, Includes und Serverbezüge statisch erfassen. |
+| O-250 | P2 / bedarfsabhängig | Belegte Java–XSLT–Shell–JSP-Ketten sprachübergreifend verbinden. |
+| O-251 | P1 / siehe Detail | Chunking und Retrieval mit Qwen 4B, 8100 Tokens und 1024 Dimensionen absichern. |
+| O-252 | P1 / siehe Detail | Inkrementalität, Ressourcenänderungen und Neueinbettung konsistent halten. |
+| O-253 | P1 / siehe Detail | Mischsprachen in Editor, Graph, Zitaten und Agentenantworten korrekt anzeigen. |
+| O-254 | P1 / siehe Detail | Qualität und Last des tatsächlichen Bestands vor Pilotfreigabe messen. |
 
 ## Noch zu evaluieren
 
@@ -536,7 +643,7 @@ Diese Punkte sind derzeit keine ungeklärten Implementierungsaufträge:
 
 | ID | Bereich | Punkt | Nächste Aktion | Abhängigkeit |
 |---|---|---|---|---|
-| O-158 | Abhängigkeiten / Sicherheit | Nach O-069 verbleiben zwei transitive Python-Auditfunde: `fastmcp` 2.14.7 hat zwei advisories, deren Fix erst `fastmcp` 3.2.0 (Major-Upgrade) ist und über `mcp-atlassian` 0.22.1 eingebracht wird; `diskcache` 5.6.3 hat derzeit keinen veröffentlichten Fix. Die direkt patchbaren Funde (`pypdf`, `cryptography`) sind bereits aktualisiert. | Erst prüfen, ob eine getestete `mcp-atlassian`-Version FastMCP 3 unterstützt; dann Connector- und MCP-Regressionen gegen den Major-Upgrade ausführen. `diskcache` auf Upstream-Fix überwachen und bis dahin die tatsächliche Erreichbarkeit des betroffenen Cache-Pfads dokumentieren. | Upstream-Kompatibilität bzw. veröffentlichter `diskcache`-Fix |
+| O-158 | Abhängigkeiten / Sicherheit | Nach O-069 verbleiben zwei transitive Python-Auditfunde: `fastmcp` 2.14.7 hat Advisories (Command Injection in Gemini CLI, OAuth Proxy Consent, OpenAPI SSRF), deren Fix `fastmcp >= 3.2.0` ist; `diskcache` 5.6.3 hat ein Advisory (Pickle-RCE). **Am 18.09.2026 im Detail analysiert:** (1) `mcp-atlassian 0.23.1` hebt `fastmcp` auf 3.4.7 (alle FastMCP-CVEs behoben) und eliminiert `diskcache` vollständig (`py-key-value-aio` zieht kein `[disk]` mehr). (2) Allerdings zieht `mcp-atlassian 0.23.1` neue transitive Pakete ein: `griffelib` (ISC), `orjson` (MPL-2.0 / Apache-2.0) und `pathspec` (MPL-2.0). Gemäß CLAUDE.md Regel 2 („Strikt Open Source. Nur MIT/BSD/Apache-2.0") und `scripts/check_licenses_python.py` ist MPL-2.0 ohne explizite Freigabe in `license_exceptions_python.json` / `docs/OSS-CLEARING.md` ein Lizenz-Gate-Fehler. (3) Reale Angriffsfläche in Doctus: Weder `fastmcp` noch `diskcache` werden von Doctus importiert oder exponiert; `mcp-atlassian` läuft ausschließlich als lokaler CLI-Subprozess über stdio mit Token-/Basic-Auth. Die betroffenen Funktionen (OAuth-Proxy, Gemini-CLI, Disk-Cache) sind in Doctus toter Code und zur Laufzeit nicht erreichbar. | Zurückgestellt bis zur Lizenz-Klärung: Vor einem Upgrade von `mcp-atlassian` müssen `orjson` und `pathspec` (beide MPL-2.0, analog zu `certifi`) im OSS-Clearing als Ausnahme akzeptiert werden. Bis dahin besteht durch die vollständige Nicht-Erreichbarkeit kein akutes Sicherheitsrisiko. | Lizenzfreigabe für MPL-2.0-Transitive (`orjson`, `pathspec`) in `docs/OSS-CLEARING.md` |
 | O-166 | Frontend/Backend / Link-Manager | Bewusst zurückgestellter Rest aus [O-165]: Die Vorschlagsliste des Link-Managers wird weiterhin **komplett** geladen (gemessen 572 KB JSON für 1072 Knowledge-Links plus 211 KB für 518 Entity-Links), nur eben nicht mehr komplett gerendert. Echte serverseitige Pagination ist nicht trivial, weil die Ansicht **zwei** Tabellen (`knowledge_links` und `entity_doc_links`) zu einer nach Konfidenz absteigend sortierten Liste vereint: seitenweises Nachladen würde entweder die globale Sortierung brechen (später geladene Treffer mit höherem Score müssten oberhalb bereits angezeigter einsortiert werden — sichtbares Springen) oder Suche, Art-Filter und „Alle 100 % bestätigen" auf die jeweils geladene Seite einschränken. Bei der heutigen Größenordnung fällt das vollständige Laden nach der Fensterung nicht mehr auf; die Frage ist verschoben, nicht beantwortet. | Anfassen, sobald ein Bestand in den **fünfstelligen** Bereich kommt oder das erste Laden der Ansicht wieder spürbar wird. Dann in einem Zug: `limit`/`offset` **und** Suche/Art-Filter/Sortierung serverseitig (sonst filtert die UI über einen Ausschnitt), `POST /knowledge-links/approve-perfect` o. ä. als serverseitige Sammelbestätigung statt der heutigen Schleife über die geladenen Links, und ein Nachlade-Verhalten für die vereinte Liste (beide Quellen nach Score absteigend, k-Wege-Merge mit Puffer je Quelle). | O-165 (Fensterung und Zähler-Endpunkt liegen bereits) |
 
 ## Pflege

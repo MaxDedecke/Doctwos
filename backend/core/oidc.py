@@ -23,12 +23,13 @@ Design-Entscheidungen im Detail: docs/ENTSCHEIDUNGEN.md E-12.
 import logging
 import re
 import secrets
+import time
 from urllib.parse import urlencode
 
 import httpx
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from joserfc import jwt as jose_jwt
-from joserfc.errors import JoseError
+from joserfc.errors import InvalidKeyIdError, JoseError
 from joserfc.jwk import KeySet
 from joserfc.jwt import JWTClaimsRegistry
 from sqlalchemy.orm import Session
@@ -47,11 +48,14 @@ OIDC_STATE_MAX_AGE_SECONDS = 600
 _state_serializer = URLSafeTimedSerializer(cfg.SESSION_SECRET_KEY, salt="doctus-oidc-state")
 
 # Discovery-Dokument und JWKS ändern sich beim laufenden Prozess praktisch nie —
-# pro Prozess einmal geholt statt bei jedem Login erneut. Ein Deployment, das den
-# IdP wechselt oder dessen Signaturschlüssel rotiert, braucht ohnehin einen
-# Neustart (neue OIDC_ISSUER/-Secrets in .env), der den Cache mit auflöst.
+# pro Prozess einmal geholt statt bei jedem Login erneut.
+# Rotiert der IdP seine Signaturschlüssel (Keycloak im Normalbetrieb), wird der
+# JWKS-Cache bei unbekannter kid einmalig neu geladen (O-160). Ein Mindestabstand
+# (_JWKS_MIN_REFRESH_INTERVAL_SECONDS) verhindert DoS/Überlastung des IdP bei ungültigen Tokens.
 _metadata_cache: dict | None = None
 _jwks_cache: dict | None = None
+_last_jwks_fetch: float = 0.0
+_JWKS_MIN_REFRESH_INTERVAL_SECONDS = 10.0
 
 
 class OidcError(Exception):
@@ -83,9 +87,21 @@ def _discover() -> dict:
     return metadata
 
 
-def _jwks() -> dict:
-    global _jwks_cache
-    if _jwks_cache is not None:
+def _jwks(force_refresh: bool = False) -> dict:
+    global _jwks_cache, _last_jwks_fetch
+    now = time.monotonic()
+    if _jwks_cache is not None and not force_refresh:
+        return _jwks_cache
+    if (
+        force_refresh
+        and _jwks_cache is not None
+        and (now - _last_jwks_fetch < _JWKS_MIN_REFRESH_INTERVAL_SECONDS)
+    ):
+        logger.warning(
+            "OIDC-JWKS-Refresh übersprungen: letzter Abruf liegt erst %.1fs zurück (Minimum: %.1fs)",
+            now - _last_jwks_fetch,
+            _JWKS_MIN_REFRESH_INTERVAL_SECONDS,
+        )
         return _jwks_cache
     metadata = _discover()
     try:
@@ -97,6 +113,7 @@ def _jwks() -> dict:
         logger.warning("OIDC-JWKS-Abruf fehlgeschlagen: %s", exc)
         raise OidcError("Identity Provider ist gerade nicht erreichbar.") from exc
     _jwks_cache = jwks
+    _last_jwks_fetch = now
     return jwks
 
 
@@ -165,7 +182,18 @@ def exchange_code(code: str, expected_nonce: str) -> dict:
         key_set = KeySet.import_key_set(_jwks())
         # algorithms=["RS256"] bewusst fest statt dem alg-Header des Tokens zu
         # folgen (Alg-Confusion-Schutz, siehe Moduldocstring).
-        token = jose_jwt.decode(id_token, key_set, algorithms=["RS256"])
+        try:
+            token = jose_jwt.decode(id_token, key_set, algorithms=["RS256"])
+        except InvalidKeyIdError as exc:
+            # Rotiert der IdP seine Signaturschlüssel (Keycloak im Normalbetrieb),
+            # kennt der gecachte JWKS den neuen kid noch nicht. Genau ein Refresh-Versuch (O-160).
+            logger.info(
+                "OIDC-ID-Token verweist auf unbekannten kid (%s) — versuche JWKS-Cache zu aktualisieren",
+                exc,
+            )
+            key_set = KeySet.import_key_set(_jwks(force_refresh=True))
+            token = jose_jwt.decode(id_token, key_set, algorithms=["RS256"])
+
         claims_registry = JWTClaimsRegistry(
             iss={"essential": True, "value": cfg.OIDC_ISSUER},
             aud={"essential": True, "value": cfg.OIDC_CLIENT_ID},
