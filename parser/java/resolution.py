@@ -347,13 +347,65 @@ def _global_method_candidates(
     types_by_qname: dict[str, list[Entity]],
     types_by_name: dict[str, list[Entity]],
     methods_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    result_by_type: dict[str, ParseResult],
 ) -> tuple[list[Entity], str | None]:
     meta = edge.meta or {}
     method_name = meta.get("method_name", edge.dst_name.rsplit(".", 1)[-1])
     receiver = meta.get("receiver")
     source_owner = _source_owner(edge)
-    if receiver == "super" or (receiver and receiver.endswith(".super")):
-        meta["resolution_reason"] = "super_dispatch_requires_hierarchy"
+    if receiver == "super":
+        # ``super.method()`` is different from a virtual call on an inferred
+        # receiver: Java fixes it to the nearest superclass declaration.  Walk
+        # only explicit EXTENDS edges and keep every missing or ambiguous step
+        # unresolved rather than guessing a method by name.
+        owner = source_owner
+        seen: set[str] = set()
+        while owner and owner not in seen:
+            seen.add(owner)
+            owner_result = result_by_type.get(owner)
+            if owner_result is None:
+                break
+            extends = [
+                item
+                for item in owner_result.edges
+                if item.type == "EXTENDS" and _source_owner(item) == owner
+            ]
+            if len(extends) != 1:
+                break
+            parents, parent_reason = _global_type_candidates(
+                extends[0].dst_name,
+                result=owner_result,
+                source_owner=owner,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
+            )
+            if len(parents) != 1 or not parents[0].qualified_name:
+                if len(parents) > 1:
+                    meta["resolution_reason"] = "ambiguous_superclass"
+                break
+            parent = parents[0]
+            parent_result = result_by_type.get(parent.qualified_name)
+            candidates = [
+                item
+                for item in methods_by_owner_and_name.get(
+                    (parent.qualified_name, method_name), []
+                )
+                if item.meta.get("visibility") in {"public", "protected"}
+                or (
+                    item.meta.get("visibility", "package") == "package"
+                    and parent_result is not None
+                    and _package_for(owner_result) == _package_for(parent_result)
+                )
+            ]
+            if candidates:
+                return candidates, parent_reason or "superclass_declaration"
+            owner = parent.qualified_name
+        meta.setdefault("resolution_reason", "super_dispatch_requires_hierarchy")
+        return [], None
+    if receiver and receiver.endswith(".super"):
+        # Default-interface dispatch needs the selected interface and its
+        # inheritance graph; neither can be inferred safely from syntax alone.
+        meta["resolution_reason"] = "interface_super_dispatch_requires_hierarchy"
         return [], None
     owner_candidates: list[Entity] = []
     owner_reason: str | None = None
@@ -414,6 +466,12 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
             methods_by_owner_and_name.setdefault(
                 (entity.parent_qualified_name, entity.name), []
             ).append(entity)
+    result_by_type = {
+        entity.qualified_name: result
+        for result in java_results
+        for entity in result.entities
+        if entity.type in _TYPE_ENTITY_TYPES and entity.qualified_name
+    }
 
     resolved = 0
     for result in java_results:
@@ -462,6 +520,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     types_by_qname=types_by_qname,
                     types_by_name=types_by_name,
                     methods_by_owner_and_name=methods_by_owner_and_name,
+                    result_by_type=result_by_type,
                 )
                 target = _resolve_overload(edge, candidates)
                 if target is not None:

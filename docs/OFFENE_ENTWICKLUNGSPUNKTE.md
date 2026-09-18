@@ -431,7 +431,7 @@ Dies sind Produktverbesserungen, keine pauschalen zusätzlichen Versandblocker.
 
 Ergänzung 18.09.2026: Alle bisherigen Umgebungs-, Deployment- und Abnahmeaufgaben
 dieses Chats sind nun als O-200–O-239 erfasst (ersetzt U01–U16, T01–T12 und
-A01–A12). O-240–O-254 leiten sich aus dem angegebenen Java-/XSLT-/Shell-/HTML-/
+A01–A12). O-240–O-255 leiten sich aus dem angegebenen Java-/XSLT-/Shell-/HTML-/
 JSP-Bestand und einer Prüfung der vorhandenen Parser ab. Alle Aufgaben sind offen.
 Verbindliche Details, Checkboxen, Abnahmekriterien und Nachweise stehen in
 [ONPREM_TEST_READINESS.md](ONPREM_TEST_READINESS.md); hier keine parallelen
@@ -511,6 +511,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 | O-252 | P1 / siehe Detail | **In Arbeit 18.09.2026:** Datei-Fingerprints berücksichtigen jetzt Embedding-Modell, belegte Aufrufer-/Ressourcenabhängigkeiten sowie Java-Modul-/Build-Metadaten; Modellwechsel erzwingen eine vollständige Neueinbettung, und lokale Regressionen für Include-Änderungen sowie gelöschte Ziele sind ergänzt. Die vollständige isolierte PostgreSQL-Abnahme bleibt offen. |
 | O-253 | P1 / siehe Detail | Mischsprachen in Editor, Graph, Zitaten und Agentenantworten korrekt anzeigen. |
 | O-254 | P1 / siehe Detail | Qualität und Last des tatsächlichen Bestands vor Pilotfreigabe messen. |
+| O-255 | P1 / siehe Detail | Maven-Dependencies mit Classifier/Type im Qualified Name kollisionsfrei erfassen (UniqueViolation in PostgreSQL verhindern). |
 
 ## Noch zu evaluieren
 

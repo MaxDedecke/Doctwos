@@ -718,6 +718,13 @@ Vererbungsauflösung und Empfängertypen über Felder/lokale Variablen bleiben b
 O-245 ist damit noch keine vollständige fachliche Freigabe. Graph und Chat erhalten
 Auflösungsgründe; aufgelöste Java-Aufrufe bezeichnen statische Deklarationen.
 
+**Nachzug 18.09.2026:** Ein belegbarer Sonderfall ist nun zusätzlich abgedeckt:
+`super.methode()` folgt ausschließlich expliziten `EXTENDS`-Kanten zur nächsten
+passenden, nicht privaten Oberklassen-Deklaration (auch über eine kurze
+Oberklassenkette). Paketprivate Methoden über Paketgrenzen sowie Default-Interface-
+Dispatch werden weiterhin nicht geraten und bleiben mit einem Auflösungsgrund offen.
+Die Regressionen stehen in `parser/tests/test_java_call_safety.py`.
+
 - [ ] Gegen Referenzfälle prüfen: Überladung, Vererbung, Interfaces, statische
   Imports, Empfänger über Felder/lokale Variablen und dateiübergreifende Aufrufe.
 - [ ] Nur nachgewiesene Resolver-Lücken gezielt schließen; Methodennamen allein
@@ -904,6 +911,23 @@ Ressourcen und verbleibenden Analysegrenzen liegt vor. Parallel nutzbarer Chat w
 Import und große Graph-/Suchergebnisse bleiben innerhalb vereinbarter Grenzen.
 Zuerst Pilotumfang freigeben, weitergehende statische Analyse nur bei nachgewiesener
 Abdeckung zusagen. Offline-Generalprobe O-228–O-239 mit diesem Profil durchführen.
+
+### O-255 – P1 / Parser: Maven-Dependencies mit Classifier/Type kollisionsfrei erfassen
+
+- [ ] In `parser/maven/parse.py` den `qualified_name` für `maven_dependency`-Entities
+  erweitern, sodass `<classifier>` (z. B. `javadoc`, `tests`) und abweichende `<type>`-Werte
+  (z. B. `test-jar`) in die Koordinate einfließen (`...::dependency:groupId:artifactId[:type][:classifier]`).
+- [ ] Robuster Fallback: Falls eine POM mehrfach identische Abhängigkeitselemente enthält,
+  einen deterministischen Zähler (`#2`, `#3` ...) anfügen, um `UniqueViolation`-Abbrüche
+  auf `uq_code_entities_source_variant_file_qname` sicher auszuschließen.
+- [ ] Regressionstests in `parser/tests/test_maven_parser.py` und `parser/tests/test_java_persistence.py`
+  für mehrfache Abhängigkeiten mit und ohne Classifier ergänzen.
+- [ ] Nach Deployment betroffene Dateien im Syncope-Bestand reindizieren und fehlerfreien Status verifizieren:
+  `core/rest-cxf/pom.xml`, `ext/camel/rest-cxf/pom.xml`, `ext/flowable/rest-cxf/pom.xml`,
+  `ext/oidcclient/rest-cxf/pom.xml`, `ext/saml2sp/rest-cxf/pom.xml`, `ext/scimv2/rest-cxf/pom.xml`.
+
+**Abnahme:** POMs mit mehrfach deklarierten Abhängigkeiten (z. B. Standard + Javadoc/Test-Jar)
+werden ohne Datenbankfehler indiziert; alle Abhängigkeiten bleiben als eigene Entities auffindbar.
 
 ### Empfohlene Umsetzung für diesen Bestand
 
