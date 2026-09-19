@@ -12,6 +12,8 @@ from html.parser import HTMLParser
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
+from code_parser import CodeParser
+from core import config
 from core.model import Chunk, Entity, ParseResult, ParsedEdge
 
 _DIRECTIVE = re.compile(r"<%@\s*(?P<kind>include|taglib)\b(?P<body>.*?)%>", re.I | re.S)
@@ -59,7 +61,19 @@ def parse_jsp_or_html(source: str, path: str, **_: object) -> ParseResult:
     )
     entities = [root]
     edges: list[ParsedEdge] = []
-    chunks = [Chunk(content=source, start_line=1, end_line=max(1, len(source.splitlines())), meta={"language": language, "symbol_type": "source"})]
+    # Structure parsing used to retain the entire markup file as one chunk.
+    # Large templates then exceeded the embedding input limit and were left
+    # without a vector.  Use the shared chunker so its hard size limit and
+    # line ranges match the other source formats.
+    chunks = [
+        Chunk(
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            meta={"language": language, "symbol_type": "source"},
+        )
+        for item in CodeParser(language).chunk_file(source, chunk_size=config.CHUNK_SIZE)
+    ]
 
     def edge(kind: str, destination: str, line: int, *, target_file: str | None, extra: dict | None = None) -> None:
         static = target_file is not None

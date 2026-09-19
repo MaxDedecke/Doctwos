@@ -1,4 +1,5 @@
 from core import registry
+from core import config
 from markup.jsp_html import parse_jsp_or_html
 
 
@@ -29,3 +30,14 @@ def test_html_parser_keeps_external_and_template_urls_dynamic() -> None:
     assert {edge.resolution for edge in result.edges} == {"dynamic"}
     assert registry.STRUCTURE_PARSERS["jsp"].root_entity_types == ("jsp_page",)
     assert registry.STRUCTURE_PARSERS["html"].root_entity_types == ("html_document",)
+
+
+def test_html_parser_splits_large_markup_into_embedding_sized_chunks() -> None:
+    lines = [f"<p id=\"part-{index}\">{'x' * 300}</p>" for index in range(5)]
+    result = parse_jsp_or_html("\n".join(lines), "web/large.html")
+
+    assert len(result.chunks) > 1
+    assert all(len(chunk.content) <= config.CHUNK_SIZE for chunk in result.chunks)
+    assert result.chunks[0].start_line == 1
+    assert result.chunks[-1].end_line == len(lines)
+    assert all(chunk.meta == {"language": "html", "symbol_type": "source"} for chunk in result.chunks)
