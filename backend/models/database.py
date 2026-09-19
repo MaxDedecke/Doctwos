@@ -186,6 +186,8 @@ class KnowledgeSource(Base):
     # Embedding-Modell, mit dem diese Quelle indiziert wird. NULL bei alten
     # Quellen bedeutet den Deployment-Default (OLLAMA_EMBED_MODEL).
     embedding_model = Column(String, nullable=True)
+    # O-177: exact project/source scope used by a cross-source run.
+    scope_json = Column(JSON, nullable=True)
 
     # passive_deletes=True: project_id/team_id tragen bereits ondelete="CASCADE"
     # in der DB (siehe oben). Ohne dieses Flag laedt SQLAlchemy beim Loeschen
@@ -542,6 +544,14 @@ class CodeEntity(Base):
     )
 
 
+EDGE_DIRECTION_DIRECTED = "directed"
+EDGE_DIRECTION_UNDIRECTED = "undirected"
+EDGE_DIRECTION_BIDIRECTIONAL = "bidirectional"
+VALID_EDGE_DIRECTIONS = frozenset(
+    {EDGE_DIRECTION_DIRECTED, EDGE_DIRECTION_UNDIRECTED, EDGE_DIRECTION_BIDIRECTIONAL}
+)
+
+
 class CodeEdge(Base):
     """
     Gerichtete Beziehung zwischen zwei COBOL-Objekten (F-032).
@@ -587,6 +597,14 @@ class CodeEdge(Base):
     src_entity = relationship("CodeEntity", foreign_keys=[src_entity_id])
     dst_entity = relationship("CodeEntity", foreign_keys=[dst_entity_id])
 
+    @property
+    def direction(self) -> str:
+        """Deterministische Standard-Richtung für Code-Kanten (O-264).
+        Code-Kanten (CALL, EXTENDS, IMPLEMENTS, READS, WRITES etc.) sind
+        immer gerichtet von src_entity nach dst_entity.
+        """
+        return EDGE_DIRECTION_DIRECTED
+
     __table_args__ = (
         Index("ix_code_edges_src_type", "src_entity_id", "type"),
         Index("ix_code_edges_dst_type", "dst_entity_id", "type"),
@@ -623,6 +641,13 @@ class EntityDocLink(Base):
     project = relationship("Project", backref="entity_doc_links")
     entity = relationship("CodeEntity", backref="doc_links")
     chunk = relationship("DocumentChunk", backref="entity_links")
+
+    @property
+    def direction(self) -> str:
+        """Deterministische Standard-Richtung für Dokumentationskanten (O-264).
+        EntityDocLink dokumentiert eine Code-Entity durch einen Dokumenten-Chunk.
+        """
+        return EDGE_DIRECTION_DIRECTED
 
 
 class LinkBuilderDirtyItem(Base):
@@ -780,6 +805,13 @@ class KnowledgeLink(Base):
     # Link Metadata
     score = Column(Float, nullable=True)
     link_type = Column(String(20), default="semantic")  # 'semantic', 'keyword', 'chat', 'manual'
+    # O-264: Directionality of the relationship ('undirected' | 'directed' | 'bidirectional')
+    # 'undirected': mutual semantic cross-reference without inherent flow.
+    # 'directed': directed connection from source_a to source_b.
+    # 'bidirectional': explicit two-way relation.
+    direction = Column(
+        String(20), default="undirected", nullable=False, server_default="undirected"
+    )
     status = Column(String(20), default="pending", index=True)  # 'pending', 'approved', 'rejected'
     context = Column(Text, nullable=True)  # Why this link? (AI explanation)
     created_by = Column(String(50), default="auto")  # 'auto', 'user', 'chat'

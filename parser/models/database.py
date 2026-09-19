@@ -217,8 +217,9 @@ class DocumentChunk(Base):
     start_line = Column(Integer)
     end_line = Column(Integer)
     metadata_json = Column(JSON)  # Store symbols, language, etc.
-    # The serving model determines the vector length; retrieval isolates its
-    # vector space through ``embedding_dimension`` and ``embedding_model``.
+    # Deliberately unbounded: the serving model determines the vector length.
+    # Every retrieval query filters ``embedding_dimension`` before calculating
+    # a distance, so vectors from different spaces are never compared.
     embedding = Column(Vector)
     embedding_dimension = Column(Integer, nullable=True, index=True)
     # Persistiert neben dem Vektor, welchem Modell er entstammt. Das verhindert,
@@ -337,7 +338,13 @@ class ChatFeedbackDiagnosticSettings(Base):
 
 
 class AISettings(Base):
-    """Mirror of the deployment-wide AI profile used by the parser worker."""
+    """Deployment-wide AI profile, editable by administrators in the UI.
+
+    The worker reads this row directly from the shared database, so changing an
+    endpoint or model does not require changing an environment variable or
+    restarting a container. API keys use the same at-rest encryption as source
+    tokens and document content.
+    """
 
     __tablename__ = "ai_settings"
     id = Column(Integer, primary_key=True)
@@ -362,15 +369,19 @@ class AISettings(Base):
     )
 
     updated_by = relationship("User")
+    active_profile = relationship("AIProfile", foreign_keys=[active_profile_id])
+    active_embedding_profile = relationship(
+        "EmbeddingProfile", foreign_keys=[active_embedding_profile_id]
+    )
 
 
 class AIProfile(Base):
-    """Mirror of the server-side inference profile used by workers."""
+    """Server-side inference profile; secrets never leave the API service."""
 
     __tablename__ = "ai_profiles"
     id = Column(Integer, primary_key=True)
     name = Column(String(120), nullable=False)
-    kind = Column(String(32), nullable=False)
+    kind = Column(String(32), nullable=False)  # local | remote | cloud
     provider = Column(String(32), nullable=False)
     protocol = Column(String(32), nullable=False)
     llm_model = Column(String, nullable=False)
@@ -392,7 +403,7 @@ class AIProfile(Base):
 
 
 class EmbeddingProfile(Base):
-    """Mirror of the independent embedding endpoint configuration."""
+    """Independent embedding endpoint used by imports and retrieval."""
 
     __tablename__ = "embedding_profiles"
     id = Column(Integer, primary_key=True)
@@ -507,9 +518,12 @@ class CodeEntity(Base):
     meta_json = Column(JSON, nullable=True)
     # Inkrementalität: unveränderte Datei → Entities/Kanten nicht neu schreiben
     content_hash = Column(String(64), nullable=True)
-    # O-180: incremented when the entity content changes.
+    # O-180: incremented when the entity content changes. The link builder uses
+    # this together with the entity hash to keep link decisions reproducible.
     link_revision = Column(Integer, nullable=False, server_default="0")
-    # Model used for the entity-side retrieval embedding during the last link run.
+    # Model used for the persisted entity-side retrieval embedding during the
+    # last link run. Entities do not store a vector yet, but the model belongs
+    # to the entity-side link state and must be auditable.
     embedding_model = Column(String, nullable=True)
 
     children = relationship(
@@ -528,6 +542,14 @@ class CodeEntity(Base):
         ),
         Index("ix_code_entities_source_type", "source_id", "type"),
     )
+
+
+EDGE_DIRECTION_DIRECTED = "directed"
+EDGE_DIRECTION_UNDIRECTED = "undirected"
+EDGE_DIRECTION_BIDIRECTIONAL = "bidirectional"
+VALID_EDGE_DIRECTIONS = frozenset(
+    {EDGE_DIRECTION_DIRECTED, EDGE_DIRECTION_UNDIRECTED, EDGE_DIRECTION_BIDIRECTIONAL}
+)
 
 
 class CodeEdge(Base):
@@ -575,6 +597,14 @@ class CodeEdge(Base):
     src_entity = relationship("CodeEntity", foreign_keys=[src_entity_id])
     dst_entity = relationship("CodeEntity", foreign_keys=[dst_entity_id])
 
+    @property
+    def direction(self) -> str:
+        """Deterministische Standard-Richtung für Code-Kanten (O-264).
+        Code-Kanten (CALL, EXTENDS, IMPLEMENTS, READS, WRITES etc.) sind
+        immer gerichtet von src_entity nach dst_entity.
+        """
+        return EDGE_DIRECTION_DIRECTED
+
     __table_args__ = (
         Index("ix_code_edges_src_type", "src_entity_id", "type"),
         Index("ix_code_edges_dst_type", "dst_entity_id", "type"),
@@ -599,7 +629,9 @@ class EntityDocLink(Base):
     created_by = Column(String, default="auto")  # "auto" | "user"
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    # O-180: endpoint snapshot at recommendation time.
+    # O-180: snapshot of both link endpoints at recommendation time. Approved
+    # and rejected decisions can therefore survive unrelated delta-syncs while
+    # pending recommendations can be invalidated precisely.
     entity_content_hash = Column(String(64), nullable=True)
     chunk_content_hash = Column(String(64), nullable=True)
     embedding_model = Column(String, nullable=True)
@@ -609,6 +641,13 @@ class EntityDocLink(Base):
     project = relationship("Project", backref="entity_doc_links")
     entity = relationship("CodeEntity", backref="doc_links")
     chunk = relationship("DocumentChunk", backref="entity_links")
+
+    @property
+    def direction(self) -> str:
+        """Deterministische Standard-Richtung für Dokumentationskanten (O-264).
+        EntityDocLink dokumentiert eine Code-Entity durch einen Dokumenten-Chunk.
+        """
+        return EDGE_DIRECTION_DIRECTED
 
 
 class LinkBuilderDirtyItem(Base):
@@ -766,6 +805,13 @@ class KnowledgeLink(Base):
     # Link Metadata
     score = Column(Float, nullable=True)
     link_type = Column(String(20), default="semantic")  # 'semantic', 'keyword', 'chat', 'manual'
+    # O-264: Directionality of the relationship ('undirected' | 'directed' | 'bidirectional')
+    # 'undirected': mutual semantic cross-reference without inherent flow.
+    # 'directed': directed connection from source_a to source_b.
+    # 'bidirectional': explicit two-way relation.
+    direction = Column(
+        String(20), default="undirected", nullable=False, server_default="undirected"
+    )
     status = Column(String(20), default="pending", index=True)  # 'pending', 'approved', 'rejected'
     context = Column(Text, nullable=True)  # Why this link? (AI explanation)
     created_by = Column(String(50), default="auto")  # 'auto', 'user', 'chat'
@@ -806,7 +852,11 @@ class LinkBuilderRun(Base):
     error_message = Column(Text, nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
     links_created = Column(Integer, nullable=False, default=0)
+    # Embedding space selected for this run; retained for audit/reproducibility.
     embedding_model = Column(String, nullable=True)
+    # O-177: exact project/source scope used by a cross-source run.
+    scope_json = Column(JSON, nullable=True)
+    # Audit trail for privileged/global runs (O-178).
     triggered_by_user_id = Column(
         Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
