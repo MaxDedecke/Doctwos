@@ -83,13 +83,27 @@ def _load_server_settings() -> Optional[dict]:
                     "llm_api_key": profile.llm_api_key,
                     "protocol": profile.protocol,
                     "llm_path": profile.llm_path,
-                    "embedding_provider": embedding_profile.provider if embedding_profile else profile.embedding_provider,
-                    "embedding_model": embedding_profile.model if embedding_profile else profile.embedding_model,
-                    "embedding_base_url": embedding_profile.base_url if embedding_profile else profile.embedding_base_url,
-                    "embedding_api_key": embedding_profile.api_key if embedding_profile else profile.embedding_api_key,
-                    "embedding_path": embedding_profile.path if embedding_profile else profile.embedding_path,
-                    "embedding_dimension": embedding_profile.dimension if embedding_profile else profile.embedding_dimension,
-                    "embedding_context_length": embedding_profile.context_length if embedding_profile else profile.embedding_context_length,
+                    "embedding_provider": embedding_profile.provider
+                    if embedding_profile
+                    else profile.embedding_provider,
+                    "embedding_model": embedding_profile.model
+                    if embedding_profile
+                    else profile.embedding_model,
+                    "embedding_base_url": embedding_profile.base_url
+                    if embedding_profile
+                    else profile.embedding_base_url,
+                    "embedding_api_key": embedding_profile.api_key
+                    if embedding_profile
+                    else profile.embedding_api_key,
+                    "embedding_path": embedding_profile.path
+                    if embedding_profile
+                    else profile.embedding_path,
+                    "embedding_dimension": embedding_profile.dimension
+                    if embedding_profile
+                    else profile.embedding_dimension,
+                    "embedding_context_length": embedding_profile.context_length
+                    if embedding_profile
+                    else profile.embedding_context_length,
                     "llm_context_length": profile.llm_context_length,
                 }
             return {
@@ -98,13 +112,25 @@ def _load_server_settings() -> Optional[dict]:
                 "llm_api_key": settings.llm_api_key,
                 "protocol": "ollama" if settings.llm_provider == "ollama" else "openai_chat",
                 "llm_path": None,
-                "embedding_provider": embedding_profile.provider if embedding_profile else settings.embedding_provider,
-                "embedding_model": embedding_profile.model if embedding_profile else settings.embedding_model,
-                "embedding_base_url": embedding_profile.base_url if embedding_profile else settings.embedding_base_url,
-                "embedding_api_key": embedding_profile.api_key if embedding_profile else settings.embedding_api_key,
+                "embedding_provider": embedding_profile.provider
+                if embedding_profile
+                else settings.embedding_provider,
+                "embedding_model": embedding_profile.model
+                if embedding_profile
+                else settings.embedding_model,
+                "embedding_base_url": embedding_profile.base_url
+                if embedding_profile
+                else settings.embedding_base_url,
+                "embedding_api_key": embedding_profile.api_key
+                if embedding_profile
+                else settings.embedding_api_key,
                 "embedding_path": None,
-                "embedding_dimension": embedding_profile.dimension if embedding_profile else settings.embedding_dimension,
-                "embedding_context_length": embedding_profile.context_length if embedding_profile else settings.embedding_context_length,
+                "embedding_dimension": embedding_profile.dimension
+                if embedding_profile
+                else settings.embedding_dimension,
+                "embedding_context_length": embedding_profile.context_length
+                if embedding_profile
+                else settings.embedding_context_length,
                 "llm_context_length": settings.llm_context_length,
             }
         finally:
@@ -129,6 +155,11 @@ def _effective_embedding_settings(model: Optional[str] = None) -> dict:
         "dimension": settings["embedding_dimension"] if settings else EMBEDDING_DIMENSION,
         "context": settings["embedding_context_length"] if settings else EMBEDDING_CONTEXT_LENGTH,
     }
+
+
+def get_embedding_input_budget(model: Optional[str] = None) -> int:
+    """Input byte bound used by the active embedding profile's validation."""
+    return int(_effective_embedding_settings(model)["context"])
 
 
 def _effective_llm_settings(model: str) -> dict:

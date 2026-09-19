@@ -11,6 +11,51 @@ DEFAULT_MIN_CHUNK_SIZE = 200
 _SENTENCE_END_RE = re.compile(r"[.!?][\"')\]]?\s")
 
 
+def fit_chunks_to_utf8_budget(chunks: List[Dict], max_bytes: int) -> List[Dict]:
+    """Split oversized chunks losslessly, retaining metadata and physical lines.
+
+    The embedding client uses UTF-8 bytes as a conservative token upper bound.
+    Apply this after character-based chunking (including its small-chunk merge).
+    """
+    if max_bytes < 4:
+        raise ValueError("Embedding input budget must allow at least four UTF-8 bytes")
+    result = []
+    for chunk in chunks:
+        text = chunk["content"]
+        if len(text.encode("utf-8")) <= max_bytes:
+            result.append(chunk)
+            continue
+        start = 0
+        size = 0
+        line = chunk["start_line"]
+        for index, char in enumerate(text):
+            width = len(char.encode("utf-8"))
+            if size + width > max_bytes:
+                piece = text[start:index]
+                result.append(
+                    {
+                        **chunk,
+                        "content": piece,
+                        "start_line": line,
+                        "end_line": line + piece.count("\n") - int(piece.endswith("\n")),
+                    }
+                )
+                line += piece.count("\n")
+                start = index
+                size = 0
+            size += width
+        piece = text[start:]
+        result.append(
+            {
+                **chunk,
+                "content": piece,
+                "start_line": line,
+                "end_line": line + piece.count("\n") - int(piece.endswith("\n")),
+            }
+        )
+    return result
+
+
 class CodeParser:
     """
     Generic line-based text chunker used for all file types (code, documents,

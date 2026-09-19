@@ -384,7 +384,9 @@ async def run_agent_loop(
                 "description": (
                     "Follows the indexed, directed call flow from one code entity for up to "
                     "five hops. Use get_repo_entities first to obtain an entity ID. The result "
-                    "contains code locations and Mermaid flowchart source for a chat diagram."
+                    "contains code locations and Mermaid flowchart source for a chat diagram. "
+                    "A class resolves to its unique Java main or sole method; otherwise choose "
+                    "a relevant entry_candidates method using source evidence, or ask the user."
                 ),
                 "inputSchema": {
                     "type": "object",
@@ -442,6 +444,11 @@ async def run_agent_loop(
         "Datei- und Zeilenangaben aus dem Werkzeugergebnis; erfinde niemals Pfade oder Zeilennummern.\n"
         "Wenn die Frage nach einem technischen Ablauf, Endpunkt oder einer Aufrufkette fragt, ermittle zuerst "
         "die passende Entität und nutze `trace_call_flow`. Erkläre dabei nur die tatsächlich zurückgegebenen "
+        "Kanten. Beachte `requested_root` und `entry_resolution`, wenn eine Klasse auf eine Methode "
+        "aufgelöst wurde. Bei `entry_point_selection_required` prüfe die angebotenen Methoden anhand "
+        "der Frage und des Codes; bei Mehrdeutigkeit frage nach dem gewünschten Einstieg. "
+        "Behaupte bei `no_indexed_calls` nicht, dass es zur Laufzeit keine Aufrufe gibt. Erkläre den Hinweis. "
+        "Erkläre nur belegte "
         "Kanten. Gib dessen Feld `mermaid` unverändert in einem ```mermaid-Codeblock aus, sofern es eine "
         "Ablaufgrafik ergibt. Weise auf unaufgelöste oder gekürzte Kanten ausdrücklich hin. "
         "Frage den Nutzer am Ende deiner Antwort freundlich, ob du die Call Graph View öffnen darfst, um ihm "
@@ -947,11 +954,7 @@ async def run_agent_loop(
 
                 if accumulated_content and (
                     tool_calls_list
-                    or not (
-                        require_initial_tool_call
-                        and not bootstrap_tool
-                        and turn in (0, 1)
-                    )
+                    or not (require_initial_tool_call and not bootstrap_tool and turn in (0, 1))
                 ):
                     agent_steps.append({"type": "thought", "content": accumulated_content})
 

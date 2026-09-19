@@ -98,7 +98,17 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         root_entity_types=("xml_document",),
         parser_version="xml-root-1",
     ),
-    "html": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("html_document",), parser_version="html-structure-2"),
-    "jsp": ParserEntry(parse=parse_jsp_or_html, root_entity_types=("jsp_page",), parser_version="jsp-structure-2"),
-    "shell": ParserEntry(parse=parse_shell_file, root_entity_types=("shell_script",), parser_version="shell-structure-2"),
+    "html": ParserEntry(
+        parse=parse_jsp_or_html,
+        root_entity_types=("html_document",),
+        parser_version="html-structure-3",
+    ),
+    "jsp": ParserEntry(
+        parse=parse_jsp_or_html, root_entity_types=("jsp_page",), parser_version="jsp-structure-3"
+    ),
+    "shell": ParserEntry(
+        parse=parse_shell_file,
+        root_entity_types=("shell_script",),
+        parser_version="shell-structure-2",
+    ),
 }

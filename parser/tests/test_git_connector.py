@@ -11,7 +11,7 @@ from cobol.model import Chunk, ParseResult
 from cobol.profile import BuildProfile, SourceColumns
 from core.analysis_fingerprint import analysis_fingerprint
 from core import config
-from core.registry import ParserEntry
+from core.registry import ParserEntry, STRUCTURE_PARSERS
 from db import SessionLocal
 from models.database import CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import (
@@ -295,6 +295,136 @@ def _patched_sync(connector):
         # EMBED_CONCURRENCY bei, damit diese Tests unveraendert bleiben.
         patch("connectors.git.is_gpu_accelerated", AsyncMock(return_value=True)),
     )
+
+
+@pytest.mark.anyio
+async def test_markup_budget_and_duplicate_shell_entities_survive_git_ingestion(
+    db_session, test_source, git_remote
+):
+    _commit_file(
+        git_remote,
+        ".setup/pipeline-common.sh",
+        "print_phase_next_step() { echo first; }\nprint_phase_next_step() { echo second; }\n",
+        "Repeated shell function",
+    )
+    _commit_file(
+        git_remote, "large.html", "<script>" + "ä漢😀" * 4000 + "</script>", "Large UTF-8 markup"
+    )
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with (
+        p1,
+        p2 as batch,
+        p3,
+        p4,
+        patch("connectors.git.get_embedding_input_budget", return_value=128),
+    ):
+        await connector.sync()
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed", test_source.last_error
+    markup_batches = [
+        call.args[0] for call in batch.call_args_list if any("😀" in item for item in call.args[0])
+    ]
+    assert markup_batches
+    assert all(len(item.encode("utf-8")) <= 128 for items in markup_batches for item in items)
+    functions = (
+        db_session.query(CodeEntity)
+        .filter_by(source_id=test_source.id, type="shell_function")
+        .all()
+    )
+    assert len(functions) == 2
+    assert len({item.qualified_name for item in functions}) == 2
+    assert {item.start_line for item in functions} == {1, 2}
+    assert (
+        db_session.query(DocumentChunk)
+        .filter_by(source_id=test_source.id, file_path="large.html")
+        .count()
+        > 1
+    )
+
+
+@pytest.mark.anyio
+async def test_persistence_failure_is_visible_and_does_not_commit_chunks(db_session, test_source):
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with (
+        p1,
+        p2,
+        p3,
+        p4,
+        patch("connectors.git.persist_parse_result", side_effect=ValueError("duplicate entity")),
+    ):
+        await connector.sync()
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "error"
+    scan = (
+        db_session.query(SourceScanFile)
+        .filter_by(source_id=test_source.id, file_path="PROG.CBL")
+        .one()
+    )
+    assert scan.parse_status == "error"
+    assert "duplicate entity" in scan.parse_error
+    assert "'PROG.CBL' indexiert" not in test_source.sync_log
+    assert (
+        db_session.query(DocumentChunk)
+        .filter_by(source_id=test_source.id, file_path="PROG.CBL")
+        .count()
+        == 0
+    )
+    assert (
+        db_session.query(DocumentChunk)
+        .filter_by(source_id=test_source.id, file_path="README.md")
+        .count()
+        > 0
+    )
+
+
+@pytest.mark.anyio
+async def test_failed_embedding_keeps_previous_file_revision(db_session, test_source, git_remote):
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+    old_chunks = (
+        db_session.query(DocumentChunk)
+        .filter_by(source_id=test_source.id, file_path="README.md")
+        .all()
+    )
+    old_ids = {item.id for item in old_chunks}
+    assert old_ids
+    _commit_file(
+        git_remote,
+        "README.md",
+        "Changed documentation that must not replace the last working revision.\n" * 100,
+        "Change docs",
+    )
+    connector = GitConnector(test_source.id)
+    p1, _, _, p4 = _patched_sync(connector)
+    with (
+        p1,
+        p4,
+        patch("connectors.git.get_embeddings_batch", AsyncMock(side_effect=ValueError("offline"))),
+        patch(
+            "connectors.git.get_embedding",
+            AsyncMock(side_effect=[[0.1] * 1024, ValueError("offline")]),
+        ),
+    ):
+        await connector.sync()
+    db_session.expire_all()
+    assert {
+        item.id
+        for item in db_session.query(DocumentChunk).filter_by(
+            source_id=test_source.id, file_path="README.md"
+        )
+    } == old_ids
+    assert (
+        db_session.query(SourceScanFile)
+        .filter_by(source_id=test_source.id, file_path="README.md")
+        .one()
+        .parse_status
+        == "error"
+    )
+    assert test_source.sync_status == "error"
 
 
 @pytest.mark.anyio
@@ -584,10 +714,13 @@ async def test_git_connector_resumes_via_content_hash(
             source_id=test_source.id,
             file_path="PROG.CBL",
             content_hash=git_utils.blob_content_hash(tracked["PROG.CBL"]),
+            language="cobol",
+            parse_status="complete",
             analysis_fingerprint=analysis_fingerprint(
                 source_revision=tracked["PROG.CBL"],
                 profile=BuildProfile(),
                 parser_version="cobol-structure-3",
+                grammar_version=STRUCTURE_PARSERS["cobol"].grammar_fingerprint(),
                 libraries={},
                 embedding_model=config.EMBED_MODEL,
             ),
@@ -761,7 +894,7 @@ async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_sess
         await connector.sync()
 
     db_session.refresh(test_source)
-    assert test_source.sync_status == "completed"
+    assert test_source.sync_status == "error"
     assert (
         "Embedding-Fehler für 'PROG.CBL' (Chunk übersprungen): ValueError: truncated response"
         in test_source.sync_log
@@ -778,6 +911,25 @@ async def test_git_connector_logs_when_the_per_chunk_fallback_also_fails(db_sess
         .all()
     )
     assert len(chunks) == 0
+
+    scan = (
+        db_session.query(SourceScanFile)
+        .filter_by(source_id=test_source.id, file_path="PROG.CBL")
+        .one()
+    )
+    assert scan.parse_status == "error"
+    assert "Embedding unvollständig" in scan.parse_error
+    assert "'PROG.CBL' indexiert (0 Chunks)" not in test_source.sync_log
+
+    # A retry without a commit change must revisit the failed file.
+    retry = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(retry)
+    with p1, p2, p3, p4:
+        await retry.sync()
+    db_session.refresh(scan)
+    db_session.refresh(test_source)
+    assert scan.parse_status != "error"
+    assert test_source.sync_status == "completed"
 
 
 @pytest.mark.anyio

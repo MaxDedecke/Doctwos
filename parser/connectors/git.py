@@ -52,9 +52,10 @@ from ollama_client import (
     ensure_model_pulled,
     get_embeddings_batch,
     get_embedding,
+    get_embedding_input_budget,
     is_gpu_accelerated,
 )
-from code_parser import CodeParser
+from code_parser import CodeParser, fit_chunks_to_utf8_budget
 from chunk_reindex import reindex_chunks_preserving_links
 from tasks.edge_resolver import resolve_global_edges
 from tasks.shared import get_authenticated_url
@@ -406,9 +407,7 @@ def _analysis_dependency_paths(db, source_id: int) -> dict[str, set[str]]:
     """
     entities = {
         entity.id: entity.file_path
-        for entity in db.query(CodeEntity)
-        .filter(CodeEntity.source_id == source_id)
-        .all()
+        for entity in db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
         if entity.file_path
     }
     dependencies: dict[str, set[str]] = defaultdict(set)
@@ -536,10 +535,7 @@ def _reuse_unchanged_embeddings(
         chunk.content: chunk.embedding
         for chunk in old_chunks
         if chunk.embedding is not None
-        and (
-            embedding_model is None
-            or getattr(chunk, "embedding_model", None) == embedding_model
-        )
+        and (embedding_model is None or getattr(chunk, "embedding_model", None) == embedding_model)
     }
     for chunk in chunks:
         if chunk["content"] in reusable:
@@ -649,6 +645,11 @@ class GitConnector(BaseConnector):
                     parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
                 )
 
+            if lang in {"html", "jsp"}:
+                chunks = fit_chunks_to_utf8_budget(
+                    chunks, get_embedding_input_budget(self.embedding_model)
+                )
+
             # O-122: Ein Profil- oder Bibliothekswechsel kann die Struktur
             # ändern, obwohl einzelne indexierbare Textpassagen identisch
             # bleiben. Diese Vektoren werden aus den bisherigen Chunks
@@ -720,12 +721,27 @@ class GitConnector(BaseConnector):
             # Found via a real CardDemo import: an EBCDIC data file's batch
             # embed failed (logged), the fallback then failed for every one
             # of its chunks too, and none of that showed up anywhere.
-            self._log(
-                f"Embedding-Fehler für '{doc['title']}' (Chunk übersprungen): {type(e).__name__}: {e}"
-            )
+            # Keep the previous file revision intact when even one chunk is
+            # missing. The outer rollback records an error and permits retry.
+            raise RuntimeError(
+                f"Embedding unvollständig: Embedding-Fehler für '{doc['title']}' "
+                f"(Chunk übersprungen): {type(e).__name__}: {e}"
+            ) from e
 
         path = doc["storage_key"]
         try:
+            # Finish asynchronous fallback work before changing any DB rows.
+            # Concurrent embedding tasks log through the same session and can
+            # commit it; yielding halfway through a replacement is not atomic.
+            for chunk in chunks:
+                if "embedding" not in chunk:
+                    try:
+                        embedding = await embed_content(chunk["content"])
+                        if not embedding:
+                            raise ValueError("Embedding-Modell lieferte leeren Vektor")
+                        chunk["embedding"] = embedding
+                    except Exception as exc:
+                        on_embed_error(chunk, exc)
             count = await reindex_chunks_preserving_links(
                 self.db,
                 source_id=self.source.id,
@@ -841,6 +857,7 @@ class GitConnector(BaseConnector):
             # "transaction has been rolled back"-Meldung fehlschlagen.
             self.db.rollback()
             error_msg = str(e)
+            doc["extra_meta"]["index_error"] = error_msg
             self._log(f"Fehler bei '{doc['title']}', Datei übersprungen: {error_msg}")
 
             if not doc["extra_meta"].get("deleted"):
@@ -1080,8 +1097,7 @@ class GitConnector(BaseConnector):
                     else f"properties-explicit-{profile.encoding}-v1"
                 )
         base_fingerprints = {
-            path: analysis_fingerprint(**inputs)
-            for path, inputs in fingerprint_inputs.items()
+            path: analysis_fingerprint(**inputs) for path, inputs in fingerprint_inputs.items()
         }
 
         def expected_fingerprint(path: str, stack: frozenset[str] = frozenset()) -> str:
@@ -1097,7 +1113,9 @@ class GitConnector(BaseConnector):
                 return base_fingerprints[path]
             dependencies = dict(inputs.get("dependencies") or {})
             for dependency in sorted(analysis_dependencies.get(path, ())):
-                dependencies[f"source:{dependency}:content_hash"] = current_hashes.get(dependency, "")
+                dependencies[f"source:{dependency}:content_hash"] = current_hashes.get(
+                    dependency, ""
+                )
                 dependencies[f"source:{dependency}:analysis_fingerprint"] = expected_fingerprint(
                     dependency, stack | {path}
                 )
@@ -1115,6 +1133,7 @@ class GitConnector(BaseConnector):
                 not force_reindex
                 and existing
                 and existing.language is not None
+                and existing.parse_status != "error"
                 and existing.analysis_fingerprint == fingerprint
             ):
                 continue
@@ -1186,9 +1205,7 @@ class GitConnector(BaseConnector):
                     raw,
                     configured_encoding,
                     fallback_encoding=(
-                        "iso-8859-1"
-                        if is_properties and not configured_encoding
-                        else None
+                        "iso-8859-1" if is_properties and not configured_encoding else None
                     ),
                 )
             except SourceDecodeError as error:
@@ -1313,6 +1330,7 @@ class GitConnector(BaseConnector):
 
             total_chunks = 0
             processed = 0
+            failed_files = 0
 
             async for task in doc_producer():
                 pending_tasks.add(task)
@@ -1328,7 +1346,10 @@ class GitConnector(BaseConnector):
                         total_chunks += chunk_count
                         processed += 1
                         self.has_changes = True
-                        self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                        if not doc["extra_meta"].get("index_error"):
+                            self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                        else:
+                            failed_files += 1
                         # O-075: parsed_files/progress hier setzen, nicht beim
                         # Einreihen (siehe fetch_documents()) -- das bildet ab,
                         # wie viele Dateien wirklich fertig sind, statt nur
@@ -1350,7 +1371,10 @@ class GitConnector(BaseConnector):
                     total_chunks += chunk_count
                     processed += 1
                     self.has_changes = True
-                    self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                    if not doc["extra_meta"].get("index_error"):
+                        self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                    else:
+                        failed_files += 1
                     self.source.parsed_files = processed
                     self._update_progress(
                         processed,
@@ -1369,14 +1393,21 @@ class GitConnector(BaseConnector):
             # Abbruch den nächsten Sync exakt denselben Diff neu berechnen lässt
             # (der Resume-Check in fetch_documents() überspringt dann alles
             # bereits persistierte).
-            if self._new_commit:
+            if self._new_commit and not failed_files:
                 self.source.sync_cursor = {"last_commit": self._new_commit}
 
             self.source.last_synced_at = self._sync_start_time
-            self.source.sync_status = "completed"
+            self.source.sync_status = "error" if failed_files else "completed"
+            self.source.last_error = (
+                f"{failed_files} Datei(en) konnten nicht indexiert werden."
+                if failed_files
+                else None
+            )
             self.source.parse_finished_at = datetime.now(timezone.utc)
             self.source.progress = 100
-            self.source.progress_message = "Synchronisierung abgeschlossen"
+            self.source.progress_message = (
+                self.source.last_error or "Synchronisierung abgeschlossen"
+            )
             self.db.commit()
             self._log(
                 f"Sync abgeschlossen — {processed} Dokument(e), {total_chunks} Chunks gesamt."

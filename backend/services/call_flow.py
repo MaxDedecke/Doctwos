@@ -20,9 +20,22 @@ from models.database import CodeEdge, CodeEntity
 CALL_FLOW_MAX_HOPS = 5
 CALL_FLOW_MAX_NODES = 150
 CALL_FLOW_EDGE_TYPES = {
-    "CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES",
-    "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
-    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "LINKS_TO",
+    "CALL",
+    "PERFORM",
+    "GOTO",
+    "COPY",
+    "CALLS",
+    "INSTANTIATES",
+    "USES_RESOURCE",
+    "INCLUDES",
+    "IMPORTS",
+    "TRANSFORMS_WITH",
+    "READS_XML",
+    "SOURCES",
+    "EXECUTES_SCRIPT",
+    "STARTS_JAVA",
+    "REFERENCES_RESOURCE",
+    "LINKS_TO",
 }
 CallFlowDirection = Literal["outgoing", "incoming", "both"]
 
@@ -99,6 +112,46 @@ def trace_call_flow(
     if root is None:
         return {"error": "Entity was not found in the current project"}
 
+    requested_root = root
+    entry_resolution = "requested_entity"
+    if direction == "outgoing" and root.type in {"class", "interface", "enum", "record"}:
+        methods = (
+            db.query(CodeEntity)
+            .filter(
+                CodeEntity.project_id == project_id,
+                CodeEntity.source_id == root.source_id,
+                CodeEntity.variant_key == root.variant_key,
+                CodeEntity.parent_id == root.id,
+                CodeEntity.type == "method",
+            )
+            .order_by(CodeEntity.start_line, CodeEntity.id)
+            .limit(CALL_FLOW_MAX_NODES + 1)
+            .all()
+        )
+        candidates_truncated = len(methods) > CALL_FLOW_MAX_NODES
+        mains = [method for method in methods if _is_java_main(method)]
+        if not candidates_truncated and len(mains) == 1:
+            root = mains[0]
+            entry_resolution = "unique_java_main"
+        elif len(methods) == 1:
+            root = methods[0]
+            entry_resolution = "only_method"
+        elif methods:
+            return {
+                "status": "entry_point_selection_required",
+                "root": _node_json(root),
+                "requested_root": _node_json(root),
+                "entry_candidates": [
+                    _node_json(method) for method in methods[:CALL_FLOW_MAX_NODES]
+                ],
+                "truncated": candidates_truncated,
+                "nodes": [_node_json(root)],
+                "edges": [],
+                "mermaid": "",
+                "notice": "Mehrere Methoden vorhanden. Wähle den zur Frage passenden Einstieg "
+                "anhand der Quellen oder frage nach; rufe trace_call_flow mit dessen ID erneut auf.",
+            }
+
     seen = {root.id}
     frontier = {root.id}
     edge_rows: dict[int, CodeEdge] = {}
@@ -135,9 +188,7 @@ def trace_call_flow(
                 next_frontier.add(candidate)
         frontier = next_frontier
 
-    entities = (
-        db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id).all()
-    )
+    entities = db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id).all()
     nodes = [_node_json(entity) for entity in entities]
     edges = [
         {
@@ -152,11 +203,17 @@ def trace_call_flow(
             "end_line": edge.src_end_line,
         }
         for edge in edge_rows.values()
-        if edge.src_entity_id in seen
-        and (edge.dst_entity_id is None or edge.dst_entity_id in seen)
+        if edge.src_entity_id in seen and (edge.dst_entity_id is None or edge.dst_entity_id in seen)
     ]
     return {
         "root": _node_json(root),
+        "requested_root": _node_json(requested_root),
+        "entry_resolution": entry_resolution,
+        "status": "ok" if edges else "no_indexed_calls",
+        "notice": None
+        if edges
+        else "Für diesen Einstieg und die gewählte Tiefe/Richtung sind "
+        "keine Aufrufkanten indexiert. Das belegt nicht, dass zur Laufzeit keine Aufrufe erfolgen.",
         "hops": hops,
         "direction": direction,
         "truncated": truncated,
@@ -164,3 +221,15 @@ def trace_call_flow(
         "edges": edges,
         "mermaid": _to_mermaid(nodes, edges),
     }
+
+
+def _is_java_main(entity: CodeEntity) -> bool:
+    meta = entity.meta_json or {}
+    return (
+        entity.file_path.endswith(".java")
+        and entity.name == "main"
+        and {"public", "static"}.issubset(meta.get("modifiers") or [])
+        and meta.get("return_type") == "void"
+        and meta.get("parameter_types")
+        in (["String[]"], ["java.lang.String[]"], ["String..."], ["java.lang.String..."])
+    )
