@@ -555,7 +555,7 @@ Erledigungsstände pflegen. O-190–O-199 für Chat-Ansichten bleiben bestehen.
 | O-253 | P1 / siehe Detail | Mischsprachen in Editor, Graph, Zitaten und Agentenantworten korrekt anzeigen. |
 | O-254 | P1 / siehe Detail | Qualität und Last des tatsächlichen Bestands vor Pilotfreigabe messen. |
 | O-255 | P1 / siehe Detail | **Erledigt 19.09.2026:** Maven-Dependencies enthalten Classifier und abweichenden Type im Qualified Name; exakte Duplikate erhalten einen Zähler-Suffix und kollidieren nicht in PostgreSQL. |
-| O-256 | P1 / siehe Detail | ISO-8859-1-Fallback für Java-.properties-Dateien und Resource-Bundles unterstützen. |
+| O-256 | P1 / siehe Detail | **Erledigt 19.09.2026:** `.properties`-Dateien fallen bei ungültigem UTF-8 ohne explizites Profil-Encoding auf ISO-8859-1 zurück; ein versionsgebundener Fingerprint stößt die erneute Verarbeitung zuvor übersprungener Resource-Bundles an. |
 | O-257 | P1 / siehe Detail | Verwaiste und doppelte LinkBuilder-Jobs im JobCenter bereinigen und Queue-Deduplikation absichern. |
 
 ## Noch zu evaluieren

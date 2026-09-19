@@ -1073,6 +1073,12 @@ class GitConnector(BaseConnector):
                 "dependencies": dependencies,
                 "embedding_model": self.embedding_model,
             }
+            if os.path.splitext(path)[1].lower() == ".properties":
+                fingerprint_inputs[path]["decoder_policy"] = (
+                    "properties-utf8-then-iso-8859-1-v1"
+                    if profile is None or not profile.encoding
+                    else f"properties-explicit-{profile.encoding}-v1"
+                )
         base_fingerprints = {
             path: analysis_fingerprint(**inputs)
             for path, inputs in fingerprint_inputs.items()
@@ -1174,8 +1180,16 @@ class GitConnector(BaseConnector):
                 continue
             profile = profiles_by_path.get(path)
             try:
+                configured_encoding = profile.encoding if profile is not None else None
+                is_properties = os.path.splitext(path)[1].lower() == ".properties"
                 content, codec = decode_source(
-                    raw, profile.encoding if profile is not None else None
+                    raw,
+                    configured_encoding,
+                    fallback_encoding=(
+                        "iso-8859-1"
+                        if is_properties and not configured_encoding
+                        else None
+                    ),
                 )
             except SourceDecodeError as error:
                 reason = f"{error} (vermutlich Binärdaten), wird nicht embedded."

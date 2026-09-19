@@ -25,12 +25,30 @@ def resolve_encoding(encoding: str | None) -> str:
         ) from error
 
 
-def decode_source(raw: bytes, encoding: str | None = None) -> tuple[str, str]:
-    """Dekodiert strikt und gibt Text plus tatsächlich verwendeten Codec zurück."""
+def decode_source(
+    raw: bytes,
+    encoding: str | None = None,
+    *,
+    fallback_encoding: str | None = None,
+) -> tuple[str, str]:
+    """Dekodiert strikt und gibt Text plus tatsächlich verwendeten Codec zurück.
+
+    Ein optionaler Fallback wird ausschließlich nach einem ungültigen Byte für
+    den primären Codec versucht. Fehlerhafte Codec-Konfigurationen bleiben
+    sichtbar und werden nicht durch den Fallback verdeckt.
+    """
     codec = resolve_encoding(encoding)
     try:
         return raw.decode(codec, errors="strict"), codec
     except UnicodeDecodeError as error:
+        if fallback_encoding is not None:
+            fallback_codec = resolve_encoding(fallback_encoding)
+            try:
+                return raw.decode(fallback_codec, errors="strict"), fallback_codec
+            except UnicodeDecodeError:
+                # Keep the primary error: it explains why the selected source
+                # encoding failed, while the caller may report it as a skip.
+                pass
         label = encoding or "UTF-8"
         raise SourceDecodeError(f"kein {label}-Text: Byte {error.start} ist ungültig") from error
 
