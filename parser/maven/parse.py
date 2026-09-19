@@ -177,6 +177,9 @@ def parse_maven_pom(source: str, path: str, **_: object) -> ParseResult:
             )
 
     dependencies = next((item for item in list(project) if _local_name(item.tag) == "dependencies"), None)
+    used_qualified_names = {
+        entity.qualified_name for entity in entities if entity.qualified_name is not None
+    }
     if dependencies is not None:
         for dependency in _children(dependencies, "dependency"):
             dep_group = _child_text(dependency, "groupId") or ""
@@ -184,8 +187,22 @@ def parse_maven_pom(source: str, path: str, **_: object) -> ParseResult:
             if not dep_artifact:
                 continue
             coordinate = f"{dep_group}:{dep_artifact}" if dep_group else dep_artifact
+            dep_type = _child_text(dependency, "type") or "jar"
+            classifier = _child_text(dependency, "classifier")
             line, cursor = _line_for(source, "<dependency", cursor)
             qname = f"{root_qname}::dependency:{coordinate}"
+            if dep_type != "jar":
+                qname += f":type:{dep_type}"
+            if classifier:
+                # Keep the common classifier suffix readable (for example
+                # ``...:dependency:org.example:core:javadoc``).
+                qname += f":{classifier}"
+            base_qname = qname
+            duplicate_index = 1
+            while qname in used_qualified_names:
+                duplicate_index += 1
+                qname = f"{base_qname}#{duplicate_index}"
+            used_qualified_names.add(qname)
             child = _add_entity(
                 entities,
                 entity_type="maven_dependency",
@@ -197,6 +214,8 @@ def parse_maven_pom(source: str, path: str, **_: object) -> ParseResult:
                 meta={
                     "group_id": dep_group or None,
                     "artifact_id": dep_artifact,
+                    "type": dep_type,
+                    "classifier": classifier,
                     "version": _child_text(dependency, "version"),
                     "scope": _child_text(dependency, "scope") or "compile",
                     "optional": _child_text(dependency, "optional") == "true",
