@@ -120,6 +120,14 @@ async def compute_knowledge_links_async(
         logger.error(f"[CrossLinkBuilder] LinkBuilderRun {run_id} nicht gefunden — abgebrochen.")
         db.close()
         return
+    if run.status != "pending":
+        logger.info(
+            "[CrossLinkBuilder] Run %s ist bereits %s und wird nicht gestartet.",
+            run_id,
+            run.status,
+        )
+        db.close()
+        return
 
     scope = run.scope_json or {}
     selected_project_id = project_id or scope.get("project_id") or run.project_id

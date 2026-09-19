@@ -1,6 +1,6 @@
 # Betriebs- und Nutzergrenzen
 
-Stand: 16.09.2026. Dieses Dokument trennt technische Schutzgrenzen von
+Stand: 19.09.2026. Dieses Dokument trennt technische Schutzgrenzen von
 Produkt-/Abrechnungsquoten. Doctus ist single-tenant und selbst gehostet;
 Docker, PostgreSQL, Valkey und der verfügbare Speicherplatz bleiben deshalb
 zusätzliche Grenzen der jeweiligen Kundenumgebung.
@@ -15,6 +15,7 @@ zusätzliche Grenzen der jeweiligen Kundenumgebung.
 | Java-/Text-Chunk | 1.000 Zeichen | `parser/core/config.py::CHUNK_SIZE`; per Env anpassbar. Java-Struktur-Chunks werden zusätzlich symbolorientiert erzeugt. |
 | Embedding-Nebenläufigkeit | 20, CPU-only 2 | `EMBED_CONCURRENCY` und `EMBED_CONCURRENCY_CPU_ONLY`; per Env anpassbar, um Ollama nicht zu überlasten. |
 | Gemeinsame Inferenzkapazität | 4 Slots pro Endpoint, davon mindestens 1 für Chat und 1 für Batch-Arbeit | `INFERENCE_MAX_CONCURRENCY`, `INFERENCE_CHAT_RESERVE`, `INFERENCE_BATCH_RESERVE`; backend und Parser koordinieren Slots über Valkey/Redis. Die Batch-Queue wartet bis zu 900 s, Chat bis zu 30 s. Logs zeigen Queue-Eintritt, Wartezeit und belegte Slots; der Redis-Metrik-Hash enthält Requests, Drosselungen, Wartezeit und Slot-Auslastung. Slot-Auslastung ist ein Belegungsproxy des Endpunkts, keine GPU-Telemetrie. |
+| LinkBuilder-Run-Recovery | Dispatch ohne gespeicherte Task-ID: 120 s; maximales `pending`: 30 min | Job Center und `/knowledge-links/runs` beenden verwaiste und doppelte aktive Runs automatisch. Festhängende Runs werden `failed` und sind wiederaufnehmbar; bei gleichem Projekt-/Quell-Scope wird ein aktiver Run wiederverwendet. |
 | Embedding-Batch | 20 Chunks | `EMBED_BATCH_MAX_CHUNKS` im Git-Konnektor; große Läufe werden in kleinere Ollama-Anfragen geteilt. |
 | Knowledge-Graph-Übersicht | 2.000 Nodes | `KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES`; per Env anpassbar. Die API meldet eine abgeschnittene Übersicht. |
 | Call-Graph-Fokus | 500 Nodes | `backend/api/callgraph.py::MAX_NODES`; verhindert unbounded BFS und übergroße Browser-Graphen. |
@@ -37,6 +38,15 @@ docker compose logs --since=30m backend-api parser-worker | rg inference_admissi
 ```
 
 `utilization_percent` beschreibt die belegten Doctus-Slots relativ zum konfigurierten Limit. Für GPU-/CPU-Auslastung des eigentlichen Modellservers gelten weiterhin dessen eigene Telemetriedaten.
+
+O-258 ist lokal ohne Modellaufruf abgedeckt. Für die spätere Live-Abnahme werden
+Doctus-Logs und Redis-Zähler im selben Zeitfenster wie die Modellserver-/GPU-
+Telemetrie aufgezeichnet. Bei lokalem NVIDIA-Ollama kann dafür `nvidia-smi dmon`
+auf dem Modellhost mit dem Zeitraum der parallelen Chat- und Importanfragen
+verwendet werden. Bei einem Remote-Endpunkt müssen dessen Betreiber-Metriken für
+Queue, aktive Requests und GPU-Auslastung herangezogen werden. Vor dem Lauf wird
+mit dem Betreiber ein First-Token-SLO festgelegt; ohne diesen Zielwert wird die
+O-258-Live-Abnahme nicht als bestanden markiert.
 
 Einige Grenzwerte sind bewusst konfigurierbar. Eine Erhöhung muss immer gegen
 RAM/VRAM, Ollama-Durchsatz, PostgreSQL und Browserlast geprüft werden; sie ist

@@ -21,6 +21,10 @@ from core.projects import assert_project_visible, get_visible_project_ids
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
 from services.job_control import send_tracked_task
+from services.link_builder_runs import (
+    find_active_knowledge_link_run,
+    reconcile_knowledge_link_runs,
+)
 from sqlalchemy import or_
 from sqlalchemy.sql import func
 
@@ -566,6 +570,28 @@ def trigger_knowledge_link_computation(
     if visible_source_ids != set(selected_source_ids):
         raise HTTPException(status_code=400, detail="Mindestens eine Wissensquelle gehört nicht zum Projektkontext")
 
+    # Repair stale entries before checking for a live duplicate. The project
+    # row lock serializes concurrent enqueue requests for this scope.
+    reconcile_knowledge_link_runs(db)
+    project = db.query(Project).filter(Project.id == project_id).with_for_update().first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    scope = {
+        "project_id": project_id,
+        "source_ids": selected_source_ids,
+        "queue": "global_link_runs",
+        "confirmed": True,
+    }
+    existing = find_active_knowledge_link_run(db, project_id, scope)
+    if existing is not None:
+        db.commit()
+        return {
+            "message": "Für diesen Scope läuft bereits ein Job",
+            "run_id": existing.id,
+            "scope": existing.scope_json,
+            "deduplicated": True,
+        }
+
     # Ein Refresh startet den Cross-Source-Scan von neuem — bisher unbestätigte
     # (pending) Vorschläge sind noch nicht reviewt und würden sonst als
     # Karteileichen neben den frisch berechneten liegen bleiben, da
@@ -586,12 +612,7 @@ def trigger_knowledge_link_computation(
         project_id=project_id,
         status="pending",
         embedding_model=embedding_model.strip() if embedding_model else None,
-        scope_json={
-            "project_id": project_id,
-            "source_ids": selected_source_ids,
-            "queue": "global_link_runs",
-            "confirmed": True,
-        },
+        scope_json=scope,
         triggered_by_user_id=user.id,
     )
     db.add(run)
@@ -612,7 +633,12 @@ def trigger_knowledge_link_computation(
         },
         queue="global_link_runs",
     )
-    return {"message": "Cross-Source Analyse gestartet", "run_id": run.id, "scope": run.scope_json}
+    return {
+        "message": "Cross-Source Analyse gestartet",
+        "run_id": run.id,
+        "scope": run.scope_json,
+        "deduplicated": False,
+    }
 
 
 @router.get("/runs")
@@ -624,6 +650,7 @@ def list_knowledge_link_runs(db: Session = Depends(get_db), user: User = Depends
     """
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
+    reconcile_knowledge_link_runs(db)
     runs = (
         db.query(LinkBuilderRun)
         .filter(LinkBuilderRun.task_type == "knowledge_links")

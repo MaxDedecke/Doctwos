@@ -24,9 +24,15 @@ from models.database import (
     JobCenterDismissal,
     KnowledgeSource,
     LinkBuilderRun,
+    Project,
     User,
 )
 from services.job_control import revoke_tracked_task, send_tracked_task
+from services.link_builder_runs import (
+    find_active_knowledge_link_run,
+    lock_project_scope,
+    reconcile_knowledge_link_runs,
+)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 ACTIVE = {"pending", "running", "syncing", "parsing"}
@@ -123,6 +129,7 @@ def list_jobs(
     team_ids = get_visible_team_ids(user, db)
     if project_id is not None and project_ids is not None and project_id not in project_ids:
         raise HTTPException(status_code=403, detail="Kein Zugriff auf dieses Projekt")
+    reconcile_knowledge_link_runs(db)
 
     source_query = db.query(KnowledgeSource)
     if team_ids is not None:
@@ -186,9 +193,25 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
 
 
 def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
+    project_id = previous.project_id
+    if previous.task_type == "knowledge_links":
+        project_id = lock_project_scope(db, previous.project_id, previous.scope_json)
+        if (
+            project_id is not None
+            and not db.query(Project.id).filter(Project.id == project_id).first()
+        ):
+            raise HTTPException(409, "Das Projekt für diesen Lauf existiert nicht mehr")
+        existing = find_active_knowledge_link_run(db, previous.project_id, previous.scope_json)
+        if existing is not None:
+            db.commit()
+            return {
+                "message": "Für diesen Scope läuft bereits ein Job",
+                "key": f"link_builder:{existing.id}",
+                "deduplicated": True,
+            }
     run = LinkBuilderRun(
         task_type=previous.task_type,
-        project_id=previous.project_id,
+        project_id=project_id,
         status="pending",
         embedding_model=previous.embedding_model,
         scope_json=previous.scope_json,
@@ -420,9 +443,26 @@ def resume_job(
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
         if project_ids is not None and previous.project_id not in project_ids:
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
+        if previous.task_type == "knowledge_links":
+            project_id = lock_project_scope(db, previous.project_id, previous.scope_json)
+            if (
+                project_id is not None
+                and not db.query(Project.id).filter(Project.id == project_id).first()
+            ):
+                raise HTTPException(409, "Das Projekt für diesen Lauf existiert nicht mehr")
+            existing = find_active_knowledge_link_run(db, previous.project_id, previous.scope_json)
+            if existing is not None:
+                db.commit()
+                return {
+                    "message": "Für diesen Scope läuft bereits ein Job",
+                    "key": f"link_builder:{existing.id}",
+                    "deduplicated": True,
+                }
+        else:
+            project_id = previous.project_id
         run = LinkBuilderRun(
             task_type=previous.task_type,
-            project_id=previous.project_id,
+            project_id=project_id,
             status="pending",
             embedding_model=previous.embedding_model,
             scope_json=previous.scope_json,

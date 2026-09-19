@@ -559,6 +559,68 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
     db_session.commit()
 
 
+def test_trigger_computation_reuses_active_run_for_same_project_scope(
+    client, db_session, two_chunks, monkeypatch
+):
+    source, _, _ = two_chunks
+    project = db_session.query(Project).filter(Project.id == source.project_id).first()
+    second_source = KnowledgeSource(
+        name="KL Dedupe Source", type="Local", project_id=project.id, team_id=project.team_id
+    )
+    db_session.add(second_source)
+    db_session.commit()
+    db_session.refresh(second_source)
+    active = LinkBuilderRun(
+        task_type="knowledge_links",
+        project_id=project.id,
+        status="running",
+        celery_task_id="already-enqueued",
+        scope_json={
+            "project_id": project.id,
+            "source_ids": [second_source.id, source.id],
+            "queue": "global_link_runs",
+            "confirmed": True,
+        },
+    )
+    db_session.add(active)
+    db_session.commit()
+    db_session.refresh(active)
+    sent = []
+    monkeypatch.setattr(
+        knowledge_links_api,
+        "send_tracked_task",
+        lambda *args, **kwargs: sent.append((args, kwargs)),
+    )
+
+    try:
+        response = client.post(
+            "/knowledge-links/compute",
+            params={
+                "project_id": project.id,
+                "source_ids": [source.id, second_source.id],
+                "confirm": True,
+            },
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["run_id"] == active.id
+        assert response.json()["deduplicated"] is True
+        assert sent == []
+        assert (
+            db_session.query(LinkBuilderRun)
+            .filter(
+                LinkBuilderRun.task_type == "knowledge_links",
+                LinkBuilderRun.project_id == project.id,
+                LinkBuilderRun.status.in_(["pending", "running"]),
+            )
+            .count()
+            == 1
+        )
+    finally:
+        db_session.delete(active)
+        db_session.delete(second_source)
+        db_session.commit()
+
+
 def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     client, db_session, two_chunks
 ):

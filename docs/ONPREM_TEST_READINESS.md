@@ -947,18 +947,26 @@ als Text indexiert und gechunkt; Sonderzeichen und Umlaute bleiben im Volltext s
 
 ### O-257 – P1 / Jobs: Verwaiste und doppelte LinkBuilder-Runs im JobCenter bereinigen und Queue-Deduplikation absichern
 
-- [ ] In `backend/api/jobs.py` und `backend/api/knowledge_links.py` Deduplikation für
+- [x] In `backend/api/jobs.py` und `backend/api/knowledge_links.py` Deduplikation für
   `knowledge_links`-Runs implementieren: Ist für ein Projekt / einen Scope bereits ein Run im
   Status `pending` oder `running` vorhanden, keinen zweiten Datensatz anlegen, sondern den
-  bestehenden Run zurückmelden.
-- [ ] Verwaiste Runs bereinigen: Wenn das zugehörige Projekt gelöscht wurde (`project_id IS NULL`
+  bestehenden Run zurückmelden. Projektzeilen werden beim Enqueue gesperrt; erneutes Starten,
+  Wiederaufnehmen und `/knowledge-links/compute` verwenden dieselbe Scope-Deduplikation.
+- [x] Verwaiste Runs bereinigen: Wenn das zugehörige Projekt gelöscht wurde (`project_id IS NULL`
   und Zielprojekt im `scope_json` existiert nicht mehr), den Run auf `cancelled` setzen,
-  damit er nicht dauerhaft als aktiver Job im JobCenter ("In Warteschlange") verharrt.
-- [ ] Stuck-State-Erkennung: Runs, die ohne `celery_task_id` oder nach einem Timeout im Status
-  `pending` verharren, als `cancelled`/`failed` markieren.
-- [ ] Datenbank bereinigen: Die beiden verwaisten Alt-Einträge (Run-IDs 82 und 87 aus gelöschten
-  Testprojekten 573 und 662) auf `cancelled` setzen.
-- [ ] Regressionstests in `backend/tests/test_jobs.py` und `backend/tests/test_knowledge_links.py`.
+  damit er nicht dauerhaft als aktiver Job im JobCenter ("In Warteschlange") verharrt. Die
+  Job-Center- und Run-History-Abfragen führen diese Bereinigung aus; doppelte aktive Runs werden
+  beendet und ihre Celery-Tasks widerrufen, der älteste Run bleibt erhalten. Bereits widerrufene
+  oder anderweitig terminale Runs startet der Parser-Worker nicht mehr.
+- [x] Stuck-State-Erkennung: Ein aktiver Run ohne `celery_task_id` wird nach 120 Sekunden als
+  `failed` markiert; ein `pending`-Run mit Task-ID nach 30 Minuten. Gespeicherte Celery-Tasks
+  werden widerrufen. Fehlertexte und `finished_at` bleiben im JobCenter sichtbar, und
+  fehlgeschlagene Runs können erneut gestartet werden.
+- [x] Datenbank geprüft: Die beiden verwaisten Alt-Einträge (Run-IDs 82 und 87 aus gelöschten
+  Testprojekten 573 und 662) stehen bereits auf `cancelled`.
+- [x] Regressionstests in `backend/tests/test_jobs.py` und `backend/tests/test_knowledge_links.py`
+  ergänzen; `parser/tests/test_cross_link_builder_cancelled.py` prüft den Worker-Abbruch. O-258
+  wird in `backend/tests/test_inference_admission.py` ohne Modellaufruf geprüft.
 
 **Abnahme:** Das JobCenter zeigt pro Scope maximal einen aktiven Wissens-Verknüpfungs-Job an;
 gelöschte Testprojekte hinterlassen keine endlosen Geister-Jobs in der Warteschlange.
