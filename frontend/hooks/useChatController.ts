@@ -11,14 +11,17 @@ import {
 } from '@/lib/chatFocus';
 import { normalizeInitialUserMessage } from '@/lib/chatMessage';
 import { parseChatStreamEvent } from '@/lib/chatStream';
+import { extractCallFlowData } from '@/lib/callFlow';
+import type { CallFlowData } from '@/lib/callFlow';
 import { copyToClipboard } from '@/lib/utils';
-import type { AgentStep, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
+import type { AgentStep, AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Toast = ShowToast;
+type ViewActionOutcome = Exclude<AgentViewActionStatus, 'requested'>;
 
 interface ChatControllerOptions {
   t: Translator;
@@ -49,6 +52,7 @@ interface ChatControllerOptions {
   restoreWorkspaceSnapshot: (snapshot: WorkspaceSnapshot) => void;
   resetChatSession: () => void;
   buildWorkspaceSnapshot: () => WorkspaceSnapshot;
+  applyAgentViewAction?: (action: AgentViewAction, flow?: CallFlowData) => ViewActionOutcome;
 }
 
 export function useChatController({
@@ -80,9 +84,71 @@ export function useChatController({
   restoreWorkspaceSnapshot,
   resetChatSession,
   buildWorkspaceSnapshot,
+  applyAgentViewAction,
 }: ChatControllerOptions) {
   const router = useRouter();
   const pathname = usePathname();
+  const activeSessionIdRef = useRef(activeSessionId);
+  const chatMessagesRef = useRef(chatMessages);
+  const activeSessionEpochRef = useRef(0);
+  useLayoutEffect(() => {
+    if (activeSessionIdRef.current !== activeSessionId) {
+      activeSessionIdRef.current = activeSessionId;
+      activeSessionEpochRef.current += 1;
+    }
+  }, [activeSessionId]);
+  const handledViewActionIdsRef = useRef(new Set<string>());
+  const viewActionOutcomesRef = useRef(new Map<string, ViewActionOutcome>());
+  const persistedViewActionOutcomesRef = useRef(new Set<string>());
+
+  const persistViewActionOutcome = useCallback((messageId: number, actionId: string, status: ViewActionOutcome) => {
+    const key = `${messageId}:${actionId}:${status}`;
+    if (persistedViewActionOutcomesRef.current.has(key)) return;
+    persistedViewActionOutcomesRef.current.add(key);
+    void api.updateChatMessageViewAction(messageId, actionId, status).catch((error) => {
+      persistedViewActionOutcomesRef.current.delete(key);
+      console.warn('Failed to persist agent view action outcome:', error);
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    chatMessagesRef.current = chatMessages;
+    for (const message of chatMessages) {
+      if (message.role !== 'assistant' || message.id == null || !message.metadata?.agent_steps) continue;
+      for (const step of message.metadata.agent_steps) {
+        if (step.type !== 'view_action') continue;
+        const status = viewActionOutcomesRef.current.get(step.action_id);
+        if (status) persistViewActionOutcome(message.id, step.action_id, status);
+      }
+    }
+  }, [chatMessages, persistViewActionOutcome]);
+
+  const recordAgentViewActionOutcome = useCallback((actionId: string, status: ViewActionOutcome) => {
+    viewActionOutcomesRef.current.set(actionId, status);
+    let messageId: number | undefined;
+    setChatMessages(previous => previous.map(message => {
+      if (message.role !== 'assistant' || !message.metadata?.agent_steps) return message;
+      let found = false;
+      const agentSteps = message.metadata.agent_steps.map(step => {
+        if (step.type === 'view_action' && step.action_id === actionId) {
+          found = true;
+          return { ...step, status };
+        }
+        return step;
+      });
+      if (!found) return message;
+      if (message.id != null) messageId = message.id;
+      return { ...message, metadata: { ...message.metadata, agent_steps: agentSteps } };
+    }));
+    const storedMessage = chatMessagesRef.current.find(message =>
+      message.role === 'assistant' && message.metadata?.agent_steps?.some(step =>
+        step.type === 'view_action' && step.action_id === actionId,
+      ),
+    );
+    if (messageId ?? storedMessage?.id) {
+      persistViewActionOutcome(messageId ?? storedMessage!.id!, actionId, status);
+    }
+  }, [persistViewActionOutcome, setChatMessages]);
 
   const handleShareChat = useCallback(async () => {
     if (!activeSessionId) {
@@ -165,6 +231,8 @@ export function useChatController({
   // caller prepares the target assistant slot; this function only consumes the
   // stream and applies events to that slot.
   const runChatStream = useCallback(async (requestBody: ChatRequest, targetIndex: number) => {
+    let expectedSessionId = requestBody.session_id;
+    let expectedSessionEpoch = activeSessionEpochRef.current;
     try {
       const response = await api.fetch('/api/chat', {
         method: 'POST',
@@ -217,9 +285,17 @@ export function useChatController({
                 const newSessionId = data.session_id;
                 const newSessionUuid = data.session_uuid;
 
-                if (!activeSessionId && newSessionId) {
-                  ignoreUrlSyncRef.current = true;
-                  setActiveSessionId(newSessionId);
+                if (requestBody.session_id == null && newSessionId) {
+                  const shouldActivateSession = activeSessionIdRef.current == null &&
+                    activeSessionEpochRef.current === expectedSessionEpoch;
+                  expectedSessionId = newSessionId;
+                  if (shouldActivateSession) {
+                    activeSessionIdRef.current = newSessionId;
+                    activeSessionEpochRef.current += 1;
+                    expectedSessionEpoch = activeSessionEpochRef.current;
+                    ignoreUrlSyncRef.current = true;
+                    setActiveSessionId(newSessionId);
+                  }
                   const requestFocus = requestBody.metadata?.focus;
                   const newSession = {
                     id: newSessionId,
@@ -230,9 +306,9 @@ export function useChatController({
                     source_id: requestBody.source_id ?? null,
                     source: requestFocus?.source?.id != null ? { id: requestFocus.source.id, name: requestFocus.source.name || '' } : selectedSource,
                   };
-                  setSessions(prev => [newSession, ...prev]);
+                  setSessions(prev => prev.some(session => session.id === newSessionId) ? prev : [newSession, ...prev]);
 
-                  if (newSessionUuid) {
+                  if (shouldActivateSession && newSessionUuid) {
                     const params = new URLSearchParams(window.location.search);
                     params.set('chat', newSessionUuid);
                     router.push(`${pathname}?${params.toString()}`);
@@ -311,11 +387,87 @@ export function useChatController({
                   }
                   return next;
                 });
+              } else if (data.type === 'view_action') {
+                if (handledViewActionIdsRef.current.has(data.action_id)) {
+                  boundary = buffer.indexOf('\n\n');
+                  continue;
+                }
+                handledViewActionIdsRef.current.add(data.action_id);
+
+                const matchingResult = [...accumulatedSteps].reverse().find(step =>
+                  step.type === 'tool_result' && step.id === data.tool_call_id && (
+                    (data.view === 'callgraph' && step.name === 'trace_call_flow') ||
+                    (data.view === 'code' && step.name === 'view_repo_file')
+                  )
+                );
+                const flow = data.view === 'callgraph' && matchingResult
+                  ? extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [matchingResult] } })
+                  : null;
+                let hasMatchingCodeLocation = false;
+                if (data.view === 'code' && matchingResult) {
+                  try {
+                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
+                    hasMatchingCodeLocation = result.file_path === data.target.file_path &&
+                      result.start_line === data.target.start_line &&
+                      result.end_line === data.target.end_line;
+                  } catch {
+                    hasMatchingCodeLocation = false;
+                  }
+                }
+                let status: ViewActionOutcome = 'rejected';
+                const isCurrentTurn = activeSessionIdRef.current === data.session_id &&
+                  expectedSessionId === data.session_id &&
+                  activeSessionEpochRef.current === expectedSessionEpoch &&
+                  Number(requestBody.project_id) === data.project_id;
+
+                if (!isCurrentTurn) {
+                  status = 'stale_context';
+                } else if (
+                  (data.view === 'callgraph' && (!flow || flow.root.id !== data.target.entity_id)) ||
+                  (data.view === 'code' && !hasMatchingCodeLocation)
+                ) {
+                  status = 'rejected';
+                } else {
+                  let autoOpen = true;
+                  try {
+                    autoOpen = typeof window === 'undefined' ||
+                      window.localStorage.getItem('doctus.autoOpenAgentViews') !== 'false';
+                  } catch {
+                    // A browser that blocks local storage keeps the safe default: automatic open.
+                  }
+                  status = autoOpen
+                    ? (applyAgentViewAction?.(data, flow ?? undefined) ?? 'rejected')
+                    : 'manual';
+                }
+
+                const recordedAction: AgentViewAction = { ...data, status };
+                viewActionOutcomesRef.current.set(data.action_id, status);
+                accumulatedSteps = [...accumulatedSteps, recordedAction];
+                if (activeSessionIdRef.current === data.session_id) {
+                  setChatMessages(prev => {
+                    const next = [...prev];
+                    const target = next[targetIndex];
+                    if (target && target.role === 'assistant') {
+                      next[targetIndex] = {
+                        ...target,
+                        metadata: { ...target.metadata, agent_steps: accumulatedSteps },
+                      };
+                    }
+                    return next;
+                  });
+                }
               } else if (data.type === 'turn_completed') {
                 if (data.has_tool_calls) {
                   currentThought = '';
                 }
               } else if (data.type === 'answer') {
+                const finalSteps = [...(data.agent_steps || accumulatedSteps)];
+                for (const action of accumulatedSteps.filter((step): step is AgentViewAction => step.type === 'view_action')) {
+                  const existingIndex = finalSteps.findIndex(step => step.type === 'view_action' && step.action_id === action.action_id);
+                  if (existingIndex === -1) finalSteps.push(action);
+                  else finalSteps[existingIndex] = action;
+                }
+                accumulatedSteps = finalSteps;
                 setChatMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
@@ -325,21 +477,41 @@ export function useChatController({
                       content: data.content,
                       metadata: {
                         ...target.metadata,
-                        agent_steps: data.agent_steps || accumulatedSteps
+                        agent_steps: finalSteps
                       }
                     };
                   }
                   return next;
                 });
               } else if (data.type === 'message_saved') {
+                const actionsToPersist = accumulatedSteps.filter((step): step is AgentViewAction => step.type === 'view_action')
+                  .map(action => ({
+                    ...action,
+                    status: viewActionOutcomesRef.current.get(action.action_id) ?? action.status,
+                  }));
                 setChatMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
-                    next[targetIndex] = { ...target, id: data.message_id };
+                    const agentSteps = target.metadata?.agent_steps?.map(step => {
+                      const action = actionsToPersist.find(candidate =>
+                        candidate.action_id === (step.type === 'view_action' ? step.action_id : undefined),
+                      );
+                      return action ?? step;
+                    });
+                    next[targetIndex] = {
+                      ...target,
+                      id: data.message_id,
+                      metadata: agentSteps ? { ...target.metadata, agent_steps: agentSteps } : target.metadata,
+                    };
                   }
                   return next;
                 });
+                for (const action of actionsToPersist) {
+                  if (action.status !== 'requested') {
+                    persistViewActionOutcome(data.message_id, action.action_id, action.status);
+                  }
+                }
               } else if (data.type === 'error') {
                 const errMsgText = t('page.error.chatFetchFailedWithMessage', { message: data.error });
                 setChatMessages(prev => {
@@ -380,7 +552,7 @@ export function useChatController({
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
+  }, [applyAgentViewAction, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
   const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
     const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');
@@ -570,5 +742,6 @@ export function useChatController({
     handleRetryMessage,
     handleSessionSelect,
     handleRemoveSession,
+    recordAgentViewActionOutcome,
   };
 }

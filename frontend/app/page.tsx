@@ -1,7 +1,7 @@
 "use client";
 import type { PanelSelection } from '@/lib/panelHistory';
 import type { CallFlowData } from '@/lib/callFlow';
-import type { ChatSession, CodeEntity, Project, SearchResult, User } from '@/types/domain';
+import type { AgentCodeViewAction, AgentViewAction, AgentViewActionStatus, ChatSession, CodeEntity, Project, SearchResult, User } from '@/types/domain';
 import type { editor as MonacoEditor } from 'monaco-editor';
 
 import { AnimatePresence, motion } from 'framer-motion';
@@ -10,7 +10,7 @@ import {
   Loader2,
   X
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginView } from "@/components/LoginView";
@@ -348,6 +348,56 @@ function AppContent() {
     await selectProject(project);
   }, [activeSessionId, resetChatSession, selectProject, sessions, showToast, t]);
 
+  const agentViewActionHandlerRef = useRef<(
+    action: AgentViewAction,
+    flow?: CallFlowData,
+  ) => Exclude<AgentViewActionStatus, 'requested'>>((_action, _flow) => 'rejected');
+  useLayoutEffect(() => {
+    agentViewActionHandlerRef.current = (action, flow) => {
+      if (!selectedProject || Number(selectedProject.id) !== action.project_id) return 'rejected';
+      if (action.view === 'callgraph') {
+        if (!flow || flow.root.id !== action.target.entity_id) return 'rejected';
+        const liveGraphIndex = panelConfigs.findIndex((type, index) => type === 'callgraph' && !panelFrozen[index]);
+        const entity = flow.root as unknown as CodeEntity;
+
+        if (liveGraphIndex !== -1) {
+          setPanelSelections(previous => {
+            const next = [...previous];
+            next[liveGraphIndex] = { ...next[liveGraphIndex], selectedEntity: entity, customCallFlow: flow };
+            return next;
+          });
+          return 'updated';
+        }
+
+        if (panelConfigs.length >= 4) return 'no_space';
+        return addPanel('callgraph', { selectedEntity: entity, customCallFlow: flow }) ? 'opened' : 'no_space';
+      }
+
+      const liveCodeIndex = panelConfigs.findIndex((type, index) => type === 'code' && !panelFrozen[index]);
+      const selection = {
+        selectedFile: action.target.file_path,
+        selectedDoc: null,
+        selectedEntity: null,
+        selectedLine: action.target.start_line,
+        customCallFlow: null,
+      };
+      if (liveCodeIndex !== -1) {
+        setPanelSelections(previous => {
+          const next = [...previous];
+          next[liveCodeIndex] = { ...next[liveCodeIndex], ...selection };
+          return next;
+        });
+        return 'updated';
+      }
+      if (panelConfigs.length >= 4) return 'no_space';
+      return addPanel('code', selection) ? 'opened' : 'no_space';
+    };
+  }, [addPanel, panelConfigs, panelFrozen, selectedProject, setPanelSelections]);
+  const applyAgentViewAction = useCallback((action: AgentViewAction, flow?: CallFlowData) =>
+    agentViewActionHandlerRef.current(action, flow), []);
+  const handleOpenAgentCodeLocation = useCallback((action: AgentCodeViewAction) =>
+    agentViewActionHandlerRef.current(action), []);
+
   const {
     handleShareChat,
     handleSaveSessionWithoutChat,
@@ -356,6 +406,7 @@ function AppContent() {
     handleRetryMessage,
     handleSessionSelect,
     handleRemoveSession,
+    recordAgentViewActionOutcome,
   } = useChatController({
     t,
     showToast,
@@ -385,6 +436,7 @@ function AppContent() {
     restoreWorkspaceSnapshot,
     resetChatSession,
     buildWorkspaceSnapshot,
+    applyAgentViewAction,
   });
 
   useEffect(() => {
@@ -722,16 +774,14 @@ function AppContent() {
 
   const handleOpenCallFlow = useCallback((flowData: CallFlowData): boolean => {
     const existingCallGraphIndex = panelConfigs.findIndex((cfg, idx) => cfg === 'callgraph' && !panelFrozen[idx]);
-    const anyCallGraphIndex = panelConfigs.findIndex(cfg => cfg === 'callgraph');
-    const targetIndex = existingCallGraphIndex !== -1 ? existingCallGraphIndex : anyCallGraphIndex;
 
     const entity = flowData.root as unknown as CodeEntity;
 
-    if (targetIndex !== -1) {
+    if (existingCallGraphIndex !== -1) {
       setPanelSelections(prev => {
         const next = [...prev];
-        next[targetIndex] = {
-          ...next[targetIndex],
+        next[existingCallGraphIndex] = {
+          ...next[existingCallGraphIndex],
           selectedEntity: entity,
           customCallFlow: flowData,
         };
@@ -806,6 +856,8 @@ function AppContent() {
       chatEndRef={chatEndRef}
       currentUser={currentUser}
       onOpenCallFlow={handleOpenCallFlow}
+      onOpenAgentCodeLocation={handleOpenAgentCodeLocation}
+      onAgentViewActionOutcome={recordAgentViewActionOutcome}
     />
   );
 

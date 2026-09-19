@@ -106,10 +106,30 @@ export interface ChatReference {
   section?: string | null;
   paragraph?: string | null;
 }
+export type AgentViewActionStatus = 'requested' | 'opened' | 'updated' | 'manual' | 'no_space' | 'rejected' | 'stale_context';
+interface AgentViewActionBase {
+  type: 'view_action';
+  action_id: string;
+  session_id: number;
+  turn_id: number;
+  project_id: number;
+  tool_call_id: string;
+  status: AgentViewActionStatus;
+}
+export interface AgentCallGraphViewAction extends AgentViewActionBase {
+  view: 'callgraph';
+  target: { entity_id: number };
+}
+export interface AgentCodeViewAction extends AgentViewActionBase {
+  view: 'code';
+  target: { file_path: string; start_line: number; end_line: number };
+}
+export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction;
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }
-  | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean };
+  | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean }
+  | AgentViewAction;
 export interface ChatMetadata {
   focus?: ChatTurnFocus;
   project?: ChatTurnFocus['project'];
@@ -204,7 +224,7 @@ export type ChatStreamEvent =
   | { type: 'session'; session_id: number; session_uuid?: string; session_title?: string }
   | { type: 'sources'; sources: ChatSource[] }
   | { type: 'content_chunk'; content: string }
-  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' }>
+  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'view_action' }>
   | { type: 'turn_completed'; has_tool_calls: boolean }
   | { type: 'answer'; content: string; agent_steps?: AgentStep[] }
   | { type: 'message_saved'; message_id: number }

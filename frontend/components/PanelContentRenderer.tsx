@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
+import type { AgentCodeViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
 import { CallGraphView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
@@ -67,6 +67,8 @@ type PanelContentRendererProps = {
   chatEndRef: React.RefObject<HTMLDivElement>;
   currentUser: User | null;
   onOpenCallFlow?: (flow: CallFlowData) => boolean;
+  onOpenAgentCodeLocation?: (action: AgentCodeViewAction) => Exclude<AgentViewActionStatus, 'requested'>;
+  onAgentViewActionOutcome?: (actionId: string, status: Exclude<AgentViewActionStatus, 'requested'>) => void;
 };
 
 /**
@@ -121,6 +123,8 @@ export function PanelContentRenderer({
   chatEndRef,
   currentUser,
   onOpenCallFlow,
+  onOpenAgentCodeLocation,
+  onAgentViewActionOutcome,
 }: PanelContentRendererProps) {
   if (contentType === 'chat') {
     return (
@@ -152,6 +156,8 @@ export function PanelContentRenderer({
         setSelectedSource={setSelectedSource}
         connectedSources={connectedSources}
         onOpenCallFlow={onOpenCallFlow}
+        onOpenAgentCodeLocation={onOpenAgentCodeLocation}
+        onAgentViewActionOutcome={onAgentViewActionOutcome}
       />
     );
   }

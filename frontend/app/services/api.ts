@@ -147,6 +147,11 @@ export const api = {
             feedback: 'up' | 'down' | null;
             link_feedback: { signals_recorded: number; marked_for_review: Array<{ type: string; id: number }> };
         }>(`${API_URL}/chat/messages/${messageId}/feedback`, { feedback }),
+    updateChatMessageViewAction: (messageId: number, actionId: string, status: 'opened' | 'updated' | 'manual' | 'no_space' | 'rejected' | 'stale_context') =>
+        axios.patch<{ id: number; action_id: string; status: string }>(
+            `${API_URL}/chat/messages/${messageId}/view-actions/${encodeURIComponent(actionId)}`,
+            { status },
+        ),
     getNegativeChatFeedback: () =>
         axios.get<{ entries: ChatFeedbackReview[]; total: number; limit: number }>(`${API_URL}/admin/chat-feedback`),
     getFeedbackDiagnosticSettings: () => axios.get<ChatFeedbackDiagnosticSettings>(`${API_URL}/feedback-diagnostics/settings`),

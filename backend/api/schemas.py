@@ -103,6 +103,12 @@ class ChatMessageFeedbackUpdate(BaseModel):
     feedback: Optional[str] = None  # 'up' | 'down' | null (null clears it)
 
 
+class ChatMessageViewActionUpdate(BaseModel):
+    """Vom Client beobachtetes Ergebnis einer serverseitig abgeleiteten View-Aktion."""
+
+    status: str
+
+
 class ChatFeedbackDiagnosticSettingsUpdate(BaseModel):
     collection_enabled: bool
     support_export_enabled: bool = False

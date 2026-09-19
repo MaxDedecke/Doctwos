@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCodeViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData } from '@/lib/callFlow';
 
@@ -79,6 +79,28 @@ interface ChatViewProps {
   setSelectedSource: (source: KnowledgeSource | null) => void;
   connectedSources: KnowledgeSource[];
   onOpenCallFlow?: (flow: CallFlowData) => boolean;
+  onOpenAgentCodeLocation?: (action: AgentCodeViewAction) => Exclude<AgentViewActionStatus, 'requested'>;
+  onAgentViewActionOutcome?: (actionId: string, status: Exclude<AgentViewActionStatus, 'requested'>) => void;
+}
+
+const AUTO_OPEN_AGENT_VIEWS_KEY = 'doctus.autoOpenAgentViews';
+const AGENT_VIEW_PREFERENCE_EVENT = 'doctus:agent-view-preference-change';
+
+function subscribeToAgentViewPreference(onChange: () => void) {
+  window.addEventListener('storage', onChange);
+  window.addEventListener(AGENT_VIEW_PREFERENCE_EVENT, onChange);
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener(AGENT_VIEW_PREFERENCE_EVENT, onChange);
+  };
+}
+
+function getAgentViewPreference() {
+  try {
+    return window.localStorage.getItem(AUTO_OPEN_AGENT_VIEWS_KEY) !== 'false';
+  } catch {
+    return true;
+  }
 }
 
 /** Renders a `[start, end]` line pair as "43" for a single line, "43-50" otherwise. */
@@ -117,21 +139,45 @@ export function ChatView({
   setSelectedSource,
   connectedSources,
   onOpenCallFlow,
+  onOpenAgentCodeLocation,
+  onAgentViewActionOutcome,
 }: ChatViewProps) {
   const { t } = useLanguage();
 
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
+  const autoOpenAgentViews = React.useSyncExternalStore(
+    subscribeToAgentViewPreference,
+    getAgentViewPreference,
+    () => true,
+  );
 
-  const handleOpenFlow = (flow: CallFlowData, key: string | number) => {
+  const handleAutoOpenChange = (enabled: boolean) => {
+    try {
+      window.localStorage.setItem(AUTO_OPEN_AGENT_VIEWS_KEY, String(enabled));
+    } catch {
+      // The event below still keeps all currently mounted chat panels in sync.
+    }
+    window.dispatchEvent(new Event(AGENT_VIEW_PREFERENCE_EVENT));
+  };
+
+  const handleOpenFlow = (flow: CallFlowData, key: string | number, actionId?: string) => {
     if (!onOpenCallFlow) return;
     const opened = onOpenCallFlow(flow);
     if (opened) {
+      if (actionId) onAgentViewActionOutcome?.(actionId, 'opened');
       setCallFlowDecisions((prev) => {
         const next: Record<string, 'open' | 'declined'> = { ...prev };
         next[String(key)] = 'open';
         return next;
       });
+    } else if (actionId) {
+      onAgentViewActionOutcome?.(actionId, 'no_space');
     }
+  };
+
+  const handleOpenCodeLocation = (action: AgentCodeViewAction) => {
+    if (!onOpenAgentCodeLocation) return;
+    onAgentViewActionOutcome?.(action.action_id, onOpenAgentCodeLocation(action));
   };
 
   const [detectedLph, setDetectedLph] = React.useState<number | null>(null);
@@ -506,7 +552,7 @@ export function ChatView({
                       ) : (
                         <>
                           {m.metadata && m.metadata.agent_steps && m.metadata.agent_steps.length > 0 && (
-                            <AgentSteps steps={m.metadata.agent_steps} theme={theme} isLive={isLoading && i === chatMessages.length - 1} />
+                            <AgentSteps steps={m.metadata.agent_steps.filter(step => step.type !== 'view_action')} theme={theme} isLive={isLoading && i === chatMessages.length - 1} />
                           )}
 
                           {m.content ? (
@@ -532,14 +578,19 @@ export function ChatView({
                             const callFlow = extractCallFlowData(m);
                             if (!callFlow) return null;
                             const decisionKey = m.id ?? i;
-                            const decision = callFlowDecisions[decisionKey];
+                            const viewAction = m.metadata?.agent_steps?.find(step =>
+                              step.type === 'view_action' && step.view === 'callgraph' && step.target.entity_id === callFlow.root.id
+                            );
+                            const autoOpened = viewAction?.type === 'view_action' &&
+                              (viewAction.status === 'opened' || viewAction.status === 'updated');
+                            const decision = callFlowDecisions[decisionKey] ?? (autoOpened ? 'open' : undefined);
 
                             if (decision === 'declined') {
                               return (
                                 <div className="mt-2.5 flex items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
                                     className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
                                     title={t('chatView.callGraphReopen')}
                                   >
@@ -560,11 +611,20 @@ export function ChatView({
                                     <Check className="w-3.5 h-3.5 text-ds-emerald-500" />
                                     <span className="font-medium text-ds-zinc-300">{t('chatView.callGraphOpened')} ({callFlow.root.name})</span>
                                   </div>
+                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer mr-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={autoOpenAgentViews}
+                                      onChange={event => handleAutoOpenChange(event.target.checked)}
+                                      className="accent-ds-indigo-500"
+                                    />
+                                    {t('chatView.autoOpenAgentViews')}
+                                  </label>
                                   <Button
                                     type="button"
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
                                     className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
                                   >
                                     {t('chatView.callGraphReopen')}
@@ -597,9 +657,21 @@ export function ChatView({
                                     <p className="text-[10px] text-ds-zinc-500 truncate">
                                       {callFlow.root.name} · {callFlow.hops} {callFlow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')} ({callFlow.nodes.length} Knoten)
                                     </p>
+                                    {viewAction?.type === 'view_action' && viewAction.status === 'no_space' && (
+                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer mr-1">
+                                    <input
+                                      type="checkbox"
+                                      checked={autoOpenAgentViews}
+                                      onChange={event => handleAutoOpenChange(event.target.checked)}
+                                      className="accent-ds-indigo-500"
+                                    />
+                                    {t('chatView.autoOpenAgentViews')}
+                                  </label>
                                   <Button
                                     type="button"
                                     size="sm"
@@ -618,7 +690,7 @@ export function ChatView({
                                     type="button"
                                     size="sm"
                                     id={`chat-callgraph-open-btn-${i}`}
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
                                     className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
                                   >
                                     <GitBranch className="w-3.5 h-3.5 mr-1.5" />
@@ -628,6 +700,58 @@ export function ChatView({
                               </div>
                             );
                           })()}
+
+                          {/* A code location is only offered after view_repo_file returned the bounded location. */}
+                          {m.metadata?.agent_steps?.filter((step): step is AgentCodeViewAction =>
+                            step.type === 'view_action' && step.view === 'code',
+                          ).map((action) => {
+                            const isOpen = action.status === 'opened' || action.status === 'updated';
+                            const lineRange = action.target.start_line === action.target.end_line
+                              ? String(action.target.start_line)
+                              : `${action.target.start_line}-${action.target.end_line}`;
+                            return (
+                              <div
+                                key={action.action_id}
+                                data-testid={`code-location-action-${action.action_id}`}
+                                className={cn(
+                                  'mt-3 px-3 py-2 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs',
+                                  theme === 'dark'
+                                    ? 'bg-ds-zinc-900/40 border-ds-zinc-800 text-ds-zinc-400'
+                                    : 'bg-ds-zinc-100/60 border-ds-zinc-200 text-ds-zinc-600',
+                                )}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {isOpen ? <Check className="w-3.5 h-3.5 text-ds-emerald-500 shrink-0" /> : <Code className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />}
+                                  <span className="font-mono text-[11px] truncate">{action.target.file_path}:L{lineRange}</span>
+                                  {action.status === 'no_space' && <span className="text-[10px] text-ds-amber-500 shrink-0">{t('chatView.codeLocationNoSpace')}</span>}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={autoOpenAgentViews}
+                                      onChange={event => handleAutoOpenChange(event.target.checked)}
+                                      className="accent-ds-indigo-500"
+                                    />
+                                    {t('chatView.autoOpenAgentViews')}
+                                  </label>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={isOpen ? 'ghost' : 'default'}
+                                    onClick={() => handleOpenCodeLocation(action)}
+                                    className={cn(
+                                      'h-6 px-2 text-[11px] cursor-pointer',
+                                      isOpen ? 'text-ds-indigo-400 hover:text-ds-indigo-300' : 'bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white',
+                                    )}
+                                  >
+                                    <Code className="w-3.5 h-3.5 mr-1" />
+                                    {isOpen ? t('chatView.codeLocationReopen') : t('chatView.codeLocationOpen')}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
 
                           {/* Sources display if returned from query context */}
                           {m.sources && m.sources.length > 0 && (!isLoading || i !== chatMessages.length - 1) && (

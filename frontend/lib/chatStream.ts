@@ -1,11 +1,30 @@
-import type { AgentStep, ChatStreamEvent, ChatSource } from '@/types/domain';
+import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource } from '@/types/domain';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isAgentViewAction(value: unknown): value is AgentViewAction {
+  if (!isRecord(value) || !isRecord(value.target)) return false;
+  const hasBaseFields = value.type === 'view_action' &&
+    typeof value.action_id === 'string' &&
+    Number.isSafeInteger(value.session_id) &&
+    Number.isSafeInteger(value.turn_id) &&
+    Number.isSafeInteger(value.project_id) &&
+    typeof value.tool_call_id === 'string' &&
+    ['requested', 'opened', 'updated', 'manual', 'no_space', 'rejected', 'stale_context'].includes(String(value.status));
+  if (!hasBaseFields) return false;
+  if (value.view === 'callgraph') return Number.isSafeInteger(value.target.entity_id);
+  return value.view === 'code' &&
+    typeof value.target.file_path === 'string' &&
+    value.target.file_path.length > 0 &&
+    Number.isSafeInteger(value.target.start_line) && value.target.start_line > 0 &&
+    Number.isSafeInteger(value.target.end_line) && value.target.end_line >= value.target.start_line;
+}
+
 function isAgentStep(value: unknown): value is AgentStep {
   if (!isRecord(value)) return false;
+  if (value.type === 'view_action') return isAgentViewAction(value);
   if (value.type === 'thought') return typeof value.content === 'string';
   if (typeof value.name !== 'string' || (value.id !== undefined && typeof value.id !== 'string')) return false;
   return value.type === 'tool_call' || (value.type === 'tool_result' && typeof value.result === 'string');
@@ -29,6 +48,8 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
     case 'tool_result':
       return typeof value.name === 'string' && typeof value.result === 'string' && (value.id === undefined || typeof value.id === 'string')
         ? { type: 'tool_result', name: value.name, result: value.result, id: value.id, truncated: value.truncated === true } : null;
+    case 'view_action':
+      return isAgentViewAction(value) ? value : null;
     case 'turn_completed':
       return typeof value.has_tool_calls === 'boolean' ? { type: 'turn_completed', has_tool_calls: value.has_tool_calls } : null;
     case 'answer':

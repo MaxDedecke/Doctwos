@@ -21,6 +21,7 @@ Provider-Unterstützung:
     "anthropic" — Anthropic Messages API
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -38,6 +39,7 @@ from api.schemas import (
     ChatSessionCreate,
     ChatSnapshotUpdate,
     ChatMessageFeedbackUpdate,
+    ChatMessageViewActionUpdate,
 )
 from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
@@ -185,6 +187,91 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                     entity.get("end_line", 1),
                     source_id,
                 )
+
+
+def _derive_view_action(
+    event: dict,
+    *,
+    session_id: int,
+    turn_id: int,
+    project_id: Optional[int],
+) -> Optional[dict]:
+    """Build a bounded view action only from a successful, project-scoped tool result."""
+    if (
+        event.get("type") != "tool_result"
+        or not isinstance(event.get("id"), str)
+        or project_id is None
+    ):
+        return None
+    result = event.get("result")
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except (TypeError, json.JSONDecodeError):
+            return None
+    if not isinstance(result, dict):
+        return None
+
+    tool_name = event.get("name")
+    if tool_name == "trace_call_flow":
+        root = result.get("root")
+        nodes = result.get("nodes")
+        edges = result.get("edges")
+        if (
+            result.get("status") != "ok"
+            or not isinstance(root, dict)
+            or not isinstance(root.get("id"), int)
+            or isinstance(root.get("id"), bool)
+            or not isinstance(nodes, list)
+            or not isinstance(edges, list)
+            or not edges
+            or not any(isinstance(node, dict) and node.get("id") == root["id"] for node in nodes)
+        ):
+            return None
+        view = "callgraph"
+        target = {"entity_id": root["id"]}
+        target_key = str(root["id"])
+    elif tool_name == "view_repo_file":
+        file_path = result.get("file_path")
+        start_line = result.get("start_line")
+        end_line = result.get("end_line")
+        normalized_path = file_path.replace("\\", "/") if isinstance(file_path, str) else ""
+        path_parts = normalized_path.split("/")
+        if (
+            not normalized_path
+            or normalized_path.startswith("/")
+            or ".." in path_parts
+            or not isinstance(start_line, int)
+            or isinstance(start_line, bool)
+            or not isinstance(end_line, int)
+            or isinstance(end_line, bool)
+            or start_line < 1
+            or end_line < start_line
+        ):
+            return None
+        view = "code"
+        target = {
+            "file_path": normalized_path,
+            "start_line": start_line,
+            "end_line": end_line,
+        }
+        target_key = f"{normalized_path}:{start_line}:{end_line}"
+    else:
+        return None
+
+    action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
+    action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
+    return {
+        "type": "view_action",
+        "action_id": action_id,
+        "session_id": session_id,
+        "turn_id": turn_id,
+        "project_id": project_id,
+        "tool_call_id": event["id"],
+        "view": view,
+        "target": target,
+        "status": "requested",
+    }
 
 
 # Selbe Dateiendungen wie MarkdownContent.tsx im Frontend klickbar macht — eine Datei,
@@ -805,6 +892,7 @@ async def chat(
                     and _agent_profile_supports_tools(selected_profile)
                 ):
                     agent_ran = True
+                    view_actions = []
                     async for event in stream_agent_events(
                         provider=(
                             "openai_responses"
@@ -840,10 +928,31 @@ async def chat(
                     ):
                         if event["type"] == "answer":
                             answer = event["content"]
-                            agent_steps = event.get("agent_steps", [])
+                            agent_steps = list(event.get("agent_steps") or [])
+                            known_action_ids = {
+                                step.get("action_id")
+                                for step in agent_steps
+                                if isinstance(step, dict) and step.get("type") == "view_action"
+                            }
+                            for action in view_actions:
+                                if action["action_id"] not in known_action_ids:
+                                    agent_steps.append(action)
+                            event = {**event, "agent_steps": agent_steps}
                         elif event["type"] in ("thought", "tool_call", "tool_result"):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
+                            action = _derive_view_action(
+                                event,
+                                session_id=session_id,
+                                turn_id=user_msg.id,
+                                project_id=request.project_id,
+                            )
+                            if action and all(existing["action_id"] != action["action_id"] for existing in view_actions):
+                                view_actions.append(action)
+                                agent_steps.append(action)
+                                yield f"data: {json.dumps(event)}\n\n"
+                                yield f"data: {json.dumps(action)}\n\n"
+                                continue
                         yield f"data: {json.dumps(event)}\n\n"
 
                     for s in agent_sources:
@@ -1087,6 +1196,58 @@ def update_chat_message_feedback(
         link_feedback = {"signals_recorded": 0, "marked_for_review": []}
     db.commit()
     return {"id": msg.id, "feedback": msg.feedback, "link_feedback": link_feedback}
+
+
+@router.patch("/chat/messages/{message_id}/view-actions/{action_id}")
+def update_chat_message_view_action(
+    message_id: int,
+    action_id: str,
+    body: ChatMessageViewActionUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Persist the client-observed result without presenting it as a model result."""
+    allowed_statuses = {"opened", "updated", "manual", "no_space", "rejected", "stale_context"}
+    if body.status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Ungültiger View-Aktionsstatus")
+
+    msg = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.id == message_id, ChatMessage.role == "assistant")
+        .first()
+    )
+    if not msg or not msg.session or not _session_accessible(msg.session, user):
+        raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
+
+    metadata = dict(msg.metadata_json or {})
+    steps = metadata.get("agent_steps")
+    if not isinstance(steps, list):
+        raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
+
+    updated = False
+    next_steps = []
+    for step in steps:
+        if (
+            isinstance(step, dict)
+            and step.get("type") == "view_action"
+            and step.get("action_id") == action_id
+            and step.get("session_id") == msg.session_id
+        ):
+            project_id = step.get("project_id")
+            if not isinstance(project_id, int) or isinstance(project_id, bool):
+                raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
+            assert_project_visible(project_id, user, db, "View-Aktion nicht gefunden")
+            next_steps.append({**step, "status": body.status})
+            updated = True
+        else:
+            next_steps.append(step)
+    if not updated:
+        raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
+
+    metadata["agent_steps"] = next_steps
+    msg.metadata_json = metadata
+    db.commit()
+    return {"id": msg.id, "action_id": action_id, "status": body.status}
 
 
 @router.get("/admin/chat-feedback")

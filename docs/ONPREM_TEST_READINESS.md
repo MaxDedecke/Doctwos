@@ -432,6 +432,17 @@ Automatisches Öffnen ist abschaltbar; im manuellen Modus bleibt eine Öffnen-Ak
 im Chat. Neue Ansichten reißen nicht fortlaufend Tastaturfokus oder mobile Ansicht
 weg. Diese Regeln auf alle folgenden Tickets anwenden.
 
+**Umsetzungsstand:** Erfolgreiche `trace_call_flow`- und `view_repo_file`-
+Ergebnisse erzeugen typisierte SSE-Aktionen mit stabiler ID sowie Turn- und
+Projektbezug. Der Client dedupliziert sie, schützt Sitzungswechsel und
+aktualisiert ausschließlich passende unfixierte Call-Graph- beziehungsweise
+Code-Panels; ansonsten öffnet er ein neues Panel. Fixierte Panels, Chat-Ansicht
+und mobiler Tab bleiben unberührt. Das Client-Ergebnis (geöffnet, aktualisiert,
+manuell, kein Platz, abgelehnt oder alter Kontext) wird in den Agent-Schritten
+der gespeicherten Assistentenantwort quittiert. Auto-Öffnen ist abschaltbar;
+die Karten im Chat bieten die manuelle Öffnung weiterhin an. Weitere
+validierte View-Ziele folgen mit O-192/O-193.
+
 ### O-191 – P1: Codefundstelle im Editor zeigen
 
 - [ ] `view_repo_file` und Entity-Ergebnisse um gezielte Code-Navigation erweitern
