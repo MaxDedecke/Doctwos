@@ -115,10 +115,18 @@ def parse_shell_file(source: str, path: str, **_: object) -> ParseResult:
         elif command.startswith("./") or command.endswith((".sh", ".bash", ".zsh")):
             add_edge("EXECUTES_SCRIPT", command, line, target_type="shell_script")
 
+    function_names: dict[str, int] = {}
     for index, (name, start) in enumerate(functions):
         end = functions[index + 1][1] - 1 if index + 1 < len(functions) else root.end_line
+        # Shell permits a later definition to replace an earlier function.
+        # Keep both source locations indexable; a repeated bare QName would
+        # violate the per-file entity constraint and reject the whole file.
+        occurrence = function_names.get(name, 0) + 1
+        function_names[name] = occurrence
+        suffix = "" if occurrence == 1 else f"#{occurrence}"
         entities.append(Entity(type="shell_function", name=name, start_line=start, end_line=max(start, end),
-            parent_name=root.name, parent_qualified_name=normalized, qualified_name=f"{normalized}::function:{name}",
+            parent_name=root.name, parent_qualified_name=normalized,
+            qualified_name=f"{normalized}::function:{name}{suffix}",
             meta={"language": "shell"}))
     chunks = [Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
         meta={"language": "shell", "symbol_type": "source"}) for item in CodeParser("shell").chunk_file(source)]

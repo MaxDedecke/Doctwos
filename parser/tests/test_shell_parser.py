@@ -33,3 +33,13 @@ def test_shell_parser_extracts_functions_literal_includes_and_tools_without_exec
 
 def test_shell_registry_supports_extensionless_shebang_files() -> None:
     assert registry.STRUCTURE_PARSERS["shell"].root_entity_types == ("shell_script",)
+
+
+def test_shell_parser_disambiguates_redefined_functions_for_persistence() -> None:
+    result = parse_shell_file("run() { echo old; }\nrun() { echo new; }\n", "bin/run.sh")
+
+    functions = [entity for entity in result.entities if entity.type == "shell_function"]
+    assert [entity.qualified_name for entity in functions] == [
+        "bin/run.sh::function:run",
+        "bin/run.sh::function:run#2",
+    ]
