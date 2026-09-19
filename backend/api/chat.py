@@ -42,6 +42,7 @@ from api.schemas import (
 from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
+from core.inference_admission import InferenceAdmissionTimeout, admitted_post
 from models.database import (
     ChatLinkFeedbackSignal,
     ChatMessage,
@@ -851,6 +852,10 @@ async def chat(
                             for c in candidate_sources
                         ):
                             candidate_sources.append(s)
+            except InferenceAdmissionTimeout as exc:
+                logger.warning("Chat-Agent wartet vergeblich auf Modellkapazität: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+                return
             except Exception as e:
                 logger.error(
                     f"Agent-Ausführung fehlgeschlagen (Fallback auf Standard-RAG): {e}",
@@ -1278,7 +1283,14 @@ async def get_typing_statement():
         if cfg.OLLAMA_API_KEY:
             headers["Authorization"] = f"Bearer {cfg.OLLAMA_API_KEY}"
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+            resp = await admitted_post(
+                client,
+                url,
+                kind="batch",
+                wait_timeout_seconds=1.0,
+                json=payload,
+                headers=headers,
+            )
             if resp.status_code == 200:
                 data = resp.json()
                 text = data["choices"][0]["message"]["content"].strip()

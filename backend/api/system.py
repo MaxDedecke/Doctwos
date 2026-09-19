@@ -29,6 +29,7 @@ from api.schemas import (
     ModelUpdateRequest,
 )
 from core.auth_dependency import get_current_user
+from core.inference_admission import InferenceAdmissionTimeout, admitted_post
 from core.teams import require_admin
 from core.db_setup import engine, get_db
 from models.database import AIProfile, AISettings, EmbeddingProfile, User
@@ -338,8 +339,11 @@ async def test_embedding_profile(
         headers["Authorization"] = f"Bearer {profile.api_key}"
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.post(
+            response = await admitted_post(
+                client,
                 _joined_url(profile.base_url, profile.path),
+                kind="batch",
+                wait_timeout_seconds=15.0,
                 json={"model": profile.model, "input": "Doctus connection test"},
                 headers=headers,
             )
@@ -354,6 +358,8 @@ async def test_embedding_profile(
                     f"Endpunkt liefert {len(embedding)} Dimensionen, Profil erwartet {profile.dimension}"
                 )
         return {"ok": True, "dimension": len(embedding)}
+    except InferenceAdmissionTimeout as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=f"Embedding-Endpunkt fehlgeschlagen: {exc}") from exc
 

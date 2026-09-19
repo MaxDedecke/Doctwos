@@ -22,6 +22,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
+from core.inference_admission import admitted_post
 from models.database import DocumentChunk, KnowledgeSource
 
 logger = logging.getLogger(__name__)
@@ -92,16 +93,20 @@ async def embed_text(
         )
     async with httpx.AsyncClient(timeout=120.0) as client:
         if selected_provider == "openai":
-            resp = await client.post(
+            resp = await admitted_post(
+                client,
                 f"{selected_base}/{(path or '/embeddings').lstrip('/')}",
+                kind="chat",
                 json={"model": embedding_model, "input": prompt},
                 headers=headers,
             )
             resp.raise_for_status()
             embedding = resp.json()["data"][0]["embedding"]
         elif selected_provider == "ollama":
-            resp = await client.post(
+            resp = await admitted_post(
+                client,
                 f"{selected_base}/{(path or '/api/embed').lstrip('/')}",
+                kind="chat",
                 json={
                     "model": embedding_model,
                     "input": prompt,
@@ -222,8 +227,10 @@ async def ask_llm_json_for_profile(
         if selected_key:
             headers["Authorization"] = f"Bearer {selected_key}"
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(
+            resp = await admitted_post(
+                client,
                 f"{selected_base}/{(path or '/api/chat').lstrip('/')}",
+                kind="batch",
                 json={
                     "model": model_to_use,
                     "messages": [{"role": "user", "content": prompt}],
@@ -248,7 +255,9 @@ async def ask_llm_json_for_profile(
                 "instructions": "Return only a valid JSON object.",
             }
             async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.post(url, json=payload, headers=headers)
+                resp = await admitted_post(
+                    client, url, kind="batch", json=payload, headers=headers
+                )
                 resp.raise_for_status()
                 data = resp.json()
                 content = data.get("output_text") or "".join(
@@ -268,7 +277,9 @@ async def ask_llm_json_for_profile(
             "response_format": {"type": "json_object"},
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+            resp = await admitted_post(
+                client, url, kind="batch", json=payload, headers=headers
+            )
             resp.raise_for_status()
             return _extract_json_object(resp.json()["choices"][0]["message"]["content"])
 
@@ -284,8 +295,12 @@ async def ask_llm_json_for_profile(
             "generationConfig": {"response_mime_type": "application/json"},
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(
-                full_url, json=payload, headers={"Content-Type": "application/json"}
+            resp = await admitted_post(
+                client,
+                full_url,
+                kind="batch",
+                json=payload,
+                headers={"Content-Type": "application/json"},
             )
             resp.raise_for_status()
             text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -303,9 +318,11 @@ async def ask_llm_json_for_profile(
             "messages": [{"role": "user", "content": prompt}],
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(
+            resp = await admitted_post(
+                client,
                 f"{(base_url or 'https://api.anthropic.com/v1').rstrip('/')}/"
                 f"{(path or '/messages').lstrip('/')}",
+                kind="batch",
                 json=payload,
                 headers=headers,
             )

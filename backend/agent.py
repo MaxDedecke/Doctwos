@@ -5,6 +5,7 @@ import time
 import httpx
 from typing import Dict, List, Any, Optional, AsyncGenerator
 import core.config as cfg
+from core.inference_admission import admitted_post, admitted_stream
 from mcp_client import MCPClient
 from models.database import CodeEntity
 from services.mcp_audit import record_mcp_tool_call
@@ -670,7 +671,9 @@ async def run_agent_loop(
                 ):
                     payload["tool_choice"] = "required"
 
-                resp = await client_http.post(full_url, json=payload, headers=headers)
+                resp = await admitted_post(
+                    client_http, full_url, kind="chat", json=payload, headers=headers
+                )
                 resp.raise_for_status()
                 response_data = resp.json()
                 output_items = response_data.get("output", [])
@@ -867,8 +870,8 @@ async def run_agent_loop(
                 accumulated_content = ""
                 accumulated_tool_calls = {}
 
-                async with client_http.stream(
-                    "POST", full_url, json=payload, headers=headers
+                async with admitted_stream(
+                    client_http, full_url, kind="chat", json=payload, headers=headers
                 ) as resp:
                     resp.raise_for_status()
                     async for line in resp.aiter_lines():
@@ -1087,7 +1090,9 @@ async def run_agent_loop(
                 if full_system_prompt:
                     payload["system"] = full_system_prompt
 
-                resp = await client_http.post(full_url, json=payload, headers=headers)
+                resp = await admitted_post(
+                    client_http, full_url, kind="chat", json=payload, headers=headers
+                )
                 resp.raise_for_status()
                 res_data = resp.json()
 
@@ -1198,7 +1203,9 @@ async def run_agent_loop(
                 if full_system_prompt:
                     payload["systemInstruction"] = {"parts": [{"text": full_system_prompt}]}
 
-                resp = await client_http.post(full_url, json=payload, headers=headers)
+                resp = await admitted_post(
+                    client_http, full_url, kind="chat", json=payload, headers=headers
+                )
                 resp.raise_for_status()
                 res_data = resp.json()
 

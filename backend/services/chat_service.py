@@ -18,6 +18,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
+from core.inference_admission import admitted_post, admitted_stream
 from models.database import ChatMessage, CodeEntity, DocumentChunk, KnowledgeSource, Project, User
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
@@ -536,7 +537,9 @@ async def stream_standard_rag_events(
             payload["messages"].append({"role": "user", "content": prompt})
 
             async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", url, json=payload, headers=headers) as response:
+                async with admitted_stream(
+                    client, url, kind="chat", json=payload, headers=headers
+                ) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if not line.strip():
@@ -580,7 +583,9 @@ async def stream_standard_rag_events(
                 "stream": True,
             }
             async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", url, json=payload, headers=headers) as response:
+                async with admitted_stream(
+                    client, url, kind="chat", json=payload, headers=headers
+                ) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if not line.startswith("data: "):
@@ -618,8 +623,12 @@ async def stream_standard_rag_events(
             )
             full_url = f"{gemini_base}/{gemini_path.lstrip('/')}?key={api_key or ''}"
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    full_url, json=payload, headers={"Content-Type": "application/json"}
+                response = await admitted_post(
+                    client,
+                    full_url,
+                    kind="chat",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
                 )
                 response.raise_for_status()
                 answer = response.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -638,9 +647,11 @@ async def stream_standard_rag_events(
             if system_prompt:
                 payload["system"] = system_prompt
             async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
+                response = await admitted_post(
+                    client,
                     f"{(base_url or 'https://api.anthropic.com/v1').rstrip('/')}/"
                     f"{(path or '/messages').lstrip('/')}",
+                    kind="chat",
                     json=payload,
                     headers={
                         "Content-Type": "application/json",

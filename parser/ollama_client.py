@@ -7,6 +7,7 @@ import asyncio
 from typing import Dict, Optional
 
 from db import SessionLocal
+from core.inference_admission import admitted_post
 from models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
@@ -227,8 +228,10 @@ async def _get_embeddings_sub_batch(
     for attempt in range(retries):
         try:
             if settings["provider"] == "openai":
-                response = await client.post(
+                response = await admitted_post(
+                    client,
                     f"{settings['base_url']}/{(settings.get('path') or '/embeddings').lstrip('/')}",
+                    kind="batch",
                     json={"model": model, "input": texts},
                     headers=_headers(settings["api_key"]),
                     timeout=EMBED_BATCH_TIMEOUT,
@@ -246,8 +249,10 @@ async def _get_embeddings_sub_batch(
                 )
 
             # Ollama /api/embed endpoint (ab v0.1.26) akzeptiert input-Array.
-            response = await client.post(
+            response = await admitted_post(
+                client,
                 f"{settings['base_url']}/{(settings.get('path') or '/api/embed').lstrip('/')}",
+                kind="batch",
                 json={
                     "model": model,
                     "input": texts,
@@ -370,8 +375,10 @@ async def get_chat_json(
             }
             default_path = "/chat/completions"
         client = _get_client()
-        response = await client.post(
+        response = await admitted_post(
+            client,
             f"{settings['base_url']}/{(settings.get('path') or default_path).lstrip('/')}",
+            kind="batch",
             json=payload,
             headers=_headers(settings["api_key"]),
             timeout=timeout,
@@ -398,8 +405,10 @@ async def get_chat_json(
     if think is not None:
         payload["think"] = think
     client = _get_client()
-    response = await client.post(
+    response = await admitted_post(
+        client,
         f"{settings['base_url']}/{(settings.get('path') or '/api/chat').lstrip('/')}",
+        kind="batch",
         json=payload,
         headers=_headers(settings["api_key"]),
         timeout=timeout,
@@ -432,8 +441,10 @@ async def is_gpu_accelerated(model: str) -> bool:
 
     try:
         client = _get_client()
-        await client.post(
+        await admitted_post(
+            client,
             f"{settings['base_url']}/{(settings.get('path') or '/api/embed').lstrip('/')}",
+            kind="batch",
             json={
                 "model": model,
                 "input": "warmup",

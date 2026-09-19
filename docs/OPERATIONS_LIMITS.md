@@ -14,6 +14,7 @@ zusätzliche Grenzen der jeweiligen Kundenumgebung.
 | Confluence-Anhang | 20 MiB | `parser/connectors/confluence.py::ATTACHMENT_MAX_BYTES`. |
 | Java-/Text-Chunk | 1.000 Zeichen | `parser/core/config.py::CHUNK_SIZE`; per Env anpassbar. Java-Struktur-Chunks werden zusätzlich symbolorientiert erzeugt. |
 | Embedding-Nebenläufigkeit | 20, CPU-only 2 | `EMBED_CONCURRENCY` und `EMBED_CONCURRENCY_CPU_ONLY`; per Env anpassbar, um Ollama nicht zu überlasten. |
+| Gemeinsame Inferenzkapazität | 4 Slots pro Endpoint, davon mindestens 1 für Chat und 1 für Batch-Arbeit | `INFERENCE_MAX_CONCURRENCY`, `INFERENCE_CHAT_RESERVE`, `INFERENCE_BATCH_RESERVE`; backend und Parser koordinieren Slots über Valkey/Redis. Die Batch-Queue wartet bis zu 900 s, Chat bis zu 30 s. Logs zeigen Queue-Eintritt, Wartezeit und belegte Slots; der Redis-Metrik-Hash enthält Requests, Drosselungen, Wartezeit und Slot-Auslastung. Slot-Auslastung ist ein Belegungsproxy des Endpunkts, keine GPU-Telemetrie. |
 | Embedding-Batch | 20 Chunks | `EMBED_BATCH_MAX_CHUNKS` im Git-Konnektor; große Läufe werden in kleinere Ollama-Anfragen geteilt. |
 | Knowledge-Graph-Übersicht | 2.000 Nodes | `KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES`; per Env anpassbar. Die API meldet eine abgeschnittene Übersicht. |
 | Call-Graph-Fokus | 500 Nodes | `backend/api/callgraph.py::MAX_NODES`; verhindert unbounded BFS und übergroße Browser-Graphen. |
@@ -26,6 +27,16 @@ zusätzliche Grenzen der jeweiligen Kundenumgebung.
 | Fehlgeschlagene Logins | 5 freie Versuche, danach Backoff bis maximal 1 Stunde | `backend/core/login_throttle.py`; Redis- und dauerhafte DB-Sperre ergänzen sich. |
 | Anwendungssession | 14 Tage | `backend/core/auth_dependency.py::SESSION_MAX_AGE_SECONDS`. |
 | OIDC-State | 10 Minuten | `backend/core/oidc.py::OIDC_STATE_MAX_AGE_SECONDS`; schützt den Login-Callback gegen veraltete Zustände. |
+
+Die O-258-Metriken liegen als Redis-Hashes `doctus:inference:v1:{endpoint-hash}:metrics` vor. Der Hash enthält aktuelle belegte Slots und Auslastung sowie Request-, Drosselungs-, Timeout- und Wartezeit-Zähler je Klasse (`chat`/`batch`). Den Hash findet man über den im Anwendungslog ausgegebenen Endpoint-Hash:
+
+```bash
+docker compose exec -T redis redis-cli --scan --pattern 'doctus:inference:v1:*:metrics'
+docker compose exec -T redis redis-cli HGETALL 'doctus:inference:v1:{ENDPOINT_HASH}:metrics'
+docker compose logs --since=30m backend-api parser-worker | rg inference_admission
+```
+
+`utilization_percent` beschreibt die belegten Doctus-Slots relativ zum konfigurierten Limit. Für GPU-/CPU-Auslastung des eigentlichen Modellservers gelten weiterhin dessen eigene Telemetriedaten.
 
 Einige Grenzwerte sind bewusst konfigurierbar. Eine Erhöhung muss immer gegen
 RAM/VRAM, Ollama-Durchsatz, PostgreSQL und Browserlast geprüft werden; sie ist
