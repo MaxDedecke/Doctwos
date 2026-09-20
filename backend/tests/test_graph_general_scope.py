@@ -44,12 +44,14 @@ def test_general_graph_hides_project_entities_unless_opted_in(
 
     try:
         # Innerhalb des eigenen Projekt-Kontexts (project_id mitgeschickt) immer sichtbar.
-        scoped = client.get("/graph", params={"project_id": test_project})
+        scoped = client.get(
+            "/graph", params={"project_id": test_project, "include_isolated": "true"}
+        )
         assert scoped.status_code == 200
         assert f"entity:{entity.id}" in _entity_node_ids(scoped.json())
 
         # "Allgemein" (kein project_id) -- default aus, Entity darf nicht auftauchen.
-        general = client.get("/graph")
+        general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
         assert f"entity:{entity.id}" not in _entity_node_ids(general.json())
 
@@ -58,7 +60,7 @@ def test_general_graph_hides_project_entities_unless_opted_in(
             {"expose_code_analysis_globally": True}
         )
         db_session.commit()
-        general_after_optin = client.get("/graph")
+        general_after_optin = client.get("/graph", params={"include_isolated": "true"})
         assert f"entity:{entity.id}" in _entity_node_ids(general_after_optin.json())
     finally:
         db_session.query(Project).filter(Project.id == test_project).update(
@@ -113,12 +115,14 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
 
     try:
         # Innerhalb des eigenen Projekt-Kontexts sind beide sichtbar.
-        scoped = client.get("/graph", params={"project_id": test_project})
+        scoped = client.get(
+            "/graph", params={"project_id": test_project, "include_isolated": "true"}
+        )
         assert scoped.status_code == 200
         assert {"doc:SCOPED.CBL", "doc:Runbook"} <= _doc_node_ids(scoped.json())
 
         # "Allgemein" -- kein projektgebundener Chunk ist sichtbar.
-        general = client.get("/graph")
+        general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
         general_docs = _doc_node_ids(general.json())
         assert "doc:SCOPED.CBL" not in general_docs
@@ -129,7 +133,7 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
             {"expose_code_analysis_globally": True}
         )
         db_session.commit()
-        general_after_optin = client.get("/graph")
+        general_after_optin = client.get("/graph", params={"include_isolated": "true"})
         assert "doc:SCOPED.CBL" not in _doc_node_ids(general_after_optin.json())
         assert "doc:Runbook" not in _doc_node_ids(general_after_optin.json())
     finally:
@@ -184,7 +188,7 @@ def test_general_graph_hides_project_documents_through_knowledge_links(
     db_session.commit()
 
     try:
-        general = client.get("/graph")
+        general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
         docs = _doc_node_ids(general.json())
         assert "doc:global.md" in docs

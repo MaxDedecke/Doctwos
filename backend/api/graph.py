@@ -164,18 +164,11 @@ def _is_side_visible(
     db: Session,
     requesting_project_id: Optional[int] = None,
 ) -> bool:
-    # This context rule also applies to administrators. Admin visibility may
-    # bypass team/project membership checks, but it must not turn a project
-    # scoped document into a global document in the "Allgemein" graph.
-    if source_type == "document" and chunk_id is not None and requesting_project_id is None:
-        chunk = db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
-        if not chunk or chunk.project_id is not None:
-            return False
-    if team_ids is None:
-        return True
     if source_type == "entity" and entity_id is not None:
         ent = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
         if not ent:
+            return False
+        if requesting_project_id is not None and ent.project_id is not None and ent.project_id != requesting_project_id:
             return False
         # Team-Sichtbarkeit ist die Basis; Code-Analyse-Objekte (Entities) brauchen
         # außerhalb ihres eigenen Projekt-Kontexts zusätzlich das explizite Opt-in
@@ -192,18 +185,28 @@ def _is_side_visible(
         # "Allgemein" zeigt nur wirklich globale Dokumente. Projektgebundene
         # PDFs/Confluence-/Jira-Chunks dürfen dort nicht über eine KnowledgeLink-
         # Kante wieder in den Graphen gelangen.
+        if requesting_project_id is None and chunk.project_id is not None:
+            return False
+        if requesting_project_id is not None and chunk.project_id is not None and chunk.project_id != requesting_project_id:
+            return False
         return (
             _is_project_visible(chunk.project_id, team_ids, project_ids, db)
             and _is_source_visible(chunk.source_id, team_ids, project_ids, db)
             and is_document_chunk_code_visible_in_context(chunk, requesting_project_id, db)
         )
+    if team_ids is None:
+        return True
     return True
+
 
 
 @router.get("")
 def get_graph(
     project_id: Optional[int] = None,
     status: str = "approved",
+    include_isolated: bool = Query(
+        False, description="Whether to include degree-0 isolated nodes in the graph overview"
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -444,19 +447,31 @@ def get_graph(
             }
         )
 
-    return _capped_overview(nodes, edges)
+    return _capped_overview(nodes, edges, include_isolated=include_isolated)
 
 
-def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
-    """O-053: harter Deckel für die Übersicht -- ohne den würde ein großer Bestand
-    unbegrenzt viele Knoten an eine Kraftsimulation im Browser-Hauptthread
-    übergeben (Server-Antwortgröße, Rechenzeit im Tab, am Ende ein unlesbarer
-    "Wollknäuel"). Bevorzugt beim Kappen die am dichtesten verlinkten Knoten --
-    die Übersicht zeigt bewusst auch unverlinkte Entities (Inventarcharakter),
-    aber die sind beim Kappen der uninteressanteste Teil. `/graph/focus` bleibt
-    der Weg, um gezielt in einen bestimmten Bereich hineinzuzoomen, sobald
-    gekappt wurde.
+def _capped_overview(
+    nodes: dict[str, dict], edges: list[dict], include_isolated: bool = False
+) -> dict:
+    """O-053 / O-285: harter Deckel für die Übersicht.
+    O-285: Isolierte Knoten (Grad 0) werden standardmäßig vor dem Capping gefiltert
+    (include_isolated=False), sodass das KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES-Budget
+    ausschließlich für das vernetzte Beziehungsgeflecht genutzt wird.
+    Mit include_isolated=True werden isolierte Knoten für Dead-Code-/Inventaranalysen
+    mit einbezogen (beim Kappen am Ende nach Grad priorisiert).
     """
+    degree: dict[str, int] = {nid: 0 for nid in nodes}
+    for edge in edges:
+        src = edge["source"] if isinstance(edge["source"], str) else edge["source"]["id"]
+        tgt = edge["target"] if isinstance(edge["target"], str) else edge["target"]["id"]
+        if src in degree:
+            degree[src] += 1
+        if tgt in degree:
+            degree[tgt] += 1
+
+    if not include_isolated:
+        nodes = {nid: node for nid, node in nodes.items() if degree[nid] > 0}
+
     total_nodes = len(nodes)
     total_edges = len(edges)
     limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
@@ -468,13 +483,6 @@ def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
             "total_nodes": total_nodes,
             "total_edges": total_edges,
         }
-
-    degree: dict[str, int] = {nid: 0 for nid in nodes}
-    for edge in edges:
-        if edge["source"] in degree:
-            degree[edge["source"]] += 1
-        if edge["target"] in degree:
-            degree[edge["target"]] += 1
 
     ranked_ids = sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))
 
@@ -498,7 +506,12 @@ def _capped_overview(nodes: dict[str, dict], edges: list[dict]) -> dict:
     kept_order.extend(nid for nid in ranked_ids if nid not in kept_order)
     kept_ids = set(kept_order[:limit])
     kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
-    kept_edges = [e for e in edges if e["source"] in kept_ids and e["target"] in kept_ids]
+    kept_edges = [
+        e
+        for e in edges
+        if (e["source"] if isinstance(e["source"], str) else e["source"]["id"]) in kept_ids
+        and (e["target"] if isinstance(e["target"], str) else e["target"]["id"]) in kept_ids
+    ]
     return {
         "nodes": kept_nodes,
         "edges": kept_edges,
@@ -720,13 +733,22 @@ def export_graph(
     format: str = Query(..., pattern="^(csv|graphml)$"),
     project_id: Optional[int] = None,
     status: str = "approved",
+    include_isolated: bool = Query(
+        False, description="Whether to include degree-0 isolated nodes in the export"
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Neutraler CSV-/GraphML-Export des Wissensgraphen (O-034), analog zu
     /callgraph/export -- anders als /export/neo4j (Cypher, an Neo4j gebunden)
     ist das Ergebnis in jedem generischen Graph-Werkzeug importierbar."""
-    graph = get_graph(project_id=project_id, status=status, db=db, user=user)
+    graph = get_graph(
+        project_id=project_id,
+        status=status,
+        include_isolated=include_isolated,
+        db=db,
+        user=user,
+    )
     nodes = graph["nodes"]
     edges = graph["edges"]
 
@@ -784,10 +806,19 @@ def export_graph(
 def export_neo4j_cypher(
     project_id: Optional[int] = None,
     status: str = "approved",
+    include_isolated: bool = Query(
+        False, description="Whether to include degree-0 isolated nodes in the export"
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    graph = get_graph(project_id=project_id, status=status, db=db, user=user)
+    graph = get_graph(
+        project_id=project_id,
+        status=status,
+        include_isolated=include_isolated,
+        db=db,
+        user=user,
+    )
     nodes = graph["nodes"]
     edges = graph["edges"]
 

@@ -184,12 +184,15 @@ export function KnowledgeGraphView({
   const [viewMode, setViewMode] = useState<'overview' | 'neighborhood'>('overview');
   const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
   const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
+  // O-285: Nur verlinkte Elemente anzeigen (Default: aktiv)
+  const [onlyLinked, setOnlyLinked] = useState(true);
 
   // Keep the expensive initial overview alive while a node neighborhood is shown.
   // The neighborhood replaces the rendered data temporarily, but must not discard
   // the large overview which the user already waited for.
   const overviewCacheRef = useRef<{
     projectId: number | null;
+    includeIsolated: boolean;
     nodes: GraphNode[];
     edges: GraphEdge[];
     truncation: { shown: number; total: number } | null;
@@ -242,11 +245,12 @@ export function KnowledgeGraphView({
     return () => ro.disconnect();
   }, []);
 
-  const loadOverview = useCallback(async (force = false) => {
+  const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean) => {
     /** Loads all approved links of the repository from the backend. */
     const projectId = selectedProject?.id ?? null;
+    const includeIsolated = includeIsolatedOverride ?? !onlyLinked;
     const cachedOverview = overviewCacheRef.current;
-    if (!force && cachedOverview?.projectId === projectId) {
+    if (!force && cachedOverview?.projectId === projectId && cachedOverview?.includeIsolated === includeIsolated) {
       setRawNodes(cachedOverview.nodes);
       setRawEdges(cachedOverview.edges);
       setOverviewTruncation(cachedOverview.truncation);
@@ -269,12 +273,13 @@ export function KnowledgeGraphView({
     try {
       const params = new URLSearchParams({ status: 'approved' });
       if (projectId) params.set('project_id', String(projectId));
+      if (includeIsolated) params.set('include_isolated', 'true');
       const res = await api.fetch(`${API_URL}/graph?${params}`);
       const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       const nodes = data.nodes ?? [];
       const edges = data.edges ?? [];
       const truncation = data.truncated ? { shown: nodes.length, total: data.total_nodes ?? nodes.length } : null;
-      overviewCacheRef.current = { projectId, nodes, edges, truncation };
+      overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation };
       setRawNodes(nodes);
       setRawEdges(edges);
       setViewMode('overview');
@@ -298,7 +303,13 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedProject, selectedDoc]);
+  }, [selectedProject, selectedDoc, onlyLinked]);
+
+  const toggleOnlyLinked = () => {
+    const nextValue = !onlyLinked;
+    setOnlyLinked(nextValue);
+    loadOverview(false, !nextValue);
+  };
 
   const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
     return node.project_id ?? selectedProject?.id ?? null;
@@ -487,15 +498,28 @@ export function KnowledgeGraphView({
 
   // Filtered data for the graph
   const filteredData = useMemo(() => {
-    const visibleNodes = rawNodes.filter(n => !hiddenNodeTypes.has(nodeTypeKey(n)));
-    const visibleIds = new Set(visibleNodes.map(n => n.id));
+    const candidateNodes = rawNodes.filter(n => !hiddenNodeTypes.has(nodeTypeKey(n)));
+    const candidateIds = new Set(candidateNodes.map(n => n.id));
     const visibleEdges = rawEdges.filter(e => {
       const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
       const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-      return !hiddenLinkTypes.has(graphEdgeType(e)) && visibleIds.has(src) && visibleIds.has(tgt);
+      return !hiddenLinkTypes.has(graphEdgeType(e)) && candidateIds.has(src) && candidateIds.has(tgt);
     });
+
+    let visibleNodes = candidateNodes;
+    if (onlyLinked) {
+      const connectedNodeIds = new Set<string>();
+      for (const e of visibleEdges) {
+        const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
+        const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
+        connectedNodeIds.add(src);
+        connectedNodeIds.add(tgt);
+      }
+      visibleNodes = candidateNodes.filter(n => connectedNodeIds.has(n.id));
+    }
+
     return { nodes: visibleNodes, links: visibleEdges };
-  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes]);
+  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, onlyLinked]);
 
   // Camera centering on node/edge selection
   useEffect(() => {
@@ -1160,6 +1184,26 @@ export function KnowledgeGraphView({
             })}
           </div>
         )}
+
+        <div className={cn('h-4 w-px shrink-0', border)} />
+
+        {/* O-285: Nur verlinkte Elemente anzeigen (Default: aktiv) */}
+        <button
+          type="button"
+          onClick={toggleOnlyLinked}
+          title={t('knowledgeGraphView.onlyLinkedElements')}
+          data-testid="toggle-only-linked"
+          className={cn(
+            'flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all',
+            chipBase,
+            onlyLinked
+              ? 'opacity-100 border-ds-indigo-500/60 bg-ds-indigo-500/10 text-ds-indigo-400 font-medium'
+              : 'opacity-40 hover:opacity-70'
+          )}
+        >
+          <Link2 className="w-3 h-3 shrink-0" />
+          {t('knowledgeGraphView.onlyLinkedElements')}
+        </button>
 
         {/* Right: focus indicator + counts + controls */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">

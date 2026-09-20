@@ -161,9 +161,10 @@ def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
     db_session.commit()
     try:
         # Cap so low that only the linked entity (degree 1) and its doc node
-        # (degree 1) fit -- the unlinked entity (degree 0) must be the one cut.
+        # (degree 1) fit -- with include_isolated=True, the unlinked entity (degree 0)
+        # must be the one cut.
         with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
-            response = client.get(f"/graph?project_id={test_project}")
+            response = client.get(f"/graph?project_id={test_project}&include_isolated=true")
         assert response.status_code == 200
         body = response.json()
 
@@ -175,6 +176,31 @@ def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
         node_ids = {n["id"] for n in body["nodes"]}
         assert f"entity:{linked_entity.id}" in node_ids
         assert "doc:Runbook1" in node_ids
+        assert f"entity:{isolated_entity.id}" not in node_ids
+    finally:
+        db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_graph_overview_filters_isolated_nodes_by_default(
+    client, db_session, test_project, test_team
+):
+    """O-285: Isolierte Knoten (Grad 0) werden standardmäßig vor dem Capping gefiltert."""
+    source = _make_source(db_session, test_project, test_team)
+    linked_entity, chunk, link = _make_linked_entity(db_session, test_project, source.id, 2)
+    isolated_entity = _make_isolated_entity(db_session, test_project, source.id, 2)
+    db_session.commit()
+    try:
+        response = client.get(f"/graph?project_id={test_project}")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_nodes"] == 2  # linked entity + doc node; isolated entity filtered
+        assert len(body["nodes"]) == 2
+        node_ids = {n["id"] for n in body["nodes"]}
+        assert f"entity:{linked_entity.id}" in node_ids
+        assert "doc:Runbook2" in node_ids
         assert f"entity:{isolated_entity.id}" not in node_ids
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
@@ -229,7 +255,12 @@ def test_graph_overview_keeps_one_file_node_per_source_when_capped():
         },
     }
     with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
-        body = _capped_overview(nodes, [])
+        body = _capped_overview(nodes, [], include_isolated=True)
     node_ids = {node["id"] for node in body["nodes"]}
     assert "doc:scanned-handbook.pdf" in node_ids
     assert body["truncated"] is True
+
+    # O-285: Default include_isolated=False filters degree-0 nodes
+    body_default = _capped_overview(nodes, [])
+    assert len(body_default["nodes"]) == 0
+

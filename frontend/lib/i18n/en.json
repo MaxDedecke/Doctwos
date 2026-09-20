@@ -1046,7 +1046,8 @@
     "openOriginal": "Open original",
     "fromLabel": "From",
     "toLabel": "To",
-    "legendLabel": "Legend"
+    "legendLabel": "Legend",
+    "onlyLinkedElements": "Show only linked elements"
   },
   "globalSearch": {
     "groups": {

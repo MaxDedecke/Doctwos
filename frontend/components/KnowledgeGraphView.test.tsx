@@ -96,9 +96,11 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
   it('centers a selected node once simulation coordinates arrive, without a graphData ref method', async () => {
     const node: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG1' };
+    const docNode: GraphNode = { id: 'doc:1', type: 'document', label: 'DOC1' };
+    const edge: GraphEdge = { id: 'link:1', source: 'entity:1', target: 'doc:1', link_type: 'semantic', score: 0.9, context: null };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ nodes: [node], edges: [] }),
+      json: async () => ({ nodes: [node, docNode], edges: [edge] }),
     }));
     renderGraph();
     fireEvent.click(await screen.findByTestId('node-entity:1'));
@@ -129,11 +131,14 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1' }],
-        edges: [],
+        nodes: [
+          { id: 'entity:1', type: 'entity', label: 'PROG1' },
+          { id: 'doc:1', type: 'document', label: 'DOC1' },
+        ],
+        edges: [{ id: 'link:1', source: 'entity:1', target: 'doc:1', link_type: 'semantic', score: 0.9, context: null }],
         truncated: false,
-        total_nodes: 1,
-        total_edges: 0,
+        total_nodes: 2,
+        total_edges: 1,
       }),
     }));
 
@@ -171,8 +176,11 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        nodes: [{ id: 'doc:scanned-handbook.pdf', type: 'document', label: 'scanned-handbook.pdf', file_path: 'scanned-handbook.pdf' }],
-        edges: [],
+        nodes: [
+          { id: 'doc:scanned-handbook.pdf', type: 'document', label: 'scanned-handbook.pdf', file_path: 'scanned-handbook.pdf' },
+          { id: 'entity:1', type: 'entity', label: 'PROG1' },
+        ],
+        edges: [{ id: 'link:1', source: 'entity:1', target: 'doc:scanned-handbook.pdf', link_type: 'semantic', score: 0.9, context: null }],
       }),
     }));
 
@@ -193,9 +201,11 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
       source_id: 5,
       project_id: 1,
     };
+    const targetNode: GraphNode = { id: 'doc:1', type: 'document', label: 'DOC1' };
+    const edge: GraphEdge = { id: 'link:1', source: 'entity:101', target: 'doc:1', link_type: 'semantic', score: 0.9, context: null };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ nodes: [javaNode], edges: [] }),
+      json: async () => ({ nodes: [javaNode, targetNode], edges: [edge] }),
     }));
     const onFileSelect = vi.fn();
 
@@ -216,8 +226,11 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
   it('loads the real neighborhood via GET /graph/focus and replaces the (possibly truncated) overview', async () => {
     const overviewResponse = {
-      nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 }],
-      edges: [],
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:init', type: 'document', label: 'InitDoc' },
+      ],
+      edges: [{ id: 'link:0', source: 'entity:1', target: 'doc:init', link_type: 'semantic', score: 0.9, context: null }],
       truncated: true,
       total_nodes: 5000,
       total_edges: 3000,
@@ -258,16 +271,22 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
   it('restores the cached overview after a neighborhood focus without re-fetching GET /graph', async () => {
     const overviewResponse = {
-      nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 }],
-      edges: [],
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:init', type: 'document', label: 'InitDoc' },
+      ],
+      edges: [{ id: 'link:0', source: 'entity:1', target: 'doc:init', link_type: 'semantic', score: 0.9, context: null }],
       truncated: false,
-      total_nodes: 1,
-      total_edges: 0,
+      total_nodes: 2,
+      total_edges: 1,
     };
     const focusResponse = {
       focus_id: 'entity:1',
-      nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 }],
-      edges: [],
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:Runbook', type: 'document', label: 'Runbook' },
+      ],
+      edges: [{ id: 'edl:1', source: 'entity:1', target: 'doc:Runbook', link_type: 'semantic', score: 0.9, context: null }],
     };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
@@ -331,7 +350,10 @@ describe('KnowledgeGraphView: ein Klick = eine Ansicht (O-091)', () => {
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ nodes: [docNode], edges: [] }),
+      json: async () => ({
+        nodes: [docNode, { id: 'entity:1', type: 'entity', label: 'CBACT01C' }],
+        edges: [{ id: 'link:1', source: 'entity:1', target: 'doc:12', link_type: 'semantic', score: 0.9, context: null }],
+      }),
     }));
   });
 
@@ -386,9 +408,11 @@ describe('KnowledgeGraphView: ein Klick = eine Ansicht (O-091)', () => {
       source_type: 'confluence',
       project_id: 1,
     };
+    const targetNode: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG1' };
+    const edge: GraphEdge = { id: 'link:1', source: 'entity:1', target: 'doc:44', link_type: 'semantic', score: 0.9, context: null };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ nodes: [pageNode], edges: [] }),
+      json: async () => ({ nodes: [pageNode, targetNode], edges: [edge] }),
     }));
     const onFileSelect = vi.fn();
     renderGraphWithNavigation(onFileSelect);
@@ -512,3 +536,82 @@ describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
     expect(relPos).toBeCloseTo(0.91, 2);
   });
 });
+
+describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('hides isolated nodes (degree 0 in visibleEdges) by default and reveals them when toggle is clicked', async () => {
+    const linkedNode: GraphNode = { id: 'entity:1', type: 'entity', label: 'LINKED_PROG' };
+    const docNode: GraphNode = { id: 'doc:1', type: 'document', label: 'Doc1' };
+    const isolatedNode: GraphNode = { id: 'entity:2', type: 'entity', label: 'ISOLATED_PROG' };
+    const edge: GraphEdge = { id: 'code:1', source: 'entity:1', target: 'doc:1', link_type: 'CALLS', direction: 'directed', score: null, context: null };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [linkedNode, docNode, isolatedNode],
+        edges: [edge],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+
+    // Connected nodes are rendered
+    await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+    expect(screen.getByTestId('node-doc:1')).toBeTruthy();
+    // Degree 0 node is hidden by default
+    expect(screen.queryByTestId('node-entity:2')).toBeNull();
+
+    // Toggle button is present and active
+    const toggleBtn = screen.getByTestId('toggle-only-linked');
+    expect(toggleBtn).toBeTruthy();
+
+    // Click toggle to show isolated elements
+    fireEvent.click(toggleBtn);
+
+    // Now isolated node is visible
+    await waitFor(() => expect(screen.getByTestId('node-entity:2')).toBeTruthy());
+
+    // Click toggle again to hide isolated elements
+    fireEvent.click(toggleBtn);
+    await waitFor(() => expect(screen.queryByTestId('node-entity:2')).toBeNull());
+  });
+
+  it('hiding a link type that disconnects a node hides that node when onlyLinked is active', async () => {
+    const nodeA: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG_A' };
+    const nodeB: GraphNode = { id: 'entity:2', type: 'entity', label: 'PROG_B' };
+    const edge: GraphEdge = { id: 'code:1', source: 'entity:1', target: 'entity:2', link_type: 'CALLS', score: null, context: null };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [nodeA, nodeB],
+        edges: [edge],
+      }),
+    }));
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+    expect(screen.getByTestId('node-entity:2')).toBeTruthy();
+
+    // Hide the CALLS link type chip
+    const callsChip = screen.getAllByText('Aufruf')[0];
+    fireEvent.click(callsChip);
+
+    // When the only link is hidden, visible degree becomes 0 so both nodes are hidden
+    await waitFor(() => {
+      expect(screen.queryByTestId('node-entity:1')).toBeNull();
+      expect(screen.queryByTestId('node-entity:2')).toBeNull();
+    });
+  });
+});
+
