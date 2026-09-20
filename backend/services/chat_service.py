@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+from xml.sax.saxutils import escape
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Optional
@@ -19,7 +20,15 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
-from models.database import ChatMessage, CodeEntity, DocumentChunk, KnowledgeSource, Project, User
+from models.database import (
+    ChatMessage,
+    CodeEdge,
+    CodeEntity,
+    DocumentChunk,
+    KnowledgeSource,
+    Project,
+    User,
+)
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
 
@@ -38,6 +47,8 @@ logger = logging.getLogger(__name__)
 _PAGE_QUERY_RE = re.compile(r"(?:seite|page|s\.)\s*(\d+)", re.IGNORECASE)
 _SECTION_NUMBER_RE = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){1,4}\b")
 _SECTION_MATCH_SCAN_LIMIT = 3000
+_CODE_FOCUS_EDGE_LIMIT = 8
+_CODE_FOCUS_EMBED_LIMIT = 5000
 _SMALLTALK_RE = re.compile(
     r"^(?:hallo|hi|hey|moin|servus|guten morgen|guten tag|guten abend|danke|vielen dank|"
     r"ok|okay|alles klar|tsch(?:u|ü)ss|bye|auf wiedersehen|erzähl mir einen witz|"
@@ -100,6 +111,7 @@ class ChatRetrieval:
     pinned_chunks: list[DocumentChunk]
     context: str
     pinned_context: str
+    code_focus_status: str
     prompt: str
     resolved_repo_id: Optional[int]
     focused_source_id: Optional[int]
@@ -113,6 +125,7 @@ def _focused_entity(
     project_id: Optional[int],
     source_id: Optional[int],
     pinned_source_id: Optional[int],
+    resolved_repo_id: Optional[int],
     pinned_file: Optional[str],
 ) -> Optional[CodeEntity]:
     """Resolve a client focus only inside the already selected chat scope.
@@ -128,7 +141,7 @@ def _focused_entity(
         return None
     if pinned_file and entity.file_path != pinned_file:
         return None
-    expected_source = pinned_source_id or source_id
+    expected_source = pinned_source_id or source_id or resolved_repo_id
     if expected_source is not None and entity.source_id != expected_source:
         return None
     if project_id is not None and entity.project_id != project_id:
@@ -146,7 +159,14 @@ def build_entity_breadcrumb(db: Session, entity: CodeEntity) -> str:
         if current.name:
             names.append(current.name)
         current = (
-            db.query(CodeEntity).filter(CodeEntity.id == current.parent_id).first()
+            db.query(CodeEntity)
+            .filter(
+                CodeEntity.id == current.parent_id,
+                CodeEntity.source_id == entity.source_id,
+                CodeEntity.project_id == entity.project_id,
+                CodeEntity.variant_key == entity.variant_key,
+            )
+            .first()
             if current.parent_id is not None
             else None
         )
@@ -154,6 +174,183 @@ def build_entity_breadcrumb(db: Session, entity: CodeEntity) -> str:
     if names:
         return " › ".join(names)
     return entity.qualified_name or entity.name
+
+
+def _resolve_line_focus_entity(
+    db: Session,
+    *,
+    project_id: Optional[int],
+    source_id: Optional[int],
+    file_path: Optional[str],
+    line: Optional[int],
+) -> tuple[Optional[CodeEntity], str]:
+    """Resolve a line focus to its smallest containing entity in the selected scope."""
+    if not file_path or not line or line < 1 or (project_id is None and source_id is None):
+        return None, "no_entity_focus"
+
+    query = db.query(CodeEntity).filter(
+        CodeEntity.file_path == file_path,
+        CodeEntity.start_line.isnot(None),
+        CodeEntity.end_line.isnot(None),
+        CodeEntity.start_line <= line,
+        CodeEntity.end_line >= line,
+    )
+    if project_id is not None:
+        query = query.filter(CodeEntity.project_id == project_id)
+    if source_id is not None:
+        query = query.filter(CodeEntity.source_id == source_id)
+
+    candidates = (
+        query.order_by(
+            (CodeEntity.end_line - CodeEntity.start_line).asc(),
+            CodeEntity.id.asc(),
+        )
+        .limit(101)
+        .all()
+    )
+    if not candidates:
+        return None, "parser_entity_missing"
+
+    smallest_span = candidates[0].end_line - candidates[0].start_line
+    smallest = [
+        candidate
+        for candidate in candidates
+        if candidate.end_line - candidate.start_line == smallest_span
+    ]
+    if len(smallest) != 1:
+        return None, "ambiguous_smallest_entity"
+    return smallest[0], "resolved_from_line"
+
+
+def _code_focus_edges(db: Session, entity: CodeEntity) -> tuple[list[dict[str, Any]], bool]:
+    """Read a small, deterministic set of direct relationships for the focus."""
+    rows = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.project_id == entity.project_id,
+            CodeEdge.source_id == entity.source_id,
+            CodeEdge.variant_key == entity.variant_key,
+            or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
+        )
+        .order_by(CodeEdge.type, CodeEdge.id)
+        .limit(_CODE_FOCUS_EDGE_LIMIT + 1)
+        .all()
+    )
+    truncated = len(rows) > _CODE_FOCUS_EDGE_LIMIT
+    result = []
+    for edge in rows[:_CODE_FOCUS_EDGE_LIMIT]:
+        outgoing = edge.src_entity_id == entity.id
+        other_id = edge.dst_entity_id if outgoing else edge.src_entity_id
+        other = None
+        if other_id is not None:
+            other = (
+                db.query(CodeEntity)
+                .filter(
+                    CodeEntity.id == other_id,
+                    CodeEntity.project_id == entity.project_id,
+                    CodeEntity.source_id == entity.source_id,
+                    CodeEntity.variant_key == entity.variant_key,
+                )
+                .first()
+            )
+        result.append(
+            {
+                "edge_id": edge.id,
+                "type": edge.type,
+                "direction": "outgoing" if outgoing else "incoming",
+                "resolution": edge.resolution,
+                "target_name": (
+                    (other.qualified_name or other.name)
+                    if other
+                    else (edge.dst_name if outgoing else None)
+                ),
+                "target_type": other.type if other else None,
+                "target_file": other.file_path if other else None,
+                "target_start_line": other.start_line if other else None,
+                "target_end_line": other.end_line if other else None,
+                "evidence_start_line": edge.src_start_line,
+                "evidence_end_line": edge.src_end_line,
+                "variant_key": edge.variant_key,
+            }
+        )
+    return result, truncated
+
+
+def _code_focus_metadata(
+    db: Session,
+    *,
+    project_id: Optional[int],
+    source_id: Optional[int],
+    file_path: Optional[str],
+    line: Optional[int],
+    end_line: Optional[int],
+    entity: Optional[CodeEntity],
+    entity_status: str,
+) -> str:
+    """Render bounded, scope-aware focus metadata as explicitly untrusted data."""
+    if not (file_path or entity is not None):
+        return ""
+
+    effective_source_id = entity.source_id if entity else source_id
+    source = None
+    if effective_source_id is not None:
+        source_query = db.query(KnowledgeSource).filter(KnowledgeSource.id == effective_source_id)
+        if project_id is not None:
+            source_query = source_query.filter(KnowledgeSource.project_id == project_id)
+        source = source_query.first()
+
+    project = db.query(Project).filter(Project.id == project_id).first() if project_id else None
+    cursor = source.sync_cursor if source and isinstance(source.sync_cursor, dict) else {}
+    source_spaces = source.spaces if source and isinstance(source.spaces, dict) else {}
+    revision = cursor.get("last_commit") or source_spaces.get("last_commit_hash")
+    edges: list[dict[str, Any]] = []
+    edges_truncated = False
+    if entity is not None:
+        edges, edges_truncated = _code_focus_edges(db, entity)
+
+    payload = {
+        "resolution": entity_status,
+        "project": {"id": project_id, "name": project.name if project else None},
+        "source": {
+            "id": effective_source_id,
+            "type": source.type if source else None,
+            "branch": source.branch if source else None,
+            "revision": revision,
+            "last_synced_at": source.last_synced_at.isoformat() if source and source.last_synced_at else None,
+        },
+        "focus": {
+            "entity_id": entity.id if entity else None,
+            "qualified_name": entity.qualified_name if entity else None,
+            "name": entity.name if entity else None,
+            "type": entity.type if entity else None,
+            "file_path": entity.file_path if entity else file_path,
+            "start_line": entity.start_line if entity else line,
+            "end_line": entity.end_line if entity else end_line,
+            "variant_key": entity.variant_key if entity else None,
+            "content_hash": entity.content_hash if entity else None,
+            "breadcrumb": build_entity_breadcrumb(db, entity) if entity else None,
+        },
+        "direct_code_edges": edges,
+        "direct_code_edges_truncated": edges_truncated,
+        "edge_note": "Static indexed relationships; unresolved edges remain unresolved.",
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    return f"<untrusted_code_focus>{escape(encoded)}</untrusted_code_focus>\n"
+
+
+def _embedding_query_with_code_focus(
+    message: str, metadata: str, pinned_code_context: str
+) -> str:
+    """Include focused code in the embedding query without changing exact-query checks."""
+    focus_parts = []
+    if metadata:
+        focus_parts.append("Code focus metadata:\n" + metadata)
+    if pinned_code_context:
+        focus_parts.append("Focused indexed code:\n" + pinned_code_context)
+    if not focus_parts:
+        return message
+    focus = "\n\n".join(focus_parts)[:_CODE_FOCUS_EMBED_LIMIT]
+    return f"{message}\n\n{focus}"
 
 
 def hybrid_chunk_search(
@@ -277,6 +474,72 @@ async def retrieve_chat_context(
     selected_embedding_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
     model_filter = embedding_model_filter(selected_embedding_model)
 
+    focused_entity = _focused_entity(
+        db,
+        entity_id=pinned_entity_id,
+        project_id=project_id,
+        source_id=source_id,
+        pinned_source_id=pinned_source_id,
+        resolved_repo_id=resolved_repo_id,
+        pinned_file=pinned_file,
+    )
+    if focused_entity is not None:
+        code_focus_status = "resolved_by_entity_id"
+    elif pinned_entity_id is not None:
+        # An invalid or out-of-scope ID must never be represented as a match.
+        code_focus_status = "entity_id_missing_or_out_of_scope"
+    else:
+        focused_entity, code_focus_status = _resolve_line_focus_entity(
+            db,
+            project_id=project_id,
+            source_id=focused_source_id,
+            file_path=pinned_file,
+            line=pinned_line,
+        )
+
+    if focused_entity is not None:
+        pinned_file = pinned_file or focused_entity.file_path
+        pinned_line = focused_entity.start_line or pinned_line
+        pinned_end_line = focused_entity.end_line or pinned_end_line or pinned_line
+        pinned_label = pinned_label or focused_entity.name
+        focused_breadcrumb = build_entity_breadcrumb(db, focused_entity)
+        focused_source_id = focused_entity.source_id or focused_source_id
+    else:
+        focused_breadcrumb = None
+        if code_focus_status == "no_entity_focus" and pinned_file:
+            code_focus_status = "file_focus_only"
+
+    pinned_chunks = (
+        find_pinned_chunks(
+            db, project_id, focused_source_id, pinned_file, pinned_line, pinned_end_line
+        )
+        if pinned_file
+        else []
+    )
+    code_focus_metadata = _code_focus_metadata(
+        db,
+        project_id=project_id,
+        source_id=focused_source_id,
+        file_path=pinned_file,
+        line=pinned_line,
+        end_line=pinned_end_line,
+        entity=focused_entity,
+        entity_status=code_focus_status,
+    )
+    retrieval_pinned_context = build_pinned_context(
+        pinned_file=pinned_file,
+        pinned_line=pinned_line,
+        pinned_end_line=pinned_end_line,
+        pinned_label=pinned_label,
+        focused_breadcrumb=focused_breadcrumb,
+        pinned_context=None,
+        pinned_chunks=pinned_chunks,
+        repository_id=resolved_repo_id,
+    )
+    embedding_query = _embedding_query_with_code_focus(
+        message, code_focus_metadata, retrieval_pinned_context
+    )
+
     try:
         query_text = message
         embed_kwargs = {}
@@ -298,7 +561,7 @@ async def retrieve_chat_context(
                 "context_length": profile_context,
             }
         query_embedding = await embed_text(
-            query_text, is_query=True, model=selected_embedding_model, **embed_kwargs
+            embedding_query, is_query=True, model=selected_embedding_model, **embed_kwargs
         )
 
         if source_id:
@@ -426,31 +689,6 @@ async def retrieve_chat_context(
         logger.error("Fehler beim Kontext-Retrieval: %s", exc)
         query_text = message
 
-    focused_entity = _focused_entity(
-        db,
-        entity_id=pinned_entity_id,
-        project_id=project_id,
-        source_id=source_id,
-        pinned_source_id=pinned_source_id,
-        pinned_file=pinned_file,
-    )
-    if focused_entity:
-        pinned_file = pinned_file or focused_entity.file_path
-        pinned_line = focused_entity.start_line or pinned_line
-        pinned_end_line = focused_entity.end_line or pinned_end_line or pinned_line
-        pinned_label = pinned_label or focused_entity.name
-        focused_breadcrumb = build_entity_breadcrumb(db, focused_entity)
-        focused_source_id = focused_entity.source_id or focused_source_id
-    else:
-        focused_breadcrumb = None
-
-    pinned_chunks = (
-        find_pinned_chunks(
-            db, project_id, focused_source_id, pinned_file, pinned_line, pinned_end_line
-        )
-        if pinned_file
-        else []
-    )
     pinned_context = build_pinned_context(
         pinned_file=pinned_file,
         pinned_line=pinned_line,
@@ -461,18 +699,22 @@ async def retrieve_chat_context(
         pinned_chunks=pinned_chunks,
         repository_id=resolved_repo_id,
     )
+    if code_focus_metadata:
+        pinned_context = code_focus_metadata + pinned_context
     prompt = build_chat_prompt(
         context=context,
         pinned_context=pinned_context,
         message=message,
         pinned_file=pinned_file,
         multi_project_names=multi_project_names,
+        code_focus_status=code_focus_status,
     )
     return ChatRetrieval(
         results=results,
         pinned_chunks=pinned_chunks,
         context=context,
         pinned_context=pinned_context,
+        code_focus_status=code_focus_status,
         prompt=prompt,
         resolved_repo_id=resolved_repo_id,
         focused_source_id=focused_source_id,
@@ -929,6 +1171,7 @@ def build_chat_prompt(
     message: str,
     pinned_file: Optional[str],
     multi_project_names: list[str],
+    code_focus_status: Optional[str] = None,
 ) -> str:
     """Return the user prompt with scope, pin and citation contracts attached."""
     if not (context or pinned_context):
@@ -956,6 +1199,21 @@ def build_chat_prompt(
             "same excerpt. Use retrieved files only as supporting context; if the pinned context is "
             "insufficient, say so clearly instead of describing unrelated nearby code.\n\n"
         )
+        if code_focus_status in {
+            "ambiguous_smallest_entity",
+            "entity_id_missing_or_out_of_scope",
+            "parser_entity_missing",
+        }:
+            pin_note += (
+                "Instruction: The indexed entity locator is ambiguous, missing, or outside the "
+                "selected scope. Do not present the code as a uniquely resolved entity; state the "
+                "locator gap and rely only on the displayed file/line evidence.\n\n"
+            )
+        elif code_focus_status == "file_focus_only":
+            pin_note += (
+                "Instruction: Only the file is focused; no unique code entity was resolved. Do not "
+                "invent an entity identity.\n\n"
+            )
     citation_note = (
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "
         "`path/to/file.ext:line`, with exactly one line number. Cite extensionless knowledge "
