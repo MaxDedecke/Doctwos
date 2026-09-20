@@ -10,8 +10,14 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEntity, DocumentChunk
-from tasks.link_builder import MIN_SCORE_KEYWORD, _pass_keyword
+from models.database import CodeEdge, CodeEntity, DocumentChunk
+from tasks.link_builder import (
+    MIN_SCORE_KEYWORD,
+    _build_entity_context,
+    _build_relationship_index,
+    _entity_breadcrumb,
+    _pass_keyword,
+)
 
 
 @pytest.fixture
@@ -97,3 +103,91 @@ def test_pass_keyword_matches_decrypted_content(db_session, test_project):
     assert "docs/unrelated.pdf" not in result
     _, score = result["docs/payroll.pdf"]
     assert score >= MIN_SCORE_KEYWORD
+
+
+def test_entity_context_uses_bounded_repository_excerpt_and_direct_edges(
+    db_session, test_project
+):
+    project_id, source_id = test_project
+    service = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path="src/PaymentService.java",
+        name="PaymentService",
+        type="class",
+        qualified_name="com.acme.PaymentService",
+        start_line=1,
+        end_line=6,
+        meta_json={"language": "java"},
+    )
+    method = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path="src/PaymentService.java",
+        name="save",
+        type="method",
+        parent=service,
+        qualified_name="com.acme.PaymentService#save(Payment)",
+        start_line=2,
+        end_line=4,
+        meta_json={"language": "java", "signature": "save(Payment)"},
+    )
+    repository = CodeEntity(
+        project_id=project_id,
+        source_id=source_id,
+        file_path="src/PaymentRepository.java",
+        name="PaymentRepository",
+        type="class",
+        qualified_name="com.acme.PaymentRepository",
+    )
+    db_session.add_all([service, method, repository])
+    db_session.flush()
+    db_session.add(
+        CodeEdge(
+            project_id=project_id,
+            source_id=source_id,
+            src_entity_id=method.id,
+            dst_entity_id=repository.id,
+            dst_name=repository.qualified_name,
+            type="CALL",
+            resolution="resolved",
+        )
+    )
+    db_session.add(
+        DocumentChunk(
+            project_id=project_id,
+            source_id=source_id,
+            file_path="src/PaymentService.java",
+            start_line=1,
+            end_line=6,
+            content=(
+                "class PaymentService {\n"
+                "  public Payment save(Payment payment) {\n"
+                "    return repository.persist(payment);\n"
+                "  }\n"
+                "  public void unrelated() {}\n"
+                "}\n"
+            ),
+        )
+    )
+    db_session.commit()
+
+    entities_by_id = {service.id: service, method.id: method, repository.id: repository}
+    relationships = _build_relationship_index(
+        project_id, db_session, entities_by_id, {method.id}
+    )
+    context = _build_entity_context(
+        method,
+        project_id,
+        db_session,
+        _entity_breadcrumb(method, entities_by_id),
+        relationships,
+        {},
+    )
+
+    assert "Qualified name: com.acme.PaymentService#save(Payment)" in context
+    assert "Breadcrumb: PaymentService › save" in context
+    assert "signature: save(Payment)" in context
+    assert "to CALL (resolved) com.acme.PaymentRepository" in context
+    assert "return repository.persist(payment);" in context
+    assert "unrelated" not in context

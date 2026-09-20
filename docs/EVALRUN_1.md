@@ -32,6 +32,36 @@ Compose-Dienste waren bei der Vorbereitung gesund. Der Code-Branch stand auf
 tatsächlich ausgerollte Stand: Version/SHA aus der laufenden API festhalten und
 nicht annehmen, dass der lokale Worktree bereits deployed ist.
 
+### Ollama im RunPod vorbereiten
+
+Der Ollama-Container im bereitgestellten Pod ist zunächst leer. Vor dem
+Evaluationstart müssen die beiden in den Doctus-Profilen eingetragenen Qwen-
+Modelle in genau diesem Ollama geladen sein:
+
+```sh
+ollama pull qwen3:32b
+ollama pull qwen3-embedding:4b
+ollama list
+```
+
+Die großen Modell-Downloads können durch Unterbrechungen der Verbindung oder
+Sicherheitslimits gestoppt werden. Ollama verwaltet den Pull in Modell-Layern
+und setzt abgebrochene Pulls beim erneuten Aufruf mit demselben Modellnamen
+fort. Daher nach einer Unterbrechung denselben `ollama pull`-Befehl wiederholen
+und den Ollama-Modell-Speicher des Pods auf einem persistenten Volume erhalten.
+Den Container oder das Volume zwischen Versuchen nicht neu anlegen und keine
+unvollständigen Ollama-Download-Dateien löschen. Die Ollama-API-Dokumentation
+beschreibt das Fortsetzen abgebrochener Pulls ([Pull API](https://github.com/ollama/ollama/blob/main/docs/api.md#pull-a-model)).
+Nach einer Security-Unterbrechung im Fortschritt prüfen, dass der Pull beim
+vorhandenen Stand weiterläuft; ein harter Pod-Neustart ohne erhaltenes Volume
+kann den Teilfortschritt verlieren.
+
+Jedes Modell einzeln bis zum erfolgreichen Abschluss laden; erst wenn beide in
+`ollama list` erscheinen, Doctus-Chat und Embedding prüfen und die Evaluation
+starten. Modellkennung und bestätigten Ladezustand im Ergebnisprotokoll
+festhalten. Zugangsdaten und vollständige Pod-URLs gehören weiterhin nur in die
+Doctus-Profilverwaltung.
+
 ### Bekannte Indexlücken vor der Bewertung
 
 - **Syncope:** 87 `.properties`-Dateien stehen im aktuellen Journal noch auf
