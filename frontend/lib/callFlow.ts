@@ -39,13 +39,28 @@ export interface CallFlowData {
   highlighted_edge_id?: number;
 }
 
+export interface ChangeImpactSummary {
+  statically_resolved_edges: number;
+  heuristic_links: number;
+  unknown_dynamic_edges: number;
+  truncated: boolean;
+  limitations: string[];
+}
+
+export interface ChangeImpactData {
+  toolCallId: string;
+  targetLabel: string;
+  flow: CallFlowData;
+  summary: ChangeImpactSummary;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
- * Extracts and validates the most recent successful trace_call_flow result
- * from an assistant message's agent_steps.
+ * Extracts the most recent successful trace_call_flow or inspect_change_impact
+ * graph from an assistant message's agent_steps.
  */
 export function extractCallFlowData(message: ChatMessage): CallFlowData | null {
   const steps = message.metadata?.agent_steps;
@@ -53,10 +68,10 @@ export function extractCallFlowData(message: ChatMessage): CallFlowData | null {
 
   for (let i = steps.length - 1; i >= 0; i--) {
     const step = steps[i];
-    if (step.type === 'tool_result' && step.name === 'trace_call_flow' && step.result) {
+    if (step.type === 'tool_result' && (step.name === 'trace_call_flow' || step.name === 'inspect_change_impact') && step.result) {
       try {
         const parsed: unknown = typeof step.result === 'string' ? JSON.parse(step.result) : step.result;
-        if (!isRecord(parsed) || parsed.error) continue;
+        if (!isRecord(parsed) || parsed.error || (step.name === 'inspect_change_impact' && parsed.status !== 'ok')) continue;
 
         if (
           isRecord(parsed.root) &&
@@ -81,5 +96,44 @@ export function extractCallFlowData(message: ChatMessage): CallFlowData | null {
     }
   }
 
+  return null;
+}
+
+/** Extracts the compact summary used by the impact-graph action card. */
+export function extractChangeImpactData(message: ChatMessage): ChangeImpactData | null {
+  const steps = message.metadata?.agent_steps;
+  if (!Array.isArray(steps)) return null;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i];
+    if (step.type !== 'tool_result' || step.name !== 'inspect_change_impact' || !step.result || !step.id) continue;
+    try {
+      const parsed: unknown = typeof step.result === 'string' ? JSON.parse(step.result) : step.result;
+      if (!isRecord(parsed) || parsed.status !== 'ok' || !isRecord(parsed.impact_summary)) continue;
+      const summary = parsed.impact_summary;
+      const counts = [summary.statically_resolved_edges, summary.heuristic_links, summary.unknown_dynamic_edges];
+      if (!counts.every(value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)) continue;
+      const flow = extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [step] } });
+      if (!flow) continue;
+      const targetLabel = isRecord(parsed.target) && typeof parsed.target.file_path === 'string' && parsed.target.file_path
+        ? parsed.target.file_path
+        : flow.root.name;
+      return {
+        toolCallId: step.id,
+        targetLabel,
+        flow,
+        summary: {
+          statically_resolved_edges: summary.statically_resolved_edges as number,
+          heuristic_links: summary.heuristic_links as number,
+          unknown_dynamic_edges: summary.unknown_dynamic_edges as number,
+          truncated: Boolean(summary.truncated),
+          limitations: Array.isArray(summary.limitations)
+            ? summary.limitations.filter((item): item is string => typeof item === 'string').slice(0, 4)
+            : [],
+        },
+      };
+    } catch {
+      // Ignore malformed impact results and continue to older tool results.
+    }
+  }
   return null;
 }

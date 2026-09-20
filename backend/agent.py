@@ -10,6 +10,7 @@ from mcp_client import MCPClient
 from models.database import CodeEntity
 from services.mcp_audit import record_mcp_tool_call
 from services.call_flow import trace_call_flow
+from services.change_impact import inspect_change_impact
 
 logger = logging.getLogger(__name__)
 
@@ -524,6 +525,34 @@ async def run_agent_loop(
                 },
             }
         )
+        local_tools_def.append(
+            {
+                "name": "inspect_change_impact",
+                "description": (
+                    "Read-only, bounded analysis of what may be affected by changing one indexed "
+                    "entity or file. Use incoming direction for callers/dependents, outgoing for "
+                    "dependencies used by the target, or both for context. The result separates "
+                    "statically resolved code edges, approved semantic cross-references, and "
+                    "unresolved/dynamic name matches. It is not a complete runtime-impact proof. "
+                    "Provide exactly one entity_id from get_repo_entities or a repository-relative "
+                    "file_path already found in repository context."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "entity_id": {"type": "integer", "minimum": 1},
+                        "file_path": {"type": "string"},
+                        "direction": {
+                            "type": "string",
+                            "enum": ["incoming", "outgoing", "both"],
+                            "description": "incoming finds callers/dependents affected by a change.",
+                        },
+                        "hops": {"type": "integer", "minimum": 0, "maximum": 3},
+                        "limit": {"type": "integer", "minimum": 10, "maximum": 80},
+                    },
+                },
+            }
+        )
 
     # 2. Gather MCP tools
     mcp_tools_def = []
@@ -573,6 +602,13 @@ async def run_agent_loop(
         "`trace_call_flow`-Ergebnisses und einer dort vorhandenen aufgelösten `edge_id` auf eine konkrete Kante "
         "zeigen; erfinde keine IDs und verwende keine unaufgelösten Kanten. Beim Wechsel eines Tour-Schritts "
         "wird die vorhandene Call-Graph-Ansicht aktualisiert. "
+        "Wenn der Nutzer fragt, was eine Änderung an einer Datei oder Entity betreffen könnte, verwende "
+        "`inspect_change_impact`: exakt eine Entity-ID oder einen exakten repository-relativen Dateipfad, "
+        "standardmäßig `direction=incoming`, höchstens drei Hops. Erkläre statisch aufgelöste Kanten als "
+        "Indexbelege, genehmigte semantische Querverweise getrennt als Hinweise und unresolved/dynamic "
+        "Treffer als ungewiss. Nenne Trunkierung sowie Analysegrenzen; behaupte niemals Vollständigkeit. "
+        "Das Werkzeug liest nur und startet weder Änderungen noch Reindexierung. Wenn ein Graph mit "
+        "Beziehungen vorliegt, lass den Nutzer ihn über die angebotene Aktion explizit öffnen. "
         "Bei einer Erklärung anhand abgerufener Dokumentbelege kannst du stattdessen genau einmal "
         "`offer_source_walkthrough` aufrufen. Verwende ausschließlich die in den Kontextblöcken genannten "
         "Chunk-IDs; Seite und Abschnitt werden serverseitig aus dem Index übernommen. "
@@ -749,6 +785,17 @@ async def run_agent_loop(
             ):
                 validated_call_flows[tool_call_id] = res
                 res = {**res, "tool_call_id": tool_call_id}
+            return json.dumps(res)
+        elif name == "inspect_change_impact" and project_id:
+            res = inspect_change_impact(
+                db_session,
+                project_id=project_id,
+                entity_id=args.get("entity_id"),
+                file_path=args.get("file_path"),
+                direction=args.get("direction", "incoming"),
+                hops=args.get("hops", 2),
+                limit=args.get("limit", 40),
+            )
             return json.dumps(res)
 
         # Check MCP tools

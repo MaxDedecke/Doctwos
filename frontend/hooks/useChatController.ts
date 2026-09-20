@@ -394,7 +394,7 @@ export function useChatController({
 
                 const matchingResult = [...accumulatedSteps].reverse().find(step =>
                   step.type === 'tool_result' && step.id === data.tool_call_id && (
-                    (data.view === 'callgraph' && step.name === 'trace_call_flow') ||
+                    (data.view === 'callgraph' && (step.name === 'trace_call_flow' || step.name === 'inspect_change_impact')) ||
                     (data.view === 'code' && step.name === 'view_repo_file') ||
                     (data.view === 'walkthrough' &&
                       (step.name === 'offer_code_walkthrough' || step.name === 'offer_source_walkthrough'))

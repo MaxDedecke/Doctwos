@@ -4,7 +4,7 @@ import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
-import { extractCallFlowData } from '@/lib/callFlow';
+import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 
 import { api } from '@/app/services/api';
 import { DoctusIcon } from "@/components/Logo";
@@ -698,6 +698,89 @@ export function ChatView({
                                     {t('chatView.callGraphOpenButton')}
                                   </Button>
                                 </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Bounded change-impact summary with an explicit graph action. */}
+                          {(() => {
+                            const impact = extractChangeImpactData(m);
+                            if (!impact) return null;
+                            const viewAction = m.metadata?.agent_steps?.find((step): step is AgentCallGraphViewAction =>
+                              step.type === 'view_action' && step.view === 'callgraph' &&
+                              step.tool_call_id === impact.toolCallId && step.target.entity_id === impact.flow.root.id
+                            );
+                            if (!viewAction) return null;
+                            const decisionKey = impact.toolCallId;
+                            const actionOpened = viewAction.status === 'opened' || viewAction.status === 'updated';
+                            const actionDeclined = viewAction.status === 'declined';
+                            const actionUnavailable = viewAction.status === 'rejected' || viewAction.status === 'stale_context';
+                            const decision = callFlowDecisions[decisionKey] ?? (actionOpened ? 'open' : actionDeclined ? 'declined' : undefined);
+                            return (
+                              <div
+                                data-testid="change-impact-card"
+                                className={cn(
+                                  "mt-3.5 p-3 rounded-lg border flex flex-col gap-2.5 shadow-sm",
+                                  theme === 'dark'
+                                    ? "bg-ds-indigo-950/20 border-ds-indigo-500/30 text-ds-zinc-200"
+                                    : "bg-ds-indigo-50/60 border-ds-indigo-200 text-ds-zinc-800"
+                                )}
+                              >
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold">{t('chatView.changeImpactTitle')}</p>
+                                    <p className="text-[11px] text-ds-zinc-500 truncate" title={impact.targetLabel}>
+                                      {impact.targetLabel} · {t('chatView.changeImpactNodeCount', { count: impact.flow.nodes.length })} · {impact.flow.hops} {impact.flow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')}
+                                    </p>
+                                    <p className="text-[11px] text-ds-zinc-500 mt-1">
+                                      {t('chatView.changeImpactCounts', {
+                                        resolved: impact.summary.statically_resolved_edges,
+                                        heuristic: impact.summary.heuristic_links,
+                                        unknown: impact.summary.unknown_dynamic_edges,
+                                      })}
+                                    </p>
+                                    <p className="text-[10px] text-ds-zinc-500 mt-1">{t('chatView.changeImpactLimits')}</p>
+                                    {impact.summary.truncated && (
+                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.changeImpactTruncated')}</p>
+                                    )}
+                                    {actionUnavailable && (
+                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>
+                                    )}
+                                    {viewAction.status === 'no_space' && (
+                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.changeImpactNoSpace')}</p>
+                                    )}
+                                  </div>
+                                  {!actionUnavailable && (
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                      {decision !== 'open' && decision !== 'declined' && (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            setCallFlowDecisions(previous => ({ ...previous, [decisionKey]: 'declined' }));
+                                            handleDeclineViewAction(viewAction);
+                                          }}
+                                          className="h-7 px-2 text-xs text-ds-zinc-500 cursor-pointer"
+                                        >
+                                          {t('chatView.callGraphDismissButton')}
+                                        </Button>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => handleOpenFlow(impact.flow, decisionKey, viewAction)}
+                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                      >
+                                        <GitBranch className="w-3.5 h-3.5 mr-1.5" />
+                                        {decision === 'open' ? t('chatView.changeImpactReopen') : t('chatView.changeImpactOpenButton')}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                                {decision === 'open' && (
+                                  <p className="text-[10px] text-ds-emerald-500">{t('chatView.changeImpactOpened')}</p>
+                                )}
                               </div>
                             );
                           })()}

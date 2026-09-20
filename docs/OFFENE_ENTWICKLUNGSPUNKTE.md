@@ -523,7 +523,7 @@ Dies sind Produktverbesserungen, keine pauschalen zusätzlichen Versandblocker.
 | O-193 | P2 | Suchergebnisse mit nachvollziehbarem Projekt-/Quellenfilter als Ansicht öffnen. | O-190 |
 | O-194 | P2 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern anzeigen. | O-190 |
 | O-195 | P1 / Erledigt 20.09.2026 | Belegte Kanten aus `trace_call_flow` als wiederholbare Graphschritte in geführten Touren hervorheben. | O-190/O-191 |
-| O-196 | P1 | Änderungsfolgen anhand belegter Aufrufer und Abhängigkeiten lesend untersuchen; gemeinsam mit dem erweiterten Änderungspaket aus O-273 umsetzen. | O-191, O-194/O-195, O-273 |
+| O-196 | P1 / Erledigt 20.09.2026 | Begrenzte, lesende Änderungsfolgenanalyse für eine indizierte Entity oder Datei: Aufrufbeziehungen und genehmigte semantische Querverweise getrennt ausweisen und den belegten Graphen auf ausdrücklichen Klick öffnen. | O-191, O-194/O-195; O-273 erweitert die Analyse |
 | O-197 | P2 | Link-Manager auf konkrete Verknüpfung und ihre Belege fokussieren. | O-190, O-191/O-192 |
 | O-198 | P3 | Quellen-/Jobstatus im Job Center lesend öffnen. | O-190 |
 | O-199 | P1 | Ziel-Qwen-Abnahme, Streaming, Berechtigungen und Panel-Regeln gezielt absichern. | Begleitend zu O-190–O-198; Abnahme je umgesetztem Umfang |

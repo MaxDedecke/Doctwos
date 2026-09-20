@@ -402,9 +402,9 @@ Relevante Einstiegspunkte: [Agent](../backend/agent.py),
 [Panel-Synchronisation](PANEL_SYNCHRONISATION.md).
 
 Empfohlene Reihenfolge: O-190/O-191 bilden die umgesetzte Grundlage. O-192 und
-O-195 ergänzen Dokument- und Graphschritte. O-196 ist wegen seines
-direkten Nutzens für Änderungsvorbereitung auf P1 angehoben und wird mit O-273
-zusammengeführt. O-193/O-194 ergänzen die Recherche; O-197/O-198 sind
+O-195 ergänzen Dokument- und Graphschritte. O-196 liefert die begrenzte,
+lesende Änderungsfolgenanalyse; O-273 erweitert sie um Fachregeln, Fehlerhistorie,
+Tests und Verantwortlichkeiten. O-193/O-194 ergänzen die Recherche; O-197/O-198 sind
 nachrangig. O-199 begleitet die Umsetzung und schließt die Abnahme ab.
 Toolnamen unten sind Vorschläge; bestehende Tools erweitern statt redundante
 Lese- und Navigationswerkzeuge einzuführen.
@@ -546,9 +546,9 @@ führen jeweils die zugehörige Ansicht mit; Knotenklicks bleiben mit der
 Codefundstelle verbunden. Zyklen und gekürzte Graphen bleiben erkennbar. Der
 Graph suggeriert keinen tatsächlich ausgeführten Laufzeit-Trace.
 
-### O-196 – P1: Änderungsfolgen untersuchen und anzeigen
+### O-196 – P1 / Erledigt 20.09.2026: Änderungsfolgen untersuchen und anzeigen
 
-- [ ] `inspect_change_impact` zur lesenden Analyse einer Entity oder Datei ergänzen.
+- [x] `inspect_change_impact` zur lesenden Analyse einer Entity oder Datei ergänzen.
 
 **Nutzen:** Bei „Was könnte eine Änderung an dieser Routine betreffen?“ werden
 Aufrufer und belegte Abhängigkeiten in Graph-/Code-Ansichten sichtbar.
@@ -561,6 +561,8 @@ dynamische Aufrufe getrennt ausweisen.
 **Abnahme:** Betroffene Fundstellen lassen sich öffnen. Unvollständige Indexierung
 und dynamische Aufrufe werden als Grenzen angezeigt; keine Behauptung vollständiger
 Auswirkungsanalyse. Das Tool führt weder Codeänderungen noch Reindexierung aus.
+O-273 bleibt offen und ergänzt diese Basis um Dokumentation, Fehlerhistorie,
+Tests und Verantwortlichkeiten sowie eine gemeinsame API.
 
 ### O-197 – P2: Verknüpfungen samt Belegen im Link-Manager prüfen
 

@@ -132,7 +132,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
     if event.get("type") != "tool_result":
         return
     tool_name = event.get("name")
-    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow"):
+    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact"):
         return
 
     result = event.get("result")
@@ -173,7 +173,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                     entity.get("end_line", 1),
                     source_id,
                 )
-    elif tool_name == "trace_call_flow":
+    elif tool_name in ("trace_call_flow", "inspect_change_impact"):
         # Damit die vom Agenten aus dem Ablauftrace genannten Schritte nicht
         # nur als Mermaid sichtbar, sondern auch als Code-Zitat anklickbar
         # werden. Der Tool-Trace ist bereits auf 150 Knoten begrenzt; für die
@@ -185,7 +185,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                     entity["file_path"],
                     entity.get("start_line", 1),
                     entity.get("end_line", 1),
-                    source_id,
+                    entity.get("source_id") or source_id,
                 )
 
 
@@ -213,6 +213,44 @@ def _derive_view_action(
         return None
 
     tool_name = event.get("name")
+    if tool_name == "inspect_change_impact":
+        root = result.get("root")
+        nodes = result.get("nodes")
+        edges = result.get("edges")
+        summary = result.get("impact_summary")
+        if (
+            result.get("status") != "ok"
+            or not isinstance(root, dict)
+            or not isinstance(root.get("id"), int)
+            or isinstance(root.get("id"), bool)
+            or not isinstance(nodes, list)
+            or not any(isinstance(node, dict) and node.get("id") == root["id"] for node in nodes)
+            or not isinstance(edges, list)
+            or not edges
+            or not isinstance(summary, dict)
+        ):
+            return None
+        view = "callgraph"
+        target = {"entity_id": root["id"]}
+        target_key = hashlib.sha256(json.dumps({
+            "root": root["id"],
+            "edge_ids": [edge.get("id") for edge in edges[:120] if isinstance(edge, dict)],
+            "summary": summary,
+        }, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
+        action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
+        return {
+            "type": "view_action",
+            "action_id": action_id,
+            "session_id": session_id,
+            "turn_id": turn_id,
+            "project_id": project_id,
+            "tool_call_id": event["id"],
+            "view": view,
+            "target": target,
+            "status": "requested",
+        }
+
     if tool_name not in {"offer_code_walkthrough", "offer_source_walkthrough"} or result.get("status") != "ok":
         return None
 
