@@ -132,7 +132,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
     if event.get("type") != "tool_result":
         return
     tool_name = event.get("name")
-    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact"):
+    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact", "inspect_change_package"):
         return
 
     result = event.get("result")
@@ -185,6 +185,18 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                     entity["file_path"],
                     entity.get("start_line", 1),
                     entity.get("end_line", 1),
+                    entity.get("source_id") or source_id,
+                )
+    elif tool_name == "inspect_change_package":
+        # The package's compact result retains the indexed source locations so
+        # citations in the assistant answer remain clickable.
+        for entity in result.get("affected_code", [])[:12]:
+            if isinstance(entity, dict) and entity.get("file_path"):
+                _record_agent_source(
+                    agent_sources,
+                    entity["file_path"],
+                    entity.get("start_line") or 1,
+                    entity.get("end_line") or entity.get("start_line") or 1,
                     entity.get("source_id") or source_id,
                 )
 

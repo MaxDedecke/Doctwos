@@ -4,6 +4,7 @@ import json
 import time
 import httpx
 from typing import Dict, List, Any, Optional, AsyncGenerator
+from xml.sax.saxutils import escape
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
 from mcp_client import MCPClient
@@ -11,6 +12,7 @@ from models.database import CodeEntity
 from services.mcp_audit import record_mcp_tool_call
 from services.call_flow import trace_call_flow
 from services.change_impact import inspect_change_impact
+from services.change_package import inspect_change_package
 
 logger = logging.getLogger(__name__)
 
@@ -260,6 +262,107 @@ def _cap_tool_result(text: str, max_chars: int = MAX_MCP_TOOL_RESULT_CHARS) -> s
 
 def _tool_result_was_truncated(tool_res: str) -> bool:
     return _TOOL_RESULT_TRUNCATION_MARKER in tool_res
+
+
+def _compact_change_package_for_agent(package: dict) -> dict:
+    """Keep chat evidence useful and bounded; the shared HTTP API remains complete."""
+    if package.get("error"):
+        return package
+
+    def compact_path(path: Any) -> Any:
+        if not isinstance(path, dict):
+            return None
+        return {
+            "root_entity_id": path.get("root_entity_id"),
+            "hops": path.get("hops"),
+            "edges": [
+                {name: edge.get(name) for name in (
+                    "edge_id", "from_entity_id", "to_entity_id", "relationship", "resolution",
+                    "evidence_file", "evidence_start_line", "evidence_end_line",
+                )}
+                for edge in path.get("edges", [])[:3]
+                if isinstance(edge, dict)
+            ],
+        }
+
+    def compact_records(key: str, count: int, include_text: bool = False) -> list[dict]:
+        records = package.get(key, [])
+        if not isinstance(records, list):
+            return []
+        compacted = []
+        for record in records[:count]:
+            if not isinstance(record, dict):
+                continue
+            item = {name: record.get(name) for name in (
+                "entity_id", "source_type", "issue_key", "classification", "classification_basis",
+                "classification_keyword", "record_type", "bug_candidate", "url",
+                "relationship_path_entity_id", "relationship_path_available",
+            ) if name in record}
+            if isinstance(record.get("title"), str):
+                item["title"] = f"<untrusted_source>{escape(record['title'][:120])}</untrusted_source>"
+            evidence = record.get("evidence")
+            if isinstance(evidence, dict):
+                item["evidence"] = {name: evidence.get(name) for name in (
+                    "link_id", "status", "link_type", "direction", "score", "reviewed_at",
+                    "chunk_id", "start_line", "end_line",
+                ) if name in evidence}
+                if include_text:
+                    for name in ("context", "excerpt"):
+                        value = evidence.get(name)
+                        if isinstance(value, str) and value.strip():
+                            item["evidence"][name] = f"<untrusted_source>{escape(value[:120])}</untrusted_source>"
+            compacted.append(item)
+        return compacted
+
+    code = []
+    for node in package.get("affected_code", [])[:6]:
+        if not isinstance(node, dict):
+            continue
+        compact_node = {name: node.get(name) for name in (
+            "id", "name", "qualified_name", "type", "file_path", "source_id", "start_line", "end_line",
+        ) if name in node}
+        compact_node["relationship_path"] = compact_path(node.get("relationship_path"))
+        if isinstance(node.get("evidence"), dict) and node["evidence"].get("unresolved_candidates"):
+            compact_node["evidence"] = node["evidence"]
+        code.append(compact_node)
+
+    tests = package.get("tests", {})
+    responsibility = package.get("responsibility", {})
+    impact = package.get("change_impact", {})
+    result = {
+        "schema_version": package.get("schema_version"),
+        "status": package.get("status"),
+        "impact_status": package.get("impact_status"),
+        "target": package.get("target"),
+        "scope": package.get("scope"),
+        "impact_summary": impact.get("impact_summary") if isinstance(impact, dict) else None,
+        "affected_code": code,
+        "linked_knowledge": compact_records("linked_knowledge", 4, include_text=True),
+        "historical_issues": compact_records("historical_issues", 4, include_text=True),
+        "tests": {
+            "status": tests.get("status") if isinstance(tests, dict) else "unknown",
+            "items": tests.get("items", [])[:5] if isinstance(tests, dict) else [],
+            "truncated": tests.get("truncated", False) if isinstance(tests, dict) else False,
+            "coverage_claim": "none",
+            "note": tests.get("note") if isinstance(tests, dict) else None,
+        },
+        "responsibility": {
+            "status": responsibility.get("status") if isinstance(responsibility, dict) else "unknown",
+            "items": responsibility.get("items", [])[:5] if isinstance(responsibility, dict) else [],
+            "unknown_files": responsibility.get("unknown_files", [])[:5] if isinstance(responsibility, dict) else [],
+            "partial": responsibility.get("partial", False) if isinstance(responsibility, dict) else True,
+            "note": responsibility.get("note") if isinstance(responsibility, dict) else None,
+        },
+        "evidence_gaps": package.get("evidence_gaps", []),
+        "limitations": package.get("limitations", []),
+        "presentation_truncated": {
+            "affected_code": len(package.get("affected_code", [])) > len(code),
+            "linked_knowledge": len(package.get("linked_knowledge", [])) > 4,
+            "historical_issues": len(package.get("historical_issues", [])) > 4,
+            "tests": bool(tests.get("truncated")) if isinstance(tests, dict) else False,
+        },
+    }
+    return result
 
 
 # Unified Agent Execution Loop
@@ -561,6 +664,44 @@ async def run_agent_loop(
                 },
             }
         )
+        local_tools_def.append(
+            {
+                "name": "inspect_change_package",
+                "description": (
+                    "Build a bounded, read-only evidence package for preparing a code change. It combines "
+                    "O-196's indexed impact graph with approved code/document links, linked Jira records, "
+                    "statically related test/spec entities, relationship paths with source lines, and "
+                    "CODEOWNERS candidates when available. It labels keyword classifications and gaps; "
+                    "unknown tests or owners are not evidence of absence or complete coverage. Use this "
+                    "when the user asks what rules, documentation, earlier issues, tests, or people should "
+                    "be checked before changing an indexed entity or file. It can also derive the target files from two Git revisions; use base_ref and head_ref together, plus source_id if the project has multiple Git sources."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "entity_id": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Optional. Entity ID returned by get_repo_entities.",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional exact repository-relative indexed file path.",
+                        },
+                        "source_id": {"type": "integer", "minimum": 1, "description": "Git source ID; needed for a diff when several Git sources exist."},
+                        "base_ref": {"type": "string", "description": "Git base revision; supply together with head_ref instead of entity_id/file_path."},
+                        "head_ref": {"type": "string", "description": "Git target revision; supply together with base_ref instead of entity_id/file_path."},
+                        "direction": {
+                            "type": "string",
+                            "enum": ["incoming", "outgoing", "both"],
+                            "description": "incoming finds callers and dependents affected by a change.",
+                        },
+                        "hops": {"type": "integer", "minimum": 0, "maximum": 3},
+                        "limit": {"type": "integer", "minimum": 10, "maximum": 80},
+                    },
+                },
+            }
+        )
 
     # 2. Gather MCP tools
     mcp_tools_def = []
@@ -618,6 +759,12 @@ async def run_agent_loop(
         "Treffer als ungewiss. Nenne Trunkierung sowie Analysegrenzen; behaupte niemals Vollständigkeit. "
         "Das Werkzeug liest nur und startet weder Änderungen noch Reindexierung. Wenn ein Graph mit "
         "Beziehungen vorliegt, lass den Nutzer ihn über die angebotene Aktion explizit öffnen. "
+        "Wenn der Nutzer ein Änderungspaket oder wissen will, welche Fachregeln, Dokumentation, früheren "
+        "Fehler, Tests oder Verantwortlichen vor einer Änderung geprüft werden sollten, verwende "
+        "`inspect_change_package`. `inspect_change_impact` bleibt für reine Fragen nach Codebeziehungen. "
+        "Stelle jeden Treffer mit Belegpfad/Fundstelle dar und trenne statische Kanten von genehmigten "
+        "Dokumentenlinks und Keyword-Kandidaten. Weise `unknown`-Zuordnungen als Lücke aus; behaupte weder "
+        "Testabdeckung noch vollständige Fachregel- oder Verantwortlichkeitszuordnung. "
         "Bei einer Erklärung anhand abgerufener Dokumentbelege kannst du stattdessen genau einmal "
         "`offer_source_walkthrough` aufrufen. Verwende ausschließlich die in den Kontextblöcken genannten "
         "Chunk-IDs; Seite und Abschnitt werden serverseitig aus dem Index übernommen. "
@@ -806,6 +953,22 @@ async def run_agent_loop(
                 limit=args.get("limit", 40),
             )
             return json.dumps(res)
+        elif name == "inspect_change_package" and project_id:
+            res = inspect_change_package(
+                db_session,
+                project_id=project_id,
+                entity_id=args.get("entity_id"),
+                file_path=args.get("file_path"),
+                source_id=args.get("source_id"),
+                base_ref=args.get("base_ref"),
+                head_ref=args.get("head_ref"),
+                direction=args.get("direction", "incoming"),
+                hops=args.get("hops", 2),
+                limit=args.get("limit", 40),
+            )
+            return _cap_tool_result(
+                json.dumps(_compact_change_package_for_agent(res), ensure_ascii=False)
+            )
 
         # Check MCP tools
         elif name in mcp_tool_map:
@@ -917,7 +1080,7 @@ async def run_agent_loop(
                 "name": tool["name"],
                 "description": tool.get("description", ""),
                 "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
-                **({"strict": False} if tool["name"] == "inspect_change_impact" else {}),
+                **({"strict": False} if tool["name"] in {"inspect_change_impact", "inspect_change_package"} else {}),
             }
             for tool in all_tools
         ]
@@ -1097,7 +1260,7 @@ async def run_agent_loop(
                         "name": t["name"],
                         "description": t.get("description", ""),
                         "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
-                        **({"strict": False} if t["name"] == "inspect_change_impact" else {}),
+                        **({"strict": False} if t["name"] in {"inspect_change_impact", "inspect_change_package"} else {}),
                     },
                 }
             )

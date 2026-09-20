@@ -77,6 +77,7 @@ from api import (
     diagnostics,
     entities,
     callgraph,
+    change_packages,
     jobs,
     audit,
     feedback_diagnostics,
@@ -136,6 +137,7 @@ app.include_router(graph.router, dependencies=_authenticated)
 app.include_router(search.router, dependencies=_authenticated)
 app.include_router(entities.router, dependencies=_authenticated)
 app.include_router(callgraph.router, dependencies=_authenticated)
+app.include_router(change_packages.router, dependencies=_authenticated)
 app.include_router(jobs.router, dependencies=_authenticated)
 app.include_router(audit.router, dependencies=[Depends(require_admin)])
 app.include_router(feedback_diagnostics.router, dependencies=[Depends(require_admin)])
