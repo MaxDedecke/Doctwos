@@ -534,14 +534,22 @@ async def run_agent_loop(
                     "dependencies used by the target, or both for context. The result separates "
                     "statically resolved code edges, approved semantic cross-references, and "
                     "unresolved/dynamic name matches. It is not a complete runtime-impact proof. "
-                    "Provide exactly one entity_id from get_repo_entities or a repository-relative "
-                    "file_path already found in repository context."
+                    "Provide an entity_id from get_repo_entities, a repository-relative file_path "
+                    "already found in repository context, or both when the entity belongs to that file. "
+                    "When both selectors are given, the analysis covers the whole file."
                 ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "entity_id": {"type": "integer", "minimum": 1},
-                        "file_path": {"type": "string"},
+                        "entity_id": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Optional. If paired with file_path, it must belong to that file; the whole file is then analyzed.",
+                        },
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional repository-relative path. Include to analyze all indexed entities in the file.",
+                        },
                         "direction": {
                             "type": "string",
                             "enum": ["incoming", "outgoing", "both"],
@@ -603,8 +611,9 @@ async def run_agent_loop(
         "zeigen; erfinde keine IDs und verwende keine unaufgelösten Kanten. Beim Wechsel eines Tour-Schritts "
         "wird die vorhandene Call-Graph-Ansicht aktualisiert. "
         "Wenn der Nutzer fragt, was eine Änderung an einer Datei oder Entity betreffen könnte, verwende "
-        "`inspect_change_impact`: exakt eine Entity-ID oder einen exakten repository-relativen Dateipfad, "
-        "standardmäßig `direction=incoming`, höchstens drei Hops. Erkläre statisch aufgelöste Kanten als "
+        "`inspect_change_impact`: eine Entity-ID oder einen exakten repository-relativen Dateipfad verwenden. "
+        "Falls beide Angaben mitgeliefert werden, müssen sie zur selben Datei gehören; dann analysiert das Tool die Datei. "
+        "Standardmäßig `direction=incoming`, höchstens drei Hops. Erkläre statisch aufgelöste Kanten als "
         "Indexbelege, genehmigte semantische Querverweise getrennt als Hinweise und unresolved/dynamic "
         "Treffer als ungewiss. Nenne Trunkierung sowie Analysegrenzen; behaupte niemals Vollständigkeit. "
         "Das Werkzeug liest nur und startet weder Änderungen noch Reindexierung. Wenn ein Graph mit "
@@ -908,6 +917,7 @@ async def run_agent_loop(
                 "name": tool["name"],
                 "description": tool.get("description", ""),
                 "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
+                **({"strict": False} if tool["name"] == "inspect_change_impact" else {}),
             }
             for tool in all_tools
         ]
@@ -1087,6 +1097,7 @@ async def run_agent_loop(
                         "name": t["name"],
                         "description": t.get("description", ""),
                         "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
+                        **({"strict": False} if t["name"] == "inspect_change_impact" else {}),
                     },
                 }
             )

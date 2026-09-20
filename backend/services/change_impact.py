@@ -56,8 +56,8 @@ def inspect_change_impact(
     the current project; approved semantic links are returned separately and
     never presented as statically verified code dependencies.
     """
-    if (entity_id is None) == (file_path is None):
-        return {"error": "Provide exactly one of entity_id or file_path."}
+    if entity_id is None and file_path is None:
+        return {"error": "Provide entity_id, file_path, or both for the same indexed file."}
     if entity_id is not None and (
         not isinstance(entity_id, int) or isinstance(entity_id, bool) or entity_id <= 0
     ):
@@ -73,20 +73,22 @@ def inspect_change_impact(
 
     target_kind: str
     normalized_path: str | None = None
-    if entity_id is not None:
-        target = (
-            db.query(CodeEntity)
-            .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
-            .first()
-        )
-        if target is None:
-            return {"error": "Entity was not found in the current project."}
-        target_entities = [target]
-        target_kind = "entity"
-    else:
+    if file_path is not None:
         normalized_path = _relative_path(str(file_path or ""))
         if normalized_path is None:
             return {"error": "file_path must be a safe repository-relative path."}
+        if entity_id is not None:
+            matching_entity = (
+                db.query(CodeEntity.id)
+                .filter(
+                    CodeEntity.id == entity_id,
+                    CodeEntity.project_id == project_id,
+                    CodeEntity.file_path == normalized_path,
+                )
+                .first()
+            )
+            if matching_entity is None:
+                return {"error": "When both selectors are provided, entity_id must belong to file_path in the current project."}
         file_entities = (
             db.query(CodeEntity)
             .filter(
@@ -108,8 +110,16 @@ def inspect_change_impact(
             target_entities[-1] = file_root
         target_kind = "file"
         target_count_truncated = len(file_entities) > len(target_entities)
-
-    if entity_id is not None:
+    else:
+        target = (
+            db.query(CodeEntity)
+            .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
+            .first()
+        )
+        if target is None:
+            return {"error": "Entity was not found in the current project."}
+        target_entities = [target]
+        target_kind = "entity"
         target_count_truncated = False
 
     seen_ids = {entity.id for entity in target_entities}
