@@ -146,14 +146,24 @@ async def root():
     return {"message": "Doctus AI Backend is running"}
 
 
+@router.get("/health/live")
+async def liveness():
+    """Confirm that the API process can serve HTTP requests.
+
+    Container liveness must not depend on remote inference discovery. A model
+    provider can be misconfigured or temporarily unavailable while the API is
+    still running and able to serve non-LLM routes. Use `/health` for the
+    dependency/readiness details.
+    """
+    return {"status": "alive"}
+
+
 @router.get("/health")
 async def health(response: Response):
     """
-    Readiness check — pings every dependency the app actually needs to serve
-    traffic, instead of the previous hardcoded {"status": "healthy"} which
-    couldn't tell an "Up" container from one wedged against a dead DB/Redis/
-    Ollama connection (docker-compose.yml has no healthcheck: block either;
-    see docs/DEPLOYMENT.md, "Monitoring").
+    Dependency/readiness check. Unlike `/health/live`, this also checks the
+    database, Redis, and the active LLM discovery endpoint. A provider-specific
+    404 is reported here without making the API container itself unhealthy.
     """
     checks = {}
 

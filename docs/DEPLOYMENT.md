@@ -394,7 +394,8 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 No monitoring stack ships with Doctus — that would be over-engineering for a single-tenant box (see the no-Kubernetes decision above). Point whatever the customer already runs (Nagios, Zabbix, Prometheus blackbox exporter, or just cron + curl) at:
 
-- **Backend liveness:** `GET <API_URL>/health` → `{"status": "healthy", "checks": {"database": "ok", "redis": "ok", "ollama": "ok"}}` on success. This readiness check pings Postgres, Redis and Ollama directly and returns HTTP 503 with the failing entry named in `checks` if any dependency is unreachable.
+- **Backend liveness:** `GET <API_URL>/health/live` returns HTTP 200 while the API process can serve requests. The container healthcheck uses this route, so an inference-provider discovery error does not mark the running API process unhealthy.
+- **Backend dependency readiness:** `GET <API_URL>/health` checks Postgres, Redis and the active LLM discovery endpoint, returning HTTP 503 with the failing entry named in `checks`. A 404 here means the configured provider does not serve the discovery route selected by the active profile; correct the profile's protocol/base URL before relying on LLM functionality.
 - **Container status:** `docker compose ps` — every service in `docker-compose.yml` now has a `healthcheck:` block, so a wedged-but-running container shows `(unhealthy)` here, not just plain `Up`; a genuinely crashed one still cycles through `Restarting` (every service is on `restart: always`), and neither state pages anyone on its own.
 - **Dependency reachability**, for manual double-checking or when `/health` itself is unreachable:
   ```sh

@@ -164,7 +164,10 @@ services:
       # by shelling out to `docker compose logs` (see parser-worker below).
       - ./data/logs/backend-api:/var/log/doctus/backend-api
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      # Container health tracks whether the API process can answer HTTP.
+      # Remote model discovery is reported separately by GET /health; remote
+      # providers may not implement Ollama's /api/tags route.
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 5
