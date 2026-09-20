@@ -396,7 +396,8 @@ export function useChatController({
                   step.type === 'tool_result' && step.id === data.tool_call_id && (
                     (data.view === 'callgraph' && step.name === 'trace_call_flow') ||
                     (data.view === 'code' && step.name === 'view_repo_file') ||
-                    (data.view === 'walkthrough' && step.name === 'offer_code_walkthrough')
+                    (data.view === 'walkthrough' &&
+                      (step.name === 'offer_code_walkthrough' || step.name === 'offer_source_walkthrough'))
                   )
                 );
                 const flow = data.view === 'callgraph' && matchingResult
@@ -417,17 +418,43 @@ export function useChatController({
                 if (data.view === 'walkthrough' && matchingResult?.type === 'tool_result') {
                   try {
                     const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
+                    const canonicalize = (value: unknown) => JSON.stringify(
+                      value && typeof value === 'object' && !Array.isArray(value)
+                        ? Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)))
+                        : value,
+                    );
                     hasMatchingWalkthrough = result.status === 'ok' &&
-                      JSON.stringify({ title: result.title, steps: result.steps }) === JSON.stringify(data.target);
+                      result.title === data.target.title &&
+                      Array.isArray(result.steps) && result.steps.length === data.target.steps.length &&
+                      result.steps.every((step, index) => canonicalize(step) === canonicalize(data.target.steps[index])) &&
+                      data.target.steps.every(step => {
+                        if (step.kind !== 'callgraph') return true;
+                        const traceResult = accumulatedSteps.find(candidate =>
+                          candidate.type === 'tool_result' && candidate.name === 'trace_call_flow' &&
+                          candidate.id === step.trace_tool_call_id,
+                        );
+                        if (traceResult?.type !== 'tool_result') return false;
+                        const flow = extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [traceResult] } });
+                        if (!flow) return false;
+                        const edge = flow.edges.find(candidate => candidate.id === step.edge_id);
+                        const source = flow.nodes.find(candidate => candidate.id === step.source_entity_id);
+                        const target = flow.nodes.find(candidate => candidate.id === step.target_entity_id);
+                        return edge?.resolution === 'resolved' &&
+                          edge.source === step.source_entity_id && edge.target === step.target_entity_id &&
+                          source?.name === step.source_name && target?.name === step.target_name &&
+                          source?.file_path === (step.file_path || undefined) &&
+                          edge.start_line === step.start_line && edge.end_line === step.end_line;
+                      });
                   } catch {
                     hasMatchingWalkthrough = false;
                   }
                 }
                 let status: ViewActionOutcome = 'rejected';
+                const requestProjectId = requestBody.project_id == null ? null : Number(requestBody.project_id);
                 const isCurrentTurn = activeSessionIdRef.current === data.session_id &&
                   expectedSessionId === data.session_id &&
                   activeSessionEpochRef.current === expectedSessionEpoch &&
-                  Number(requestBody.project_id) === data.project_id;
+                  requestProjectId === data.project_id;
 
                 if (!isCurrentTurn) {
                   status = 'stale_context';

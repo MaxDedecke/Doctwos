@@ -382,15 +382,17 @@ Ergänzung vom 18.09.2026 auf Nutzerwunsch. Die folgenden O-XXX-Aufgaben sind
 Produktverbesserungen und keine zusätzlichen pauschalen Blocker für den ersten
 On-Prem-Test. Die IDs sind im zentralen
 [Entwicklungsbacklog](OFFENE_ENTWICKLUNGSPUNKTE.md#chat-agent-ansichten-während-der-arbeit)
-registriert; die Detailplanung und Abnahme stehen hier. Noch keine Umsetzung.
+registriert; die Detailplanung und Abnahme stehen hier. O-190 bis O-192 sind
+inzwischen als geführte, explizit gestartete Tour umgesetzt.
 
 ### Ausgangslage und Reihenfolge
 
 Der Agent bietet bereits `list_repo_files`, `view_repo_file`, `search_repo_code`,
 `get_repo_entities` und `trace_call_flow` sowie angebundene MCP-Tools an.
-`trace_call_flow` liefert einen indizierten Aufrufgraphen; `ChatView` zeigt dafür
-eine Karte zum Öffnen einer Call-Graph-Ansicht. Das ist bisher kein allgemeiner
-Mechanismus zum agentengesteuerten Öffnen verschiedener Ansichten.
+`trace_call_flow` liefert einen indizierten Aufrufgraphen; O-195 bindet seine
+validierten Kanten als einzelne Schritte in die geführte Tour ein. Der Nutzer
+startet die Tour und die vorhandene Call-Graph-Ansicht hebt bei jedem Schritt die
+erklärte Aufrufkante hervor.
 
 Relevante Einstiegspunkte: [Agent](../backend/agent.py),
 [Chat-Stream](../frontend/lib/chatStream.ts),
@@ -399,15 +401,17 @@ Relevante Einstiegspunkte: [Agent](../backend/agent.py),
 [Panel-Navigation](../frontend/lib/panelNavigation.ts),
 [Panel-Synchronisation](PANEL_SYNCHRONISATION.md).
 
-Empfohlene Reihenfolge: O-190 als Grundlage; danach O-191/O-192/O-195 für einen
-ersten vertikalen Schnitt. O-193/O-194/O-197 ergänzen die Recherche; O-196/O-198
-sind nachrangig. O-199 begleitet die Umsetzung und schließt die Abnahme ab.
+Empfohlene Reihenfolge: O-190/O-191 bilden die umgesetzte Grundlage. O-192 und
+O-195 ergänzen Dokument- und Graphschritte. O-196 ist wegen seines
+direkten Nutzens für Änderungsvorbereitung auf P1 angehoben und wird mit O-273
+zusammengeführt. O-193/O-194 ergänzen die Recherche; O-197/O-198 sind
+nachrangig. O-199 begleitet die Umsetzung und schließt die Abnahme ab.
 Toolnamen unten sind Vorschläge; bestehende Tools erweitern statt redundante
 Lese- und Navigationswerkzeuge einzuführen.
 
 ### O-190 – P1: Gemeinsame Ansicht-Aktionen im laufenden Chat
 
-- [ ] Einen typisierten Mechanismus für agentengesteuerte Ansicht-Aktionen und
+- [x] Einen typisierten Mechanismus für agentengesteuerte Ansicht-Aktionen und
   dessen Einbindung in den Chat-Stream implementieren.
 
 **Zweck:** Der Agent kann während seiner Recherche eine passende Ansicht öffnen
@@ -445,7 +449,7 @@ persistiert.
 
 ### O-191 – P1: Codefundstelle im Editor zeigen
 
-- [ ] `view_repo_file` und Entity-Ergebnisse um gezielte Code-Navigation erweitern
+- [x] `view_repo_file` und Entity-Ergebnisse um gezielte Code-Navigation erweitern
   beziehungsweise `show_code_location` ergänzen.
 
 **Nutzen:** Während der Agent eine Routine erklärt, sieht der Nutzer die konkrete
@@ -462,7 +466,8 @@ Navigation bearbeitet keine Datei und verwendet bestehende Panel-Historie.
 
 ### O-192 – P1: Dokument und Belegstelle öffnen
 
-- [ ] `show_source_excerpt` für vorhandene Dokument-/Quellansichten ergänzen.
+- [x] Dokumentbelege als validierte Schritte der vorhandenen geführten Tour
+  ergänzen.
 
 **Nutzen:** Der Agent macht eine fachliche Aussage anhand der passenden PDF-Seite,
 Dokumentpassage oder indexierten Confluence-/Jira-Fundstelle nachvollziehbar.
@@ -476,6 +481,14 @@ bewussten Nutzerlink anbieten, nicht automatisch einen Browser-Tab öffnen.
 Fehlende Seitenkoordinaten werden als Textauszug behandelt, nicht erfunden. Auch
 ohne Zugriff auf das externe Ursprungssystem bleiben vorhandene indexierte Belege
 darstellbar. Nicht berechtigte Quellen werden weder angezeigt noch offengelegt.
+
+**Umsetzungsstand:** `offer_source_walkthrough` akzeptiert ausschließlich
+Dokument-Chunks, die für den aktuellen Turn bereits berechtigt abgerufen wurden.
+Chunk-ID, Quellen-ID, Dateipfad, Seite, Abschnitt und Auszug werden serverseitig
+aus dem Index übernommen. Der Tour-Schritt zeigt den Originalauszug im Chat,
+öffnet die interne Dokumentansicht und springt bei PDF-Belegen auf die indexierte
+Seite. Für Confluence/Jira bleibt der indexierte Auszug auch ohne erreichbares
+Ursprungssystem intern darstellbar.
 
 ### O-193 – P2: Suchergebnisse als Ansicht öffnen
 
@@ -510,25 +523,30 @@ blenden bestehende Standardfilter die angeforderte Beziehung nicht unbemerkt aus
 Beziehungsart, Herkunft und gegebenenfalls Konfidenz bleiben unterscheidbar;
 semantische Ähnlichkeit wird nicht als gesicherter Funktionsaufruf dargestellt.
 
-### O-195 – P1: Vorhandenen Aufrufgraphen direkt während der Analyse öffnen
+### O-195 – P1: Call-Graph als Schritt einer geführten Tour
 
-- [ ] `trace_call_flow` an O-190 anbinden, bestehende Karte und manuelles Öffnen
-  als Alternative erhalten.
+- [x] Erledigt 20.09.2026: `trace_call_flow` als belegten Schritt in die
+  wiederholbare O-190/O-191-Tour integrieren.
 
-**Nutzen:** Auf „Was passiert nach Aufruf von X?“ öffnet sich die vorhandene
-Call-Graph-Ansicht, während der Agent die Aufrufkette weiter erklärt.
+**Nutzen:** Bei einer Erklärung einer Aufrufkette kann der Agent anbieten, den
+Nutzer Schritt für Schritt durch die konkreten Aufrufstellen mitzunehmen. Der
+Nutzer startet und wiederholt die Tour selbst; Graphschritte aktualisieren die
+vorhandene Call-Graph-Ansicht und heben die erläuterte Kante samt Zielknoten
+hervor.
 
-**Umfang:** Bestehende Parameter `entity_id`, `direction` und `hops` verwenden;
-vorhandene Grenzen von bis zu fünf Hops und begrenzter Knotenzahl erhalten.
-Weitere validierte Ergebnisse desselben Turns aktualisieren ein passendes
-unfixiertes Panel. Optional den gerade erläuterten Knoten hervorheben.
+**Umfang:** Ein Graphschritt muss auf eine aufgelöste Kante aus einem erfolgreichen
+`trace_call_flow` desselben Turns verweisen. Backend und Client prüfen die
+Werkzeug-ID, Kante und Endpunkte; unaufgelöste oder erfundene Kanten werden nicht
+als Tour angeboten. Code- und Graphschritte dürfen in einer Tour gemischt werden.
+Die bestehende Hop- und Knotengrenze sowie die Kennzeichnung als indizierter,
+statischer Aufrufgraph bleiben erhalten.
 
-**Abnahme:** Kein zweites paralleles Call-Graph-System. Öffnung vor der finalen
-Antwort funktioniert; Knotenklicks führen zur Codefundstelle. Zyklen und gekürzte
-Graphen sind erkennbar. Die Darstellung heißt indizierter/statischer Aufrufgraph
-und suggeriert keinen tatsächlich ausgeführten Laufzeit-Trace.
+**Abnahme:** Kein zweites Call-Graph-System. Start, Weiter, Zurück und Wiederholen
+führen jeweils die zugehörige Ansicht mit; Knotenklicks bleiben mit der
+Codefundstelle verbunden. Zyklen und gekürzte Graphen bleiben erkennbar. Der
+Graph suggeriert keinen tatsächlich ausgeführten Laufzeit-Trace.
 
-### O-196 – P3: Änderungsfolgen untersuchen und anzeigen
+### O-196 – P1: Änderungsfolgen untersuchen und anzeigen
 
 - [ ] `inspect_change_impact` zur lesenden Analyse einer Entity oder Datei ergänzen.
 

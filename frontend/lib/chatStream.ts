@@ -10,19 +10,48 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
     typeof value.action_id === 'string' &&
     Number.isSafeInteger(value.session_id) &&
     Number.isSafeInteger(value.turn_id) &&
-    Number.isSafeInteger(value.project_id) &&
+    (value.project_id === null || Number.isSafeInteger(value.project_id)) &&
     typeof value.tool_call_id === 'string' &&
     ['requested', 'opened', 'updated', 'manual', 'declined', 'no_space', 'rejected', 'stale_context'].includes(String(value.status));
   if (!hasBaseFields) return false;
-  if (value.view === 'callgraph') return Number.isSafeInteger(value.target.entity_id);
+  if (value.view === 'callgraph') {
+    const hasFocus = value.target.focus_entity_id !== undefined;
+    const hasEdge = value.target.highlighted_edge_id !== undefined;
+    return Number.isSafeInteger(value.target.entity_id) && hasFocus === hasEdge &&
+      (!hasFocus || (
+        Number.isSafeInteger(value.target.focus_entity_id) && Number(value.target.focus_entity_id) > 0 &&
+        Number.isSafeInteger(value.target.highlighted_edge_id) && Number(value.target.highlighted_edge_id) > 0
+      ));
+  }
+  const isDocumentTarget = (target: Record<string, unknown>) =>
+    target.kind === 'document' &&
+    Number.isSafeInteger(target.chunk_id) && Number(target.chunk_id) > 0 &&
+    Number.isSafeInteger(target.source_id) && Number(target.source_id) > 0 &&
+    typeof target.file_path === 'string' && target.file_path.length > 0 &&
+    typeof target.excerpt === 'string' &&
+    typeof target.explanation === 'string' && target.explanation.length > 0;
+  const isCallGraphWalkthroughStep = (step: Record<string, unknown>) =>
+    step.kind === 'callgraph' &&
+    typeof step.trace_tool_call_id === 'string' && step.trace_tool_call_id.length > 0 &&
+    Number.isSafeInteger(step.edge_id) && Number(step.edge_id) > 0 &&
+    Number.isSafeInteger(step.source_entity_id) && Number(step.source_entity_id) > 0 &&
+    Number.isSafeInteger(step.target_entity_id) && Number(step.target_entity_id) > 0 &&
+    typeof step.source_name === 'string' && step.source_name.length > 0 &&
+    typeof step.target_name === 'string' && step.target_name.length > 0 &&
+    typeof step.file_path === 'string' &&
+    typeof step.explanation === 'string' && step.explanation.length > 0;
+  if (value.view === 'document') return isDocumentTarget(value.target);
   if (value.view === 'walkthrough') {
     return typeof value.target.title === 'string' && value.target.title.length > 0 &&
-      Array.isArray(value.target.steps) && value.target.steps.length >= 2 && value.target.steps.length <= 6 &&
-      value.target.steps.every(step => isRecord(step) &&
-        typeof step.file_path === 'string' && step.file_path.length > 0 &&
-        Number.isSafeInteger(step.start_line) && Number(step.start_line) > 0 &&
-        Number.isSafeInteger(step.end_line) && Number(step.end_line) >= Number(step.start_line) &&
-        typeof step.explanation === 'string' && step.explanation.length > 0);
+      Array.isArray(value.target.steps) && value.target.steps.length >= 1 && value.target.steps.length <= 6 &&
+      value.target.steps.every(step => isRecord(step) && (
+        isDocumentTarget(step) || isCallGraphWalkthroughStep(step) || (
+          typeof step.file_path === 'string' && step.file_path.length > 0 &&
+          Number.isSafeInteger(step.start_line) && Number(step.start_line) > 0 &&
+          Number.isSafeInteger(step.end_line) && Number(step.end_line) >= Number(step.start_line) &&
+          typeof step.explanation === 'string' && step.explanation.length > 0
+        )
+      ));
   }
   const startLine = value.target.start_line;
   const endLine = value.target.end_line;

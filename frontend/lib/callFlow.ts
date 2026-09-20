@@ -34,6 +34,9 @@ export interface CallFlowData {
   nodes: CallFlowNode[];
   edges: CallFlowEdge[];
   mermaid?: string;
+  /** Guided walkthrough focus; omitted for a normal call-flow result. */
+  focus_entity_id?: number;
+  highlighted_edge_id?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

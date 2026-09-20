@@ -195,12 +195,12 @@ def _derive_view_action(
     session_id: int,
     turn_id: int,
     project_id: Optional[int],
+    call_flow_results: Optional[dict[str, dict]] = None,
 ) -> Optional[dict]:
     """Build one bounded walkthrough from the agent's explicit, validated offer."""
     if (
         event.get("type") != "tool_result"
         or not isinstance(event.get("id"), str)
-        or project_id is None
     ):
         return None
     result = event.get("result")
@@ -212,17 +212,100 @@ def _derive_view_action(
     if not isinstance(result, dict):
         return None
 
-    if event.get("name") != "offer_code_walkthrough" or result.get("status") != "ok":
+    tool_name = event.get("name")
+    if tool_name not in {"offer_code_walkthrough", "offer_source_walkthrough"} or result.get("status") != "ok":
         return None
 
     title = result.get("title")
     raw_steps = result.get("steps")
-    if not isinstance(title, str) or not title.strip() or not isinstance(raw_steps, list) or not 2 <= len(raw_steps) <= 6:
+    minimum_steps = 1 if tool_name == "offer_source_walkthrough" else 2
+    if not isinstance(title, str) or not title.strip() or not isinstance(raw_steps, list) or not minimum_steps <= len(raw_steps) <= 6:
         return None
     steps = []
     for raw_step in raw_steps:
         if not isinstance(raw_step, dict):
             return None
+        if raw_step.get("kind") == "callgraph":
+            if tool_name != "offer_code_walkthrough":
+                return None
+            trace_tool_call_id = raw_step.get("trace_tool_call_id")
+            edge_id = raw_step.get("edge_id")
+            flow = call_flow_results.get(trace_tool_call_id) if isinstance(call_flow_results, dict) and isinstance(trace_tool_call_id, str) else None
+            if (
+                not isinstance(edge_id, int)
+                or isinstance(edge_id, bool)
+                or not isinstance(flow, dict)
+            ):
+                return None
+            edge = next((item for item in flow.get("edges", []) if isinstance(item, dict) and item.get("id") == edge_id), None)
+            nodes = {item.get("id"): item for item in flow.get("nodes", []) if isinstance(item, dict)}
+            source_id = edge.get("source") if edge else None
+            target_id = edge.get("target") if edge else None
+            source = nodes.get(source_id)
+            target = nodes.get(target_id)
+            explanation = raw_step.get("explanation")
+            if (
+                not edge
+                or edge.get("resolution") != "resolved"
+                or not isinstance(source_id, int)
+                or isinstance(source_id, bool)
+                or not isinstance(target_id, int)
+                or isinstance(target_id, bool)
+                or not source
+                or not target
+                or not str(source.get("name") or "").strip()
+                or not str(target.get("name") or "").strip()
+                or not isinstance(explanation, str)
+                or not explanation.strip()
+            ):
+                return None
+            steps.append({
+                "kind": "callgraph",
+                "trace_tool_call_id": trace_tool_call_id,
+                "edge_id": edge_id,
+                "source_entity_id": source_id,
+                "target_entity_id": target_id,
+                "source_name": str(source.get("name") or "")[:240],
+                "target_name": str(target.get("name") or "")[:240],
+                "file_path": str(source.get("file_path") or "").replace("\\", "/")[:1000],
+                "start_line": edge.get("start_line"),
+                "end_line": edge.get("end_line"),
+                "explanation": explanation.strip()[:500],
+            })
+            continue
+        if raw_step.get("kind") not in (None, "code", "document"):
+            return None
+        if raw_step.get("kind") == "document":
+            chunk_id = raw_step.get("chunk_id")
+            source_id = raw_step.get("source_id")
+            file_path = raw_step.get("file_path")
+            explanation = raw_step.get("explanation")
+            if (
+                not isinstance(chunk_id, int)
+                or isinstance(chunk_id, bool)
+                or not isinstance(source_id, int)
+                or isinstance(source_id, bool)
+                or not isinstance(file_path, str)
+                or not file_path.strip()
+                or not isinstance(explanation, str)
+                or not explanation.strip()
+            ):
+                return None
+            steps.append({
+                "kind": "document",
+                "chunk_id": chunk_id,
+                "source_id": source_id,
+                "file_path": file_path.strip()[:1000],
+                "start_line": raw_step.get("start_line"),
+                "end_line": raw_step.get("end_line"),
+                "page": raw_step.get("page"),
+                "section": raw_step.get("section"),
+                "source_type": raw_step.get("source_type"),
+                "url": raw_step.get("url"),
+                "excerpt": str(raw_step.get("excerpt") or "")[:1200],
+                "explanation": explanation.strip()[:500],
+            })
+            continue
         file_path = raw_step.get("file_path")
         normalized_path = file_path.replace("\\", "/") if isinstance(file_path, str) else ""
         start_line = raw_step.get("start_line")
@@ -846,6 +929,38 @@ async def chat(
             agent_sources = []
             mcp_clients = []
             team_ids = get_visible_team_ids(user, db)
+            document_source_ids = {
+                chunk.source_id for chunk in results if chunk.source_id is not None
+            }
+            document_sources = {
+                source.id: source
+                for source in (
+                    db.query(KnowledgeSource)
+                    .filter(KnowledgeSource.id.in_(document_source_ids))
+                    .all()
+                    if document_source_ids else []
+                )
+            }
+            walkthrough_documents = []
+            for chunk in results:
+                if chunk.source_id is None or chunk.source_id not in document_sources:
+                    continue
+                source = document_sources[chunk.source_id]
+                if (source.type or "").lower() == "git":
+                    continue
+                metadata = chunk.metadata_json or {}
+                walkthrough_documents.append({
+                    "chunk_id": chunk.id,
+                    "source_id": chunk.source_id,
+                    "file_path": chunk.file_path,
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "page": metadata.get("page"),
+                    "section": metadata.get("section"),
+                    "source_type": metadata.get("source_type") or source.type,
+                    "url": metadata.get("url") or source.url,
+                    "excerpt": (chunk.content or "").strip()[:1200],
+                })
 
             try:
                 if chat_intent.use_agent and request.source_id:
@@ -882,11 +997,12 @@ async def chat(
 
                 if (
                     chat_intent.use_agent
-                    and (request.project_id or mcp_clients)
+                    and (request.project_id or resolved_repo_id or walkthrough_documents or mcp_clients)
                     and _agent_profile_supports_tools(selected_profile)
                 ):
                     agent_ran = True
                     view_actions = []
+                    agent_call_flows = {}
                     async for event in stream_agent_events(
                         provider=(
                             "openai_responses"
@@ -919,6 +1035,7 @@ async def chat(
                         # Projekt-/MCP-Fragen müssen vor der Antwort mindestens
                         # eine belastbare Quelle über ein Tool erheben.
                         require_initial_tool_call=True,
+                        walkthrough_documents=walkthrough_documents,
                     ):
                         if event["type"] == "answer":
                             answer = event["content"]
@@ -935,11 +1052,21 @@ async def chat(
                         elif event["type"] in ("thought", "tool_call", "tool_result"):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
+                            if event.get("type") == "tool_result" and event.get("name") == "trace_call_flow" and isinstance(event.get("id"), str):
+                                result = event.get("result")
+                                if isinstance(result, str):
+                                    try:
+                                        result = json.loads(result)
+                                    except (TypeError, json.JSONDecodeError):
+                                        result = None
+                                if isinstance(result, dict) and result.get("status") == "ok":
+                                    agent_call_flows[event["id"]] = result
                             action = _derive_view_action(
                                 event,
                                 session_id=session_id,
                                 turn_id=user_msg.id,
                                 project_id=request.project_id,
+                                call_flow_results=agent_call_flows,
                             )
                             if action and all(existing["action_id"] != action["action_id"] for existing in view_actions):
                                 view_actions.append(action)
@@ -1228,9 +1355,24 @@ def update_chat_message_view_action(
             and step.get("session_id") == msg.session_id
         ):
             project_id = step.get("project_id")
-            if not isinstance(project_id, int) or isinstance(project_id, bool):
+            if isinstance(project_id, int) and not isinstance(project_id, bool):
+                assert_project_visible(project_id, user, db, "View-Aktion nicht gefunden")
+            elif project_id is None and step.get("view") == "walkthrough":
+                target = step.get("target") or {}
+                source_ids = {
+                    item.get("source_id")
+                    for item in target.get("steps", [])
+                    if isinstance(item, dict) and item.get("kind") == "document"
+                }
+                if not source_ids or any(not isinstance(source_id, int) for source_id in source_ids):
+                    raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
+                for source_id in source_ids:
+                    source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+                    if not source:
+                        raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
+                    assert_knowledge_source_visible(source, user, db, "View-Aktion nicht gefunden")
+            else:
                 raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
-            assert_project_visible(project_id, user, db, "View-Aktion nicht gefunden")
             next_steps.append({**step, "status": body.status})
             updated = True
         else:

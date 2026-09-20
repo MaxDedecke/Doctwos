@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData } from '@/lib/callFlow';
 
@@ -149,11 +149,40 @@ export function ChatView({
     onAgentViewActionOutcome?.(action.action_id, 'declined');
   };
   const [walkthroughProgress, setWalkthroughProgress] = React.useState<Record<string, number | null>>({});
-  const openWalkthroughStep = (action: AgentWalkthroughViewAction, stepIndex: number) => {
+  const openWalkthroughStep = (action: AgentWalkthroughViewAction, stepIndex: number, agentSteps?: AgentStep[]) => {
     const step = action.target.steps[stepIndex];
     if (!step || !onApplyAgentViewAction) return;
-    const codeAction: AgentCodeViewAction = { ...action, view: 'code', target: step };
-    const outcome = onApplyAgentViewAction(codeAction);
+    let outcome: Exclude<AgentViewActionStatus, 'requested'>;
+    if (step.kind === 'callgraph') {
+      const traceResult = agentSteps?.find((candidate): candidate is Extract<AgentStep, { type: 'tool_result' }> =>
+        candidate.type === 'tool_result' && candidate.name === 'trace_call_flow' && candidate.id === step.trace_tool_call_id,
+      );
+      const flow = traceResult
+        ? extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [traceResult] } })
+        : null;
+      const edge = flow?.edges.find(candidate => candidate.id === step.edge_id);
+      if (!flow || !edge || edge.resolution !== 'resolved' || edge.source !== step.source_entity_id || edge.target !== step.target_entity_id) return;
+      const stepAction: AgentCallGraphViewAction = {
+        ...action,
+        tool_call_id: step.trace_tool_call_id,
+        view: 'callgraph',
+        target: {
+          entity_id: flow.root.id,
+          focus_entity_id: step.target_entity_id,
+          highlighted_edge_id: step.edge_id,
+        },
+      };
+      outcome = onApplyAgentViewAction(stepAction, {
+        ...flow,
+        focus_entity_id: step.target_entity_id,
+        highlighted_edge_id: step.edge_id,
+      });
+    } else {
+      const stepAction: AgentCodeViewAction | AgentDocumentViewAction = step.kind === 'document'
+        ? { ...action, view: 'document', target: step }
+        : { ...action, view: 'code', target: step };
+      outcome = onApplyAgentViewAction(stepAction);
+    }
     onAgentViewActionOutcome?.(action.action_id, outcome);
     if (outcome === 'opened' || outcome === 'updated') {
       setWalkthroughProgress(previous => ({ ...previous, [action.action_id]: stepIndex }));
@@ -797,7 +826,7 @@ export function ChatView({
                                     <Button
                                       type="button"
                                       size="sm"
-                                      onClick={() => openWalkthroughStep(action, 0)}
+                                      onClick={() => openWalkthroughStep(action, 0, m.metadata?.agent_steps)}
                                       className="h-8 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shrink-0 cursor-pointer"
                                     >
                                       <Play className="w-3.5 h-3.5 mr-1.5" />
@@ -820,20 +849,32 @@ export function ChatView({
                                         {t('chatView.walkthroughStep', { current: activeStepIndex + 1, count: action.target.steps.length })}
                                       </span>
                                       <span className="font-mono text-[10px] text-ds-zinc-500 truncate">
-                                        {activeStep.file_path}:L{activeStep.start_line}
+                                        {activeStep.kind === 'callgraph'
+                                          ? `${activeStep.source_name} → ${activeStep.target_name}${activeStep.file_path ? ` · ${activeStep.file_path}${activeStep.start_line ? `:L${activeStep.start_line}` : ''}` : ''}`
+                                          : `${activeStep.file_path}${activeStep.kind === 'document'
+                                            ? activeStep.page ? ` · ${t('chatView.walkthroughPage', { page: activeStep.page })}` : activeStep.section ? ` · ${activeStep.section}` : ''
+                                            : `:L${activeStep.start_line}`}`}
                                       </span>
                                     </div>
                                     <p className={cn(
                                       'text-xs leading-relaxed',
                                       theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700',
                                     )}>{activeStep.explanation}</p>
+                                    {activeStep.kind === 'document' && activeStep.excerpt && (
+                                      <blockquote className={cn(
+                                        'mt-2 border-l-2 border-ds-indigo-500/50 pl-3 text-[11px] leading-relaxed line-clamp-4',
+                                        theme === 'dark' ? 'text-ds-zinc-400' : 'text-ds-zinc-600',
+                                      )}>
+                                        {activeStep.excerpt}
+                                      </blockquote>
+                                    )}
                                     <div className="mt-3 flex items-center justify-between">
                                       <Button
                                         type="button"
                                         size="sm"
                                         variant="ghost"
                                         disabled={activeStepIndex === 0}
-                                        onClick={() => openWalkthroughStep(action, activeStepIndex - 1)}
+                                        onClick={() => openWalkthroughStep(action, activeStepIndex - 1, m.metadata?.agent_steps)}
                                         className="h-7 px-2 text-xs cursor-pointer"
                                       >
                                         <ChevronLeft className="w-3.5 h-3.5 mr-1" />
@@ -843,7 +884,7 @@ export function ChatView({
                                         <Button
                                           type="button"
                                           size="sm"
-                                          onClick={() => openWalkthroughStep(action, activeStepIndex + 1)}
+                                          onClick={() => openWalkthroughStep(action, activeStepIndex + 1, m.metadata?.agent_steps)}
                                           className="h-7 px-3 text-xs bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white cursor-pointer"
                                         >
                                           {t('chatView.walkthroughNext')}

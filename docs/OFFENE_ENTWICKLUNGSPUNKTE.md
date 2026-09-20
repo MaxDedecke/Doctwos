@@ -517,13 +517,13 @@ Dies sind Produktverbesserungen, keine pauschalen zusätzlichen Versandblocker.
 
 | ID | Priorität | Aufgabe | Abhängigkeit |
 |---|---|---|---|
-| O-190 | P1 | Typisierte Ansicht-Aktionen während des Chat-Streams; Berechtigungen, Panel-Schutz, Status und abschaltbare Automatik. | Bestehende Chat-/Panel-Navigation |
-| O-191 | P1 | Codefundstellen im Editor öffnen und Zeilen markieren. | O-190 |
-| O-192 | P1 | Dokumente und konkrete Belegstellen in der Quellenansicht öffnen. | O-190 |
+| O-190 | P1 / Erledigt 20.09.2026 | Geführte, typisierte Ansicht-Aktionen im Chat mit Berechtigungen, Panel-Schutz, Status und explizitem Nutzerstart. | Bestehende Chat-/Panel-Navigation |
+| O-191 | P1 / Erledigt 20.09.2026 | Codefundstellen innerhalb einer wiederholbaren Tour im Editor öffnen und Zeilen markieren. | O-190 |
+| O-192 | P1 / Erledigt 20.09.2026 | Bereits berechtigt abgerufene Dokumentbelege als geführte Schritte mit internem Originalauszug sowie vorhandener PDF-Seite öffnen. | O-190 |
 | O-193 | P2 | Suchergebnisse mit nachvollziehbarem Projekt-/Quellenfilter als Ansicht öffnen. | O-190 |
 | O-194 | P2 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern anzeigen. | O-190 |
-| O-195 | P1 | Vorhandenes `trace_call_flow` an Live-Öffnung der Call-Graph-Ansicht anbinden. | O-190 |
-| O-196 | P3 | Änderungsfolgen anhand belegter Aufrufer und Abhängigkeiten lesend untersuchen. | O-191, O-194/O-195 |
+| O-195 | P1 / Erledigt 20.09.2026 | Belegte Kanten aus `trace_call_flow` als wiederholbare Graphschritte in geführten Touren hervorheben. | O-190/O-191 |
+| O-196 | P1 | Änderungsfolgen anhand belegter Aufrufer und Abhängigkeiten lesend untersuchen; gemeinsam mit dem erweiterten Änderungspaket aus O-273 umsetzen. | O-191, O-194/O-195, O-273 |
 | O-197 | P2 | Link-Manager auf konkrete Verknüpfung und ihre Belege fokussieren. | O-190, O-191/O-192 |
 | O-198 | P3 | Quellen-/Jobstatus im Job Center lesend öffnen. | O-190 |
 | O-199 | P1 | Ziel-Qwen-Abnahme, Streaming, Berechtigungen und Panel-Regeln gezielt absichern. | Begleitend zu O-190–O-198; Abnahme je umgesetztem Umfang |

@@ -354,23 +354,69 @@ function AppContent() {
   ) => Exclude<AgentViewActionStatus, 'requested'>>((_action, _flow) => 'rejected');
   useLayoutEffect(() => {
     agentViewActionHandlerRef.current = (action, flow) => {
-      if (!selectedProject || Number(selectedProject.id) !== action.project_id) return 'rejected';
+      if (action.project_id !== null && (!selectedProject || Number(selectedProject.id) !== action.project_id)) return 'rejected';
+      if (action.project_id === null && action.view !== 'document') return 'rejected';
       if (action.view === 'callgraph') {
         if (!flow || flow.root.id !== action.target.entity_id) return 'rejected';
+        let graphFlow = flow;
+        if (action.target.focus_entity_id !== undefined || action.target.highlighted_edge_id !== undefined) {
+          const focusId = action.target.focus_entity_id;
+          const edgeId = action.target.highlighted_edge_id;
+          const edge = flow.edges.find(candidate => candidate.id === edgeId);
+          const focusNode = flow.nodes.find(candidate => candidate.id === focusId);
+          if (
+            focusId === undefined || edgeId === undefined || !focusNode ||
+            edge?.resolution !== 'resolved' || edge.target !== focusId ||
+            !flow.nodes.some(candidate => candidate.id === edge.source)
+          ) return 'rejected';
+          graphFlow = { ...flow, focus_entity_id: focusId, highlighted_edge_id: edgeId };
+        }
         const liveGraphIndex = panelConfigs.findIndex((type, index) => type === 'callgraph' && !panelFrozen[index]);
         const entity = flow.root as unknown as CodeEntity;
 
         if (liveGraphIndex !== -1) {
           setPanelSelections(previous => {
             const next = [...previous];
-            next[liveGraphIndex] = { ...next[liveGraphIndex], selectedEntity: entity, customCallFlow: flow };
+            next[liveGraphIndex] = { ...next[liveGraphIndex], selectedEntity: entity, customCallFlow: graphFlow };
             return next;
           });
           return 'updated';
         }
 
         if (panelConfigs.length >= 4) return 'no_space';
-        return addPanel('callgraph', { selectedEntity: entity, customCallFlow: flow }) ? 'opened' : 'no_space';
+        return addPanel('callgraph', { selectedEntity: entity, customCallFlow: graphFlow }) ? 'opened' : 'no_space';
+      }
+      if (action.view === 'document') {
+        const sourceType = action.target.source_type?.toLowerCase() || '';
+        const document = {
+          id: action.target.source_id,
+          name: action.target.file_path,
+          url: action.target.url || undefined,
+          type: action.target.source_type || undefined,
+          chunkId: action.target.chunk_id,
+          excerpt: action.target.excerpt,
+          page: action.target.page,
+          section: action.target.section,
+          indexedExcerpt: sourceType === 'confluence' || sourceType === 'jira',
+        };
+        const selection = {
+          selectedFile: null,
+          selectedDoc: document,
+          selectedEntity: null,
+          selectedLine: null,
+          customCallFlow: null,
+        };
+        const liveDocIndex = panelConfigs.findIndex((type, index) => type === 'doc' && !panelFrozen[index]);
+        if (liveDocIndex !== -1) {
+          setPanelSelections(previous => {
+            const next = [...previous];
+            next[liveDocIndex] = { ...next[liveDocIndex], ...selection };
+            return next;
+          });
+          return 'updated';
+        }
+        if (panelConfigs.length >= 4) return 'no_space';
+        return addPanel('doc', selection) ? 'opened' : 'no_space';
       }
       if (action.view === 'walkthrough') return 'rejected';
 

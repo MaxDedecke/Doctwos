@@ -87,6 +87,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
   }, []);
 
   const effectiveEntity = customFlow?.root ? { id: customFlow.root.id, name: customFlow.root.name } : focusedEntity;
+  const highlightedEntityId = customFlow?.focus_entity_id ?? effectiveEntity?.id;
 
   useEffect(() => {
     if (!customFlow) return;
@@ -308,16 +309,17 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
               ? `${base} — ${formatAnalysisStatusTooltip({ status: node.analysis_status, reasons: node.analysis_reasons || [] }, t)}`
               : base;
           }}
-          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === effectiveEntity.id ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
-          nodeVal={(node: CallNode) => node.entityId === effectiveEntity.id ? 7 : 4}
+          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === highlightedEntityId ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
+          nodeVal={(node: CallNode) => node.entityId === highlightedEntityId ? 7 : 4}
           nodeCanvasObjectMode={() => 'replace'}
           nodeCanvasObject={(node: CallNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            const radius = node.entityId === effectiveEntity.id ? 8 : 7;
+            const isHighlighted = node.entityId === highlightedEntityId;
+            const radius = isHighlighted ? 8 : 7;
             ctx.beginPath();
             ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
             ctx.fillStyle = node.unresolved
               ? resolveDsColor('rgb(var(--ds-warning-base))')
-              : node.entityId === effectiveEntity.id
+              : isHighlighted
                 ? resolveDsColor('rgb(var(--ds-accent))')
                 : resolveDsColor('rgb(var(--ds-info-base))');
             ctx.fill();
@@ -346,8 +348,10 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
               ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 2 / globalScale);
             }
           }}
-          linkColor={(edge: CallEdge) => resolveDsColor(edge.resolution === 'resolved' ? getGraphEdgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
-          linkWidth={1.5}
+          linkColor={(edge: CallEdge) => edge.id === `edge:${customFlow?.highlighted_edge_id}`
+            ? resolveDsColor('rgb(var(--ds-accent))')
+            : resolveDsColor(edge.resolution === 'resolved' ? getGraphEdgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
+          linkWidth={(edge: CallEdge) => edge.id === `edge:${customFlow?.highlighted_edge_id}` ? 4 : 1.5}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
           linkLineDash={(edge: CallEdge) => edge.resolution === 'resolved' ? null : [4, 3]}

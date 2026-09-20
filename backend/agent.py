@@ -284,6 +284,7 @@ async def run_agent_loop(
     audit_chat_message_id: Optional[int] = None,
     endpoint_path: Optional[str] = None,
     require_initial_tool_call: bool = False,
+    walkthrough_documents: Optional[List[Dict[str, Any]]] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -302,6 +303,7 @@ async def run_agent_loop(
     # these tools would just fail and mislead the model into thinking the
     # project's content is unavailable.
     repo_available = bool(repo_id) and os.path.isdir(get_repo_path(repo_id))
+    walkthrough_documents = walkthrough_documents or []
     if repo_available:
         local_tools_def.extend(
             [
@@ -357,11 +359,14 @@ async def run_agent_loop(
                 {
                     "name": "offer_code_walkthrough",
                     "description": (
-                        "Offers one optional, guided code walkthrough in the chat. Use this only after "
-                        "you have explained a class, flow, or concept and inspected every referenced "
-                        "location. The user starts it explicitly and then moves through the steps with "
-                        "Back and Next; each step opens and highlights its code location. Prefer 2-6 "
-                        "meaningful steps. Do not call this once per file."
+                    "Offers one optional, guided code and call-flow walkthrough in the chat. Use this only after "
+                    "you have explained a class, flow, or concept and inspected every referenced "
+                    "location. The user starts it explicitly and then moves through the steps with "
+                    "Back and Next; code steps open and highlight inspected code, while callgraph steps "
+                    "highlight a resolved edge from a successful trace_call_flow result made earlier in "
+                    "this turn. For a callgraph step use kind='callgraph', trace_tool_call_id copied from "
+                    "that result's tool_call_id field, and edge_id from its edges. Prefer 2-6 meaningful "
+                    "steps. Do not call this once per file."
                     ),
                     "inputSchema": {
                         "type": "object",
@@ -377,15 +382,18 @@ async def run_agent_loop(
                                 "items": {
                                     "type": "object",
                                     "properties": {
+                                        "kind": {"type": "string", "enum": ["code", "callgraph"]},
                                         "file_path": {"type": "string"},
                                         "start_line": {"type": "integer", "minimum": 1},
                                         "end_line": {"type": "integer", "minimum": 1},
+                                        "trace_tool_call_id": {"type": "string"},
+                                        "edge_id": {"type": "integer", "minimum": 1},
                                         "explanation": {
                                             "type": "string",
                                             "description": "A concise explanation of what to notice at this step.",
                                         },
                                     },
-                                    "required": ["file_path", "start_line", "end_line", "explanation"],
+                                    "required": ["explanation"],
                                 },
                             },
                         },
@@ -394,7 +402,72 @@ async def run_agent_loop(
                 },
             ]
         )
+    if walkthrough_documents:
+        local_tools_def.append(
+            {
+                "name": "offer_source_walkthrough",
+                "description": (
+                    "Offers one optional guided walkthrough through document evidence already retrieved "
+                    "for this answer. Use it after explaining the evidence, with 1-6 meaningful steps. "
+                    "Each chunk_id must come from an <untrusted_source> context block. The UI opens the "
+                    "internal document view and shows the exact indexed excerpt; do not invent pages or sections."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "steps": {
+                            "type": "array",
+                            "minItems": 1,
+                            "maxItems": 6,
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "chunk_id": {"type": "integer", "minimum": 1},
+                                    "explanation": {"type": "string"},
+                                },
+                                "required": ["chunk_id", "explanation"],
+                            },
+                        },
+                    },
+                    "required": ["title", "steps"],
+                },
+            }
+        )
     if project_id:
+        if not repo_available:
+            local_tools_def.append(
+                {
+                    "name": "offer_code_walkthrough",
+                    "description": (
+                        "Offers a guided call-flow walkthrough using only resolved edges from successful "
+                        "trace_call_flow results in this turn. The user starts and repeats it explicitly; "
+                        "each step highlights its call edge in the existing Call Graph view."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "steps": {
+                                "type": "array",
+                                "minItems": 2,
+                                "maxItems": 6,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "kind": {"type": "string", "enum": ["callgraph"]},
+                                        "trace_tool_call_id": {"type": "string"},
+                                        "edge_id": {"type": "integer", "minimum": 1},
+                                        "explanation": {"type": "string"},
+                                    },
+                                    "required": ["kind", "trace_tool_call_id", "edge_id", "explanation"],
+                                },
+                            },
+                        },
+                        "required": ["title", "steps"],
+                    },
+                }
+            )
         local_tools_def.append(
             {
                 "name": "get_repo_entities",
@@ -423,6 +496,8 @@ async def run_agent_loop(
                     "Follows the indexed, directed call flow from one code entity for up to "
                     "five hops. Use get_repo_entities first to obtain an entity ID. The result "
                     "contains code locations and Mermaid flowchart source for a chat diagram. "
+                    "The tool result includes its tool_call_id; cite that ID if using one of its "
+                    "resolved edges as a callgraph step in offer_code_walkthrough. "
                     "A class resolves to its unique Java main or sole method; otherwise choose "
                     "a relevant entry_candidates method using source evidence, or ask the user."
                 ),
@@ -493,6 +568,14 @@ async def run_agent_loop(
         "Erklärung durch eine geführte Folge konkreter Code-Stellen deutlich verständlicher wird, rufe nach "
         "der Recherche genau einmal `offer_code_walkthrough` mit 2 bis 6 didaktisch geordneten Schritten auf. "
         "Jeder Schritt braucht eine kurze Erklärung dessen, worauf der Nutzer an dieser Stelle achten soll. "
+        "Bei einer Aufrufketten-Tour dürfen Code- und Graph-Schritte kombiniert werden. Ein Graph-Schritt "
+        "muss mit `kind=callgraph`, `trace_tool_call_id` aus dem `tool_call_id` eines erfolgreichen früheren "
+        "`trace_call_flow`-Ergebnisses und einer dort vorhandenen aufgelösten `edge_id` auf eine konkrete Kante "
+        "zeigen; erfinde keine IDs und verwende keine unaufgelösten Kanten. Beim Wechsel eines Tour-Schritts "
+        "wird die vorhandene Call-Graph-Ansicht aktualisiert. "
+        "Bei einer Erklärung anhand abgerufener Dokumentbelege kannst du stattdessen genau einmal "
+        "`offer_source_walkthrough` aufrufen. Verwende ausschließlich die in den Kontextblöcken genannten "
+        "Chunk-IDs; Seite und Abschnitt werden serverseitig aus dem Index übernommen. "
         "Die Chat-Oberfläche fragt den Nutzer separat, ob die Tour gestartet werden soll. Öffne Ansichten nicht "
         "selbst, behaupte nicht, sie seien bereits geöffnet, und wiederhole die Öffnungsfrage nicht im Antworttext.\n"
         "Wenn du dich in deiner finalen Antwort auf eine bestimmte Datei beziehst, zitiere sie inline in Backticks "
@@ -533,8 +616,12 @@ async def run_agent_loop(
     else:
         full_system_prompt = base_sys_prompt + language_instructions + agent_instructions
 
+    # Successful call flows are scoped to this agent turn and can only be
+    # referenced by a guided walkthrough after the trace tool has returned.
+    validated_call_flows: dict[str, dict] = {}
+
     # Local function to execute a tool by name and arguments
-    async def execute_tool(name: str, args: dict) -> str:
+    async def execute_tool(name: str, args: dict, tool_call_id: Optional[str] = None) -> str:
         # Check local tools
         if name == "list_repo_files" and repo_available:
             dir_val = args.get("directory", "")
@@ -550,7 +637,7 @@ async def run_agent_loop(
             query_val = args.get("query", "")
             res = search_repo_code(repo_id, query_val)
             return json.dumps(res)
-        elif name == "offer_code_walkthrough" and repo_available:
+        elif name == "offer_code_walkthrough" and (repo_available or project_id):
             title = str(args.get("title", "")).strip()[:120]
             raw_steps = args.get("steps")
             if not title or not isinstance(raw_steps, list) or not 2 <= len(raw_steps) <= 6:
@@ -559,8 +646,53 @@ async def run_agent_loop(
             for raw_step in raw_steps:
                 if not isinstance(raw_step, dict):
                     return json.dumps({"error": "Every walkthrough step must be an object."})
-                file_path = str(raw_step.get("file_path", "")).replace("\\", "/").strip()
                 explanation = str(raw_step.get("explanation", "")).strip()[:500]
+                if not explanation:
+                    return json.dumps({"error": "Every walkthrough step needs an explanation."})
+                if raw_step.get("kind") == "callgraph":
+                    trace_tool_call_id = raw_step.get("trace_tool_call_id")
+                    edge_id = raw_step.get("edge_id")
+                    flow = validated_call_flows.get(trace_tool_call_id) if isinstance(trace_tool_call_id, str) else None
+                    if not isinstance(edge_id, int) or isinstance(edge_id, bool) or flow is None:
+                        return json.dumps({"error": "A graph step must reference an earlier successful call-flow result and one of its edges."})
+                    edge = next((item for item in flow.get("edges", []) if isinstance(item, dict) and item.get("id") == edge_id), None)
+                    nodes = {item.get("id"): item for item in flow.get("nodes", []) if isinstance(item, dict)}
+                    source_id = edge.get("source") if edge else None
+                    target_id = edge.get("target") if edge else None
+                    source = nodes.get(source_id)
+                    target = nodes.get(target_id)
+                    if (
+                        not edge
+                        or edge.get("resolution") != "resolved"
+                        or not isinstance(source_id, int)
+                        or isinstance(source_id, bool)
+                        or not isinstance(target_id, int)
+                        or isinstance(target_id, bool)
+                        or not source
+                        or not target
+                        or not str(source.get("name") or "").strip()
+                        or not str(target.get("name") or "").strip()
+                    ):
+                        return json.dumps({"error": f"Call-flow edge '{edge_id}' is not a resolved edge in the referenced result."})
+                    steps.append({
+                        "kind": "callgraph",
+                        "trace_tool_call_id": trace_tool_call_id,
+                        "edge_id": edge_id,
+                        "source_entity_id": source_id,
+                        "target_entity_id": target_id,
+                        "source_name": str(source.get("name") or "")[:240],
+                        "target_name": str(target.get("name") or "")[:240],
+                        "file_path": str(source.get("file_path") or "").replace("\\", "/")[:1000],
+                        "start_line": edge.get("start_line"),
+                        "end_line": edge.get("end_line"),
+                        "explanation": explanation,
+                    })
+                    continue
+                if raw_step.get("kind") not in (None, "code"):
+                    return json.dumps({"error": "Walkthrough step kind must be code or callgraph."})
+                if not repo_available:
+                    return json.dumps({"error": "Code walkthrough steps require an available repository; use only validated callgraph steps."})
+                file_path = str(raw_step.get("file_path", "")).replace("\\", "/").strip()
                 try:
                     start_line = int(raw_step.get("start_line", 1))
                     end_line = int(raw_step.get("end_line", start_line))
@@ -576,6 +708,27 @@ async def run_agent_loop(
                     "explanation": explanation,
                 })
             return json.dumps({"status": "ok", "title": title, "steps": steps})
+        elif name == "offer_source_walkthrough" and walkthrough_documents:
+            title = str(args.get("title", "")).strip()[:120]
+            raw_steps = args.get("steps")
+            candidates = {
+                item.get("chunk_id"): item
+                for item in walkthrough_documents
+                if isinstance(item, dict) and isinstance(item.get("chunk_id"), int)
+            }
+            if not title or not isinstance(raw_steps, list) or not 1 <= len(raw_steps) <= 6:
+                return json.dumps({"error": "A source walkthrough needs a title and 1 to 6 steps."})
+            steps = []
+            for raw_step in raw_steps:
+                if not isinstance(raw_step, dict):
+                    return json.dumps({"error": "Every walkthrough step must be an object."})
+                chunk_id = raw_step.get("chunk_id")
+                candidate = candidates.get(chunk_id)
+                explanation = str(raw_step.get("explanation", "")).strip()[:500]
+                if not candidate or not explanation:
+                    return json.dumps({"error": f"Document chunk '{chunk_id}' is not available for this turn."})
+                steps.append({**candidate, "kind": "document", "explanation": explanation})
+            return json.dumps({"status": "ok", "title": title, "steps": steps})
         elif name == "get_repo_entities" and project_id:
             query_val = args.get("query", "")
             res = get_repo_entities(project_id, db_session, query_val, args.get("limit", 80))
@@ -588,6 +741,14 @@ async def run_agent_loop(
                 hops=args.get("hops", 5),
                 direction=args.get("direction", "outgoing"),
             )
+            if (
+                isinstance(tool_call_id, str)
+                and res.get("status") == "ok"
+                and isinstance(res.get("edges"), list)
+                and isinstance(res.get("nodes"), list)
+            ):
+                validated_call_flows[tool_call_id] = res
+                res = {**res, "tool_call_id": tool_call_id}
             return json.dumps(res)
 
         # Check MCP tools
@@ -800,7 +961,7 @@ async def run_agent_loop(
                             "id": tc_id,
                         }
 
-                        tool_res = await execute_tool(fn_name, fn_args)
+                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
                         agent_steps.append(
                             {
@@ -1058,7 +1219,7 @@ async def run_agent_loop(
                             "id": tc_id,
                         }
 
-                        tool_res = await execute_tool(fn_name, fn_args)
+                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
@@ -1202,7 +1363,7 @@ async def run_agent_loop(
                         }
 
                         # Execute
-                        tool_res = await execute_tool(fn_name, fn_args)
+                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
@@ -1297,12 +1458,12 @@ async def run_agent_loop(
                 function_calls = [p for p in parts if "functionCall" in p]
                 if function_calls:
                     response_parts = []
-                    for fc_part in function_calls:
+                    for fc_index, fc_part in enumerate(function_calls):
                         fc = fc_part["functionCall"]
                         fn_name = fc["name"]
                         fn_args = fc.get("args", {})
 
-                        tc_id = f"tc-{turn}"
+                        tc_id = f"tc-{turn}-{fc_index}"
                         agent_steps.append(
                             {
                                 "type": "tool_call",
@@ -1319,7 +1480,7 @@ async def run_agent_loop(
                         }
 
                         # Execute
-                        tool_res = await execute_tool(fn_name, fn_args)
+                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(

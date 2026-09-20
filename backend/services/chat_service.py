@@ -216,8 +216,14 @@ def gate_graph_neighbors(
 
 def _format_chunk_context(chunk: DocumentChunk, label: str) -> str:
     """Render one retrieved chunk as explicitly untrusted model context."""
+    source_id = f' source_id="{chunk.source_id}"' if chunk.source_id is not None else ""
+    lines = ""
+    if chunk.start_line is not None:
+        lines += f' start_line="{chunk.start_line}"'
+    if chunk.end_line is not None:
+        lines += f' end_line="{chunk.end_line}"'
     return (
-        f'<untrusted_source path="{chunk.file_path}">\n'
+        f'<untrusted_source path="{chunk.file_path}" chunk_id="{chunk.id}"{source_id}{lines}>\n'
         f"{label}: {chunk_header(chunk)}\n"
         f"{chunk.content}\n"
         "</untrusted_source>"
@@ -694,6 +700,7 @@ async def stream_agent_events(
     pinned_line: Optional[int] = None,
     pinned_end_line: Optional[int] = None,
     require_initial_tool_call: bool = False,
+    walkthrough_documents: Optional[list[dict[str, Any]]] = None,
 ) -> AsyncIterator[dict]:
     """Yield the agent tool-loop events for one chat turn.
 
@@ -724,6 +731,7 @@ async def stream_agent_events(
         audit_chat_session_id=session_id,
         audit_chat_message_id=user_message_id,
         require_initial_tool_call=require_initial_tool_call,
+        walkthrough_documents=walkthrough_documents,
     ):
         yield event
 

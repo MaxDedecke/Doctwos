@@ -64,6 +64,11 @@ export interface WorkspaceDocument {
   url?: string | null;
   isWebOrigin?: boolean;
   type?: string;
+  chunkId?: number;
+  excerpt?: string;
+  page?: number | null;
+  section?: string | null;
+  indexedExcerpt?: boolean;
 }
 export interface FocusObject {
   kind?: string;
@@ -112,29 +117,61 @@ interface AgentViewActionBase {
   action_id: string;
   session_id: number;
   turn_id: number;
-  project_id: number;
+  project_id: number | null;
   tool_call_id: string;
   status: AgentViewActionStatus;
 }
 export interface AgentCallGraphViewAction extends AgentViewActionBase {
   view: 'callgraph';
-  target: { entity_id: number };
+  target: { entity_id: number; focus_entity_id?: number; highlighted_edge_id?: number };
 }
 export interface AgentCodeViewAction extends AgentViewActionBase {
   view: 'code';
   target: { file_path: string; start_line: number; end_line: number };
 }
 export interface CodeWalkthroughStep {
+  kind?: 'code';
   file_path: string;
   start_line: number;
   end_line: number;
   explanation: string;
 }
+export interface CallGraphWalkthroughStep {
+  kind: 'callgraph';
+  trace_tool_call_id: string;
+  edge_id: number;
+  source_entity_id: number;
+  target_entity_id: number;
+  source_name: string;
+  target_name: string;
+  file_path: string;
+  start_line?: number | null;
+  end_line?: number | null;
+  explanation: string;
+}
+export interface DocumentWalkthroughStep {
+  kind: 'document';
+  chunk_id: number;
+  source_id: number;
+  file_path: string;
+  start_line?: number | null;
+  end_line?: number | null;
+  page?: number | null;
+  section?: string | null;
+  source_type?: string | null;
+  url?: string | null;
+  excerpt: string;
+  explanation: string;
+}
 export interface AgentWalkthroughViewAction extends AgentViewActionBase {
   view: 'walkthrough';
-  target: { title: string; steps: CodeWalkthroughStep[] };
+  target: { title: string; steps: Array<CodeWalkthroughStep | CallGraphWalkthroughStep | DocumentWalkthroughStep> };
 }
-export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction;
+export interface AgentDocumentViewAction extends AgentViewActionBase {
+  view: 'document';
+  target: DocumentWalkthroughStep;
+}
+export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction | AgentDocumentViewAction;
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }

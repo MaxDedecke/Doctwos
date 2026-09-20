@@ -283,6 +283,11 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       setLocalFileContent("");
       try {
         if (isDoc && selectedDoc && docId != null) {
+          if (selectedDoc.indexedExcerpt) {
+            setLocalFileContent(selectedDoc.excerpt || "");
+            setLocalFileContentFormat("text");
+            return;
+          }
           const isWeb = selectedDoc.isWebOrigin ||
             (selectedDoc.type?.toLowerCase() === 'confluence' ||
              selectedDoc.type?.toLowerCase() === 'jira' ||
@@ -1375,9 +1380,24 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               </div>
             ) : activeRightTab === 'doc' && selectedDoc ? (
               <div className="flex-1 overflow-hidden flex flex-col bg-ds-zinc-955">
+                {selectedDoc.excerpt && (
+                  <div className={cn(
+                    'shrink-0 border-b px-4 py-3',
+                    theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-indigo-950/25' : 'border-ds-indigo-200 bg-ds-indigo-50',
+                  )}>
+                    <div className="flex items-center gap-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>{selectedDoc.section || (selectedDoc.page ? t('chatView.walkthroughPage', { page: selectedDoc.page }) : t('splitPane.documentViewerLabel'))}</span>
+                    </div>
+                    <p className={cn(
+                      'text-xs leading-relaxed line-clamp-3 max-w-5xl',
+                      theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700',
+                    )}>{selectedDoc.excerpt}</p>
+                  </div>
+                )}
                 {selectedDoc.name.toLowerCase().endsWith('.pdf') ? (
                   <iframe
-                    src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name)}&theme=${theme}`}
+                    src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name)}&theme=${theme}${selectedDoc.page ? `#page=${selectedDoc.page}` : ''}`}
                     className="w-full h-full border-none bg-ds-zinc-900"
                     title={selectedDoc.name}
                   />

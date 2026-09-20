@@ -173,6 +173,7 @@ export function useWorkspaceLayout({
     selectedLine,
     panelFrozen,
     panelConfigs,
+    panelIds,
   });
   /* eslint-disable react-hooks/refs, react-hooks/immutability */
   if (
@@ -181,14 +182,20 @@ export function useWorkspaceLayout({
     previousPanelSync.selectedEntity !== selectedEntity ||
     previousPanelSync.selectedLine !== selectedLine ||
     previousPanelSync.panelFrozen !== panelFrozen ||
-    previousPanelSync.panelConfigs !== panelConfigs
+    previousPanelSync.panelConfigs !== panelConfigs ||
+    previousPanelSync.panelIds !== panelIds
   ) {
-    setPreviousPanelSync({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs });
+    setPreviousPanelSync({ selectedFile, selectedDoc, selectedEntity, selectedLine, panelFrozen, panelConfigs, panelIds });
     const incomingType = getSelectionViewType(selectedFile, selectedDoc);
     let changed = false;
     const historyPushIndexes: number[] = [];
     const nextSelections = panelSelections.map((selection, index) => {
       if (panelFrozen[index]) return selection;
+      // A newly-created panel can carry an explicit destination (for example a
+      // code-tour step). The global selection snapshot still describes the old
+      // workspace on this render; syncing it immediately would erase the new
+      // panel's destination and leave its editor blank until the next action.
+      if (!previousPanelSync.panelIds.includes(panelIds[index])) return selection;
       const panelType = panelConfigs[index];
       const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
         || incomingType === null || incomingType === panelType;
