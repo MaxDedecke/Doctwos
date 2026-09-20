@@ -423,25 +423,25 @@ Modelltext oder beliebigen HTML-/JavaScript-/URL-Anweisungen. Ziele serverseitig
 gegen Nutzer-, Team- und Projektberechtigungen prüfen. Clientstatus darf dem Modell
 nicht fälschlich als erfolgreiche Öffnung dargestellt werden.
 
-**Abnahme:** Eine Ansicht erscheint während eines laufenden Turns. Wiederholte
-Events erzeugen keine doppelten Panels. Passende unfixierte Panels werden bevorzugt
-aktualisiert; fixierte Panels und die Chat-Ansicht bleiben erhalten. Bei voller
-Vier-Panel-Belegung gibt es einen verständlichen Hinweis mit manueller Öffnungs-
-option. Hintergrundchats und alte Events übernehmen nicht den aktuellen Workspace.
-Automatisches Öffnen ist abschaltbar; im manuellen Modus bleibt eine Öffnen-Aktion
-im Chat. Neue Ansichten reißen nicht fortlaufend Tastaturfokus oder mobile Ansicht
-weg. Diese Regeln auf alle folgenden Tickets anwenden.
+**Abnahme:** Recherchewerkzeuge öffnen keine Ansichten und erzeugen keine
+Einzelkarten im Chat. Nach einer Erklärung kann der Agent genau eine geführte
+Code-Tour mit zwei bis sechs didaktisch geordneten Schritten anbieten. Erst der
+Klick auf „Veranschaulichen“ öffnet den Editor und markiert die erste Stelle.
+„Zurück“ und „Weiter“ wechseln kontrolliert zwischen den Stellen; nach Abschluss
+kann dieselbe Tour aus der ursprünglichen Chatnachricht wiederholt werden.
+Passende unfixierte Code-Panels werden aktualisiert, fixierte Panels bleiben
+erhalten. Hintergrundchats und alte Events übernehmen nicht den aktuellen
+Workspace.
 
-**Umsetzungsstand:** Erfolgreiche `trace_call_flow`- und `view_repo_file`-
-Ergebnisse erzeugen typisierte SSE-Aktionen mit stabiler ID sowie Turn- und
-Projektbezug. Der Client dedupliziert sie, schützt Sitzungswechsel und
-aktualisiert ausschließlich passende unfixierte Call-Graph- beziehungsweise
-Code-Panels; ansonsten öffnet er ein neues Panel. Fixierte Panels, Chat-Ansicht
-und mobiler Tab bleiben unberührt. Das Client-Ergebnis (geöffnet, aktualisiert,
-manuell, kein Platz, abgelehnt oder alter Kontext) wird in den Agent-Schritten
-der gespeicherten Assistentenantwort quittiert. Auto-Öffnen ist abschaltbar;
-die Karten im Chat bieten die manuelle Öffnung weiterhin an. Weitere
-validierte View-Ziele folgen mit O-192/O-193.
+**Umsetzungsstand:** `offer_code_walkthrough` prüft jede vorgeschlagene Datei
+und Zeilenspanne serverseitig gegen das Repository und erzeugt anschließend eine
+typisierte SSE-Aktion mit stabiler ID sowie Turn- und Projektbezug. Der Client
+dedupliziert sie, schützt Sitzungswechsel und hält den aktuellen Schritt lokal in
+der Chatkarte. Frühere Einzelaktionen aus `trace_call_flow` und
+`view_repo_file` bleiben als gespeicherte Metadaten lesbar, werden aber nicht
+mehr als Öffnungskarten dargestellt. Geöffnet, aktualisiert, kein Platz,
+abgelehnt und alter Kontext werden weiterhin an der Assistentenantwort
+persistiert.
 
 ### O-191 – P1: Codefundstelle im Editor zeigen
 

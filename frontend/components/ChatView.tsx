@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCodeViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData } from '@/lib/callFlow';
 
@@ -30,6 +30,8 @@ import {
   ArrowRight,
   BookOpen,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Code,
   Copy,
   Cpu,
@@ -40,6 +42,7 @@ import {
   History,
   Loader2,
   Plus,
+  Play,
   RotateCcw,
   Send,
   Sparkles,
@@ -79,28 +82,8 @@ interface ChatViewProps {
   setSelectedSource: (source: KnowledgeSource | null) => void;
   connectedSources: KnowledgeSource[];
   onOpenCallFlow?: (flow: CallFlowData) => boolean;
-  onOpenAgentCodeLocation?: (action: AgentCodeViewAction) => Exclude<AgentViewActionStatus, 'requested'>;
+  onApplyAgentViewAction?: (action: AgentViewAction, flow?: CallFlowData) => Exclude<AgentViewActionStatus, 'requested'>;
   onAgentViewActionOutcome?: (actionId: string, status: Exclude<AgentViewActionStatus, 'requested'>) => void;
-}
-
-const AUTO_OPEN_AGENT_VIEWS_KEY = 'doctus.autoOpenAgentViews';
-const AGENT_VIEW_PREFERENCE_EVENT = 'doctus:agent-view-preference-change';
-
-function subscribeToAgentViewPreference(onChange: () => void) {
-  window.addEventListener('storage', onChange);
-  window.addEventListener(AGENT_VIEW_PREFERENCE_EVENT, onChange);
-  return () => {
-    window.removeEventListener('storage', onChange);
-    window.removeEventListener(AGENT_VIEW_PREFERENCE_EVENT, onChange);
-  };
-}
-
-function getAgentViewPreference() {
-  try {
-    return window.localStorage.getItem(AUTO_OPEN_AGENT_VIEWS_KEY) !== 'false';
-  } catch {
-    return true;
-  }
 }
 
 /** Renders a `[start, end]` line pair as "43" for a single line, "43-50" otherwise. */
@@ -110,6 +93,10 @@ function formatLineRange(lines?: Array<number | null> | null): string {
   if (end == null || end === start) return String(start);
   return `${start}-${end}`;
 }
+
+// Historical messages can contain one view proposal for every tool read. They
+// remain valid metadata, but the chat no longer renders those noisy controls.
+const legacyViewPromptsEnabled = false;
 
 export function ChatView({
   theme,
@@ -139,45 +126,38 @@ export function ChatView({
   setSelectedSource,
   connectedSources,
   onOpenCallFlow,
-  onOpenAgentCodeLocation,
+  onApplyAgentViewAction,
   onAgentViewActionOutcome,
 }: ChatViewProps) {
   const { t } = useLanguage();
 
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
-  const autoOpenAgentViews = React.useSyncExternalStore(
-    subscribeToAgentViewPreference,
-    getAgentViewPreference,
-    () => true,
-  );
-
-  const handleAutoOpenChange = (enabled: boolean) => {
-    try {
-      window.localStorage.setItem(AUTO_OPEN_AGENT_VIEWS_KEY, String(enabled));
-    } catch {
-      // The event below still keeps all currently mounted chat panels in sync.
-    }
-    window.dispatchEvent(new Event(AGENT_VIEW_PREFERENCE_EVENT));
-  };
-
-  const handleOpenFlow = (flow: CallFlowData, key: string | number, actionId?: string) => {
-    if (!onOpenCallFlow) return;
-    const opened = onOpenCallFlow(flow);
-    if (opened) {
-      if (actionId) onAgentViewActionOutcome?.(actionId, 'opened');
-      setCallFlowDecisions((prev) => {
-        const next: Record<string, 'open' | 'declined'> = { ...prev };
-        next[String(key)] = 'open';
-        return next;
-      });
-    } else if (actionId) {
-      onAgentViewActionOutcome?.(actionId, 'no_space');
+  const handleOpenFlow = (flow: CallFlowData, key: string | number, action?: AgentViewAction) => {
+    const outcome = action
+      ? onApplyAgentViewAction?.(action, flow) ?? 'rejected'
+      : onOpenCallFlow?.(flow) ? 'opened' : 'no_space';
+    if (action) onAgentViewActionOutcome?.(action.action_id, outcome);
+    if (outcome === 'opened' || outcome === 'updated') {
+      setCallFlowDecisions(previous => ({ ...previous, [String(key)]: 'open' }));
     }
   };
-
-  const handleOpenCodeLocation = (action: AgentCodeViewAction) => {
-    if (!onOpenAgentCodeLocation) return;
-    onAgentViewActionOutcome?.(action.action_id, onOpenAgentCodeLocation(action));
+  const handleOpenCodeLocation = (action: AgentViewAction) => {
+    if (action.view !== 'code' || !onApplyAgentViewAction) return;
+    onAgentViewActionOutcome?.(action.action_id, onApplyAgentViewAction(action));
+  };
+  const handleDeclineViewAction = (action: AgentViewAction) => {
+    onAgentViewActionOutcome?.(action.action_id, 'declined');
+  };
+  const [walkthroughProgress, setWalkthroughProgress] = React.useState<Record<string, number | null>>({});
+  const openWalkthroughStep = (action: AgentWalkthroughViewAction, stepIndex: number) => {
+    const step = action.target.steps[stepIndex];
+    if (!step || !onApplyAgentViewAction) return;
+    const codeAction: AgentCodeViewAction = { ...action, view: 'code', target: step };
+    const outcome = onApplyAgentViewAction(codeAction);
+    onAgentViewActionOutcome?.(action.action_id, outcome);
+    if (outcome === 'opened' || outcome === 'updated') {
+      setWalkthroughProgress(previous => ({ ...previous, [action.action_id]: stepIndex }));
+    }
   };
 
   const [detectedLph, setDetectedLph] = React.useState<number | null>(null);
@@ -576,21 +556,32 @@ export function ChatView({
                           {/* Call Graph Prompt Card if an execution trace was produced */}
                           {(() => {
                             const callFlow = extractCallFlowData(m);
-                            if (!callFlow) return null;
+                            if (!callFlow || !legacyViewPromptsEnabled) return null;
                             const decisionKey = m.id ?? i;
-                            const viewAction = m.metadata?.agent_steps?.find(step =>
+                            const viewAction = m.metadata?.agent_steps?.find((step): step is AgentCallGraphViewAction =>
                               step.type === 'view_action' && step.view === 'callgraph' && step.target.entity_id === callFlow.root.id
                             );
-                            const autoOpened = viewAction?.type === 'view_action' &&
+                            const actionOpened = viewAction?.type === 'view_action' &&
                               (viewAction.status === 'opened' || viewAction.status === 'updated');
-                            const decision = callFlowDecisions[decisionKey] ?? (autoOpened ? 'open' : undefined);
+                            const actionDeclined = viewAction?.type === 'view_action' && viewAction.status === 'declined';
+                            const actionUnavailable = viewAction?.type === 'view_action' &&
+                              (viewAction.status === 'rejected' || viewAction.status === 'stale_context');
+                            const decision = callFlowDecisions[decisionKey] ?? (actionOpened ? 'open' : actionDeclined ? 'declined' : undefined);
+
+                            if (actionUnavailable) {
+                              return (
+                                <div className="mt-3 px-3 py-2 rounded-lg border border-ds-amber-500/30 bg-ds-amber-500/5 text-[11px] text-ds-amber-500">
+                                  {t('chatView.agentViewUnavailable')}
+                                </div>
+                              );
+                            }
 
                             if (decision === 'declined') {
                               return (
                                 <div className="mt-2.5 flex items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
                                     className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
                                     title={t('chatView.callGraphReopen')}
                                   >
@@ -611,20 +602,11 @@ export function ChatView({
                                     <Check className="w-3.5 h-3.5 text-ds-emerald-500" />
                                     <span className="font-medium text-ds-zinc-300">{t('chatView.callGraphOpened')} ({callFlow.root.name})</span>
                                   </div>
-                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer mr-1">
-                                    <input
-                                      type="checkbox"
-                                      checked={autoOpenAgentViews}
-                                      onChange={event => handleAutoOpenChange(event.target.checked)}
-                                      className="accent-ds-indigo-500"
-                                    />
-                                    {t('chatView.autoOpenAgentViews')}
-                                  </label>
                                   <Button
                                     type="button"
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
                                     className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
                                   >
                                     {t('chatView.callGraphReopen')}
@@ -663,25 +645,15 @@ export function ChatView({
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer mr-1">
-                                    <input
-                                      type="checkbox"
-                                      checked={autoOpenAgentViews}
-                                      onChange={event => handleAutoOpenChange(event.target.checked)}
-                                      className="accent-ds-indigo-500"
-                                    />
-                                    {t('chatView.autoOpenAgentViews')}
-                                  </label>
                                   <Button
                                     type="button"
                                     size="sm"
                                     variant="ghost"
                                     id={`chat-callgraph-decline-btn-${i}`}
-                                    onClick={() => setCallFlowDecisions((prev) => {
-                                      const next: Record<string, 'open' | 'declined'> = { ...prev };
-                                      next[String(decisionKey)] = 'declined';
-                                      return next;
-                                    })}
+                                    onClick={() => {
+                                      setCallFlowDecisions((prev) => ({ ...prev, [String(decisionKey)]: 'declined' }));
+                                      if (viewAction?.type === 'view_action') handleDeclineViewAction(viewAction);
+                                    }}
                                     className="h-7 px-3 text-xs text-ds-zinc-500 hover:text-ds-zinc-700 dark:hover:text-ds-zinc-300 cursor-pointer"
                                   >
                                     {t('chatView.callGraphDismissButton')}
@@ -690,7 +662,7 @@ export function ChatView({
                                     type="button"
                                     size="sm"
                                     id={`chat-callgraph-open-btn-${i}`}
-                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction?.type === 'view_action' ? viewAction.action_id : undefined)}
+                                    onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
                                     className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
                                   >
                                     <GitBranch className="w-3.5 h-3.5 mr-1.5" />
@@ -702,53 +674,194 @@ export function ChatView({
                           })()}
 
                           {/* A code location is only offered after view_repo_file returned the bounded location. */}
-                          {m.metadata?.agent_steps?.filter((step): step is AgentCodeViewAction =>
+                          {legacyViewPromptsEnabled && m.metadata?.agent_steps?.filter((step): step is AgentCodeViewAction =>
                             step.type === 'view_action' && step.view === 'code',
                           ).map((action) => {
                             const isOpen = action.status === 'opened' || action.status === 'updated';
+                            const isDeclined = action.status === 'declined';
+                            const isUnavailable = action.status === 'rejected' || action.status === 'stale_context';
                             const lineRange = action.target.start_line === action.target.end_line
                               ? String(action.target.start_line)
                               : `${action.target.start_line}-${action.target.end_line}`;
+                            const location = `${action.target.file_path}:L${lineRange}`;
                             return (
                               <div
                                 key={action.action_id}
                                 data-testid={`code-location-action-${action.action_id}`}
                                 className={cn(
-                                  'mt-3 px-3 py-2 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs',
+                                  'mt-3.5 p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm text-xs',
                                   theme === 'dark'
-                                    ? 'bg-ds-zinc-900/40 border-ds-zinc-800 text-ds-zinc-400'
-                                    : 'bg-ds-zinc-100/60 border-ds-zinc-200 text-ds-zinc-600',
+                                    ? 'bg-ds-indigo-950/20 border-ds-indigo-500/30 text-ds-zinc-200'
+                                    : 'bg-ds-indigo-50/60 border-ds-indigo-200 text-ds-zinc-800',
                                 )}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  {isOpen ? <Check className="w-3.5 h-3.5 text-ds-emerald-500 shrink-0" /> : <Code className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />}
-                                  <span className="font-mono text-[11px] truncate">{action.target.file_path}:L{lineRange}</span>
-                                  {action.status === 'no_space' && <span className="text-[10px] text-ds-amber-500 shrink-0">{t('chatView.codeLocationNoSpace')}</span>}
+                                  <div className={cn(
+                                    'p-1.5 rounded-md border shrink-0',
+                                    theme === 'dark' ? 'bg-ds-indigo-950/60 border-ds-indigo-500/30 text-ds-indigo-400' : 'bg-ds-indigo-100 border-ds-indigo-200 text-ds-indigo-600',
+                                  )}>
+                                    {isOpen ? <Check className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold tracking-tight">
+                                      {isOpen ? t('chatView.codeLocationOpened') : t('chatView.codeLocationPrompt')}
+                                    </p>
+                                    <p className="text-[10px] text-ds-zinc-500 truncate font-mono">{location}</p>
+                                    {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.codeLocationNoSpace')}</p>}
+                                    {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                                  <label className="inline-flex items-center gap-1.5 text-[10px] text-ds-zinc-500 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={autoOpenAgentViews}
-                                      onChange={event => handleAutoOpenChange(event.target.checked)}
-                                      className="accent-ds-indigo-500"
-                                    />
-                                    {t('chatView.autoOpenAgentViews')}
-                                  </label>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={isOpen ? 'ghost' : 'default'}
-                                    onClick={() => handleOpenCodeLocation(action)}
-                                    className={cn(
-                                      'h-6 px-2 text-[11px] cursor-pointer',
-                                      isOpen ? 'text-ds-indigo-400 hover:text-ds-indigo-300' : 'bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white',
-                                    )}
-                                  >
-                                    <Code className="w-3.5 h-3.5 mr-1" />
-                                    {isOpen ? t('chatView.codeLocationReopen') : t('chatView.codeLocationOpen')}
-                                  </Button>
+                                  {isUnavailable ? null : isDeclined ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenCodeLocation(action)}
+                                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
+                                    >
+                                      <Code className="w-3.5 h-3.5 text-ds-indigo-500" />
+                                      <span>{t('chatView.codeLocationReopen')}</span>
+                                    </button>
+                                  ) : isOpen ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleOpenCodeLocation(action)}
+                                      className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
+                                    >
+                                      {t('chatView.codeLocationReopen')}
+                                    </Button>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeclineViewAction(action)}
+                                        className="h-7 px-3 text-xs text-ds-zinc-500 hover:text-ds-zinc-700 dark:hover:text-ds-zinc-300 cursor-pointer"
+                                      >
+                                        {t('chatView.callGraphDismissButton')}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={() => handleOpenCodeLocation(action)}
+                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                      >
+                                        <Code className="w-3.5 h-3.5 mr-1.5" />
+                                        {t('chatView.callGraphOpenButton')}
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
+                              </div>
+                            );
+                          })}
+
+                          {m.metadata?.agent_steps?.filter((step): step is AgentWalkthroughViewAction =>
+                            step.type === 'view_action' && step.view === 'walkthrough',
+                          ).map((action) => {
+                            const savedStepIndex = walkthroughProgress[action.action_id];
+                            const activeStepIndex = typeof savedStepIndex === 'number' ? savedStepIndex : -1;
+                            const isActive = activeStepIndex >= 0;
+                            const activeStep = isActive ? action.target.steps[activeStepIndex] : null;
+                            const isUnavailable = action.status === 'rejected' || action.status === 'stale_context';
+                            const wasStarted = action.status === 'opened' || action.status === 'updated';
+                            return (
+                              <div
+                                key={action.action_id}
+                                data-testid={`code-walkthrough-${action.action_id}`}
+                                className={cn(
+                                  'mt-4 rounded-xl border overflow-hidden shadow-sm',
+                                  theme === 'dark'
+                                    ? 'bg-ds-indigo-950/20 border-ds-indigo-500/30'
+                                    : 'bg-ds-indigo-50/70 border-ds-indigo-200',
+                                )}
+                              >
+                                <div className="p-3.5 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="p-2 rounded-lg bg-ds-indigo-500/10 text-ds-indigo-500 shrink-0">
+                                      <Play className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className={cn(
+                                        'text-xs font-semibold truncate',
+                                        theme === 'dark' ? 'text-ds-zinc-200' : 'text-ds-zinc-800',
+                                      )}>{action.target.title}</p>
+                                      <p className="text-[10px] text-ds-zinc-500">
+                                        {t('chatView.walkthroughSummary', { count: action.target.steps.length })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {!isActive && !isUnavailable && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => openWalkthroughStep(action, 0)}
+                                      className="h-8 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shrink-0 cursor-pointer"
+                                    >
+                                      <Play className="w-3.5 h-3.5 mr-1.5" />
+                                      {wasStarted ? t('chatView.walkthroughRepeat') : t('chatView.walkthroughStart')}
+                                    </Button>
+                                  )}
+                                </div>
+
+                                {isUnavailable && (
+                                  <p className="px-3.5 pb-3 text-[10px] text-ds-amber-500">{t('chatView.agentViewUnavailable')}</p>
+                                )}
+
+                                {activeStep && (
+                                  <div className={cn(
+                                    'border-t px-3.5 py-3',
+                                    theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-zinc-950/25' : 'border-ds-indigo-200 bg-white/60',
+                                  )}>
+                                    <div className="flex items-center justify-between gap-3 mb-2">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                                        {t('chatView.walkthroughStep', { current: activeStepIndex + 1, count: action.target.steps.length })}
+                                      </span>
+                                      <span className="font-mono text-[10px] text-ds-zinc-500 truncate">
+                                        {activeStep.file_path}:L{activeStep.start_line}
+                                      </span>
+                                    </div>
+                                    <p className={cn(
+                                      'text-xs leading-relaxed',
+                                      theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700',
+                                    )}>{activeStep.explanation}</p>
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={activeStepIndex === 0}
+                                        onClick={() => openWalkthroughStep(action, activeStepIndex - 1)}
+                                        className="h-7 px-2 text-xs cursor-pointer"
+                                      >
+                                        <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                                        {t('chatView.walkthroughBack')}
+                                      </Button>
+                                      {activeStepIndex < action.target.steps.length - 1 ? (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          onClick={() => openWalkthroughStep(action, activeStepIndex + 1)}
+                                          className="h-7 px-3 text-xs bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white cursor-pointer"
+                                        >
+                                          {t('chatView.walkthroughNext')}
+                                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          onClick={() => setWalkthroughProgress(previous => ({ ...previous, [action.action_id]: null }))}
+                                          className="h-7 px-3 text-xs bg-ds-emerald-600 hover:bg-ds-emerald-500 text-white cursor-pointer"
+                                        >
+                                          {t('chatView.walkthroughFinish')}
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

@@ -106,7 +106,7 @@ export interface ChatReference {
   section?: string | null;
   paragraph?: string | null;
 }
-export type AgentViewActionStatus = 'requested' | 'opened' | 'updated' | 'manual' | 'no_space' | 'rejected' | 'stale_context';
+export type AgentViewActionStatus = 'requested' | 'opened' | 'updated' | 'manual' | 'declined' | 'no_space' | 'rejected' | 'stale_context';
 interface AgentViewActionBase {
   type: 'view_action';
   action_id: string;
@@ -124,7 +124,17 @@ export interface AgentCodeViewAction extends AgentViewActionBase {
   view: 'code';
   target: { file_path: string; start_line: number; end_line: number };
 }
-export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction;
+export interface CodeWalkthroughStep {
+  file_path: string;
+  start_line: number;
+  end_line: number;
+  explanation: string;
+}
+export interface AgentWalkthroughViewAction extends AgentViewActionBase {
+  view: 'walkthrough';
+  target: { title: string; steps: CodeWalkthroughStep[] };
+}
+export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction;
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }

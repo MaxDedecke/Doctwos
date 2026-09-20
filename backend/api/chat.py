@@ -196,7 +196,7 @@ def _derive_view_action(
     turn_id: int,
     project_id: Optional[int],
 ) -> Optional[dict]:
-    """Build a bounded view action only from a successful, project-scoped tool result."""
+    """Build one bounded walkthrough from the agent's explicit, validated offer."""
     if (
         event.get("type") != "tool_result"
         or not isinstance(event.get("id"), str)
@@ -212,52 +212,46 @@ def _derive_view_action(
     if not isinstance(result, dict):
         return None
 
-    tool_name = event.get("name")
-    if tool_name == "trace_call_flow":
-        root = result.get("root")
-        nodes = result.get("nodes")
-        edges = result.get("edges")
-        if (
-            result.get("status") != "ok"
-            or not isinstance(root, dict)
-            or not isinstance(root.get("id"), int)
-            or isinstance(root.get("id"), bool)
-            or not isinstance(nodes, list)
-            or not isinstance(edges, list)
-            or not edges
-            or not any(isinstance(node, dict) and node.get("id") == root["id"] for node in nodes)
-        ):
+    if event.get("name") != "offer_code_walkthrough" or result.get("status") != "ok":
+        return None
+
+    title = result.get("title")
+    raw_steps = result.get("steps")
+    if not isinstance(title, str) or not title.strip() or not isinstance(raw_steps, list) or not 2 <= len(raw_steps) <= 6:
+        return None
+    steps = []
+    for raw_step in raw_steps:
+        if not isinstance(raw_step, dict):
             return None
-        view = "callgraph"
-        target = {"entity_id": root["id"]}
-        target_key = str(root["id"])
-    elif tool_name == "view_repo_file":
-        file_path = result.get("file_path")
-        start_line = result.get("start_line")
-        end_line = result.get("end_line")
+        file_path = raw_step.get("file_path")
         normalized_path = file_path.replace("\\", "/") if isinstance(file_path, str) else ""
-        path_parts = normalized_path.split("/")
+        start_line = raw_step.get("start_line")
+        end_line = raw_step.get("end_line")
+        explanation = raw_step.get("explanation")
         if (
             not normalized_path
             or normalized_path.startswith("/")
-            or ".." in path_parts
+            or ".." in normalized_path.split("/")
             or not isinstance(start_line, int)
             or isinstance(start_line, bool)
             or not isinstance(end_line, int)
             or isinstance(end_line, bool)
             or start_line < 1
             or end_line < start_line
+            or not isinstance(explanation, str)
+            or not explanation.strip()
         ):
             return None
-        view = "code"
-        target = {
+        steps.append({
             "file_path": normalized_path,
             "start_line": start_line,
             "end_line": end_line,
-        }
-        target_key = f"{normalized_path}:{start_line}:{end_line}"
-    else:
-        return None
+            "explanation": explanation.strip()[:500],
+        })
+
+    view = "walkthrough"
+    target = {"title": title.strip()[:120], "steps": steps}
+    target_key = hashlib.sha256(json.dumps(target, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
     action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
     action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
@@ -1207,7 +1201,7 @@ def update_chat_message_view_action(
     user: User = Depends(get_current_user),
 ):
     """Persist the client-observed result without presenting it as a model result."""
-    allowed_statuses = {"opened", "updated", "manual", "no_space", "rejected", "stale_context"}
+    allowed_statuses = {"opened", "updated", "manual", "declined", "no_space", "rejected", "stale_context"}
     if body.status not in allowed_statuses:
         raise HTTPException(status_code=400, detail="Ungültiger View-Aktionsstatus")
 

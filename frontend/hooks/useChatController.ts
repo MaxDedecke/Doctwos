@@ -52,7 +52,6 @@ interface ChatControllerOptions {
   restoreWorkspaceSnapshot: (snapshot: WorkspaceSnapshot) => void;
   resetChatSession: () => void;
   buildWorkspaceSnapshot: () => WorkspaceSnapshot;
-  applyAgentViewAction?: (action: AgentViewAction, flow?: CallFlowData) => ViewActionOutcome;
 }
 
 export function useChatController({
@@ -84,7 +83,6 @@ export function useChatController({
   restoreWorkspaceSnapshot,
   resetChatSession,
   buildWorkspaceSnapshot,
-  applyAgentViewAction,
 }: ChatControllerOptions) {
   const router = useRouter();
   const pathname = usePathname();
@@ -397,14 +395,16 @@ export function useChatController({
                 const matchingResult = [...accumulatedSteps].reverse().find(step =>
                   step.type === 'tool_result' && step.id === data.tool_call_id && (
                     (data.view === 'callgraph' && step.name === 'trace_call_flow') ||
-                    (data.view === 'code' && step.name === 'view_repo_file')
+                    (data.view === 'code' && step.name === 'view_repo_file') ||
+                    (data.view === 'walkthrough' && step.name === 'offer_code_walkthrough')
                   )
                 );
                 const flow = data.view === 'callgraph' && matchingResult
                   ? extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [matchingResult] } })
                   : null;
                 let hasMatchingCodeLocation = false;
-                if (data.view === 'code' && matchingResult) {
+                let hasMatchingWalkthrough = false;
+                if (data.view === 'code' && matchingResult?.type === 'tool_result') {
                   try {
                     const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
                     hasMatchingCodeLocation = result.file_path === data.target.file_path &&
@@ -412,6 +412,15 @@ export function useChatController({
                       result.end_line === data.target.end_line;
                   } catch {
                     hasMatchingCodeLocation = false;
+                  }
+                }
+                if (data.view === 'walkthrough' && matchingResult?.type === 'tool_result') {
+                  try {
+                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
+                    hasMatchingWalkthrough = result.status === 'ok' &&
+                      JSON.stringify({ title: result.title, steps: result.steps }) === JSON.stringify(data.target);
+                  } catch {
+                    hasMatchingWalkthrough = false;
                   }
                 }
                 let status: ViewActionOutcome = 'rejected';
@@ -424,20 +433,13 @@ export function useChatController({
                   status = 'stale_context';
                 } else if (
                   (data.view === 'callgraph' && (!flow || flow.root.id !== data.target.entity_id)) ||
-                  (data.view === 'code' && !hasMatchingCodeLocation)
+                  (data.view === 'code' && !hasMatchingCodeLocation) ||
+                  (data.view === 'walkthrough' && !hasMatchingWalkthrough)
                 ) {
                   status = 'rejected';
                 } else {
-                  let autoOpen = true;
-                  try {
-                    autoOpen = typeof window === 'undefined' ||
-                      window.localStorage.getItem('doctus.autoOpenAgentViews') !== 'false';
-                  } catch {
-                    // A browser that blocks local storage keeps the safe default: automatic open.
-                  }
-                  status = autoOpen
-                    ? (applyAgentViewAction?.(data, flow ?? undefined) ?? 'rejected')
-                    : 'manual';
+                  // Agent views are proposals. Opening only happens after an explicit click in ChatView.
+                  status = 'manual';
                 }
 
                 const recordedAction: AgentViewAction = { ...data, status };
@@ -552,7 +554,7 @@ export function useChatController({
     } finally {
       setIsLoading(false);
     }
-  }, [applyAgentViewAction, ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
+  }, [ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
   const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
     const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');

@@ -354,6 +354,44 @@ async def run_agent_loop(
                         "required": ["query"],
                     },
                 },
+                {
+                    "name": "offer_code_walkthrough",
+                    "description": (
+                        "Offers one optional, guided code walkthrough in the chat. Use this only after "
+                        "you have explained a class, flow, or concept and inspected every referenced "
+                        "location. The user starts it explicitly and then moves through the steps with "
+                        "Back and Next; each step opens and highlights its code location. Prefer 2-6 "
+                        "meaningful steps. Do not call this once per file."
+                    ),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {
+                                "type": "string",
+                                "description": "Short title for the guided explanation.",
+                            },
+                            "steps": {
+                                "type": "array",
+                                "minItems": 2,
+                                "maxItems": 6,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "file_path": {"type": "string"},
+                                        "start_line": {"type": "integer", "minimum": 1},
+                                        "end_line": {"type": "integer", "minimum": 1},
+                                        "explanation": {
+                                            "type": "string",
+                                            "description": "A concise explanation of what to notice at this step.",
+                                        },
+                                    },
+                                    "required": ["file_path", "start_line", "end_line", "explanation"],
+                                },
+                            },
+                        },
+                        "required": ["title", "steps"],
+                    },
+                },
             ]
         )
     if project_id:
@@ -451,8 +489,12 @@ async def run_agent_loop(
         "Erkläre nur belegte "
         "Kanten. Gib dessen Feld `mermaid` unverändert in einem ```mermaid-Codeblock aus, sofern es eine "
         "Ablaufgrafik ergibt. Weise auf unaufgelöste oder gekürzte Kanten ausdrücklich hin. "
-        "Frage den Nutzer am Ende deiner Antwort freundlich, ob du die Call Graph View öffnen darfst, um ihm "
-        "den Ablauf interaktiv im Graphen zu zeigen (z.B.: 'Darf ich die Call Graph View öffnen, um dir diesen Ablauf im Graphen zu zeigen?').\n"
+        "Einzelne gelesene Dateien oder Analysewerkzeuge erzeugen keine Öffnungsvorschläge. Wenn eine "
+        "Erklärung durch eine geführte Folge konkreter Code-Stellen deutlich verständlicher wird, rufe nach "
+        "der Recherche genau einmal `offer_code_walkthrough` mit 2 bis 6 didaktisch geordneten Schritten auf. "
+        "Jeder Schritt braucht eine kurze Erklärung dessen, worauf der Nutzer an dieser Stelle achten soll. "
+        "Die Chat-Oberfläche fragt den Nutzer separat, ob die Tour gestartet werden soll. Öffne Ansichten nicht "
+        "selbst, behaupte nicht, sie seien bereits geöffnet, und wiederhole die Öffnungsfrage nicht im Antworttext.\n"
         "Wenn du dich in deiner finalen Antwort auf eine bestimmte Datei beziehst, zitiere sie inline in Backticks "
         "im Format `pfad/zur/datei.ext:zeile` (z.B. `grundriss.dwg:42`). Wissensquellen-Seiten ohne Dateiendung "
         "(z.B. Confluence- oder Jira-Seiten) zitierst du auf dieselbe Weise in Backticks, aber mit ihrem exakten "
@@ -508,6 +550,32 @@ async def run_agent_loop(
             query_val = args.get("query", "")
             res = search_repo_code(repo_id, query_val)
             return json.dumps(res)
+        elif name == "offer_code_walkthrough" and repo_available:
+            title = str(args.get("title", "")).strip()[:120]
+            raw_steps = args.get("steps")
+            if not title or not isinstance(raw_steps, list) or not 2 <= len(raw_steps) <= 6:
+                return json.dumps({"error": "A walkthrough needs a title and 2 to 6 steps."})
+            steps = []
+            for raw_step in raw_steps:
+                if not isinstance(raw_step, dict):
+                    return json.dumps({"error": "Every walkthrough step must be an object."})
+                file_path = str(raw_step.get("file_path", "")).replace("\\", "/").strip()
+                explanation = str(raw_step.get("explanation", "")).strip()[:500]
+                try:
+                    start_line = int(raw_step.get("start_line", 1))
+                    end_line = int(raw_step.get("end_line", start_line))
+                except (TypeError, ValueError):
+                    return json.dumps({"error": "Walkthrough line numbers must be integers."})
+                inspected = view_repo_file(repo_id, file_path, start_line, end_line)
+                if inspected.get("error") or inspected.get("start_line", 0) < 1 or not explanation:
+                    return json.dumps({"error": f"Invalid walkthrough step for '{file_path}'."})
+                steps.append({
+                    "file_path": inspected["file_path"].replace("\\", "/"),
+                    "start_line": inspected["start_line"],
+                    "end_line": inspected["end_line"],
+                    "explanation": explanation,
+                })
+            return json.dumps({"status": "ok", "title": title, "steps": steps})
         elif name == "get_repo_entities" and project_id:
             query_val = args.get("query", "")
             res = get_repo_entities(project_id, db_session, query_val, args.get("limit", 80))

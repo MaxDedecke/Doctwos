@@ -1,7 +1,7 @@
 "use client";
 import type { PanelSelection } from '@/lib/panelHistory';
 import type { CallFlowData } from '@/lib/callFlow';
-import type { AgentCodeViewAction, AgentViewAction, AgentViewActionStatus, ChatSession, CodeEntity, Project, SearchResult, User } from '@/types/domain';
+import type { AgentViewAction, AgentViewActionStatus, ChatSession, CodeEntity, Project, SearchResult, User } from '@/types/domain';
 import type { editor as MonacoEditor } from 'monaco-editor';
 
 import { AnimatePresence, motion } from 'framer-motion';
@@ -372,6 +372,7 @@ function AppContent() {
         if (panelConfigs.length >= 4) return 'no_space';
         return addPanel('callgraph', { selectedEntity: entity, customCallFlow: flow }) ? 'opened' : 'no_space';
       }
+      if (action.view === 'walkthrough') return 'rejected';
 
       const liveCodeIndex = panelConfigs.findIndex((type, index) => type === 'code' && !panelFrozen[index]);
       const selection = {
@@ -393,10 +394,13 @@ function AppContent() {
       return addPanel('code', selection) ? 'opened' : 'no_space';
     };
   }, [addPanel, panelConfigs, panelFrozen, selectedProject, setPanelSelections]);
-  const applyAgentViewAction = useCallback((action: AgentViewAction, flow?: CallFlowData) =>
-    agentViewActionHandlerRef.current(action, flow), []);
-  const handleOpenAgentCodeLocation = useCallback((action: AgentCodeViewAction) =>
-    agentViewActionHandlerRef.current(action), []);
+  const handleOpenAgentViewAction = useCallback((action: AgentViewAction, flow?: CallFlowData) => {
+    const outcome = agentViewActionHandlerRef.current(action, flow);
+    if (outcome === 'opened' || outcome === 'updated') {
+      setActiveMobileTab(action.view === 'callgraph' ? 'graph' : 'editor');
+    }
+    return outcome;
+  }, [setActiveMobileTab]);
 
   const {
     handleShareChat,
@@ -436,7 +440,6 @@ function AppContent() {
     restoreWorkspaceSnapshot,
     resetChatSession,
     buildWorkspaceSnapshot,
-    applyAgentViewAction,
   });
 
   useEffect(() => {
@@ -856,7 +859,7 @@ function AppContent() {
       chatEndRef={chatEndRef}
       currentUser={currentUser}
       onOpenCallFlow={handleOpenCallFlow}
-      onOpenAgentCodeLocation={handleOpenAgentCodeLocation}
+      onApplyAgentViewAction={handleOpenAgentViewAction}
       onAgentViewActionOutcome={recordAgentViewActionOutcome}
     />
   );

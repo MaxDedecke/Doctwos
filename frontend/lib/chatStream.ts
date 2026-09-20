@@ -12,14 +12,25 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
     Number.isSafeInteger(value.turn_id) &&
     Number.isSafeInteger(value.project_id) &&
     typeof value.tool_call_id === 'string' &&
-    ['requested', 'opened', 'updated', 'manual', 'no_space', 'rejected', 'stale_context'].includes(String(value.status));
+    ['requested', 'opened', 'updated', 'manual', 'declined', 'no_space', 'rejected', 'stale_context'].includes(String(value.status));
   if (!hasBaseFields) return false;
   if (value.view === 'callgraph') return Number.isSafeInteger(value.target.entity_id);
+  if (value.view === 'walkthrough') {
+    return typeof value.target.title === 'string' && value.target.title.length > 0 &&
+      Array.isArray(value.target.steps) && value.target.steps.length >= 2 && value.target.steps.length <= 6 &&
+      value.target.steps.every(step => isRecord(step) &&
+        typeof step.file_path === 'string' && step.file_path.length > 0 &&
+        Number.isSafeInteger(step.start_line) && Number(step.start_line) > 0 &&
+        Number.isSafeInteger(step.end_line) && Number(step.end_line) >= Number(step.start_line) &&
+        typeof step.explanation === 'string' && step.explanation.length > 0);
+  }
+  const startLine = value.target.start_line;
+  const endLine = value.target.end_line;
   return value.view === 'code' &&
     typeof value.target.file_path === 'string' &&
     value.target.file_path.length > 0 &&
-    Number.isSafeInteger(value.target.start_line) && value.target.start_line > 0 &&
-    Number.isSafeInteger(value.target.end_line) && value.target.end_line >= value.target.start_line;
+    typeof startLine === 'number' && Number.isSafeInteger(startLine) && startLine > 0 &&
+    typeof endLine === 'number' && Number.isSafeInteger(endLine) && endLine >= startLine;
 }
 
 function isAgentStep(value: unknown): value is AgentStep {

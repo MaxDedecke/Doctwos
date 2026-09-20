@@ -147,7 +147,7 @@ export const api = {
             feedback: 'up' | 'down' | null;
             link_feedback: { signals_recorded: number; marked_for_review: Array<{ type: string; id: number }> };
         }>(`${API_URL}/chat/messages/${messageId}/feedback`, { feedback }),
-    updateChatMessageViewAction: (messageId: number, actionId: string, status: 'opened' | 'updated' | 'manual' | 'no_space' | 'rejected' | 'stale_context') =>
+    updateChatMessageViewAction: (messageId: number, actionId: string, status: 'opened' | 'updated' | 'manual' | 'declined' | 'no_space' | 'rejected' | 'stale_context') =>
         axios.patch<{ id: number; action_id: string; status: string }>(
             `${API_URL}/chat/messages/${messageId}/view-actions/${encodeURIComponent(actionId)}`,
             { status },
