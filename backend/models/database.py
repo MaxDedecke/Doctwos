@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     Integer,
     String,
@@ -827,6 +828,13 @@ class KnowledgeLink(Base):
     source_b_entity = relationship("CodeEntity", foreign_keys=[source_b_entity_id])
     source_b_chunk = relationship("DocumentChunk", foreign_keys=[source_b_chunk_id])
     chat_session = relationship("ChatSession")
+
+    __table_args__ = (
+        CheckConstraint(
+            "direction IN ('directed', 'undirected', 'bidirectional')",
+            name="ck_knowledge_links_direction",
+        ),
+    )
 
 
 class LinkBuilderRun(Base):
