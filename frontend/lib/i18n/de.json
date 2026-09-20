@@ -1280,6 +1280,7 @@
     "loadError": "Call-Graph konnte nicht geladen werden",
     "exportError": "Export fehlgeschlagen (HTTP {{status}})",
     "flowTitle": "Agenten-Ablauf",
+    "impactTitle": "Betroffenengraph",
     "flowDirectionOutgoing": "Ausgehend",
     "flowDirectionIncoming": "Eingehend",
     "flowDirectionBoth": "Beidseitig",

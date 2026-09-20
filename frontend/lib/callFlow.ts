@@ -27,6 +27,8 @@ export interface CallFlowEdge {
 }
 
 export interface CallFlowData {
+  /** Impact graphs keep navigation inside the bounded analysis result. */
+  mode?: 'impact';
   root: CallFlowNode;
   hops: number;
   direction: 'outgoing' | 'incoming' | 'both';
@@ -81,6 +83,7 @@ export function extractCallFlowData(message: ChatMessage): CallFlowData | null {
           Array.isArray(parsed.edges)
         ) {
           return {
+            ...(step.name === 'inspect_change_impact' ? { mode: 'impact' as const } : {}),
             root: parsed.root as unknown as CallFlowNode,
             hops: typeof parsed.hops === 'number' ? parsed.hops : 1,
             direction: (parsed.direction === 'incoming' || parsed.direction === 'both') ? parsed.direction : 'outgoing',

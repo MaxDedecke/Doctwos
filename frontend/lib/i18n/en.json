@@ -1280,6 +1280,7 @@
     "loadError": "Could not load call graph",
     "exportError": "Export failed (HTTP {{status}})",
     "flowTitle": "Agent Flow",
+    "impactTitle": "Impact Graph",
     "flowDirectionOutgoing": "Outgoing",
     "flowDirectionIncoming": "Incoming",
     "flowDirectionBoth": "Both directions",

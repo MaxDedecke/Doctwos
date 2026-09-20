@@ -71,6 +71,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
+  const isImpactMode = customFlow?.mode === 'impact';
 
   useEffect(() => {
     import('react-force-graph-2d').then(mod => setForceGraph(() => mod.default));
@@ -244,7 +245,7 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
             <span>{effectiveEntity.name}</span>
             {customFlow && (
               <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-ds-indigo-500/15 text-ds-indigo-400 border border-ds-indigo-500/30">
-                {t('callGraphView.flowTitle')}
+                {isImpactMode ? t('callGraphView.impactTitle') : t('callGraphView.flowTitle')}
               </span>
             )}
           </div>
@@ -357,11 +358,15 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
           linkLineDash={(edge: CallEdge) => edge.resolution === 'resolved' ? null : [4, 3]}
           linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.resolution}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
           onLinkClick={(edge: CallEdge) => {
+            if (isImpactMode) return;
             const source = typeof edge.source === 'string'
               ? graph.nodes.find(node => node.id === edge.source) : edge.source;
             if (source?.file_path) onFileSelect(source.file_path, edge.start_line ?? source.start_line, source.source_id);
           }}
-          onNodeClick={(node: CallNode) => { if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id); }}
+          onNodeClick={(node: CallNode) => {
+            if (isImpactMode) return;
+            if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id);
+          }}
         />}
       </div>
     </div>
