@@ -68,6 +68,11 @@ export interface WorkspaceDocument {
   excerpt?: string;
   page?: number | null;
   section?: string | null;
+  startLine?: number | null;
+  endLine?: number | null;
+  urlAnchor?: string | null;
+  sourceRevision?: string | null;
+  locatorPrecision?: string | null;
   indexedExcerpt?: boolean;
 }
 export interface FocusObject {
@@ -300,7 +305,24 @@ export interface EntityNeighbor {
   resolution: string | null;
   dst_name: string;
   entity: CodeEntity | null;
-  document?: { title: string; file_path: string | null; source_id: number | null; url: string | null; source_type: string; score: number | null; link_type: string };
+  document?: {
+    title: string;
+    file_path: string | null;
+    source_id: number | null;
+    chunk_id?: number | null;
+    start_line?: number | null;
+    end_line?: number | null;
+    page?: number | null;
+    section?: string | null;
+    url: string | null;
+    url_anchor?: string | null;
+    source_revision?: string | null;
+    locator_precision?: string | null;
+    excerpt?: string | null;
+    source_type: string;
+    score: number | null;
+    link_type: string;
+  };
   start_line: number | null;
   end_line: number | null;
 }

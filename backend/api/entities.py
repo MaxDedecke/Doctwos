@@ -1,6 +1,7 @@
 """COBOL-Fokusobjekte und ihre direkte Nachbarschaft (F-067)."""
 
 from pathlib import PurePosixPath
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
@@ -25,6 +26,15 @@ from models.database import (
 )
 
 router = APIRouter(prefix="/entities", tags=["entities"])
+
+
+def _url_fragment(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        return urlsplit(value).fragment or None
+    except ValueError:
+        return None
 
 
 def _assert_entity_visible(
@@ -211,22 +221,75 @@ def get_neighbors(
     # obwohl die Graph-View sie darstellt (siehe docs/ENTSCHEIDUNGEN.md).
     doc_links = []
     if direction in {"out", "both"} and (not requested or "DOC" in requested):
-        doc_links = (
-            db.query(EntityDocLink)
-            .filter(
-                EntityDocLink.entity_id == entity_id,
-                EntityDocLink.status == "approved",
-            )
-            .all()
+        doc_link_query = db.query(EntityDocLink).filter(
+            EntityDocLink.entity_id == entity_id,
+            EntityDocLink.status == "approved",
         )
+        if entity.project_id is not None:
+            doc_link_query = doc_link_query.filter(EntityDocLink.project_id == entity.project_id)
+        doc_links = doc_link_query.all()
     chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
     chunks = (
         {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
         if chunk_ids
         else {}
     )
+    source_ids = {chunk.source_id for chunk in chunks.values() if chunk.source_id is not None}
+    sources = (
+        {
+            source.id: source
+            for source in db.query(KnowledgeSource)
+            .filter(KnowledgeSource.id.in_(source_ids))
+            .all()
+        }
+        if source_ids
+        else {}
+    )
     for lnk in doc_links:
         chunk = chunks.get(lnk.chunk_id)
+        source = sources.get(chunk.source_id) if chunk else None
+        try:
+            if lnk.project_id is not None:
+                assert_project_visible(lnk.project_id, user, db, "Entity nicht gefunden")
+            if source:
+                assert_knowledge_source_visible(source, user, db, "Entity nicht gefunden")
+        except HTTPException:
+            # A single inaccessible linked source must not leak its metadata or
+            # suppress otherwise visible neighbors for this entity.
+            continue
+        metadata = chunk.metadata_json if chunk and isinstance(chunk.metadata_json, dict) else {}
+        document_url = lnk.doc_url or metadata.get("url")
+        url_anchor = (
+            metadata.get("url_anchor")
+            or metadata.get("anchor")
+            or _url_fragment(document_url if isinstance(document_url, str) else None)
+            or _url_fragment(chunk.file_path if chunk else None)
+            or None
+        )
+        source_spaces = source.spaces if source and isinstance(source.spaces, dict) else {}
+        sync_cursor = source.sync_cursor if source and isinstance(source.sync_cursor, dict) else {}
+        source_revision = (
+            metadata.get("source_revision")
+            or sync_cursor.get("last_commit")
+            or source_spaces.get("last_commit_hash")
+            or metadata.get("content_hash")
+        )
+        page = metadata.get("page")
+        section = metadata.get("section")
+        if url_anchor:
+            locator_precision = "url_anchor"
+        elif page is not None:
+            locator_precision = "page"
+        elif section:
+            locator_precision = "section"
+        elif chunk and (chunk.start_line is not None or chunk.end_line is not None):
+            locator_precision = "line_range"
+        elif chunk:
+            locator_precision = "chunk"
+        elif document_url:
+            locator_precision = "url"
+        else:
+            locator_precision = "title"
         groups.setdefault("DOC:out", []).append(
             {
                 "edge_id": f"edl:{lnk.id}",
@@ -237,14 +300,24 @@ def get_neighbors(
                 "entity": None,
                 "document": {
                     "title": lnk.doc_title,
-                    "file_path": chunk.file_path.split("#")[0]
-                    if (chunk and chunk.file_path)
-                    else None,
+                    # Keep the stored path byte-for-byte. Some sources carry a
+                    # fragment in the path itself, and splitting on '#' here
+                    # silently discarded that locator before the viewer saw it.
+                    "file_path": chunk.file_path if chunk and chunk.file_path else None,
                     # source_id der Wissensquelle des Chunks -- das Frontend braucht sie, um das
                     # Dokument über ein Doku-Panel zu öffnen (siehe onDocFocus in SplitPaneWorkspace).
                     "source_id": chunk.source_id if chunk else None,
-                    "url": lnk.doc_url,
-                    "source_type": lnk.source_type,
+                    "chunk_id": chunk.id if chunk else lnk.chunk_id,
+                    "start_line": chunk.start_line if chunk else None,
+                    "end_line": chunk.end_line if chunk else None,
+                    "page": page,
+                    "section": section,
+                    "url": document_url,
+                    "url_anchor": url_anchor,
+                    "source_revision": source_revision,
+                    "locator_precision": locator_precision,
+                    "excerpt": chunk.content[:1200] if chunk and chunk.content else None,
+                    "source_type": lnk.source_type or (source.type if source else None),
                     "score": lnk.score,
                     "link_type": lnk.link_type,
                 },

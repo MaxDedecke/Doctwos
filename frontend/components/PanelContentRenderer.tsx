@@ -62,7 +62,7 @@ type PanelContentRendererProps = {
   projectEntities: CodeEntity[];
   fileNavStack: Array<{ file: string | null; doc: WorkspaceDocument | null; tab: PanelTab }>;
   handleNavigateBack: () => Promise<void> | void;
-  handleDocFocusRequest: (filePath: string, sourceId: number | string | null) => void;
+  handleDocFocusRequest: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
   chatEndRef: React.RefObject<HTMLDivElement>;
   currentUser: User | null;

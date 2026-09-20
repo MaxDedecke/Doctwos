@@ -127,7 +127,7 @@ interface SplitPaneWorkspaceProps {
   fileNavStack?: Array<{file: string|null, doc: WorkspaceDocument|null, tab: string}>;
   onNavigateBack?: () => void;
   selectedLine?: number | null;
-  onDocFocus?: (filePath: string, sourceId: number | string | null) => void;
+  onDocFocus?: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
   // How many panels are currently open in the workspace grid — lets the graph
   // view swap its detail sidebar for a space-saving bottom drawer once 3+ panels
   // are open (see KnowledgeGraphView's layoutMode prop).
@@ -1066,7 +1066,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                 {neighbors.map((neighbor) => {
                                   const entity = neighbor.entity;
                                   const document = neighbor.document;
-                                  const canOpen = !!entity || !!document?.file_path;
+                                  const canOpen = !!entity || !!document?.file_path || !!document?.url;
                                   return (
                                     <button
                                       key={neighbor.edge_id}
@@ -1082,7 +1082,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           } else {
                                             handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
                                           }
-                                        } else if (document?.file_path) {
+                                        } else if (document?.file_path || document?.url) {
                                           // This panel is pinned to the code/doc view (activeRightTab is a fixed
                                           // prop here, see page.tsx renderPanel) — routing a document through the
                                           // generic handleFileSelect would also null out the global selectedEntity,
@@ -1092,9 +1092,28 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           // last caller of that path -- the Graph View decides its target view once,
                                           // inside handlePanelFileSelect (O-091), and no longer routes here.
                                           if (onDocFocus && document.source_id) {
-                                            onDocFocus(document.file_path, document.source_id);
+                                            const sourceType = document.source_type?.toLowerCase();
+                                            const isWebOrigin = sourceType === 'confluence' || sourceType === 'jira';
+                                            const documentPath = document.file_path || document.url || '';
+                                            const viewerPath = isWebOrigin && document.url
+                                              ? document.url
+                                              : documentPath;
+                                            onDocFocus(viewerPath, document.source_id, {
+                                              chunkId: document.chunk_id ?? undefined,
+                                              excerpt: document.excerpt || undefined,
+                                              page: document.page,
+                                              section: document.section,
+                                              startLine: document.start_line,
+                                              endLine: document.end_line,
+                                              url: document.url,
+                                              urlAnchor: document.url_anchor,
+                                              sourceRevision: document.source_revision,
+                                              locatorPrecision: document.locator_precision,
+                                              type: document.source_type,
+                                              isWebOrigin,
+                                            });
                                           } else {
-                                            handleFileSelect(document.file_path, null, selectedEntity?.source_id);
+                                            handleFileSelect(document.file_path || document.url || '', null, document.source_id || selectedEntity?.source_id);
                                           }
                                         }
                                         setIsReferencesDropdownOpen(false);
@@ -1111,9 +1130,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           {entity?.name || document?.title || neighbor.dst_name}
                                         </span>
                                         <span className="block truncate text-[10px] text-ds-zinc-500 font-mono">
-                                          {entity?.file_path || document?.source_type || document?.file_path || t('splitPane.unresolvedLabel')}
+                                          {entity?.file_path || document?.file_path || document?.url || document?.source_type || t('splitPane.unresolvedLabel')}
                                         </span>
                                       </span>
+                                      {document?.section && (
+                                        <span className="max-w-28 truncate text-[9px] text-ds-zinc-500 font-mono" title={document.section}>
+                                          {document.section}
+                                        </span>
+                                      )}
+                                      {document?.page != null && (
+                                        <span className="text-[9px] text-ds-zinc-500 font-mono">S.{document.page}</span>
+                                      )}
                                       {entity?.start_line && (
                                         <span className="text-[9px] text-ds-zinc-500 font-mono">L{entity.start_line}</span>
                                       )}
@@ -1369,6 +1396,21 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               </div>
             ) : activeRightTab === 'weborigin' && selectedDoc ? (
               <div className={cn("flex-1 overflow-hidden flex flex-col", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}>
+                {selectedDoc.excerpt && (
+                  <div className={cn(
+                    'shrink-0 border-b px-4 py-3',
+                    theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-indigo-950/25' : 'border-ds-indigo-200 bg-ds-indigo-50',
+                  )}>
+                    <div className="flex items-center gap-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>{selectedDoc.section || (selectedDoc.page ? t('chatView.walkthroughPage', { page: selectedDoc.page }) : t('splitPane.documentViewerLabel'))}</span>
+                    </div>
+                    <p className={cn(
+                      'text-xs leading-relaxed line-clamp-3 max-w-5xl',
+                      theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700',
+                    )}>{selectedDoc.excerpt}</p>
+                  </div>
+                )}
                 <div className="flex-1 overflow-hidden">
                   <iframe
                     srcDoc={contentToUse}

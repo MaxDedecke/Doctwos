@@ -265,24 +265,49 @@ export function usePanelNavigation({
     }
   }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinEntityFocus, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef, showToast, t]);
 
-  const handleDocFocusRequest = useCallback((filePath: string, sourceId: number | string | null, openIfMissing = true) => {
+  const handleDocFocusRequest = useCallback((
+    filePath: string,
+    sourceId: number | string | null,
+    locatorOrOpenIfMissing?: Partial<WorkspaceDocument> | boolean,
+    openIfMissing = true,
+  ) => {
     if (!sourceId) return;
-    const hasLiveDocPanel = panelConfigs.some((config, index) => config === 'doc' && !panelFrozen[index]);
-    if (!hasLiveDocPanel && !openIfMissing) return;
+    // Keep the old third-argument boolean accepted for existing callers while
+    // reference navigation now supplies the locator as a document object.
+    const locator = typeof locatorOrOpenIfMissing === 'object' ? locatorOrOpenIfMissing : undefined;
+    const shouldOpen = typeof locatorOrOpenIfMissing === 'boolean' ? locatorOrOpenIfMissing : openIfMissing;
+    const { isWebOrigin } = resolveReferenceTarget(filePath, sourceId, connectedSources);
+    const source = connectedSources.find(candidate => Number(candidate.id) === Number(sourceId));
+    const targetType = isWebOrigin ? 'webview' : 'doc';
+    const baseUrl = locator?.url || (isWebOrigin ? filePath : null);
+    const viewerUrl = baseUrl && locator?.urlAnchor && !baseUrl.includes('#')
+      ? `${baseUrl}#${locator.urlAnchor}`
+      : baseUrl;
+    const selectedDocument: WorkspaceDocument = {
+      ...locator,
+      id: sourceId,
+      name: filePath,
+      isWebOrigin,
+      url: viewerUrl,
+      type: locator?.type || source?.type,
+    };
+    const hasLiveTargetPanel = panelConfigs.some((config, index) => config === targetType && !panelFrozen[index]);
+    if (!hasLiveTargetPanel && !shouldOpen) return;
     const selectionOverride = {
       selectedFile: null,
-      selectedDoc: { id: sourceId, name: filePath },
+      selectedDoc: selectedDocument,
       selectedEntity: null,
     };
-    if (!ensureLivePanelType('doc', selectionOverride)) {
+    if (!ensureLivePanelType(targetType, selectionOverride)) {
       showToast(t('page.toast.noPanelSpace'), 'error');
       return;
     }
     pinFileFocus(filePath, null, sourceId);
-    setSelectedDoc({ id: sourceId, name: filePath });
+    setSelectedDoc(selectedDocument);
     setSelectedFile(null);
+    setSelectedEntity(null);
     setSelectedLine(null);
-  }, [ensureLivePanelType, panelConfigs, panelFrozen, pinFileFocus, setSelectedDoc, setSelectedFile, setSelectedLine, showToast, t]);
+  }, [connectedSources, ensureLivePanelType, panelConfigs, panelFrozen, pinFileFocus, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, t]);
 
   const handleGutterClick = useCallback((panelIndex: number, lineNumber: number, lineContent: string) => {
     const selection = panelSelections[panelIndex];
