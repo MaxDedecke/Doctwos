@@ -71,7 +71,7 @@ def test_graph_csv_export_contains_the_approved_link_as_an_edge_row(
         assert "attachment" in response.headers["content-disposition"]
 
         rows = list(csv.reader(io.StringIO(response.text)))
-        assert rows[0] == ["source", "target", "link_type", "score", "context"]
+        assert rows[0] == ["source", "target", "link_type", "score", "context", "direction"]
         data_rows = {tuple(row) for row in rows[1:]}
         assert (
             f"entity:{entity.id}",
@@ -79,11 +79,13 @@ def test_graph_csv_export_contains_the_approved_link_as_an_edge_row(
             "semantic",
             "0.87",
             "passt inhaltlich",
+            "directed",
         ) in data_rows
 
         graph = client.get(f"/graph?project_id={test_project}").json()
         edge = next(edge for edge in graph["edges"] if edge["id"] == f"edl:{link.id}")
         assert edge["relation_type"] == "documented"
+        assert edge["direction"] == "directed"
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -105,6 +107,8 @@ def test_graph_graphml_export_contains_matching_nodes_and_edge(
         assert '<node id="doc:Runbook">' in body
         assert f'source="entity:{entity.id}"' in body
         assert 'target="doc:Runbook"' in body
+        assert 'directed="true"' in body
+        assert '<data key="direction">directed</data>' in body
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -124,6 +128,43 @@ def test_graph_export_respects_project_visibility(client, db_session, test_proje
         response = client.get("/graph/export?format=csv&project_id=999999")
         assert response.status_code == 404
     finally:
+        db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_graph_export_neo4j_and_undirected_links(client, db_session, test_project, test_team):
+    from models.database import KnowledgeLink
+    source, entity, chunk, link = _fixture_graph(db_session, test_project, test_team)
+    klink = KnowledgeLink(
+        source_a_type="entity",
+        source_a_entity_id=entity.id,
+        source_a_title=entity.name,
+        source_b_type="document",
+        source_b_chunk_id=chunk.id,
+        source_b_title="Runbook",
+        link_type="related",
+        score=0.95,
+        status="approved",
+        direction="undirected",
+    )
+    db_session.add(klink)
+    db_session.commit()
+    try:
+        resp = client.get(f"/graph/export/neo4j?project_id={test_project}")
+        assert resp.status_code == 200
+        cypher = resp.json()["cypher"]
+        assert f"MERGE (a)-[:SEMANTIC {{score: 0.87}}]->(b);" in cypher
+        assert "MERGE (a)-[:RELATED {score: 0.95}]->(b) MERGE (b)-[:RELATED {score: 0.95}]->(a);" in cypher
+
+        csv_resp = client.get(f"/graph/export?format=csv&project_id={test_project}")
+        assert "undirected" in csv_resp.text
+
+        graphml_resp = client.get(f"/graph/export?format=graphml&project_id={test_project}")
+        assert 'directed="false"' in graphml_resp.text
+        assert '<data key="direction">undirected</data>' in graphml_resp.text
+    finally:
+        db_session.query(KnowledgeLink).filter(KnowledgeLink.id == klink.id).delete()
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

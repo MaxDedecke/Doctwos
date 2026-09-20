@@ -295,6 +295,7 @@ def get_graph(
                 "target": target_id,
                 "link_type": code_edge.type,
                 "type": code_edge.type,
+                "direction": "directed",
                 "score": None,
                 "context": None,
                 "resolution": code_edge.resolution,
@@ -376,6 +377,7 @@ def get_graph(
                     "target": did,
                     "link_type": lnk.link_type,
                     "relation_type": "documented",
+                    "direction": "directed",
                     "score": lnk.score,
                     "context": lnk.context,
                 }
@@ -436,6 +438,7 @@ def get_graph(
                 "source": src_id,
                 "target": tgt_id,
                 "link_type": klink.link_type,
+                "direction": getattr(klink, "direction", None) or "undirected",
                 "score": klink.score,
                 "context": klink.context,
             }
@@ -588,6 +591,7 @@ def get_graph_focus(
                 "target": target_id,
                 "link_type": code_edge.type,
                 "type": code_edge.type,
+                "direction": "directed",
                 "score": None,
                 "context": None,
                 "resolution": code_edge.resolution,
@@ -629,6 +633,7 @@ def get_graph_focus(
                 "target": did,
                 "link_type": lnk.link_type,
                 "relation_type": "documented",
+                "direction": "directed",
                 "score": lnk.score,
                 "context": lnk.context,
             }
@@ -653,6 +658,7 @@ def get_graph_focus(
     )
     for klink in klinks:
         is_a = klink.source_a_type == "entity" and klink.source_a_entity_id == entity.id
+        klink_dir = getattr(klink, "direction", None) or "undirected"
         other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url = (
             (
                 klink.source_b_type,
@@ -684,12 +690,18 @@ def get_graph_focus(
         )
         if not other_id:
             continue
+        if klink_dir == "directed" and not is_a:
+            edge_src, edge_tgt = other_id, focus_id
+        else:
+            edge_src, edge_tgt = focus_id, other_id
+
         edges.append(
             {
                 "id": f"kl:{klink.id}",
-                "source": focus_id,
-                "target": other_id,
+                "source": edge_src,
+                "target": edge_tgt,
                 "link_type": klink.link_type,
+                "direction": klink_dir,
                 "score": klink.score,
                 "context": klink.context,
             }
@@ -721,7 +733,7 @@ def export_graph(
     if format == "csv":
         out = io.StringIO()
         writer = csv.writer(out)
-        writer.writerow(["source", "target", "link_type", "score", "context"])
+        writer.writerow(["source", "target", "link_type", "score", "context", "direction"])
         for edge in edges:
             writer.writerow(
                 [
@@ -730,6 +742,7 @@ def export_graph(
                     edge["link_type"],
                     edge["score"] if edge.get("score") is not None else "",
                     edge.get("context") or "",
+                    edge.get("direction") or "undirected",
                 ]
             )
         return Response(
@@ -747,16 +760,19 @@ def export_graph(
         if node.get("entity_type"):
             SubElement(xml_node, "data", key="entity_type").text = node["entity_type"]
     for edge in edges:
+        is_directed = (edge.get("direction") or "undirected") in ("directed", "bidirectional")
         xml_edge = SubElement(
             xml_graph,
             "edge",
             id=str(edge["id"]),
             source=str(edge["source"]),
             target=str(edge["target"]),
+            directed="true" if is_directed else "false",
         )
         SubElement(xml_edge, "data", key="link_type").text = edge["link_type"]
         if edge.get("score") is not None:
             SubElement(xml_edge, "data", key="score").text = str(edge["score"])
+        SubElement(xml_edge, "data", key="direction").text = edge.get("direction") or "undirected"
     return Response(
         tostring(root, encoding="unicode"),
         media_type="application/graphml+xml",
@@ -803,10 +819,18 @@ def export_neo4j_cypher(
         tgt_id = e["target"] if isinstance(e["target"], str) else e["target"]["id"]
         rel = e["link_type"].upper().replace("-", "_")
         score_prop = f" {{score: {round(e['score'], 4)}}}" if e.get("score") is not None else ""
-        lines.append(
-            f"MATCH (a {{id: {repr(src_id)}}}), (b {{id: {repr(tgt_id)}}})"
-            f" MERGE (a)-[:{rel}{score_prop}]->(b);"
-        )
+        direction = e.get("direction") or "undirected"
+        if direction in ("undirected", "bidirectional"):
+            lines.append(
+                f"MATCH (a {{id: {repr(src_id)}}}), (b {{id: {repr(tgt_id)}}})"
+                f" MERGE (a)-[:{rel}{score_prop}]->(b)"
+                f" MERGE (b)-[:{rel}{score_prop}]->(a);"
+            )
+        else:
+            lines.append(
+                f"MATCH (a {{id: {repr(src_id)}}}), (b {{id: {repr(tgt_id)}}})"
+                f" MERGE (a)-[:{rel}{score_prop}]->(b);"
+            )
 
     return {"cypher": "\n".join(lines), "node_count": len(nodes), "edge_count": len(edges)}
 

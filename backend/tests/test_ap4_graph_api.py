@@ -241,6 +241,7 @@ def test_api_and_graph_transport_java_edge_types_and_optional_inheritance(
         code_edge = next(edge for edge in overview["edges"] if edge["id"] == f"code:{java_call.id}")
         assert code_edge["link_type"] == "CALLS"
         assert code_edge["type"] == "CALLS"
+        assert code_edge["direction"] == "directed"
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

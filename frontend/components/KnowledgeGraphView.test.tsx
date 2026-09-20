@@ -22,7 +22,13 @@ import { KnowledgeGraphView } from './KnowledgeGraphView';
 
 const centerAt = vi.fn();
 
-type GraphStubProps = { graphData: { nodes: GraphNode[]; links: GraphEdge[] }; onNodeClick: (node: GraphNode) => void };
+type GraphStubProps = {
+  graphData: { nodes: GraphNode[]; links: GraphEdge[] };
+  onNodeClick: (node: GraphNode) => void;
+  linkDirectionalArrowLength?: (link: GraphEdge) => number;
+  linkDirectionalArrowRelPos?: (link: GraphEdge) => number;
+  linkCurvature?: (link: GraphEdge) => number;
+};
 const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
     zoom: () => 1,
@@ -39,7 +45,13 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
         </button>
       ))}
       {props.graphData.links.map((link) => (
-        <span key={link.id} data-testid={`link-${link.id}`} />
+        <span
+          key={link.id}
+          data-testid={`link-${link.id}`}
+          data-arrow-length={props.linkDirectionalArrowLength ? props.linkDirectionalArrowLength(link) : undefined}
+          data-arrow-rel-pos={props.linkDirectionalArrowRelPos ? props.linkDirectionalArrowRelPos(link) : undefined}
+          data-curvature={props.linkCurvature ? props.linkCurvature(link) : undefined}
+        />
       ))}
     </div>
   );
@@ -388,5 +400,115 @@ describe('KnowledgeGraphView: ein Klick = eine Ansicht (O-091)', () => {
 
     expect(onFileSelect).toHaveBeenCalledTimes(1);
     expect(onFileSelect).toHaveBeenCalledWith('https://confluence.test/RAUM/Fachkonzept', null, 4);
+  });
+});
+
+describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('renders arrows on directed code edges and suppresses arrows on undirected links', async () => {
+    const nodeA: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG_A' };
+    const nodeB: GraphNode = { id: 'entity:2', type: 'entity', label: 'PROG_B' };
+    const directedEdge: GraphEdge = {
+      id: 'code:101',
+      source: 'entity:1',
+      target: 'entity:2',
+      link_type: 'CALLS',
+      direction: 'directed',
+      score: null,
+      context: null,
+    };
+    const undirectedEdge: GraphEdge = {
+      id: 'kl:202',
+      source: 'entity:1',
+      target: 'entity:2',
+      link_type: 'CALLS',
+      direction: 'undirected',
+      score: 0.8,
+      context: null,
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [nodeA, nodeB], edges: [directedEdge, undirectedEdge] }),
+    }));
+
+    renderGraph();
+
+    const dirLinkEl = await screen.findByTestId('link-code:101');
+    const undirLinkEl = await screen.findByTestId('link-kl:202');
+
+    expect(Number(dirLinkEl.getAttribute('data-arrow-length'))).toBeGreaterThan(0);
+    expect(Number(undirLinkEl.getAttribute('data-arrow-length'))).toBe(0);
+  });
+
+  it('applies curvature to opposing edges between the same two nodes', async () => {
+    const nodeA: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG_A' };
+    const nodeB: GraphNode = { id: 'entity:2', type: 'entity', label: 'PROG_B' };
+    const forwardEdge: GraphEdge = {
+      id: 'code:1',
+      source: 'entity:1',
+      target: 'entity:2',
+      link_type: 'CALLS',
+      direction: 'directed',
+      score: null,
+      context: null,
+    };
+    const reverseEdge: GraphEdge = {
+      id: 'code:2',
+      source: 'entity:2',
+      target: 'entity:1',
+      link_type: 'CALLS',
+      direction: 'directed',
+      score: null,
+      context: null,
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [nodeA, nodeB], edges: [forwardEdge, reverseEdge] }),
+    }));
+
+    renderGraph();
+
+    const forwardEl = await screen.findByTestId('link-code:1');
+    const reverseEl = await screen.findByTestId('link-code:2');
+
+    expect(Number(forwardEl.getAttribute('data-curvature'))).toBe(0.2);
+    expect(Number(reverseEl.getAttribute('data-curvature'))).toBe(0.2);
+  });
+
+  it('positions arrow tips relative to target node perimeter when coordinates are present', async () => {
+    const nodeA: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG_A', x: 0, y: 0 };
+    const nodeB: GraphNode = { id: 'entity:2', type: 'entity', label: 'PROG_B', x: 100, y: 0 };
+    const edge: GraphEdge = {
+      id: 'code:1',
+      source: nodeA,
+      target: nodeB,
+      link_type: 'CALLS',
+      direction: 'directed',
+      score: null,
+      context: null,
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [nodeA, nodeB], edges: [edge] }),
+    }));
+
+    renderGraph();
+
+    const linkEl = await screen.findByTestId('link-code:1');
+    // Distance = 100px. Target radius for entity = 8px. Offset = 9px.
+    // Relative position = 1 - 9/100 = 0.91
+    const relPos = Number(linkEl.getAttribute('data-arrow-rel-pos'));
+    expect(relPos).toBeCloseTo(0.91, 2);
   });
 });

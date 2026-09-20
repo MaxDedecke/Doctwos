@@ -93,6 +93,8 @@ export interface GraphEdge {
   link_type: string;
   /** Broad graph relationship family, e.g. `documented` for EntityDocLink. */
   relation_type?: string;
+  /** O-264/O-265: Directionality of the relationship ('directed' | 'undirected' | 'bidirectional') */
+  direction?: 'directed' | 'undirected' | 'bidirectional';
   score: number | null;
   context: string | null;
   /** Optional code-edge fields; relationship types remain open strings. */
@@ -101,6 +103,13 @@ export interface GraphEdge {
   meta?: Record<string, unknown>;
   start_line?: number | null;
   end_line?: number | null;
+}
+
+export function isEdgeDirected(edge: GraphEdge): boolean {
+  if (edge.direction === 'directed') return true;
+  if (edge.direction === 'undirected') return false;
+  if (edge.direction === 'bidirectional') return true;
+  return edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:');
 }
 
 function graphEdgeType(edge: Pick<GraphEdge, 'link_type' | 'relation_type'>): string {
@@ -646,6 +655,68 @@ export function KnowledgeGraphView({
 
   const selectedNode = useMemo(() => rawNodes.find(n => n.id === selectedNodeId) ?? null, [rawNodes, selectedNodeId]);
   const selectedEdge = useMemo(() => rawEdges.find(e => e.id === selectedEdgeId) ?? null, [rawEdges, selectedEdgeId]);
+
+  // O-266: Pair mapping to compute linkCurvature for opposing or parallel edges between the same two nodes
+  const edgePairMap = useMemo(() => {
+    const map = new Map<string, GraphEdge[]>();
+    filteredData.links.forEach((l: GraphEdge) => {
+      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+      if (!s || !t) return;
+      const key = s < t ? `${s}--${t}` : `${t}--${s}`;
+      const list = map.get(key) || [];
+      list.push(l);
+      map.set(key, list);
+    });
+    return map;
+  }, [filteredData.links]);
+
+  const getLinkCurvature = useCallback((l: GraphEdge) => {
+    const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
+    const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
+    if (!s || !t) return 0;
+    const key = s < t ? `${s}--${t}` : `${t}--${s}`;
+    const pairList = edgePairMap.get(key);
+    if (!pairList || pairList.length <= 1) {
+      return l.id.startsWith('kl:') ? 0.08 : 0;
+    }
+    const idx = pairList.findIndex(e => e.id === l.id);
+    if (pairList.length === 2) {
+      const [e1, e2] = pairList;
+      const s1 = typeof e1.source === 'object' ? (e1.source as GraphNode).id : e1.source;
+      const s2 = typeof e2.source === 'object' ? (e2.source as GraphNode).id : e2.source;
+      // If opposing directions (A->B and B->A), both curve positively relative to their direction,
+      // which curves them away from each other on canvas.
+      if (s1 !== s2) {
+        return 0.2;
+      }
+      return idx === 0 ? 0.2 : -0.2;
+    }
+    const offset = ((idx - (pairList.length - 1) / 2) / (pairList.length - 1)) * 0.4;
+    return offset || 0.05;
+  }, [edgePairMap]);
+
+  const getLinkArrowLength = useCallback((l: GraphEdge) => {
+    if (!isEdgeDirected(l)) return 0;
+    return l.id === selectedEdgeId ? 5.5 : 4;
+  }, [selectedEdgeId]);
+
+  const getLinkArrowRelPos = useCallback((l: GraphEdge) => {
+    if (!isEdgeDirected(l)) return 0.5;
+    const targetNode = typeof l.target === 'object' && l.target !== null ? (l.target as GraphNode) : null;
+    const sourceNode = typeof l.source === 'object' && l.source !== null ? (l.source as GraphNode) : null;
+    if (targetNode && sourceNode && targetNode.x != null && targetNode.y != null && sourceNode.x != null && sourceNode.y != null) {
+      const dx = targetNode.x - sourceNode.x;
+      const dy = targetNode.y - sourceNode.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0) {
+        const r = nodeRadius(targetNode);
+        const targetOffset = (r + 1) / dist;
+        return Math.max(0.1, Math.min(0.95, 1 - targetOffset));
+      }
+    }
+    return 0.88;
+  }, []);
 
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
@@ -1205,9 +1276,9 @@ export function KnowledgeGraphView({
                 return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
               }}
               linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
-              linkDirectionalArrowLength={(l: GraphEdge) => (l.id.startsWith('edl:') || l.id.startsWith('ref:')) ? 4 : 0}
-              linkDirectionalArrowRelPos={1}
-              linkCurvature={(l: GraphEdge) => l.id.startsWith('kl:') ? 0.12 : 0}
+              linkDirectionalArrowLength={getLinkArrowLength}
+              linkDirectionalArrowRelPos={getLinkArrowRelPos}
+              linkCurvature={getLinkCurvature}
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
