@@ -441,17 +441,25 @@ const renderTextBlock = (
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
   t: (key: string, vars?: Record<string, string | number>) => string,
-  knownSources?: KnownSource[]
+  knownSources: KnownSource[] | undefined,
+  baseLine: number,
 ) => {
   const lines = block.split('\n');
   const elements: React.ReactNode[] = [];
   let paragraphBuffer: string[] = [];
+  let paragraphStartLine = baseLine;
+  let paragraphEndLine = baseLine;
 
   const flushParagraph = (idx: number) => {
     if (paragraphBuffer.length === 0) return;
     const text = paragraphBuffer.join('\n');
     elements.push(
-      <p key={`${blockKey}-p-${idx}`} className="leading-relaxed whitespace-pre-wrap text-[15px]">
+      <p
+        key={`${blockKey}-p-${idx}`}
+        data-document-line-start={paragraphStartLine}
+        data-document-line-end={paragraphEndLine}
+        className="leading-relaxed whitespace-pre-wrap text-[15px] scroll-mt-4"
+      >
         {parseText(text, onFileClick, theme, t, knownSources)}
       </p>
     );
@@ -469,7 +477,10 @@ const renderTextBlock = (
       elements.push(
         <HeadingTag
           key={`${blockKey}-h-${i}`}
-          className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}
+          id={slugifyDocumentHeading(headingMatch[2])}
+          data-document-line-start={baseLine + i}
+          data-document-line-end={baseLine + i}
+          className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950", "scroll-mt-4")}
         >
           {parseText(headingMatch[2], onFileClick, theme, t, knownSources)}
         </HeadingTag>
@@ -483,6 +494,8 @@ const renderTextBlock = (
       elements.push(
         <hr
           key={`${blockKey}-hr-${i}`}
+          data-document-line-start={baseLine + i}
+          data-document-line-end={baseLine + i}
           className={cn("my-4 border-t", theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-200")}
         />
       );
@@ -504,8 +517,10 @@ const renderTextBlock = (
       elements.push(
         <blockquote
           key={`${blockKey}-bq-${i}`}
+          data-document-line-start={baseLine + i}
+          data-document-line-end={baseLine + k - 1}
           className={cn(
-            "border-l-4 pl-3 py-1 my-3 rounded-r leading-relaxed whitespace-pre-wrap text-[15px]",
+            "border-l-4 pl-3 py-1 my-3 rounded-r leading-relaxed whitespace-pre-wrap text-[15px] scroll-mt-4",
             theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900/30 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-100/60 text-ds-zinc-600"
           )}
         >
@@ -528,27 +543,43 @@ const renderTextBlock = (
         j++;
       }
       elements.push(
-        <MarkdownTable
+        <div
           key={`${blockKey}-table-${i}`}
-          header={header}
-          align={align}
-          rows={rows}
-          theme={theme}
-          onFileClick={onFileClick}
-          knownSources={knownSources}
-        />
+          data-document-line-start={baseLine + i}
+          data-document-line-end={baseLine + j - 1}
+        >
+          <MarkdownTable
+            header={header}
+            align={align}
+            rows={rows}
+            theme={theme}
+            onFileClick={onFileClick}
+            knownSources={knownSources}
+          />
+        </div>
       );
       i = j;
       continue;
     }
 
+    if (paragraphBuffer.length === 0) paragraphStartLine = baseLine + i;
     paragraphBuffer.push(line);
+    paragraphEndLine = baseLine + i;
     i++;
   }
   flushParagraph(lines.length);
 
   return <React.Fragment key={blockKey}>{elements}</React.Fragment>;
 };
+
+function slugifyDocumentHeading(heading: string) {
+  return heading
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
 
 /**
  * Main MarkdownContent component that parses blocks of code and normal paragraphs,
@@ -558,16 +589,27 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
   const { t } = useLanguage();
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
+  let sourceLine = 1;
   return (
     <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
       {parts.map((part, index) => {
+        const startLine = sourceLine;
+        sourceLine += (part.match(/\n/g) || []).length;
         if (part.startsWith('```') && part.endsWith('```')) {
           const match = part.match(/```(\w*)\n([\s\S]*?)```/);
           const lang = match ? match[1] : 'code';
           const code = match ? match[2] : part.slice(3, -3);
-          return <CodeBlock key={index} language={lang} code={code} theme={theme} />;
+          return (
+            <div
+              key={index}
+              data-document-line-start={startLine}
+              data-document-line-end={sourceLine}
+            >
+              <CodeBlock language={lang} code={code} theme={theme} />
+            </div>
+          );
         } else {
-          return renderTextBlock(part, index, onFileClick, theme, t, knownSources);
+          return renderTextBlock(part, index, onFileClick, theme, t, knownSources, startLine);
         }
       })}
     </div>

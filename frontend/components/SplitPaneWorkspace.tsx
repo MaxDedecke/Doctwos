@@ -2,7 +2,7 @@ import type { CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocum
 import Editor, { loader } from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 import type { editor as MonacoEditor } from 'monaco-editor';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 // In air-gapped / on-premise environments, prevent Monaco loader from attempting
@@ -34,6 +34,66 @@ import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
+
+const normalizeLocatorText = (value: string) =>
+  value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+function findDocumentLocatorTarget(container: HTMLElement, selectedDoc: WorkspaceDocument) {
+  if (selectedDoc.urlAnchor) {
+    let anchor = selectedDoc.urlAnchor.replace(/^#/, '');
+    try {
+      anchor = decodeURIComponent(anchor);
+    } catch {
+      // Keep the source-provided anchor when it is not valid percent encoding.
+    }
+    const anchorTarget = Array.from(container.querySelectorAll<HTMLElement>('[id], [name]'))
+      .find(element => element.id === anchor || element.getAttribute('name') === anchor);
+    if (anchorTarget) return anchorTarget;
+  }
+
+  if (selectedDoc.section) {
+    const section = normalizeLocatorText(selectedDoc.section);
+    const headings = Array.from(container.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'));
+    const exactHeading = headings.find(element => normalizeLocatorText(element.innerText || element.textContent || '') === section);
+    const partialHeading = exactHeading || headings.find(element =>
+      normalizeLocatorText(element.innerText || element.textContent || '').includes(section)
+    );
+    if (partialHeading) return partialHeading;
+  }
+
+  if (selectedDoc.startLine != null) {
+    const lineTargets = Array.from(container.querySelectorAll<HTMLElement>('[data-document-line-start]'));
+    const exactLine = lineTargets.find(element => {
+      const start = Number(element.dataset.documentLineStart);
+      const end = Number(element.dataset.documentLineEnd ?? start);
+      return start <= selectedDoc.startLine! && end >= selectedDoc.startLine!;
+    });
+    if (exactLine) return exactLine;
+    const nearestLine = lineTargets
+      .map(element => ({ element, distance: Math.abs(Number(element.dataset.documentLineStart) - selectedDoc.startLine!) }))
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (nearestLine) return nearestLine.element;
+  }
+
+  if (selectedDoc.excerpt) {
+    const excerpt = normalizeLocatorText(selectedDoc.excerpt).slice(0, 120);
+    if (excerpt) {
+      const blocks = Array.from(container.querySelectorAll<HTMLElement>('p, blockquote, pre'));
+      const excerptBlock = blocks.find(element => normalizeLocatorText(element.innerText || element.textContent || '').includes(excerpt));
+      if (excerptBlock) return excerptBlock;
+    }
+  }
+  return null;
+}
+
+function addWebAnchorScroll(html: string, anchor: string | null | undefined) {
+  if (!anchor) return html;
+  const safeAnchor = JSON.stringify(anchor.replace(/^#/, '')).replace(/</g, '\\u003c');
+  const script = `<script>(()=>{const id=${safeAnchor};let decoded=id;try{decoded=decodeURIComponent(id)}catch{};const jump=()=>{const target=document.getElementById(decoded)||document.getElementsByName(decoded)[0];if(target)target.scrollIntoView({block:'start'})};requestAnimationFrame(jump);window.addEventListener('load',jump,{once:true})})();</script>`;
+  return /<\/body\s*>/i.test(html)
+    ? html.replace(/<\/body\s*>/i, `${script}</body>`)
+    : `${html}${script}`;
+}
 
 // Help detect file extensions in Monaco editor
 /** Map the ingestion language families to Monaco ids.  This is deliberately
@@ -195,10 +255,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
   const [localFileReferences, setLocalFileReferences] = useState<FileReference[]>([]);
   const [localIsLoadingReferences, setLocalIsLoadingReferences] = useState<boolean>(false);
+  const documentContentRef = useRef<HTMLDivElement | null>(null);
 
   const contentToUse = fileContent !== undefined ? fileContent : localFileContent;
   const formatToUse = fileContentFormat !== undefined ? fileContentFormat : localFileContentFormat;
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
+  const webOriginContent = useMemo(
+    () => addWebAnchorScroll(sanitizeHtml(contentToUse), selectedDoc?.urlAnchor),
+    [contentToUse, selectedDoc?.urlAnchor],
+  );
   const referencesToUse = fileReferences !== undefined ? fileReferences : localFileReferences;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : localIsLoadingReferences;
   // Die Dropdown-Liste zeigt im Code-Tab entityNeighborGroups (pro Fokusobjekt),
@@ -271,7 +336,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
       // Images are rendered directly via the /raw endpoint (see render below) —
       // reading them as text through /content would just yield garbled bytes.
-      const isImage = /\.(png|jpe?g)$/i.test((selectedDoc?.name || path || ""));
+      const documentPath = selectedDoc?.name.split('#')[0] || path || "";
+      const isImage = /\.(png|jpe?g)$/i.test(documentPath);
       if (isDoc && isImage) {
         setLocalFileContent("");
         setLocalFileContentFormat("image");
@@ -298,7 +364,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             setLocalFileContent(res.data.content);
             setLocalFileContentFormat("html");
           } else {
-            const res = await api.getKnowledgeSourceContent(docId, selectedDoc.name);
+            const res = await api.getKnowledgeSourceContent(docId, documentPath);
             setLocalFileContent(res.data.content);
             setLocalFileContentFormat(res.data.format || "text");
           }
@@ -333,6 +399,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     // meant picking a *different* code object in the *same* file (a new
     // object reference, same source_id) re-fetched the file from scratch.
   }, [selectedFile, selectedDoc, selectedEntity?.source_id, selectedProject, activeRightTab, theme]);
+
+  useEffect(() => {
+    if (activeRightTab !== 'doc' || !selectedDoc || isLoadingToUse) return;
+    const frame = requestAnimationFrame(() => {
+      const container = documentContentRef.current;
+      if (!container) return;
+      findDocumentLocatorTarget(container, selectedDoc)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeRightTab, contentToUse, formatToUse, isLoadingToUse, selectedDoc]);
 
   // Local references loading effect — the "Referenzen" dropdown that consumes this
   // only exists on code/doc panels, so don't fetch it for graph/webview panels.
@@ -1413,7 +1489,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 )}
                 <div className="flex-1 overflow-hidden">
                   <iframe
-                    srcDoc={contentToUse}
+                    srcDoc={webOriginContent}
                     className={cn("w-full h-full border-none", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}
                     title={selectedDoc.name || t('splitPane.webPreviewFallbackTitle')}
                     sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts"
@@ -1437,9 +1513,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     )}>{selectedDoc.excerpt}</p>
                   </div>
                 )}
-                {selectedDoc.name.toLowerCase().endsWith('.pdf') ? (
+                {selectedDoc.name.split('#')[0].toLowerCase().endsWith('.pdf') ? (
                   <iframe
-                    src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name)}&theme=${theme}${selectedDoc.page ? `#page=${selectedDoc.page}` : ''}`}
+                    src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name.split('#')[0])}&theme=${theme}${selectedDoc.page ? `#page=${selectedDoc.page}` : ''}`}
                     className="w-full h-full border-none bg-ds-zinc-900"
                     title={selectedDoc.name}
                   />
@@ -1451,7 +1527,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         possible here. Not a primary-LCP image either (document viewer). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name)}`}
+                      src={`${API_URL}/knowledge-sources/${selectedDoc.id}/raw?path=${encodeURIComponent(selectedDoc.name.split('#')[0])}`}
                       alt={selectedDoc.name}
                       className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
                     />
@@ -1471,7 +1547,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         <span>{t('splitPane.documentViewerLabel')}</span>
                       </div>
                     </div>
-                    <div className="max-w-3xl mx-auto">
+                    <div className="max-w-3xl mx-auto" ref={documentContentRef}>
                       {formatToUse === 'markdown' ? (
                         <MarkdownContent content={contentToUse} onFileClick={handleFileSelect} theme={theme} />
                       ) : formatToUse === 'html' ? (
@@ -1481,7 +1557,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         />
                       ) : (
                         <div className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                          {contentToUse}
+                          {contentToUse.split('\n').map((line, index) => (
+                            <div
+                              key={index}
+                              data-document-line-start={index + 1}
+                              data-document-line-end={index + 1}
+                            >
+                              {line || '\u00a0'}
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
