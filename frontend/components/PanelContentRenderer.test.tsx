@@ -46,7 +46,10 @@ function stub<K extends keyof CapturedProps>(name: K) {
 }
 
 vi.mock('@/components/ChatView', () => ({ ChatView: stub('chat-view') }));
-vi.mock('@/components/CallGraphView', () => ({ CallGraphView: stub('callgraph-view') }));
+vi.mock('@/components/CallGraphView', () => ({
+  CallGraphView: stub('callgraph-view'),
+  ProcessView: stub('callgraph-view'),
+}));
 vi.mock('@/components/LinkManagerView', () => ({ LinkManagerView: stub('linkmanager-view') }));
 vi.mock('@/components/SplitPaneWorkspace', () => ({ SplitPaneWorkspace: stub('split-pane') }));
 

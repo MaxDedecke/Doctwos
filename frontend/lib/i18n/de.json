@@ -104,7 +104,7 @@
       "code": "💻 Code-Editor",
       "doc": "📖 Dokumentation",
       "graph": "🕸️ Wissensnetz (Graph)",
-      "callgraph": "🔀 Call-Graph",
+      "callgraph": "🔀 Process View",
       "webview": "🌐 Web-Vorschau",
       "linkmanager": "🔗 Link Manager"
     },
@@ -801,10 +801,10 @@
     "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit.",
     "askDirectlyTitle": "Frage direkt stellen",
     "userAvatarAlt": "Beispielavatar für eigene Nachricht",
-    "callGraphPrompt": "Darf ich die Call Graph View öffnen, um dir diesen Ablauf im Graphen zu zeigen?",
+    "callGraphPrompt": "Darf ich die Process View öffnen, um dir diesen Ablauf zu zeigen?",
     "callGraphOpenButton": "Ja, öffnen",
     "callGraphDismissButton": "Nein",
-    "callGraphOpened": "Im Call-Graph geöffnet",
+    "callGraphOpened": "In der Process View geöffnet",
     "callGraphReopen": "Ablauf im Graph anzeigen",
     "callGraphNoSpace": "Kein Platz mehr im Workspace für ein weiteres Panel (maximal 4). Bitte schließe zuerst ein Panel.",
     "changeImpactTitle": "Auswirkungsanalyse",
@@ -960,6 +960,7 @@
   },
   "graphLabels": {
     "linkTypes": {
+      "codeDependency": "Codeabhängigkeit",
       "semantic": "semantisch",
       "keyword": "Schlüsselwort",
       "syntactic": "syntaktisch",
@@ -1044,6 +1045,10 @@
     "createLinkSaving": "Speichert…",
     "createLinkError": "Verknüpfung konnte nicht erstellt werden",
     "openOriginal": "Im Original öffnen",
+    "documentLocationLabel": "Fundstelle",
+    "pageValue": "Seite {{page}}",
+    "lineValue": "Zeilen {{start}}–{{end}}",
+    "openDocumentLocation": "Fundstelle öffnen",
     "fromLabel": "Von",
     "toLabel": "Nach",
     "legendLabel": "Legende",
@@ -1268,6 +1273,7 @@
     "reportFailedToast": "Fehlerbericht konnte nicht gesendet werden"
   },
   "callGraphView": {
+    "processTitle": "Process View",
     "focusFirst": "Bitte zuerst ein Code-Objekt fokussieren.",
     "inheritanceLabel": "Vererbung",
     "hopUnit": "Hop",
@@ -1277,8 +1283,8 @@
     "zoomOutTitle": "Verkleinern",
     "fitAllTitle": "Alles einpassen",
     "truncatedNotice": "Auf 500 Knoten begrenzt",
-    "noConnections": "Keine Call-Graph-Verbindungen für diesen Fokus.",
-    "loadError": "Call-Graph konnte nicht geladen werden",
+    "noConnections": "Keine Prozessübergänge für diesen Fokus.",
+    "loadError": "Process View konnte nicht geladen werden",
     "exportError": "Export fehlgeschlagen (HTTP {{status}})",
     "flowTitle": "Agenten-Ablauf",
     "impactTitle": "Betroffenengraph",
@@ -1286,7 +1292,20 @@
     "flowDirectionIncoming": "Eingehend",
     "flowDirectionBoth": "Beidseitig",
     "switchToFocusView": "Standard-Graph laden",
-    "flowLoadedToast": "Ablauf für {{name}} in der Call Graph View geöffnet"
+    "investigateFromHere": "Ab hier untersuchen",
+    "investigateFromHereTitle": "Diesen Schritt als neue Prozesswurzel untersuchen",
+    "flowLoadedToast": "Ablauf für {{name}} in der Process View geöffnet",
+    "processKinds": {
+      "entry": "Einstieg",
+      "step": "Schritt",
+      "call": "Aufruf",
+      "branch": "Entscheidung",
+      "jump": "Sprung",
+      "iteration": "Iteration",
+      "data_access": "Datenzugriff",
+      "external_call": "Extern / offen",
+      "exit": "Ausstieg"
+    }
   },
   "sourceNetworkGraph": {
     "title": "Quellen-Netzwerk",

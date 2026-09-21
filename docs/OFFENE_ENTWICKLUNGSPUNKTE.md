@@ -74,6 +74,13 @@ Quellen: [Repository](https://github.com/apache/syncope),
 [Java-8-Anforderungen](https://syncope.apache.org/docs/2.1/getting-started.pdf),
 [Maven-Build](https://syncope.apache.org/building).
 
+**Ergänzung 21.09.2026:** O-290–O-304 bilden einen kurzfristigen
+Product-Fit-Fahrplan aus der geschärften Doctus-Positionierung. Der erste
+Produktschnitt verbindet belegtes Codeverständnis, eine sprachübergreifende
+Process View, Änderungsfolgen und die Sicherung von Erfahrungswissen. Die Punkte
+konkretisieren die nächsten fünf Arbeitstage und verweisen für den vollständigen
+Wissenslebenszyklus auf O-271–O-278, statt parallele Modelle einzuführen.
+
 ## Aktuell offen
 
 | ID | Bereich | Punkt | Status / nächste Aktion | Abhängigkeit |
@@ -555,6 +562,81 @@ verlieren oder nicht anlegen.
 | O-287 | P1 / Parser / Maven / Persistenz | **Maven-Kantenpersistenz und Resolver reparieren (`structure_persist.py`).** In Syncope sind über 1.500 Maven-Entities (601 Dependencies, 472 Source-Roots, 250 Properties, 149 Plugins, 95 Module) und in Shiro über 800 Maven-Entities isoliert. `parser/maven/parse.py` erzeugt die Kanten (`CONTAINS_MODULE`, `DECLARES_SOURCE_ROOT`, `USES_PLUGIN`, `DEPENDS_ON`) bereits mit `resolution="resolved"`. In `parser/structure_persist.py` (Z. 311) fehlt jedoch `"maven"` in der Sprachprüfung `{"java", "xslt", "jsp", "html", "shell"}`. Dadurch fällt jede Maven-Kante in den Fallback `resolution="unresolved"` und `dst_entity_id=None`. In `parser/tasks/edge_resolver.py` fehlt zudem ein Maven-Resolver-Pass. | **Offen:** `"maven"` in `structure_persist.py` aufnehmen, damit dateilokale Kanten (Module, Source-Roots, Plugins) mit ihrer bereits bekannten Ziel-Entity-ID (`target_qualified_name`) sofort als `resolved` persistiert werden. In `edge_resolver.py` einen Pass für modulübergreifende Maven-Abhängigkeiten ergänzen. **Abnahme:** Unit-Tests in `parser/tests/test_maven_parser.py` prüfen erfolgreiche Kantenauflösung mit `dst_entity_id != None`; Re-Import von Maven-Projekten verbindet Module und Plugins im Graphen. | Keine |
 | O-288 | P1 / Parser / COBOL | **COBOL `PERFORM ... THRU` Paragraphen, `EXEC SQL INCLUDE` und `file_fd` verlinken.** 100 % aller 50 isolierten Paragraphen in `AWS CardDemo` sind `*-EXIT`-Paragraphen (`1000-EXIT`, etc.). `parser/cobol/procedure.py` verlinkt bei `PERFORM A THRU B` nur `A`; `B` wird lediglich als String in `meta["thru"]` notiert, wodurch der Exit-Paragraph mangels eigener Befehle völlig kantenlos bleibt. Zudem sind 15 SQL-Blöcke (`EXEC SQL INCLUDE SQLCA/DCLTABLE`) isoliert, weil `parser/cobol/sql.py` keine Kanten zum Copybook anlegt. Alle 54 `file_fd`-Entities (Dateibeschreibungen) haben keine Kanten zu `OPEN`/`READ`/`WRITE`/`CLOSE`. | **Offen:** (1) In `parser/cobol/procedure.py`: Bei `PERFORM A THRU B` eine Kante zum `thru`-Paragraphen erzeugen (z. B. `PERFORMS_THRU` oder sekundäre `PERFORM`-Kante). (2) In `parser/cobol/sql.py`: Für `EXEC SQL INCLUDE` eine `COPY`- bzw. `INCLUDES`-Kante zum eingebundenen Copybook emittieren. (3) I/O-Kanten von Paragraphen zu `file_fd` abbilden. **Abnahme:** In CardDemo sinkt die Zahl isolierter Paragraphen von 50 auf 0; SQL-Include-Blöcke sind mit ihren Ziel-Copybooks verknüpft. | Keine |
 | O-289 | P2 / Parser / Shell & Web-Markup | **Shell-Funktionsdeklarationen und Markup-Elemente einbinden.** Alle 74 `shell_function`-Entities in `Bank of Z` sind isoliert, weil `parser/shell/parse.py` alle Kanten nur an das Skript bindet (`src_name = root.qualified_name`) und weder Funktionsdeklarationskanten noch lokale Funktionsaufrufe modelliert. Ähnliches gilt für isolierte `jsp_taglib`, `jsp_scriptlet`, `jsp_el_expression` in Webprojekten. | **Offen:** Deklarationskante `DECLARES` vom `shell_script` zur `shell_function` erzeugen. Lokale Aufrufe von Shell-Funktionen im Skript erkennen und verlinken. **Abnahme:** Shell-Funktionen tauchen nicht mehr als freischwimmende Inseln ohne Verbindung zum Elternskript im Wissensgraphen auf. | Keine |
+
+## Product-Fit-Fahrplan: Verstehen → Prozess → Impact → Wissen (O-290–O-304)
+
+### Ziel des ersten Produktschnitts
+
+Der primäre Job-to-be-done lautet: **Ein Entwickler muss ein bestehendes System
+ausreichend sicher verstehen, um eine konkrete Änderung vorzubereiten.** Doctus
+verbindet dafür Codeanalyse, Ablauf, Dokumentation und bestätigtes
+Erfahrungswissen mit überprüfbaren Fundstellen. Senior-Entwickler ergänzen und
+korrigieren dieses Wissen; Wissens-Ingenieure prüfen Vorschläge, Widersprüche und
+Lücken. Onboarding ist eine weitere Nutzung derselben belegten Grundlage.
+
+Die Ansichten haben in diesem Schnitt getrennte Aufgaben:
+
+- **Structure View:** Aufbau, Hierarchie und Verantwortungsbereiche des Systems.
+- **Process View:** gerichteter, begrenzter Ablauf ab einem Einstiegspunkt;
+  sprachspezifische Konstrukte werden verständlich normalisiert, bleiben aber
+  technisch auf ihre Originalkante und Quellzeile zurückführbar.
+- **Impact View:** Auswirkungen eines beschriebenen Änderungsvorhabens auf Code,
+  Daten, Prozesse, Regeln und Tests.
+- **Knowledge Graph:** Beziehungen zwischen Elementen, Dokumenten und Aussagen;
+  technische Codekanten erscheinen hier nur als typneutrale
+  `code_dependency`, nicht als zweiter detaillierter Call Graph.
+- **Code-/Dokumentansicht und Chat:** Prüfung der Belege und Navigation zwischen
+  den aufgabenbezogenen Ansichten.
+
+Der technische `CodeEdge`-Graph bleibt die gemeinsame Backend-Grundlage. Eine
+Process View darf aus einer statischen Abhängigkeit keine sichere Laufzeitfolge
+behaupten. Jede Transition muss deshalb Ursprung, Locator und Sicherheit
+transportieren. Traversierung, Begrenzung, Gruppierung und Priorisierung laufen
+serverseitig; das Frontend rendert die Projektion und hält die Positionen stabil.
+
+### Fünf-Tage-Plan
+
+Die Tage sind Zielreihenfolge und Fokus, kein Versprechen, ein nicht erreichtes
+Gate durch mehr parallelen Scope zu übergehen. Dauert ein P0-Vertrag oder eine
+Abnahme länger, verschieben sich die folgenden Pakete geschlossen.
+
+| ID | Tag / Priorität | Konkretes Ergebnis | Umsetzung und Abnahme | Abhängigkeit |
+|---|---|---|---|---|
+| O-290 | Tag 1 / P0 / Produktvertrag | **Begriffe, Nutzerfragen und Grenzen der vier Arbeitsansichten verbindlich festlegen.** | **Erledigt 21.09.2026:** E-13 in `docs/ENTSCHEIDUNGEN.md` legt die vier Nutzerfragen, Grenzen, den Klickvertrag und das vollständige UI-/Aktionsinventar fest. Sichtbare Umbenennungen von Call Graph zu Process View folgen absichtlich erst mit der kompatiblen Process-Projektion in O-296; technische IDs bleiben bis dahin stabil. | Produktentscheidung; [GRAPH_VIEWS_ARCHITECTURE.md](GRAPH_VIEWS_ARCHITECTURE.md) |
+| O-291 | Tag 1 / P0 / Process-Modell | **Sprachübergreifenden Vertrag für die Process View definieren.** | **Erledigt 21.09.2026:** Versioniertes Pydantic-Schema (`api/process_schemas.py`) und Vertrag in `docs/PROCESS_PROJECTION_CONTRACT.md` definieren `ProcessNode`, `ProcessTransition`, `ProcessProjection`, Herkunft und Truncation. COBOL- und Java-Fixtures validieren denselben Vertrag einschließlich Datei-/Zeilen-Locator; unbekannte Reihenfolge bleibt explizit `null`. | O-290; vorhandene `CodeEntity`/`CodeEdge`-Modelle; O-150 für feinere Provenienz |
+| O-292 | Tag 1 / P0 / Backend-API & Performance | **Begrenzte Process-Projection vollständig im Backend bereitstellen.** | Neuen Endpunkt `GET /process/focus` mit `entity_id`, `project_id`, `direction`, `hops`, `node_limit`, `edge_limit` und optionalen Prozessarten entwerfen; vorhandene `/callgraph/focus`-Logik intern wiederverwenden und während der Migration kompatibel halten. Antwort enthält angewandte Limits, `truncated`, Gründe für ausgelassene Teile und eine stabile Projektionskennung. Keine BFS, Typableitung oder Gruppierung im Frontend. **Abnahme:** Antwort bleibt auch bei einem Knoten mit mehr als 2.500 Beziehungen innerhalb der angeforderten Grenzen und markiert die Kürzung; Berechtigungen entsprechen dem heutigen Call Graph. | O-291; bestehender Call-Graph; O-053/O-196 |
+| O-293 | Tag 2 / P0 / COBOL-Prozessprojektion | **COBOL-Abläufe auf das Process-Modell abbilden.** | `PERFORM`, `PERFORM ... THRU`, `CALL`, `GOTO`, Section/Paragraph sowie vorhandene Datei-/SQL-Zugriffe auf Prozessschritte und Transitionen projizieren. `THRU`, dynamische Calls und unaufgelöste Ziele sichtbar kennzeichnen. Parserlücken aus O-288 nicht kaschieren. **Abnahme:** Ein CardDemo-Ablauf zeigt Einstieg, Paragraph-/Section-Schritte, Sprünge und externe bzw. unaufgelöste Aufrufe in nachvollziehbarer Richtung; jede Kante öffnet die Originalzeile. | O-291/O-292; O-288 für fehlende Parserkanten |
+| O-294 | Tag 2 / P0 / Java-Prozessprojektion | **Java-Abläufe auf denselben Vertrag abbilden.** | `CALLS` und `INSTANTIATES` als Ablauftransitionen verwenden; Vererbung, Imports und reine Typverwendung bleiben technische Struktur bzw. Kontext und werden nicht als zeitliche Schritte dargestellt. Dynamische Dispatch-Ziele als `possible` und externe Ziele als `unresolved` kennzeichnen. **Abnahme:** Ein Syncope- oder Shiro-Ablauf nutzt dasselbe Frontendmodell wie COBOL, unterscheidet aber sicheren Aufruf, mögliche Implementierung und reine Strukturbeziehung korrekt. | O-291/O-292; Java-Parser O-243–O-250 |
+| O-295 | Tag 2 / P0 / Semantik & Nachvollziehbarkeit | **Sicherheit, Reihenfolge und Belegbarkeit der Prozessprojektion absichern.** | Für jede Transition Regeln dokumentieren, wann sie `certain`, `possible` oder `unresolved` ist. Zyklen, Mehrfachziele, Rekursion und abgeschnittene Pfade explizit transportieren. Keine globale Prozentkonfidenz ohne kalibrierte Grundlage. **Abnahme:** Fixture-Fälle für Verzweigung, Zyklus, dynamisches Ziel und Kürzung liefern eine erklärbare Einstufung und niemals eine erfundene lineare Reihenfolge. | O-291/O-293/O-294; O-276 |
+| O-296 | Tag 3 / P0 / Frontend / Process View | **Bestehende Call-Graph-Oberfläche zur Process View umbauen.** | `CallGraphView` fachlich umbenennen bzw. hinter einer Process-View-Komponente kapseln; Prozessarten statt Parserkantentypen als Hauptfilter anzeigen. Einstieg, Entscheidung, Datenzugriff, externer Schritt und Unsicherheit visuell unterscheiden. Technische Originaltypen erscheinen im Detailbereich. **Abnahme:** Derselbe UI-Pfad kann ein COBOL- und Java-Beispiel darstellen, ohne sprachspezifische Sonderlogik im Renderer; ein Klick öffnet die Fundstelle. | O-290–O-295 |
+| O-297 | Tag 3 / P0 / Interaktion & Stabilität | **Prozessnavigation ohne Neuordnung und unkontrolliertes Nachladen fertigstellen.** | **Erledigt 21.09.2026:** Auswahlzustand (`selectedNodeId`) strikt von der Prozesswurzel (`currentRoot`) getrennt. Node-Klick markiert den Schritt, animiert ausschließlich ausgehende Transitionen (`isEdgeOutgoingFromSelection`) und öffnet optional den Code; weder Wurzel noch Koordinaten werden neu gelayoutet. Die Toolbar-Aktion „Ab hier untersuchen“ (`[data-testid="investigate-from-here"]`, i18n de/en) stößt als einzige Aktion das Laden einer neuen Prozesswurzel und Projektion an. Bestehende Node-Positionen (`x, y, vx, vy, fx, fy`) bleiben bei Reload und Erweiterung erhalten. Panel-Synchronisation D-3 in `useWorkspaceLayout.ts` gesichert: Callgraph/Process View behält seinen Objektfokus bei nicht-entitätsbezogenen Dokumenten, synchronisiert aber explizite Entitätsselektionen. Akzeptanztests in `CallGraphView.test.tsx` sichern 10 aufeinanderfolgende Klicks ohne Wurzel-/Positionssprünge, Partikelanimation auf ausgehenden Kanten sowie 500-Knoten-Rendering ab. | O-292/O-296; Panel-Synchronisation D-3 |
+| O-298 | Tag 3 / P0 / Knowledge Graph | **Wissensgraph fachlich und technisch von der Process View abgrenzen.** | Technische `CodeEdge`-Typen im Wissensgraph pro Elementpaar als ungerichtete `code_dependency` zusammenfassen; bestätigte Dokument-/Wissenslinks mit Locator und Prüfstatus separat darstellen. Übersicht und Fokus serverseitig begrenzen, alle Beziehungsklassen beim Start sichtbar machen und isoliertes Inventar nicht interaktiv in den Canvas laden. **Teilweise umgesetzt 21.09.2026:** typneutrale Codeprojektion, begrenzte Queries, Dokument-Locators und Canvas-Entlastung sind lokal vorbereitet. **Noch offen:** repräsentative statt rein ID-basierter Übersicht, cursorbasierte Erweiterung und fachliche Abnahme an einem großen Java- und COBOL-Projekt. **Abnahme:** Graph View beantwortet „was hängt womit zusammen und wo ist es dokumentiert?“, ohne technische Call-Graph-Filter zu duplizieren oder bei Syncope den Vollbestand zu materialisieren. | O-282/O-286; [GRAPH_VIEWS_ARCHITECTURE.md](GRAPH_VIEWS_ARCHITECTURE.md) |
+| O-299 | Tag 4 / P0 / Dev-Workflow „Verstehen“ | **Vertikalen Workflow „Was macht dieses Element?“ verbinden.** | Von Code, Suche oder Chat zu einer belegten Zusammenfassung, Structure-Kontext, Process View, bestätigten Dokumentfundstellen und bekannten Analysegrenzen navigieren. Alle Ansichten teilen denselben Projekt-/Entity-Fokus, ersetzen aber ihren eigenen Arbeitszustand nicht unaufgefordert. **Abnahme:** je eine COBOL- und Java-Aufgabe beginnt bei einer natürlichsprachlichen Frage und endet bei Erklärung, relevantem Ablauf und geöffnetem Originalbeleg; Zurücknavigation erhält den Untersuchungskontext. | O-279–O-283; O-296–O-298 |
+| O-300 | Tag 4 / P0 / Dev-Workflow „Ändern“ | **Änderungsvorhaben aus Process View und Code View in ein belegtes Impact-Paket überführen.** | Bestehendes `inspect_change_package` und O-196 aus einer expliziten Aktion „Änderung untersuchen“ aufrufen. Betroffene Prozesse, direkte Codeabhängigkeiten, Datenzugriffe, bestätigte Regeln, Tests, Dokumente und unbekannte Bereiche getrennt ausweisen; technische Nähe nicht automatisch als tatsächliche Auswirkung behaupten. **Abnahme:** Ein beschriebenes Änderungsvorhaben an je einer Java- und COBOL-Entity liefert begrenzte, begründete Pfade und öffnet jeden Beleg; Kürzungen und Analysegrenzen bleiben sichtbar. | O-196/O-273; O-295/O-299 |
+| O-301 | Tag 4 / P1 / Senior-Workflow „Konservieren“ | **Kleinsten durchgängigen Erkenntnis-Workflow auf O-271 aufsetzen.** | Aus Chatantwort, Codebereich oder Prozessschritt einen Entwurf „Als Erkenntnis sichern“ erzeugen. Aussage, Typ, Code-/Dokumentbelege, Autor, Projekt, geprüfte Revision und Status `draft` speichern; erst eine ausdrückliche menschliche Freigabe erzeugt `verified`. Kein separates Parallelmodell zu O-271. **Abnahme:** Ein Senior sichert einen Fallstrick mit Code- und Dokumentbeleg, ein zweiter berechtigter Nutzer prüft ihn und die geprüfte Erkenntnis erscheint anschließend im Verstehen- und Impact-Workflow. | O-271; O-276; Team-/Projektberechtigungen |
+| O-302 | Tag 5 / P0 / Vertrauen & Provenienz | **Herkunft und Wissensstatus in allen drei Arbeitsabläufen einheitlich anzeigen.** | UI-Baustein für analysierten Codefakt, abgeleitete Modellantwort, Dokumentaussage, ungeprüften Entwurf, geprüfte Erkenntnis, Widerspruch und Analysegrenze schaffen. Commit/Quellenrevision, letzter Sync, fachlicher Prüfstand und Locator zugänglich machen. **Abnahme:** Nutzer können bei Erklärung, Prozesskante und Impact-Eintrag erkennen, woher die Aussage stammt, für welchen Stand sie gilt und ob sie geprüft ist; „möglicherweise“ wird nicht nur über Farbe vermittelt. | O-276; O-295/O-299–O-301 |
+| O-303 | Tag 5 / P1 / Wissens-Ingenieur / Kontrollieren | **Priorisierte Prüfliste als ersten Knowledge-Cockpit-Schnitt bereitstellen.** | Bestehenden Link-Manager und Review-Status wiederverwenden. Arbeitslisten für neue Linkvorschläge, widersprüchliche/abgelehnte Aussagen, nach Quellenänderung prüfbedürftige Erkenntnisse und häufig negativ bewertete Antworten bereitstellen; der Wissensgraph öffnet den konkreten Fall, ist aber nicht selbst die Arbeitsliste. **Abnahme:** Ein Wissens-Ingenieur kann einen vorgeschlagenen Link und eine veraltete Erkenntnis vom Eingang bis zur Freigabe/Ablehnung bearbeiten und sieht anschließend die Wirkung im Dev-Workflow. | O-086–O-088; O-114–O-116; O-272; O-301 |
+| O-304 | Tag 5 / P0 / Produkt- und Leistungsabnahme | **Ersten Produktschnitt an festen Aufgaben und großen Beständen messen.** | Mindestens sechs versionierte Szenarien festlegen: COBOL- und Java-Code erklären, je einen Ablauf verfolgen, je eine Änderung untersuchen sowie einen Fallstrick sichern und wiederfinden. Korrektheit und Belegbarkeit, Zeit bis zur nutzbaren Antwort, Expertenrückfragen, API-Laufzeit/Payload, Kürzungen und UI-Bedienbarkeit protokollieren. Syncope und CardDemo dienen als feste große Referenzen; Ground Truth und erwartete Fundstellen versionieren. **Abnahme:** reproduzierbarer Bericht benennt bestandene Fälle, Fehlzuordnungen, nicht analysierbare Bereiche und die nächste priorisierte Produktlücke. Kein Szenario zählt ohne tragfähigen Beleg als bestanden. | O-277/O-278/O-284; O-292–O-303 |
+
+### Reihenfolge und Tages-Gates
+
+1. **Tag 1 – Vertrag:** O-290 bis O-292. Gate: Process-Vertrag und begrenzte
+   Backendantwort sind entschieden; vorher beginnt kein breiter UI-Umbau.
+2. **Tag 2 – Projektion:** O-293 bis O-295. Gate: COBOL und Java liefern denselben
+   belegbaren Vertrag, Unsicherheit und Kürzung sind sichtbar.
+3. **Tag 3 – Ansichten:** O-296 bis O-298. Gate: Process View und Knowledge Graph
+   beantworten getrennte Fragen und bleiben auf großen Datenmengen bedienbar.
+4. **Tag 4 – Arbeitsabläufe:** O-299 bis O-301. Gate: Verstehen, Ändern und
+   Konservieren funktionieren jeweils als kleinster durchgängiger Ablauf.
+5. **Tag 5 – Vertrauen und Abnahme:** O-302 bis O-304. Gate: Herkunft ist
+   sichtbar, Kurationsarbeit hat eine Arbeitsliste und die Produktannahmen sind
+   mit reproduzierbaren Aufgaben bewertet.
+
+Wenn ein Gate nicht erreicht wird, wird der Folgetag nicht durch zusätzliche
+Visualisierungsfunktionen erweitert. Zuerst wird der fehlende Vertrag, Beleg oder
+serverseitige Grenzwert geschlossen. Audio, Erklärvideos, generierte Lernpfade,
+MCP-Server und weitere Sprachen bleiben außerhalb dieses Fünf-Tage-Schnitts; sie
+bauen später auf denselben geprüften Prozess- und Wissensobjekten auf.
 
 ## Chat-Agent: Ansichten während der Arbeit
 

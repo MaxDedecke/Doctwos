@@ -585,7 +585,7 @@ export function ChatView({
                           {/* Call Graph Prompt Card if an execution trace was produced */}
                           {(() => {
                             const callFlow = extractCallFlowData(m);
-                            if (!callFlow || !legacyViewPromptsEnabled) return null;
+                            if (!callFlow) return null;
                             const decisionKey = m.id ?? i;
                             const viewAction = m.metadata?.agent_steps?.find((step): step is AgentCallGraphViewAction =>
                               step.type === 'view_action' && step.view === 'callgraph' && step.target.entity_id === callFlow.root.id

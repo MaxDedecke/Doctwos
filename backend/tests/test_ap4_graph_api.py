@@ -191,7 +191,7 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         db_session.commit()
 
 
-def test_api_and_graph_transport_java_edge_types_and_optional_inheritance(
+def test_callgraph_keeps_exact_java_edge_types_and_knowledge_graph_collapses_them(
     client, db_session, test_project, test_team
 ):
     source, caller, target, copybook, paragraph, _ = _fixture_graph(
@@ -238,10 +238,15 @@ def test_api_and_graph_transport_java_edge_types_and_optional_inheritance(
         assert {edge["type"] for edge in explicit_graph["edges"]} == {"EXTENDS"}
 
         overview = client.get(f"/graph?project_id={test_project}").json()
-        code_edge = next(edge for edge in overview["edges"] if edge["id"] == f"code:{java_call.id}")
-        assert code_edge["link_type"] == "CALLS"
-        assert code_edge["type"] == "CALLS"
-        assert code_edge["direction"] == "directed"
+        code_dependencies = [
+            edge for edge in overview["edges"] if edge["link_type"] == "code_dependency"
+        ]
+        assert code_dependencies
+        assert all(edge["direction"] == "undirected" for edge in code_dependencies)
+        collapsed = next(
+            edge for edge in code_dependencies if edge["meta"]["edge_count"] >= 2
+        )
+        assert set(collapsed["meta"]["edge_types"]) >= {"CALLS", "EXTENDS"}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

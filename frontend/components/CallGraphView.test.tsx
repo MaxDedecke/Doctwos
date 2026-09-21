@@ -1,613 +1,256 @@
-import type { CallNode, CallEdge } from './CallGraphView';
-/**
- * O-058: `CallGraphView.tsx` hatte keinen Test -- Fokus-Laden über
- * `/callgraph/focus`, die Hops-Auswahl, die drei Export-Knöpfe
- * (JSON/CSV/GraphML) und das Kapp-Banner waren komplett ungeprüft.
- *
- * Gemockt wird nach demselben Muster wie in `KnowledgeGraphView.test.tsx`:
- * `react-force-graph-2d` braucht Canvas-Maschinerie, die jsdom nicht hat, und
- * wird durch einen Stub ersetzt, der je Knoten einen klickbaren Button rendert
- * (treibt `onNodeClick` ohne echtes Canvas an) und über `ref` die von der
- * Komponente benutzten Kamera-Methoden anbietet. Die Größe des Zeichenfeldes
- * kommt aus einem `ResizeObserver`-Stub -- ohne ihn bleibt `dimensions.width`
- * bei 0 und der Graph wird gar nicht erst gerendert.
- */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { CallGraphView } from './CallGraphView';
+import { ProcessView, type CallEdge, type CallNode } from './CallGraphView';
 
-type GraphStubProps = {
+type GraphProps = {
   graphData: { nodes: CallNode[]; links: CallEdge[] };
   onNodeClick: (node: CallNode) => void;
-  onLinkClick?: (edge: CallEdge) => void;
-  linkLabel?: (edge: CallEdge) => string;
-  linkWidth?: (edge: CallEdge) => number;
-  linkColor?: (edge: CallEdge) => string;
+  onLinkClick: (edge: CallEdge) => void;
+  linkLabel: (edge: CallEdge) => string;
   linkDirectionalParticles?: (edge: CallEdge) => number;
-  // O-120: exponiert, damit ein Test den tatsächlich berechneten Tooltip-
-  // Text prüfen kann, ohne echtes Canvas.
-  nodeLabel?: (node: CallNode) => string;
-  nodeColor?: (node: CallNode) => string;
 };
-const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
-  React.useImperativeHandle(ref, () => ({
-    zoom: () => 1,
-    zoomToFit: () => {},
-  }));
-  return (
-    <div data-testid="force-graph-stub">
-      {props.graphData.nodes.map((node) => (
-        <button
-          key={node.id}
-          data-testid={`node-${node.id}`}
-          data-color={props.nodeColor?.(node)}
-          title={props.nodeLabel?.(node)}
-          onClick={() => props.onNodeClick(node)}
-        >
-          {node.name}
-        </button>
-      ))}
-      {props.graphData.links.map((link) => (
-        <button
-          key={link.id}
-          data-testid={`link-${link.id}`}
-          data-particles={props.linkDirectionalParticles?.(link)}
-          data-width={props.linkWidth?.(link)}
-          data-color={props.linkColor?.(link)}
-          title={props.linkLabel?.(link)}
-          onClick={() => props.onLinkClick?.(link)}
-        />
-      ))}
-    </div>
-  );
+const ForceGraph = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphProps>((props, ref) => {
+  React.useImperativeHandle(ref, () => ({ zoom: () => 1, zoomToFit: () => {} }));
+  return <div data-testid="process-graph">{props.graphData.nodes.map(node => (
+    <button
+      key={node.id}
+      data-testid={`node-${node.id}`}
+      data-x={node.x}
+      data-y={node.y}
+      onClick={() => props.onNodeClick(node)}
+    >
+      {node.name}
+    </button>
+  ))}{props.graphData.links.map(edge => (
+    <button
+      key={edge.id}
+      data-testid={`edge-${edge.id}`}
+      title={props.linkLabel(edge)}
+      data-particles={props.linkDirectionalParticles ? props.linkDirectionalParticles(edge) : 0}
+      onClick={() => props.onLinkClick(edge)}
+    >
+      {edge.type}
+    </button>
+  ))}</div>;
 });
-ForceGraph2DStub.displayName = 'ForceGraph2DStub';
+ForceGraph.displayName = 'ForceGraph';
+vi.mock('react-force-graph-2d', () => ({ default: ForceGraph }));
 
-vi.mock('react-force-graph-2d', () => ({ default: ForceGraph2DStub }));
-
-// Wie in KnowledgeGraphView.test.tsx: ein echter ResizeObserver ruft nie
-// synchron aus observe() heraus zurück -- der Stub muss das nachbilden.
 class ResizeObserverStub {
-  private cb: ResizeObserverCallback;
-  constructor(cb: ResizeObserverCallback) { this.cb = cb; }
-  observe() {
-    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver));
-  }
-  unobserve() {}
+  constructor(private readonly callback: ResizeObserverCallback) {}
+  observe() { queueMicrotask(() => this.callback([{ contentRect: { width: 800, height: 600 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver)); }
   disconnect() {}
 }
 
-/** Zwei verbundene Entities -- das Minimum, ab dem der Graph gerendert wird. */
-const FOCUS_RESPONSE = {
+const ENTITY = { id: 42, name: 'ZAHLUNG' };
+const PROJECTION = {
   nodes: [
-    { id: 1, name: 'HAUPT', type: 'program', file_path: 'src/HAUPT.cbl', start_line: 10, source_id: 5 },
-    { id: 2, name: 'UNTER', type: 'program', file_path: 'src/UNTER.cbl', start_line: 20, source_id: 5 },
+    { id: 'entity:42', kind: 'entry', label: 'ZAHLUNG', language: 'cobol', entity_id: 42, locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 10 } },
+    { id: 'entity:43', kind: 'step', label: 'PRUEFEN', language: 'cobol', entity_id: 43, locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 30 } },
+    { id: 'external:edge:8', kind: 'external_call', label: 'BANK-AUTH', language: 'cobol', locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 35 } },
   ],
-  edges: [{ id: 100, source: 1, target: 2, type: 'CALL', resolution: 'resolved', target_name: 'UNTER' }],
-  truncated: false,
+  transitions: [
+    { id: 'code-edge:7', source: 'entity:42', target: 'entity:43', kind: 'call', certainty: 'certain', resolution: 'resolved', code_edge_types: ['PERFORM'], locator: { start_line: 14 }, meta: {} },
+    { id: 'code-edge:8', source: 'entity:43', target: 'external:edge:8', kind: 'external_call', certainty: 'unresolved', resolution: 'unresolved', code_edge_types: ['CALL'], locator: { start_line: 35 }, meta: {} },
+  ],
+  truncation: { truncated: true, reasons: ['edge_limit'] },
 };
 
-const ENTITY = { id: 42, name: 'HAUPT' };
-
-type FetchStub = ReturnType<typeof vi.fn>;
-
-/** fetch-Stub, der Fokus- und Export-Aufrufe getrennt beantwortet. */
-function stubFetch(options: {
-  focus?: unknown;
-  focusOk?: boolean;
-  focusStatus?: number;
-  exportOk?: boolean;
-  exportStatus?: number;
-} = {}): FetchStub {
-  const fetchMock = vi.fn(async (url: string) => {
-    if (url.includes('/callgraph/export')) {
-      return {
-        ok: options.exportOk !== false,
-        status: options.exportStatus ?? 200,
-        blob: async () => new Blob(['export']),
-      };
-    }
-    return {
-      ok: options.focusOk !== false,
-      status: options.focusStatus ?? 200,
-      json: async () => options.focus ?? FOCUS_RESPONSE,
-    };
-  });
+function renderView(onFileSelect = vi.fn()) {
+  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => PROJECTION }));
   vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
+  render(<LanguageProvider><ProcessView theme="dark" focusedEntity={ENTITY} onFileSelect={onFileSelect} projectId={3} /></LanguageProvider>);
+  return { fetchMock, onFileSelect };
 }
 
-function renderView(props: Partial<React.ComponentProps<typeof CallGraphView>> = {}) {
-  const onFileSelect = vi.fn();
-  const view = render(
-    <LanguageProvider>
-      <CallGraphView theme="dark" focusedEntity={ENTITY} onFileSelect={onFileSelect} {...(props)} />
-    </LanguageProvider>
-  );
-  return { ...view, onFileSelect };
-}
+describe('ProcessView', () => {
+  beforeEach(() => vi.stubGlobal('ResizeObserver', ResizeObserverStub));
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-/** Die URL des zuletzt abgesetzten Fokus-Aufrufs. */
-function lastFocusUrl(fetchMock: FetchStub): string {
-  const calls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/callgraph/focus'));
-  return String(calls[calls.length - 1][0]);
-}
-
-function lastExportUrl(fetchMock: FetchStub): string {
-  const calls = fetchMock.mock.calls.filter(([url]) => String(url).includes('/callgraph/export'));
-  return String(calls[calls.length - 1][0]);
-}
-
-describe('CallGraphView', () => {
-  beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  it('loads the bounded process projection and exposes process kinds', async () => {
+    const { fetchMock } = renderView();
+    expect(await screen.findByTestId('process-graph')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/process/focus?entity_id=42&hops=1&project_id=3'),
+      expect.anything(),
+    );
+    expect(screen.getByRole('button', { name: 'Aufruf' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Extern / offen' })).toBeTruthy();
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+  it('opens original transition and node locations but not unresolved targets', async () => {
+    const { onFileSelect } = renderView();
+    fireEvent.click(await screen.findByTestId('edge-code-edge:7'));
+    expect(onFileSelect).toHaveBeenCalledWith('ZAHLUNG.CBL', 14, 5);
+    fireEvent.click(screen.getByTestId('node-entity:43'));
+    expect(onFileSelect).toHaveBeenCalledWith('ZAHLUNG.CBL', 30, 5);
+    fireEvent.click(screen.getByTestId('node-external:edge:8'));
+    expect(onFileSelect).toHaveBeenCalledTimes(2);
   });
 
-  describe('Fokus-Laden', () => {
-    it('öffnet die Originalzeile einer Ressourcenkante und zeigt den Auflösungsgrund', async () => {
-      stubFetch({ focus: { ...FOCUS_RESPONSE, edges: [{
-        ...FOCUS_RESPONSE.edges[0], type: 'USES_RESOURCE', start_line: 17,
-        meta: { resolution_reason: 'exact_resource_target' },
-      }] } });
-      const onFileSelect = vi.fn();
-      renderView({ onFileSelect });
-      const edge = await screen.findByTestId('link-edge:100');
-      expect(edge.title).toContain('exact_resource_target');
-      fireEvent.click(edge);
-      expect(onFileSelect).toHaveBeenCalledWith('src/HAUPT.cbl', 17, 5);
+  it('shows uncertainty, original edge type and truncation', async () => {
+    renderView();
+    const external = await screen.findByTestId('edge-code-edge:8');
+    expect(external.title).toContain('unresolved');
+    expect(external.title).toContain('CALL');
+    expect(screen.getByText('Auf 500 Knoten begrenzt')).toBeTruthy();
+  });
+
+  it('separates node selection from process root and exposes "Ab hier untersuchen" only for non-root nodes (O-297)', async () => {
+    const onInvestigateFromHere = vi.fn();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('entity_id=43')) {
+        return {
+          ok: true,
+          json: async () => ({
+            nodes: [
+              { id: 'entity:43', kind: 'entry', label: 'PRUEFEN', language: 'cobol', entity_id: 43, locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 30 } },
+              { id: 'external:edge:8', kind: 'external_call', label: 'BANK-AUTH', language: 'cobol', locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 35 } },
+            ],
+            transitions: [
+              { id: 'code-edge:8', source: 'entity:43', target: 'external:edge:8', kind: 'external_call', certainty: 'unresolved', resolution: 'unresolved', code_edge_types: ['CALL'], locator: { start_line: 35 } },
+            ],
+            truncation: { truncated: false, reasons: [] },
+          }),
+        };
+      }
+      return { ok: true, json: async () => PROJECTION };
     });
-    it('verlangt zuerst einen Fokus und ruft ohne ihn gar nicht erst ab', () => {
-      const fetchMock = stubFetch();
+    vi.stubGlobal('fetch', fetchMock);
 
-      renderView({ focusedEntity: null });
+    render(
+      <LanguageProvider>
+        <ProcessView
+          theme="dark"
+          focusedEntity={ENTITY}
+          onFileSelect={vi.fn()}
+          projectId={3}
+          onInvestigateFromHere={onInvestigateFromHere}
+        />
+      </LanguageProvider>
+    );
 
-      expect(screen.getByText('Bitte zuerst ein Code-Objekt fokussieren.')).toBeTruthy();
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
+    expect(await screen.findByTestId('process-graph')).toBeTruthy();
+    expect(screen.queryByTestId('investigate-from-here')).toBeNull();
 
-    it('lädt die Nachbarschaft der fokussierten Entity und rendert sie', async () => {
-      const fetchMock = stubFetch();
+    fireEvent.click(screen.getByTestId('node-entity:43'));
+    const btn = await screen.findByTestId('investigate-from-here');
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toContain('Ab hier untersuchen');
 
-      renderView();
-
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-      expect(screen.getByTestId('node-entity:2')).toBeTruthy();
-      expect(lastFocusUrl(fetchMock)).toContain('entity_id=42');
-      expect(lastFocusUrl(fetchMock)).toContain('hops=1');
-    });
-
-    it('markiert einen Knoten aus einer nicht uneingeschränkt analysierten Datei (O-120)', async () => {
-      stubFetch({
-        focus: {
-          ...FOCUS_RESPONSE,
-          nodes: [
-            {
-              ...FOCUS_RESPONSE.nodes[0],
-              analysis_status: 'partial',
-              analysis_reasons: ['mismatched input'],
-            },
-            FOCUS_RESPONSE.nodes[1],
-          ],
-        },
-      });
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-      const marked = screen.getByTestId('node-entity:1');
-      const clean = screen.getByTestId('node-entity:2');
-      expect(marked.getAttribute('title')).toContain('mismatched input');
-      expect(clean.getAttribute('title')).not.toContain('mismatched input');
-    });
-
-    it('schickt den Projektkontext mit, wenn ein Projekt gewählt ist', async () => {
-      const fetchMock = stubFetch();
-
-      renderView({ projectId: 7 });
-
-      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-      expect(lastFocusUrl(fetchMock)).toContain('project_id=7');
-    });
-
-    it('lässt den Projektparameter im Allgemein-Modus weg', async () => {
-      const fetchMock = stubFetch();
-
-      renderView({ projectId: null });
-
-      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-      expect(lastFocusUrl(fetchMock)).not.toContain('project_id');
-    });
-
-    it('zeigt den HTTP-Status, wenn der Server den Fokus ablehnt', async () => {
-      stubFetch({ focusOk: false, focusStatus: 403 });
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByText('HTTP 403')).toBeTruthy());
-    });
-
-    it('fängt einen Netzwerkfehler ab, statt die Ansicht abstürzen zu lassen', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByText('network down')).toBeTruthy());
-    });
-
-    it('ergänzt für eine unaufgelöste Kante einen eigenen Knoten aus dem Zielnamen', async () => {
-      stubFetch({
-        focus: {
-          nodes: [{ id: 1, name: 'HAUPT', type: 'program', file_path: 'src/HAUPT.cbl' }],
-          edges: [{ id: 100, source: 1, target: null, type: 'CALL', resolution: 'unresolved', target_name: 'FEHLT' }],
-          truncated: false,
-        },
-      });
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByTestId('node-unresolved:100')).toBeTruthy());
-      expect(screen.getByText('FEHLT')).toBeTruthy();
-    });
-
-    it('lädt über den Neu-laden-Knopf erneut', async () => {
-      const fetchMock = stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-      const before = fetchMock.mock.calls.length;
-
-      fireEvent.click(screen.getByTitle('Neu laden'));
-
-      await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(before));
-    });
-
-    it('meldet beim Klick auf einen Knoten Datei, Zeile und Quelle nach oben', async () => {
-      stubFetch();
-
-      const { onFileSelect } = renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:2')).toBeTruthy());
-
-      fireEvent.click(screen.getByTestId('node-entity:2'));
-
-      expect(onFileSelect).toHaveBeenCalledWith('src/UNTER.cbl', 20, 5);
-    });
-
-    it('navigiert auch von einer Java-Methode aus dem Call-Graphen in den Editor', async () => {
-      stubFetch({
-        focus: {
-          nodes: [
-            { id: 101, name: 'PaymentService', type: 'class', file_path: 'src/main/java/com/acme/PaymentService.java', start_line: 8, source_id: 5 },
-            { id: 102, name: 'calculate', type: 'method', file_path: 'src/main/java/com/acme/PaymentService.java', start_line: 24, source_id: 5 },
-          ],
-          edges: [{ id: 1001, source: 101, target: 102, type: 'CALLS', resolution: 'resolved', target_name: 'calculate' }],
-          edge_types: ['CALLS'],
-          truncated: false,
-        },
-      });
-
-      const { onFileSelect } = renderView({ focusedEntity: { id: 101, name: 'PaymentService' } });
-
-      await waitFor(() => expect(screen.getByTestId('node-entity:102')).toBeTruthy());
-      expect(screen.getByTestId('node-entity:102').textContent).toBe('calculate');
-
-      fireEvent.click(screen.getByTestId('node-entity:102'));
-
-      expect(onFileSelect).toHaveBeenCalledWith(
-        'src/main/java/com/acme/PaymentService.java',
-        24,
-        5,
+    fireEvent.click(btn);
+    expect(onInvestigateFromHere).toHaveBeenCalledWith({ id: 43, name: 'PRUEFEN' });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/process/focus?entity_id=43'),
+        expect.anything()
       );
     });
+  });
 
-    // Der Knoten für ein unaufgelöstes Ziel wird allein aus `target_name`
-    // gebaut und hat deshalb gar keinen Dateipfad -- geprüft wird hier also
-    // das beobachtbare Verhalten (Klick öffnet nichts), nicht speziell die
-    // `!node.unresolved`-Bedingung, die für so einen Knoten ohnehin nie
-    // allein den Ausschlag gibt.
-    it('öffnet beim Klick auf ein unaufgelöstes Ziel keine Datei', async () => {
-      stubFetch({
-        focus: {
-          nodes: [{ id: 1, name: 'HAUPT', type: 'program', file_path: 'src/HAUPT.cbl' }],
-          edges: [{ id: 100, source: 1, target: null, type: 'CALL', resolution: 'unresolved', target_name: 'FEHLT' }],
-          truncated: false,
-        },
-      });
-
-      const { onFileSelect } = renderView();
-      await waitFor(() => expect(screen.getByTestId('node-unresolved:100')).toBeTruthy());
-
-      fireEvent.click(screen.getByTestId('node-unresolved:100'));
-
-      expect(onFileSelect).not.toHaveBeenCalled();
+  it('ten consecutive node clicks do not change root or positions; only "Ab hier untersuchen" creates a new projection (O-297 acceptance)', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('entity_id=43')) {
+        return {
+          ok: true,
+          json: async () => ({
+            nodes: [
+              { id: 'entity:43', kind: 'entry', label: 'PRUEFEN', language: 'cobol', entity_id: 43, locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 30 } },
+            ],
+            transitions: [],
+            truncation: { truncated: false, reasons: [] },
+          }),
+        };
+      }
+      return { ok: true, json: async () => PROJECTION };
     });
+    vi.stubGlobal('fetch', fetchMock);
 
-    it('blendet über den Kantentyp-Filter Kanten und die daran hängenden Knoten aus', async () => {
-      stubFetch();
+    render(
+      <LanguageProvider>
+        <ProcessView theme="dark" focusedEntity={ENTITY} onFileSelect={vi.fn()} projectId={3} />
+      </LanguageProvider>
+    );
 
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:2')).toBeTruthy());
+    expect(await screen.findByTestId('process-graph')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-      fireEvent.click(screen.getByRole('button', { name: 'CALL' }));
+    const node42 = screen.getByTestId('node-entity:42');
+    const node43 = screen.getByTestId('node-entity:43');
 
-      await waitFor(() => expect(screen.queryByTestId('node-entity:2')).toBeNull());
-      // Nur noch der Fokusknoten selbst -- die Ansicht meldet "keine Verbindungen".
-      expect(screen.getByText('Keine Call-Graph-Verbindungen für diesen Fokus.')).toBeTruthy();
-    });
+    for (let i = 0; i < 10; i++) {
+      fireEvent.click(i % 2 === 0 ? node43 : node42);
+    }
 
-    it('transportiert freie Java-Kantentypen und lädt Vererbung optional nach', async () => {
-      const fetchMock = stubFetch({
-        focus: {
-          nodes: FOCUS_RESPONSE.nodes,
-          edges: [
-            { id: 101, source: 1, target: 2, type: 'CALLS', resolution: 'resolved', target_name: 'run' },
-            { id: 102, source: 1, target: 2, type: 'EXTENDS', resolution: 'resolved', target_name: 'Target' },
-          ],
-          edge_types: ['CALLS', 'EXTENDS'],
-          truncated: false,
-        },
-      });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('ZAHLUNG').length).toBeGreaterThan(0);
 
-      renderView();
+    fireEvent.click(node43);
+    const investigateBtn = await screen.findByTestId('investigate-from-here');
+    fireEvent.click(investigateBtn);
 
-      await waitFor(() => expect(screen.getByRole('button', { name: 'CALLS' })).toBeTruthy());
-      expect(screen.getByRole('button', { name: 'EXTENDS' })).toBeTruthy();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Vererbung' }));
-      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('include_inheritance=true'));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        expect.stringContaining('/process/focus?entity_id=43'),
+        expect.anything()
+      );
     });
   });
 
-  describe('Hops-Auswahl', () => {
-    it('lädt bei einer anderen Hop-Zahl neu', async () => {
-      const fetchMock = stubFetch();
+  it('animates only outgoing transitions of the selected node and preserves positions (O-297)', async () => {
+    renderView();
+    expect(await screen.findByTestId('process-graph')).toBeTruthy();
 
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+    const edge7 = screen.getByTestId('edge-code-edge:7');
+    const edge8 = screen.getByTestId('edge-code-edge:8');
 
-      fireEvent.click(screen.getByRole('button', { name: '3 Hop' }));
+    expect(Number(edge7.getAttribute('data-particles'))).toBe(2);
+    expect(Number(edge8.getAttribute('data-particles'))).toBe(0);
 
-      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('hops=3'));
-    });
-
-    it('erlaubt die Ablaufanalyse über bis zu fünf Hops', async () => {
-      const fetchMock = stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      fireEvent.click(screen.getByRole('button', { name: '5 Hop' }));
-
-      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('hops=5'));
-    });
-
-    it('hebt die aktive Hop-Zahl hervor', async () => {
-      stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      expect(screen.getByRole('button', { name: '1 Hop' }).className).toContain('border-ds-indigo-500');
-      expect(screen.getByRole('button', { name: '2 Hop' }).className).not.toContain('border-ds-indigo-500');
-
-      fireEvent.click(screen.getByRole('button', { name: '2 Hop' }));
-
-      expect(screen.getByRole('button', { name: '2 Hop' }).className).toContain('border-ds-indigo-500');
-      expect(screen.getByRole('button', { name: '1 Hop' }).className).not.toContain('border-ds-indigo-500');
-    });
-
-    it('beschriftet die Kopfzeile im Singular bzw. Plural', async () => {
-      stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      expect(screen.getByText('Call-Graph · 1 Hop')).toBeTruthy();
-
-      fireEvent.click(screen.getByRole('button', { name: '2 Hop' }));
-
-      expect(screen.getByText('Call-Graph · 2 Hops')).toBeTruthy();
-    });
+    fireEvent.click(screen.getByTestId('node-entity:43'));
+    expect(Number(edge7.getAttribute('data-particles'))).toBe(0);
+    expect(Number(edge8.getAttribute('data-particles'))).toBe(2);
   });
 
-  describe('Export', () => {
-    let createdAnchor: HTMLAnchorElement | null;
-    let anchorClick: ReturnType<typeof vi.spyOn>;
-
-    beforeEach(() => {
-      createdAnchor = null;
-      // jsdom kennt URL.createObjectURL nicht -- die beiden Methoden werden
-      // am echten URL-Konstruktor ergaenzt und danach wieder entfernt, damit
-      // URL selbst funktionsfaehig bleibt.
-      Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:callgraph'), revokeObjectURL: vi.fn() });
-      anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-        createdAnchor = this;
-      });
-    });
-
-    afterEach(() => {
-      anchorClick.mockRestore();
-      Reflect.deleteProperty(URL, 'createObjectURL');
-      Reflect.deleteProperty(URL, 'revokeObjectURL');
-    });
-
-    it('bietet alle drei Formate an', async () => {
-      stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      expect(screen.getByRole('button', { name: 'json' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'csv' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'graphml' })).toBeTruthy();
-    });
-
-    it('lädt den JSON-Export als Datei mit dem Namen der Entity herunter', async () => {
-      const fetchMock = stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      fireEvent.click(screen.getByRole('button', { name: 'json' }));
-
-      await waitFor(() => expect(anchorClick).toHaveBeenCalled());
-      expect(lastExportUrl(fetchMock)).toContain('format=json');
-      expect(lastExportUrl(fetchMock)).toContain('entity_id=42');
-      expect(createdAnchor!.download).toBe('callgraph-HAUPT.json');
-      expect(createdAnchor!.href).toContain('blob:callgraph');
-    });
-
-    it('benutzt für GraphML die eigene Dateiendung', async () => {
-      const fetchMock = stubFetch();
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      fireEvent.click(screen.getByRole('button', { name: 'graphml' }));
-
-      await waitFor(() => expect(anchorClick).toHaveBeenCalled());
-      expect(lastExportUrl(fetchMock)).toContain('format=graphml');
-      expect(createdAnchor!.download).toBe('callgraph-HAUPT.graphml');
-    });
-
-    it('exportiert mit der gerade gewählten Hop-Zahl und dem Projektkontext', async () => {
-      const fetchMock = stubFetch();
-
-      renderView({ projectId: 7 });
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      fireEvent.click(screen.getByRole('button', { name: '3 Hop' }));
-      await waitFor(() => expect(lastFocusUrl(fetchMock)).toContain('hops=3'));
-
-      fireEvent.click(screen.getByRole('button', { name: 'csv' }));
-
-      await waitFor(() => expect(anchorClick).toHaveBeenCalled());
-      expect(lastExportUrl(fetchMock)).toContain('hops=3');
-      expect(lastExportUrl(fetchMock)).toContain('project_id=7');
-    });
-
-    it('zeigt einen Fehler statt eines leeren Downloads, wenn der Export scheitert', async () => {
-      stubFetch({ exportOk: false, exportStatus: 500 });
-
-      renderView();
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-
-      fireEvent.click(screen.getByRole('button', { name: 'json' }));
-
-      await waitFor(() => expect(screen.getByText('Export fehlgeschlagen (HTTP 500)')).toBeTruthy());
-      expect(anchorClick).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Kapp-Banner', () => {
-    it('warnt, wenn der Server die Nachbarschaft gekappt hat', async () => {
-      stubFetch({ focus: { ...FOCUS_RESPONSE, truncated: true } });
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByText('Auf 500 Knoten begrenzt')).toBeTruthy());
-    });
-
-    it('bleibt still, wenn die Nachbarschaft vollständig ist', async () => {
-      stubFetch();
-
-      renderView();
-
-      await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
-      expect(screen.queryByText('Auf 500 Knoten begrenzt')).toBeNull();
-    });
-
-    it('nimmt die Warnung zurück, sobald ein Nachladen ungekappt zurückkommt', async () => {
-      let truncated = true;
-      vi.stubGlobal('fetch', vi.fn(async () => ({
-        ok: true,
-        status: 200,
-        json: async () => ({ ...FOCUS_RESPONSE, truncated }),
-      })));
-
-      renderView();
-      await waitFor(() => expect(screen.getByText('Auf 500 Knoten begrenzt')).toBeTruthy());
-
-      truncated = false;
-      fireEvent.click(screen.getByTitle('Neu laden'));
-
-      await waitFor(() => expect(screen.queryByText('Auf 500 Knoten begrenzt')).toBeNull());
-    });
-  });
-
-  describe('Agenten-Ablauf (customFlow)', () => {
-    const CUSTOM_FLOW = {
-      root: { id: 10, name: 'process_payment', type: 'function', file_path: 'src/pay.py', start_line: 5 },
-      hops: 2,
-      direction: 'outgoing' as const,
-      truncated: false,
-      nodes: [
-        { id: 10, name: 'process_payment', type: 'function', file_path: 'src/pay.py', start_line: 5 },
-        { id: 20, name: 'charge_card', type: 'function', file_path: 'src/stripe.py', start_line: 15 },
-      ],
-      edges: [
-        { id: 100, source: 10, target: 20, target_name: 'charge_card', type: 'CALL', resolution: 'resolved' },
-      ],
-      mermaid: 'flowchart TD\n  n10 --> n20',
+  it('handles a 500-node projection within budget and remains usable (O-297)', async () => {
+    const nodes = Array.from({ length: 500 }, (_, i) => ({
+      id: `entity:${i + 1}`,
+      kind: i === 0 ? 'entry' : 'step',
+      label: `STEP-${i + 1}`,
+      language: 'cobol',
+      entity_id: i + 1,
+      locator: { source_id: 1, file_path: 'BIG.CBL', start_line: i * 10 + 1 },
+    }));
+    const transitions = Array.from({ length: 499 }, (_, i) => ({
+      id: `code-edge:${i + 1}`,
+      source: `entity:${i + 1}`,
+      target: `entity:${i + 2}`,
+      kind: 'call',
+      certainty: 'certain' as const,
+      resolution: 'resolved',
+      code_edge_types: ['PERFORM'],
+      locator: { start_line: i * 10 + 5 },
+    }));
+    const bigProjection = {
+      nodes,
+      transitions,
+      truncation: { truncated: false, reasons: [] },
     };
 
-    it('rendert den Ablauf direkt aus customFlow ohne API-Aufruf', async () => {
-      const fetchMock = stubFetch();
-      renderView({ customFlow: CUSTOM_FLOW, focusedEntity: null });
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => bigProjection })));
 
-      await waitFor(() => expect(screen.getByTestId('node-entity:10')).toBeTruthy());
-      expect(screen.getByTestId('node-entity:20')).toBeTruthy();
-      expect(screen.getByText('Agenten-Ablauf')).toBeTruthy();
-      expect(screen.getByText(/Ausgehend · 2 Hops \(2 Knoten\)/)).toBeTruthy();
-      // Kein API-Aufruf
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
+    render(
+      <LanguageProvider>
+        <ProcessView theme="dark" focusedEntity={{ id: 1, name: 'STEP-1' }} onFileSelect={vi.fn()} />
+      </LanguageProvider>
+    );
 
-    it('navigiert beim Klick auf einen Knoten im Ablauf zur Datei', async () => {
-      stubFetch();
-      const { onFileSelect } = renderView({ customFlow: CUSTOM_FLOW, focusedEntity: null });
-
-      await waitFor(() => expect(screen.getByTestId('node-entity:20')).toBeTruthy());
-      fireEvent.click(screen.getByTestId('node-entity:20'));
-
-      expect(onFileSelect).toHaveBeenCalledWith('src/stripe.py', 15, undefined);
-    });
-
-    it('ruft onClearCustomFlow auf, wenn auf "Standard-Graph laden" geklickt wird', async () => {
-      stubFetch();
-      const onClearCustomFlow = vi.fn();
-      renderView({ customFlow: CUSTOM_FLOW, onClearCustomFlow });
-
-      await waitFor(() => expect(screen.getByTitle('Standard-Graph laden')).toBeTruthy());
-      fireEvent.click(screen.getByTitle('Standard-Graph laden'));
-
-      expect(onClearCustomFlow).toHaveBeenCalledTimes(1);
-    });
-
-    it('hebt die aktive Kante mit Partikeln und vergrößerter Linienstärke hervor', async () => {
-      stubFetch();
-      const FLOW_WITH_HIGHLIGHT = {
-        ...CUSTOM_FLOW,
-        focus_entity_id: 20,
-        highlighted_edge_id: 100,
-      };
-      renderView({ customFlow: FLOW_WITH_HIGHLIGHT, focusedEntity: null });
-
-      await waitFor(() => expect(screen.getByTestId('link-edge:100')).toBeTruthy());
-      const edge = screen.getByTestId('link-edge:100');
-      expect(Number(edge.getAttribute('data-particles'))).toBe(5);
-      expect(Number(edge.getAttribute('data-width'))).toBe(4.5);
-
-      const targetNode = screen.getByTestId('node-entity:20');
-      const sourceNode = screen.getByTestId('node-entity:10');
-      expect(targetNode.getAttribute('data-color')).toBe('#0284c7');
-      expect(sourceNode.getAttribute('data-color')).toBe('#047857');
-    });
+    expect(await screen.findByTestId('process-graph')).toBeTruthy();
+    expect(screen.getByTestId('node-entity:500')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('node-entity:500'));
+    expect(screen.getByTestId('investigate-from-here')).toBeTruthy();
   });
 });

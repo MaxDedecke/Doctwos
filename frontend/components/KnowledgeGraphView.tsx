@@ -103,6 +103,15 @@ export interface GraphEdge {
   meta?: Record<string, unknown>;
   start_line?: number | null;
   end_line?: number | null;
+  chunk_id?: number | null;
+  document_file_path?: string | null;
+  document_source_id?: number | string | null;
+  document_start_line?: number | null;
+  document_end_line?: number | null;
+  document_page?: number | string | null;
+  document_section?: string | null;
+  document_url_anchor?: string | null;
+  document_url?: string | null;
 }
 
 export function isEdgeDirected(edge: GraphEdge): boolean {
@@ -184,8 +193,10 @@ export function KnowledgeGraphView({
   const [viewMode, setViewMode] = useState<'overview' | 'neighborhood'>('overview');
   const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
   const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
-  // O-285: Nur verlinkte Elemente anzeigen (Default: aktiv)
-  const [onlyLinked, setOnlyLinked] = useState(true);
+  // The knowledge graph is a relationship view. Unlinked inventory belongs in
+  // a paginated list, because rendering it here creates thousands of meaningless
+  // force-layout nodes and obscures the actual code/document evidence network.
+  const onlyLinked = true;
 
   // Keep the expensive initial overview alive while a node neighborhood is shown.
   // The neighborhood replaces the rendered data temporarily, but must not discard
@@ -304,12 +315,6 @@ export function KnowledgeGraphView({
       setIsLoading(false);
     }
   }, [selectedProject, selectedDoc, onlyLinked]);
-
-  const toggleOnlyLinked = () => {
-    const nextValue = !onlyLinked;
-    setOnlyLinked(nextValue);
-    loadOverview(false, !nextValue);
-  };
 
   const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
     return node.project_id ?? selectedProject?.id ?? null;
@@ -594,16 +599,16 @@ export function KnowledgeGraphView({
     return Array.from(s);
   }, [rawEdges]);
 
-  // Large graphs start with only the first relationship family visible. The
-  // reset token changes on each newly loaded dataset, while ordinary chip
-  // toggles leave it untouched so they never reset a user's manual selection.
+  // A freshly loaded knowledge graph starts with every relationship family
+  // visible. The backend already collapses parser-specific code edge types into
+  // one bounded code_dependency family.
   const lastLinkFilterResetRef = useRef<string | null>(null);
   useEffect(() => {
     if (linkTypes.length === 0) return;
     const filterKey = `${selectedProject?.id ?? 'general'}:${linkFilterResetToken}`;
     if (lastLinkFilterResetRef.current === filterKey) return;
     lastLinkFilterResetRef.current = filterKey;
-    setHiddenLinkTypes(new Set(linkTypes.slice(1)));
+    setHiddenLinkTypes(new Set());
   }, [linkFilterResetToken, linkTypes, selectedProject?.id]);
 
   // Tune the force simulation whenever the visible node/link set changes. The
@@ -930,6 +935,17 @@ export function KnowledgeGraphView({
 
   const edgeSrc = selectedEdge ? resolveNode(selectedEdge.source) : undefined;
   const edgeTgt = selectedEdge ? resolveNode(selectedEdge.target) : undefined;
+  const selectedEdgeLocation = selectedEdge
+    ? selectedEdge.document_section
+      || (selectedEdge.document_page != null ? t('knowledgeGraphView.pageValue', { page: selectedEdge.document_page }) : null)
+      || (selectedEdge.document_start_line != null
+        ? t('knowledgeGraphView.lineValue', {
+            start: selectedEdge.document_start_line,
+            end: selectedEdge.document_end_line ?? selectedEdge.document_start_line,
+          })
+        : null)
+      || selectedEdge.document_url_anchor
+    : null;
 
   // Shared between the sidebar overlay (spacious layouts) and the bottom drawer
   // (compact 3-/4-panel layouts) — only the surrounding container differs.
@@ -1180,6 +1196,28 @@ export function KnowledgeGraphView({
               {selectedEdge.context}
             </div>
           )}
+
+          {selectedEdgeLocation && (
+            <div className="space-y-1">
+              <p className={cn('text-[10px]', textMuted)}>{t('knowledgeGraphView.documentLocationLabel')}</p>
+              <p className={cn('text-[10px] font-mono break-words', textMain)}>{selectedEdgeLocation}</p>
+            </div>
+          )}
+
+          {selectedEdge.relation_type === 'documented' && edgeTgt && onFileSelect && (
+            <button
+              onClick={() => {
+                let path = selectedEdge.document_file_path || selectedEdge.document_url || edgeTgt.url || edgeTgt.label;
+                if (selectedEdge.document_url_anchor && !path.includes('#')) {
+                  path = `${path}#${selectedEdge.document_url_anchor}`;
+                }
+                onFileSelect(path, selectedEdge.document_start_line ?? null, selectedEdge.document_source_id ?? edgeTgt.source_id ?? null);
+              }}
+              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+              <ExternalLink className="w-3 h-3" />
+              {t('knowledgeGraphView.openDocumentLocation')}
+            </button>
+          )}
         </div>
       )}
     </>
@@ -1237,26 +1275,6 @@ export function KnowledgeGraphView({
             })}
           </div>
         )}
-
-        <div className={cn('h-4 w-px shrink-0', border)} />
-
-        {/* O-285: Nur verlinkte Elemente anzeigen (Default: aktiv) */}
-        <button
-          type="button"
-          onClick={toggleOnlyLinked}
-          title={t('knowledgeGraphView.onlyLinkedElements')}
-          data-testid="toggle-only-linked"
-          className={cn(
-            'flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all',
-            chipBase,
-            onlyLinked
-              ? 'opacity-100 border-ds-indigo-500/60 bg-ds-indigo-500/10 text-ds-indigo-400 font-medium'
-              : 'opacity-40 hover:opacity-70'
-          )}
-        >
-          <Link2 className="w-3 h-3 shrink-0" />
-          {t('knowledgeGraphView.onlyLinkedElements')}
-        </button>
 
         {/* Right: focus indicator + counts + controls */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
@@ -1379,7 +1397,7 @@ export function KnowledgeGraphView({
               linkDirectionalArrowLength={getLinkArrowLength}
               linkDirectionalArrowRelPos={getLinkArrowRelPos}
               linkCurvature={getLinkCurvature}
-              linkDirectionalParticles={(l: GraphEdge) => l.id === selectedEdgeId ? 5 : (isEdgeDirected(l) && isLinkTouchingFocus(l) ? 2 : 0)}
+              linkDirectionalParticles={(l: GraphEdge) => l.id === selectedEdgeId ? 3 : 0}
               linkDirectionalParticleSpeed={(l: GraphEdge) => l.id === selectedEdgeId ? 0.012 : 0.005}
               linkDirectionalParticleWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 5 : 2.5}
               linkDirectionalParticleCanvasObject={(x: number, y: number, l: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -1404,7 +1422,7 @@ export function KnowledgeGraphView({
                 }
                 ctx.restore();
               }}
-              autoPauseRedraw={false}
+              autoPauseRedraw
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);

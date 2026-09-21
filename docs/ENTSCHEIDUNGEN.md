@@ -584,3 +584,67 @@ ohne einen echten IdP zu brauchen (`backend/tests/test_oidc.py`).
 `backend/core/users.py::create_oidc_user`/`get_by_oidc_subject`,
 `backend/api/auth.py::oidc_login`/`oidc_callback`, Migration
 `0007_user_oidc_subject`.
+
+---
+
+## E-13 — Vier Arbeitsansichten für belegtes Codeverständnis (O-290)
+
+**Anlass.** Die bisherigen Bezeichnungen „Graph“, „Graph View“ und „Call
+Graph“ vermischen technische Abhängigkeiten, einen fachlich nachvollziehbaren
+Ablauf, Dokumentationsbeziehungen und Auswirkungsanalyse. Das verleitet dazu,
+aus einer statischen Kante eine Laufzeitreihenfolge abzuleiten oder eine
+technische Detailansicht als Wissensübersicht zu verwenden.
+
+**Entscheidung.** Doctus hat für den ersten Produktschnitt vier getrennte
+Arbeitsansichten. Jede Aktion gehört genau einer dieser Ansichten und beantwortet
+deren Nutzerfrage:
+
+| Ansicht | Verbindliche Nutzerfrage | Inhalt und Grenze |
+|---|---|---|
+| **Structure View** | „Wie ist dieses System aufgebaut und wer ist wofür zuständig?“ | Hierarchie, Dateien, Module, Typen und technische Strukturbeziehungen. Sie behauptet keinen Ablauf und keine Änderungswirkung. |
+| **Process View** | „Wie kann dieser Ablauf ab diesem Einstiegspunkt nachvollzogen werden?“ | Gerichtete, begrenzte Schritte und Übergänge mit Quelle, Locator und Sicherheit. Eine statische Abhängigkeit wird nur dann als Schritt gezeigt, wenn die Process-Projektion dies begründet; Unsicherheit und fehlende Auflösung bleiben sichtbar. |
+| **Impact View** | „Welche belegten Bereiche sollte ich für dieses Änderungsvorhaben untersuchen?“ | Begrenztes Impact-Paket aus Code, Datenzugriffen, Prozessen, Regeln, Tests, Dokumenten und offenen Analysegrenzen. Technische Nähe ist kein Beweis einer tatsächlichen Auswirkung. |
+| **Knowledge Graph** | „Was hängt fachlich zusammen, wo ist es dokumentiert und welchen Prüfstatus hat das Wissen?“ | Code-, Dokument- und Wissensbeziehungen mit Fundstelle und Prüfstatus. Technische Codekanten erscheinen dabei nur zusammengefasst als `code_dependency`; die Detailtraversierung gehört nicht hierher. |
+
+Code und Dokumentansicht sind keine fünfte Graphansicht: Sie prüfen die Belege
+der vier Arbeitsansichten. Der Chat erklärt, schlägt Navigation vor und erzeugt
+nur eine ausdrücklich bestätigte Ansichtsaktion; er besitzt keinen eigenen
+Graphzustand.
+
+**Interaktionsvertrag.** Eine Node-Auswahl in der Process View markiert den
+Schritt und darf die zugehörige Fundstelle öffnen. Sie ersetzt weder die
+Process-Wurzel noch ordnet sie das bereits geladene Layout neu. Ausschließlich
+die ausdrücklich beschriftete Aktion **„Ab hier untersuchen“** lädt eine neue
+Process-Projektion. Die technische Panel-ID `callgraph` und die vorhandenen
+`/callgraph/*`-Endpunkte bleiben bis zur kompatiblen Migration in O-292/O-296
+intern bestehen; sie sind keine Produktbezeichnung.
+
+**UI-Textinventar und Umbenennungen.** Die folgende Liste ordnet alle heute
+sichtbaren Graph-, Chat- und Navigationsaktionen zu. Sie dokumentiert den
+jeweiligen Ist-Text und die für O-296 verbindliche Zielbezeichnung; technische
+Schlüssel bleiben für gespeicherte Workspace-Layouts und Chat-Ereignisse
+kompatibel.
+
+| Fundstelle / bisheriger Schlüssel | Aktion | Ansicht | Ist-Text → Ziel bei O-296 |
+|---|---|---|---|
+| `page.viewTypes.graph` | Ansicht hinzufügen | Knowledge Graph | „Wissensnetz (Graph)“ → „Knowledge Graph“ |
+| `page.viewTypes.callgraph` | Ansicht hinzufügen | Process View | „Call-Graph“ → „Process View“ |
+| `sidebar.knowledgeGraphTitle`, `splitPane.viewInGraphTitle`, `splitPane.knowledgeGraphHeading` | Wissensgraph öffnen bzw. fokussieren | Knowledge Graph | „Wissensgraph“ bleibt; „Im Wissensgraph anzeigen“ bleibt |
+| `CallGraphView`, `callGraphView.*` | begrenzten Code-/Ablauffokus laden, Filter, Zoom und Export | Process View | „Call-Graph“ / „Agenten-Ablauf“ → einheitlich „Process View“ / „Ablauf“ |
+| `chatView.callGraphPrompt`, `callGraphOpenButton`, `callGraphReopen`, `callGraphOpened` | Chat schlägt einen Ablauf vor; Nutzer öffnet oder verwirft ihn | Process View | „Call Graph View“ / „Call-Graph“ → „Process View“ |
+| `chatView.changeImpact*` | Chat zeigt ein Change-Impact-Ergebnis oder öffnet es | Impact View | „Auswirkungsanalyse“ und „Betroffenengraph“ → „Impact View“; die Grenzen statischer Analyse bleiben im Text |
+| `useWorkspaceLayout.ts`, `CallGraphView.onNodeClick` | Schritt auswählen und Quellstelle öffnen | Process View | keine neue Produktbezeichnung; Auswahl ändert die Wurzel nicht |
+| `app/page.tsx::openCallGraph`, `ChatView`-`view_action` | explizit einen Ablauffokus als Panel öffnen | Process View | Aktion wird bei O-296 als „Ablauf untersuchen“ sichtbar; internes Ereignis `callgraph` bleibt migrationskompatibel |
+| `GlobalSearch`, `SplitPaneWorkspace` und `PanelContentRenderer` | Auswahl, Code-/Dokumentfundstelle oder Wissensgraph öffnen | Structure View bzw. Knowledge Graph | Struktur-/Fundstellen-Navigation bleibt Structure/Code-Dokument-Prüfung; nur die Wissensbeziehung öffnet den Knowledge Graph |
+
+Der alte Ausdruck **„Graph View“** wird nicht mehr als fachliche Bezeichnung
+verwendet: Er wird je nach Kontext zu **Knowledge Graph** oder **Process View**
+aufgelöst. „Call Graph“ ist bis O-296 ausschließlich ein technischer
+Kompatibilitätsname. Eine spätere API- oder Komponenten-Umbenennung darf die
+gespeicherten IDs und Chat-Events erst nach einer kompatiblen Migration ändern.
+
+**Abnahme O-290 (21.09.2026).** Nutzerfragen, Grenzen, Klickvertrag und die
+vollständige Inventarisierung der bestehenden Graph-, Chat- und
+Navigationsaktionen sind hier verbindlich festgelegt. O-291 und O-292 dürfen
+nun den Process-Vertrag und die begrenzte Backend-Projektion implementieren;
+O-296 setzt die angegebenen sichtbaren Umbenennungen um.

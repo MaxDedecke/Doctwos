@@ -4,7 +4,7 @@ import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
-import { CallGraphView } from '@/components/CallGraphView';
+import { ProcessView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
@@ -164,7 +164,7 @@ export function PanelContentRenderer({
 
   if (contentType === 'callgraph') {
     return (
-      <CallGraphView
+      <ProcessView
         theme={theme}
         focusedEntity={selection.selectedEntity}
         projectId={selectedProject?.id}

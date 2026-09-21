@@ -89,6 +89,7 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
 
 /** Link colors are shared by the knowledge graph, call graph and detail panes. */
 export const EDGE_TYPE_COLORS: Record<string, string> = {
+  code_dependency: 'rgb(var(--ds-info-base))',
   semantic: 'rgb(var(--ds-accent))',
   keyword: 'rgb(var(--ds-warning-base))',
   documented: 'rgb(var(--ds-danger-base))',
@@ -120,6 +121,7 @@ const EDGE_COLOR_FALLBACKS = [
 ];
 
 const EDGE_TYPE_LABEL_KEYS: Record<string, string> = {
+  code_dependency: 'graphLabels.linkTypes.codeDependency',
   semantic: 'graphLabels.linkTypes.semantic',
   keyword: 'graphLabels.linkTypes.keyword',
   syntactic: 'graphLabels.linkTypes.syntactic',

@@ -210,10 +210,10 @@ describe('usePanelNavigation', () => {
 
     expect(result.current.ensureLivePanelType).toHaveBeenCalledWith('doc', {
       selectedFile: null,
-      selectedDoc: { id: 8, name: 'manual.pdf' },
+      selectedDoc: { id: 8, name: 'manual.pdf', isWebOrigin: false, url: null, type: 'local' },
       selectedEntity: null,
     });
-    expect(result.current.selectedDoc).toEqual({ id: 8, name: 'manual.pdf' });
+    expect(result.current.selectedDoc).toEqual({ id: 8, name: 'manual.pdf', isWebOrigin: false, url: null, type: 'local' });
   });
 
   // O-090: an entity focus must carry its own end line, so the chat backend can

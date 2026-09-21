@@ -125,6 +125,7 @@ export function useWorkspaceLayout({
   const pendingPanelTypesRef = useRef<Set<string>>(new Set());
   const pendingPanelCountRef = useRef(0);
   const panelIdCounterRef = useRef(1);
+  const explicitlySeededPanelIdsRef = useRef<Set<string>>(new Set());
   const isRestoringSnapshotRef = useRef(false);
   const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -195,7 +196,7 @@ export function useWorkspaceLayout({
       // code-tour step). The global selection snapshot still describes the old
       // workspace on this render; syncing it immediately would erase the new
       // panel's destination and leave its editor blank until the next action.
-      if (!previousPanelSync.panelIds.includes(panelIds[index])) return selection;
+      if (explicitlySeededPanelIdsRef.current.has(panelIds[index])) return selection;
       const panelType = panelConfigs[index];
       const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
         || incomingType === null || incomingType === panelType;
@@ -289,7 +290,14 @@ export function useWorkspaceLayout({
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
-    setPanelIds((previous) => [...previous, `panel-${panelIdCounterRef.current++}`]);
+    const newPanelId = `panel-${panelIdCounterRef.current++}`;
+    const hasExplicitDestination = Boolean(
+      selectionOverride && (selectionOverride.selectedFile || selectionOverride.selectedDoc || selectionOverride.selectedEntity)
+    );
+    if (hasExplicitDestination) {
+      explicitlySeededPanelIdsRef.current.add(newPanelId);
+    }
+    setPanelIds((previous) => [...previous, newPanelId]);
     return true;
   }, [linkManagerEnabled, panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
 

@@ -96,6 +96,96 @@ def _doc_node(
     }
 
 
+def _document_locator(chunk: Optional[DocumentChunk], document_url: Optional[str]) -> dict:
+    """Serialize the exact evidence location carried by an EntityDocLink."""
+    if not chunk:
+        return {
+            "chunk_id": None,
+            "document_file_path": None,
+            "document_source_id": None,
+            "document_start_line": None,
+            "document_end_line": None,
+            "document_page": None,
+            "document_section": None,
+            "document_url_anchor": None,
+            "document_url": document_url,
+        }
+    metadata = chunk.metadata_json if isinstance(chunk.metadata_json, dict) else {}
+    return {
+        "chunk_id": chunk.id,
+        "document_file_path": chunk.file_path,
+        "document_source_id": chunk.source_id,
+        "document_start_line": chunk.start_line,
+        "document_end_line": chunk.end_line,
+        "document_page": metadata.get("page"),
+        "document_section": metadata.get("section"),
+        "document_url_anchor": metadata.get("url_anchor") or metadata.get("anchor"),
+        "document_url": document_url or metadata.get("url"),
+    }
+
+
+def _append_code_dependencies(
+    nodes: dict[str, dict], edges: list[dict], code_edges: list[CodeEdge], entities: dict[int, CodeEntity]
+) -> None:
+    """Add a type-neutral, deduplicated code relationship projection.
+
+    The call graph keeps the exact parser edge types and direction. The knowledge
+    graph only needs to show that two code elements are related, so parallel and
+    opposing CodeEdge rows collapse into one undirected relationship.
+    """
+    aggregated: dict[tuple[str, str], dict] = {}
+    for code_edge in code_edges:
+        source_entity = entities.get(code_edge.src_entity_id)
+        if not source_entity:
+            continue
+        source_id = f"entity:{source_entity.id}"
+        nodes.setdefault(source_id, _entity_node(source_entity))
+
+        target_entity = entities.get(code_edge.dst_entity_id) if code_edge.dst_entity_id else None
+        if target_entity:
+            target_id = f"entity:{target_entity.id}"
+            nodes.setdefault(target_id, _entity_node(target_entity))
+        else:
+            target_id = f"unresolved:code:{code_edge.dst_name}"
+            nodes.setdefault(
+                target_id,
+                {
+                    "id": target_id,
+                    "type": "external",
+                    "label": code_edge.dst_name,
+                    "entity_type": None,
+                    "file_path": None,
+                    "start_line": None,
+                    "project_id": code_edge.project_id,
+                    "source_type": None,
+                    "url": None,
+                    "source_id": code_edge.source_id,
+                    "unresolved": True,
+                },
+            )
+
+        left, right = sorted((source_id, target_id))
+        key = (left, right)
+        existing = aggregated.get(key)
+        if existing:
+            existing["meta"]["edge_count"] += 1
+            if code_edge.type not in existing["meta"]["edge_types"]:
+                existing["meta"]["edge_types"].append(code_edge.type)
+            continue
+        aggregated[key] = {
+            "id": f"code-dependency:{code_edge.id}",
+            "source": left,
+            "target": right,
+            "link_type": "code_dependency",
+            "relation_type": "code_dependency",
+            "direction": "undirected",
+            "score": None,
+            "context": None,
+            "meta": {"edge_count": 1, "edge_types": [code_edge.type]},
+        }
+    edges.extend(aggregated.values())
+
+
 def _is_project_visible(
     project_id: Optional[int],
     team_ids: Optional[list[int]],
@@ -213,7 +303,8 @@ def get_graph(
     """
     Returns the global knowledge graph.
     Nodes are either code entities or document chunks.
-    Edges are approved links (EntityDocLink) or document cross-references (KnowledgeLink).
+    Code edges are projected as type-neutral dependencies. Documentation edges keep
+    their semantic link type and evidence location.
     """
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
@@ -229,11 +320,7 @@ def get_graph(
 
     team_ids = get_visible_team_ids(user, db)
 
-    # 1. Fetch all visible Code Entities and add them as nodes
-    entity_query = db.query(CodeEntity)
-    if project_id:
-        entity_query = entity_query.filter(CodeEntity.project_id == project_id)
-    else:
+    if not project_id:
         # Kein Projekt-Kontext ("Allgemein") -- Team-/Projekt-Mitgliedschaft allein reicht
         # hier NICHT (das wäre "jedes Team-Projekt sichtbar", zu weit). Code-Analyse-
         # Objekte sind projektspezifisch und tauchen außerhalb ihres eigenen Projekt-
@@ -243,98 +330,76 @@ def get_graph(
         exposed_project_ids = get_globally_exposed_project_ids(db)
         if visible_project_ids is not None:
             exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
-        entity_query = entity_query.filter(
-            or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
+    # The normal knowledge-graph view is link-driven: only endpoints of approved
+    # EntityDocLink/KnowledgeLink rows are materialized below. Loading every code
+    # entity and document merely to discard isolated nodes after the fact made a
+    # project with 30k entities pay the full database and serialization cost even
+    # when it had only a handful of documentation links. The explicit inventory
+    # mode keeps the former all-node behaviour for callers that request it.
+    if include_isolated:
+        entity_query = db.query(CodeEntity)
+        if project_id:
+            entity_query = entity_query.filter(CodeEntity.project_id == project_id)
+        else:
+            entity_query = entity_query.filter(
+                or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
+            )
+        for entity in entity_query.order_by(CodeEntity.id).all():
+            nodes[f"entity:{entity.id}"] = _entity_node(entity)
+
+        doc_query = db.query(DocumentChunk)
+        if project_id:
+            doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
+        else:
+            # Der Allgemein-Graph ist ein globaler Quellenkontext, kein Sammelgraph
+            # aller Projekte des Benutzers. Projektgebundene Dokumente (insbesondere
+            # Uploads/PDFs) bleiben deshalb im jeweiligen Projektkontext und werden
+            # hier auch für Administratoren nicht geladen.
+            doc_query = doc_query.filter(DocumentChunk.project_id.is_(None))
+
+        min_ids_subquery = (
+            doc_query.with_entities(func.min(DocumentChunk.id))
+            .group_by(DocumentChunk.file_path)
+            .subquery()
         )
+        distinct_docs = (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.id.in_(min_ids_subquery))
+            .order_by(DocumentChunk.id)
+            .all()
+        )
+        for chunk in distinct_docs:
+            meta = chunk.metadata_json or {}
+            title = meta.get("title") or chunk.file_path
+            did = f"doc:{title}"
+            nodes.setdefault(did, _doc_node(title, meta.get("source_type"), meta.get("url"), chunk))
 
-    # Deterministische Reihenfolge -- Voraussetzung dafür, dass ein Kappen unten
-    # (O-053) bei wiederholten Aufrufen dieselbe Auswahl trifft statt bei jedem
-    # Laden andere Knoten zufällig zu verlieren.
-    for entity in entity_query.order_by(CodeEntity.id).all():
-        eid = f"entity:{entity.id}"
-        nodes[eid] = _entity_node(entity)
-
-    # 1b. Fetch language-neutral code relationships.  ``CodeEdge.type`` is an
-    # open string, so this deliberately does not use a COBOL-specific allowlist
-    # (Java currently contributes CALLS, EXTENDS, IMPLEMENTS, USES_TYPE,
-    # INSTANTIATES, READS and WRITES).
+    # Code dependencies remain visible here as one neutral relationship family.
+    # Exact edge types, directions and traversals belong to /callgraph. Limit the
+    # overview query before materialization so large repositories do not ship the
+    # complete parser graph merely to produce a bounded visual overview.
+    code_edge_limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES * 2
     code_edge_query = db.query(CodeEdge)
     if project_id:
         code_edge_query = code_edge_query.filter(CodeEdge.project_id == project_id)
-    elif visible_project_ids is not None:
+    else:
         code_edge_query = code_edge_query.filter(
             or_(CodeEdge.project_id.in_(exposed_project_ids), CodeEdge.project_id.is_(None))
         )
-    for code_edge in code_edge_query.order_by(CodeEdge.id).all():
-        source_id = f"entity:{code_edge.src_entity_id}"
-        if source_id not in nodes:
-            continue
-        if code_edge.dst_entity_id is None:
-            target_id = f"unresolved:code:{code_edge.id}"
-            nodes.setdefault(
-                target_id,
-                {
-                    "id": target_id,
-                    "type": "external",
-                    "label": code_edge.dst_name,
-                    "entity_type": None,
-                    "file_path": None,
-                    "start_line": None,
-                    "project_id": code_edge.project_id,
-                    "source_type": None,
-                    "url": None,
-                    "source_id": code_edge.source_id,
-                    "unresolved": True,
-                },
-            )
-        else:
-            target_id = f"entity:{code_edge.dst_entity_id}"
-            if target_id not in nodes:
-                continue
-        edges.append(
-            {
-                "id": f"code:{code_edge.id}",
-                "source": source_id,
-                "target": target_id,
-                "link_type": code_edge.type,
-                "type": code_edge.type,
-                "direction": "directed",
-                "score": None,
-                "context": None,
-                "resolution": code_edge.resolution,
-                "meta": code_edge.meta_json or {},
-                "start_line": code_edge.src_start_line,
-                "end_line": code_edge.src_end_line,
-            }
-        )
-
-    # 2. Fetch all visible Documents (unique file_paths) and add them as nodes
-    doc_query = db.query(DocumentChunk)
-    if project_id:
-        doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
-    else:
-        # Der Allgemein-Graph ist ein globaler Quellenkontext, kein Sammelgraph
-        # aller Projekte des Benutzers. Projektgebundene Dokumente (insbesondere
-        # Uploads/PDFs) bleiben deshalb im jeweiligen Projektkontext und werden
-        # hier auch für Administratoren nicht geladen.
-        doc_query = doc_query.filter(DocumentChunk.project_id.is_(None))
-
-    min_ids_subquery = (
-        doc_query.with_entities(func.min(DocumentChunk.id))
-        .group_by(DocumentChunk.file_path)
-        .subquery()
-    )
-    distinct_docs = (
-        db.query(DocumentChunk)
-        .filter(DocumentChunk.id.in_(min_ids_subquery))
-        .order_by(DocumentChunk.id)
-        .all()
-    )
-    for chunk in distinct_docs:
-        meta = chunk.metadata_json or {}
-        title = meta.get("title") or chunk.file_path
-        did = f"doc:{title}"
-        nodes.setdefault(did, _doc_node(title, meta.get("source_type"), meta.get("url"), chunk))
+    sampled_code_edges = code_edge_query.order_by(CodeEdge.id).limit(code_edge_limit + 1).all()
+    code_edges_truncated = len(sampled_code_edges) > code_edge_limit
+    sampled_code_edges = sampled_code_edges[:code_edge_limit]
+    code_entity_ids = {
+        entity_id
+        for edge in sampled_code_edges
+        for entity_id in (edge.src_entity_id, edge.dst_entity_id)
+        if entity_id is not None
+    }
+    code_entities = {
+        entity.id: entity
+        for entity in db.query(CodeEntity).filter(CodeEntity.id.in_(code_entity_ids)).all()
+    } if code_entity_ids else {}
+    _append_code_dependencies(nodes, edges, sampled_code_edges, code_entities)
 
     # ── Entity → Document links ──────────────────────────────────────────────
     eq = db.query(EntityDocLink).filter(EntityDocLink.status == status)
@@ -383,6 +448,7 @@ def get_graph(
                     "direction": "directed",
                     "score": lnk.score,
                     "context": lnk.context,
+                    **_document_locator(chunks.get(lnk.chunk_id), lnk.doc_url),
                 }
             )
 
@@ -447,7 +513,10 @@ def get_graph(
             }
         )
 
-    return _capped_overview(nodes, edges, include_isolated=include_isolated)
+    result = _capped_overview(nodes, edges, include_isolated=include_isolated)
+    if code_edges_truncated:
+        result["truncated"] = True
+    return result
 
 
 def _capped_overview(
@@ -529,7 +598,7 @@ def get_graph_focus(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Ein-Hop-Nachbarschaft einer Code-Entity: Dokument-Links (EntityDocLink) plus Code-Beziehungen."""
+    """Ein-Hop-Nachbarschaft inklusive neutral projizierter Codeabhängigkeiten."""
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
@@ -548,9 +617,7 @@ def get_graph_focus(
     edges: list[dict] = []
     focus_id = f"entity:{entity.id}"
     nodes[focus_id] = _entity_node(entity)
-    # Code relationships are part of the same language-neutral graph as
-    # document links.  A focus request gets the direct incoming/outgoing
-    # neighborhood regardless of the parser that produced the edge.
+    code_edge_limit = 500
     code_edges = (
         db.query(CodeEdge)
         .filter(
@@ -558,65 +625,25 @@ def get_graph_focus(
             or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
         )
         .order_by(CodeEdge.id)
+        .limit(code_edge_limit + 1)
         .all()
     )
-    for code_edge in code_edges:
-        source_id = f"entity:{code_edge.src_entity_id}"
-        if code_edge.src_entity_id == entity.id:
-            nodes.setdefault(source_id, _entity_node(entity))
-        else:
-            source_entity = (
-                db.query(CodeEntity).filter(CodeEntity.id == code_edge.src_entity_id).first()
-            )
-            if not source_entity or source_entity.project_id != project_id:
-                continue
-            nodes.setdefault(source_id, _entity_node(source_entity))
-        if code_edge.dst_entity_id is None:
-            target_id = f"unresolved:code:{code_edge.id}"
-            nodes.setdefault(
-                target_id,
-                {
-                    "id": target_id,
-                    "type": "external",
-                    "label": code_edge.dst_name,
-                    "entity_type": None,
-                    "file_path": None,
-                    "start_line": None,
-                    "project_id": project_id,
-                    "source_type": None,
-                    "url": None,
-                    "source_id": code_edge.source_id,
-                    "unresolved": True,
-                },
-            )
-        else:
-            target_entity = (
-                db.query(CodeEntity).filter(CodeEntity.id == code_edge.dst_entity_id).first()
-            )
-            if not target_entity or target_entity.project_id != project_id:
-                continue
-            target_id = f"entity:{target_entity.id}"
-            nodes.setdefault(target_id, _entity_node(target_entity))
-        edges.append(
-            {
-                "id": f"code:{code_edge.id}",
-                "source": source_id,
-                "target": target_id,
-                "link_type": code_edge.type,
-                "type": code_edge.type,
-                "direction": "directed",
-                "score": None,
-                "context": None,
-                "resolution": code_edge.resolution,
-                "meta": code_edge.meta_json or {},
-                "start_line": code_edge.src_start_line,
-                "end_line": code_edge.src_end_line,
-            }
-        )
-    # Code-Referenz-Fanout (CALL/PERFORM/GOTO/COPY/USE) entfernt zusammen mit dem
-    # nie produktiv befüllten CodeReference-Modell (siehe TECH_DEBT_CLEANUP_PLAN.md
-    # §1) — always-false, damit das Frontend-Truncation-Banner unverändert bleibt.
-    truncated = {"incoming": False, "outgoing": False}
+    code_edges_truncated = len(code_edges) > code_edge_limit
+    code_edges = code_edges[:code_edge_limit]
+    neighbor_ids = {
+        entity_id
+        for edge in code_edges
+        for entity_id in (edge.src_entity_id, edge.dst_entity_id)
+        if entity_id is not None
+    }
+    neighbor_entities = {
+        neighbor.id: neighbor
+        for neighbor in db.query(CodeEntity).filter(
+            CodeEntity.id.in_(neighbor_ids), CodeEntity.project_id == project_id
+        ).all()
+    } if neighbor_ids else {}
+    _append_code_dependencies(nodes, edges, code_edges, neighbor_entities)
+    truncated = {"incoming": code_edges_truncated, "outgoing": code_edges_truncated}
 
     # Dokument-Links dieser Entity
     doc_links = (
@@ -649,6 +676,7 @@ def get_graph_focus(
                 "direction": "directed",
                 "score": lnk.score,
                 "context": lnk.context,
+                **_document_locator(chunks.get(lnk.chunk_id), lnk.doc_url),
             }
         )
 

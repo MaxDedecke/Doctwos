@@ -148,7 +148,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
   });
 
-  it('shows only the first relationship type initially and lets each other type be enabled', async () => {
+  it('shows all relationship types initially and lets each type be toggled', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -166,7 +166,10 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     renderGraph();
 
     await waitFor(() => expect(screen.getByTestId('link-semantic:1')).toBeTruthy());
-    expect(screen.queryByTestId('link-documented:1')).toBeNull();
+    expect(screen.getByTestId('link-documented:1')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByText('dokumentiert')[0]);
+    await waitFor(() => expect(screen.queryByTestId('link-documented:1')).toBeNull());
 
     fireEvent.click(screen.getAllByText('dokumentiert')[0]);
     await waitFor(() => expect(screen.getByTestId('link-documented:1')).toBeTruthy());
@@ -547,7 +550,7 @@ describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('hides isolated nodes (degree 0 in visibleEdges) by default and reveals them when toggle is clicked', async () => {
+  it('keeps isolated inventory out of the relationship view', async () => {
     const linkedNode: GraphNode = { id: 'entity:1', type: 'entity', label: 'LINKED_PROG' };
     const docNode: GraphNode = { id: 'doc:1', type: 'document', label: 'Doc1' };
     const isolatedNode: GraphNode = { id: 'entity:2', type: 'entity', label: 'ISOLATED_PROG' };
@@ -570,19 +573,8 @@ describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
     // Degree 0 node is hidden by default
     expect(screen.queryByTestId('node-entity:2')).toBeNull();
 
-    // Toggle button is present and active
-    const toggleBtn = screen.getByTestId('toggle-only-linked');
-    expect(toggleBtn).toBeTruthy();
-
-    // Click toggle to show isolated elements
-    fireEvent.click(toggleBtn);
-
-    // Now isolated node is visible
-    await waitFor(() => expect(screen.getByTestId('node-entity:2')).toBeTruthy());
-
-    // Click toggle again to hide isolated elements
-    fireEvent.click(toggleBtn);
-    await waitFor(() => expect(screen.queryByTestId('node-entity:2')).toBeNull());
+    // Inventory expansion is intentionally absent from the graph view.
+    expect(screen.queryByTestId('toggle-only-linked')).toBeNull();
   });
 
   it('hiding a link type that disconnects a node hides that node when onlyLinked is active', async () => {
@@ -614,4 +606,3 @@ describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
     });
   });
 });
-

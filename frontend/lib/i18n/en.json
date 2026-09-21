@@ -104,7 +104,7 @@
       "code": "💻 Code editor",
       "doc": "📖 Documentation",
       "graph": "🕸️ Knowledge graph",
-      "callgraph": "🔀 Call graph",
+      "callgraph": "🔀 Process View",
       "webview": "🌐 Web preview",
       "linkmanager": "🔗 Link manager"
     },
@@ -801,10 +801,10 @@
     "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy.",
     "askDirectlyTitle": "Ask directly",
     "userAvatarAlt": "Illustrative employee avatar for your message",
-    "callGraphPrompt": "May I open the Call Graph View to show you this flow in the graph?",
+    "callGraphPrompt": "May I open the Process View to show you this flow?",
     "callGraphOpenButton": "Yes, open",
     "callGraphDismissButton": "No",
-    "callGraphOpened": "Opened in Call Graph",
+    "callGraphOpened": "Opened in Process View",
     "callGraphReopen": "Show flow in Graph",
     "callGraphNoSpace": "No space in workspace for another panel (maximum 4). Please close a panel first.",
     "changeImpactTitle": "Change impact analysis",
@@ -960,6 +960,7 @@
   },
   "graphLabels": {
     "linkTypes": {
+      "codeDependency": "Code dependency",
       "semantic": "semantic",
       "keyword": "keyword",
       "syntactic": "syntactic",
@@ -1044,6 +1045,10 @@
     "createLinkSaving": "Saving…",
     "createLinkError": "Failed to create link",
     "openOriginal": "Open original",
+    "documentLocationLabel": "Document location",
+    "pageValue": "Page {{page}}",
+    "lineValue": "Lines {{start}}–{{end}}",
+    "openDocumentLocation": "Open document location",
     "fromLabel": "From",
     "toLabel": "To",
     "legendLabel": "Legend",
@@ -1268,6 +1273,7 @@
     "reportFailedToast": "Failed to send error report"
   },
   "callGraphView": {
+    "processTitle": "Process View",
     "focusFirst": "Please focus a code object first.",
     "inheritanceLabel": "Inheritance",
     "hopUnit": "Hop",
@@ -1277,8 +1283,8 @@
     "zoomOutTitle": "Zoom out",
     "fitAllTitle": "Fit all",
     "truncatedNotice": "Limited to 500 nodes",
-    "noConnections": "No call graph connections for this focus.",
-    "loadError": "Could not load call graph",
+    "noConnections": "No process transitions for this focus.",
+    "loadError": "Could not load Process View",
     "exportError": "Export failed (HTTP {{status}})",
     "flowTitle": "Agent Flow",
     "impactTitle": "Impact Graph",
@@ -1286,7 +1292,20 @@
     "flowDirectionIncoming": "Incoming",
     "flowDirectionBoth": "Both directions",
     "switchToFocusView": "Load standard graph",
-    "flowLoadedToast": "Call flow for {{name}} opened in Call Graph View"
+    "investigateFromHere": "Investigate from here",
+    "investigateFromHereTitle": "Investigate this step as new process root",
+    "flowLoadedToast": "Flow for {{name}} opened in Process View",
+    "processKinds": {
+      "entry": "Entry",
+      "step": "Step",
+      "call": "Call",
+      "branch": "Decision",
+      "jump": "Jump",
+      "iteration": "Iteration",
+      "data_access": "Data access",
+      "external_call": "External / unresolved",
+      "exit": "Exit"
+    }
   },
   "sourceNetworkGraph": {
     "title": "Source network",

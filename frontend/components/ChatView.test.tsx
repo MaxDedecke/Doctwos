@@ -472,7 +472,7 @@ describe('ChatView', () => {
       renderChat({ chatMessages: [TRACE_MESSAGE] });
 
       expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
-      expect(screen.getByText('Darf ich die Call Graph View öffnen, um dir diesen Ablauf im Graphen zu zeigen?')).toBeTruthy();
+      expect(screen.getByText(/Darf ich die Process View öffnen/)).toBeTruthy();
       expect(screen.getByText('Ja, öffnen')).toBeTruthy();
       expect(screen.getByText('Nein')).toBeTruthy();
     });
@@ -500,7 +500,7 @@ describe('ChatView', () => {
           hops: 2,
         })
       );
-      expect(screen.getByText(/Im Call-Graph geöffnet/)).toBeTruthy();
+      expect(screen.getByText(/In der Process View geöffnet/)).toBeTruthy();
     });
   });
 });
