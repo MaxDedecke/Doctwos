@@ -722,7 +722,7 @@ export function KnowledgeGraphView({
 
   const getLinkArrowLength = useCallback((l: GraphEdge) => {
     if (!isEdgeDirected(l)) return 0;
-    return l.id === selectedEdgeId ? 5.5 : 4;
+    return l.id === selectedEdgeId ? 6.5 : 4;
   }, [selectedEdgeId]);
 
   const getLinkArrowRelPos = useCallback((l: GraphEdge) => {
@@ -775,18 +775,69 @@ export function KnowledgeGraphView({
   const drawNode = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const r = nodeRadius(node);
     const isSelected = node.id === selectedNodeId;
+    const isFocus = node.id === focusNodeId;
+    const isPrimary = isSelected || isFocus;
     const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
     const color = resolveDsColor(nodeColor(node));
 
     ctx.save();
     ctx.globalAlpha = isDimmed ? 0.15 : 1;
 
-    if (isSelected) {
+    const now = performance.now();
+
+    if (isPrimary) {
+      // 1. Radar pulse
+      const pulseProgress = (now % 1200) / 1200;
+      const pulseR = r + (pulseProgress * 12) / globalScale;
+      const pulseAlpha = (1 - pulseProgress) * (isDark ? 0.75 : 0.55);
       ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, r + 4, 0, 2 * Math.PI);
+      ctx.arc(node.x ?? 0, node.y ?? 0, pulseR, 0, 2 * Math.PI);
+      ctx.strokeStyle = isDark
+        ? `rgba(56, 189, 248, ${pulseAlpha})`
+        : `rgba(2, 132, 199, ${pulseAlpha})`;
+      ctx.lineWidth = 2 / globalScale;
+      ctx.stroke();
+
+      // 2. High-contrast guide track (provides contrast on white canvas!)
+      const trackR = r + 2.8 / globalScale;
+      ctx.beginPath();
+      ctx.arc(node.x ?? 0, node.y ?? 0, trackR, 0, 2 * Math.PI);
+      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(15, 23, 42, 0.35)';
+      ctx.lineWidth = 2.5 / globalScale;
+      ctx.stroke();
+
+      // 3. Circling white animation (rotating arc)
+      const spinAngle = (now / 360) % (2 * Math.PI);
+      const arcLength = Math.PI * 0.75;
       ctx.save();
-      ctx.globalAlpha *= 0.2;
-      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(node.x ?? 0, node.y ?? 0, trackR, spinAngle, spinAngle + arcLength);
+      ctx.lineWidth = 3.5 / globalScale;
+      ctx.lineCap = 'round';
+      if (!isDark) {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 4;
+      } else {
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+        ctx.shadowBlur = 8;
+      }
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // 4. White comet head orb
+      const headAngle = spinAngle + arcLength;
+      const headX = (node.x ?? 0) + trackR * Math.cos(headAngle);
+      const headY = (node.y ?? 0) + trackR * Math.sin(headAngle);
+      ctx.beginPath();
+      ctx.arc(headX, headY, 2.5 / globalScale, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffffff';
+      if (!isDark) {
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+      } else {
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 6;
+      }
       ctx.fill();
       ctx.restore();
     }
@@ -797,25 +848,27 @@ export function KnowledgeGraphView({
     ctx.fill();
     drawKnowledgeNodeIcon(node, ctx, globalScale);
 
-    if (isSelected) {
-      ctx.strokeStyle = resolveDsColor('rgb(var(--ds-white))');
-      ctx.lineWidth = 1.5 / globalScale;
+    if (isPrimary) {
+      ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';
+      ctx.lineWidth = 2 / globalScale;
       ctx.stroke();
     }
 
-    if (globalScale > 0.5) {
+    if (globalScale > 0.45) {
       const label = node.label ?? '';
-      const maxLen = Math.min(12, Math.max(6, Math.floor(globalScale * 7)));
+      const maxLen = Math.min(14, Math.max(6, Math.floor(globalScale * 7)));
       const truncated = label.length > maxLen ? label.slice(0, maxLen) + '…' : label;
       const fontSize = Math.min(11, 8 / globalScale * 1.8);
-      ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
+      ctx.font = `${isPrimary ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-      ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + r + 2 / globalScale);
+      ctx.fillStyle = isPrimary
+        ? (isDark ? '#f8fafc' : '#0f172a')
+        : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
+      ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
     }
     ctx.restore();
-  }, [selectedNodeId, isDark, focusNeighborIds]);
+  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds]);
 
   const toggleNodeType = (type: string) => {
     setHiddenNodeTypes(prev => {
@@ -1316,13 +1369,42 @@ export function KnowledgeGraphView({
                 ctx.fill();
               }}
               linkColor={(l: GraphEdge) => {
+                if (l.id === selectedEdgeId) {
+                  return isDark ? '#38bdf8' : '#0284c7';
+                }
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
               }}
-              linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 3.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
+              linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 4.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
               linkDirectionalArrowLength={getLinkArrowLength}
               linkDirectionalArrowRelPos={getLinkArrowRelPos}
               linkCurvature={getLinkCurvature}
+              linkDirectionalParticles={(l: GraphEdge) => l.id === selectedEdgeId ? 5 : (isEdgeDirected(l) && isLinkTouchingFocus(l) ? 2 : 0)}
+              linkDirectionalParticleSpeed={(l: GraphEdge) => l.id === selectedEdgeId ? 0.012 : 0.005}
+              linkDirectionalParticleWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 5 : 2.5}
+              linkDirectionalParticleCanvasObject={(x: number, y: number, l: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
+                const isSelected = l.id === selectedEdgeId;
+                const pR = (isSelected ? 3.5 : 2) / globalScale;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, y, pR, 0, 2 * Math.PI);
+                if (!isDark) {
+                  ctx.fillStyle = '#ffffff';
+                  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+                  ctx.shadowBlur = 3;
+                  ctx.fill();
+                  ctx.lineWidth = 1.2 / globalScale;
+                  ctx.strokeStyle = isSelected ? '#0284c7' : '#64748b';
+                  ctx.stroke();
+                } else {
+                  ctx.fillStyle = '#ffffff';
+                  ctx.shadowColor = isSelected ? '#38bdf8' : '#94a3b8';
+                  ctx.shadowBlur = isSelected ? 8 : 4;
+                  ctx.fill();
+                }
+                ctx.restore();
+              }}
+              autoPauseRedraw={false}
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);

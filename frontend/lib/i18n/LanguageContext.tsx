@@ -57,7 +57,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const value = resolveKey(DICTIONARIES[language], key) ?? resolveKey(DICTIONARIES.de, key) ?? key;
     if (!vars) return value;
     return Object.entries(vars).reduce(
-      (acc, [varName, varValue]) => acc.replace(`{{${varName}}}`, String(varValue)),
+      (acc, [varName, varValue]) =>
+        acc
+          .replaceAll(`{{${varName}}}`, String(varValue))
+          .replaceAll(`{${varName}}`, String(varValue)),
       value
     );
   }, [language]);

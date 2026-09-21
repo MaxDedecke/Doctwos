@@ -23,9 +23,13 @@ type GraphStubProps = {
   onNodeClick: (node: CallNode) => void;
   onLinkClick?: (edge: CallEdge) => void;
   linkLabel?: (edge: CallEdge) => string;
+  linkWidth?: (edge: CallEdge) => number;
+  linkColor?: (edge: CallEdge) => string;
+  linkDirectionalParticles?: (edge: CallEdge) => number;
   // O-120: exponiert, damit ein Test den tatsächlich berechneten Tooltip-
   // Text prüfen kann, ohne echtes Canvas.
   nodeLabel?: (node: CallNode) => string;
+  nodeColor?: (node: CallNode) => string;
 };
 const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
@@ -38,6 +42,7 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
         <button
           key={node.id}
           data-testid={`node-${node.id}`}
+          data-color={props.nodeColor?.(node)}
           title={props.nodeLabel?.(node)}
           onClick={() => props.onNodeClick(node)}
         >
@@ -45,7 +50,15 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
         </button>
       ))}
       {props.graphData.links.map((link) => (
-        <button key={link.id} data-testid={`link-${link.id}`} title={props.linkLabel?.(link)} onClick={() => props.onLinkClick?.(link)} />
+        <button
+          key={link.id}
+          data-testid={`link-${link.id}`}
+          data-particles={props.linkDirectionalParticles?.(link)}
+          data-width={props.linkWidth?.(link)}
+          data-color={props.linkColor?.(link)}
+          title={props.linkLabel?.(link)}
+          onClick={() => props.onLinkClick?.(link)}
+        />
       ))}
     </div>
   );
@@ -575,6 +588,26 @@ describe('CallGraphView', () => {
       fireEvent.click(screen.getByTitle('Standard-Graph laden'));
 
       expect(onClearCustomFlow).toHaveBeenCalledTimes(1);
+    });
+
+    it('hebt die aktive Kante mit Partikeln und vergrößerter Linienstärke hervor', async () => {
+      stubFetch();
+      const FLOW_WITH_HIGHLIGHT = {
+        ...CUSTOM_FLOW,
+        focus_entity_id: 20,
+        highlighted_edge_id: 100,
+      };
+      renderView({ customFlow: FLOW_WITH_HIGHLIGHT, focusedEntity: null });
+
+      await waitFor(() => expect(screen.getByTestId('link-edge:100')).toBeTruthy());
+      const edge = screen.getByTestId('link-edge:100');
+      expect(Number(edge.getAttribute('data-particles'))).toBe(5);
+      expect(Number(edge.getAttribute('data-width'))).toBe(4.5);
+
+      const targetNode = screen.getByTestId('node-entity:20');
+      const sourceNode = screen.getByTestId('node-entity:10');
+      expect(targetNode.getAttribute('data-color')).toBe('#0284c7');
+      expect(sourceNode.getAttribute('data-color')).toBe('#047857');
     });
   });
 });

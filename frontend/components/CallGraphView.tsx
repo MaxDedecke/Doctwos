@@ -208,6 +208,43 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
     return { nodes: graph.nodes.filter(node => usedIds.has(node.id)), links };
   }, [graph, enabledTypes, effectiveEntity?.id]);
 
+  const highlightedEdgeId = customFlow?.highlighted_edge_id;
+
+  const isEdgeHighlighted = useCallback((edge: CallEdge) => {
+    if (highlightedEdgeId == null) return false;
+    return edge.id === `edge:${highlightedEdgeId}` || edge.id === String(highlightedEdgeId);
+  }, [highlightedEdgeId]);
+
+  const activeEdge = useMemo(() => {
+    if (highlightedEdgeId == null) return null;
+    return filtered.links.find(isEdgeHighlighted) ?? null;
+  }, [filtered.links, isEdgeHighlighted, highlightedEdgeId]);
+
+  const activeSourceId = useMemo(() => {
+    if (!activeEdge) return null;
+    return typeof activeEdge.source === 'object' ? activeEdge.source.id : activeEdge.source;
+  }, [activeEdge]);
+
+  const activeTargetId = useMemo(() => {
+    if (!activeEdge) return null;
+    return typeof activeEdge.target === 'object' ? activeEdge.target.id : activeEdge.target;
+  }, [activeEdge]);
+
+  const isNodePrimary = useCallback((node: CallNode) => {
+    if (activeTargetId != null && (node.id === activeTargetId || `entity:${node.entityId}` === activeTargetId)) {
+      return true;
+    }
+    if (highlightedEntityId != null) {
+      return node.entityId === highlightedEntityId || node.id === `entity:${highlightedEntityId}` || String(node.entityId) === String(highlightedEntityId);
+    }
+    return false;
+  }, [activeTargetId, highlightedEntityId]);
+
+  const isNodeSource = useCallback((node: CallNode) => {
+    if (!activeSourceId) return false;
+    return node.id === activeSourceId || `entity:${node.entityId}` === activeSourceId;
+  }, [activeSourceId]);
+
   const exportGraph = async (format: 'json' | 'csv' | 'graphml') => {
     if (customFlow && format === 'json') {
       const blob = new Blob([JSON.stringify(customFlow, null, 2)], { type: 'application/json' });
@@ -310,23 +347,118 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
               ? `${base} — ${formatAnalysisStatusTooltip({ status: node.analysis_status, reasons: node.analysis_reasons || [] }, t)}`
               : base;
           }}
-          nodeColor={(node: CallNode) => resolveDsColor(node.unresolved ? 'rgb(var(--ds-warning-base))' : node.entityId === highlightedEntityId ? 'rgb(var(--ds-accent))' : 'rgb(var(--ds-info-base))')}
-          nodeVal={(node: CallNode) => node.entityId === highlightedEntityId ? 7 : 4}
+          nodeColor={(node: CallNode) => {
+            if (node.unresolved) return resolveDsColor('rgb(var(--ds-warning-base))');
+            if (isNodePrimary(node)) return isDark ? '#0284c7' : '#0284c7';
+            if (isNodeSource(node)) return isDark ? '#047857' : '#059669';
+            return resolveDsColor('rgb(var(--ds-info-base))');
+          }}
+          nodeVal={(node: CallNode) => isNodePrimary(node) ? 8 : (isNodeSource(node) ? 6 : 4)}
           nodeCanvasObjectMode={() => 'replace'}
           nodeCanvasObject={(node: CallNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            const isHighlighted = node.entityId === highlightedEntityId;
-            const radius = isHighlighted ? 8 : 7;
+            const isPrimary = isNodePrimary(node);
+            const isSource = isNodeSource(node) && !isPrimary;
+            const hasActiveContext = Boolean(highlightedEdgeId != null || (customFlow && customFlow.focus_entity_id != null));
+            const isDimmed = hasActiveContext && !isPrimary && !isSource;
+
+            ctx.save();
+            if (isDimmed) {
+              ctx.globalAlpha = isDark ? 0.28 : 0.35;
+            }
+
+            const radius = isPrimary ? 9 : (isSource ? 8.5 : 7);
+            const now = performance.now();
+
+            // Circling white animation and pulse on current standpoint node ("wo bin ich")
+            if (isPrimary) {
+              // 1. Radar ripple wave expanding outward
+              const pulseProgress = (now % 1200) / 1200;
+              const pulseR = radius + (pulseProgress * 12) / globalScale;
+              const pulseAlpha = (1 - pulseProgress) * (isDark ? 0.75 : 0.55);
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, pulseR, 0, 2 * Math.PI);
+              ctx.strokeStyle = isDark
+                ? `rgba(56, 189, 248, ${pulseAlpha})`
+                : `rgba(2, 132, 199, ${pulseAlpha})`;
+              ctx.lineWidth = 2 / globalScale;
+              ctx.stroke();
+
+              // 2. High-contrast guide track (provides contrast on white canvas!)
+              const trackR = radius + 3 / globalScale;
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, trackR, 0, 2 * Math.PI);
+              ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(15, 23, 42, 0.35)';
+              ctx.lineWidth = 2.5 / globalScale;
+              ctx.stroke();
+
+              // 3. Circling white animation (rotating arc)
+              const spinAngle = (now / 360) % (2 * Math.PI);
+              const arcLength = Math.PI * 0.75;
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, trackR, spinAngle, spinAngle + arcLength);
+              ctx.lineWidth = 3.5 / globalScale;
+              ctx.lineCap = 'round';
+              if (!isDark) {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                ctx.shadowBlur = 4;
+              } else {
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+                ctx.shadowBlur = 8;
+              }
+              ctx.strokeStyle = '#ffffff';
+              ctx.stroke();
+
+              // 4. White comet head orb
+              const headAngle = spinAngle + arcLength;
+              const headX = (node.x ?? 0) + trackR * Math.cos(headAngle);
+              const headY = (node.y ?? 0) + trackR * Math.sin(headAngle);
+              ctx.beginPath();
+              ctx.arc(headX, headY, 2.5 / globalScale, 0, 2 * Math.PI);
+              ctx.fillStyle = '#ffffff';
+              if (!isDark) {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 3;
+              } else {
+                ctx.shadowColor = '#38bdf8';
+                ctx.shadowBlur = 6;
+              }
+              ctx.fill();
+              ctx.restore();
+            } else if (isSource) {
+              // Origin / Source indicator ("von wo"): steady/pulsing green halo
+              const sourceR = radius + 2.5 / globalScale;
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, sourceR, 0, 2 * Math.PI);
+              ctx.strokeStyle = isDark ? '#10b981' : '#059669';
+              ctx.lineWidth = 2.5 / globalScale;
+              ctx.stroke();
+            }
+
+            // Node circle fill
             ctx.beginPath();
             ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = node.unresolved
-              ? resolveDsColor('rgb(var(--ds-warning-base))')
-              : isHighlighted
-                ? resolveDsColor('rgb(var(--ds-accent))')
-                : resolveDsColor('rgb(var(--ds-info-base))');
+            if (node.unresolved) {
+              ctx.fillStyle = resolveDsColor('rgb(var(--ds-warning-base))');
+            } else if (isPrimary) {
+              ctx.fillStyle = isDark ? '#0284c7' : '#0284c7';
+            } else if (isSource) {
+              ctx.fillStyle = isDark ? '#047857' : '#059669';
+            } else {
+              ctx.fillStyle = resolveDsColor('rgb(var(--ds-info-base))');
+            }
             ctx.fill();
-            // O-120: ein gestrichelter Ring markiert einen Knoten, dessen
-            // Datei nicht uneingeschränkt analysiert ist -- dieselbe
-            // Farbcodierung wie im Editor-Dateibaum/bei Chat-Zitaten.
+
+            // Inner border for primary node
+            if (isPrimary) {
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
+              ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';
+              ctx.lineWidth = 2 / globalScale;
+              ctx.stroke();
+            }
+
+            // O-120: analysis status dash ring
             if (node.analysis_status) {
               ctx.save();
               ctx.setLineDash([2 / globalScale, 1.5 / globalScale]);
@@ -337,25 +469,64 @@ export function CallGraphView({ theme, focusedEntity, onFileSelect, projectId, c
               ctx.stroke();
               ctx.restore();
             }
+
             drawKnowledgeNodeIcon({ ...node, type: node.unresolved ? 'external' : 'entity' }, ctx, globalScale);
-            if (globalScale > 0.5) {
+
+            if (globalScale > 0.45) {
               const label = node.name ?? '';
               const maxLen = Math.min(18, Math.max(7, Math.floor(globalScale * 8)));
               const truncated = label.length > maxLen ? `${label.slice(0, maxLen)}…` : label;
-              ctx.font = `${Math.min(11, 8 / globalScale * 1.8)}px Inter, system-ui, sans-serif`;
+              ctx.font = `${isPrimary ? 'bold ' : ''}${Math.min(11, 8 / globalScale * 1.8)}px Inter, system-ui, sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
-              ctx.fillStyle = resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-              ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 2 / globalScale);
+              ctx.fillStyle = isPrimary
+                ? (isDark ? '#f8fafc' : '#0f172a')
+                : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
+              ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 3 / globalScale);
             }
+
+            ctx.restore();
           }}
-          linkColor={(edge: CallEdge) => edge.id === `edge:${customFlow?.highlighted_edge_id}`
-            ? resolveDsColor('rgb(var(--ds-accent))')
-            : resolveDsColor(edge.resolution === 'resolved' ? getGraphEdgeColor(edge.type) : 'rgb(var(--ds-warning-base))')}
-          linkWidth={(edge: CallEdge) => edge.id === `edge:${customFlow?.highlighted_edge_id}` ? 4 : 1.5}
-          linkDirectionalArrowLength={4}
+          linkColor={(edge: CallEdge) => {
+            const isHighlighted = isEdgeHighlighted(edge);
+            if (isHighlighted) {
+              return isDark ? '#38bdf8' : '#0284c7';
+            }
+            if (highlightedEdgeId != null) {
+              return isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.25)';
+            }
+            return resolveDsColor(edge.resolution === 'resolved' ? getGraphEdgeColor(edge.type) : 'rgb(var(--ds-warning-base))');
+          }}
+          linkWidth={(edge: CallEdge) => isEdgeHighlighted(edge) ? 4.5 : 1.5}
+          linkDirectionalArrowLength={(edge: CallEdge) => isEdgeHighlighted(edge) ? 6.5 : 4}
           linkDirectionalArrowRelPos={1}
           linkLineDash={(edge: CallEdge) => edge.resolution === 'resolved' ? null : [4, 3]}
+          linkDirectionalParticles={(edge: CallEdge) => isEdgeHighlighted(edge) ? 5 : (edge.resolution === 'resolved' ? 1 : 0)}
+          linkDirectionalParticleSpeed={(edge: CallEdge) => isEdgeHighlighted(edge) ? 0.012 : 0.004}
+          linkDirectionalParticleWidth={(edge: CallEdge) => isEdgeHighlighted(edge) ? 5 : 2.5}
+          linkDirectionalParticleCanvasObject={(x: number, y: number, edge: CallEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            const isHighlighted = isEdgeHighlighted(edge);
+            const r = (isHighlighted ? 3.5 : 2) / globalScale;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            if (!isDark) {
+              ctx.fillStyle = '#ffffff';
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+              ctx.shadowBlur = 3;
+              ctx.fill();
+              ctx.lineWidth = 1.2 / globalScale;
+              ctx.strokeStyle = isHighlighted ? '#0284c7' : '#64748b';
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = '#ffffff';
+              ctx.shadowColor = isHighlighted ? '#38bdf8' : '#94a3b8';
+              ctx.shadowBlur = isHighlighted ? 8 : 4;
+              ctx.fill();
+            }
+            ctx.restore();
+          }}
+          autoPauseRedraw={false}
           linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.resolution}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
           onLinkClick={(edge: CallEdge) => {
             if (isImpactMode) return;
