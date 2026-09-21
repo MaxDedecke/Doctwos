@@ -93,13 +93,13 @@ const PACKAGE = {
   limitations: ['This is not a complete runtime impact proof.'],
 };
 
-function renderAction(onOpenCode = vi.fn(), onOpenDoc = vi.fn()) {
+function renderAction(onOpenCode = vi.fn(), onOpenDoc = vi.fn(), theme = 'dark') {
   return render(
     <LanguageProvider>
       <ChangePackageAction
         projectId={7}
         target={{ entityId: 1, label: 'PAYMENT.ROOT' }}
-        theme="dark"
+        theme={theme}
         onOpenCode={onOpenCode}
         onOpenDoc={onOpenDoc}
       />
@@ -109,6 +109,14 @@ function renderAction(onOpenCode = vi.fn(), onOpenDoc = vi.fn()) {
 
 describe('ChangePackageAction', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('uses opaque design-system surfaces for the dialog and input in light mode', () => {
+    renderAction(vi.fn(), vi.fn(), 'light');
+    fireEvent.click(screen.getByRole('button', { name: 'Änderung untersuchen' }));
+
+    expect(screen.getByRole('dialog').className).toContain('bg-ds-white');
+    expect(screen.getByLabelText('Was soll geändert werden?').className).toContain('bg-ds-white');
+  });
 
   it('submits a described change to the bounded package API and separates evidence categories', async () => {
     const fetchSpy = vi.spyOn(api, 'fetch').mockResolvedValue({

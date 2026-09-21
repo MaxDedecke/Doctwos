@@ -213,7 +213,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-package-title"
-            className={`flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border shadow-2xl ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-100' : 'border-ds-zinc-200 bg-white text-ds-zinc-900'}`}
+            className={`flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border shadow-2xl ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-900'}`}
           >
             <header className={`flex items-start gap-4 border-b p-4 ${border}`}>
               <div className="min-w-0 flex-1">
@@ -232,7 +232,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                 maxLength={1200}
                 rows={3}
                 placeholder={t('changePackage.descriptionPlaceholder')}
-                className={`w-full resize-y rounded-md border px-3 py-2 text-xs outline-none focus:border-ds-indigo-500 ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-white text-ds-zinc-900 placeholder:text-ds-zinc-400'}`}
+                className={`w-full resize-y rounded-md border px-3 py-2 text-xs outline-none focus:border-ds-indigo-500 ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900 placeholder:text-ds-zinc-400'}`}
               />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className={`max-w-2xl text-[10px] ${muted}`}>{t('changePackage.descriptionHint')}</p>
