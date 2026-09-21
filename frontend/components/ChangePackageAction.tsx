@@ -3,6 +3,7 @@
 import { API_URL, api } from '@/app/services/api';
 import type { WorkspaceDocument } from '@/types/domain';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { ProvenanceDisclosure } from '@/components/ProvenanceDisclosure';
 import { AlertTriangle, BookOpen, ExternalLink, FileCode2, Loader2, Search, X } from 'lucide-react';
 import React from 'react';
 
@@ -187,8 +188,18 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
     const sourceNode = nodes.find(node => node.id === edge.source);
     const targetNode = nodes.find(node => node.id === edge.target);
     const edgePath = text(sourceNode?.file_path);
+    const sourceProvenance = record(sourceNode?.provenance);
+    const relationshipProvenance = Object.keys(sourceProvenance).length
+      ? {
+          ...sourceProvenance,
+          certainty: text(edge.certainty, text(edge.resolution)),
+          origin: text(edge.type),
+          locator: { file_path: edgePath, start_line: edge.start_line, end_line: edge.end_line },
+        }
+      : null;
     return <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[11px] ${border}`}>
       <span>{text(sourceNode?.qualified_name, text(sourceNode?.name, String(edge.source)))} — <strong>{text(edge.type)}</strong> ({text(edge.resolution)}) → {text(targetNode?.qualified_name, text(targetNode?.name, text(edge.target_name)))}</span>
+      <ProvenanceDisclosure provenance={relationshipProvenance} theme={theme} />
       <OpenCode path={edgePath} line={edge.start_line} sourceId={sourceNode?.source_id} label={t('changePackage.openRelationshipEvidence', { location: `${edgePath}${lineLabel(edge.start_line, edge.end_line)}` })} />
     </div>;
   });
@@ -290,6 +301,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                               <div className="min-w-0">
                                 <p className="truncate text-xs font-medium">{text(item.qualified_name, text(item.name, t('changePackage.unknownName')))}{isChangeTarget && <span className="ml-2 rounded bg-ds-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-ds-indigo-400">{t('changePackage.changeTarget')}</span>}</p>
                                 <p className={`truncate text-[10px] ${muted}`}>{path}{lineLabel(item.start_line, item.end_line)}</p>
+                                <ProvenanceDisclosure provenance={item.provenance ?? record(item.evidence).provenance} theme={theme} />
                               </div>
                               <OpenCode path={path} line={item.start_line} sourceId={item.source_id} />
                             </div>
@@ -339,6 +351,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{text(item.title)}</p><OpenDoc item={item} /></div>
                       <p className={`mt-1 text-[10px] ${muted}`}>{text(record(item.evidence).excerpt, text(record(item.evidence).context))}</p>
                       <p className="mt-1 text-[10px] text-ds-amber-400">{text(item.classification_basis)} · {text(item.classification_keyword)}</p>
+                      <ProvenanceDisclosure provenance={record(item.evidence).provenance} theme={theme} />
                     </article>)}
                     {possibleRules.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noRules')}</p>}
                   </section>
@@ -349,6 +362,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{text(item.title)}</p><OpenDoc item={item} /></div>
                       <p className={`mt-1 text-[10px] ${muted}`}>{text(record(item.evidence).context, text(record(item.evidence).excerpt))}</p>
                       <p className={`mt-1 text-[10px] ${muted}`}>{text(item.source_type)} · {text(record(item.evidence).status)} · {t('changePackage.linkedRecordOnly')}</p>
+                      <ProvenanceDisclosure provenance={record(item.evidence).provenance} theme={theme} />
                     </article>)}
                     {documents.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noDocuments')}</p>}
                   </section>
@@ -369,7 +383,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       const evidence = record(item.evidence);
                       return <div key={`${String(entity.id)}-${index}`} className={`mb-2 flex flex-wrap items-center justify-between gap-2 rounded border p-2 last:mb-0 ${border}`}>
                         <span className="text-xs">{text(entity.name)} · {text(item.relationship)}</span>
-                        <OpenCode path={entity.file_path} line={evidence.start_line ?? entity.start_line} sourceId={entity.source_id} />
+                        <div className="flex flex-wrap items-center gap-1"><ProvenanceDisclosure provenance={item.provenance} theme={theme} /><OpenCode path={entity.file_path} line={evidence.start_line ?? entity.start_line} sourceId={entity.source_id} /></div>
                       </div>;
                     })}
                     {testItems.length === 0 && <p className={`text-xs ${muted}`}>{text(tests.note, t('changePackage.testsUnknown'))}</p>}

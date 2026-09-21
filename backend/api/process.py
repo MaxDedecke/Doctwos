@@ -17,7 +17,8 @@ from api.process_schemas import (
 )
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from models.database import CodeEdge, CodeEntity, User
+from models.database import CodeEdge, CodeEntity, KnowledgeSource, User
+from services.provenance import build_provenance
 
 router = APIRouter(prefix="/process", tags=["process"])
 
@@ -53,16 +54,17 @@ def _node_id(entity_id: int) -> str:
     return f"entity:{entity_id}"
 
 
-def _entity_locator(entity: CodeEntity) -> ProcessLocator:
+def _entity_locator(entity: CodeEntity, provenance: dict | None = None) -> ProcessLocator:
     return ProcessLocator(
         source_id=entity.source_id,
         file_path=entity.file_path or "<unknown>",
         start_line=entity.start_line or 1,
         end_line=entity.end_line,
+        provenance=provenance,
     )
 
 
-def _edge_locator(edge: CodeEdge, source: CodeEntity) -> ProcessLocator:
+def _edge_locator(edge: CodeEdge, source: CodeEntity, provenance: dict | None = None) -> ProcessLocator:
     # Older persisted CodeEdges can have line 0. The entity declaration is an
     # explicitly detectable fallback that remains openable; parsers should
     # populate src_start_line for the precise call site.
@@ -73,6 +75,7 @@ def _edge_locator(edge: CodeEdge, source: CodeEntity) -> ProcessLocator:
         file_path=source.file_path or "<unknown>",
         start_line=start_line,
         end_line=end_line,
+        provenance=provenance,
     )
 
 
@@ -169,6 +172,33 @@ def _projection(
     requested_kinds: set[str],
 ) -> ProcessProjection:
     entities: dict[int, CodeEntity] = {root.id: root}
+    source_cache: dict[int, KnowledgeSource | None] = {}
+
+    def provenance_for(entity: CodeEntity, start_line: int, end_line: int | None, *, certainty: str | None = None, origin: str | None = None) -> dict:
+        source_id = entity.source_id
+        if source_id is not None and source_id not in source_cache:
+            source_cache[source_id] = (
+                db.query(KnowledgeSource)
+                .filter(
+                    KnowledgeSource.id == source_id,
+                    KnowledgeSource.project_id == entity.project_id,
+                )
+                .first()
+            )
+        source = source_cache.get(source_id) if source_id is not None else None
+        return build_provenance(
+            source,
+            kind="code_fact" if source else "unknown",
+            verification_status="indexed_unreviewed" if source else "unavailable",
+            detail=(
+                "Automatisch aus dem Codeindex abgeleitet; eine fachliche Freigabe ist nicht hinterlegt."
+                if source else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+            ),
+            locator={"file_path": entity.file_path, "start_line": start_line, "end_line": end_line},
+            certainty=certainty,
+            origin=origin,
+        )
+
     frontier = {root.id}
     transitions: list[ProcessTransition] = []
     seen_edge_ids: set[int] = set()
@@ -255,7 +285,17 @@ def _projection(
                     kind=kind,
                     certainty=_certainty(edge, source),
                     resolution=edge.resolution,
-                    locator=_edge_locator(edge, source),
+                    locator=_edge_locator(
+                        edge,
+                        source,
+                        provenance_for(
+                            source,
+                            edge.src_start_line if edge.src_start_line >= 1 else source.start_line or 1,
+                            edge.src_end_line if edge.src_end_line >= 1 else None,
+                            certainty=_certainty(edge, source),
+                            origin=edge.type,
+                        ),
+                    ),
                     origin_kind="code_edge",
                     code_edge_ids=[edge.id],
                     code_edge_types=[edge.type],
@@ -288,7 +328,10 @@ def _projection(
                 kind=_node_kind(entity, root),
                 label=entity.name,
                 language=_language(entity),
-                locator=_entity_locator(entity),
+                locator=_entity_locator(
+                    entity,
+                    provenance_for(entity, entity.start_line or 1, entity.end_line, origin="CodeEntity"),
+                ),
                 entity_id=entity.id,
             )
         )

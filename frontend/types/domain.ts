@@ -204,6 +204,7 @@ export interface ChatSource {
   /** Internal exact reference used for feedback-to-link mapping; never rendered. */
   chunk_id?: number | null;
   lines?: Array<number | null>;
+  provenance?: Record<string, unknown>;
 }
 export interface ChatMessage {
   id?: number;

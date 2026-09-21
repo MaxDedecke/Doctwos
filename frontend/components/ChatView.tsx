@@ -9,6 +9,7 @@ import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 import { api } from '@/app/services/api';
 import { DoctusIcon } from "@/components/Logo";
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -575,6 +576,18 @@ export function ChatView({
                             )
                           )}
 
+                          {m.content && (!isLoading || i !== chatMessages.length - 1) && (
+                            <ProvenanceDisclosure
+                              theme={theme}
+                              className="mt-2"
+                              provenance={{
+                                kind: 'model_inference',
+                                verification_status: 'unverified',
+                                verification_note: t('provenance.answerNote'),
+                              }}
+                            />
+                          )}
+
                           {isLoading && i === chatMessages.length - 1 && (m.content || (m.metadata?.agent_steps && m.metadata.agent_steps.length > 0)) && (
                             <div className="flex items-center gap-2 text-ds-zinc-500/70 mt-3 py-1 font-medium select-none animate-pulse">
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-ds-indigo-500 shrink-0" />
@@ -1000,23 +1013,33 @@ export function ChatView({
                               {m.sources.map((src, sIdx) => {
                                 const filename = src.file.split('/').pop();
                                 return (
-                                  <button
-                                    type="button"
-                                    key={sIdx}
-                                    id={`chat-source-link-${sIdx}`}
-                                    onClick={() => handleFileSelect(src.file, src.lines?.[0] ?? undefined, src.source_id != null ? String(src.source_id) : undefined)}
-                                    className={cn(
-                                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all shadow-inner font-medium cursor-pointer whitespace-nowrap max-w-full",
-                                      theme === 'dark'
-                                        ? "bg-ds-zinc-900/80 border-ds-zinc-800 hover:border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-200"
-                                        : "bg-ds-zinc-100/50 border-ds-zinc-200 hover:border-ds-zinc-300 text-ds-zinc-600 hover:text-ds-zinc-900"
-                                    )}
-                                    title={t('chatView.sourceFileTitle', { file: src.file, lines: formatLineRange(src.lines) })}
-                                  >
-                                    <Folder className="w-3 h-3 text-ds-indigo-400 shrink-0" />
-                                    <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
-                                    <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
-                                  </button>
+                                  <span key={sIdx} className="inline-flex max-w-full items-center gap-0.5">
+                                    <button
+                                      type="button"
+                                      id={`chat-source-link-${sIdx}`}
+                                      onClick={() => handleFileSelect(src.file, src.lines?.[0] ?? undefined, src.source_id != null ? String(src.source_id) : undefined)}
+                                      className={cn(
+                                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-all shadow-inner font-medium cursor-pointer whitespace-nowrap max-w-full",
+                                        theme === 'dark'
+                                          ? "bg-ds-zinc-900/80 border-ds-zinc-800 hover:border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-200"
+                                          : "bg-ds-zinc-100/50 border-ds-zinc-200 hover:border-ds-zinc-300 text-ds-zinc-600 hover:text-ds-zinc-900"
+                                      )}
+                                      title={t('chatView.sourceFileTitle', { file: src.file, lines: formatLineRange(src.lines) })}
+                                    >
+                                      <Folder className="w-3 h-3 text-ds-indigo-400 shrink-0" />
+                                      <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
+                                      <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
+                                    </button>
+                                    <ProvenanceDisclosure
+                                      theme={theme}
+                                      provenance={src.provenance ?? {
+                                        kind: 'unknown',
+                                        verification_status: 'unavailable',
+                                        verification_note: t('provenance.historicalSourceNote'),
+                                        locator: { file: src.file, lines: src.lines },
+                                      }}
+                                    />
+                                  </span>
                                 );
                               })}
                             </div>

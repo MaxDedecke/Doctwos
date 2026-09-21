@@ -189,6 +189,9 @@ def test_attach_analysis_status_marks_a_partial_citation(db_session, test_projec
 
     assert result[0]["analysis_status"] == "partial"
     assert result[0]["analysis_reasons"] == ["mismatched input"]
+    assert result[0]["provenance"]["kind"] == "code_fact"
+    assert result[0]["provenance"]["verification_status"] == "indexed_unreviewed"
+    assert result[0]["provenance"]["analysis_status"] == "partial"
 
 
 def test_attach_analysis_status_leaves_a_clean_citation_untouched(
@@ -210,6 +213,7 @@ def test_attach_analysis_status_leaves_a_clean_citation_untouched(
     result = _attach_analysis_status(db_session, sources)
 
     assert "analysis_status" not in result[0]
+    assert result[0]["provenance"]["source_name"] == "repo"
 
 
 def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session):
@@ -217,3 +221,5 @@ def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session)
     sources = [{"file": "unknown.txt", "lines": None, "source_id": None}]
     result = _attach_analysis_status(db_session, sources)
     assert "analysis_status" not in result[0]
+    assert result[0]["provenance"]["kind"] == "unknown"
+    assert result[0]["provenance"]["verification_status"] == "unavailable"

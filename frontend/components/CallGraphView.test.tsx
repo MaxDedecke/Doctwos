@@ -52,7 +52,7 @@ const PROJECTION = {
     { id: 'external:edge:8', kind: 'external_call', label: 'BANK-AUTH', language: 'cobol', locator: { source_id: 5, file_path: 'ZAHLUNG.CBL', start_line: 35 } },
   ],
   transitions: [
-    { id: 'code-edge:7', source: 'entity:42', target: 'entity:43', kind: 'call', certainty: 'certain', resolution: 'resolved', code_edge_types: ['PERFORM'], locator: { start_line: 14 }, meta: {} },
+    { id: 'code-edge:7', source: 'entity:42', target: 'entity:43', kind: 'call', certainty: 'certain', resolution: 'resolved', code_edge_types: ['PERFORM'], locator: { start_line: 14, provenance: { kind: 'code_fact', verification_status: 'indexed_unreviewed', source_name: 'CardDemo', source_type: 'Git', source_revision: 'commit-1', certainty: 'certain', origin: 'PERFORM', locator: { file_path: 'ZAHLUNG.CBL', start_line: 14 } } }, meta: {} },
     { id: 'code-edge:8', source: 'entity:43', target: 'external:edge:8', kind: 'external_call', certainty: 'unresolved', resolution: 'unresolved', code_edge_types: ['CALL'], locator: { start_line: 35 }, meta: {} },
   ],
   truncation: { truncated: true, reasons: ['edge_limit'] },
@@ -84,6 +84,7 @@ describe('ProcessView', () => {
     const { onFileSelect } = renderView();
     fireEvent.click(await screen.findByTestId('edge-code-edge:7'));
     expect(onFileSelect).toHaveBeenCalledWith('ZAHLUNG.CBL', 14, 5);
+    expect(screen.getAllByText('Automatisch analysierter Codefakt').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByTestId('node-entity:43'));
     expect(onFileSelect).toHaveBeenCalledWith('ZAHLUNG.CBL', 30, 5);
     fireEvent.click(screen.getByTestId('node-external:edge:8'));

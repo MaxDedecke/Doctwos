@@ -468,12 +468,12 @@ describe('ChatView', () => {
       },
     };
 
-    it('zeigt die Nachfragekarte mit "Ja, öffnen" und "Nein", wenn ein Ablauf vorliegt', () => {
+    it('zeigt die Nachfragekarte mit "Ablauf untersuchen" und "Nein", wenn ein Ablauf vorliegt', () => {
       renderChat({ chatMessages: [TRACE_MESSAGE] });
 
       expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
       expect(screen.getByText(/Darf ich die Process View öffnen/)).toBeTruthy();
-      expect(screen.getByText('Ja, öffnen')).toBeTruthy();
+      expect(screen.getByText('Ablauf untersuchen')).toBeTruthy();
       expect(screen.getByText('Nein')).toBeTruthy();
     });
 
@@ -485,14 +485,14 @@ describe('ChatView', () => {
 
       expect(screen.queryByTestId('callgraph-prompt-card')).toBeNull();
       // Es verbleibt ein dezenter Link zum späteren Öffnen
-      expect(screen.getByText('Ablauf im Graph anzeigen')).toBeTruthy();
+      expect(screen.getByText('Ablauf in Process View öffnen')).toBeTruthy();
     });
 
     it('ruft onOpenCallFlow auf, wenn der Nutzer auf "Ja, öffnen" klickt', () => {
       const onOpenCallFlow = vi.fn().mockReturnValue(true);
       renderChat({ chatMessages: [TRACE_MESSAGE], onOpenCallFlow });
 
-      fireEvent.click(screen.getByText('Ja, öffnen'));
+      fireEvent.click(screen.getByText('Ablauf untersuchen'));
 
       expect(onOpenCallFlow).toHaveBeenCalledWith(
         expect.objectContaining({

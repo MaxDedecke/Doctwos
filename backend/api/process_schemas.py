@@ -29,6 +29,7 @@ class ProcessLocator(BaseModel):
     file_path: str
     start_line: int = Field(ge=1)
     end_line: int | None = Field(default=None, ge=1)
+    provenance: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def end_is_not_before_start(self):

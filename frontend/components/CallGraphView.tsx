@@ -10,6 +10,7 @@ import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
+import { ProvenanceDisclosure } from './ProvenanceDisclosure';
 import { AlertTriangle, Compass, FileCode, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
@@ -55,6 +56,7 @@ export type CallEdge = {
   sequence?: number | null;
   condition?: string | null;
   meta?: CallFlowEdge['meta'];
+  provenance?: Record<string, unknown>;
 };
 
 interface Props {
@@ -256,14 +258,14 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       type ProcessNode = {
         id: string; kind: string; label: string; entity_id?: number | null;
-        locator: { file_path: string; start_line: number; source_id?: number | null };
+        locator: { file_path: string; start_line: number; source_id?: number | null; provenance?: Record<string, unknown> | null };
         language: string; condition?: string | null;
       };
       type ProcessTransition = {
         id: string; source: string; target: string; kind: string; resolution: string;
         certainty: 'certain' | 'possible' | 'unresolved'; code_edge_types: string[];
         origin_kind: string; sequence?: number | null; condition?: string | null;
-        locator: { file_path: string; start_line: number; source_id?: number | null };
+        locator: { file_path: string; start_line: number; source_id?: number | null; provenance?: Record<string, unknown> | null };
         meta?: CallFlowEdge['meta'];
       };
       const data: { nodes: ProcessNode[]; transitions: ProcessTransition[]; truncation: { truncated: boolean; reasons: string[] } } = await response.json();
@@ -312,6 +314,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           sequence: edge.sequence,
           condition: edge.condition,
           meta: edge.meta,
+          provenance: edge.locator.provenance ?? undefined,
         }));
 
         if (existingPositions.size === 0) {
@@ -788,6 +791,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
                   {(selectedEdge.start_line ?? selectedEdgeSource?.start_line) != null && `:${selectedEdge.start_line ?? selectedEdgeSource?.start_line}`}
                 </div>
               </div>
+              <ProvenanceDisclosure provenance={selectedEdge.provenance} theme={theme} className="mt-2" />
             </div>
             <div className="flex shrink-0 items-center gap-1">
               {(selectedEdge.file_path || selectedEdgeSource?.file_path) && (

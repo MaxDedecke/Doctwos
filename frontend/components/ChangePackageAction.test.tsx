@@ -16,8 +16,8 @@ const PACKAGE = {
     truncated: true,
     target: { entity_ids: [1] },
     nodes: [
-      { id: 1, name: 'ROOT', qualified_name: 'PAYMENT.ROOT', file_path: 'src/PAYMENT.cbl', source_id: 9 },
-      { id: 2, name: 'CALLER', qualified_name: 'PAYMENT.CALLER', file_path: 'src/PAYMENT.cbl', source_id: 9 },
+      { id: 1, name: 'ROOT', qualified_name: 'PAYMENT.ROOT', file_path: 'src/PAYMENT.cbl', source_id: 9, provenance: { kind: 'code_fact', verification_status: 'indexed_unreviewed', source_revision: 'rev-1', source_name: 'Payments', source_type: 'Git', locator: { file_path: 'src/PAYMENT.cbl', start_line: 1 } } },
+      { id: 2, name: 'CALLER', qualified_name: 'PAYMENT.CALLER', file_path: 'src/PAYMENT.cbl', source_id: 9, provenance: { kind: 'code_fact', verification_status: 'indexed_unreviewed', source_revision: 'rev-1', source_name: 'Payments', source_type: 'Git', locator: { file_path: 'src/PAYMENT.cbl', start_line: 30 } } },
       { id: 3, name: 'CUSTOMER-FILE', qualified_name: 'CUSTOMER-FILE', file_path: 'copy/CUSTOMER.cpy', source_id: 9 },
     ],
     edges: [
@@ -64,7 +64,7 @@ const PACKAGE = {
       classification_keyword: 'rule',
       source_type: 'Confluence',
       url: 'https://docs.example.test/payment',
-      evidence: { status: 'approved', source_id: 12, file_path: 'PAYMENT_RULES', chunk_id: 70, page: 4, section: 'Payment', excerpt: 'Check the payment rule.' },
+      evidence: { status: 'approved', source_id: 12, file_path: 'PAYMENT_RULES', chunk_id: 70, page: 4, section: 'Payment', excerpt: 'Check the payment rule.', provenance: { kind: 'document_claim', verification_status: 'unverified', association_status: 'approved', source_name: 'Payment manual', source_type: 'Confluence', locator: { file_path: 'PAYMENT_RULES', page: 4 } } },
     },
     {
       entity_id: 1,
@@ -73,7 +73,7 @@ const PACKAGE = {
       classification_basis: 'approved_link_only',
       source_type: 'Confluence',
       url: 'https://docs.example.test/manual',
-      evidence: { status: 'approved', source_id: 12, file_path: 'PAYMENT_MANUAL', chunk_id: 71, section: 'Overview', excerpt: 'Reference details.' },
+      evidence: { status: 'approved', source_id: 12, file_path: 'PAYMENT_MANUAL', chunk_id: 71, section: 'Overview', excerpt: 'Reference details.', provenance: { kind: 'document_claim', verification_status: 'unverified', association_status: 'approved', source_name: 'Payment manual', source_type: 'Confluence', locator: { file_path: 'PAYMENT_MANUAL', section: 'Overview' } } },
     },
   ],
   historical_issues: [],
@@ -144,6 +144,8 @@ describe('ChangePackageAction', () => {
     expect(screen.getByText(/Doctus bestätigt daraus keine Fachregel/)).toBeTruthy();
     expect(screen.getByText(/Dynamic calls may be missing/)).toBeTruthy();
     expect(screen.getByText(/Umfangsgrenzen gekürzt/)).toBeTruthy();
+    expect(screen.getAllByText(/Automatisch analysierter Codefakt/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Dokumentaussage/).length).toBeGreaterThan(0);
   });
 
   it('opens the indexed code and document evidence from the package', async () => {

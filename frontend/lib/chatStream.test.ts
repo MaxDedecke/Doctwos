@@ -10,6 +10,15 @@ describe('chat stream boundary', () => {
     expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
   });
 
+  it('preserves source provenance on streamed citations', () => {
+    const event = { type: 'sources', sources: [
+      { file: 'src/main.cbl', source_id: 7, lines: [12, 16], provenance: {
+        kind: 'code_fact', verification_status: 'indexed_unreviewed', source_revision: 'rev-123',
+      } },
+    ] };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
+  });
+
   it('keeps tool arguments as structured data without treating them as trusted fields', () => {
     const event = { type: 'tool_call', name: 'search', arguments: { query: 'CALL', filters: ['code'] }, id: 'call-1' };
     expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);

@@ -73,6 +73,7 @@ from services.chat_service import (
 )
 from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
 from services.ai_settings import get_active_embedding_profile, get_profile
+from services.provenance import build_provenance
 
 # Compatibility imports for focused regression tests and downstream callers. The
 # implementation now lives in services.chat_service with the rest of retrieval.
@@ -589,11 +590,37 @@ def _attach_analysis_status(db: Session, sources: list[dict]) -> list[dict]:
     status_by_key = load_analysis_status(
         db, {(source.get("source_id"), source.get("file")) for source in sources}
     )
+    source_ids = {
+        source.get("source_id")
+        for source in sources
+        if isinstance(source.get("source_id"), int)
+    }
+    source_by_id = {
+        source.id: source
+        for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
+    } if source_ids else {}
     for source in sources:
         info = status_by_key.get((source.get("source_id"), source.get("file")))
         if info:
             source["analysis_status"] = info["status"]
             source["analysis_reasons"] = info["reasons"]
+        knowledge_source = source_by_id.get(source.get("source_id"))
+        is_code_source = bool(knowledge_source and (knowledge_source.type or "").casefold() == "git")
+        source["provenance"] = build_provenance(
+            knowledge_source,
+            kind="code_fact" if is_code_source else "document_claim" if knowledge_source else "unknown",
+            verification_status="indexed_unreviewed" if is_code_source else "unverified" if knowledge_source else "unavailable",
+            detail=(
+                "Die Verknüpfung belegt die Fundstelle, nicht die fachliche Richtigkeit der Aussage."
+                if knowledge_source and not is_code_source
+                else "Code wurde automatisch aus dem Index gelesen; eine fachliche Freigabe ist nicht hinterlegt."
+                if is_code_source
+                else "Quellenmetadaten sind für diese Fundstelle nicht verfügbar."
+            ),
+            locator={"file": source.get("file"), "lines": source.get("lines")},
+            analysis_status=info.get("status") if info else None,
+            analysis_reasons=info.get("reasons", []) if info else [],
+        )
     return sources
 
 

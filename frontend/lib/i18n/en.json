@@ -1339,6 +1339,46 @@
       "exit": "Exit"
     }
   },
+  "provenance": {
+    "kindLabel": "Claim type",
+    "statusLabel": "Review status",
+    "sourceLabel": "Source",
+    "revisionLabel": "Source revision",
+    "lastSyncLabel": "Last sync",
+    "syncStatusLabel": "Sync status",
+    "associationStatusLabel": "Link status",
+    "associationApproved": "Link approved",
+    "associationReviewLabel": "Link reviewed at",
+    "certaintyLabel": "Relationship certainty",
+    "originLabel": "Relationship origin",
+    "locatorLabel": "Evidence location",
+    "analysisStatusLabel": "Analysis status",
+    "answerNote": "Model-generated synthesis. The listed evidence points to cited sources but does not automatically support every sentence in the answer.",
+    "historicalSourceNote": "Provenance metadata is unavailable for this stored citation.",
+    "notAvailable": "Unavailable or not recorded",
+    "contentHash": "content hash",
+    "kind": {
+      "code_fact": "Automatically analyzed code fact",
+      "document_claim": "Document claim",
+      "model_inference": "Model answer / inference",
+      "linked_reference": "Approved link",
+      "knowledge_draft": "Unreviewed knowledge draft",
+      "verified_knowledge": "Domain-reviewed knowledge",
+      "conflict": "Conflicting evidence",
+      "analysis_limit": "Analysis boundary",
+      "unknown": "Origin unknown"
+    },
+    "status": {
+      "indexed_unreviewed": "Indexed, not domain-reviewed",
+      "unverified": "Not domain-verified",
+      "link_approved": "Link approved; claim unverified",
+      "draft": "Draft – unreviewed",
+      "verified": "Domain-reviewed",
+      "conflict": "Evidence conflicts",
+      "incomplete": "Partial or incomplete analysis",
+      "unavailable": "Review status unavailable"
+    }
+  },
   "changePackage": {
     "action": "Investigate change",
     "actionTitle": "Build a bounded evidence package for this code target",

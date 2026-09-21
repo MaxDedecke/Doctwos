@@ -21,6 +21,7 @@ from models.database import (
     Project,
 )
 from services.change_impact import inspect_change_impact
+from services.provenance import build_provenance
 
 
 MAX_PACKAGE_LINKS = 40
@@ -35,16 +36,19 @@ _BUG_WORD = re.compile(r"\b(?:bug|defect|incident|regression|fehler|störung|sto
 _RULE_WORD = re.compile(r"\b(?:fachregel|business rule|geschäftsregel|geschaeftsregel|regelwerk)\b", re.IGNORECASE)
 
 
-def _chunk_document(db: Session, chunk_id: int | None, project_id: int) -> DocumentChunk | None:
+def _chunk_document(
+    db: Session, chunk_id: int | None, project_id: int
+) -> tuple[DocumentChunk | None, KnowledgeSource | None]:
     if chunk_id is None:
-        return None
+        return None, None
     chunk = (
         db.query(DocumentChunk)
         .filter(DocumentChunk.id == chunk_id, DocumentChunk.project_id == project_id)
         .first()
     )
     if not chunk:
-        return None
+        return None, None
+    source = None
     if chunk.source_id:
         project_team_id = db.query(Project.team_id).filter(Project.id == project_id).scalar()
         source = (
@@ -57,12 +61,19 @@ def _chunk_document(db: Session, chunk_id: int | None, project_id: int) -> Docum
             .first()
         )
         if not source:
-            return None
-    return chunk
+            return None, None
+    return chunk, source
 
 
 def _doc_metadata(chunk: DocumentChunk | None) -> dict:
     return chunk.metadata_json if chunk and isinstance(chunk.metadata_json, dict) else {}
+
+
+def _provenance_metadata(chunk: DocumentChunk | None) -> dict:
+    metadata = dict(_doc_metadata(chunk))
+    if chunk and chunk.content_hash:
+        metadata.setdefault("content_hash", chunk.content_hash)
+    return metadata
 
 
 def _source_type(db: Session, chunk: DocumentChunk | None, preferred: str | None) -> str | None:
@@ -109,7 +120,7 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
         entity_links = entity_links[:MAX_PACKAGE_LINKS]
 
     for link in entity_links:
-        chunk = _chunk_document(db, link.chunk_id, project_id)
+        chunk, source = _chunk_document(db, link.chunk_id, project_id)
         metadata = _doc_metadata(chunk)
         source_type = _source_type(db, chunk, link.source_type)
         if str(source_type or "").casefold() == "git":
@@ -137,6 +148,27 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                 "section": metadata.get("section"),
                 "url_anchor": metadata.get("url_anchor") or metadata.get("anchor"),
                 "excerpt": _excerpt(chunk),
+                "provenance": build_provenance(
+                    source,
+                    kind="document_claim" if source else "unknown",
+                    verification_status="unverified" if source else "unavailable",
+                    detail=(
+                        "Freigegebene Code-Dokument-Verknüpfung; der Inhalt ist dadurch nicht fachlich verifiziert."
+                        if source else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
+                    ),
+                    locator={
+                        "file_path": chunk.file_path if chunk else None,
+                        "start_line": chunk.start_line if chunk else None,
+                        "end_line": chunk.end_line if chunk else None,
+                        "page": metadata.get("page"),
+                        "section": metadata.get("section"),
+                        "url_anchor": metadata.get("url_anchor") or metadata.get("anchor"),
+                        "url": link.doc_url or metadata.get("url"),
+                    },
+                    metadata=_provenance_metadata(chunk),
+                    association_status=link.status,
+                    association_reviewed_at=link.reviewed_at.isoformat() if link.reviewed_at else None,
+                ),
             },
             "issue_key": metadata.get("issue_key") or _issue_key(link.doc_title),
         }
@@ -175,7 +207,7 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
         document_side = next((side for side in sides if side[1] == "document"), None)
         if not entity_side or not document_side:
             continue
-        chunk = _chunk_document(db, document_side[3], project_id)
+        chunk, source = _chunk_document(db, document_side[3], project_id)
         # A cross-project/global document is not included through a generic
         # graph edge. The evidence package stays within this project's scope.
         if not chunk:
@@ -208,6 +240,27 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                 "section": metadata.get("section"),
                 "url_anchor": metadata.get("url_anchor") or metadata.get("anchor"),
                 "excerpt": _excerpt(chunk),
+                "provenance": build_provenance(
+                    source,
+                    kind="document_claim" if source else "unknown",
+                    verification_status="unverified" if source else "unavailable",
+                    detail=(
+                        "Freigegebene Wissensverknüpfung; der Dokumentinhalt ist dadurch nicht fachlich verifiziert."
+                        if source else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
+                    ),
+                    locator={
+                        "file_path": chunk.file_path,
+                        "start_line": chunk.start_line,
+                        "end_line": chunk.end_line,
+                        "page": metadata.get("page"),
+                        "section": metadata.get("section"),
+                        "url_anchor": metadata.get("url_anchor") or metadata.get("anchor"),
+                        "url": document_side[5] or metadata.get("url"),
+                    },
+                    metadata=_provenance_metadata(chunk),
+                    association_status=link.status,
+                    association_reviewed_at=link.reviewed_at.isoformat() if link.reviewed_at else None,
+                ),
             },
             "issue_key": metadata.get("issue_key") or _issue_key(document_side[4]),
         }
@@ -698,9 +751,66 @@ def inspect_change_package(
 
     nodes = impact.get("nodes", [])
     node_ids = {node["id"] for node in nodes if isinstance(node, dict) and isinstance(node.get("id"), int)}
+    source_ids = {
+        node.get("source_id") for node in nodes
+        if isinstance(node, dict) and isinstance(node.get("source_id"), int)
+    }
+    source_by_id = {
+        source.id: source
+        for source in db.query(KnowledgeSource).filter(
+            KnowledgeSource.id.in_(source_ids),
+            KnowledgeSource.project_id == project_id,
+        ).all()
+    } if source_ids else {}
+    for node in nodes:
+        source = source_by_id.get(node.get("source_id")) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node["provenance"] = build_provenance(
+                source,
+                kind="code_fact" if source else "unknown",
+                verification_status="indexed_unreviewed" if source else "unavailable",
+                detail=(
+                    "Aus dem statischen Codeindex; keine fachliche Freigabe ist hinterlegt."
+                    if source else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                ),
+                locator={
+                    "file_path": node.get("file_path"),
+                    "start_line": node.get("start_line"),
+                    "end_line": node.get("end_line"),
+                },
+                origin="CodeEntity",
+            )
     linked_documents, documents_truncated = _linked_documents(db, project_id, node_ids)
     linked_knowledge, issue_history = _classify_knowledge(linked_documents)
     tests = _test_evidence(db, project_id, node_ids)
+    test_source_ids = {
+        item.get("entity", {}).get("source_id")
+        for item in tests.get("items", [])
+        if isinstance(item.get("entity", {}).get("source_id"), int)
+    }
+    missing_test_source_ids = test_source_ids - source_by_id.keys()
+    if missing_test_source_ids:
+        source_by_id.update({
+            source.id: source
+            for source in db.query(KnowledgeSource).filter(
+                KnowledgeSource.id.in_(missing_test_source_ids),
+                KnowledgeSource.project_id == project_id,
+            ).all()
+        })
+    for test_item in tests.get("items", []):
+        entity = test_item.get("entity") or {}
+        source = source_by_id.get(entity.get("source_id"))
+        test_item["provenance"] = build_provenance(
+            source,
+            kind="code_fact" if source else "unknown",
+            verification_status="indexed_unreviewed" if source else "unavailable",
+            detail="Statische Beziehung zu einem Testpfad; sie belegt keine Testabdeckung.",
+            locator={
+                "file_path": entity.get("file_path"),
+                "start_line": entity.get("start_line"),
+                "end_line": entity.get("end_line"),
+            },
+        )
     ownership = _ownership(db, project_id, nodes)
     relationship_paths = _relationship_paths(impact)
     for record in linked_knowledge:
@@ -728,6 +838,22 @@ def inspect_change_package(
                 "file_path": node.get("file_path"),
                 "start_line": node.get("start_line"),
                 "end_line": node.get("end_line"),
+                "provenance": build_provenance(
+                    source_by_id.get(node.get("source_id")),
+                    kind="code_fact" if source_by_id.get(node.get("source_id")) else "unknown",
+                    verification_status="indexed_unreviewed" if source_by_id.get(node.get("source_id")) else "unavailable",
+                    detail=(
+                        "Aus dem statischen Codeindex; keine fachliche Freigabe ist hinterlegt."
+                        if source_by_id.get(node.get("source_id"))
+                        else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                    ),
+                    locator={
+                        "file_path": node.get("file_path"),
+                        "start_line": node.get("start_line"),
+                        "end_line": node.get("end_line"),
+                    },
+                    origin="CodeEntity" if not relationship_path else "CodeEntity + Beziehungspfad",
+                ),
                 "unresolved_candidates": [
                     {
                         "edge_id": edge.get("id"),

@@ -5,7 +5,12 @@ def test_process_focus_is_bounded_and_keeps_code_edge_provenance(
     client, db_session, test_project, test_team
 ):
     source = KnowledgeSource(
-        name="process-api-source", type="Git", project_id=test_project, team_id=test_team
+        name="process-api-source",
+        type="Git",
+        project_id=test_project,
+        team_id=test_team,
+        branch="main",
+        spaces={"last_commit_hash": "deadbeef1234"},
     )
     db_session.add(source)
     db_session.flush()
@@ -78,12 +83,16 @@ def test_process_focus_is_bounded_and_keeps_code_edge_provenance(
         assert payload["truncation"]["edge_limit"] == 10
         assert len(payload["projection_id"]) > 10
         resolved = next(item for item in payload["transitions"] if item["code_edge_types"] == ["CALLS"] and item["certainty"] == "certain")
-        assert resolved["locator"] == {
+        assert {key: resolved["locator"][key] for key in ("source_id", "file_path", "start_line", "end_line")} == {
             "source_id": source.id,
             "file_path": "Payment.java",
             "start_line": 14,
             "end_line": 14,
         }
+        assert resolved["locator"]["provenance"]["kind"] == "code_fact"
+        assert resolved["locator"]["provenance"]["verification_status"] == "indexed_unreviewed"
+        assert resolved["locator"]["provenance"]["source_revision"] == "deadbeef1234"
+        assert resolved["locator"]["provenance"]["branch"] == "main"
         assert any(node["kind"] == "external_call" for node in payload["nodes"])
 
         limited = client.get(

@@ -1339,6 +1339,46 @@
       "exit": "Ausstieg"
     }
   },
+  "provenance": {
+    "kindLabel": "Aussagetyp",
+    "statusLabel": "Prüfstatus",
+    "sourceLabel": "Quelle",
+    "revisionLabel": "Quellenstand",
+    "lastSyncLabel": "Letzter Sync",
+    "syncStatusLabel": "Sync-Status",
+    "associationStatusLabel": "Verknüpfungsstatus",
+    "associationApproved": "Verknüpfung freigegeben",
+    "associationReviewLabel": "Verknüpfung geprüft am",
+    "certaintyLabel": "Sicherheit der Beziehung",
+    "originLabel": "Herkunft der Beziehung",
+    "locatorLabel": "Fundstelle",
+    "analysisStatusLabel": "Analyse-Status",
+    "answerNote": "Modellgenerierte Synthese. Die angezeigten Belege zeigen zitierte Quellen, belegen aber nicht automatisch jeden Satz der Antwort.",
+    "historicalSourceNote": "Für diese gespeicherte Fundstelle liegen keine Provenienz-Metadaten vor.",
+    "notAvailable": "Nicht verfügbar oder nicht erfasst",
+    "contentHash": "Inhalts-Hash",
+    "kind": {
+      "code_fact": "Automatisch analysierter Codefakt",
+      "document_claim": "Dokumentaussage",
+      "model_inference": "Modellantwort / Schlussfolgerung",
+      "linked_reference": "Freigegebene Verknüpfung",
+      "knowledge_draft": "Ungeprüfter Erkenntnisentwurf",
+      "verified_knowledge": "Fachlich geprüfte Erkenntnis",
+      "conflict": "Widersprüchliche Belege",
+      "analysis_limit": "Analysegrenze",
+      "unknown": "Herkunft unbekannt"
+    },
+    "status": {
+      "indexed_unreviewed": "Indexiert, nicht fachlich geprüft",
+      "unverified": "Nicht fachlich verifiziert",
+      "link_approved": "Verknüpfung freigegeben; Aussage ungeprüft",
+      "draft": "Entwurf – ungeprüft",
+      "verified": "Fachlich geprüft",
+      "conflict": "Belege widersprechen sich",
+      "incomplete": "Analyse teilweise oder unvollständig",
+      "unavailable": "Prüfstatus nicht verfügbar"
+    }
+  },
   "changePackage": {
     "action": "Änderung untersuchen",
     "actionTitle": "Ein begrenztes, belegtes Änderungspaket für dieses Code-Element erstellen",

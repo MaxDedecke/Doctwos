@@ -107,7 +107,13 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
         if (!isRecord(source) || typeof source.file !== 'string' ||
           (source.source_id != null && typeof source.source_id !== 'string' && typeof source.source_id !== 'number') ||
           (source.lines !== undefined && (!Array.isArray(source.lines) || !source.lines.every((line: unknown) => line === null || typeof line === 'number')))) return null;
-        sources.push({ file: source.file, source_id: source.source_id, lines: source.lines });
+        const citation: ChatSource = {
+          file: source.file,
+          source_id: source.source_id,
+          lines: source.lines,
+        };
+        if (isRecord(source.provenance)) citation.provenance = source.provenance;
+        sources.push(citation);
       }
       return { type: 'sources', sources };
     }
