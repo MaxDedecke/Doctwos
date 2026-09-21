@@ -290,6 +290,102 @@ def _is_side_visible(
 
 
 
+def _sample_representative_code_edges(
+    db: Session,
+    project_id: Optional[int],
+    exposed_project_ids: list[int],
+    documented_entity_ids: set[int],
+    limit: int,
+) -> tuple[list[CodeEdge], bool]:
+    """O-298: Repräsentative Auswahl von Code-Beziehungen statt reinem ID-Scan.
+
+    Priorisiert:
+    1. Direkte Beziehungen dokumentierter Entities (damit Doku-Links angebunden sind).
+    2. Strukturelle und übergeordnete Architektur-Kanten (EXTENDS, IMPLEMENTS, CALLS,
+       COPY, CALL, PERFORM, INSTANTIATES, etc.) quer über Komponenten.
+    3. Allgemeine Beziehungen zur Auffüllung des verbleibenden Budgets.
+    """
+    base_query = db.query(CodeEdge)
+    if project_id:
+        base_query = base_query.filter(CodeEdge.project_id == project_id)
+    else:
+        if exposed_project_ids:
+            base_query = base_query.filter(
+                or_(CodeEdge.project_id.in_(exposed_project_ids), CodeEdge.project_id.is_(None))
+            )
+        else:
+            base_query = base_query.filter(CodeEdge.project_id.is_(None))
+
+    selected_edges: list[CodeEdge] = []
+    seen_edge_ids: set[int] = set()
+
+    # 1. Prioritize edges connected to documented entities
+    if documented_entity_ids:
+      doc_edges = (
+          base_query.filter(
+              or_(
+                  CodeEdge.src_entity_id.in_(documented_entity_ids),
+                  CodeEdge.dst_entity_id.in_(documented_entity_ids),
+              )
+          )
+          .order_by(CodeEdge.id)
+          .limit(min(limit, 500))
+          .all()
+      )
+      for edge in doc_edges:
+        if edge.id not in seen_edge_ids:
+          seen_edge_ids.add(edge.id)
+          selected_edges.append(edge)
+
+    # 2. Structural/architectural relationship types
+    structural_types = [
+        "EXTENDS",
+        "IMPLEMENTS",
+        "DEPENDS_ON",
+        "CONTAINS_MODULE",
+        "DECLARES_SOURCE_ROOT",
+        "CALLS",
+        "COPY",
+        "CALL",
+        "PERFORM",
+        "INSTANTIATES",
+    ]
+    remaining = limit - len(selected_edges)
+    if remaining > 0:
+      struct_query = base_query.filter(CodeEdge.type.in_(structural_types))
+      if seen_edge_ids:
+        struct_query = struct_query.filter(~CodeEdge.id.in_(seen_edge_ids))
+      struct_edges = (
+          struct_query.order_by(CodeEdge.id).limit(remaining + 1).all()
+      )
+      for edge in struct_edges[:remaining]:
+        if edge.id not in seen_edge_ids:
+          seen_edge_ids.add(edge.id)
+          selected_edges.append(edge)
+
+    # 3. Fill with general edges if quota remains
+    remaining = limit - len(selected_edges)
+    has_more = False
+    if remaining > 0:
+      general_query = base_query
+      if seen_edge_ids:
+        general_query = general_query.filter(~CodeEdge.id.in_(seen_edge_ids))
+      general_edges = (
+          general_query.order_by(CodeEdge.id).limit(remaining + 1).all()
+      )
+      if len(general_edges) > remaining:
+        has_more = True
+      for edge in general_edges[:remaining]:
+        if edge.id not in seen_edge_ids:
+          seen_edge_ids.add(edge.id)
+          selected_edges.append(edge)
+    else:
+      check_more = base_query.filter(~CodeEdge.id.in_(seen_edge_ids)).first()
+      has_more = check_more is not None
+
+    return selected_edges, has_more
+
+
 @router.get("")
 def get_graph(
     project_id: Optional[int] = None,
@@ -297,6 +393,8 @@ def get_graph(
     include_isolated: bool = Query(
         False, description="Whether to include degree-0 isolated nodes in the graph overview"
     ),
+    limit: Optional[int] = Query(None, description="Optional custom node cap for the overview"),
+    cursor: Optional[str] = Query(None, description="Optional cursor for overview pagination"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -306,6 +404,15 @@ def get_graph(
     Code edges are projected as type-neutral dependencies. Documentation edges keep
     their semantic link type and evidence location.
     """
+    if not isinstance(limit, int):
+        limit = None
+    if not isinstance(cursor, str):
+        cursor = None
+    if not isinstance(include_isolated, bool):
+        include_isolated = False
+    if not isinstance(status, str):
+        status = "approved"
+
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
     visible_project_ids = get_visible_project_ids(user, db)
@@ -320,22 +427,12 @@ def get_graph(
 
     team_ids = get_visible_team_ids(user, db)
 
+    exposed_project_ids: list[int] = []
     if not project_id:
-        # Kein Projekt-Kontext ("Allgemein") -- Team-/Projekt-Mitgliedschaft allein reicht
-        # hier NICHT (das wäre "jedes Team-Projekt sichtbar", zu weit). Code-Analyse-
-        # Objekte sind projektspezifisch und tauchen außerhalb ihres eigenen Projekt-
-        # Kontexts nur auf, wenn das Projekt explizit dafür freigegeben ist. Default:
-        # kein Projekt freigegeben, also zeigt "Allgemein" nur projektlose Entities
-        # (z.B. eigenständige Git-Wissensquellen).
         exposed_project_ids = get_globally_exposed_project_ids(db)
         if visible_project_ids is not None:
             exposed_project_ids = [pid for pid in exposed_project_ids if pid in visible_project_ids]
-    # The normal knowledge-graph view is link-driven: only endpoints of approved
-    # EntityDocLink/KnowledgeLink rows are materialized below. Loading every code
-    # entity and document merely to discard isolated nodes after the fact made a
-    # project with 30k entities pay the full database and serialization cost even
-    # when it had only a handful of documentation links. The explicit inventory
-    # mode keeps the former all-node behaviour for callers that request it.
+
     if include_isolated:
         entity_query = db.query(CodeEntity)
         if project_id:
@@ -351,10 +448,6 @@ def get_graph(
         if project_id:
             doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
         else:
-            # Der Allgemein-Graph ist ein globaler Quellenkontext, kein Sammelgraph
-            # aller Projekte des Benutzers. Projektgebundene Dokumente (insbesondere
-            # Uploads/PDFs) bleiben deshalb im jeweiligen Projektkontext und werden
-            # hier auch für Administratoren nicht geladen.
             doc_query = doc_query.filter(DocumentChunk.project_id.is_(None))
 
         min_ids_subquery = (
@@ -374,49 +467,20 @@ def get_graph(
             did = f"doc:{title}"
             nodes.setdefault(did, _doc_node(title, meta.get("source_type"), meta.get("url"), chunk))
 
-    # Code dependencies remain visible here as one neutral relationship family.
-    # Exact edge types, directions and traversals belong to /callgraph. Limit the
-    # overview query before materialization so large repositories do not ship the
-    # complete parser graph merely to produce a bounded visual overview.
-    code_edge_limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES * 2
-    code_edge_query = db.query(CodeEdge)
-    if project_id:
-        code_edge_query = code_edge_query.filter(CodeEdge.project_id == project_id)
-    else:
-        code_edge_query = code_edge_query.filter(
-            or_(CodeEdge.project_id.in_(exposed_project_ids), CodeEdge.project_id.is_(None))
-        )
-    sampled_code_edges = code_edge_query.order_by(CodeEdge.id).limit(code_edge_limit + 1).all()
-    code_edges_truncated = len(sampled_code_edges) > code_edge_limit
-    sampled_code_edges = sampled_code_edges[:code_edge_limit]
-    code_entity_ids = {
-        entity_id
-        for edge in sampled_code_edges
-        for entity_id in (edge.src_entity_id, edge.dst_entity_id)
-        if entity_id is not None
-    }
-    code_entities = {
-        entity.id: entity
-        for entity in db.query(CodeEntity).filter(CodeEntity.id.in_(code_entity_ids)).all()
-    } if code_entity_ids else {}
-    _append_code_dependencies(nodes, edges, sampled_code_edges, code_entities)
-
     # ── Entity → Document links ──────────────────────────────────────────────
     eq = db.query(EntityDocLink).filter(EntityDocLink.status == status)
     if project_id:
         eq = eq.filter(EntityDocLink.project_id == project_id)
     else:
-        # Dieselbe Opt-in-Einschränkung wie beim Entity-Node-Fetch oben -- sonst würde
-        # dieser Zweig unfreigegebene Projekt-Entities über den Doc-Link-Pfad wieder
-        # als Node in den Graphen zurückholen.
         eq = eq.filter(EntityDocLink.project_id.in_(exposed_project_ids))
-        # Auch wenn ein Projekt seine Code-Analyse global freigibt, dürfen
-        # projektgebundene Dokumentziele nicht über EntityDocLink in den
-        # Allgemein-Graphen zurückgelangen.
         eq = eq.filter(EntityDocLink.chunk_id.is_(None))
     entity_links = eq.all()
 
+    preserved_node_ids: set[str] = set()
+    documented_entity_ids: set[int] = set()
+
     if entity_links:
+        documented_entity_ids = {lnk.entity_id for lnk in entity_links}
         entity_ids = {lnk.entity_id for lnk in entity_links}
         entities = {
             e.id: e for e in db.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).all()
@@ -438,6 +502,8 @@ def get_graph(
                 did,
                 _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)),
             )
+            preserved_node_ids.add(eid)
+            preserved_node_ids.add(did)
             edges.append(
                 {
                     "id": f"edl:{lnk.id}",
@@ -452,11 +518,7 @@ def get_graph(
                 }
             )
 
-    # ── Cross-object knowledge links (auto doc↔doc + manual entity/document pairs) ──
-    # KnowledgeLink.source_{a,b}_type is generic ('entity' | 'document'), but until now
-    # only doc↔doc rows were ever populated (auto cross-source computation) or rendered
-    # here. Manual links created from the graph UI (see /knowledge-links) can connect
-    # any two nodes, so both sides are resolved generically.
+    # ── Cross-object knowledge links ─────────────────────────────────────────
     for klink in db.query(KnowledgeLink).filter(KnowledgeLink.status == status).all():
         if not (
             _is_side_visible(
@@ -501,6 +563,8 @@ def get_graph(
         )
         if not src_id or not tgt_id:
             continue
+        preserved_node_ids.add(src_id)
+        preserved_node_ids.add(tgt_id)
         edges.append(
             {
                 "id": f"kl:{klink.id}",
@@ -513,21 +577,74 @@ def get_graph(
             }
         )
 
-    result = _capped_overview(nodes, edges, include_isolated=include_isolated)
+    # ── Code dependencies (representative sampling across files & components) ─
+    code_edge_limit = (limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES) * 2
+    sampled_code_edges, code_edges_truncated = _sample_representative_code_edges(
+        db=db,
+        project_id=project_id,
+        exposed_project_ids=exposed_project_ids,
+        documented_entity_ids=documented_entity_ids,
+        limit=code_edge_limit,
+    )
+    code_entity_ids = {
+        entity_id
+        for edge in sampled_code_edges
+        for entity_id in (edge.src_entity_id, edge.dst_entity_id)
+        if entity_id is not None
+    }
+    code_entities = {
+        entity.id: entity
+        for entity in db.query(CodeEntity).filter(CodeEntity.id.in_(code_entity_ids)).all()
+    } if code_entity_ids else {}
+    _append_code_dependencies(nodes, edges, sampled_code_edges, code_entities)
+
+    result = _capped_overview(
+        nodes, edges, include_isolated=include_isolated, preserved_node_ids=preserved_node_ids, limit=limit
+    )
     if code_edges_truncated:
         result["truncated"] = True
+    result["graph_revision"] = f"proj:{project_id or 'global'}:overview"
+    result["has_more"] = result.get("truncated", False)
+    result["next_cursor"] = None
     return result
 
 
+@router.get("/overview")
+def get_graph_overview(
+    project_id: Optional[int] = None,
+    status: str = "approved",
+    group_by: Optional[str] = Query(None),
+    limit: Optional[int] = Query(None),
+    cursor: Optional[str] = Query(None),
+    include_isolated: bool = Query(False),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Alias for GET /graph with explicit overview query parameters (O-298)."""
+    return get_graph(
+        project_id=project_id,
+        status=status,
+        include_isolated=include_isolated,
+        limit=limit,
+        cursor=cursor,
+        db=db,
+        user=user,
+    )
+
+
 def _capped_overview(
-    nodes: dict[str, dict], edges: list[dict], include_isolated: bool = False
+    nodes: dict[str, dict],
+    edges: list[dict],
+    include_isolated: bool = False,
+    preserved_node_ids: Optional[set[str]] = None,
+    limit: Optional[int] = None,
 ) -> dict:
-    """O-053 / O-285: harter Deckel für die Übersicht.
+    """O-053 / O-285 / O-298: Harter Deckel für die Übersicht mit Erhalt aller Beziehungsklassen.
     O-285: Isolierte Knoten (Grad 0) werden standardmäßig vor dem Capping gefiltert
     (include_isolated=False), sodass das KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES-Budget
     ausschließlich für das vernetzte Beziehungsgeflecht genutzt wird.
-    Mit include_isolated=True werden isolierte Knoten für Dead-Code-/Inventaranalysen
-    mit einbezogen (beim Kappen am Ende nach Grad priorisiert).
+    O-298: Dokumentierte Entities und Knowledge-Link-Endpunkte werden vor beliebigen
+    Code-Knoten geschützt, damit keine Beziehungsklassen durch Capping verloren gehen.
     """
     degree: dict[str, int] = {nid: 0 for nid in nodes}
     for edge in edges:
@@ -543,8 +660,8 @@ def _capped_overview(
 
     total_nodes = len(nodes)
     total_edges = len(edges)
-    limit = cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
-    if total_nodes <= limit:
+    max_nodes = limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
+    if total_nodes <= max_nodes:
         return {
             "nodes": list(nodes.values()),
             "edges": edges,
@@ -555,13 +672,12 @@ def _capped_overview(
 
     ranked_ids = sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))
 
-    # Keep one representative file node per source even when it has no link.
-    # A large code repository can otherwise consume the whole cap with highly
-    # connected code nodes and silently hide an indexed PDF/handbook. The graph
-    # deliberately represents a file by one node (chunks remain the retrieval
-    # units), so this small source-diversity reservation is enough to make the
-    # document source discoverable without removing the cap.
     representative_ids: list[str] = []
+    if preserved_node_ids:
+        for nid in ranked_ids:
+            if nid in preserved_node_ids and nid not in representative_ids:
+                representative_ids.append(nid)
+
     represented_sources: set[object] = set()
     for nid in ranked_ids:
         node = nodes[nid]
@@ -569,11 +685,12 @@ def _capped_overview(
         if node.get("type") != "document" or source_id is None or source_id in represented_sources:
             continue
         represented_sources.add(source_id)
-        representative_ids.append(nid)
+        if nid not in representative_ids:
+            representative_ids.append(nid)
 
-    kept_order = representative_ids[:limit]
+    kept_order = representative_ids[:max_nodes]
     kept_order.extend(nid for nid in ranked_ids if nid not in kept_order)
-    kept_ids = set(kept_order[:limit])
+    kept_ids = set(kept_order[:max_nodes])
     kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
     kept_edges = [
         e
@@ -590,170 +707,351 @@ def _capped_overview(
     }
 
 
+@router.get("/neighborhood")
+def get_graph_neighborhood(
+    node_id: str = Query(..., description="Graph node ID (e.g. 'entity:123', '123', or 'doc:Runbook.md')"),
+    project_id: Optional[int] = Query(None, description="Project ID"),
+    relationships: Optional[str] = Query(None, description="Comma-separated relationship types: code_dependency, documented, manual"),
+    status: str = Query("approved"),
+    limit: int = Query(150, ge=1, le=500),
+    cursor: Optional[str] = Query(None, description="Pagination cursor for neighborhood expansion"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """O-298: Cursorbasierte Ein-Hop-Nachbarschaft für Code-Entities und Dokumentknoten.
+    Erlaubt die schrittweise Erweiterung (has_more, next_cursor) ohne Vollmaterialisierung.
+    """
+    if not isinstance(limit, int):
+        limit = 150
+    if not isinstance(cursor, str):
+        cursor = None
+    if not isinstance(relationships, str):
+        relationships = None
+    if not isinstance(status, str):
+        status = "approved"
+
+    visible_project_ids = get_visible_project_ids(user, db)
+    team_ids = get_visible_team_ids(user, db)
+    offset = int(cursor) if (cursor and cursor.isdigit()) else 0
+    allowed_rels = (
+        {r.strip() for r in relationships.split(",") if r.strip()}
+        if relationships
+        else {"code_dependency", "documented", "manual"}
+    )
+
+    # Fall 1: Dokument-Knoten (doc:...)
+    if node_id.startswith("doc:") or node_id.startswith("document:"):
+        doc_title = node_id[len("doc:"):] if node_id.startswith("doc:") else node_id[len("document:"):]
+        focus_id = f"doc:{doc_title}"
+
+        chunk_query = db.query(DocumentChunk).filter(
+            or_(DocumentChunk.file_path == doc_title, DocumentChunk.file_path.like(f"%{doc_title}%"))
+        )
+        if project_id:
+            chunk_query = chunk_query.filter(DocumentChunk.project_id == project_id)
+        chunk = chunk_query.first()
+        if chunk and chunk.project_id:
+            assert_team_visible(chunk.project_id, user, db, "Dokument nicht gefunden")
+            assert_project_visible(chunk.project_id, user, db)
+
+        meta = (chunk.metadata_json or {}) if chunk else {}
+        nodes: dict[str, dict] = {
+            focus_id: _doc_node(
+                doc_title,
+                meta.get("source_type"),
+                meta.get("url"),
+                chunk,
+            )
+        }
+        edges: list[dict] = []
+        has_more = False
+
+        if "documented" in allowed_rels:
+            eq = db.query(EntityDocLink).filter(
+                EntityDocLink.doc_title == doc_title,
+                EntityDocLink.status == status,
+            )
+            if project_id:
+                eq = eq.filter(EntityDocLink.project_id == project_id)
+            doc_links = eq.order_by(EntityDocLink.id).offset(offset).limit(limit + 1).all()
+            if len(doc_links) > limit:
+                has_more = True
+                doc_links = doc_links[:limit]
+
+            ent_ids = {lnk.entity_id for lnk in doc_links}
+            ents = {
+                e.id: e for e in db.query(CodeEntity).filter(CodeEntity.id.in_(ent_ids)).all()
+            } if ent_ids else {}
+            chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
+            chunks_map = {
+                c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()
+            } if chunk_ids else {}
+
+            for lnk in doc_links:
+                ent = ents.get(lnk.entity_id)
+                if not ent:
+                    continue
+                eid = f"entity:{ent.id}"
+                nodes.setdefault(eid, _entity_node(ent))
+                edges.append({
+                    "id": f"edl:{lnk.id}",
+                    "source": eid,
+                    "target": focus_id,
+                    "link_type": lnk.link_type,
+                    "relation_type": "documented",
+                    "direction": "directed",
+                    "score": lnk.score,
+                    "context": lnk.context,
+                    **_document_locator(chunks_map.get(lnk.chunk_id), lnk.doc_url),
+                })
+
+        if "manual" in allowed_rels:
+            klinks = db.query(KnowledgeLink).filter(
+                KnowledgeLink.status == status,
+                or_(
+                    (KnowledgeLink.source_a_type == "document") & (KnowledgeLink.source_a_title == doc_title),
+                    (KnowledgeLink.source_b_type == "document") & (KnowledgeLink.source_b_title == doc_title),
+                ),
+            ).all()
+            for klink in klinks:
+                is_a = klink.source_a_type == "document" and klink.source_a_title == doc_title
+                klink_dir = getattr(klink, "direction", None) or "undirected"
+                other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url = (
+                    (klink.source_b_type, klink.source_b_entity_id, klink.source_b_chunk_id, klink.source_b_title, klink.source_b_source_type, klink.source_b_url)
+                    if is_a
+                    else (klink.source_a_type, klink.source_a_entity_id, klink.source_a_chunk_id, klink.source_a_title, klink.source_a_source_type, klink.source_a_url)
+                )
+                other_id = _side_node_id(nodes, db, other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url)
+                if not other_id:
+                    continue
+                if klink_dir == "directed" and not is_a:
+                    edge_src, edge_tgt = other_id, focus_id
+                else:
+                    edge_src, edge_tgt = focus_id, other_id
+                edges.append({
+                    "id": f"kl:{klink.id}",
+                    "source": edge_src,
+                    "target": edge_tgt,
+                    "link_type": klink.link_type,
+                    "direction": klink_dir,
+                    "score": klink.score,
+                    "context": klink.context,
+                })
+
+        next_cursor = str(offset + limit) if has_more else None
+        return {
+            "focus_id": focus_id,
+            "nodes": list(nodes.values()),
+            "edges": edges,
+            "has_more": has_more,
+            "next_cursor": next_cursor,
+            "graph_revision": f"doc:{doc_title}:rev",
+            "relationships": list(allowed_rels),
+            "total_edges": len(edges),
+            "truncated": {"incoming": has_more, "outgoing": has_more},
+        }
+
+    # Fall 2: Entity-Knoten
+    ent_id = None
+    if node_id.startswith("entity:"):
+        try:
+            ent_id = int(node_id[len("entity:"):])
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Ungültige entity ID in {node_id}")
+    elif node_id.isdigit():
+        ent_id = int(node_id)
+    else:
+        raise HTTPException(status_code=400, detail=f"Ungültige node_id: {node_id}")
+
+    entity_query = db.query(CodeEntity).filter(CodeEntity.id == ent_id)
+    if project_id:
+        entity_query = entity_query.filter(CodeEntity.project_id == project_id)
+    entity = entity_query.first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity nicht gefunden")
+
+    proj_id = entity.project_id
+    if proj_id:
+        proj = db.query(Project).filter(Project.id == proj_id).first()
+        if not proj:
+            raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+        assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+        assert_project_visible(proj_id, user, db)
+
+    nodes = {}
+    edges = []
+    focus_id = f"entity:{entity.id}"
+    nodes[focus_id] = _entity_node(entity)
+
+    has_more = False
+    if "code_dependency" in allowed_rels:
+        code_query = (
+            db.query(CodeEdge)
+            .filter(
+                CodeEdge.project_id == proj_id,
+                or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
+            )
+            .order_by(CodeEdge.id)
+        )
+        code_edges = code_query.offset(offset).limit(limit + 1).all()
+        if len(code_edges) > limit:
+            has_more = True
+            code_edges = code_edges[:limit]
+
+        neighbor_ids = {
+            e_id
+            for edge in code_edges
+            for e_id in (edge.src_entity_id, edge.dst_entity_id)
+            if e_id is not None
+        }
+        neighbor_entities = {
+            neighbor.id: neighbor
+            for neighbor in db.query(CodeEntity).filter(
+                CodeEntity.id.in_(neighbor_ids), CodeEntity.project_id == proj_id
+            ).all()
+        } if neighbor_ids else {}
+        _append_code_dependencies(nodes, edges, code_edges, neighbor_entities)
+
+    if "documented" in allowed_rels:
+        doc_links = (
+            db.query(EntityDocLink)
+            .filter(
+                EntityDocLink.project_id == proj_id,
+                EntityDocLink.entity_id == entity.id,
+                EntityDocLink.status == status,
+            )
+            .all()
+        )
+        chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
+        chunks = (
+            {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+            if chunk_ids
+            else {}
+        )
+        for lnk in doc_links:
+            did = f"doc:{lnk.doc_title}"
+            nodes.setdefault(
+                did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id))
+            )
+            edges.append(
+                {
+                    "id": f"edl:{lnk.id}",
+                    "source": focus_id,
+                    "target": did,
+                    "link_type": lnk.link_type,
+                    "relation_type": "documented",
+                    "direction": "directed",
+                    "score": lnk.score,
+                    "context": lnk.context,
+                    **_document_locator(chunks.get(lnk.chunk_id), lnk.doc_url),
+                }
+            )
+
+    if "manual" in allowed_rels:
+        klinks = (
+            db.query(KnowledgeLink)
+            .filter(
+                KnowledgeLink.status == status,
+                or_(
+                    (KnowledgeLink.source_a_type == "entity")
+                    & (KnowledgeLink.source_a_entity_id == entity.id),
+                    (KnowledgeLink.source_b_type == "entity")
+                    & (KnowledgeLink.source_b_entity_id == entity.id),
+                ),
+            )
+            .all()
+        )
+        for klink in klinks:
+            is_a = klink.source_a_type == "entity" and klink.source_a_entity_id == entity.id
+            klink_dir = getattr(klink, "direction", None) or "undirected"
+            other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url = (
+                (
+                    klink.source_b_type,
+                    klink.source_b_entity_id,
+                    klink.source_b_chunk_id,
+                    klink.source_b_title,
+                    klink.source_b_source_type,
+                    klink.source_b_url,
+                )
+                if is_a
+                else (
+                    klink.source_a_type,
+                    klink.source_a_entity_id,
+                    klink.source_a_chunk_id,
+                    klink.source_a_title,
+                    klink.source_a_source_type,
+                    klink.source_a_url,
+                )
+            )
+            other_id = _side_node_id(
+                nodes,
+                db,
+                other_type,
+                other_entity_id,
+                other_chunk_id,
+                other_title,
+                other_source_type,
+                other_url,
+            )
+            if not other_id:
+                continue
+            if klink_dir == "directed" and not is_a:
+                edge_src, edge_tgt = other_id, focus_id
+            else:
+                edge_src, edge_tgt = focus_id, other_id
+
+            edges.append(
+                {
+                    "id": f"kl:{klink.id}",
+                    "source": edge_src,
+                    "target": edge_tgt,
+                    "link_type": klink.link_type,
+                    "direction": klink_dir,
+                    "score": klink.score,
+                    "context": klink.context,
+                }
+            )
+
+    next_cursor = str(offset + limit) if has_more else None
+    return {
+        "focus_id": focus_id,
+        "nodes": list(nodes.values()),
+        "edges": edges,
+        "has_more": has_more,
+        "next_cursor": next_cursor,
+        "graph_revision": f"proj:{proj_id}:entity-{entity.id}",
+        "relationships": list(allowed_rels),
+        "total_edges": len(edges),
+        "truncated": {"incoming": has_more, "outgoing": has_more},
+    }
+
+
 @router.get("/focus")
 def get_graph_focus(
     project_id: int,
     entity_id: int,
     status: str = "approved",
+    limit: int = Query(500, ge=1, le=1000),
+    cursor: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Ein-Hop-Nachbarschaft inklusive neutral projizierter Codeabhängigkeiten."""
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
-
-    entity = (
-        db.query(CodeEntity)
-        .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
-        .first()
+    if not isinstance(limit, int):
+        limit = 500
+    if not isinstance(cursor, str):
+        cursor = None
+    if not isinstance(status, str):
+        status = "approved"
+    return get_graph_neighborhood(
+        node_id=f"entity:{entity_id}",
+        project_id=project_id,
+        status=status,
+        limit=limit,
+        cursor=cursor,
+        db=db,
+        user=user,
     )
-    if not entity:
-        raise HTTPException(status_code=404, detail="Entity nicht gefunden")
-
-    nodes: dict[str, dict] = {}
-    edges: list[dict] = []
-    focus_id = f"entity:{entity.id}"
-    nodes[focus_id] = _entity_node(entity)
-    code_edge_limit = 500
-    code_edges = (
-        db.query(CodeEdge)
-        .filter(
-            CodeEdge.project_id == project_id,
-            or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
-        )
-        .order_by(CodeEdge.id)
-        .limit(code_edge_limit + 1)
-        .all()
-    )
-    code_edges_truncated = len(code_edges) > code_edge_limit
-    code_edges = code_edges[:code_edge_limit]
-    neighbor_ids = {
-        entity_id
-        for edge in code_edges
-        for entity_id in (edge.src_entity_id, edge.dst_entity_id)
-        if entity_id is not None
-    }
-    neighbor_entities = {
-        neighbor.id: neighbor
-        for neighbor in db.query(CodeEntity).filter(
-            CodeEntity.id.in_(neighbor_ids), CodeEntity.project_id == project_id
-        ).all()
-    } if neighbor_ids else {}
-    _append_code_dependencies(nodes, edges, code_edges, neighbor_entities)
-    truncated = {"incoming": code_edges_truncated, "outgoing": code_edges_truncated}
-
-    # Dokument-Links dieser Entity
-    doc_links = (
-        db.query(EntityDocLink)
-        .filter(
-            EntityDocLink.project_id == project_id,
-            EntityDocLink.entity_id == entity.id,
-            EntityDocLink.status == status,
-        )
-        .all()
-    )
-    chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
-    chunks = (
-        {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
-        if chunk_ids
-        else {}
-    )
-    for lnk in doc_links:
-        did = f"doc:{lnk.doc_title}"
-        nodes.setdefault(
-            did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id))
-        )
-        edges.append(
-            {
-                "id": f"edl:{lnk.id}",
-                "source": focus_id,
-                "target": did,
-                "link_type": lnk.link_type,
-                "relation_type": "documented",
-                "direction": "directed",
-                "score": lnk.score,
-                "context": lnk.context,
-                **_document_locator(chunks.get(lnk.chunk_id), lnk.doc_url),
-            }
-        )
-
-    # KnowledgeLinks der Entity (v.a. manuell über die Graph-UI erstellte Entity↔Entity-
-    # Verknüpfungen, siehe /knowledge-links) — ohne das bleibt jeder Fokus-Graph rein
-    # dokument-zentriert und "Verbindungen erweitern" hat nie eine Nachbar-Entity, auf
-    # die es angewendet werden könnte.
-    klinks = (
-        db.query(KnowledgeLink)
-        .filter(
-            KnowledgeLink.status == status,
-            or_(
-                (KnowledgeLink.source_a_type == "entity")
-                & (KnowledgeLink.source_a_entity_id == entity.id),
-                (KnowledgeLink.source_b_type == "entity")
-                & (KnowledgeLink.source_b_entity_id == entity.id),
-            ),
-        )
-        .all()
-    )
-    for klink in klinks:
-        is_a = klink.source_a_type == "entity" and klink.source_a_entity_id == entity.id
-        klink_dir = getattr(klink, "direction", None) or "undirected"
-        other_type, other_entity_id, other_chunk_id, other_title, other_source_type, other_url = (
-            (
-                klink.source_b_type,
-                klink.source_b_entity_id,
-                klink.source_b_chunk_id,
-                klink.source_b_title,
-                klink.source_b_source_type,
-                klink.source_b_url,
-            )
-            if is_a
-            else (
-                klink.source_a_type,
-                klink.source_a_entity_id,
-                klink.source_a_chunk_id,
-                klink.source_a_title,
-                klink.source_a_source_type,
-                klink.source_a_url,
-            )
-        )
-        other_id = _side_node_id(
-            nodes,
-            db,
-            other_type,
-            other_entity_id,
-            other_chunk_id,
-            other_title,
-            other_source_type,
-            other_url,
-        )
-        if not other_id:
-            continue
-        if klink_dir == "directed" and not is_a:
-            edge_src, edge_tgt = other_id, focus_id
-        else:
-            edge_src, edge_tgt = focus_id, other_id
-
-        edges.append(
-            {
-                "id": f"kl:{klink.id}",
-                "source": edge_src,
-                "target": edge_tgt,
-                "link_type": klink.link_type,
-                "direction": klink_dir,
-                "score": klink.score,
-                "context": klink.context,
-            }
-        )
-
-    return {
-        "focus_id": focus_id,
-        "nodes": list(nodes.values()),
-        "edges": edges,
-        "truncated": truncated,
-    }
 
 
 @router.get("/export")

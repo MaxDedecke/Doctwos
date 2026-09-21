@@ -16,7 +16,7 @@ import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody } from 'd3-force-3d';
-import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -193,6 +193,10 @@ export function KnowledgeGraphView({
   const [viewMode, setViewMode] = useState<'overview' | 'neighborhood'>('overview');
   const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
   const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
+  const [neighborhoodFocusNode, setNeighborhoodFocusNode] = useState<GraphNode | null>(null);
+  const [neighborhoodCursor, setNeighborhoodCursor] = useState<string | null>(null);
+  const [neighborhoodHasMore, setNeighborhoodHasMore] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   // The knowledge graph is a relationship view. Unlinked inventory belongs in
   // a paginated list, because rendering it here creates thousands of meaningless
   // force-layout nodes and obscures the actual code/document evidence network.
@@ -266,6 +270,10 @@ export function KnowledgeGraphView({
       setRawEdges(cachedOverview.edges);
       setOverviewTruncation(cachedOverview.truncation);
       setViewMode('overview');
+      setNeighborhoodFocusNode(null);
+      setNeighborhoodCursor(null);
+      setNeighborhoodHasMore(false);
+      setIsLoadingMore(false);
       setNeighborhoodError(null);
       setSelectedEdgeId(null);
       setLinkFilterResetToken(previous => previous + 1);
@@ -294,6 +302,10 @@ export function KnowledgeGraphView({
       setRawNodes(nodes);
       setRawEdges(edges);
       setViewMode('overview');
+      setNeighborhoodFocusNode(null);
+      setNeighborhoodCursor(null);
+      setNeighborhoodHasMore(false);
+      setIsLoadingMore(false);
       setLinkFilterResetToken(previous => previous + 1);
       // O-053: GET /graph caps at KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES for large
       // projects and reports the true totals alongside the (possibly smaller)
@@ -322,29 +334,46 @@ export function KnowledgeGraphView({
 
   const loadNeighborhood = useCallback(async (node: GraphNode) => {
     /**
-     * O-053: hard focus -- fetches this entity's actual one-hop neighborhood via
-     * GET /graph/focus (built for exactly this in backend/api/graph.py, never
-     * wired up in the frontend until now) instead of dimming whatever happens to
-     * be in the already-loaded (possibly truncated) overview. Only entities carry
-     * a project_id the backend endpoint can resolve visibility against; document
-     * nodes aren't supported here.
+     * O-053 / O-298: hard focus / neighborhood -- fetches this node's actual one-hop
+     * neighborhood via GET /graph/focus (for entities) or GET /graph/neighborhood (for docs)
+     * instead of dimming whatever happens to be in the already-loaded overview.
+     * Supports cursor-based expansion (has_more, next_cursor).
      */
-    const entityDbId = extractEntityDbId(node.id);
+    const isDoc = node.type === 'document' || node.id.startsWith('doc:');
+    const entityDbId = isDoc ? null : extractEntityDbId(node.id);
     const projectId = neighborhoodProjectId(node);
-    if (entityDbId === null || projectId === null) {
+    if (!isDoc && (entityDbId === null || projectId === null)) {
       setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodUnavailable'));
       return;
     }
     setIsLoadingNeighborhood(true);
     setNeighborhoodError(null);
     try {
-      const params = new URLSearchParams({ status: 'approved', project_id: String(projectId), entity_id: String(entityDbId) });
-      const res = await api.fetch(`${API_URL}/graph/focus?${params}`);
+      let res: Response;
+      if (isDoc) {
+        const params = new URLSearchParams({ node_id: node.id, status: 'approved' });
+        if (projectId !== null) params.set('project_id', String(projectId));
+        res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
+      } else {
+        const params = new URLSearchParams({ status: 'approved', project_id: String(projectId), entity_id: String(entityDbId) });
+        res = await api.fetch(`${API_URL}/graph/focus?${params}`);
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
+      const data: {
+        nodes?: GraphNode[];
+        edges?: GraphEdge[];
+        truncated?: boolean | { incoming?: boolean; outgoing?: boolean };
+        total_nodes?: number;
+        focus_id?: string;
+        has_more?: boolean;
+        next_cursor?: string | null;
+      } = await res.json();
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
       setViewMode('neighborhood');
+      setNeighborhoodFocusNode(node);
+      setNeighborhoodHasMore(Boolean(data.has_more));
+      setNeighborhoodCursor(data.next_cursor ?? null);
       setLinkFilterResetToken(previous => previous + 1);
       setOverviewTruncation(null);
       setSelectedNodeId(data.focus_id ?? node.id);
@@ -357,6 +386,60 @@ export function KnowledgeGraphView({
       setIsLoadingNeighborhood(false);
     }
   }, [neighborhoodProjectId, t]);
+
+  const loadMoreConnections = useCallback(async () => {
+    if (!neighborhoodFocusNode || !neighborhoodCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setNeighborhoodError(null);
+    try {
+      const isDoc = neighborhoodFocusNode.type === 'document' || neighborhoodFocusNode.id.startsWith('doc:');
+      const entityDbId = isDoc ? null : extractEntityDbId(neighborhoodFocusNode.id);
+      const projectId = neighborhoodProjectId(neighborhoodFocusNode);
+      let res: Response;
+      if (isDoc) {
+        const params = new URLSearchParams({
+          node_id: neighborhoodFocusNode.id,
+          status: 'approved',
+          cursor: neighborhoodCursor,
+        });
+        if (projectId !== null) params.set('project_id', String(projectId));
+        res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
+      } else {
+        const params = new URLSearchParams({
+          project_id: String(projectId),
+          entity_id: String(entityDbId),
+          status: 'approved',
+          cursor: neighborhoodCursor,
+        });
+        res = await api.fetch(`${API_URL}/graph/focus?${params}`);
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: {
+        nodes?: GraphNode[];
+        edges?: GraphEdge[];
+        has_more?: boolean;
+        next_cursor?: string | null;
+      } = await res.json();
+
+      setRawNodes(prev => {
+        const existing = new Set(prev.map(n => n.id));
+        const additions = (data.nodes ?? []).filter(n => !existing.has(n.id));
+        return additions.length > 0 ? [...prev, ...additions] : prev;
+      });
+      setRawEdges(prev => {
+        const existing = new Set(prev.map(e => e.id));
+        const additions = (data.edges ?? []).filter(e => !existing.has(e.id));
+        return additions.length > 0 ? [...prev, ...additions] : prev;
+      });
+      setNeighborhoodHasMore(Boolean(data.has_more));
+      setNeighborhoodCursor(data.next_cursor ?? null);
+    } catch (e) {
+      console.error('[KnowledgeGraph] load more connections failed', e);
+      setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodError'));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, t]);
 
   const createManualLink = useCallback(async (sourceNode: GraphNode, targetNode: GraphNode) => {
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
@@ -1077,7 +1160,7 @@ export function KnowledgeGraphView({
               </button>
             )}
 
-            {selectedNode.type === 'entity' && neighborhoodProjectId(selectedNode) !== null && (
+            {((selectedNode.type === 'entity' && neighborhoodProjectId(selectedNode) !== null) || selectedNode.type === 'document' || selectedNode.id.startsWith('doc:')) && (
               <button
                 onClick={() => loadNeighborhood(selectedNode)}
                 disabled={isLoadingNeighborhood}
@@ -1086,6 +1169,18 @@ export function KnowledgeGraphView({
                   isLoadingNeighborhood ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
                 {isLoadingNeighborhood ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crosshair className="w-3 h-3" />}
                 {t('knowledgeGraphView.loadNeighborhood')}
+              </button>
+            )}
+
+            {viewMode === 'neighborhood' && selectedNode.id === neighborhoodFocusNode?.id && neighborhoodHasMore && (
+              <button
+                onClick={loadMoreConnections}
+                disabled={isLoadingMore}
+                title={t('knowledgeGraphView.loadMoreConnectionsTitle')}
+                className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                  isLoadingMore ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
+                {isLoadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                {t('knowledgeGraphView.loadMoreConnections')}
               </button>
             )}
 
@@ -1279,11 +1374,24 @@ export function KnowledgeGraphView({
         {/* Right: focus indicator + counts + controls */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {viewMode === 'neighborhood' && (
-            <button onClick={() => loadOverview()} title={t('knowledgeGraphView.backToOverview')}
-              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
-              <LayoutGrid className="w-3 h-3" />
-              {t('knowledgeGraphView.backToOverview')}
-            </button>
+            <>
+              <button onClick={() => loadOverview()} title={t('knowledgeGraphView.backToOverview')}
+                className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
+                <LayoutGrid className="w-3 h-3" />
+                {t('knowledgeGraphView.backToOverview')}
+              </button>
+              {neighborhoodHasMore && (
+                <button
+                  onClick={loadMoreConnections}
+                  disabled={isLoadingMore}
+                  title={t('knowledgeGraphView.loadMoreConnectionsTitle')}
+                  className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted,
+                    isLoadingMore && 'opacity-50 cursor-not-allowed')}>
+                  {isLoadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                  {t('knowledgeGraphView.loadMoreConnections')}
+                </button>
+              )}
+            </>
           )}
           {focusNodeId && (
             <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')}

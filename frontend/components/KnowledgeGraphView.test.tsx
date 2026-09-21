@@ -308,6 +308,97 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText('Zurück zur Übersicht')).toBeNull());
   });
+
+  it('loads neighborhood with cursor pagination and expands more connections (O-298)', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:init', type: 'document', label: 'InitDoc' },
+      ],
+      edges: [{ id: 'link:0', source: 'entity:1', target: 'doc:init', link_type: 'semantic', score: 0.9, context: null }],
+    };
+    const focusPage1 = {
+      focus_id: 'entity:1',
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'entity:2', type: 'entity', label: 'PROG2', project_id: 1 },
+      ],
+      edges: [{ id: 'cd:1', source: 'entity:1', target: 'entity:2', link_type: 'code_dependency', direction: 'undirected' }],
+      has_more: true,
+      next_cursor: '1',
+    };
+    const focusPage2 = {
+      focus_id: 'entity:1',
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'entity:3', type: 'entity', label: 'PROG3', project_id: 1 },
+      ],
+      edges: [{ id: 'cd:2', source: 'entity:1', target: 'entity:3', link_type: 'code_dependency', direction: 'undirected' }],
+      has_more: false,
+      next_cursor: null,
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
+      .mockResolvedValueOnce({ ok: true, json: async () => focusPage1 })
+      .mockResolvedValueOnce({ ok: true, json: async () => focusPage2 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('node-entity:1'));
+    fireEvent.click(await screen.findByText('Nur Nachbarschaft laden'));
+
+    await waitFor(() => expect(screen.getByTestId('node-entity:2')).toBeTruthy());
+    const loadMoreButton = await screen.findAllByText('Weitere Verbindungen laden');
+    expect(loadMoreButton.length).toBeGreaterThan(0);
+
+    fireEvent.click(loadMoreButton[0]);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const page2Url = String(fetchMock.mock.calls[2][0]);
+    expect(page2Url).toContain('cursor=1');
+
+    await waitFor(() => expect(screen.getByTestId('node-entity:3')).toBeTruthy());
+    expect(screen.queryByText('Weitere Verbindungen laden')).toBeNull();
+  });
+
+  it('loads neighborhood for a document node via GET /graph/neighborhood (O-298)', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'doc:Runbook', type: 'document', label: 'Runbook', project_id: 1 },
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+      ],
+      edges: [{ id: 'link:0', source: 'entity:1', target: 'doc:Runbook', link_type: 'semantic', score: 0.9, context: null }],
+    };
+    const docNeighborhoodResponse = {
+      focus_id: 'doc:Runbook',
+      nodes: [
+        { id: 'doc:Runbook', type: 'document', label: 'Runbook', project_id: 1 },
+        { id: 'entity:42', type: 'entity', label: 'AUTH_MODULE', project_id: 1 },
+      ],
+      edges: [{ id: 'edl:42', source: 'entity:42', target: 'doc:Runbook', link_type: 'documented', score: 0.95 }],
+      has_more: false,
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
+      .mockResolvedValueOnce({ ok: true, json: async () => docNeighborhoodResponse });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByTestId('node-doc:Runbook')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('node-doc:Runbook'));
+
+    const loadNeighborhoodButton = await screen.findByText('Nur Nachbarschaft laden');
+    fireEvent.click(loadNeighborhoodButton);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const docCallUrl = String(fetchMock.mock.calls[1][0]);
+    expect(docCallUrl).toContain('/graph/neighborhood');
+    expect(docCallUrl).toContain('node_id=doc%3ARunbook');
+    await waitFor(() => expect(screen.getByTestId('node-entity:42')).toBeTruthy());
+  });
 });
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 import type { CodeEntity } from '@/types/domain';
+import type { WorkspaceDocument } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 import type { CallFlowData, CallFlowEdge } from '@/lib/callFlow';
 
@@ -8,7 +9,8 @@ import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type Analysis
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, Compass, FileCode, Loader2, Maximize2, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChangePackageAction } from './ChangePackageAction';
+import { AlertTriangle, Compass, FileCode, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -20,6 +22,9 @@ export type CallNode = {
   file_path?: string;
   start_line?: number | null;
   source_id?: number | string | null;
+  language?: string;
+  condition?: string | null;
+  decision?: boolean;
   unresolved?: boolean;
   // O-120: nur gesetzt, wenn die Datei dieses Knotens nicht uneingeschränkt
   // analysiert ist (siehe backend/core/analysis_status.py). Bewusst nur auf
@@ -44,6 +49,11 @@ export type CallEdge = {
   certainty?: 'certain' | 'possible' | 'unresolved';
   originalTypes?: string[];
   start_line?: number | null;
+  file_path?: string;
+  source_id?: number | string | null;
+  originKind?: string;
+  sequence?: number | null;
+  condition?: string | null;
   meta?: CallFlowEdge['meta'];
 };
 
@@ -60,6 +70,7 @@ interface Props {
   customFlow?: CallFlowData | null;
   onClearCustomFlow?: () => void;
   onInvestigateFromHere?: (entity: Pick<CodeEntity, 'id' | 'name'>) => void;
+  onOpenDoc?: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
 }
 
 const PROCESS_COLORS: Record<string, string> = {
@@ -68,7 +79,33 @@ const PROCESS_COLORS: Record<string, string> = {
   external_call: '#ef4444', exit: '#64748b',
 };
 
-export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere }: Props) {
+function traceProcessNodeShape(ctx: CanvasRenderingContext2D, node: CallNode, radius: number) {
+  const x = node.x ?? 0;
+  const y = node.y ?? 0;
+  ctx.beginPath();
+  if (node.type === 'branch') {
+    ctx.moveTo(x, y - radius);
+    ctx.lineTo(x + radius, y);
+    ctx.lineTo(x, y + radius);
+    ctx.lineTo(x - radius, y);
+    ctx.closePath();
+  } else if (node.type === 'data_access') {
+    ctx.rect(x - radius * 0.78, y - radius * 0.78, radius * 1.56, radius * 1.56);
+  } else if (node.type === 'external_call') {
+    for (let side = 0; side < 6; side += 1) {
+      const angle = Math.PI / 3 * side - Math.PI / 6;
+      const px = x + radius * Math.cos(angle);
+      const py = y + radius * Math.sin(angle);
+      if (side === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  } else {
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+  }
+}
+
+export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere, onOpenDoc }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,6 +120,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
   const [error, setError] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const isImpactMode = customFlow?.mode === 'impact';
 
   useEffect(() => {
@@ -123,7 +161,27 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
     return graph.nodes.find(n => n.id === selectedNodeId) ?? null;
   }, [graph.nodes, selectedNodeId]);
 
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeId) return null;
+    return graph.edges.find(edge => edge.id === selectedEdgeId) ?? null;
+  }, [graph.edges, selectedEdgeId]);
+
+  const selectedEdgeSource = useMemo(() => {
+    if (!selectedEdge) return null;
+    if (typeof selectedEdge.source !== 'string') return selectedEdge.source;
+    return graph.nodes.find(node => node.id === selectedEdge.source) ?? null;
+  }, [graph.nodes, selectedEdge]);
+
+  const selectedEdgeTarget = useMemo(() => {
+    if (!selectedEdge) return null;
+    if (typeof selectedEdge.target !== 'string') return selectedEdge.target;
+    return graph.nodes.find(node => node.id === selectedEdge.target) ?? null;
+  }, [graph.nodes, selectedEdge]);
+
   const rootNodeId = currentRoot?.id != null ? `entity:${currentRoot.id}` : null;
+  const changeTargetNode = selectedNode?.entityId != null
+    ? selectedNode
+    : graph.nodes.find(node => node.entityId === currentRoot?.id) ?? null;
   const canInvestigateFromHere = Boolean(
     !customFlow &&
     !isImpactMode &&
@@ -174,6 +232,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         };
       });
       setGraph({ nodes, edges });
+      setSelectedEdgeId(null);
       const types = Array.from(new Set(edges.map(edge => edge.type))).sort();
       setAvailableTypes(types);
       setEnabledTypes(new Set(types));
@@ -198,14 +257,19 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       type ProcessNode = {
         id: string; kind: string; label: string; entity_id?: number | null;
         locator: { file_path: string; start_line: number; source_id?: number | null };
-        language: string;
+        language: string; condition?: string | null;
       };
       type ProcessTransition = {
         id: string; source: string; target: string; kind: string; resolution: string;
         certainty: 'certain' | 'possible' | 'unresolved'; code_edge_types: string[];
-        locator: { start_line: number }; meta?: CallFlowEdge['meta'];
+        origin_kind: string; sequence?: number | null; condition?: string | null;
+        locator: { file_path: string; start_line: number; source_id?: number | null };
+        meta?: CallFlowEdge['meta'];
       };
       const data: { nodes: ProcessNode[]; transitions: ProcessTransition[]; truncation: { truncated: boolean; reasons: string[] } } = await response.json();
+      const decisionSourceIds = new Set((data.transitions || [])
+        .filter(transition => transition.kind === 'branch')
+        .map(transition => transition.source));
 
       setGraph(prevGraph => {
         const existingPositions = new Map<string, { x?: number; y?: number; vx?: number; vy?: number; fx?: number; fy?: number }>();
@@ -225,6 +289,9 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
             file_path: node.locator.file_path,
             start_line: node.locator.start_line,
             source_id: node.locator.source_id,
+            language: node.language,
+            condition: node.condition,
+            decision: decisionSourceIds.has(node.id),
             unresolved: node.kind === 'external_call',
             ...(pos ? { x: pos.x, y: pos.y, vx: pos.vx, vy: pos.vy, fx: pos.fx, fy: pos.fy } : {}),
           };
@@ -239,6 +306,11 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           certainty: edge.certainty,
           originalTypes: edge.code_edge_types,
           start_line: edge.locator.start_line,
+          file_path: edge.locator.file_path,
+          source_id: edge.locator.source_id,
+          originKind: edge.origin_kind,
+          sequence: edge.sequence,
+          condition: edge.condition,
           meta: edge.meta,
         }));
 
@@ -253,6 +325,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       setAvailableTypes(types);
       setEnabledTypes(new Set(types));
       setTruncated(Boolean(data.truncation?.truncated));
+      setSelectedEdgeId(null);
       setSelectedNodeId(`entity:${currentRoot.id}`);
     } catch (err) {
       setError((err instanceof Error ? err.message : undefined) || t('callGraphView.loadError'));
@@ -371,6 +444,17 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
             <span>{t('callGraphView.investigateFromHere')}</span>
           </button>
         )}
+        <ChangePackageAction
+          projectId={projectId}
+          target={changeTargetNode?.entityId != null ? {
+            entityId: changeTargetNode.entityId,
+            sourceId: changeTargetNode.source_id,
+            label: changeTargetNode.name,
+          } : currentRoot ? { entityId: currentRoot.id, label: currentRoot.name } : null}
+          theme={theme}
+          onOpenCode={onFileSelect}
+          onOpenDoc={onOpenDoc}
+        />
         {customFlow && onClearCustomFlow && (
           <button
             type="button"
@@ -503,8 +587,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
             }
 
             // Node circle fill
-            ctx.beginPath();
-            ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
+            traceProcessNodeShape(ctx, node, radius);
             if (node.unresolved) {
               ctx.fillStyle = resolveDsColor('rgb(var(--ds-warning-base))');
             } else if (isPrimary) {
@@ -515,13 +598,44 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
               ctx.fillStyle = PROCESS_COLORS[node.type] ?? resolveDsColor('rgb(var(--ds-info-base))');
             }
             ctx.fill();
+            ctx.save();
+            ctx.lineWidth = 1.25 / globalScale;
+            ctx.strokeStyle = isPrimary ? (isDark ? '#38bdf8' : '#ffffff') : (isDark ? 'rgba(255,255,255,0.75)' : 'rgba(15,23,42,0.6)');
+            if (node.type === 'external_call') ctx.setLineDash([2 / globalScale, 1.5 / globalScale]);
+            ctx.stroke();
+            ctx.restore();
 
             // Inner border for primary node
             if (isPrimary) {
-              ctx.beginPath();
-              ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI);
+              traceProcessNodeShape(ctx, node, radius);
               ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';
               ctx.lineWidth = 2 / globalScale;
+              ctx.stroke();
+            }
+
+            // The entry is marked with a second ring in addition to its color.
+            if (node.type === 'entry') {
+              ctx.beginPath();
+              ctx.arc(node.x ?? 0, node.y ?? 0, radius * 0.58, 0, 2 * Math.PI);
+              ctx.strokeStyle = isDark ? '#e0f2fe' : '#075985';
+              ctx.lineWidth = 1.25 / globalScale;
+              ctx.stroke();
+            }
+
+            if (node.decision) {
+              const badgeRadius = 3.5 / globalScale;
+              const badgeX = (node.x ?? 0) + radius * 0.78;
+              const badgeY = (node.y ?? 0) - radius * 0.78;
+              ctx.beginPath();
+              ctx.moveTo(badgeX, badgeY - badgeRadius);
+              ctx.lineTo(badgeX + badgeRadius, badgeY);
+              ctx.lineTo(badgeX, badgeY + badgeRadius);
+              ctx.lineTo(badgeX - badgeRadius, badgeY);
+              ctx.closePath();
+              ctx.fillStyle = PROCESS_COLORS.branch;
+              ctx.fill();
+              ctx.strokeStyle = isDark ? '#fff7ed' : '#7c2d12';
+              ctx.lineWidth = 1 / globalScale;
               ctx.stroke();
             }
 
@@ -599,17 +713,108 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.certainty ?? edge.resolution}${edge.originalTypes?.length ? ` · ${edge.originalTypes.join(', ')}` : ''}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
           onLinkClick={(edge: CallEdge) => {
             if (isImpactMode) return;
+            setSelectedEdgeId(edge.id);
             const source = typeof edge.source === 'string'
               ? graph.nodes.find(node => node.id === edge.source) : edge.source;
-            if (source?.file_path) onFileSelect(source.file_path, edge.start_line ?? source.start_line, source.source_id);
+            const path = edge.file_path || source?.file_path;
+            if (path) onFileSelect(path, edge.start_line ?? source?.start_line, edge.source_id ?? source?.source_id);
           }}
           onNodeClick={(node: CallNode) => {
             if (isImpactMode) return;
+            setSelectedEdgeId(null);
             setSelectedNodeId(node.id);
             if (!node.unresolved && node.file_path) onFileSelect(node.file_path, node.start_line, node.source_id);
           }}
         />}
       </div>
+      {selectedEdge && !isImpactMode && (
+        <section
+          aria-label={t('callGraphView.transitionDetails.title')}
+          data-testid="process-transition-details"
+          className={cn(
+            'max-h-[34%] min-h-[112px] shrink-0 overflow-y-auto border-t px-3 py-2.5',
+            isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/80' : 'border-ds-zinc-200 bg-ds-zinc-50',
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold">
+                <span>{selectedEdgeSource?.name ?? (typeof selectedEdge.source === 'string' ? selectedEdge.source : selectedEdge.source.name)}</span>
+                <span className="text-ds-zinc-500" aria-hidden="true">→</span>
+                <span>{selectedEdgeTarget?.name ?? (typeof selectedEdge.target === 'string' ? selectedEdge.target : selectedEdge.target.name)}</span>
+                <span className="rounded border px-1.5 py-0.5 text-[9px]" style={{ borderColor: PROCESS_COLORS[selectedEdge.type] ?? '#64748b', color: PROCESS_COLORS[selectedEdge.type] ?? '#64748b' }}>
+                  {t(`callGraphView.processKinds.${selectedEdge.type}`)}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] sm:grid-cols-3">
+                <div>
+                  <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.certainty')}: </span>
+                  <span>{selectedEdge.certainty ? t(`callGraphView.certainty.${selectedEdge.certainty}`) : t('callGraphView.transitionDetails.notProvided')}</span>
+                </div>
+                <div>
+                  <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.resolution')}: </span>
+                  <span>{t(`callGraphView.resolution.${selectedEdge.resolution}`)}</span>
+                </div>
+                {selectedEdge.originKind && (
+                  <div>
+                    <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.origin')}: </span>
+                    <span>{t(`callGraphView.transitionDetails.origins.${selectedEdge.originKind}`)}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.originalTypes')}: </span>
+                  <span className="font-mono">{selectedEdge.originalTypes?.length ? selectedEdge.originalTypes.join(', ') : t('callGraphView.transitionDetails.noOriginalType')}</span>
+                </div>
+                {selectedEdge.sequence != null && (
+                  <div>
+                    <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.sequence')}: </span>
+                    <span>{selectedEdge.sequence}</span>
+                  </div>
+                )}
+                {selectedEdge.condition && (
+                  <div className="col-span-2 sm:col-span-3">
+                    <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.condition')}: </span>
+                    <span className="break-words">{selectedEdge.condition}</span>
+                  </div>
+                )}
+                {selectedEdge.meta?.resolution_reason && (
+                  <div className="col-span-2 sm:col-span-3">
+                    <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.reason')}: </span>
+                    <span className="break-words">{selectedEdge.meta.resolution_reason}</span>
+                  </div>
+                )}
+                <div className="col-span-2 sm:col-span-3 font-mono text-ds-zinc-500">
+                  {selectedEdge.file_path || selectedEdgeSource?.file_path || t('callGraphView.transitionDetails.sourceUnavailable')}
+                  {(selectedEdge.start_line ?? selectedEdgeSource?.start_line) != null && `:${selectedEdge.start_line ?? selectedEdgeSource?.start_line}`}
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {(selectedEdge.file_path || selectedEdgeSource?.file_path) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const path = selectedEdge.file_path || selectedEdgeSource?.file_path;
+                    if (path) onFileSelect(path, selectedEdge.start_line ?? selectedEdgeSource?.start_line, selectedEdge.source_id ?? selectedEdgeSource?.source_id);
+                  }}
+                  className="inline-flex h-7 items-center gap-1.5 rounded border border-ds-indigo-500/50 px-2 text-[10px] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10"
+                >
+                  <FileCode className="h-3 w-3" />
+                  {t('callGraphView.transitionDetails.openSource')}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedEdgeId(null)}
+                aria-label={t('callGraphView.transitionDetails.close')}
+                className="rounded p-1 text-ds-zinc-500 hover:text-ds-zinc-200"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, Project
+from models.database import CodeEdge, CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, Project
 from services.graph_retrieval import expand_chunks_with_graph
 
 
@@ -189,7 +189,6 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
-
 
 def test_callgraph_keeps_exact_java_edge_types_and_knowledge_graph_collapses_them(
     client, db_session, test_project, test_team
@@ -449,5 +448,74 @@ def test_graph_retrieval_adds_resolved_java_neighbors_with_budget(
             chunk.file_path for chunk in expand_chunks_with_graph(db_session, [hit], token_budget=1)
         ] == [hit.file_path]
     finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_graph_neighborhood_cursor_pagination_and_document_nodes(
+    client, db_session, test_project, test_team
+):
+    source, caller, target, copybook, paragraph, chunks = _fixture_graph(
+        db_session, test_project, test_team
+    )
+    doc_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="Architecture.md",
+        content="Architecture guide",
+        start_line=1,
+        end_line=10,
+        metadata_json={"title": "Architecture.md", "source_type": "local_document"},
+    )
+    db_session.add(doc_chunk)
+    db_session.flush()
+    link = EntityDocLink(
+        project_id=test_project,
+        entity_id=target.id,
+        chunk_id=doc_chunk.id,
+        doc_title="Architecture.md",
+        source_type="local_document",
+        score=0.95,
+        link_type="documented",
+        status="approved",
+        context="Core architecture doc",
+    )
+    db_session.add(link)
+    db_session.commit()
+    try:
+        # Test 1: GET /graph/neighborhood for entity node with limit=1 to trigger pagination
+        res = client.get(
+            f"/graph/neighborhood?node_id=entity:{target.id}&project_id={test_project}&limit=1&relationships=code_dependency"
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["focus_id"] == f"entity:{target.id}"
+        assert body["has_more"] is True
+        assert body["next_cursor"] == "1"
+        assert len(body["edges"]) == 1
+
+        # Test 2: Fetch next page with cursor
+        res_page2 = client.get(
+            f"/graph/neighborhood?node_id=entity:{target.id}&project_id={test_project}&limit=1&cursor=1"
+        )
+        assert res_page2.status_code == 200
+        body_page2 = res_page2.json()
+        assert body_page2["focus_id"] == f"entity:{target.id}"
+
+        # Test 3: Document node neighborhood
+        res_doc = client.get(
+            f"/graph/neighborhood?node_id=doc:Architecture.md&project_id={test_project}"
+        )
+        assert res_doc.status_code == 200
+        body_doc = res_doc.json()
+        assert body_doc["focus_id"] == "doc:Architecture.md"
+        node_ids = {n["id"] for n in body_doc["nodes"]}
+        assert "doc:Architecture.md" in node_ids
+        assert f"entity:{target.id}" in node_ids
+        doc_edges = [e for e in body_doc["edges"] if e["relation_type"] == "documented"]
+        assert len(doc_edges) >= 1
+        assert doc_edges[0]["document_file_path"] == "Architecture.md"
+    finally:
+        db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

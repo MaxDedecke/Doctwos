@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { ChangePackageAction } from './ChangePackageAction';
 
 import { api, API_URL } from '@/app/services/api';
 import { MarkdownContent } from "@/components/MarkdownContent";
@@ -1008,6 +1009,22 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {activeRightTab === 'code' && selectedFile && selectedProject && (
+                <ChangePackageAction
+                  projectId={selectedProject.id}
+                  target={{
+                    entityId: selectedEntity?.file_path === selectedFile ? Number(selectedEntity.id) : undefined,
+                    filePath: selectedEntity?.file_path === selectedFile ? undefined : selectedFile,
+                    sourceId: selectedEntity?.source_id,
+                    label: selectedEntity?.file_path === selectedFile
+                      ? (selectedEntity.qualified_name || selectedEntity.name)
+                      : selectedFile,
+                  }}
+                  theme={theme}
+                  onOpenCode={(path, line, sourceId) => { void handleFileSelect(path, line, sourceId, true); }}
+                  onOpenDoc={onDocFocus}
+                />
+              )}
               {activeRightTab === 'weborigin' && selectedDoc?.url && (
                 <a
                   href={selectedDoc.url}

@@ -175,6 +175,7 @@ export function PanelContentRenderer({
           }
         }}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
+        onOpenDoc={handleDocFocusRequest}
       />
     );
   }
