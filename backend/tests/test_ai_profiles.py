@@ -3,8 +3,14 @@ from services.ai_settings import apply_profile
 
 
 class _ReachableResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
     def raise_for_status(self):
         return None
+
+    def json(self):
+        return self.payload
 
 
 class _ProfileTestClient:
@@ -19,7 +25,9 @@ class _ProfileTestClient:
 
     async def get(self, url, headers):
         self.calls.append((url, headers))
-        return _ReachableResponse()
+        if url.endswith("/api/tags"):
+            return _ReachableResponse({"models": [{"name": "qwen3-embedding:4b"}]})
+        return _ReachableResponse({"data": [{"id": "qwen3:32b"}]})
 
 
 def _payload(**overrides):
@@ -144,5 +152,30 @@ def test_profile_test_checks_chat_and_embedding_endpoints_separately(
             },
         ),
     ]
+    db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
+    db_session.commit()
+
+
+def test_profile_test_rejects_reachable_endpoint_without_configured_model(
+    client, db_session, monkeypatch
+):
+    created = client.post("/ai-profiles", json=_payload()).json()
+
+    class _WrongModelClient(_ProfileTestClient):
+        async def get(self, url, headers):
+            self.calls.append((url, headers))
+            if url.endswith("/api/tags"):
+                return _ReachableResponse({"models": [{"name": "qwen3-embedding:4b"}]})
+            return _ReachableResponse({"data": [{"id": "a-different-model"}]})
+
+    calls = []
+    monkeypatch.setattr(
+        "api.system.httpx.AsyncClient", lambda **_kwargs: _WrongModelClient(calls)
+    )
+    response = client.post(f"/ai-profiles/{created['id']}/test")
+
+    assert response.status_code == 502
+    assert "nicht verfügbar" in response.json()["detail"]
+    assert "qwen3:32b" in response.json()["detail"]
     db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
     db_session.commit()

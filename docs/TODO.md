@@ -81,7 +81,7 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 | 45 | O-197 | Link-Manager auf eine konkrete Verknüpfung und ihre Belege fokussieren. | O-190 bis O-192 sind umgesetzt. |
 | 46 | O-198 | Quellen- und Jobstatus im Job Center lesend öffnen. | Niedrigere Produktpriorität. |
 | 47 | O-258 | Import und Chat parallel gegen das Zielmodell testen und First-Token-SLO abnehmen. | Betreiber und Zielmodell erforderlich. |
-| 48 | O-187, O-259 | Profil-Verfügbarkeitsprüfung und Mismatch-Telemetrie abschließen; Remote-Qwen-Tool-Aufrufe und belastbare Zitation live abnehmen. | Remote-Endpunkt mit Tool-Call-Unterstützung. |
+| 48 | O-187, O-259 | Profil-Verfügbarkeitsprüfung und Mismatch-Telemetrie abschließen; Remote-Qwen-Tool-Aufrufe und belastbare Zitation live abnehmen. | **O-187 teilweise umgesetzt:** Der Profiltest prüft jetzt zusätzlich zur Endpoint-Erreichbarkeit, dass Chat- und Embedding-Modell tatsächlich am Endpoint verfügbar sind; abweichende Modellkennungen werden als Readiness-Mismatch geloggt und als Fehler zurückgegeben. Der Embedding-Profiltest prüft weiterhin die konfigurierte Dimension. Remote-Qwen-Tool-Aufrufe und belastbare Zitation (O-259) am bereitgestellten Endpunkt live abnehmen. |
 | 49 | O-250, O-260, O-261, O-262, O-263 | Umgesetzte Mischsprachen-, Shell-, HTML-, Ablauf- und Intent-Fixes ausrollen, reindizieren und an den realen Beständen abnehmen. | Rollout/Reindex und Remote-Qwen erforderlich. |
 | 50 | O-264 | Datenbankmigration für Kantenrichtung beim Rollout anwenden. | Technisch umgesetzt; Migrationsnachweis offen. |
 

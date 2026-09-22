@@ -32,7 +32,7 @@ from core.auth_dependency import get_current_user
 from core.inference_admission import InferenceAdmissionTimeout, admitted_post
 from core.teams import require_admin
 from core.db_setup import engine, get_db
-from models.database import AIProfile, AISettings, EmbeddingProfile, User
+from models.database import AIProfile, EmbeddingProfile, User
 from services.ai_settings import (
     apply_profile,
     apply_runtime_settings,
@@ -41,7 +41,6 @@ from services.ai_settings import (
     serialize_profile,
     serialize_embedding_profile,
     ensure_embedding_profiles,
-    get_active_embedding_profile,
     serialize_settings,
     apply_embedding_profile,
 )
@@ -56,6 +55,42 @@ _PROFILE_PROTOCOLS = {"ollama", "openai_chat", "openai_responses", "anthropic", 
 
 def _joined_url(base: str, path: str) -> str:
     return f"{base.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _discovered_model_names(payload: object, provider: str) -> set[str]:
+    """Extract model identifiers from Ollama or OpenAI-compatible discovery.
+
+    A successful discovery response alone is not sufficient for a readiness
+    check: RunPod may be reachable while the configured model is still pulling
+    (or the profile names a model that is not installed on that pod).
+    """
+    if not isinstance(payload, dict):
+        return set()
+    entries = payload.get("models") if provider == "ollama" else payload.get("data")
+    if not isinstance(entries, list):
+        return set()
+    key = "name" if provider == "ollama" else "id"
+    return {
+        item[key].strip()
+        for item in entries
+        if isinstance(item, dict) and isinstance(item.get(key), str) and item[key].strip()
+    }
+
+
+def _require_discovered_model(response: httpx.Response, model: str, provider: str, label: str) -> None:
+    available = _discovered_model_names(response.json(), provider)
+    if model not in available:
+        logger.warning(
+            "profile_readiness_model_mismatch label=%s expected_model=%s available_models=%s",
+            label,
+            model,
+            sorted(available),
+        )
+        available_hint = ", ".join(sorted(available)) or "keine Modellkennung"
+        raise ValueError(
+            f"{label}-Modell {model!r} ist am Endpunkt nicht verfügbar "
+            f"(gemeldet: {available_hint})."
+        )
 
 
 def _active_discovery_request() -> tuple[str, dict[str, str]]:
@@ -501,9 +536,15 @@ async def test_ai_profile(
                     headers["Authorization"] = f"Bearer {api_key}"
                 response = await client.get(url, headers=headers)
                 response.raise_for_status()
+                if label == "chat":
+                    _require_discovered_model(response, profile.llm_model, profile.provider, label)
+                else:
+                    _require_discovered_model(
+                        response, profile.embedding_model, profile.embedding_provider, label
+                    )
                 results[label] = "reachable"
         return {"ok": True, **results}
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
             detail=f"{label.capitalize()}-Endpunkt nicht erreichbar: {exc}",
