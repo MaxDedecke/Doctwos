@@ -923,6 +923,7 @@
     "unresolvedLabel": "Nicht aufgelöst",
     "webPreviewFallbackTitle": "Web-Vorschau",
     "localSourceBadge": "Lokal",
+    "openReferenceAtLine": "Referenz in {{file}} öffnen (Zeile {{line}})",
     "neighborGroupLabels": {
       "callIn": "Aufrufer",
       "callOut": "Ruft auf",
@@ -935,7 +936,18 @@
       "gotoOut": "Springt zu",
       "usesOut": "Verwendet",
       "usesIn": "Verwendet von",
-      "docOut": "Verknüpfte Dokumente"
+      "docOut": "Verknüpfte Dokumente",
+      "callsIn": "Aufrufer (Java)",
+      "callsOut": "Ruft auf (Java)",
+      "instantiatesIn": "Instanziiert von",
+      "instantiatesOut": "Instanziiert",
+      "extendsIn": "Erbt von",
+      "extendsOut": "Erweitert",
+      "implementsIn": "Implementiert von",
+      "implementsOut": "Implementiert",
+      "usesTypeIn": "Verwendet von (Typ)",
+      "usesTypeOut": "Verwendet Typ",
+      "containsIn": "Enthalten in"
     }
   },
   "agentSteps": {

@@ -13,7 +13,15 @@ from collections.abc import Iterable
 from core.model import Entity, ParseResult, ParsedEdge
 
 
-_TYPE_ENTITY_TYPES = {"class", "interface", "enum", "record", "annotation_type"}
+_TYPE_ENTITY_TYPES = {
+    "class",
+    "interface",
+    "enum",
+    "record",
+    "annotation_type",
+    "local_class",
+    "anonymous_class",
+}
 _LOCAL_EDGE_TYPES = {
     "EXTENDS",
     "IMPLEMENTS",
@@ -91,6 +99,97 @@ def _method_candidates(
             if len(item.meta.get("parameter_types", ())) == argument_count
         ]
     return candidates
+
+
+def _source_method(edge: ParsedEdge) -> str | None:
+    source = (edge.meta or {}).get("source_qualified_name") or edge.src_name
+    return source if "#" in source else None
+
+
+def _entity_type_name(entity: Entity) -> str | None:
+    meta = entity.meta or {}
+    return (
+        meta.get("field_type")
+        or meta.get("parameter_type")
+        or meta.get("variable_type")
+        or meta.get("component_type")
+        or meta.get("inferred_type")
+    )
+
+
+def _fields_for_owner(
+    owner: str,
+    field_name: str,
+    field_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    *,
+    hierarchy: dict[str, list[str]],
+) -> list[Entity]:
+    """Find the nearest declarations for a field in a type hierarchy."""
+    seen: set[str] = set()
+    queue = [owner]
+    while queue:
+        current = queue.pop(0)
+        if current in seen:
+            continue
+        seen.add(current)
+        matches = field_by_owner_and_name.get((current, field_name), [])
+        if matches:
+            return matches
+        queue.extend(hierarchy.get(current, ()))
+    return []
+
+
+def _receiver_declaration(
+    receiver: str,
+    edge: ParsedEdge,
+    *,
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
+    hierarchy: dict[str, list[str]],
+) -> tuple[list[Entity], str | None]:
+    """Return a parameter/local/field declaration for a simple receiver."""
+    source_owner = _source_owner(edge)
+    source_method = _source_method(edge)
+    if not source_owner:
+        return [], None
+
+    field_name: str | None = None
+    if receiver.startswith("this.") or receiver.startswith("super."):
+        field_name = receiver.split(".", 1)[1]
+    elif "." not in receiver:
+        field_name = receiver
+
+    if field_name is None or not field_name or "." in field_name:
+        return [], None
+
+    if source_method and not receiver.startswith(("this.", "super.")):
+        variables = variables_by_parent_and_name.get((source_method, field_name), [])
+        if variables:
+            kind = variables[0].type
+            return variables if len(variables) == 1 else [], (
+                "receiver_parameter" if kind == "parameter" else "receiver_local_variable"
+            )
+
+    owners = [source_owner]
+    if receiver.startswith("super."):
+        owners = hierarchy.get(source_owner, [])
+    fields: list[Entity] = []
+    for owner in owners:
+        fields.extend(
+            _fields_for_owner(
+                owner,
+                field_name,
+                fields_by_owner_and_name,
+                hierarchy=hierarchy,
+            )
+        )
+        if fields:
+            break
+    if len(fields) == 1:
+        return fields, "receiver_field"
+    if len(fields) > 1:
+        return [], "ambiguous_receiver"
+    return [], None
 
 
 def _argument_matches(parameter: str, argument: str) -> bool:
@@ -278,6 +377,13 @@ def _global_type_candidates(
     candidates = _candidates_at_stage((f"{package}.{name}",) if package else (), types_by_qname)
     if candidates:
         return candidates, "current_package"
+    if not package:
+        # Types in the unnamed package have no package-qualified lookup key.
+        # Keep the same ambiguity rule as named packages instead of guessing
+        # when several default-package files define the same simple name.
+        candidates = types_by_name.get(name, [])
+        if candidates:
+            return candidates, "unnamed_package"
 
     imports = _imports_for(result)
     explicit = [
@@ -301,7 +407,7 @@ def _global_type_candidates(
         if not edge.meta.get("static") and edge.meta.get("wildcard")
     ]
     candidates = _candidates_at_stage(
-        (f"{package_name}.{name}" for package_name in wildcard_packages),
+        (f"{wildcard_package}.{name}" for wildcard_package in wildcard_packages),
         types_by_qname,
     )
     if candidates:
@@ -315,6 +421,177 @@ def _global_type_candidates(
     # A simple name from another package is not a valid match without an
     # import. Keep external and missing dependencies unresolved as well.
     return [], None
+
+
+def _build_hierarchy(
+    results: list[ParseResult],
+    *,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+) -> dict[str, list[str]]:
+    hierarchy: dict[str, list[str]] = {}
+    for result in results:
+        for edge in result.edges:
+            if edge.type not in {"EXTENDS", "IMPLEMENTS"}:
+                continue
+            owner = _source_owner(edge)
+            target = (edge.meta or {}).get("target_qualified_name")
+            if not owner:
+                continue
+            if not target:
+                candidates, _ = _global_type_candidates(
+                    edge.dst_name,
+                    result=result,
+                    source_owner=owner,
+                    types_by_qname=types_by_qname,
+                    types_by_name=types_by_name,
+                )
+                if len(candidates) == 1:
+                    target = candidates[0].qualified_name
+            if target and target in types_by_qname:
+                hierarchy.setdefault(owner, [])
+                if target not in hierarchy[owner]:
+                    hierarchy[owner].append(target)
+    return hierarchy
+
+
+def _receiver_type_candidates(
+    edge: ParsedEdge,
+    *,
+    result: ParseResult,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
+    hierarchy: dict[str, list[str]],
+    result_by_type: dict[str, ParseResult],
+) -> tuple[list[Entity], str | None]:
+    """Infer a method receiver's declared type from source-backed symbols."""
+    receiver = (edge.meta or {}).get("receiver")
+    source_owner = _source_owner(edge)
+    if receiver in {None, "this"}:
+        return (
+            _candidates_at_stage((source_owner,), types_by_qname) if source_owner else [],
+            "owner_type",
+        )
+    if receiver == "super":
+        parents = hierarchy.get(source_owner or "", [])
+        return _candidates_at_stage(parents, types_by_qname), "superclass"
+
+    receiver_name = receiver
+    new_match = re.fullmatch(r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)", receiver_name)
+    if new_match:
+        return _global_type_candidates(
+            new_match.group(1),
+            result=result,
+            source_owner=source_owner,
+            types_by_qname=types_by_qname,
+            types_by_name=types_by_name,
+        )
+
+    # ``this.field`` and a one-level ``variable.field`` are the only dotted
+    # receivers inferred here.  Chained expressions need data-flow/type
+    # information that the parser does not have and remain unresolved.
+    declaration_receiver = receiver_name
+    if "." in receiver_name and not receiver_name.startswith(("this.", "super.")):
+        first, remainder = receiver_name.split(".", 1)
+        if "." in remainder:
+            return [], None
+        base_candidates, base_reason = (
+            _receiver_type_candidates(
+                edge,
+                result=result,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
+                fields_by_owner_and_name=fields_by_owner_and_name,
+                variables_by_parent_and_name=variables_by_parent_and_name,
+                hierarchy=hierarchy,
+                result_by_type=result_by_type,
+            )
+            if first in {"this", "super"}
+            else ([], None)
+        )
+        if first not in {"this", "super"}:
+            synthetic = ParsedEdge(
+                type=edge.type,
+                src_name=edge.src_name,
+                dst_name=first,
+                resolution="unresolved",
+                src_start_line=edge.src_start_line,
+                src_end_line=edge.src_end_line,
+                meta={**(edge.meta or {}), "receiver": first},
+            )
+            base_candidates, base_reason = _receiver_type_candidates(
+                synthetic,
+                result=result,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
+                fields_by_owner_and_name=fields_by_owner_and_name,
+                variables_by_parent_and_name=variables_by_parent_and_name,
+                hierarchy=hierarchy,
+                result_by_type=result_by_type,
+            )
+        if len(base_candidates) != 1:
+            return [], base_reason
+        base_owner = base_candidates[0].qualified_name
+        field_candidates = _fields_for_owner(
+            base_owner,
+            remainder,
+            fields_by_owner_and_name,
+            hierarchy=hierarchy,
+        )
+        if len(field_candidates) != 1:
+            return [], "ambiguous_receiver" if field_candidates else None
+        edge.meta["receiver_symbol_qualified_name"] = field_candidates[0].qualified_name
+        edge.meta["receiver_resolution"] = "receiver_field"
+        field_type = _entity_type_name(field_candidates[0])
+        if not field_type:
+            return [], None
+        field_result = result_by_type.get(field_candidates[0].parent_qualified_name or "", result)
+        types, type_reason = _global_type_candidates(
+            field_type,
+            result=field_result,
+            source_owner=base_owner,
+            types_by_qname=types_by_qname,
+            types_by_name=types_by_name,
+        )
+        return types, "receiver_field" if types else type_reason
+
+    declarations, declaration_reason = _receiver_declaration(
+        declaration_receiver,
+        edge,
+        fields_by_owner_and_name=fields_by_owner_and_name,
+        variables_by_parent_and_name=variables_by_parent_and_name,
+        hierarchy=hierarchy,
+    )
+    if declarations:
+        declaration = declarations[0]
+        edge.meta["receiver_symbol_qualified_name"] = declaration.qualified_name
+        edge.meta["receiver_resolution"] = declaration_reason
+        declared_type = _entity_type_name(declaration)
+        if not declared_type or declared_type == "var":
+            declared_type = (declaration.meta or {}).get("inferred_type")
+        if not declared_type:
+            return [], declaration_reason
+        declaration_result = result_by_type.get(declaration.parent_qualified_name or "", result)
+        types, type_reason = _global_type_candidates(
+            declared_type,
+            result=declaration_result,
+            source_owner=source_owner,
+            types_by_qname=types_by_qname,
+            types_by_name=types_by_name,
+        )
+        return types, declaration_reason if types else type_reason
+
+    # A receiver that is a type name (for example ``Util.check()``) is
+    # resolved only through Java's import/package rules.
+    return _global_type_candidates(
+        receiver_name,
+        result=result,
+        source_owner=source_owner,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
+    )
 
 
 def _source_owner(edge: ParsedEdge) -> str | None:
@@ -348,6 +625,9 @@ def _global_method_candidates(
     types_by_name: dict[str, list[Entity]],
     methods_by_owner_and_name: dict[tuple[str, str], list[Entity]],
     result_by_type: dict[str, ParseResult],
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
+    hierarchy: dict[str, list[str]],
 ) -> tuple[list[Entity], str | None]:
     meta = edge.meta or {}
     method_name = meta.get("method_name", edge.dst_name.rsplit(".", 1)[-1])
@@ -419,26 +699,47 @@ def _global_method_candidates(
             owner_candidates = _candidates_at_stage((source_owner,), types_by_qname)
             owner_reason = "owner_type"
     else:
-        receiver_name = receiver
-        new_match = re.fullmatch(
-            r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)", receiver_name
-        )
-        if new_match:
-            receiver_name = new_match.group(1)
-        owner_candidates, owner_reason = _global_type_candidates(
-            receiver_name,
+        owner_candidates, owner_reason = _receiver_type_candidates(
+            edge,
             result=result,
-            source_owner=source_owner,
             types_by_qname=types_by_qname,
             types_by_name=types_by_name,
+            fields_by_owner_and_name=fields_by_owner_and_name,
+            variables_by_parent_and_name=variables_by_parent_and_name,
+            hierarchy=hierarchy,
+            result_by_type=result_by_type,
         )
+
+    if receiver not in {None, "this", "super"} and len(owner_candidates) == 1:
+        meta["receiver_type_qualified_name"] = owner_candidates[0].qualified_name
 
     candidates: list[Entity] = []
     for owner in owner_candidates:
         if owner.qualified_name:
-            candidates.extend(
-                methods_by_owner_and_name.get((owner.qualified_name, method_name), [])
-            )
+            # Look up declared methods first, then inherited/interface methods.
+            # A nearer declaration with the same signature shadows an ancestor;
+            # different signatures remain available for overload resolution.
+            seen_owners: set[str] = set()
+            seen_signatures: set[tuple[str, ...]] = set()
+            queue = [owner.qualified_name]
+            while queue:
+                current = queue.pop(0)
+                if current in seen_owners:
+                    continue
+                seen_owners.add(current)
+                for method in methods_by_owner_and_name.get((current, method_name), []):
+                    signature = tuple(method.meta.get("parameter_types", ()))
+                    if signature not in seen_signatures:
+                        candidates.append(method)
+                        seen_signatures.add(signature)
+                queue.extend(hierarchy.get(current, ()))
+    # Duplicate qualified names can occur in separate build modules.  Do not
+    # turn that into a false unique call target.
+    unique: dict[str, Entity] = {}
+    for candidate in candidates:
+        if candidate.qualified_name:
+            unique.setdefault(candidate.qualified_name, candidate)
+    candidates = list(unique.values()) if len(unique) == len(candidates) else candidates
     return candidates, owner_reason
 
 
@@ -461,9 +762,19 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
         types_by_name.setdefault(entity.name, []).append(entity)
 
     methods_by_owner_and_name: dict[tuple[str, str], list[Entity]] = {}
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]] = {}
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]] = {}
     for entity in entities:
         if entity.type == "method" and entity.parent_qualified_name:
             methods_by_owner_and_name.setdefault(
+                (entity.parent_qualified_name, entity.name), []
+            ).append(entity)
+        if entity.type == "field" and entity.parent_qualified_name:
+            fields_by_owner_and_name.setdefault(
+                (entity.parent_qualified_name, entity.name), []
+            ).append(entity)
+        if entity.type in {"parameter", "local_variable"} and entity.parent_qualified_name:
+            variables_by_parent_and_name.setdefault(
                 (entity.parent_qualified_name, entity.name), []
             ).append(entity)
     result_by_type = {
@@ -472,6 +783,11 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
         for entity in result.entities
         if entity.type in _TYPE_ENTITY_TYPES and entity.qualified_name
     }
+    hierarchy = _build_hierarchy(
+        java_results,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
+    )
 
     resolved = 0
     for result in java_results:
@@ -521,6 +837,9 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     types_by_name=types_by_name,
                     methods_by_owner_and_name=methods_by_owner_and_name,
                     result_by_type=result_by_type,
+                    fields_by_owner_and_name=fields_by_owner_and_name,
+                    variables_by_parent_and_name=variables_by_parent_and_name,
+                    hierarchy=hierarchy,
                 )
                 target = _resolve_overload(edge, candidates)
                 if target is not None:

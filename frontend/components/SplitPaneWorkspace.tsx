@@ -314,6 +314,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     'USES:out': t('splitPane.neighborGroupLabels.usesOut'),
     'USES:in': t('splitPane.neighborGroupLabels.usesIn'),
     'DOC:out': t('splitPane.neighborGroupLabels.docOut'),
+    'CALLS:in': t('splitPane.neighborGroupLabels.callsIn'),
+    'CALLS:out': t('splitPane.neighborGroupLabels.callsOut'),
+    'INSTANTIATES:in': t('splitPane.neighborGroupLabels.instantiatesIn'),
+    'INSTANTIATES:out': t('splitPane.neighborGroupLabels.instantiatesOut'),
+    'EXTENDS:in': t('splitPane.neighborGroupLabels.extendsIn'),
+    'EXTENDS:out': t('splitPane.neighborGroupLabels.extendsOut'),
+    'IMPLEMENTS:in': t('splitPane.neighborGroupLabels.implementsIn'),
+    'IMPLEMENTS:out': t('splitPane.neighborGroupLabels.implementsOut'),
+    'USES_TYPE:in': t('splitPane.neighborGroupLabels.usesTypeIn'),
+    'USES_TYPE:out': t('splitPane.neighborGroupLabels.usesTypeOut'),
+    'CONTAINS:in': t('splitPane.neighborGroupLabels.containsIn'),
   };
 
   const localEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
@@ -1169,59 +1180,64 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                 {neighbors.map((neighbor) => {
                                   const entity = neighbor.entity;
                                   const document = neighbor.document;
-                                  const canOpen = !!entity || !!document?.file_path || !!document?.url;
+                                  const reference = neighbor.reference;
+                                  const canOpenTarget = !!entity || !!document?.file_path || !!document?.url;
+                                  const openNeighbor = () => {
+                                    if (entity) {
+                                      if (handleEntitySelectAndOpen) {
+                                        handleEntitySelectAndOpen(entity);
+                                      } else {
+                                        handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
+                                      }
+                                    } else if (document?.file_path || document?.url) {
+                                      // This panel is pinned to the code/doc view (activeRightTab is a fixed
+                                      // prop here, see page.tsx renderPanel) — routing a document through the
+                                      // generic handleFileSelect would also null out the global selectedEntity,
+                                      // which every open callgraph panel unconditionally mirrors (see page.tsx's
+                                      // unfrozen-panel sync) and would blank to "Bitte zuerst fokussieren".
+                                      // onDocFocus opens/targets a 'doc' panel without touching it. This is the
+                                      // last caller of that path -- the Graph View decides its target view once,
+                                      // inside handlePanelFileSelect (O-091), and no longer routes here.
+                                      if (onDocFocus && document.source_id) {
+                                        const sourceType = document.source_type?.toLowerCase();
+                                        const isWebOrigin = sourceType === 'confluence' || sourceType === 'jira';
+                                        const documentPath = document.file_path || document.url || '';
+                                        const viewerPath = isWebOrigin && document.url
+                                          ? document.url
+                                          : documentPath;
+                                        onDocFocus(viewerPath, document.source_id, {
+                                          chunkId: document.chunk_id ?? undefined,
+                                          excerpt: document.excerpt || undefined,
+                                          page: document.page,
+                                          section: document.section,
+                                          startLine: document.start_line,
+                                          endLine: document.end_line,
+                                          url: document.url,
+                                          urlAnchor: document.url_anchor,
+                                          sourceRevision: document.source_revision,
+                                          locatorPrecision: document.locator_precision,
+                                          type: document.source_type,
+                                          isWebOrigin,
+                                        });
+                                      } else {
+                                        handleFileSelect(document.file_path || document.url || '', null, document.source_id || selectedEntity?.source_id);
+                                      }
+                                    }
+                                    setIsReferencesDropdownOpen(false);
+                                  };
                                   return (
-                                    <button
+                                    <div
                                       key={neighbor.edge_id}
-                                      className={cn(
-                                        "w-full px-4 py-2.5 text-left flex items-center gap-2 transition-colors",
-                                        theme === 'dark' ? "hover:bg-ds-zinc-900/60" : "hover:bg-ds-zinc-50"
-                                      )}
-                                      disabled={!canOpen}
-                                      onClick={() => {
-                                        if (entity) {
-                                          if (handleEntitySelectAndOpen) {
-                                            handleEntitySelectAndOpen(entity);
-                                          } else {
-                                            handleFileSelect(entity.file_path, entity.start_line, entity.source_id);
-                                          }
-                                        } else if (document?.file_path || document?.url) {
-                                          // This panel is pinned to the code/doc view (activeRightTab is a fixed
-                                          // prop here, see page.tsx renderPanel) — routing a document through the
-                                          // generic handleFileSelect would also null out the global selectedEntity,
-                                          // which every open callgraph panel unconditionally mirrors (see page.tsx's
-                                          // unfrozen-panel sync) and would blank to "Bitte zuerst fokussieren".
-                                          // onDocFocus opens/targets a 'doc' panel without touching it. This is the
-                                          // last caller of that path -- the Graph View decides its target view once,
-                                          // inside handlePanelFileSelect (O-091), and no longer routes here.
-                                          if (onDocFocus && document.source_id) {
-                                            const sourceType = document.source_type?.toLowerCase();
-                                            const isWebOrigin = sourceType === 'confluence' || sourceType === 'jira';
-                                            const documentPath = document.file_path || document.url || '';
-                                            const viewerPath = isWebOrigin && document.url
-                                              ? document.url
-                                              : documentPath;
-                                            onDocFocus(viewerPath, document.source_id, {
-                                              chunkId: document.chunk_id ?? undefined,
-                                              excerpt: document.excerpt || undefined,
-                                              page: document.page,
-                                              section: document.section,
-                                              startLine: document.start_line,
-                                              endLine: document.end_line,
-                                              url: document.url,
-                                              urlAnchor: document.url_anchor,
-                                              sourceRevision: document.source_revision,
-                                              locatorPrecision: document.locator_precision,
-                                              type: document.source_type,
-                                              isWebOrigin,
-                                            });
-                                          } else {
-                                            handleFileSelect(document.file_path || document.url || '', null, document.source_id || selectedEntity?.source_id);
-                                          }
-                                        }
-                                        setIsReferencesDropdownOpen(false);
-                                      }}
+                                      className="w-full flex items-stretch"
                                     >
+                                      <button
+                                        className={cn(
+                                          "min-w-0 flex-1 px-4 py-2.5 text-left flex items-center gap-2 transition-colors",
+                                          theme === 'dark' ? "hover:bg-ds-zinc-900/60" : "hover:bg-ds-zinc-50"
+                                        )}
+                                        disabled={!canOpenTarget}
+                                        onClick={openNeighbor}
+                                      >
                                       <KnowledgeNodeIcon
                                         node={document
                                           ? { type: 'document', source_type: document.source_type }
@@ -1247,7 +1263,38 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       {entity?.start_line && (
                                         <span className="text-[9px] text-ds-zinc-500 font-mono">L{entity.start_line}</span>
                                       )}
-                                    </button>
+                                      </button>
+                                      {reference?.file_path && reference.start_line != null && (
+                                        <button
+                                          type="button"
+                                          className={cn(
+                                            "shrink-0 px-2 text-[9px] font-mono transition-colors",
+                                            theme === 'dark'
+                                              ? "text-ds-zinc-500 hover:bg-ds-zinc-900/80 hover:text-ds-indigo-300"
+                                              : "text-ds-zinc-500 hover:bg-ds-zinc-100 hover:text-ds-indigo-600"
+                                          )}
+                                          title={t('splitPane.openReferenceAtLine', {
+                                            file: reference.file_path,
+                                            line: reference.start_line,
+                                          })}
+                                          aria-label={t('splitPane.openReferenceAtLine', {
+                                            file: reference.file_path,
+                                            line: reference.start_line,
+                                          })}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleFileSelect(
+                                              reference.file_path!,
+                                              reference.start_line,
+                                              reference.source_id,
+                                            );
+                                            setIsReferencesDropdownOpen(false);
+                                          }}
+                                        >
+                                          ↗ L{reference.start_line}
+                                        </button>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </section>

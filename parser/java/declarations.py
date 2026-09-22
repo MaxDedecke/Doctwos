@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from collections.abc import Iterator
+import re
 
 from antlr4 import ParserRuleContext
 
@@ -523,8 +524,16 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             if context.VAR() is not None:
                 declarations = [(context.identifier(), None)]
                 variable_type = "var"
+                initializer = context.expression()
+                initializer_text = initializer.getText() if initializer is not None else ""
+                inferred_match = re.fullmatch(
+                    r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)",
+                    initializer_text,
+                )
+                inferred_type = inferred_match.group(1) if inferred_match else None
             else:
                 variable_type = context.typeType().getText()
+                inferred_type = None
                 declarations = [
                     (declarator.variableDeclaratorId().identifier(), declarator)
                     for declarator in context.variableDeclarators().variableDeclarator()
@@ -544,7 +553,11 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                             f"{start_line}:{identifier.start.column}"
                         ),
                         parent_qualified_name=self.parent.qualified_name,
-                        meta={"language": "java", "variable_type": variable_type},
+                        meta={
+                            "language": "java",
+                            "variable_type": variable_type,
+                            **({"inferred_type": inferred_type} if inferred_type else {}),
+                        },
                     )
                 )
         return self.visitChildren(context)

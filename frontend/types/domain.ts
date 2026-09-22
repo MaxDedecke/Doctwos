@@ -304,8 +304,18 @@ export interface EntityNeighbor {
   type: string;
   direction: string;
   resolution: string | null;
+  variant_key?: string;
+  meta?: Record<string, unknown>;
   dst_name: string;
   entity: CodeEntity | null;
+  reference?: {
+    entity_id: number | null;
+    name?: string | null;
+    file_path: string | null;
+    source_id: number | string | null;
+    start_line: number | null;
+    end_line?: number | null;
+  } | null;
   document?: {
     title: string;
     file_path: string | null;

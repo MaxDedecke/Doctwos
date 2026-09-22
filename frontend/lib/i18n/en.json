@@ -923,6 +923,7 @@
     "unresolvedLabel": "Unresolved",
     "webPreviewFallbackTitle": "Web Preview",
     "localSourceBadge": "Local",
+    "openReferenceAtLine": "Open reference in {{file}} (line {{line}})",
     "neighborGroupLabels": {
       "callIn": "Callers",
       "callOut": "Calls",
@@ -935,7 +936,18 @@
       "gotoOut": "Goes to",
       "usesOut": "Uses",
       "usesIn": "Used by",
-      "docOut": "Linked documents"
+      "docOut": "Linked documents",
+      "callsIn": "Callers (Java)",
+      "callsOut": "Calls (Java)",
+      "instantiatesIn": "Instantiated by",
+      "instantiatesOut": "Instantiates",
+      "extendsIn": "Extends from",
+      "extendsOut": "Extends",
+      "implementsIn": "Implemented by",
+      "implementsOut": "Implements",
+      "usesTypeIn": "Used by (type)",
+      "usesTypeOut": "Uses type",
+      "containsIn": "Contained in"
     }
   },
   "agentSteps": {

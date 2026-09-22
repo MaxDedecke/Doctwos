@@ -110,7 +110,9 @@ class JavaRelationshipVisitor(JavaParserVisitor):
 
     def _entity_for_type(self, name: str) -> Entity | None:
         if self.current_type is None:
-            parent = self._package_name
+            # Declarations without a package are children of the compilation
+            # unit, not of a synthetic ``None`` parent.
+            parent = self._package_name or self._scopes[0].qualified_name
         elif self._scopes[-1].type in {"method", "constructor", "lambda"}:
             parent = self._scopes[-1].qualified_name
         else:

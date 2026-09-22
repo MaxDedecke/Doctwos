@@ -389,6 +389,14 @@ describe('SplitPaneWorkspace', () => {
               resolution: 'resolved',
               dst_name: 'calculate',
               entity: javaMethod,
+              reference: {
+                entity_id: 101,
+                name: 'PaymentService',
+                file_path: javaEntity.file_path,
+                source_id: 5,
+                start_line: 42,
+                end_line: 44,
+              },
               start_line: 24,
               end_line: 30,
             }],
@@ -411,6 +419,9 @@ describe('SplitPaneWorkspace', () => {
       target.click();
 
       expect(handleFileSelect).toHaveBeenCalledWith(javaMethod.file_path, javaMethod.start_line, javaMethod.source_id);
+
+      fireEvent.click(screen.getByRole('button', { name: /Referenz in .* \(Zeile 42\)/ }));
+      expect(handleFileSelect).toHaveBeenCalledWith(javaEntity.file_path, 42, 5);
     });
 
     it('öffnet eine Java-Entity in der Referenzansicht und drillt zur verknüpften Zeile weiter', async () => {

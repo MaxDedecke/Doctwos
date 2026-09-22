@@ -68,6 +68,8 @@ def _fixture_graph(db, project_id, team_id):
                 dst_name="TARGET",
                 type="CALL",
                 resolution="resolved",
+                src_start_line=11,
+                src_end_line=11,
             ),
             CodeEdge(
                 project_id=project_id,
@@ -137,6 +139,41 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         ).json()
         assert list(neighbors["groups"]) == ["CALL:in"]
         assert neighbors["groups"]["CALL:in"][0]["entity"]["id"] == caller.id
+        assert neighbors["groups"]["CALL:in"][0]["reference"] == {
+            "entity_id": caller.id,
+            "name": caller.name,
+            "file_path": caller.file_path,
+            "source_id": source.id,
+            "start_line": 11,
+            "end_line": 11,
+        }
+
+        contains = client.get(
+            f"/entities/{paragraph.id}/neighbors?types=CONTAINS&project_id={test_project}"
+        ).json()
+        assert list(contains["groups"]) == ["CONTAINS:in"]
+        assert contains["groups"]["CONTAINS:in"][0]["entity"]["id"] == target.id
+        assert contains["groups"]["CONTAINS:in"][0]["reference"] is None
+
+        dynamic = CodeEdge(
+            project_id=test_project,
+            source_id=source.id,
+            src_entity_id=target.id,
+            dst_entity_id=None,
+            dst_name="runtimeTarget",
+            type="CALLS",
+            resolution="dynamic",
+            src_start_line=17,
+            src_end_line=18,
+        )
+        db_session.add(dynamic)
+        db_session.commit()
+        unresolved = client.get(
+            f"/entities/{target.id}/neighbors?types=CALLS&direction=out&project_id={test_project}"
+        ).json()["groups"]["CALLS:out"][0]
+        assert unresolved["entity"] is None
+        assert unresolved["reference"]["file_path"] == target.file_path
+        assert unresolved["reference"]["start_line"] == 17
 
         graph = client.get(
             f"/callgraph/focus?entity_id={target.id}&hops=1&project_id={test_project}"

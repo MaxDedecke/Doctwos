@@ -77,6 +77,26 @@ def entity_json(entity: CodeEntity) -> dict:
     }
 
 
+def _edge_reference_json(edge: CodeEdge, source: CodeEntity | None) -> dict:
+    """Return the concrete source occurrence without inventing a target.
+
+    ``CodeEdge.dst_entity_id`` is deliberately optional for unresolved and
+    dynamic references.  The source occurrence is still safe to navigate to:
+    it comes from the persisted edge evidence and is independent of target
+    resolution.
+    """
+    start_line = edge.src_start_line if edge.src_start_line and edge.src_start_line > 0 else None
+    end_line = edge.src_end_line if edge.src_end_line and edge.src_end_line > 0 else None
+    return {
+        "entity_id": edge.src_entity_id,
+        "name": source.name if source else None,
+        "file_path": source.file_path if source else None,
+        "source_id": source.source_id if source else edge.source_id,
+        "start_line": start_line,
+        "end_line": end_line,
+    }
+
+
 def _definition(entity: CodeEntity, db: Session) -> dict | None:
     query = db.query(DocumentChunk).filter(
         DocumentChunk.project_id == entity.project_id,
@@ -197,6 +217,7 @@ def get_neighbors(
         edge_direction = "out" if edge.src_entity_id == entity_id else "in"
         other_id = edge.dst_entity_id if edge_direction == "out" else edge.src_entity_id
         other = db.query(CodeEntity).filter(CodeEntity.id == other_id).first() if other_id else None
+        source = db.query(CodeEntity).filter(CodeEntity.id == edge.src_entity_id).first()
         key = f"{edge.type}:{edge_direction}"
         groups.setdefault(key, []).append(
             {
@@ -208,10 +229,43 @@ def get_neighbors(
                 "meta": edge.meta_json or {},
                 "dst_name": edge.dst_name,
                 "entity": entity_json(other) if other else None,
+                "reference": _edge_reference_json(edge, source),
                 "start_line": edge.src_start_line,
                 "end_line": edge.src_end_line,
             }
         )
+
+    # CONTAINS is derived from the bounded parent chain rather than persisted
+    # as a second edge row.  We expose ancestors only: selecting a broad
+    # program must not expand into every paragraph/data item in the project.
+    if direction in {"in", "both"} and (not requested or "CONTAINS" in requested):
+        parent_id = entity.parent_id
+        contains_count = 0
+        while parent_id is not None and contains_count < 32:
+            parent = db.query(CodeEntity).filter(CodeEntity.id == parent_id).first()
+            if not parent:
+                break
+            try:
+                _assert_entity_visible(parent, user, db, project_id)
+            except HTTPException:
+                break
+            groups.setdefault("CONTAINS:in", []).append(
+                {
+                    "edge_id": f"contains:{entity.id}:{parent.id}",
+                    "type": "CONTAINS",
+                    "direction": "in",
+                    "resolution": "resolved",
+                    "variant_key": entity.variant_key,
+                    "meta": {},
+                    "dst_name": parent.name,
+                    "entity": entity_json(parent),
+                    "reference": None,
+                    "start_line": entity.start_line,
+                    "end_line": entity.end_line,
+                }
+            )
+            contains_count += 1
+            parent_id = parent.parent_id
 
     # Dokument-Verknüpfungen dieser Entity (EntityDocLink) als eigene Gruppe --
     # CodeEdge bildet nur Code<->Code-Beziehungen ab, die Graph-View (api/graph.py)

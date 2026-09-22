@@ -11,7 +11,7 @@ from .chunking import chunk_java_source
 from .declarations import JavaDeclarationVisitor
 from .modules import module_from_path, source_kind_from_path, source_set_from_path
 from .relationships import JavaRelationshipVisitor
-from .resolution import resolve_local_edges
+from .resolution import resolve_global_edges, resolve_local_edges
 from ._antlr.JavaParser import JavaParser
 
 
@@ -75,7 +75,7 @@ def parse_java_file(
             )
         )
 
-    return ParseResult(
+    result = ParseResult(
         program_name=Path(path).stem or root_name,
         path=path,
         source_format="free",
@@ -84,3 +84,9 @@ def parse_java_file(
         chunks=chunk_java_source(source, visitor.entities),
         diagnostics=diagnostics,
     )
+    # The global resolver is also useful for a single file: parameters,
+    # locals, fields, and same-file interfaces are otherwise invisible to the
+    # local declaration pass.  Repository persistence runs the same resolver
+    # again across all files after the sync.
+    resolve_global_edges([result])
+    return result
