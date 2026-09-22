@@ -45,7 +45,12 @@ def test_perform_thru_resolves_locally_and_carries_thru_in_meta():
     perform = next(e for e in edges if e.dst_name == "INIT-PARA")
     assert perform.type == "PERFORM"
     assert perform.resolution == "resolved"
-    assert perform.meta == {"thru": "CLEANUP-PARA", "program": "PERFTHRU"}
+    assert perform.meta == {
+        "thru": "CLEANUP-PARA",
+        "thru_resolution": "resolved",
+        "thru_target_qualified_name": "PERFTHRU.CLEANUP-PARA",
+        "program": "PERFTHRU",
+    }
     assert perform.scope == program.name == "PERFTHRU"
 
 

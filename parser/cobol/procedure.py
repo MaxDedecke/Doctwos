@@ -42,9 +42,9 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
         errors.append("Keine PROCEDURE DIVISION gefunden - CALL/PERFORM/GO TO nicht durchsucht.")
         return edges, errors
 
-    local_names = {canonical_identifier(p.name) for p in program.paragraphs} | {
-        canonical_identifier(s.name) for s in program.sections
-    }
+    local_targets: dict[str, list[str]] = {}
+    for local in [*program.paragraphs, *program.sections]:
+        local_targets.setdefault(canonical_identifier(local.name), []).append(local.name)
 
     proc_tokens = [
         t
@@ -115,9 +115,19 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                     and thru_idx + 1 < n
                     and proc_tokens[thru_idx + 1].kind == "WORD"
                 ):
-                    meta["thru"] = proc_tokens[thru_idx + 1].value
+                    thru_name = proc_tokens[thru_idx + 1].value
+                    meta["thru"] = thru_name
+                    thru_targets = local_targets.get(canonical_identifier(thru_name), [])
+                    if len(thru_targets) == 1:
+                        meta["thru_resolution"] = "resolved"
+                        meta["thru_target_qualified_name"] = f"{program.name}.{thru_targets[0]}"
+                    else:
+                        # An endpoint is informative even if it cannot be
+                        # unambiguously navigated; do not turn a same-named
+                        # paragraph/section into an arbitrary destination.
+                        meta["thru_resolution"] = "unresolved"
                     end_idx = thru_idx + 1
-                resolved = canonical_identifier(nxt.value) in local_names
+                resolved = len(local_targets.get(canonical_identifier(nxt.value), [])) == 1
                 edges.append(
                     ParsedEdge(
                         type="PERFORM",
@@ -152,7 +162,7 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
             end_line = _statement_end_line(proc_tokens, i + 2, tok.phys_line)
             src = _enclosing_paragraph(program, tok.phys_line)
             for t in targets:
-                resolved = canonical_identifier(t.value) in local_names
+                resolved = len(local_targets.get(canonical_identifier(t.value), [])) == 1
                 edges.append(
                     ParsedEdge(
                         type="GOTO",

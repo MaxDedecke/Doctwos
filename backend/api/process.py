@@ -309,7 +309,8 @@ def _projection(
                         key: value
                         for key, value in (edge.meta_json or {}).items()
                         if key in {
-                            "thru", "statement_type", "cursor_name",
+                            "thru", "thru_resolution", "thru_target_qualified_name",
+                            "statement_type", "cursor_name",
                             "invocation_kind", "dispatch_scope", "resolution_reason",
                         }
                     },

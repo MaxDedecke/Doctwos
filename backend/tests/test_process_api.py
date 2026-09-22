@@ -230,7 +230,11 @@ def test_process_focus_projects_existing_cobol_flow_semantics_without_inventing_
                 resolution="resolved",
                 src_start_line=14,
                 src_end_line=14,
-                meta_json={"thru": "PROCESS-EXIT"},
+                meta_json={
+                    "thru": "PROCESS-EXIT",
+                    "thru_resolution": "resolved",
+                    "thru_target_qualified_name": "PAYMENT.PROCESS-EXIT",
+                },
             ),
             CodeEdge(
                 project_id=test_project,
@@ -276,7 +280,11 @@ def test_process_focus_projects_existing_cobol_flow_semantics_without_inventing_
         payload = response.json()
         perform = next(item for item in payload["transitions"] if item["code_edge_types"] == ["PERFORM"])
         assert perform["kind"] == "call"
-        assert perform["meta"] == {"thru": "PROCESS-EXIT"}
+        assert perform["meta"] == {
+            "thru": "PROCESS-EXIT",
+            "thru_resolution": "resolved",
+            "thru_target_qualified_name": "PAYMENT.PROCESS-EXIT",
+        }
         dynamic_call = next(item for item in payload["transitions"] if item["resolution"] == "dynamic")
         assert dynamic_call["kind"] == "external_call"
         assert dynamic_call["certainty"] == "possible"
