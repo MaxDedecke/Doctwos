@@ -5,6 +5,20 @@ import os
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def configure_test_encryption_key(monkeypatch):
+    """Keep persistence tests independent from deployment secrets.
+
+    Connector tests mock embeddings, but persisted chunks are encrypted just
+    like production chunks.  A deterministic test-only Fernet key lets those
+    tests exercise the DB path without requiring a locally configured LLM or
+    secret store.
+    """
+    monkeypatch.setenv(
+        "MASTER_ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+    )
+
+
 @pytest.fixture(scope="module")
 def anyio_backend():
     """Parser-Connectoren laufen produktiv in asyncio/Celery.
