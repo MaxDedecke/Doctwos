@@ -138,6 +138,20 @@ class ProjectAccessRequest(Base):
     )
 
 
+class Insight(Base):
+    """Read/write mirror of the backend insight table for sync-driven review escalation."""
+
+    __tablename__ = "insights"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, nullable=False, index=True)
+    evidence_json = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False, index=True)
+    verified_by_id = Column(Integer, nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+    outdated_at = Column(DateTime(timezone=True), nullable=True)
+    outdated_source_ids = Column(JSON, nullable=True)
+
+
 class KnowledgeSource(Base):
     __tablename__ = "knowledge_sources"
     id = Column(Integer, primary_key=True, index=True)

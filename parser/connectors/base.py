@@ -42,6 +42,7 @@ from code_parser import CodeParser
 from core import config
 from db import SessionLocal, REDIS_URL
 from models.database import DocumentChunk, KnowledgeSource
+from insight_review import mark_source_insights_outdated
 from ollama_client import ensure_model_pulled, get_embedding
 
 logger = logging.getLogger(__name__)
@@ -281,6 +282,7 @@ class BaseConnector(ABC):
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return
+            had_previous_sync = self.source.last_synced_at is not None
             self.embedding_model = self.source.embedding_model or config.EMBED_MODEL
 
             self._sync_start_time = datetime.now(timezone.utc)
@@ -319,6 +321,10 @@ class BaseConnector(ABC):
             self.source.sync_status = "completed"
             self.source.progress = 100
             self.source.progress_message = "Synchronisierung abgeschlossen"
+            if self.has_changes and had_previous_sync:
+                escalated = mark_source_insights_outdated(self.db, self.source)
+                if escalated:
+                    self._log(f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert.")
             self.db.commit()
             self._log(
                 f"Sync abgeschlossen — {processed} Dokument(e), {total_chunks} Chunks gesamt."

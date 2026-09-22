@@ -48,6 +48,7 @@ from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
 from java.modules import module_from_path
 from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
+from insight_review import mark_source_insights_outdated
 from ollama_client import (
     ensure_model_pulled,
     get_embeddings_batch,
@@ -1289,6 +1290,7 @@ class GitConnector(BaseConnector):
             if not self.source:
                 logger.error(f"[Connector] KnowledgeSource {self.source_id} nicht gefunden.")
                 return
+            had_previous_sync = self.source.last_synced_at is not None
             self.embedding_model = self.source.embedding_model or config.EMBED_MODEL
 
             self._sync_start_time = datetime.now(timezone.utc)
@@ -1408,6 +1410,10 @@ class GitConnector(BaseConnector):
             self.source.progress_message = (
                 self.source.last_error or "Synchronisierung abgeschlossen"
             )
+            if self.has_changes and had_previous_sync and not failed_files:
+                escalated = mark_source_insights_outdated(self.db, self.source)
+                if escalated:
+                    self._log(f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert.")
             self.db.commit()
             self._log(
                 f"Sync abgeschlossen — {processed} Dokument(e), {total_chunks} Chunks gesamt."

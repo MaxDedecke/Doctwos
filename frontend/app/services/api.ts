@@ -71,7 +71,7 @@ export const api = {
     createInsight: (projectId: number, data: { title: string; content: string; origin_kind: 'chat' | 'code' | 'process'; evidence: Array<Record<string, unknown>> }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights`, data),
     getInsights: (projectId: number, status?: 'draft' | 'verified') =>
-        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified'; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
+        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated'; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
     verifyInsight: (projectId: number, insightId: number) =>
         axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/verify`, { confirm: true }),
     getTypingStatement: () => axios.get(`${API_URL}/chat/typing-statement`),

@@ -5,6 +5,7 @@ from connectors.folder import extract_docx_text, extract_pdf_pages
 from core import config
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
+from insight_review import mark_source_insights_outdated
 from code_parser import CodeParser
 from ollama_client import get_embedding, ensure_model_pulled
 
@@ -157,8 +158,11 @@ async def process_local_document_async(source_id: int, file_path: str):
         )
 
         db.commit()
+        had_previous_sync = source.last_synced_at is not None
         source.sync_status = "completed"
         source.last_synced_at = datetime.now(timezone.utc)
+        if had_previous_sync:
+            mark_source_insights_outdated(db, source)
         db.commit()
         log_event(
             f"Datei '{file_path}' erfolgreich indiziert ({embedded_chunks_count} Vektor-Chuncks erzeugt)."

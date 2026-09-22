@@ -9,7 +9,7 @@ from api.schemas import InsightCreate, InsightVerification
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
-from models.database import Insight, User
+from models.database import Insight, KnowledgeSource, User
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])
@@ -28,6 +28,8 @@ def _serialize(insight: Insight) -> dict:
         "created_at": insight.created_at.isoformat() if insight.created_at else None,
         "verified_by_id": insight.verified_by_id,
         "verified_at": insight.verified_at.isoformat() if insight.verified_at else None,
+        "outdated_at": insight.outdated_at.isoformat() if insight.outdated_at else None,
+        "outdated_source_ids": insight.outdated_source_ids or [],
     }
 
 
@@ -52,12 +54,26 @@ def create_insight(
     if not all(isinstance(item, dict) and item for item in body.evidence):
         raise HTTPException(status_code=422, detail="Jeder Beleg muss ein nicht-leeres Objekt sein")
 
+    source_ids = {
+        item.get("source_id") for item in body.evidence if isinstance(item.get("source_id"), int)
+    }
+    sources = {
+        source.id: source for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
+    } if source_ids else {}
+    evidence = []
+    for item in body.evidence:
+        snapshot = dict(item)
+        source = sources.get(snapshot.get("source_id"))
+        if source:
+            snapshot["source_last_synced_at"] = source.last_synced_at.isoformat() if source.last_synced_at else None
+        evidence.append(snapshot)
+
     insight = Insight(
         project_id=project_id,
         title=body.title.strip(),
         content=body.content.strip(),
         origin_kind=body.origin_kind,
-        evidence_json=body.evidence,
+        evidence_json=evidence,
         status="draft",
         created_by_id=user.id,
     )
@@ -77,7 +93,7 @@ def list_insights(
     assert_project_visible(project_id, user, db)
     query = db.query(Insight).filter(Insight.project_id == project_id)
     if status is not None:
-        if status not in {"draft", "verified"}:
+        if status not in {"draft", "verified", "outdated"}:
             raise HTTPException(status_code=422, detail="Unbekannter Erkenntnisstatus")
         query = query.filter(Insight.status == status)
     return [_serialize(insight) for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc()).all()]

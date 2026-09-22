@@ -1361,7 +1361,9 @@
     "verifyFailed": "Die Erkenntnis konnte nicht freigegeben werden.",
     "verify": "Freigeben",
     "evidenceCount": "{{count}} Beleg(e)",
-    "status": { "draft": "Entwurf", "verified": "Freigegeben" },
+    "sourceChanged": "Quelle geändert ({{count}}) – erneute fachliche Prüfung erforderlich.",
+    "provenanceSnapshot": "Der Beleg enthält den beim Speichern erfassten Quellenstand.",
+    "status": { "draft": "Entwurf", "verified": "Freigegeben", "outdated": "Erneut prüfen" },
     "origin": { "chat": "Chat", "code": "Code", "process": "Prozess" }
   },
   "provenance": {

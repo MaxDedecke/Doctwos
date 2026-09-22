@@ -167,6 +167,8 @@ class Insight(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     verified_by_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
+    outdated_at = Column(DateTime(timezone=True), nullable=True)
+    outdated_source_ids = Column(JSON, nullable=True)
 
     project = relationship("Project", backref=backref("insights", passive_deletes=True))
     created_by = relationship("User", foreign_keys=[created_by_id])
@@ -174,10 +176,10 @@ class Insight(Base):
 
     __table_args__ = (
         CheckConstraint("origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"),
-        CheckConstraint("status IN ('draft', 'verified')", name="ck_insights_status"),
+        CheckConstraint("status IN ('draft', 'verified', 'outdated')", name="ck_insights_status"),
         CheckConstraint(
             "(status = 'draft' AND verified_by_id IS NULL AND verified_at IS NULL) OR "
-            "(status = 'verified' AND verified_by_id IS NOT NULL AND verified_at IS NOT NULL)",
+            "(status IN ('verified', 'outdated') AND verified_by_id IS NOT NULL AND verified_at IS NOT NULL)",
             name="ck_insights_verification_state",
         ),
     )
