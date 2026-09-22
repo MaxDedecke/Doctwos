@@ -103,6 +103,7 @@ export function PanelRenderer({
             <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
             <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
             {linkManagerEnabled && <SelectItem value="linkmanager" className="text-xs">{t('page.viewTypes.linkmanager')}</SelectItem>}
+            <SelectItem value="insights" className="text-xs">{t('page.viewTypes.insights')}</SelectItem>
           </SelectContent>
         </Select>
         <div className="flex items-center gap-1.5">
@@ -128,7 +129,7 @@ export function PanelRenderer({
         </div>
       </div>
 
-      {contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && (
+      {contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && contentType !== 'insights' && (
         <div className={cn('px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0', theme === 'dark' ? 'border-ds-zinc-900 bg-ds-zinc-950/40' : 'border-ds-zinc-200 bg-ds-zinc-50/40')}>
           {focusInfo ? <>
             <focusInfo.Icon className={cn('w-3 h-3 shrink-0', focusInfo.colorClass)} />

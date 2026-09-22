@@ -7,6 +7,7 @@ import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata,
 import { ProcessView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
+import { InsightReviewView } from '@/components/InsightReviewView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
 import type { CallFlowData } from '@/lib/callFlow';
 import type { PanelSelection } from '@/lib/panelHistory';
@@ -198,6 +199,10 @@ export function PanelContentRenderer({
         onOpenDoc={(filePath, sourceId) => handleDocFocusRequest(filePath, sourceId)}
       />
     );
+  }
+
+  if (contentType === 'insights') {
+    return <InsightReviewView selectedProject={selectedProject} currentUser={currentUser} theme={theme} />;
   }
 
   const activeRightTab = contentType === 'doc'

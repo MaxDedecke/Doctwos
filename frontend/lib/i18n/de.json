@@ -106,7 +106,8 @@
       "graph": "🕸️ Wissensnetz (Graph)",
       "callgraph": "🔀 Process View",
       "webview": "🌐 Web-Vorschau",
-      "linkmanager": "🔗 Link Manager"
+      "linkmanager": "🔗 Link Manager",
+      "insights": "💡 Erkenntnisse"
     },
     "focusBar": {
       "none": "Kein Objekt fokussiert",
@@ -1349,6 +1350,19 @@
     "noEvidence": "Für diesen Entwurf fehlt ein Beleg.",
     "chatDefaultTitle": "Chat-Erkenntnis",
     "processDefaultTitle": "Prozess-Erkenntnis"
+  },
+  "insightReview": {
+    "title": "Erkenntnisse prüfen",
+    "description": "Belegte Entwürfe benötigen die Freigabe eines zweiten Projekt-Admins.",
+    "selectProject": "Wähle ein Projekt, um Erkenntnisse zu prüfen.",
+    "empty": "Keine Erkenntnisse in diesem Projekt.",
+    "refresh": "Aktualisieren",
+    "loadFailed": "Die Erkenntnisse konnten nicht geladen werden.",
+    "verifyFailed": "Die Erkenntnis konnte nicht freigegeben werden.",
+    "verify": "Freigeben",
+    "evidenceCount": "{{count}} Beleg(e)",
+    "status": { "draft": "Entwurf", "verified": "Freigegeben" },
+    "origin": { "chat": "Chat", "code": "Code", "process": "Prozess" }
   },
   "provenance": {
     "kindLabel": "Aussagetyp",

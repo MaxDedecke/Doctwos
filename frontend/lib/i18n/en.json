@@ -106,7 +106,8 @@
       "graph": "🕸️ Knowledge graph",
       "callgraph": "🔀 Process View",
       "webview": "🌐 Web preview",
-      "linkmanager": "🔗 Link manager"
+      "linkmanager": "🔗 Link manager",
+      "insights": "💡 Insights"
     },
     "focusBar": {
       "none": "No object focused",
@@ -1349,6 +1350,19 @@
     "noEvidence": "This draft needs evidence.",
     "chatDefaultTitle": "Chat insight",
     "processDefaultTitle": "Process insight"
+  },
+  "insightReview": {
+    "title": "Review insights",
+    "description": "Evidence-backed drafts require approval by a second project admin.",
+    "selectProject": "Select a project to review insights.",
+    "empty": "No insights in this project.",
+    "refresh": "Refresh",
+    "loadFailed": "Insights could not be loaded.",
+    "verifyFailed": "The insight could not be approved.",
+    "verify": "Approve",
+    "evidenceCount": "{{count}} evidence item(s)",
+    "status": { "draft": "Draft", "verified": "Approved" },
+    "origin": { "chat": "Chat", "code": "Code", "process": "Process" }
   },
   "provenance": {
     "kindLabel": "Claim type",
