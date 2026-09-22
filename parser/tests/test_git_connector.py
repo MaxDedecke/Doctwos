@@ -13,7 +13,7 @@ from core.analysis_fingerprint import analysis_fingerprint
 from core import config
 from core.registry import ParserEntry, STRUCTURE_PARSERS
 from db import SessionLocal
-from models.database import CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
+from models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.git import (
     GitConnector,
     _looks_like_text,
@@ -248,20 +248,21 @@ def test_source(db_session, git_remote, tmp_path, monkeypatch):
     # parallele Testlaeufe sich nicht in die Quere kommen.
     repos_root = str(tmp_path / "repos_root")
     monkeypatch.setattr("connectors.git.REPOS_ROOT", repos_root)
+    test_suffix = tmp_path.name
 
     team_id = db_session.execute(
         text("INSERT INTO teams (name, created_at) VALUES (:name, now()) RETURNING id"),
-        {"name": "git-test-team"},
+        {"name": f"git-test-team-{test_suffix}"},
     ).scalar_one()
     project_id = db_session.execute(
         text(
             "INSERT INTO projects (name, team_id, created_at) VALUES (:name, :team_id, now()) RETURNING id"
         ),
-        {"name": "git-test-project", "team_id": team_id},
+        {"name": f"git-test-project-{test_suffix}", "team_id": team_id},
     ).scalar_one()
 
     source = KnowledgeSource(
-        name="Test Git",
+        name=f"Test Git {test_suffix}",
         type="Git",
         url=git_remote,
         branch="main",
@@ -341,6 +342,59 @@ async def test_markup_budget_and_duplicate_shell_entities_survive_git_ingestion(
         .count()
         > 1
     )
+
+
+@pytest.mark.anyio
+async def test_shell_function_declarations_and_local_calls_survive_git_ingestion(
+    db_session, test_source, git_remote
+):
+    _commit_file(
+        git_remote,
+        "bin/release.sh",
+        """#!/usr/bin/env bash
+prepare() { echo ready; }
+deploy() {
+  prepare
+}
+deploy
+""",
+        "Shell function flow",
+    )
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    entities = (
+        db_session.query(CodeEntity)
+        .filter_by(source_id=test_source.id, file_path="bin/release.sh")
+        .all()
+    )
+    by_qname = {entity.qualified_name: entity for entity in entities}
+    calls = (
+        db_session.query(CodeEdge)
+        .filter_by(source_id=test_source.id, type="CALLS")
+        .order_by(CodeEdge.src_start_line)
+        .all()
+    )
+    declarations = (
+        db_session.query(CodeEdge)
+        .filter_by(source_id=test_source.id, type="DECLARES")
+        .all()
+    )
+
+    assert {entity.qualified_name for entity in entities if entity.type == "shell_function"} == {
+        "bin/release.sh::function:prepare",
+        "bin/release.sh::function:deploy",
+    }
+    assert len(declarations) == 2
+    assert [(edge.dst_name, edge.resolution) for edge in calls] == [
+        ("prepare", "resolved"),
+        ("deploy", "resolved"),
+    ]
+    assert calls[0].src_entity_id == by_qname["bin/release.sh::function:deploy"].id
+    assert calls[0].dst_entity_id == by_qname["bin/release.sh::function:prepare"].id
+    assert calls[1].dst_entity_id == by_qname["bin/release.sh::function:deploy"].id
 
 
 @pytest.mark.anyio

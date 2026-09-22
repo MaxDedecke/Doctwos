@@ -57,6 +57,24 @@ def _tokens(text: str) -> list[str] | None:
         return None
 
 
+def _function_spans(lines: list[tuple[int, str]], last_line: int) -> list[tuple[str, int, int]]:
+    """Find conservative function spans without evaluating shell syntax."""
+    functions: list[tuple[str, int, int]] = []
+    for index, (line, text) in enumerate(lines):
+        match = _FUNCTION.match(text)
+        if not match:
+            continue
+        depth = text.count("{") - text.count("}")
+        end = line
+        follow = index + 1
+        while depth > 0 and follow < len(lines):
+            end, body = lines[follow]
+            depth += body.count("{") - body.count("}")
+            follow += 1
+        functions.append((match.group(1), line, max(line, end if depth <= 0 else last_line)))
+    return functions
+
+
 def parse_shell_file(source: str, path: str, **_: object) -> ParseResult:
     normalized = PurePosixPath(path.replace("\\", "/")).as_posix()
     root = Entity(type="shell_script", name=PurePosixPath(path).name or path, start_line=1,
@@ -72,11 +90,49 @@ def parse_shell_file(source: str, path: str, **_: object) -> ParseResult:
             meta={"language": "shell", "target_file_path": target, "target_entity_type": target_type,
                   "source_file_path": normalized, **meta}))
 
-    functions: list[tuple[str, int]] = []
-    for line, text in _logical_lines(source):
+    logical_lines = list(_logical_lines(source))
+    functions = _function_spans(logical_lines, root.end_line)
+    function_names: dict[str, int] = {}
+    function_qnames: list[tuple[str, int, int, str]] = []
+    for name, start, end in functions:
+        # Shell permits a later definition to replace an earlier function.
+        # Keep both source locations indexable; a repeated bare QName would
+        # violate the per-file entity constraint and reject the whole file.
+        occurrence = function_names.get(name, 0) + 1
+        function_names[name] = occurrence
+        suffix = "" if occurrence == 1 else f"#{occurrence}"
+        qualified_name = f"{normalized}::function:{name}{suffix}"
+        function_qnames.append((name, start, end, qualified_name))
+        entities.append(Entity(type="shell_function", name=name, start_line=start, end_line=end,
+            parent_name=root.name, parent_qualified_name=normalized,
+            qualified_name=qualified_name, meta={"language": "shell"}))
+        edges.append(ParsedEdge(type="DECLARES", src_name=normalized, dst_name=name,
+            resolution="resolved", src_start_line=start, src_end_line=start,
+            meta={"language": "shell", "target_qualified_name": qualified_name,
+                  "source_file_path": normalized, "declaration_kind": "function"}))
+
+    def source_for(line: int) -> str:
+        active = [item for item in function_qnames if item[1] <= line <= item[2]]
+        return active[-1][3] if active else normalized
+
+    def add_local_call(command: str, line: int) -> bool:
+        # A definition is callable only after its declaration has run.  This
+        # is exact for normal sequential scripts and avoids linking a command
+        # to a later, merely same-named function.
+        candidates = [item for item in function_qnames if item[0] == command and item[1] <= line]
+        if not candidates:
+            return False
+        target = candidates[-1]
+        edges.append(ParsedEdge(type="CALLS", src_name=source_for(line), dst_name=command,
+            resolution="resolved", src_start_line=line, src_end_line=line,
+            meta={"language": "shell", "target_qualified_name": target[3],
+                  "target_file_path": normalized, "source_file_path": normalized,
+                  "resolution_scope": "local_function"}))
+        return True
+
+    for line, text in logical_lines:
         match = _FUNCTION.match(text)
         if match:
-            functions.append((match.group(1), line))
             # One-line functions are common in launch scripts. Analyse their
             # first literal command as well; braces are syntax, not command
             # arguments. Multiline bodies naturally arrive on later lines.
@@ -93,6 +149,8 @@ def parse_shell_file(source: str, path: str, **_: object) -> ParseResult:
         if not tokens:
             continue
         command = tokens[0]
+        if add_local_call(command, line):
+            continue
         if command in {"sh", "bash", "dash", "ksh", "zsh"} and len(tokens) >= 2:
             candidate = next((token for token in tokens[1:] if not token.startswith("-")), "")
             if candidate:
@@ -115,19 +173,6 @@ def parse_shell_file(source: str, path: str, **_: object) -> ParseResult:
         elif command.startswith("./") or command.endswith((".sh", ".bash", ".zsh")):
             add_edge("EXECUTES_SCRIPT", command, line, target_type="shell_script")
 
-    function_names: dict[str, int] = {}
-    for index, (name, start) in enumerate(functions):
-        end = functions[index + 1][1] - 1 if index + 1 < len(functions) else root.end_line
-        # Shell permits a later definition to replace an earlier function.
-        # Keep both source locations indexable; a repeated bare QName would
-        # violate the per-file entity constraint and reject the whole file.
-        occurrence = function_names.get(name, 0) + 1
-        function_names[name] = occurrence
-        suffix = "" if occurrence == 1 else f"#{occurrence}"
-        entities.append(Entity(type="shell_function", name=name, start_line=start, end_line=max(start, end),
-            parent_name=root.name, parent_qualified_name=normalized,
-            qualified_name=f"{normalized}::function:{name}{suffix}",
-            meta={"language": "shell"}))
     chunks = [Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
         meta={"language": "shell", "symbol_type": "source"}) for item in CodeParser("shell").chunk_file(source)]
     return ParseResult(program_name=PurePosixPath(path).stem or "script", path=path, source_format="free",

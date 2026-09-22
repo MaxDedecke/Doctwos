@@ -109,6 +109,6 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "shell": ParserEntry(
         parse=parse_shell_file,
         root_entity_types=("shell_script",),
-        parser_version="shell-structure-2",
+        parser_version="shell-structure-3",
     ),
 }

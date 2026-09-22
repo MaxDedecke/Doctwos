@@ -43,3 +43,30 @@ def test_shell_parser_disambiguates_redefined_functions_for_persistence() -> Non
         "bin/run.sh::function:run",
         "bin/run.sh::function:run#2",
     ]
+
+
+def test_shell_parser_declares_and_resolves_local_function_calls() -> None:
+    result = parse_shell_file(
+        """#!/usr/bin/env bash
+prepare() { echo ready; }
+deploy() {
+  prepare
+}
+deploy
+unknown_command
+""",
+        "bin/deploy.sh",
+    )
+
+    declarations = [edge for edge in result.edges if edge.type == "DECLARES"]
+    assert {edge.meta["target_qualified_name"] for edge in declarations} == {
+        "bin/deploy.sh::function:prepare",
+        "bin/deploy.sh::function:deploy",
+    }
+    calls = [edge for edge in result.edges if edge.type == "CALLS"]
+    assert [(edge.src_name, edge.dst_name) for edge in calls] == [
+        ("bin/deploy.sh::function:deploy", "prepare"),
+        ("bin/deploy.sh", "deploy"),
+    ]
+    assert all(edge.resolution == "resolved" for edge in calls)
+    assert all(edge.meta["target_file_path"] == "bin/deploy.sh" for edge in calls)
