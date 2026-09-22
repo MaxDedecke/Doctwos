@@ -31,7 +31,7 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
 | 12 | O-306 | `EXEC CICS`, `EXEC DLI`/IMS und belegte weitere `EXEC`-Dialekte als anklickbare Blöcke, Operationen und Ressourcenbeziehungen erhalten. | Teilweise umgesetzt: Blöcke, Operationen und explizite Ressourcen sind adressierbar; variable Operanden bleiben `dynamic`, unbekannte Dialekte sichtbar. Reale Kundenvarianten gemäß O-141–O-143 noch abnehmen. |
-| 13 | O-307 | COBOL-I/O, SQL, Datenstruktur und Lese-/Schreibzugriffe fachlich verbinden. | Nach O-288 und O-305/O-306; mehrdeutige Ziele unresolved lassen. |
+| 13 | O-307 | COBOL-I/O, SQL, Datenstruktur und Lese-/Schreibzugriffe fachlich verbinden. | Teilweise umgesetzt: SQL-Tabellen/Hostvariablen sowie COBOL-READ/WRITE/OPEN/CLOSE sind richtungsbehaftet verbunden; unbekannte oder mehrdeutige Ziele bleiben unresolved. Reale CardDemo-Abnahme folgt. |
 | 14 | O-308 | Java-Records, Parameter, relevante lokale Variablen, lokale/anonyme Klassen, Lambdas und Methodenreferenzen adressierbar machen. | Entlang des Bedarfs von O-309 umsetzen; Graphübersicht größenbegrenzt halten. |
 | 15 | O-288 | COBOL-`PERFORM THRU`, `EXEC SQL INCLUDE` und `file_fd`-Beziehungen vervollständigen. | Teilweise umgesetzt: `THRU`-Endpunkt bleibt am `PERFORM`-Beleg, SQL-Include und FD→Satzlayout sind explizite lokale Beziehungen. An CardDemo mit Originalzeilen abnehmen. |
 | 16 | O-287 | Maven-Kanten dateilokal und über Module/Source-Sets korrekt auflösen. | Abnahme mit gleichen Qualified Names in getrennten Modulen. |

@@ -277,6 +277,47 @@ def test_sql_include_and_file_descriptor_record_are_explicit_relationships():
     )
 
 
+def test_sql_tables_and_cobol_file_io_carry_read_write_direction():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ACCESS.\n"
+        "       DATA DIVISION.\n"
+        "       FILE SECTION.\n"
+        "       FD  ORDERS-FILE.\n"
+        "       01  ORDER-RECORD PIC X(20).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           OPEN INPUT ORDERS-FILE.\n"
+        "           READ ORDERS-FILE INTO ORDER-RECORD.\n"
+        "           WRITE ORDERS-FILE FROM ORDER-RECORD.\n"
+        "           EXEC SQL\n"
+        "               SELECT ORDER-ID INTO :WS-ORDER FROM ORDERS\n"
+        "           END-EXEC.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "access.cbl")
+
+    tables = [entity for entity in result.entities if entity.type == "sql_table"]
+    assert [(table.name, table.qualified_name) for table in tables] == [
+        ("ORDERS", "ACCESS.SQL-TABLE@ORDERS")
+    ]
+    access_edges = [edge for edge in result.edges if edge.type in {"READS", "WRITES"}]
+    assert {(edge.type, edge.dst_name) for edge in access_edges} >= {
+        ("READS", "ORDERS-FILE"),
+        ("WRITES", "ORDERS-FILE"),
+        ("WRITES", "ORDER-RECORD"),
+        ("READS", "ORDER-RECORD"),
+        ("READS", "ORDERS"),
+        ("WRITES", "WS-ORDER"),
+    }
+    assert any(
+        edge.type == "USES"
+        and edge.dst_name == "ORDERS-FILE"
+        and edge.meta["open_mode"] == "INPUT"
+        for edge in result.edges
+    )
+
+
 def test_edges_combine_call_perform_copy_sql_and_xref():
     text = (
         "       IDENTIFICATION DIVISION.\n"

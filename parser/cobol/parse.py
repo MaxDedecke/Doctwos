@@ -41,6 +41,7 @@ from . import data_division as data_division_mod
 from . import divisions as divisions_mod
 from . import embedded as embedded_mod
 from . import exec as exec_mod
+from . import io as io_mod
 from . import lexer as lexer_mod
 from . import procedure as procedure_mod
 from . import replace as replace_mod
@@ -206,6 +207,7 @@ def parse_program(
         errors.extend(xref_errors)
 
         fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)
+        io_edges = io_mod.scan(program, tokens, file_descriptors, items)
         edges.extend(
             [
                 *proc_edges,
@@ -214,6 +216,7 @@ def parse_program(
                 *sql_include_edges,
                 *exec_edges,
                 *fd_edges,
+                *io_edges,
                 *xref_edges,
             ]
         )
@@ -355,6 +358,23 @@ def _build_entities(
                     qualified_name=include_qname,
                     parent_qualified_name=_qualify(program.name, block.name),
                     meta={"statement_type": "INCLUDE"},
+                )
+            )
+
+        for table in block.tables:
+            table_qname = f"{program.name}.SQL-TABLE@{table.upper()}"
+            if any(entity.qualified_name == table_qname for entity in entities):
+                continue
+            entities.append(
+                Entity(
+                    type="sql_table",
+                    name=table,
+                    start_line=block.start_line,
+                    end_line=block.end_line,
+                    parent_name=program.name,
+                    qualified_name=table_qname,
+                    parent_qualified_name=program.name,
+                    meta={"table_name": table},
                 )
             )
 

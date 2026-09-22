@@ -66,11 +66,39 @@
           "condition": null
         }
       }
+    },
+    {
+      "type": "sql_table",
+      "name": "NOWHERE",
+      "start_line": 3,
+      "end_line": 5,
+      "parent_name": "",
+      "qualified_name": ".SQL-TABLE@NOWHERE",
+      "meta": {
+        "table_name": "NOWHERE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 3,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "edges": [
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "SQL-BLOCK@3",
       "dst_name": "UNDEFINED-FIELD",
       "resolution": "unresolved",
@@ -79,6 +107,38 @@
       "scope": "",
       "meta": {
         "program": "",
+        "access": "READS",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/99_garbage.cbl",
+            "start_line": 3,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "SQL-BLOCK@3",
+      "dst_name": "NOWHERE",
+      "resolution": "resolved",
+      "src_start_line": 3,
+      "src_end_line": 5,
+      "scope": "",
+      "meta": {
+        "program": "",
+        "access": "READS",
+        "target_qualified_name": ".SQL-TABLE@NOWHERE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

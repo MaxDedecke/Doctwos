@@ -221,6 +221,34 @@
       }
     },
     {
+      "type": "sql_table",
+      "name": "EMPLOYEE",
+      "start_line": 10,
+      "end_line": 15,
+      "parent_name": "EXECSQL",
+      "qualified_name": "EXECSQL.SQL-TABLE@EMPLOYEE",
+      "meta": {
+        "table_name": "EMPLOYEE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 10,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
       "type": "sql_block",
       "name": "SQL-BLOCK@16",
       "start_line": 16,
@@ -322,7 +350,7 @@
   ],
   "edges": [
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "SQL-BLOCK@10",
       "dst_name": "WS-DEPT-ID",
       "resolution": "resolved",
@@ -331,6 +359,7 @@
       "scope": "EXECSQL",
       "meta": {
         "program": "EXECSQL",
+        "access": "READS",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -351,7 +380,38 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
+      "src_name": "SQL-BLOCK@10",
+      "dst_name": "EMPLOYEE",
+      "resolution": "resolved",
+      "src_start_line": 10,
+      "src_end_line": 15,
+      "scope": "EXECSQL",
+      "meta": {
+        "program": "EXECSQL",
+        "access": "READS",
+        "target_qualified_name": "EXECSQL.SQL-TABLE@EMPLOYEE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 10,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
       "src_name": "SQL-BLOCK@19",
       "dst_name": "WS-EMP-ID",
       "resolution": "resolved",
@@ -360,6 +420,7 @@
       "scope": "EXECSQL",
       "meta": {
         "program": "EXECSQL",
+        "access": "WRITES",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -380,7 +441,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "SQL-BLOCK@19",
       "dst_name": "WS-EMP-NAME",
       "resolution": "resolved",
@@ -389,6 +450,7 @@
       "scope": "EXECSQL",
       "meta": {
         "program": "EXECSQL",
+        "access": "WRITES",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

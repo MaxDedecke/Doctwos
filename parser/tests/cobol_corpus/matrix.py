@@ -58,7 +58,13 @@ MATRIX: list[CompatCase] = [
     CompatCase("03_free_format", "Free-Format Grundfall", "nicht geprüft"),
     CompatCase("04_copy_replacing", "COPY ... REPLACING", "nicht geprüft"),
     CompatCase("05_copy_missing", "COPY auf fehlendes Copybook", "nicht geprüft"),
-    CompatCase("06_data_qualified", "qualifizierte Datenfeldnamen", "nicht geprüft"),
+    CompatCase(
+        "06_data_qualified",
+        "qualifizierte Datenfeldnamen und FD-Satzbeziehung",
+        "teilweise",
+        ticket="O-307",
+        note="FD und direktes Satzlayout sind als DEFINES-Beziehung navigierbar; echte Datei-I/O-Abnahme folgt am Zielbestand.",
+    ),
     CompatCase(
         "07_exec_sql",
         "EXEC SQL-Block einschließlich INCLUDE-Metadaten",

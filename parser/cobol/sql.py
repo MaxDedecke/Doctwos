@@ -105,16 +105,38 @@ def scan(
                 dst_name, resolution = candidates[0].name, "resolved"
             else:
                 dst_name, resolution = var, "unresolved"
+            access = _host_variable_access(tokens, statement_type, var)
             edges.append(
                 ParsedEdge(
-                    type="USES",
+                    type=access,
                     src_name=sql_block.name,
                     dst_name=dst_name,
                     resolution=resolution,
                     src_start_line=block.start_line,
                     src_end_line=block.end_line,
                     scope=program.name,
-                    meta={"program": program.name},
+                    meta={"program": program.name, "access": access},
+                )
+            )
+
+        table_access = _table_access(statement_type)
+        for table in tables:
+            edges.append(
+                ParsedEdge(
+                    type=table_access,
+                    src_name=sql_block.name,
+                    dst_name=table,
+                    resolution="resolved",
+                    src_start_line=block.start_line,
+                    src_end_line=block.end_line,
+                    scope=program.name,
+                    meta={
+                        "program": program.name,
+                        "access": table_access,
+                        "target_qualified_name": (
+                            f"{program.name}.SQL-TABLE@{table.upper()}"
+                        ),
+                    },
                 )
             )
 
@@ -150,6 +172,35 @@ def _extract_tables(tokens: list[str]) -> list[str]:
         if is_table_slot and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
             tables.append(tokens[i + 1])
     return tables
+
+
+def _table_access(statement_type: str) -> str:
+    if statement_type in {"INSERT", "UPDATE", "DELETE"}:
+        return "WRITES"
+    if statement_type in {"SELECT", "DECLARE_CURSOR"}:
+        return "READS"
+    return "USES"
+
+
+def _host_variable_access(tokens: list[str], statement_type: str, variable: str) -> str:
+    """Classify a host variable without guessing beyond SQL's clear clauses."""
+    positions = [
+        i for i, token in enumerate(tokens) if token.upper() == f":{variable.upper()}"
+    ]
+    position = positions[0] if positions else -1
+    before = {token.upper() for token in tokens[:position]}
+    if statement_type == "FETCH" and "INTO" in before:
+        return "WRITES"
+    if statement_type == "SELECT":
+        into_position = next(
+            (i for i, token in enumerate(tokens) if token.upper() == "INTO"), None
+        )
+        if into_position is not None and position > into_position:
+            return "WRITES"
+        return "READS"
+    if statement_type in {"INSERT", "UPDATE", "DELETE", "DECLARE_CURSOR", "OPEN"}:
+        return "READS"
+    return "USES"
 
 
 def _dedupe(values) -> list[str]:

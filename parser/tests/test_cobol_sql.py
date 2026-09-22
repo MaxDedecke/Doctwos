@@ -59,18 +59,19 @@ def test_fetch_extracts_both_host_variables_in_order():
 def test_host_variables_resolve_against_unique_matching_data_items():
     _, _, edges, _ = _scan_from_fixture("07_exec_sql.cbl")
 
-    assert len(edges) == 3
-    assert all(e.type == "USES" for e in edges)
-    assert all(e.resolution == "resolved" for e in edges)
-    assert all(e.scope == "EXECSQL" for e in edges)
+    host_edges = [edge for edge in edges if edge.dst_name.startswith("WS-")]
+    assert len(host_edges) == 3
+    assert [edge.type for edge in host_edges] == ["READS", "WRITES", "WRITES"]
+    assert all(edge.resolution == "resolved" for edge in host_edges)
+    assert all(edge.scope == "EXECSQL" for edge in host_edges)
 
-    declare_edge = edges[0]
+    declare_edge = host_edges[0]
     assert declare_edge.src_name == "SQL-BLOCK@10"
     assert declare_edge.dst_name == "WS-DEPT-ID"
     assert declare_edge.src_start_line == 10
     assert declare_edge.src_end_line == 15
 
-    fetch_edges = edges[1:]
+    fetch_edges = host_edges[1:]
     assert [e.dst_name for e in fetch_edges] == ["WS-EMP-ID", "WS-EMP-NAME"]
     assert all(e.src_name == "SQL-BLOCK@19" for e in fetch_edges)
 
@@ -90,8 +91,9 @@ def test_host_variable_without_matching_data_item_is_unresolved():
     assert errors == []
     assert blocks[0].statement_type == "SELECT"
     assert blocks[0].host_variables == ["WS-UNKNOWN"]
-    assert edges[0].resolution == "unresolved"
-    assert edges[0].dst_name == "WS-UNKNOWN"
+    edge = next(edge for edge in edges if edge.dst_name == "WS-UNKNOWN")
+    assert edge.resolution == "unresolved"
+    assert edge.type == "WRITES"
 
 
 def test_ambiguous_data_item_name_stays_unresolved_no_guessing():
@@ -113,8 +115,9 @@ def test_ambiguous_data_item_name_stays_unresolved_no_guessing():
     )
     _, _, edges, errors = _scan(text)
     assert errors == []
-    assert edges[0].resolution == "unresolved"
-    assert edges[0].dst_name == "WS-CODE"
+    edge = next(edge for edge in edges if edge.dst_name == "WS-CODE")
+    assert edge.resolution == "unresolved"
+    assert edge.type == "WRITES"
 
 
 def test_insert_into_extracts_table_not_host_variable():
