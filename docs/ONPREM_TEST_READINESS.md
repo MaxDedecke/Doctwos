@@ -765,8 +765,19 @@ Oberklassenkette). Paketprivate Methoden über Paketgrenzen sowie Default-Interf
 Dispatch werden weiterhin nicht geraten und bleiben mit einem Auflösungsgrund offen.
 Die Regressionen stehen in `parser/tests/test_java_call_safety.py`.
 
-- [ ] Gegen Referenzfälle prüfen: Überladung, Vererbung, Interfaces, statische
-  Imports, Empfänger über Felder/lokale Variablen und dateiübergreifende Aufrufe.
+**Technische Messbasis umgesetzt:** `parser/audit_java_calls.py` erzeugt einen
+deterministischen, read-only Report über Dateien, Diagnosen, `resolved`/
+`unresolved`/`dynamic`, Auflösungsgründe, Receiver-Evidenz, Zielmethoden und
+Beispiele offener Aufrufe. Der versionierte Mehrdatei-Korpus
+`parser/tests/java_call_corpus/` deckt Parameter-/Feldreceiver, statische
+Imports, `super`, fehlenden Classpath und mehrdeutige statische Imports ab;
+`report.json` verhindert unbemerkte Änderungen der Kennzahlen. Er ersetzt nicht
+die Messung gegen den O-240-Referenzbestand.
+
+- [x] Gegen versionierte Referenzfälle prüfen: Vererbung, Interfaces, statische
+  Imports, Empfänger über Felder/Parametern und dateiübergreifende Aufrufe.
+- [ ] Gegen den fachlich vereinbarten O-240-Referenzbestand messen; dort auch
+  vorkommende Überladungs- und lokale-Variablen-Fälle ergänzen.
 - [ ] Nur nachgewiesene Resolver-Lücken gezielt schließen; Methodennamen allein
   nicht als hinreichenden Beleg für einen Aufruf verwenden.
 - [ ] Gründe für externe, mehrdeutige oder dynamisch nicht auflösbare Ziele bis

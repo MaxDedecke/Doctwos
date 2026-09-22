@@ -1,0 +1,54 @@
+{
+  "calls": 6,
+  "diagnostics": 0,
+  "files": 7,
+  "reasons": {
+    "ambiguous_overload": 1,
+    "explicit_import": 1,
+    "receiver_field": 1,
+    "receiver_or_classpath_not_resolved": 1,
+    "receiver_parameter": 1,
+    "static_import": 1
+  },
+  "receiver_evidence": {
+    "direct_or_static": 4,
+    "receiver_field": 1,
+    "receiver_parameter": 1
+  },
+  "resolved_targets": {
+    "api.Base#inherited()": 1,
+    "api.Service#run()": 2,
+    "api.Util#check(int)": 1
+  },
+  "resolutions": {
+    "resolved": 4,
+    "unresolved": 2
+  },
+  "super_calls": [
+    {
+      "line": 14,
+      "path": "app/Client.java",
+      "reason": "explicit_import",
+      "resolution": "resolved",
+      "target": "super.inherited"
+    }
+  ],
+  "unresolved_examples": [
+    {
+      "call": "check",
+      "line": 8,
+      "path": "app/Ambiguous.java",
+      "reason": "ambiguous_overload",
+      "receiver": null,
+      "source": "app.Ambiguous#run()"
+    },
+    {
+      "call": "Missing.execute",
+      "line": 15,
+      "path": "app/Client.java",
+      "reason": "receiver_or_classpath_not_resolved",
+      "receiver": "Missing",
+      "source": "app.Client#run(Service)"
+    }
+  ]
+}
