@@ -240,6 +240,63 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
+async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope(monkeypatch, tmp_path):
+    target = tmp_path / "core" / "UserServiceImpl.java"
+    target.parent.mkdir()
+    target.write_text("class UserServiceImpl {}\n", encoding="utf-8")
+    captured = {}
+
+    monkeypatch.setattr(
+        "agent.get_repo_path",
+        lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agent.get_repo_entities",
+        lambda _project_id, _db, query="", limit=80, file_paths=None, entity_names=None: {
+            "entities": [], "file_paths": file_paths, "entity_names": entity_names
+        },
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_stream(self, method, url, **kwargs):
+        captured["payload"] = kwargs["json"]
+        response = SimpleNamespace()
+        response.raise_for_status = lambda: None
+
+        async def lines():
+            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Keine Kante."}}]})
+            yield "data: [DONE]"
+
+        response.aiter_lines = lines
+        yield response
+
+    monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="ollama",
+            model_name="test-model",
+            api_key=None,
+            base_url=None,
+            system_prompt="System",
+            prompt="Question: Verfolge `UserServiceImpl.create`.",
+            temperature=0.2,
+            repo_id=1,
+            db_session=SimpleNamespace(),
+            mcp_clients=[],
+            ollama_base_url="http://ollama:11434",
+            project_id=1,
+            require_initial_tool_call=True,
+        )
+    ]
+
+    assert events[0]["name"] == "get_repo_entities"
+    assert events[0]["arguments"]["entity_names"] == ["UserServiceImpl", "create"]
+    assert events[0]["arguments"]["file_paths"] == ["core/UserServiceImpl.java"]
+
+
+@pytest.mark.asyncio
 async def test_openai_compatible_agent_uses_profile_subpath(monkeypatch):
     captured = {}
 

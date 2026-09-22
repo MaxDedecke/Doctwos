@@ -220,7 +220,12 @@ def search_repo_code(repo_id: int, query: str) -> dict:
 
 
 def get_repo_entities(
-    project_id: int, db_session, query: str = "", limit: int = 80, file_paths: Optional[list[str]] = None
+    project_id: int,
+    db_session,
+    query: str = "",
+    limit: int = 80,
+    file_paths: Optional[list[str]] = None,
+    entity_names: Optional[list[str]] = None,
 ) -> dict:
     """Retrieves parsed program symbols/code entities (like classes, functions, etc.) from the DB."""
     try:
@@ -231,6 +236,10 @@ def get_repo_entities(
         db_query = db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id)
         if file_paths:
             db_query = db_query.filter(func.lower(CodeEntity.file_path).in_([path.lower() for path in file_paths]))
+        if entity_names:
+            db_query = db_query.filter(
+                func.lower(CodeEntity.name).in_([name.lower() for name in entity_names])
+            )
         if query:
             db_query = db_query.filter(CodeEntity.name.ilike(f"%{query}%"))
 
@@ -621,6 +630,11 @@ async def run_agent_loop(
                             "maximum": 80,
                             "description": "Optional maximum number of entities to return.",
                         },
+                        "entity_names": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional exact entity names; combines with a file focus when present.",
+                        },
                     },
                 },
             }
@@ -997,7 +1011,12 @@ async def run_agent_loop(
             query_val = args.get("query", "")
             focused_paths = sorted(file_focus_paths) or None
             res = get_repo_entities(
-                project_id, db_session, query_val, args.get("limit", 80), focused_paths
+                project_id,
+                db_session,
+                query_val,
+                args.get("limit", 80),
+                focused_paths,
+                args.get("entity_names"),
             )
             return json.dumps(res)
         elif name == "trace_call_flow" and project_id:
@@ -1133,6 +1152,20 @@ async def run_agent_loop(
                 # bootstrap call, so a model cannot replace an explicitly
                 # named program with a semantically similar neighbour.
                 file_focus_paths.update(path.replace("\\", "/").lstrip("./").lower() for path in candidates)
+                explicit_entity_names: list[str] = []
+                for raw in re.findall(r"`([^`]+)`", question_text):
+                    value = raw.strip()
+                    if re.search(r"(?i)\.(?:java|cbl|cpy|xsl|xml|jcl|pom)$", value) or "/" in value:
+                        continue
+                    # `Class.method` and `PROGRAM.PARAGRAPH` name both a
+                    # source file and a concrete index entity.  The entity
+                    # lookup below is exact and remains constrained to the
+                    # resolved paths, so duplicate simple names stay visible
+                    # rather than being selected by a generic bootstrap.
+                    explicit_entity_names.extend(
+                        part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)
+                    )
+                explicit_entity_names = list(dict.fromkeys(explicit_entity_names))
                 # If the question contains a module/path hint, prefer the
                 # candidate matching that hint; otherwise a unique basename is
                 # safe and deterministic.
@@ -1141,8 +1174,16 @@ async def run_agent_loop(
                     if any(part.lower() in path.lower() for part in ("core/rest-cxf", "app/", "flowable"))
                 ]
                 selected = (hinted or candidates)[0]
-                bootstrap_args = {"file_path": selected, "start_line": 1, "end_line": 150}
-                bootstrap_name = "view_repo_file"
+                if explicit_entity_names:
+                    bootstrap_args = {
+                        "entity_names": explicit_entity_names,
+                        "file_paths": candidates,
+                        "limit": 40,
+                    }
+                    bootstrap_name = "get_repo_entities"
+                else:
+                    bootstrap_args = {"file_path": selected, "start_line": 1, "end_line": 150}
+                    bootstrap_name = "view_repo_file"
             else:
                 bootstrap_args = {"limit": 20}
                 bootstrap_name = "get_repo_entities"
