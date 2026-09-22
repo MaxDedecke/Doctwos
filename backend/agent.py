@@ -851,6 +851,24 @@ async def run_agent_loop(
     # referenced by a guided walkthrough after the trace tool has returned.
     validated_call_flows: dict[str, dict] = {}
     file_focus_paths: set[str] = set()
+    exact_trace_entities: dict[int, dict[str, Any]] = {}
+    question_for_focus = prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt
+    trace_target_names: set[str] = set()
+    for raw in re.findall(r"`([^`]+)`", question_for_focus):
+        value = raw.strip()
+        if re.search(r"(?i)\.(?:java|cbl|cpy|xsl|xml|jcl|pom)$", value) or "/" in value:
+            continue
+        parts = [part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)]
+        if parts:
+            # A dotted reference names the concrete member/paragraph after
+            # the dot (`COPAUA0C.MAIN-PARA`, `UserServiceImpl.create`).
+            trace_target_names.add(parts[-1].casefold())
+
+    def _remember_exact_trace_entities(result: dict) -> None:
+        for entity in result.get("entities", []):
+            if not isinstance(entity, dict) or not isinstance(entity.get("id"), int):
+                continue
+            exact_trace_entities[entity["id"]] = entity
 
     def _is_in_file_focus(path: str) -> bool:
         if not file_focus_paths:
@@ -1008,12 +1026,34 @@ async def run_agent_loop(
                 focused_paths,
                 args.get("entity_names"),
             )
+            if args.get("entity_names") and not res.get("error"):
+                _remember_exact_trace_entities(res)
             return json.dumps(res)
         elif name == "trace_call_flow" and project_id:
+            entity_id = args.get("entity_id")
+            candidate = exact_trace_entities.get(entity_id) if isinstance(entity_id, int) and not isinstance(entity_id, bool) else None
+            if (file_focus_paths or trace_target_names) and candidate is None:
+                return json.dumps(
+                    {
+                        "error": "Call-Flow erfordert zuerst eine exakte, dateigebundene Entity-Auflösung.",
+                        "resolution_status": "entity_not_exactly_resolved",
+                        "expected_names": sorted(trace_target_names),
+                        "candidates": list(exact_trace_entities.values()),
+                    }
+                )
+            if candidate is not None and trace_target_names and str(candidate.get("name") or "").casefold() not in trace_target_names:
+                return json.dumps(
+                    {
+                        "error": "Die gewählte Entity entspricht nicht dem in der Frage genannten Ziel.",
+                        "resolution_status": "entity_name_mismatch",
+                        "expected_names": sorted(trace_target_names),
+                        "selected": candidate,
+                    }
+                )
             res = trace_call_flow(
                 db_session,
                 project_id=project_id,
-                entity_id=args.get("entity_id"),
+                entity_id=entity_id,
                 hops=args.get("hops", 5),
                 direction=args.get("direction", "outgoing"),
             )

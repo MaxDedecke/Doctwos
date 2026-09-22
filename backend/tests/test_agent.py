@@ -173,6 +173,13 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
 
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(client, url, **kwargs):
+        async with client.stream("POST", url, json=kwargs["json"], headers=kwargs["headers"]) as response:
+            yield response
+
+    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+
     events = [
         event
         async for event in run_agent_loop(
@@ -289,6 +296,13 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
 
     monkeypatch.setattr(httpx.AsyncClient, "stream", mock_stream)
 
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(client, url, **kwargs):
+        async with client.stream("POST", url, json=kwargs["json"], headers=kwargs["headers"]) as response:
+            yield response
+
+    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+
     events = [
         event
         async for event in run_agent_loop(
@@ -311,6 +325,78 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
     assert events[0]["name"] == "get_repo_entities"
     assert events[0]["arguments"]["entity_names"] == ["UserServiceImpl", "create"]
     assert events[0]["arguments"]["file_paths"] == ["core/UserServiceImpl.java"]
+
+
+@pytest.mark.asyncio
+async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkeypatch, tmp_path):
+    target = tmp_path / "core" / "UserServiceImpl.java"
+    target.parent.mkdir()
+    target.write_text("class UserServiceImpl {}\n", encoding="utf-8")
+    calls = {"count": 0}
+    monkeypatch.setattr(
+        "agent.get_repo_path",
+        lambda _repo_id, file_path="": str(tmp_path / file_path) if file_path else str(tmp_path),
+    )
+    monkeypatch.setattr(
+        "agent.get_repo_entities",
+        lambda *_args, **_kwargs: {
+            "entities": [
+                {
+                    "id": 17,
+                    "name": "create",
+                    "qualified_name": "demo.UserServiceImpl#create()",
+                    "file_path": "core/UserServiceImpl.java",
+                }
+            ]
+        },
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(_client, _url, **_kwargs):
+        calls["count"] += 1
+        response = SimpleNamespace()
+        response.raise_for_status = lambda: None
+
+        async def lines():
+            if calls["count"] == 1:
+                yield "data: " + json.dumps(
+                    {"choices": [{"delta": {"tool_calls": [{
+                        "index": 0,
+                        "id": "trace-1",
+                        "type": "function",
+                        "function": {"name": "trace_call_flow", "arguments": '{"entity_id": 99}'},
+                    }]}}]}
+                )
+            else:
+                yield "data: " + json.dumps({"choices": [{"delta": {"content": "Keine belegte Kante."}}]})
+            yield "data: [DONE]"
+
+        response.aiter_lines = lines
+        yield response
+
+    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="ollama",
+            model_name="test-model",
+            api_key=None,
+            base_url=None,
+            system_prompt="System",
+            prompt="Question: Verfolge `UserServiceImpl.create`.",
+            temperature=0.2,
+            repo_id=1,
+            db_session=SimpleNamespace(),
+            mcp_clients=[],
+            ollama_base_url="http://ollama:11434",
+            project_id=1,
+            require_initial_tool_call=True,
+        )
+    ]
+
+    trace_result = next(event for event in events if event.get("id") == "trace-1" and event["type"] == "tool_result")
+    assert "entity_not_exactly_resolved" in trace_result["result"]
 
 
 @pytest.mark.asyncio
