@@ -129,11 +129,10 @@ def _append_code_dependencies(
 ) -> None:
     """Add a type-neutral, deduplicated code relationship projection.
 
-    The call graph keeps the exact parser edge types and direction. The knowledge
-    graph only needs to show that two code elements are related, so parallel and
-    opposing CodeEdge rows collapse into one undirected relationship.
+    Code relationships retain their persisted direction.  The overview may still
+    be capped, but callers must never have to infer upstream/downstream from a
+    lossy, undirected projection (O-270).
     """
-    aggregated: dict[tuple[str, str], dict] = {}
     for code_edge in code_edges:
         source_entity = entities.get(code_edge.src_entity_id)
         if not source_entity:
@@ -164,26 +163,68 @@ def _append_code_dependencies(
                 },
             )
 
-        left, right = sorted((source_id, target_id))
-        key = (left, right)
-        existing = aggregated.get(key)
-        if existing:
-            existing["meta"]["edge_count"] += 1
-            if code_edge.type not in existing["meta"]["edge_types"]:
-                existing["meta"]["edge_types"].append(code_edge.type)
-            continue
-        aggregated[key] = {
+        edges.append(
+            {
             "id": f"code-dependency:{code_edge.id}",
-            "source": left,
-            "target": right,
+            "source": source_id,
+            "target": target_id,
             "link_type": "code_dependency",
             "relation_type": "code_dependency",
-            "direction": "undirected",
+            "direction": "directed",
             "score": None,
             "context": None,
             "meta": {"edge_count": 1, "edge_types": [code_edge.type]},
-        }
-    edges.extend(aggregated.values())
+            }
+        )
+
+
+def _traverse_code_dependencies(
+    db: Session,
+    *,
+    root_id: int,
+    project_id: int | None,
+    direction: str,
+    hops: int,
+    limit: int,
+) -> tuple[list[CodeEdge], bool]:
+    """Return a bounded BFS over persisted directed CodeEdges.
+
+    A visited node set makes cycles explicit in the returned edge set while
+    ensuring a cycle cannot consume the hop/edge budget indefinitely.
+    """
+    frontier = {root_id}
+    visited_nodes = {root_id}
+    seen_edges: set[int] = set()
+    result: list[CodeEdge] = []
+    has_more = False
+    for _ in range(hops):
+        if not frontier or len(result) >= limit:
+            has_more = bool(frontier)
+            break
+        clauses = []
+        if direction in {"outgoing", "both"}:
+            clauses.append(CodeEdge.src_entity_id.in_(frontier))
+        if direction in {"incoming", "both"}:
+            clauses.append(CodeEdge.dst_entity_id.in_(frontier))
+        query = db.query(CodeEdge).filter(or_(*clauses))
+        if project_id is not None:
+            query = query.filter(CodeEdge.project_id == project_id)
+        rows = query.order_by(CodeEdge.id).limit(limit - len(result) + 1).all()
+        if len(rows) > limit - len(result):
+            has_more = True
+            rows = rows[: limit - len(result)]
+        next_frontier: set[int] = set()
+        for edge in rows:
+            if edge.id in seen_edges:
+                continue
+            seen_edges.add(edge.id)
+            result.append(edge)
+            for node_id in (edge.src_entity_id, edge.dst_entity_id):
+                if node_id is not None and node_id not in visited_nodes:
+                    visited_nodes.add(node_id)
+                    next_frontier.add(node_id)
+        frontier = next_frontier
+    return result, has_more
 
 
 def _is_project_visible(
@@ -713,6 +754,8 @@ def get_graph_neighborhood(
     project_id: Optional[int] = Query(None, description="Project ID"),
     relationships: Optional[str] = Query(None, description="Comma-separated relationship types: code_dependency, documented, manual"),
     status: str = Query("approved"),
+    direction: str = Query("both", pattern="^(incoming|outgoing|both)$"),
+    hops: int = Query(1, ge=1, le=5),
     limit: int = Query(150, ge=1, le=500),
     cursor: Optional[str] = Query(None, description="Pagination cursor for neighborhood expansion"),
     db: Session = Depends(get_db),
@@ -723,6 +766,10 @@ def get_graph_neighborhood(
     """
     if not isinstance(limit, int):
         limit = 150
+    if direction not in {"incoming", "outgoing", "both"}:
+        direction = "both"
+    if not isinstance(hops, int):
+        hops = 1
     if not isinstance(cursor, str):
         cursor = None
     if not isinstance(relationships, str):
@@ -885,18 +932,35 @@ def get_graph_neighborhood(
 
     has_more = False
     if "code_dependency" in allowed_rels:
-        code_query = (
-            db.query(CodeEdge)
-            .filter(
-                CodeEdge.project_id == proj_id,
-                or_(CodeEdge.src_entity_id == entity.id, CodeEdge.dst_entity_id == entity.id),
+        # Cursor pagination remains the one-hop compatibility path.  Directed
+        # traversal deliberately starts at the selected entity and never mixes
+        # cursor pages with a changing multi-hop frontier.
+        if cursor and hops == 1:
+            clauses = []
+            if direction in {"outgoing", "both"}:
+                clauses.append(CodeEdge.src_entity_id == entity.id)
+            if direction in {"incoming", "both"}:
+                clauses.append(CodeEdge.dst_entity_id == entity.id)
+            code_edges = (
+                db.query(CodeEdge)
+                .filter(CodeEdge.project_id == proj_id, or_(*clauses))
+                .order_by(CodeEdge.id)
+                .offset(offset)
+                .limit(limit + 1)
+                .all()
             )
-            .order_by(CodeEdge.id)
-        )
-        code_edges = code_query.offset(offset).limit(limit + 1).all()
-        if len(code_edges) > limit:
-            has_more = True
-            code_edges = code_edges[:limit]
+            if len(code_edges) > limit:
+                has_more = True
+                code_edges = code_edges[:limit]
+        else:
+            code_edges, has_more = _traverse_code_dependencies(
+                db,
+                root_id=entity.id,
+                project_id=proj_id,
+                direction=direction,
+                hops=hops,
+                limit=limit,
+            )
 
         neighbor_ids = {
             e_id
@@ -1021,6 +1085,8 @@ def get_graph_neighborhood(
         "next_cursor": next_cursor,
         "graph_revision": f"proj:{proj_id}:entity-{entity.id}",
         "relationships": list(allowed_rels),
+        "direction": direction,
+        "hops": hops,
         "total_edges": len(edges),
         "truncated": {"incoming": has_more, "outgoing": has_more},
     }
@@ -1031,6 +1097,8 @@ def get_graph_focus(
     project_id: int,
     entity_id: int,
     status: str = "approved",
+    direction: str = Query("both", pattern="^(incoming|outgoing|both)$"),
+    hops: int = Query(1, ge=1, le=5),
     limit: int = Query(500, ge=1, le=1000),
     cursor: Optional[str] = Query(None),
     db: Session = Depends(get_db),
@@ -1047,6 +1115,8 @@ def get_graph_focus(
         node_id=f"entity:{entity_id}",
         project_id=project_id,
         status=status,
+        direction=direction,
+        hops=hops,
         limit=limit,
         cursor=cursor,
         db=db,

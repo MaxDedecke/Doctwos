@@ -197,6 +197,8 @@ export function KnowledgeGraphView({
   const [neighborhoodCursor, setNeighborhoodCursor] = useState<string | null>(null);
   const [neighborhoodHasMore, setNeighborhoodHasMore] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [traversalDirection, setTraversalDirection] = useState<'incoming' | 'outgoing' | 'both'>('both');
+  const [traversalHops, setTraversalHops] = useState<1 | 2 | 3 | 4 | 5>(1);
   // The knowledge graph is a relationship view. Unlinked inventory belongs in
   // a paginated list, because rendering it here creates thousands of meaningless
   // force-layout nodes and obscures the actual code/document evidence network.
@@ -355,7 +357,10 @@ export function KnowledgeGraphView({
         if (projectId !== null) params.set('project_id', String(projectId));
         res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
       } else {
-        const params = new URLSearchParams({ status: 'approved', project_id: String(projectId), entity_id: String(entityDbId) });
+        const params = new URLSearchParams({
+          status: 'approved', project_id: String(projectId), entity_id: String(entityDbId),
+          direction: traversalDirection, hops: String(traversalHops),
+        });
         res = await api.fetch(`${API_URL}/graph/focus?${params}`);
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -385,7 +390,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoadingNeighborhood(false);
     }
-  }, [neighborhoodProjectId, t]);
+  }, [neighborhoodProjectId, t, traversalDirection, traversalHops]);
 
   const loadMoreConnections = useCallback(async () => {
     if (!neighborhoodFocusNode || !neighborhoodCursor || isLoadingMore) return;
@@ -410,6 +415,8 @@ export function KnowledgeGraphView({
           entity_id: String(entityDbId),
           status: 'approved',
           cursor: neighborhoodCursor,
+          direction: traversalDirection,
+          hops: String(traversalHops),
         });
         res = await api.fetch(`${API_URL}/graph/focus?${params}`);
       }
@@ -439,7 +446,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, t]);
+  }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, t, traversalDirection, traversalHops]);
 
   const createManualLink = useCallback(async (sourceNode: GraphNode, targetNode: GraphNode) => {
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
@@ -721,8 +728,58 @@ export function KnowledgeGraphView({
     const linkForce = graphRef.current.d3Force('link');
     if (linkForce) linkForce.distance(50).strength(0.25);
 
+    // O-270: a bounded directional neighborhood is easier to read as layers
+    // than as a force-directed cloud.  Cycles are harmless here: BFS assigns
+    // the first observed layer and never revisits a node.
+    if (viewMode === 'neighborhood' && neighborhoodFocusNode) {
+      const rootId = neighborhoodFocusNode.id;
+      const layers = new Map<string, number>([[rootId, 0]]);
+      const pending = [rootId];
+      while (pending.length) {
+        const current = pending.shift()!;
+        const layer = layers.get(current)!;
+        for (const edge of filteredData.links) {
+          const source = typeof edge.source === 'object' ? edge.source.id : edge.source;
+          const target = typeof edge.target === 'object' ? edge.target.id : edge.target;
+          const directed = isEdgeDirected(edge);
+          const next: string[] = [];
+          if (!directed || traversalDirection === 'both') {
+            if (source === current) next.push(target);
+            if (target === current) next.push(source);
+          } else if (traversalDirection === 'outgoing' && source === current) {
+            next.push(target);
+          } else if (traversalDirection === 'incoming' && target === current) {
+            next.push(source);
+          }
+          for (const nodeId of next) {
+            if (!layers.has(nodeId)) {
+              layers.set(nodeId, layer + 1);
+              pending.push(nodeId);
+            }
+          }
+        }
+      }
+      const perLayer = new Map<number, number>();
+      const positions = new Map<string, { x: number; y: number }>();
+      for (const node of [...filteredData.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
+        const layer = layers.get(node.id) ?? 0;
+        const index = perLayer.get(layer) ?? 0;
+        perLayer.set(layer, index + 1);
+        const x = traversalDirection === 'incoming' ? -layer * 130 : layer * 130;
+        positions.set(node.id, { x, y: index * 70 });
+      }
+      for (const node of filteredData.nodes) {
+        const position = positions.get(node.id);
+        if (!position) continue;
+        // react-force-graph forwards these D3 coordinates to the simulation.
+        // Pinning only the bounded traversal keeps its layers stable while the
+        // overview remains freely explorable.
+        Object.assign(node, { fx: position.x, fy: position.y });
+      }
+    }
+
     graphRef.current.d3ReheatSimulation();
-  }, [ForceGraphComponent, filteredData]);
+  }, [ForceGraphComponent, filteredData, viewMode, neighborhoodFocusNode, traversalDirection]);
 
   // Nodes directly connected to focusNodeId (incl. itself) — everything else dims.
   // Clicking an edge produces the same soft-focus effect for just its two endpoints,
@@ -1161,15 +1218,37 @@ export function KnowledgeGraphView({
             )}
 
             {((selectedNode.type === 'entity' && neighborhoodProjectId(selectedNode) !== null) || selectedNode.type === 'document' || selectedNode.id.startsWith('doc:')) && (
-              <button
-                onClick={() => loadNeighborhood(selectedNode)}
-                disabled={isLoadingNeighborhood}
-                title={t('knowledgeGraphView.loadNeighborhoodTitle')}
-                className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
-                  isLoadingNeighborhood ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
-                {isLoadingNeighborhood ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crosshair className="w-3 h-3" />}
-                {t('knowledgeGraphView.loadNeighborhood')}
-              </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {selectedNode.type === 'entity' && (
+                  <>
+                    <select
+                      value={traversalDirection}
+                      onChange={event => setTraversalDirection(event.target.value as 'incoming' | 'outgoing' | 'both')}
+                      aria-label={t('knowledgeGraphView.traversalDirectionLabel')}
+                      className={cn('rounded border px-1 py-0.5 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
+                      <option value="incoming">{t('knowledgeGraphView.traversalIncoming')}</option>
+                      <option value="outgoing">{t('knowledgeGraphView.traversalOutgoing')}</option>
+                      <option value="both">{t('knowledgeGraphView.traversalBoth')}</option>
+                    </select>
+                    <select
+                      value={traversalHops}
+                      onChange={event => setTraversalHops(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}
+                      aria-label={t('knowledgeGraphView.traversalHopsLabel')}
+                      className={cn('rounded border px-1 py-0.5 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
+                      {[1, 2, 3, 4, 5].map(hop => <option key={hop} value={hop}>{t('knowledgeGraphView.traversalHops', { count: hop })}</option>)}
+                    </select>
+                  </>
+                )}
+                <button
+                  onClick={() => loadNeighborhood(selectedNode)}
+                  disabled={isLoadingNeighborhood}
+                  title={t('knowledgeGraphView.loadNeighborhoodTitle')}
+                  className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                    isLoadingNeighborhood ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
+                  {isLoadingNeighborhood ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crosshair className="w-3 h-3" />}
+                  {t('knowledgeGraphView.loadNeighborhood')}
+                </button>
+              </div>
             )}
 
             {viewMode === 'neighborhood' && selectedNode.id === neighborhoodFocusNode?.id && neighborhoodHasMore && (

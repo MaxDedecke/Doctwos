@@ -278,11 +278,58 @@ def test_callgraph_keeps_exact_java_edge_types_and_knowledge_graph_collapses_the
             edge for edge in overview["edges"] if edge["link_type"] == "code_dependency"
         ]
         assert code_dependencies
-        assert all(edge["direction"] == "undirected" for edge in code_dependencies)
-        collapsed = next(
-            edge for edge in code_dependencies if edge["meta"]["edge_count"] >= 2
+        assert all(edge["direction"] == "directed" for edge in code_dependencies)
+        assert {edge["meta"]["edge_types"][0] for edge in code_dependencies} >= {
+            "CALLS", "EXTENDS"
+        }
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_graph_neighborhood_traverses_directed_code_dependencies_with_hop_bound(
+    client, db_session, test_project, test_team
+):
+    source, caller, target, copybook, _, _ = _fixture_graph(
+        db_session, test_project, test_team
+    )
+    try:
+        downstream = client.get(
+            "/graph/neighborhood",
+            params={
+                "node_id": f"entity:{caller.id}",
+                "project_id": test_project,
+                "direction": "outgoing",
+                "hops": 2,
+                "relationships": "code_dependency",
+            },
         )
-        assert set(collapsed["meta"]["edge_types"]) >= {"CALLS", "EXTENDS"}
+        assert downstream.status_code == 200
+        payload = downstream.json()
+        assert payload["direction"] == "outgoing"
+        assert payload["hops"] == 2
+        assert {
+            (edge["source"], edge["target"])
+            for edge in payload["edges"]
+        } == {
+            (f"entity:{caller.id}", f"entity:{target.id}"),
+            (f"entity:{target.id}", f"entity:{copybook.id}"),
+        }
+
+        upstream = client.get(
+            "/graph/neighborhood",
+            params={
+                "node_id": f"entity:{target.id}",
+                "project_id": test_project,
+                "direction": "incoming",
+                "relationships": "code_dependency",
+            },
+        )
+        assert upstream.status_code == 200
+        assert {
+            (edge["source"], edge["target"])
+            for edge in upstream.json()["edges"]
+        } == {(f"entity:{caller.id}", f"entity:{target.id}")}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
