@@ -578,8 +578,43 @@ def _append_agent_source_fallback(answer: str, agent_sources: list[dict]) -> str
     return answer.rstrip() + "\n\nVom Agenten gelesene Code-Stellen:\n" + "\n".join(references)
 
 
-def _validate_agent_answer_sources(answer: str, agent_sources: list[dict]) -> tuple[str, bool]:
-    """Reject an agent answer that cites a file/line it did not retrieve.
+_EDGE_CLAIM_RE = re.compile(
+    r"\b(?:ruft|aufruf|calls?|invokes?)\b",
+    re.IGNORECASE,
+)
+
+
+def _extract_tool_edge_pairs(event: dict) -> set[tuple[str, str]]:
+    """Return directed entity-name pairs from a successful flow-tool result."""
+    if event.get("type") != "tool_result" or event.get("name") != "trace_call_flow":
+        return set()
+    result = event.get("result")
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except (TypeError, json.JSONDecodeError):
+            return set()
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        return set()
+    names = {
+        node.get("id"): str(node.get("name") or "").casefold()
+        for node in result.get("nodes", [])
+        if isinstance(node, dict) and node.get("id") is not None and node.get("name")
+    }
+    return {
+        (names[edge["source"]], names[edge["target"]])
+        for edge in result.get("edges", [])
+        if isinstance(edge, dict)
+        and edge.get("resolution") == "resolved"
+        and edge.get("source") in names
+        and edge.get("target") in names
+    }
+
+
+def _validate_answer_sources(
+    answer: str, sources: list[dict], edge_pairs: Optional[set[tuple[str, str]]] = None
+) -> tuple[str, bool]:
+    """Reject file/line citations and relationship claims without delivered evidence.
 
     The model prompt is useful guidance, but it is not a provenance boundary:
     small local models can still turn a neighbouring file into a plausible
@@ -589,7 +624,7 @@ def _validate_agent_answer_sources(answer: str, agent_sources: list[dict]) -> tu
     """
     evidence: dict[str, list[tuple[int, int]]] = {}
     basenames: dict[str, set[str]] = {}
-    for source in agent_sources:
+    for source in sources:
         path = str(source.get("file") or "").replace("\\", "/").lstrip("./")
         lines = source.get("lines") or []
         if not path or len(lines) < 2:
@@ -624,6 +659,36 @@ def _validate_agent_answer_sources(answer: str, agent_sources: list[dict]) -> tu
                 "Zieldatei erneut indexieren.",
                 False,
             )
+
+    # A call assertion is only admissible when its directed pair was returned
+    # by trace_call_flow in this turn. We intentionally do not infer edges
+    # from proximity in a file snippet.
+    for sentence in re.split(r"[.!?\n]+", answer):
+        if not _EDGE_CLAIM_RE.search(sentence):
+            continue
+        if not edge_pairs:
+            logger.warning("Verwerfe Agent-Antwort mit Kantenbehauptung ohne Flow-Beleg")
+            return (
+                "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
+                "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
+                "Zielentität erneut auflösen oder den Call-Flow prüfen.",
+                False,
+            )
+        lowered = sentence.casefold()
+        mentioned_pairs = [
+            pair
+            for pair in edge_pairs
+            if pair[0] in lowered and pair[1] in lowered
+        ]
+        if mentioned_pairs:
+            continue
+        logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung")
+        return (
+            "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
+            "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
+            "Zielentität erneut auflösen oder den Call-Flow prüfen.",
+            False,
+        )
     return answer, True
 
 
@@ -1053,6 +1118,8 @@ async def chat(
             answer = ""
             agent_ran = False
             agent_sources = []
+            agent_edge_pairs: set[tuple[str, str]] = set()
+            answer_is_source_consistent = True
             mcp_clients = []
             team_ids = get_visible_team_ids(user, db)
             document_source_ids = {
@@ -1129,7 +1196,6 @@ async def chat(
                     agent_ran = True
                     view_actions = []
                     agent_call_flows = {}
-                    agent_answer_is_source_consistent = True
                     async for event in stream_agent_events(
                         provider=(
                             "openai_responses"
@@ -1170,8 +1236,8 @@ async def chat(
                             # unvalidated partial answer over SSE first.
                             continue
                         if event["type"] == "answer":
-                            answer, agent_answer_is_source_consistent = _validate_agent_answer_sources(
-                                event["content"], agent_sources
+                            answer, answer_is_source_consistent = _validate_answer_sources(
+                                event["content"], agent_sources, agent_edge_pairs
                             )
                             agent_steps = list(event.get("agent_steps") or [])
                             known_action_ids = {
@@ -1186,6 +1252,7 @@ async def chat(
                         elif event["type"] in ("thought", "tool_call", "tool_result"):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
+                            agent_edge_pairs.update(_extract_tool_edge_pairs(event))
                             if event.get("type") == "tool_result" and event.get("name") == "trace_call_flow" and isinstance(event.get("id"), str):
                                 result = event.get("result")
                                 if isinstance(result, str):
@@ -1247,13 +1314,21 @@ async def chat(
                     path=selected_profile.llm_path,
                     context_length=selected_profile.llm_context_length,
                 ):
+                    if event["type"] == "content_chunk":
+                        # Standard RAG has no tool loop, but its retrieved
+                        # chunks are still the only admissible evidence.  Hold
+                        # the stream until their citations have been checked.
+                        continue
                     if event["type"] == "answer":
-                        answer = event["content"]
+                        answer, answer_is_source_consistent = _validate_answer_sources(
+                            event["content"], candidate_sources
+                        )
+                        event = {**event, "content": answer}
                     yield f"data: {json.dumps(event)}\n\n"
                     if event["type"] == "error":
                         return
 
-            if agent_ran and agent_answer_is_source_consistent:
+            if agent_ran and answer_is_source_consistent:
                 answer = _append_agent_source_fallback(answer, agent_sources)
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):

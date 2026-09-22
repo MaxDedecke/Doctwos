@@ -10,9 +10,11 @@ import api.chat as chat_module
 from api.chat import (
     _attach_analysis_status,
     _append_agent_source_fallback,
+    _extract_tool_edge_pairs,
     _extract_tool_sources,
     _record_agent_source,
     _resolve_citation_source_id,
+    _validate_answer_sources,
 )
 from models.database import KnowledgeSource, SourceScanFile
 
@@ -162,6 +164,38 @@ def test_agent_source_fallback_keeps_a_valid_model_citation_unchanged():
     )
 
     assert result == answer
+
+
+def test_answer_source_validation_rejects_an_unread_file_or_line():
+    sources = [{"file": "src/PaymentService.java", "lines": [42, 68]}]
+
+    valid, is_valid = _validate_answer_sources("Belegt: `src/PaymentService.java:55`.", sources)
+    wrong_file, wrong_file_valid = _validate_answer_sources("Belegt: `src/Other.java:55`.", sources)
+    wrong_line, wrong_line_valid = _validate_answer_sources("Belegt: `src/PaymentService.java:69`.", sources)
+
+    assert is_valid and valid.startswith("Belegt")
+    assert not wrong_file_valid and "nicht belastbar belegt" in wrong_file
+    assert not wrong_line_valid and "nicht belastbar belegt" in wrong_line
+
+
+def test_answer_source_validation_requires_a_trace_edge_for_call_claims():
+    event = {
+        "type": "tool_result",
+        "name": "trace_call_flow",
+        "result": {
+            "status": "ok",
+            "nodes": [{"id": 1, "name": "ENTRY"}, {"id": 2, "name": "TARGET"}],
+            "edges": [{"source": 1, "target": 2, "resolution": "resolved"}],
+        },
+    }
+    edges = _extract_tool_edge_pairs(event)
+
+    _, supported = _validate_answer_sources("ENTRY ruft TARGET auf.", [], edges)
+    rejected, unsupported = _validate_answer_sources("ENTRY ruft OTHER auf.", [], edges)
+
+    assert edges == {("entry", "target")}
+    assert supported
+    assert not unsupported and "Codebeziehung" in rejected
 
 
 def test_attach_analysis_status_marks_a_partial_citation(db_session, test_project, test_team):
