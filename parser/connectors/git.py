@@ -628,18 +628,32 @@ class GitConnector(BaseConnector):
                 # zusätzlicher Parser-Eingabewert übergeben.
                 if profile is not None:
                     parse_kwargs["profile"] = profile
-                parse_result = await asyncio.to_thread(
-                    entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
-                )
-                chunks = [
-                    {
-                        "content": c.content,
-                        "start_line": c.start_line,
-                        "end_line": c.end_line,
-                        "meta": c.meta,
-                    }
-                    for c in parse_result.chunks
-                ]
+                try:
+                    parse_result = await asyncio.to_thread(
+                        entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
+                    )
+                    chunks = [
+                        {
+                            "content": c.content,
+                            "start_line": c.start_line,
+                            "end_line": c.end_line,
+                            "meta": c.meta,
+                        }
+                        for c in parse_result.chunks
+                    ]
+                except Exception as exc:
+                    # A malformed or not-yet-supported construct in one file
+                    # must never abort the repository-wide async task batch.
+                    # Preserve searchable source text and expose the structural
+                    # gap as a per-file partial result for a later reindex.
+                    error_msg = f"Strukturparser fehlgeschlagen: {type(exc).__name__}: {exc}"
+                    doc["extra_meta"]["parse_status"] = "partial"
+                    doc["extra_meta"]["parse_error"] = error_msg
+                    self._log(f"{error_msg} in '{doc['title']}', nutze Textfallback.")
+                    parser = CodeParser(lang)
+                    chunks = await asyncio.to_thread(
+                        parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
+                    )
             else:
                 parser = CodeParser(lang)
                 chunks = await asyncio.to_thread(
@@ -773,8 +787,11 @@ class GitConnector(BaseConnector):
 
                 language = doc["extra_meta"].get("language", "text")
                 encoding = doc["extra_meta"].get("encoding")
-                parse_status = "text_fallback"
-                parse_error = f"Sprache '{language}' hat keinen Strukturparser; als Text indexiert."
+                parse_status = doc["extra_meta"].get("parse_status", "text_fallback")
+                parse_error = doc["extra_meta"].get(
+                    "parse_error",
+                    f"Sprache '{language}' hat keinen Strukturparser; als Text indexiert.",
+                )
                 if parse_result is not None:
                     # O-120: `errors == []` allein hieß bisher "ok" -- das
                     # übersah die O-119-Diagnosen (z.B. ein ANTLR-Syntaxfehler,

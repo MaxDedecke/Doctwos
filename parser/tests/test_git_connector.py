@@ -1353,3 +1353,31 @@ async def test_git_connector_falls_back_to_generic_chunking_for_unregistered_lan
 
     assert parse_result is None
     assert chunks and chunks[0]["content"].strip() == "# hi"
+
+
+@pytest.mark.anyio
+async def test_git_connector_keeps_syncing_when_structure_parser_fails():
+    connector = GitConnector(source_id=-1)
+    doc = {
+        "title": "broken.java",
+        "content": "class Broken {}\n",
+        "url": "fake://broken.java",
+        "source_type": "Git",
+        "storage_key": "broken.java",
+        "extra_meta": {"language": "fakelang"},
+    }
+
+    def failing_parse(*_args, **_kwargs):
+        raise AttributeError("simulated parser edge case")
+
+    with (
+        patch("connectors.git.STRUCTURE_PARSERS", {"fakelang": ParserEntry(parse=failing_parse)}),
+        patch("connectors.git.get_embeddings_batch", AsyncMock(return_value=[[0.1] * 1024])),
+        patch("connectors.git.asyncio.to_thread", _run_to_thread_inline),
+    ):
+        _, chunks, parse_result = await connector._embed_document(doc, asyncio.Semaphore(1))
+
+    assert parse_result is None
+    assert chunks and chunks[0]["content"].strip() == "class Broken {}"
+    assert doc["extra_meta"]["parse_status"] == "partial"
+    assert "simulated parser edge case" in doc["extra_meta"]["parse_error"]

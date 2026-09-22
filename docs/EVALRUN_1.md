@@ -62,6 +62,87 @@ starten. Modellkennung und bestätigten Ladezustand im Ergebnisprotokoll
 festhalten. Zugangsdaten und vollständige Pod-URLs gehören weiterhin nur in die
 Doctus-Profilverwaltung.
 
+### Lessons Learned und Run-2-Preflight (22.09.2026)
+
+Der erste RunPod-Start benötigte bis zum betriebsbereiten Ollama-/Doctus-Setup
+etwa 15 Minuten. Der Modell-Download war dabei nicht der Hauptverursacher und
+dauerte ungefähr 5 Minuten. Für Run 2 ist eine Vorbereitungszeit von etwa 10
+Minuten realistisch, wenn die folgenden Punkte als feste Checkliste verwendet
+werden:
+
+1. **Pod-Readiness zuerst prüfen:** Nach dem Start zunächst wiederholt
+   `/api/version` und `/api/tags` gegen die RunPod-Proxy-URL prüfen. Erst bei
+   HTTP 200 und erreichbarer Ollama-API die Modell-Pulls starten. Ein leerer
+   `/api/tags`-Bestand ist beim ersten Start erwartbar.
+2. **Modelle unverändert verwenden:** `qwen3-embedding:4b` und `qwen3:32b`.
+   Die Pulls einzeln ausführen; bei Unterbrechung denselben Modellnamen erneut
+   verwenden. Das persistente Ollama-Volume des Pods nicht löschen oder neu
+   anlegen. Vor dem Profilaufbau mit `ollama list` beziehungsweise `/api/tags`
+   beide Modelle bestätigen.
+3. **Embedding-Vertrag fest einplanen:** Das Modell liefert nativ 2560
+   Dimensionen. Für den bestehenden Doctus-Vektorraum muss der Ollama-Request
+   das Top-Level-Feld `"dimensions": 1024` enthalten; `options.dimensions` und
+   `truncate` sind dafür nicht ausreichend. Der produktive Doctus-Client sendet
+   dieses Feld bereits. Vor dem Import einen echten `/api/embed`-Smoke-Test mit
+   `dimensions: 1024` aus dem Backend-/Parser-Netz ausführen und die Länge der
+   Antwort prüfen.
+4. **GPU-Rechenlast getrennt vom VRAM prüfen:** `size_vram > 0` in Ollamas
+   `/api/ps` beweist nur, dass das Modell (teilweise oder vollständig) im VRAM
+   resident ist. Im aktuellen Lauf meldet der RunPod-Container gleichzeitig
+   CPU-Load 100 % und etwa 3/32 GiB VRAM; damit ist GPU-Offload vorhanden, eine
+   ausreichende GPU-Rechenauslastung aber noch nicht bewiesen. Für Run 2
+   während einer aktiven `/api/embed`-Anfrage `nvidia-smi` beziehungsweise die
+   RunPod-GPU-Telemetrie sampeln und CPU-Load, GPU-Utilization, VRAM und
+   Prozessnamen zusammen protokollieren. `size_vram=0` oder dauerhaft nahezu
+   null GPU-Utilization bei gleichzeitig gesättigter CPU bedeutet: Pod-/CUDA-
+   Konfiguration und Ollama-Runner prüfen, bevor der Import bewertet wird.
+5. **Embedding-Concurrency messen statt nur GPU-Präsenz abzuleiten:** Der
+   Parser behandelt bereits jedes `size_vram > 0` als GPU-Beschleunigung und
+   kann bis zu `EMBED_CONCURRENCY=20` Tasks erzeugen. Die gemeinsame Admission
+   begrenzt diesen Lauf bei `INFERENCE_MAX_CONCURRENCY=4` und einem Chat-
+   Reserve-Slot praktisch auf drei Batch-Requests. Im aktuellen Log gab es
+   deshalb Batch-Wartezeiten bis rund 540 Sekunden. Für Run 2 einen kurzen
+   Durchsatztest mit 1, 2 und 3 parallelen Embedding-Requests durchführen und
+   den Wert nur übernehmen, wenn GPU-Utilization steigt und die Latenz pro
+   Dokument nicht durch Queueing verschlechtert wird.
+6. **Remote-Profil vorbereiten:** Kein lokales Ollama-Profil umstellen. Das
+   kombinierte Remote-Profil verwendet `provider=ollama`, `protocol=ollama`,
+   Chat-Pfad `/api/chat`, Embedding-Pfad `/api/embed`, Modell `qwen3:32b`,
+   Embedding `qwen3-embedding:4b`, Embedding-Dimension `1024`,
+   Embedding-Kontext `8100` und Chat-Kontext `8192`. Zusätzlich bleibt das
+   unabhängige Embedding-Profil aktiv, weil Parser/Import und Retrieval diese
+   Auswahl separat verwenden. Ein vorhandenes Profil mit altem Pod nur
+   aktualisieren, nicht als Dublette neu anlegen.
+7. **Profiltest vervollständigen:** Der allgemeine Profiltest prüft vor allem
+   Erreichbarkeit und Modellnamen. Zusätzlich ist der echte Chat-Smoke-Test
+   (`stream=false`, kurze Antwort) und der 1024-dimensionierte Embedding-Test
+   erforderlich. Das verhindert, dass ein erreichbarer, aber dimensionsfalscher
+   Endpunkt in den Import gelangt.
+8. **Parser-Version vor Import abgleichen:** Backend- und Parser-Image-SHA
+   festhalten und vor dem Lauf eine kleine Parser-Regression beziehungsweise
+   einen Testimport ausführen. Im ersten Lauf war der Connector bereits auf das
+   neue Fingerprint-Feld `decoder_policy` angepasst, während die Funktion
+   `analysis_fingerprint()` im Parser-Image das Argument noch nicht akzeptierte.
+   Dieser Mismatch wurde in `parser/core/analysis_fingerprint.py` behoben und
+   der Parser-Worker neu gebaut. Der Fix muss Bestandteil des ausgerollten
+   Parser-Images sein.
+9. **Quellen nacheinander importieren:** Pro Pod nur einen großen Projektimport
+   gleichzeitig starten. Der erste Versuch startete Syncope und CardDemo
+   parallel; dadurch konkurrierten beide Läufe um die Embedding-Aufnahme und
+   erschwerten die Statusdiagnose. Run 2 startet Syncope vollständig, prüft
+   Fehler und Parserstatus, und startet CardDemo erst danach. Ein unterbrochener
+   Lauf wird vor dem Neustart über einen vollständigen Reindex bereinigt.
+10. **Datenbankzustand vorab prüfen:** Nicht auf die im Dokument genannten IDs
+   `727/728` beziehungsweise `563/564` vertrauen. Diese IDs beschreiben den
+   historischen Bestand. In einer leeren oder neu bereitgestellten Instanz
+   Projekte und Git-Quellen zuerst anlegen, die dokumentierten Branches und
+   Commits hinterlegen und anschließend die tatsächlich erzeugten IDs ins
+   Ergebnisprotokoll schreiben.
+
+Damit ist der Run-2-Ablauf: Pod/API bereit → beide Modelle vorhanden → Remote-
+Profile aktualisieren/aktivieren → echte Chat-/Embedding-Smokes → Parser-SHA
+prüfen → Syncope importieren → Syncope abnehmen → CardDemo importieren.
+
 ### Bekannte Indexlücken vor der Bewertung
 
 - **Syncope:** 87 `.properties`-Dateien stehen im aktuellen Journal noch auf
@@ -280,36 +361,36 @@ eintragen.
 
 | Feld | Wert |
 |---|---|
-| Datum / Zeitzone | Offen |
+| Datum / Zeitzone | 2026-09-22 / UTC |
 | Doctus API-Version und SHA | Offen |
 | RunPod GPU / VRAM | Offen |
-| Chat-Profil / exakte Modellkennung | Offen |
-| Embedding-Profil / exakte Modellkennung / Dimension | Offen |
-| Chat- und Embedding-Erreichbarkeit bestätigt | Offen |
-| Syncope Reindex-Stand / 87 Properties geprüft | Offen |
-| CardDemo Reindex-Stand | Offen |
-| Import-/Parser-Metriken | Offen |
-| Durchschn. / Median First Token | Offen |
-| Durchschn. / Median Antwortzeit | Offen |
-| Gesamtpunkte Java (30 mögliche Punkte) | Offen |
-| Gesamtpunkte COBOL (36 mögliche Punkte) | Offen |
-| Fehlerfälle, Indexlücken und Folge-Todos | Offen |
+| Chat-Profil / exakte Modellkennung | Ollama / `qwen3:32b` |
+| Embedding-Profil / exakte Modellkennung / Dimension | Ollama / `qwen3-embedding:4b` / 1024 |
+| Chat- und Embedding-Erreichbarkeit bestätigt | Ja; direkte Smoke-Tests und echter `/chat`-SSE-Test erfolgreich |
+| Syncope Reindex-Stand / 87 Properties geprüft | Quelle 1004: completed, 4.545/4.648 Dateien; 103 skipped (Ressourcen-/Indexlücken weiter offen) |
+| CardDemo Reindex-Stand | Quelle 1005: completed, 254/329 Dateien; 75 skipped, 25 partial, 140 text_fallback |
+| Import-/Parser-Metriken | Syncope 4.545/4.648, CardDemo 254/329; erforderliche COBOL-Dateien `partial` |
+| Durchschn. / Median First Token | Nicht separat aufgezeichnet (Follow-up) |
+| Durchschn. / Median Antwortzeit | Java: 57,1 s / 57,4 s; COBOL: 96,9 s / 90,3 s |
+| Gesamtpunkte Java (30 mögliche Punkte) | Vorläufig 12/30 |
+| Gesamtpunkte COBOL (36 mögliche Punkte) | Vorläufig 10/36 |
+| Fehlerfälle, Indexlücken und Folge-Todos | Initial falscher Dateifokus bei Entity-/COBOL-Fragen; nach API-Fix werden `COPAUA0C.cbl` und `COTRTLIC.cbl` gefunden, SQL-/Tiefenbelege bleiben offen; siehe O-316 und O-317–O-323 |
 
 ### Einzelresultate
 
 | Fall | Retrieval-Beleg / Datei + Zeile | Punkte (0–6) | First Token | Gesamtzeit | Tool-Schritte | Befund / Follow-up |
 |---|---|---:|---:|---:|---:|---|
-| J1 |  |  |  |  |  |  |
-| J2 |  |  |  |  |  |  |
-| J3 |  |  |  |  |  |  |
-| J4 |  |  |  |  |  |  |
-| J5 |  |  |  |  |  |  |
-| C1 |  |  |  |  |  |  |
-| C2 |  |  |  |  |  |  |
-| C3 |  |  |  |  |  |  |
-| C4 |  |  |  |  |  |  |
-| C5 |  |  |  |  |  |  |
-| C6 |  |  |  |  |  |  |
+| J1 | falsche `ImplementationServiceImpl.java` statt `UserServiceImpl` | 0 | n/a | 39,7 s | 1 | Retrieval-/Entity-Fokusfehler |
+| J2 | FIT-/Flowable-Umwege, direkte Zielklasse nicht belegt | 1 | n/a | 68,5 s | 1 | Aufrufkette nicht nachvollziehbar |
+| J3 | nur `ext/flowable/pom.xml`, `core/pom.xml` fehlt | 1 | n/a | 52,7 s | 1 | Maven-Kontext unvollständig |
+| J4 | `index.xsl`, Templates und Beziehungen mit Zeilen genannt | 4 | n/a | 57,4 s | 1 | vorläufig bestanden, Kanten fachlich prüfen |
+| J5 | Kernklasse und FIT/SCIM-Abgrenzung korrekt | 6 | n/a | 67,4 s | 1 | bestanden |
+| C1 | `PAUDBUNL.CBL` statt `COPAUA0C.cbl` | 1 | n/a | 125,1 s | 2 | falscher COBOL-Dateifokus |
+| C2 | einzelne Copybooks korrekt, erwartete Gruppen unvollständig | 2 | n/a | 45,4 s | 1 | COPY-/MQ-Abdeckung unvollständig |
+| C3 | echtes COBOL mit `EXEC SQL INCLUDE`, aber nicht der erwartete SQL-Block | 2 | n/a | 111,6 s | 2 | Tabellen-/Operationsbeleg unvollständig |
+| C4 | `COPAUS0C`/`COPAU01` statt `COPAUA0C`-Kette | 1 | n/a | 69,0 s | 1 | falscher Programmkontext |
+| C5 | Kategorien grundsätzlich erkannt, konkrete Belege fachfremd | 2 | n/a | 51,2 s | 1 | Teilbefund, JCL nicht direkt belegt |
+| C6 | `COPAUA0C` teilweise, `COTRTLIC.cbl` fälschlich nicht gefunden | 2 | n/a | 179,4 s | 3 | Parser-/Retrieval-Abnahme fehlgeschlagen |
 
 ## Entscheidung nach dem Lauf
 

@@ -462,9 +462,17 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             return
         parameters = []
         first = getattr(context, "formalParameter", lambda: None)()
-        if first is not None:
+        # ANTLR generates a single context for FormalParameters, but a list
+        # for FormalParameterList (used by typed lambda parameters).  Normalize
+        # both shapes before visiting the individual declarators.
+        if isinstance(first, list):
+            parameters.extend(first)
+        elif first is not None:
             parameters.append(first)
-        for parameter_list in getattr(context, "formalParameterList", lambda: [])() or []:
+        parameter_lists = getattr(context, "formalParameterList", lambda: [])() or []
+        if not isinstance(parameter_lists, list):
+            parameter_lists = [parameter_lists]
+        for parameter_list in parameter_lists:
             parameters.extend(parameter_list.formalParameter())
         for index, parameter in enumerate(parameters):
             identifier = parameter.variableDeclaratorId().identifier()

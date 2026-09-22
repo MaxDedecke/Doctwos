@@ -578,6 +578,55 @@ def _append_agent_source_fallback(answer: str, agent_sources: list[dict]) -> str
     return answer.rstrip() + "\n\nVom Agenten gelesene Code-Stellen:\n" + "\n".join(references)
 
 
+def _validate_agent_answer_sources(answer: str, agent_sources: list[dict]) -> tuple[str, bool]:
+    """Reject an agent answer that cites a file/line it did not retrieve.
+
+    The model prompt is useful guidance, but it is not a provenance boundary:
+    small local models can still turn a neighbouring file into a plausible
+    citation.  In that case no partial answer is safer than presenting the
+    neighbouring source as evidence for the requested file.  A basename is
+    accepted only when it maps to exactly one tool-result file.
+    """
+    evidence: dict[str, list[tuple[int, int]]] = {}
+    basenames: dict[str, set[str]] = {}
+    for source in agent_sources:
+        path = str(source.get("file") or "").replace("\\", "/").lstrip("./")
+        lines = source.get("lines") or []
+        if not path or len(lines) < 2:
+            continue
+        try:
+            start, end = int(lines[0]), int(lines[1])
+        except (TypeError, ValueError):
+            continue
+        path_key = path.lower()
+        evidence.setdefault(path_key, []).append((min(start, end), max(start, end)))
+        basenames.setdefault(os.path.basename(path_key), set()).add(path_key)
+
+    # Only Markdown code spans are considered citations.  Plain prose can
+    # legitimately mention a filename while explaining why it was not found.
+    for raw in _BACKTICK_RE.findall(answer):
+        match = _FILE_LINE_RE.match(raw.strip())
+        if not match:
+            continue
+        claimed_path, claimed_line = match.group(1).replace("\\", "/").lstrip("./"), int(match.group(2))
+        path_key = claimed_path.lower()
+        ranges = evidence.get(path_key)
+        if ranges is None:
+            candidates = basenames.get(os.path.basename(path_key), set())
+            if len(candidates) == 1:
+                ranges = evidence[next(iter(candidates))]
+        if not ranges or not any(start <= claimed_line <= end for start, end in ranges):
+            logger.warning("Verwerfe Agent-Antwort mit unbelegter Quellenangabe: %s", raw)
+            return (
+                "Die angefragte Datei bzw. Code-Stelle ist im aktuellen Index oder in den "
+                "abgerufenen Quellen nicht belastbar belegt. Ich nenne deshalb keine "
+                "Ersatzdatei als Beleg; bitte den Import/Parserstatus prüfen oder die "
+                "Zieldatei erneut indexieren.",
+                False,
+            )
+    return answer, True
+
+
 def _attach_analysis_status(db: Session, sources: list[dict]) -> list[dict]:
     """O-120: eine zitierte Datei kann strukturell nur teilweise/gar nicht
     analysiert worden sein (COBOL-Diagnosen, F-029-Textfallback) oder beim
@@ -1080,6 +1129,7 @@ async def chat(
                     agent_ran = True
                     view_actions = []
                     agent_call_flows = {}
+                    agent_answer_is_source_consistent = True
                     async for event in stream_agent_events(
                         provider=(
                             "openai_responses"
@@ -1114,8 +1164,15 @@ async def chat(
                         require_initial_tool_call=True,
                         walkthrough_documents=walkthrough_documents,
                     ):
+                        if event["type"] == "content_chunk":
+                            # The final source check below is deliberately a
+                            # gate, not merely metadata.  Do not leak an
+                            # unvalidated partial answer over SSE first.
+                            continue
                         if event["type"] == "answer":
-                            answer = event["content"]
+                            answer, agent_answer_is_source_consistent = _validate_agent_answer_sources(
+                                event["content"], agent_sources
+                            )
                             agent_steps = list(event.get("agent_steps") or [])
                             known_action_ids = {
                                 step.get("action_id")
@@ -1125,7 +1182,7 @@ async def chat(
                             for action in view_actions:
                                 if action["action_id"] not in known_action_ids:
                                     agent_steps.append(action)
-                            event = {**event, "agent_steps": agent_steps}
+                            event = {**event, "content": answer, "agent_steps": agent_steps}
                         elif event["type"] in ("thought", "tool_call", "tool_result"):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
@@ -1196,7 +1253,7 @@ async def chat(
                     if event["type"] == "error":
                         return
 
-            if agent_ran:
+            if agent_ran and agent_answer_is_source_consistent:
                 answer = _append_agent_source_fallback(answer, agent_sources)
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):

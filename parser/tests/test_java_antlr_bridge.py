@@ -179,6 +179,31 @@ class App {
     assert any(entity.type == "anonymous_class" for entity in result.entities)
 
 
+def test_typed_lambda_parameter_list_is_flattened_before_declaration_visit() -> None:
+    result = parse_java_file(
+        """package demo;
+class App {
+    void run() {
+        java.util.function.BiFunction<String, String, String> join =
+            (String left, String right) -> left + right;
+    }
+}
+""",
+        "src/demo/App.java",
+    )
+
+    lambda_entity = next(entity for entity in result.entities if entity.type == "lambda")
+    parameters = [
+        entity
+        for entity in result.entities
+        if entity.type == "parameter" and entity.parent_qualified_name == lambda_entity.qualified_name
+    ]
+    assert [(entity.name, entity.meta["parameter_type"]) for entity in parameters] == [
+        ("left", "String"),
+        ("right", "String"),
+    ]
+
+
 def test_package_and_module_descriptors_are_supported() -> None:
     package_result = parse_java_file("@Deprecated package docs;\n", "package-info.java")
     module_result = parse_java_file(

@@ -80,6 +80,7 @@ def analysis_fingerprint(
     libraries: Mapping[str, str] | None = None,
     dependencies: Mapping[str, str] | None = None,
     embedding_model: str | None = None,
+    decoder_policy: str | None = None,
 ) -> str:
     """Bildet alle parse-relevanten Eingaben auf einen SHA-256-Wert ab.
 
@@ -106,6 +107,10 @@ def analysis_fingerprint(
     # whose source content did not change.
     if embedding_model is not None:
         payload["embedding_model"] = embedding_model
+    # Resource decoders can change the effective source text without changing
+    # the Git blob (for example the UTF-8/ISO-8859-1 .properties fallback).
+    if decoder_policy is not None:
+        payload["decoder_policy"] = decoder_policy
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
         "utf-8"
     )

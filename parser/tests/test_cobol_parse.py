@@ -81,6 +81,35 @@ def test_repeated_fillers_under_same_group_have_unique_internal_qualified_names(
     assert len({entity.qualified_name for entity in result.entities}) == len(result.entities)
 
 
+def test_redefines_with_the_same_sibling_name_have_unique_qualified_names():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. EDITPROG.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 CICS-OUTPUT-EDIT-VARS.\n"
+        "          10 WS-EDIT-DATE-X PIC X(10).\n"
+        "          10 WS-EDIT-DATE-X REDEFINES WS-EDIT-DATE-X PIC 9(10).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "src/EDITPROG.cbl")
+    dates = [
+        entity
+        for entity in result.entities
+        if entity.type == "data_item" and entity.name == "WS-EDIT-DATE-X"
+    ]
+
+    assert [entity.qualified_name for entity in dates] == [
+        "EDITPROG.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X",
+        "EDITPROG.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X@7",
+    ]
+    assert dates[1].meta["redefines"] == "WS-EDIT-DATE-X"
+    assert len({entity.qualified_name for entity in result.entities}) == len(result.entities)
+
+
 def test_copybook_index_flips_copy_edge_resolution():
     without_index = _parse_fixture("04_copy_replacing.cbl")
     assert without_index.edges[0].resolution == "unresolved"
