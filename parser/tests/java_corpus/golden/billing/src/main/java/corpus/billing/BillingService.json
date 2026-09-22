@@ -121,7 +121,10 @@
       "meta": {
         "index": 0,
         "language": "java",
-        "parameter_type": "int"
+        "module": "billing",
+        "parameter_type": "int",
+        "source_kind": "source",
+        "source_set": "main"
       },
       "name": "amount",
       "parent_qualified_name": "corpus.billing.BillingService#calculate(int)",

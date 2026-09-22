@@ -706,13 +706,22 @@ oder ausgeschlossene Inhalte sind sichtbar statt still verloren.
 
 ### O-243 – P1 / Java: Syntax- und Strukturabdeckung am Zielbestand absichern
 
-- [ ] Bestehende Java-Tests um die tatsächlich benötigten Sprachkonstrukte und
-  anonymisierte beziehungsweise synthetische Regressionen aus O-240 ergänzen.
+**Technische Referenzabdeckung umgesetzt, Bestandsabnahme offen.** Der versionierte
+Offline-Referenzsatz prüft Java-8-Überladungen und innere Klassen, Java-21-Records/
+Pattern-Matching, Maven-Modul-/Source-Set-Metadaten, Annotationen und Lombok-
+Accessor-Synthese samt abgeleiteter Kennzeichnung/Quellposition. Fehlerhafte Syntax
+behält Originaldiagnose und Textfallback. Die Golden-Snapshots sichern das gesamte
+Parserergebnis; `test_java_reference_corpus.py` hält die fachlich relevanten
+Abnahmeinvarianten lesbar fest.
+
+- [ ] Den Referenzsatz mit den tatsächlich benötigten Konstrukten und
+  anonymisierten Regressionen aus O-240 erweitern.
 - [ ] Bei auftretenden Fehlern Parser/Visitor gezielt korrigieren; Diagnosen,
-  Textfallback und Originalzeilen erhalten. Vorhandene Java-8-/Java-21-Fixtures
-  nicht als pauschale Freigabe aller Zwischenversionen verwenden.
-- [ ] Annotationen, innere/anonyme Klassen, Lambdas/Methodenreferenzen und
-  tatsächlich verwendete Lombok-/Codegen-Konstrukte auf Abdeckung prüfen.
+  Textfallback und Originalzeilen erhalten. Java-8-/Java-21-Fixtures bleiben
+  bewusst keine pauschale Freigabe aller Zwischenversionen.
+- [x] Annotationen, innere/anonyme Klassen, Lambdas/Methodenreferenzen sowie
+  die unterstützten Lombok-Accessor-Konstrukte sind durch Parser- und
+  Referenztests abgedeckt.
 
 **Abnahme:** Deklarationen, Signaturen und Quellenpositionen des vereinbarten
 Referenzsatzes stimmen. Synthetische Methoden sind als abgeleitet markiert.

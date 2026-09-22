@@ -215,16 +215,20 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             parent_name=self.parent.name,
             qualified_name=qualified_name,
             parent_qualified_name=self.parent.qualified_name,
-            meta={
-                "language": "java",
-                **({"module": self._module_path} if self._module_path is not None else {}),
-                **({"source_set": self._source_set} if self._source_set is not None else {}),
-                **({"source_kind": self._source_kind} if self._source_kind is not None else {}),
-                **(meta or {}),
-            },
+            meta=self._java_meta(meta),
         )
         self.entities.append(entity)
         return entity
+
+    def _java_meta(self, meta: dict | None = None) -> dict:
+        """Attach one compilation unit's build identity to every entity."""
+        return {
+            "language": "java",
+            **({"module": self._module_path} if self._module_path is not None else {}),
+            **({"source_set": self._source_set} if self._source_set is not None else {}),
+            **({"source_kind": self._source_kind} if self._source_kind is not None else {}),
+            **(meta or {}),
+        }
 
     def _within(self, entity: Entity, context: ParserRuleContext):
         self._parents.append(entity)
@@ -505,12 +509,11 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     parent_name=owner.name,
                     qualified_name=f"{owner.qualified_name}@param:{name}",
                     parent_qualified_name=owner.qualified_name,
-                    meta={
-                        "language": "java",
+                    meta=self._java_meta({
                         "parameter_type": parameter_type,
                         "index": index,
                         **({"lambda": True} if lambda_parameter else {}),
-                    },
+                    }),
                 )
             )
 
@@ -534,11 +537,10 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     parent_name=owner.name,
                     qualified_name=f"{owner.qualified_name}#component:{name}",
                     parent_qualified_name=owner.qualified_name,
-                    meta={
-                        "language": "java",
+                    meta=self._java_meta({
                         "component_type": component_type,
                         "index": index,
-                    },
+                    }),
                 )
             )
 
@@ -576,11 +578,10 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                             f"{start_line}:{identifier.start.column}"
                         ),
                         parent_qualified_name=self.parent.qualified_name,
-                        meta={
-                            "language": "java",
+                        meta=self._java_meta({
                             "variable_type": variable_type,
                             **({"inferred_type": inferred_type} if inferred_type else {}),
-                        },
+                        }),
                     )
                 )
         return self.visitChildren(context)
@@ -634,7 +635,9 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                             parent_name=entity.name,
                             qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
                             parent_qualified_name=entity.qualified_name,
-                            meta={"language": "java", "parameter_type": "unknown", "index": index, "lambda": True},
+                            meta=self._java_meta(
+                                {"parameter_type": "unknown", "index": index, "lambda": True}
+                            ),
                         )
                     )
             else:
@@ -651,12 +654,11 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                                 parent_name=entity.name,
                                 qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
                                 parent_qualified_name=entity.qualified_name,
-                                meta={
-                                    "language": "java",
+                                meta=self._java_meta({
                                     "parameter_type": "var",
                                     "index": index,
                                     "lambda": True,
-                                },
+                                }),
                             )
                         )
         self._parents.append(entity)
