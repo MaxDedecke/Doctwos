@@ -43,7 +43,7 @@ ENV PATH=/root/.local/bin:$PATH
 # Nur der fuer den Betrieb noetige Code (O-167): kein tests/, kein
 # requirements-dev.txt, keine Build-Werkzeuge im fertigen Image.
 COPY chunk_reindex.py structure_persist.py code_parser.py db.py git_utils.py \
-     healthcheck_beat.py link_dirty.py ollama_client.py utils.py worker.py ./
+     healthcheck_beat.py insight_review.py link_dirty.py ollama_client.py utils.py worker.py ./
 COPY cobol/ cobol/
 COPY java/ java/
 COPY maven/ maven/
