@@ -63,21 +63,30 @@ def scan(
             continue
         fd_key = canonical_identifier(operand.value)
         fd_name = fd_names.get(fd_key)
-        fd_resolution = "resolved" if fd_name is not None else "unresolved"
+        # READ addresses an FD, whereas the standard WRITE/REWRITE form
+        # addresses the record description nested below that FD.  Both are
+        # explicit I/O targets, but treating the latter as an unknown file
+        # loses the connection from a paragraph to its data structure.
+        item_qname = item_names.get(fd_key) if fd_name is None else None
+        target_name = fd_name or (operand.value if item_qname is not None else operand.value)
+        target_qname = f"{program.name}.{fd_name}" if fd_name is not None else item_qname
+        target_kind = "file_fd" if fd_name is not None else "record" if item_qname else "unknown"
+        target_resolution = "resolved" if target_qname is not None else "unresolved"
         src = _enclosing_paragraph(program, token.phys_line)
         fd_edge_meta = {
             "program": program.name,
             "operation": operation,
             "access": access,
+            "io_target_kind": target_kind,
         }
-        if fd_name is not None:
-            fd_edge_meta["target_qualified_name"] = f"{program.name}.{fd_name}"
+        if target_qname is not None:
+            fd_edge_meta["target_qualified_name"] = target_qname
         edges.append(
             ParsedEdge(
                 type=access,
                 src_name=src,
-                dst_name=fd_name or operand.value,
-                resolution=fd_resolution,
+                dst_name=target_name,
+                resolution=target_resolution,
                 src_start_line=token.phys_line,
                 src_end_line=operand.phys_line,
                 scope=program.name,

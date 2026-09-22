@@ -347,6 +347,40 @@ def test_sql_tables_and_cobol_file_io_carry_read_write_direction():
     )
 
 
+def test_write_and_rewrite_follow_the_fd_record_layout_not_an_invented_file_name():
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. RECORDIO.\n"
+        "       DATA DIVISION.\n"
+        "       FILE SECTION.\n"
+        "       FD  ORDERS-FILE.\n"
+        "       01  ORDER-RECORD PIC X(20).\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  WS-ORDER PIC X(20).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           WRITE ORDER-RECORD FROM WS-ORDER.\n"
+        "           REWRITE ORDER-RECORD FROM WS-ORDER.\n",
+        "recordio.cbl",
+    )
+
+    record_writes = [
+        edge for edge in result.edges
+        if edge.type == "WRITES" and edge.dst_name == "ORDER-RECORD"
+    ]
+    assert len(record_writes) == 2
+    assert all(edge.resolution == "resolved" for edge in record_writes)
+    assert all(edge.meta["io_target_kind"] == "record" for edge in record_writes)
+    assert all(edge.meta["target_qualified_name"] == "RECORDIO.ORDERS-FILE.ORDER-RECORD" for edge in record_writes)
+
+    buffer_reads = [
+        edge for edge in result.edges
+        if edge.type == "READS" and edge.dst_name == "WS-ORDER"
+    ]
+    assert len(buffer_reads) == 2
+    assert all(edge.resolution == "resolved" for edge in buffer_reads)
+
+
 def test_edges_combine_call_perform_copy_sql_and_xref():
     text = (
         "       IDENTIFICATION DIVISION.\n"
