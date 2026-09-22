@@ -141,6 +141,18 @@ describe('JobCenter', () => {
       expect(bars[0].style.width).toBe('40%');
     });
 
+    it('zeigt abgebrochene Jobs als terminal ohne Spinner oder Fortschrittsbalken', async () => {
+      stubJobs([makeJob({ status: 'cancelled', progress: 62, progress_message: 'Manuell abgebrochen' })]);
+
+      const { container } = await openPanel();
+      const article = (await screen.findByText('Abgebrochen')).closest('article');
+
+      expect(article).toBeTruthy();
+      expect(article?.querySelector('.animate-spin')).toBeNull();
+      expect(article?.querySelector('.bg-ds-indigo-500')).toBeNull();
+      expect(container.querySelector('.animate-spin')).toBeNull();
+    });
+
     it('klappt die Fehlermeldung eines fehlgeschlagenen Jobs auf und wieder zu', async () => {
       stubJobs([makeJob({ status: 'failed', error_message: 'fatal: repository not found' })]);
 

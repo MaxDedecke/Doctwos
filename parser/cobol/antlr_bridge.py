@@ -94,6 +94,7 @@ _IDENT_TEXT_PARAGRAPH_RE = re.compile(
 )
 
 COPY_PLACEHOLDER_NAME = "ANTLR-COPY-PLACEHOLDER"
+EXEC_PLACEHOLDER_NAME = "ANTLR-EXEC-PLACEHOLDER"
 
 # Cobol85Lexer.IDENTIFIER kennt nur [a-zA-Z0-9] (siehe grammar/Cobol85.g4) —
 # deutsche Bezeichner mit Umlauten/ß (z.B. "200-BUCHUNGSPOSITIONEN-PRÜFEN")
@@ -193,7 +194,7 @@ def _parse(
     return tree, had_error, diagnostics
 
 
-def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
+def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> list[LogicalLine]:
     """Ersetzt COPY-Anweisungen und embedded.mask()-Platzhalter durch
     grammatikgültige No-Ops, ohne Zeilennummern zu verschieben.
 
@@ -236,13 +237,50 @@ def mask_for_grammar(lines: list[LogicalLine]) -> list[LogicalLine]:
                 current_data_section = m2.group(1).upper()
 
         if _EMBEDDED_BLOCK_RE.match(stripped):
-            result.append(_placeholder(line, line, "CONTINUE"))
+            # EXEC SQL/CICS/DLI is valid in more than PROCEDURE DIVISION.
+            # An unconditional CONTINUE used to be grammar-invalid inside a
+            # DATA DIVISION (and for standalone copybooks, whose synthetic
+            # DATA header is added only after this masking pass). ANTLR then
+            # abandoned the DATA tree and often lost the whole PROCEDURE
+            # DIVISION as collateral damage. Keep the source block masked for
+            # the structural parser, but use a placeholder valid at its actual
+            # nesting level; the real block remains available to sql.py and
+            # the normal lexer.
+            if current_division == "PROCEDURE":
+                placeholder_text = "CONTINUE"
+            elif (
+                copybook
+                or (
+                    current_division == "DATA"
+                    and current_data_section != "FILE"
+                    and in_data_section
+                )
+            ):
+                placeholder_text = f"01 {EXEC_PLACEHOLDER_NAME} PIC X"
+            elif current_division == "DATA" and current_data_section == "FILE":
+                placeholder_text = f"FD {EXEC_PLACEHOLDER_NAME}"
+            else:
+                placeholder_text = None
+            result.append(
+                _placeholder(line, line, placeholder_text)
+                if placeholder_text
+                else _blank(line, line)
+            )
             i += 1
             continue
 
         if current_division == "IDENTIFICATION" and _IDENT_TEXT_PARAGRAPH_RE.match(stripped):
-            keyword = _IDENT_TEXT_PARAGRAPH_RE.match(stripped).group(1).upper()
+            ident_match = _IDENT_TEXT_PARAGRAPH_RE.match(stripped)
+            keyword = ident_match.group(1).upper()
             j = i
+            # IBM/AWS sources commonly put the free text after a head-only
+            # paragraph on the next physical line, e.g. ``DATE-WRITTEN.`` /
+            # ``Jan 2023.``. The period on the header is not the end of the
+            # paragraph content in that form. Inline text (``AUTHOR. Jane.``)
+            # is already complete on the current line and must remain intact.
+            after_keyword = stripped[ident_match.end() :].strip()
+            if after_keyword in {"", "."} and j + 1 < n:
+                j += 1
             while not _ends_with_period(lines[j]) and j + 1 < n:
                 j += 1
             # Der freie Text wird komplett verworfen (nicht ins Modell übernommen) —
@@ -408,7 +446,7 @@ def build_tree(
     Section-Entities, UniqueViolation beim Persistieren). Erster Versuch
     bleibt SLL (schneller Normalfall, keine Kosten für unbetroffene
     Dateien); nur bei einem Fehler wird komplett neu mit LL(*) geparst."""
-    grammar_lines = mask_for_grammar(masked_lines)
+    grammar_lines = mask_for_grammar(masked_lines, copybook=header is not None)
     text = _reconstruct_text(grammar_lines)
     if header:
         text = _prepend_header(text, header)

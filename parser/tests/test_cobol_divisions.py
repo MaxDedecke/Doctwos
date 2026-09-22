@@ -2,6 +2,7 @@ import os
 
 from cobol import divisions, embedded, source_format
 from cobol.model import Division, EntryPoint, Paragraph, Section
+from cobol.parse import parse_program
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
@@ -62,6 +63,33 @@ def test_embedded_block_does_not_close_enclosing_paragraph_early():
     program, errors, _ = _program("08_exec_cics.cbl")
     assert errors == []
     assert program.paragraphs == [Paragraph("MAIN-PARA", None, 4, 9)]
+
+
+def test_multiline_identification_metadata_does_not_hide_later_divisions():
+    # IBM/AWS COBOL often places DATE-WRITTEN/DATE-COMPILED text on the next
+    # line. Recovery must consume that local free text without losing DATA or
+    # PROCEDURE structure.
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. MULTILINE-META.\n"
+        "       DATE-WRITTEN.\n"
+        "           Jan 2023.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-FLAG PIC X.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "multiline-meta.cbl")
+
+    assert not [d for d in result.diagnostics if d.severity == "error"]
+    assert {entity.name for entity in result.entities} >= {
+        "MULTILINE-META",
+        "WS-FLAG",
+        "MAIN-PARA",
+    }
 
 
 def test_data_division_section_is_recognized():

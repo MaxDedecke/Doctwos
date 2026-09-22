@@ -36,7 +36,7 @@ from __future__ import annotations
 from . import antlr_bridge
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
-from .antlr_bridge import COPY_PLACEHOLDER_NAME
+from .antlr_bridge import COPY_PLACEHOLDER_NAME, EXEC_PLACEHOLDER_NAME
 from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine, ParseDiagnostic
 
 _CONDITION_LEVEL = 88
@@ -74,13 +74,13 @@ def parse(
     items = [
         i
         for i in visitor.items
-        if i.name.upper() != COPY_PLACEHOLDER_NAME
+        if i.name.upper() not in {COPY_PLACEHOLDER_NAME, EXEC_PLACEHOLDER_NAME}
         and data_division.start_line <= i.start_line <= data_division.end_line
     ]
     file_descriptors = [
         f
         for f in visitor.file_descriptors
-        if f.name.upper() != COPY_PLACEHOLDER_NAME
+        if f.name.upper() not in {COPY_PLACEHOLDER_NAME, EXEC_PLACEHOLDER_NAME}
         and data_division.start_line <= f.start_line <= data_division.end_line
     ]
     return items, file_descriptors, errors, diagnostics

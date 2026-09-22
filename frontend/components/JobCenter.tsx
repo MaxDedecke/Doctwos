@@ -141,9 +141,10 @@ export function JobCenter({
               const failed = job.status === "failed";
               const running = ["pending", "running", "syncing", "parsing"].includes(job.status);
               const completed = job.status === "completed";
+              const cancelled = job.status === "cancelled";
               return <article key={job.key} className={cn("rounded-lg border p-3 mb-2", theme === "dark" ? "border-ds-zinc-800 bg-ds-zinc-900/50" : "border-ds-zinc-200 bg-ds-zinc-50")}>
                 <div className="flex items-start gap-2">
-                  {failed ? <AlertTriangle className="h-4 w-4 text-ds-rose-500 shrink-0" /> : completed ? <CheckCircle2 className="h-4 w-4 text-ds-emerald-500 shrink-0" /> : <Loader2 className="h-4 w-4 text-ds-indigo-500 animate-spin shrink-0" />}
+                  {failed ? <AlertTriangle className="h-4 w-4 text-ds-rose-500 shrink-0" /> : completed ? <CheckCircle2 className="h-4 w-4 text-ds-emerald-500 shrink-0" /> : cancelled ? <Square className="h-4 w-4 text-ds-zinc-500 shrink-0" /> : <Loader2 className="h-4 w-4 text-ds-indigo-500 animate-spin shrink-0" />}
                   <div className="min-w-0 flex-1"><p className="text-xs font-semibold truncate">{job.label}</p><p className="text-[10px] text-ds-zinc-500">{t(`jobCenter.status.${job.status}`)}</p></div>
                   {currentUser?.is_admin && job.can_delete && <button disabled={removing === job.key} onClick={() => remove(job)} aria-label={t("jobCenter.remove")} title={t("jobCenter.remove")} className="text-ds-zinc-500 hover:text-ds-rose-500 disabled:opacity-50"><X className="h-3.5 w-3.5" /></button>}
                   {failed && job.error_message && <button onClick={() => setExpanded(expanded === job.key ? null : job.key)} aria-expanded={expanded === job.key} className="text-ds-zinc-500"><ChevronDown className={cn("h-4 w-4 transition-transform", expanded === job.key && "rotate-180")} /></button>}

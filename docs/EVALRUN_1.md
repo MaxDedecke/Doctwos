@@ -104,6 +104,12 @@ Doctus-Profilverwaltung.
    Quellen-/Parserstand nicht dem vereinbarten Laufstand entspricht. Vorher
    aktuellen Status und mögliche Laufzeit prüfen; der frühere CardDemo-Erstlauf
    dauerte laut Backlog etwa 75 Minuten.
+   Für den O-305-Fall muss vor dem Fragenkatalog zusätzlich geprüft werden, dass
+   `COPAUA0C.cbl` und `COTRTLIC.cbl` mit dem aktuellen COBOL-Parser verarbeitet
+   wurden. Die beiden Dateien dürfen nicht als reiner Textfallback vorliegen;
+   Divisionen, Paragraphen, Datenfelder und eingebettete SQL-/EXEC-Blöcke müssen
+   im Index sichtbar sein. Reindex und anschließende Embeddings mit dem
+   bereitgestellten RunPod-Profil als einen zusammengehörigen Lauf protokollieren.
 5. **Projektweise ausführen:** pro Frage das passende Projekt explizit im Chat
    auswählen. Java-Fragen ausschließlich in Projekt 727, COBOL-Fragen in
    Projekt 728. Je Frage Antwort, Quellenbelege, sichtbare Tool-Schritte und
@@ -230,6 +236,28 @@ Prüfpunkte: JCL ist im aktuellen Import Textfallback; nicht behaupten, daraus
 sei ein vollständiger JCL-Jobgraph abgeleitet. Dynamische oder unaufgelöste
 Ziele als solche kennzeichnen.
 
+**C6 – COBOL-Syntax-Recovery und Struktur-Erhalt (O-305)**
+
+> Prüfe im Projekt AWS CardDemo die Programme `COPAUA0C.cbl` und
+> `COTRTLIC.cbl` nach dem aktuellen Reindex. Zeige für beide Dateien die
+> erkannten Programm-/Divisions-/Paragraphenstrukturen und mindestens ein
+> Datenfeld. Weise anhand von Originalzeilen nach, dass eingebettete
+> `EXEC`-/SQL-Blöcke und mehrzeilige `IDENTIFICATION`-Metadaten die umgebende
+> DATA- und PROCEDURE-Struktur nicht zerstören. Trenne echte Parser-
+> Diagnosen, unaufgelöste Kanten und Textfallbacks. Wenn eine Aussage nicht
+> belegt werden kann, benenne sie als Index-/Parserlücke.
+
+Prüfpunkte: `app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl` muss weiterhin
+als Programm mit DATA- und PROCEDURE-Struktur (u. a. Zeilen 29 und 218) sowie
+Paragraphen wie `MAIN-PARA` und `1000-INITIALIZE` (u. a. Zeilen 220 und 230)
+auffindbar sein. `app/app-transaction-type-db2/cbl/COTRTLIC.cbl` muss die
+mehrzeilige IDENTIFICATION-Angabe in den Zeilen 24–30, die DATA DIVISION ab
+Zeile 35 und persistierte `sql_block`-Entities aus den EXEC-SQL-Blöcken behalten.
+Ein lokaler Syntaxhinweis darf nicht zur vollständigen Textfallback-Antwort für
+die Datei führen. Die Antwort muss die Originaldatei und Zeilen nennen; aus
+Bezeichnern allein dürfen keine fachlichen Beziehungen erfunden werden. Dieser
+Fall zählt als Parser-/Index-Abnahme und nicht als reiner Chat-Qualitätstest.
+
 ## Bewertung je Frage
 
 Jede Frage mit 0–2 Punkten in drei Kategorien bewerten (maximal 6 Punkte):
@@ -264,7 +292,7 @@ eintragen.
 | Durchschn. / Median First Token | Offen |
 | Durchschn. / Median Antwortzeit | Offen |
 | Gesamtpunkte Java (30 mögliche Punkte) | Offen |
-| Gesamtpunkte COBOL (30 mögliche Punkte) | Offen |
+| Gesamtpunkte COBOL (36 mögliche Punkte) | Offen |
 | Fehlerfälle, Indexlücken und Folge-Todos | Offen |
 
 ### Einzelresultate
@@ -281,6 +309,7 @@ eintragen.
 | C3 |  |  |  |  |  |  |
 | C4 |  |  |  |  |  |  |
 | C5 |  |  |  |  |  |  |
+| C6 |  |  |  |  |  |  |
 
 ## Entscheidung nach dem Lauf
 

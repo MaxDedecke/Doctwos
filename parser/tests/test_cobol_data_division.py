@@ -1,6 +1,7 @@
 import os
 
 from cobol import data_division, divisions, embedded, source_format
+from cobol.parse import parse_copybook, parse_program
 from cobol.model import DataItem, FileDescriptor
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
@@ -122,3 +123,43 @@ def test_dynamic_call_fixture_still_parses_working_storage_field():
     _, items, _, errors = _parse_fixture("09_dynamic_call.cbl")
     assert errors == []
     assert items == [DataItem("WS-PGM", 1, 5, 5, parent=None, picture="X(8)", value="SUBPROG")]
+
+
+def test_exec_block_in_data_division_does_not_destroy_following_structure():
+    # Real CardDemo/Bank of Z programs contain SQL/CICS/DLI blocks in the
+    # DATA DIVISION (notably EXEC SQL INCLUDE ...). A procedure-level
+    # CONTINUE placeholder is invalid there and used to make ANTLR lose the
+    # remainder of the file, including PROCEDURE DIVISION.
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. EMBEDDED-DATA.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "           EXEC SQL INCLUDE SQLCA END-EXEC.\n"
+        "       01 WS-STATUS PIC S9(9) COMP.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           MOVE 0 TO WS-STATUS.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "embedded-data.cbl")
+
+    assert not [d for d in result.diagnostics if d.severity == "error"]
+    assert {entity.name for entity in result.entities} >= {
+        "EMBEDDED-DATA",
+        "WS-STATUS",
+        "MAIN-PARA",
+    }
+    assert not any(chunk.meta.get("fallback") for chunk in result.chunks)
+
+
+def test_exec_block_in_standalone_copybook_keeps_data_items():
+    result = parse_copybook(
+        "       EXEC SQL INCLUDE SQLCA END-EXEC.\n"
+        "       01  COPY-STATUS PIC X.\n",
+        "SQLCOPY.cpy",
+    )
+
+    assert not [d for d in result.diagnostics if d.severity == "error"]
+    assert any(entity.name == "COPY-STATUS" for entity in result.entities)
