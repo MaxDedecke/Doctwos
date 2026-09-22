@@ -27,7 +27,9 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from time import monotonic
+from typing import Callable, List, Optional
+from dataclasses import dataclass, field
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -81,6 +83,69 @@ _hybrid_chunk_search = hybrid_chunk_search
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
+
+
+@dataclass
+class ChatSseTelemetry:
+    """Per-request, monotonic timing record exposed over the chat SSE stream.
+
+    Values are relative milliseconds, never wall-clock timestamps.  They can
+    therefore be compared in eval runs without exposing server time and remain
+    valid if the system clock changes during a long model request.
+    """
+
+    started_at: float
+    clock: Callable[[], float] = monotonic
+    events: list[dict] = field(default_factory=list)
+    tool_count: int = 0
+    retrieval_wait_ms: Optional[int] = None
+    first_tool_call_ms: Optional[int] = None
+    first_token_ms: Optional[int] = None
+    model_end_ms: Optional[int] = None
+    message_saved_ms: Optional[int] = None
+
+    def record(self, event: str) -> dict:
+        elapsed_ms = max(0, round((self.clock() - self.started_at) * 1000))
+        entry = {"event": event, "monotonic_ms": elapsed_ms}
+        self.events.append(entry)
+        return {"type": "telemetry", **entry}
+
+    def record_first_tool_call(self) -> Optional[dict]:
+        self.tool_count += 1
+        if self.first_tool_call_ms is not None:
+            return None
+        event = self.record("first_tool_call")
+        self.first_tool_call_ms = event["monotonic_ms"]
+        return event
+
+    def record_first_token(self) -> Optional[dict]:
+        if self.first_token_ms is not None:
+            return None
+        event = self.record("first_token")
+        self.first_token_ms = event["monotonic_ms"]
+        return event
+
+    def record_model_end(self) -> Optional[dict]:
+        if self.model_end_ms is not None:
+            return None
+        event = self.record("model_end")
+        self.model_end_ms = event["monotonic_ms"]
+        return event
+
+    def record_message_saved(self) -> dict:
+        event = self.record("message_saved")
+        self.message_saved_ms = event["monotonic_ms"]
+        return event
+
+    def metrics(self) -> dict:
+        return {
+            "response_time_ms": self.message_saved_ms,
+            "first_token_ms": self.first_token_ms,
+            "tool_count": self.tool_count,
+            "retrieval_wait_ms": self.retrieval_wait_ms,
+            "first_tool_call_ms": self.first_tool_call_ms,
+            "model_end_ms": self.model_end_ms,
+        }
 
 # The agent loop has provider-specific tool contracts for these protocols.  In
 # particular, ``ollama`` is also the protocol used by remote Ollama profiles:
@@ -845,6 +910,7 @@ async def chat(
     route owns authorization and session lifecycle; chat transformations live in
     :mod:`services.chat_service`.
     """
+    request_started_at = monotonic()
     try:
         selected_profile = get_profile(db, request.llm_profile_id)
     except LookupError as exc:
@@ -978,6 +1044,8 @@ async def chat(
     history_messages.reverse()
 
     async def event_generator():
+        telemetry = ChatSseTelemetry(request_started_at)
+        yield f"data: {json.dumps(telemetry.record('request_received'))}\n\n"
         yield f"data: {json.dumps({'type': 'session', 'session_id': session.id, 'session_uuid': str(session.uuid) if session.uuid else None, 'session_title': session.title})}\n\n"
 
         answer = ""
@@ -993,6 +1061,7 @@ async def chat(
                 mcp_scope=bool(request.source_id),
             )
             if chat_intent.use_retrieval:
+                retrieval_started_at = monotonic()
                 active_embedding_profile = get_active_embedding_profile(db)
                 retrieval = await retrieve_chat_context(
                     db=db,
@@ -1010,6 +1079,9 @@ async def chat(
                     embedding_model=active_embedding_profile.model,
                     embedding_profile=active_embedding_profile,
                 )
+                telemetry.retrieval_wait_ms = max(
+                    0, round((monotonic() - retrieval_started_at) * 1000)
+                )
                 results = retrieval.results
                 prompt = retrieval.prompt
                 pinned_chunks = retrieval.pinned_chunks
@@ -1023,6 +1095,7 @@ async def chat(
                 pinned_chunks = []
                 resolved_repo_id = None
                 focused_source_id = None
+                telemetry.retrieval_wait_ms = 0
 
             provider = selected_profile.provider.lower()
 
@@ -1235,11 +1308,23 @@ async def chat(
                         walkthrough_documents=walkthrough_documents,
                     ):
                         if event["type"] == "content_chunk":
+                            first_token = telemetry.record_first_token()
+                            if first_token:
+                                yield f"data: {json.dumps(first_token)}\n\n"
                             # The final source check below is deliberately a
                             # gate, not merely metadata.  Do not leak an
                             # unvalidated partial answer over SSE first.
                             continue
+                        if event["type"] == "tool_call":
+                            first_tool_call = telemetry.record_first_tool_call()
+                            if first_tool_call:
+                                yield f"data: {json.dumps(first_tool_call)}\n\n"
+                        elif event["type"] == "tool_result":
+                            yield f"data: {json.dumps(telemetry.record('tool_end'))}\n\n"
                         if event["type"] == "answer":
+                            model_end = telemetry.record_model_end()
+                            if model_end:
+                                yield f"data: {json.dumps(model_end)}\n\n"
                             answer, answer_is_source_consistent = _validate_answer_sources(
                                 event["content"], agent_sources, agent_edge_pairs
                             )
@@ -1319,11 +1404,17 @@ async def chat(
                     context_length=selected_profile.llm_context_length,
                 ):
                     if event["type"] == "content_chunk":
+                        first_token = telemetry.record_first_token()
+                        if first_token:
+                            yield f"data: {json.dumps(first_token)}\n\n"
                         # Standard RAG has no tool loop, but its retrieved
                         # chunks are still the only admissible evidence.  Hold
                         # the stream until their citations have been checked.
                         continue
                     if event["type"] == "answer":
+                        model_end = telemetry.record_model_end()
+                        if model_end:
+                            yield f"data: {json.dumps(model_end)}\n\n"
                         answer, answer_is_source_consistent = _validate_answer_sources(
                             event["content"], candidate_sources
                         )
@@ -1350,7 +1441,17 @@ async def chat(
                 agent_steps=agent_steps,
                 previous_message=old_assistant_msg,
             )
+            message_saved_event = telemetry.record_message_saved()
+            assistant_metadata = dict(assistant_msg.metadata_json or {})
+            assistant_metadata["telemetry"] = {
+                "events": telemetry.events,
+                "metrics": telemetry.metrics(),
+            }
+            assistant_msg.metadata_json = assistant_metadata
+            db.commit()
+            yield f"data: {json.dumps(message_saved_event)}\n\n"
             yield f"data: {json.dumps({'type': 'message_saved', 'message_id': assistant_msg.id})}\n\n"
+            yield f"data: {json.dumps({'type': 'telemetry', 'event': 'completed', 'metrics': telemetry.metrics()})}\n\n"
 
         # Wrap the generator to inject heartbeats
         import asyncio

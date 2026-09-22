@@ -541,6 +541,19 @@ export function useChatController({
                     persistViewActionOutcome(data.message_id, action.action_id, action.status);
                   }
                 }
+              } else if (data.type === 'telemetry' && data.event === 'completed' && data.metrics) {
+                const telemetryMetrics = data.metrics;
+                setChatMessages(prev => {
+                  const next = [...prev];
+                  const target = next[targetIndex];
+                  if (target && target.role === 'assistant') {
+                    next[targetIndex] = {
+                      ...target,
+                      metadata: { ...target.metadata, telemetry: { events: [], metrics: telemetryMetrics } },
+                    };
+                  }
+                  return next;
+                });
               } else if (data.type === 'error') {
                 const errMsgText = t('page.error.chatFetchFailedWithMessage', { message: data.error });
                 setChatMessages(prev => {

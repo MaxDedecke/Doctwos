@@ -1,4 +1,4 @@
-import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource } from '@/types/domain';
+import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource, ChatTelemetryMetrics } from '@/types/domain';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -70,6 +70,17 @@ function isAgentStep(value: unknown): value is AgentStep {
   return value.type === 'tool_call' || (value.type === 'tool_result' && typeof value.result === 'string');
 }
 
+function isTelemetryMetrics(value: unknown): value is NonNullable<Extract<ChatStreamEvent, { type: 'telemetry' }>['metrics']> {
+  if (!isRecord(value)) return false;
+  const nullableMillis = (entry: unknown) => entry === null || (Number.isSafeInteger(entry) && Number(entry) >= 0);
+  return nullableMillis(value.response_time_ms) &&
+    nullableMillis(value.first_token_ms) &&
+    Number.isSafeInteger(value.tool_count) && Number(value.tool_count) >= 0 &&
+    nullableMillis(value.retrieval_wait_ms) &&
+    nullableMillis(value.first_tool_call_ms) &&
+    nullableMillis(value.model_end_ms);
+}
+
 /** Ignore unknown/malformed events before they can corrupt the transient chat state. */
 export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
   const value: unknown = JSON.parse(json);
@@ -98,6 +109,14 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
         ? { type: 'answer', content: value.content, agent_steps: value.agent_steps } : null;
     case 'message_saved':
       return typeof value.message_id === 'number' ? { type: 'message_saved', message_id: value.message_id } : null;
+    case 'telemetry':
+      if (typeof value.event !== 'string') return null;
+      if (value.event === 'completed') {
+        return isTelemetryMetrics(value.metrics)
+          ? { type: 'telemetry', event: value.event, metrics: value.metrics as ChatTelemetryMetrics } : null;
+      }
+      return Number.isSafeInteger(value.monotonic_ms) && Number(value.monotonic_ms) >= 0
+        ? { type: 'telemetry', event: value.event, monotonic_ms: value.monotonic_ms as number } : null;
     case 'error':
       return typeof value.error === 'string' ? { type: 'error', error: value.error } : null;
     case 'sources': {

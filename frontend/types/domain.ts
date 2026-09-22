@@ -194,9 +194,24 @@ export interface ChatMetadata {
   }) | null;
   refs?: ChatReference[];
   agent_steps?: AgentStep[];
+  telemetry?: ChatTelemetry;
   model?: string;
   provider?: string;
   [key: string]: unknown;
+}
+
+export interface ChatTelemetryMetrics {
+  response_time_ms: number | null;
+  first_token_ms: number | null;
+  tool_count: number;
+  retrieval_wait_ms: number | null;
+  first_tool_call_ms: number | null;
+  model_end_ms: number | null;
+}
+
+export interface ChatTelemetry {
+  events: Array<{ event: string; monotonic_ms: number }>;
+  metrics: ChatTelemetryMetrics;
 }
 export interface ChatSource {
   file: string;
@@ -281,6 +296,7 @@ export type ChatStreamEvent =
   | { type: 'turn_completed'; has_tool_calls: boolean }
   | { type: 'answer'; content: string; agent_steps?: AgentStep[] }
   | { type: 'message_saved'; message_id: number }
+  | { type: 'telemetry'; event: string; monotonic_ms?: number; metrics?: ChatTelemetryMetrics }
   | { type: 'error'; error: string };
 export interface ProjectStats {
   total_files: number;

@@ -45,6 +45,22 @@ describe('chat stream boundary', () => {
     expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
   });
 
+  it('accepts monotonic milestones and the final O-323 eval metrics', () => {
+    const milestone = { type: 'telemetry', event: 'first_token', monotonic_ms: 42 } as const;
+    const completed = {
+      type: 'telemetry', event: 'completed', metrics: {
+        response_time_ms: 93,
+        first_token_ms: 42,
+        tool_count: 2,
+        retrieval_wait_ms: 17,
+        first_tool_call_ms: 31,
+        model_end_ms: 78,
+      },
+    } as const;
+    expect(parseChatStreamEvent(JSON.stringify(milestone))).toEqual(milestone);
+    expect(parseChatStreamEvent(JSON.stringify(completed))).toEqual(completed);
+  });
+
   it.each([
     null,
     { type: 'future_event', content: 'ignored' },
@@ -52,6 +68,7 @@ describe('chat stream boundary', () => {
     { type: 'sources', sources: [{ file: 7 }] },
     { type: 'sources', sources: [{ file: 'main.cbl', lines: ['wrong'] }] },
     { type: 'message_saved', message_id: '7' },
+    { type: 'telemetry', event: 'completed', metrics: { tool_count: -1 } },
     { type: 'answer', content: 'ok', agent_steps: [{ type: 'tool_result', name: 'search', result: {} }] },
   ])('ignores an unsupported or malformed event: %j', event => {
     expect(parseChatStreamEvent(JSON.stringify(event))).toBeNull();
