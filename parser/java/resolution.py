@@ -358,6 +358,53 @@ def _candidates_at_stage(
     return candidates
 
 
+def _scope_candidates(candidates: list[Entity], result: ParseResult) -> list[Entity]:
+    """Prefer symbols visible from the caller's Maven module/source set.
+
+    Maven does not permit a main source set to use a test-only class.  A test
+    source set may use its module's main classes, though.  We deliberately do
+    not infer inter-module dependencies from a POM here: when no local module
+    candidate exists, the normal import/ambiguity rules still decide whether a
+    repository target is safe to use.
+    """
+    root_meta = next(
+        (entity.meta for entity in result.entities if entity.meta.get("is_file_root")),
+        {},
+    )
+    module = root_meta.get("module")
+    source_set = root_meta.get("source_set")
+    scoped = candidates
+    if module is not None:
+        local = [item for item in scoped if item.meta.get("module") == module]
+        if local:
+            scoped = local
+    if source_set is None:
+        return scoped
+
+    exact = [item for item in scoped if item.meta.get("source_set") == source_set]
+    if exact:
+        return exact
+    # Test-like source sets inherit main; main must never fall through to a
+    # test-only declaration.  Untagged legacy paths remain eligible.
+    if source_set != "main":
+        main = [item for item in scoped if item.meta.get("source_set") == "main"]
+        if main:
+            return main
+    if any(item.meta.get("source_set") is not None for item in scoped):
+        return []
+    return scoped
+
+
+def _same_declaration_scope(left: Entity, right: Entity) -> bool:
+    """Whether two Java declarations belong to the same build scope."""
+    left_meta, right_meta = left.meta or {}, right.meta or {}
+    for key in ("module", "source_set"):
+        left_value, right_value = left_meta.get(key), right_meta.get(key)
+        if left_value is not None and right_value is not None and left_value != right_value:
+            return False
+    return True
+
+
 def _global_type_candidates(
     destination: str,
     *,
@@ -371,11 +418,13 @@ def _global_type_candidates(
         return [], None
     if "." in name:
         exact = _candidates_at_stage((name,), types_by_qname)
+        exact = _scope_candidates(exact, result)
         return exact, "qualified_name" if exact else None
 
     package = _package_for(result)
     candidates = _candidates_at_stage((f"{package}.{name}",) if package else (), types_by_qname)
     if candidates:
+        candidates = _scope_candidates(candidates, result)
         return candidates, "current_package"
     if not package:
         # Types in the unnamed package have no package-qualified lookup key.
@@ -383,6 +432,7 @@ def _global_type_candidates(
         # when several default-package files define the same simple name.
         candidates = types_by_name.get(name, [])
         if candidates:
+            candidates = _scope_candidates(candidates, result)
             return candidates, "unnamed_package"
 
     imports = _imports_for(result)
@@ -395,10 +445,12 @@ def _global_type_candidates(
     ]
     candidates = _candidates_at_stage(explicit, types_by_qname)
     if candidates:
+        candidates = _scope_candidates(candidates, result)
         return candidates, "explicit_import"
 
     candidates = _candidates_at_stage((f"java.lang.{name}",), types_by_qname)
     if candidates:
+        candidates = _scope_candidates(candidates, result)
         return candidates, "java.lang"
 
     wildcard_packages = [
@@ -411,11 +463,13 @@ def _global_type_candidates(
         types_by_qname,
     )
     if candidates:
+        candidates = _scope_candidates(candidates, result)
         return candidates, "wildcard_import"
 
     if source_owner:
         candidates = _candidates_at_stage((f"{source_owner}.{name}",), types_by_qname)
         if candidates:
+            candidates = _scope_candidates(candidates, result)
             return candidates, "owner_type"
 
     # A simple name from another package is not a valid match without an
@@ -471,7 +525,9 @@ def _receiver_type_candidates(
     source_owner = _source_owner(edge)
     if receiver in {None, "this"}:
         return (
-            _candidates_at_stage((source_owner,), types_by_qname) if source_owner else [],
+            _scope_candidates(_candidates_at_stage((source_owner,), types_by_qname), result)
+            if source_owner
+            else [],
             "owner_type",
         )
     if receiver == "super":
@@ -693,10 +749,14 @@ def _global_method_candidates(
     if receiver in {None, "this", "super"}:
         static_owners = _static_import_owners(result, method_name)
         if static_owners:
-            owner_candidates = _candidates_at_stage(static_owners, types_by_qname)
+            owner_candidates = _scope_candidates(
+                _candidates_at_stage(static_owners, types_by_qname), result
+            )
             owner_reason = "static_import"
         if not owner_candidates and source_owner:
-            owner_candidates = _candidates_at_stage((source_owner,), types_by_qname)
+            owner_candidates = _scope_candidates(
+                _candidates_at_stage((source_owner,), types_by_qname), result
+            )
             owner_reason = "owner_type"
     else:
         owner_candidates, owner_reason = _receiver_type_candidates(
@@ -728,6 +788,8 @@ def _global_method_candidates(
                     continue
                 seen_owners.add(current)
                 for method in methods_by_owner_and_name.get((current, method_name), []):
+                    if not _same_declaration_scope(method, owner):
+                        continue
                     signature = tuple(method.meta.get("parameter_types", ()))
                     if signature not in seen_signatures:
                         candidates.append(method)
@@ -753,6 +815,19 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
     """
     java_results = list(results)
     entities = [entity for result in java_results for entity in result.entities]
+    entity_paths = {
+        id(entity): result.path for result in java_results for entity in result.entities
+    }
+
+    def mark_global(edge: ParsedEdge, target: Entity, *, reason: str) -> None:
+        _mark_resolved(edge, target, reason=reason)
+        # A qualified name is deliberately not globally unique in a Maven
+        # reactor.  Persist the selected compilation unit so the DB adapter
+        # can bind the edge to the same module-local declaration.
+        target_path = entity_paths.get(id(target))
+        if target_path:
+            edge.meta["target_file_path"] = target_path
+        edge.meta["resolution_scope"] = "global"
     types = [entity for entity in entities if entity.type in _TYPE_ENTITY_TYPES]
     types_by_qname: dict[str, list[Entity]] = {}
     types_by_name: dict[str, list[Entity]] = {}
@@ -814,17 +889,16 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                         for entity in entities
                         if entity.type == "constructor"
                         and entity.parent_qualified_name == target_type.qualified_name
+                        and _same_declaration_scope(entity, target_type)
                         and len(entity.meta.get("parameter_types", ()))
                         == meta.get("argument_count")
                     ]
                     target = _resolve_overload(edge, constructors) if constructors else target_type
                     if target is not None:
-                        _mark_resolved(edge, target, reason=reason or "type_in_repository")
-                        edge.meta["resolution_scope"] = "global"
+                        mark_global(edge, target, reason=reason or "type_in_repository")
                         resolved += 1
                 elif len(candidates) == 1:
-                    _mark_resolved(edge, candidates[0], reason=reason or "type_in_repository")
-                    edge.meta["resolution_scope"] = "global"
+                    mark_global(edge, candidates[0], reason=reason or "type_in_repository")
                     resolved += 1
                 elif len(candidates) > 1:
                     meta["resolution_reason"] = "ambiguous_type"
@@ -843,8 +917,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                 )
                 target = _resolve_overload(edge, candidates)
                 if target is not None:
-                    _mark_resolved(edge, target, reason=reason or "method_in_repository")
-                    edge.meta["resolution_scope"] = "global"
+                    mark_global(edge, target, reason=reason or "method_in_repository")
                     resolved += 1
                 elif len(candidates) > 1:
                     meta["resolution_reason"] = "ambiguous_overload"

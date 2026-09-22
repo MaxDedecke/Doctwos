@@ -198,11 +198,16 @@ def _resolve_java_edges(db: Session, source_id: int) -> int:
     for result, persisted_edges, parsed_edges in result_pairs:
         for persisted, parsed in zip(persisted_edges, parsed_edges):
             target_qname = (parsed.meta or {}).get("target_qualified_name")
+            target_path = (parsed.meta or {}).get("target_file_path")
             target_matches = (
                 entity_by_variant_qname.get((result.variant_key, target_qname), [])
                 if target_qname
                 else []
             )
+            if target_path:
+                target_matches = [
+                    entity for entity in target_matches if entity.file_path == target_path
+                ]
             if parsed.resolution == "resolved" and len(target_matches) == 1:
                 persisted.dst_entity_id = target_matches[0].id
                 persisted.resolution = "resolved"

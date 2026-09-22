@@ -217,6 +217,46 @@ class Client {
     assert created.resolution == "unresolved"
 
 
+def test_java_global_resolution_keeps_duplicate_maven_types_module_local() -> None:
+    module_a = parse_java_file(
+        "package duplicate; public class App { public App() {} public void run() {} }",
+        "module-a/src/main/java/duplicate/App.java",
+    )
+    module_b = parse_java_file(
+        "package duplicate; public class App { public App() {} public void run() {} }",
+        "module-b/src/main/java/duplicate/App.java",
+    )
+    client = parse_java_file(
+        """package client;
+import duplicate.App;
+class Client { void go() { new App().run(); } }
+""",
+        "module-a/src/main/java/client/Client.java",
+    )
+
+    assert resolve_global_edges([module_a, module_b, client]) == 2
+    targets = [edge for edge in client.edges if edge.type in {"INSTANTIATES", "CALLS"}]
+    assert all(edge.resolution == "resolved" for edge in targets)
+    assert {edge.meta["target_file_path"] for edge in targets} == {
+        "module-a/src/main/java/duplicate/App.java"
+    }
+
+
+def test_java_main_sources_never_resolve_to_test_only_types() -> None:
+    test_only = parse_java_file(
+        "package demo; public class Fixture {}",
+        "module-a/src/test/java/demo/Fixture.java",
+    )
+    main = parse_java_file(
+        "package app; import demo.Fixture; class Client { Fixture fixture; }",
+        "module-a/src/main/java/app/Client.java",
+    )
+
+    assert resolve_global_edges([test_only, main]) == 0
+    usage = next(edge for edge in main.edges if edge.type == "USES_TYPE")
+    assert usage.resolution == "unresolved"
+
+
 def test_java_edge_persistence_uses_qualified_source_and_target_names() -> None:
     result = parse_java_file(
         "package demo; class Local { int count; void caller() { count = 1; } }",
