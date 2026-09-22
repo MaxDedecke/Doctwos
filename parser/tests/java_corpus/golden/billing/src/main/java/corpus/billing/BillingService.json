@@ -115,6 +115,19 @@
       "qualified_name": "corpus.billing.BillingService#calculate(int)",
       "start_line": 4,
       "type": "method"
+    },
+    {
+      "end_line": 4,
+      "meta": {
+        "index": 0,
+        "language": "java",
+        "parameter_type": "int"
+      },
+      "name": "amount",
+      "parent_qualified_name": "corpus.billing.BillingService#calculate(int)",
+      "qualified_name": "corpus.billing.BillingService#calculate(int)@param:amount",
+      "start_line": 4,
+      "type": "parameter"
     }
   ]
 }

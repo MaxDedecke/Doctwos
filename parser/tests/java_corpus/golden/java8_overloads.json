@@ -240,6 +240,19 @@
       "type": "constructor"
     },
     {
+      "end_line": 10,
+      "meta": {
+        "index": 0,
+        "language": "java",
+        "parameter_type": "List<T>"
+      },
+      "name": "values",
+      "parent_qualified_name": "corpus.legacy.Catalog#<init>(List<T>)",
+      "qualified_name": "corpus.legacy.Catalog#<init>(List<T>)@param:values",
+      "start_line": 10,
+      "type": "parameter"
+    },
+    {
       "end_line": 16,
       "meta": {
         "annotations": [],
@@ -261,6 +274,19 @@
       "type": "method"
     },
     {
+      "end_line": 14,
+      "meta": {
+        "index": 0,
+        "language": "java",
+        "parameter_type": "int"
+      },
+      "name": "index",
+      "parent_qualified_name": "corpus.legacy.Catalog#find(int)",
+      "qualified_name": "corpus.legacy.Catalog#find(int)@param:index",
+      "start_line": 14,
+      "type": "parameter"
+    },
+    {
       "end_line": 20,
       "meta": {
         "annotations": [],
@@ -280,6 +306,19 @@
       "qualified_name": "corpus.legacy.Catalog#find(String)",
       "start_line": 18,
       "type": "method"
+    },
+    {
+      "end_line": 18,
+      "meta": {
+        "index": 0,
+        "language": "java",
+        "parameter_type": "String"
+      },
+      "name": "key",
+      "parent_qualified_name": "corpus.legacy.Catalog#find(String)",
+      "qualified_name": "corpus.legacy.Catalog#find(String)@param:key",
+      "start_line": 18,
+      "type": "parameter"
     },
     {
       "end_line": 24,

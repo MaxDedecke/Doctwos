@@ -106,6 +106,18 @@
       "qualified_name": "corpus.damaged.Broken#recover()",
       "start_line": 4,
       "type": "method"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "language": "java",
+        "variable_type": "int"
+      },
+      "name": "value",
+      "parent_qualified_name": "corpus.damaged.Broken#recover()",
+      "qualified_name": "corpus.damaged.Broken#recover()@local:value:5:12",
+      "start_line": 5,
+      "type": "local_variable"
     }
   ]
 }

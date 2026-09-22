@@ -98,6 +98,19 @@
       "type": "record"
     },
     {
+      "end_line": 4,
+      "meta": {
+        "component_type": "double",
+        "index": 0,
+        "language": "java"
+      },
+      "name": "radius",
+      "parent_qualified_name": "corpus.modern.Circle",
+      "qualified_name": "corpus.modern.Circle#component:radius",
+      "start_line": 4,
+      "type": "record_component"
+    },
+    {
       "end_line": 5,
       "meta": {
         "annotations": [],
@@ -110,6 +123,32 @@
       "qualified_name": "corpus.modern.Rectangle",
       "start_line": 5,
       "type": "record"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "component_type": "double",
+        "index": 0,
+        "language": "java"
+      },
+      "name": "width",
+      "parent_qualified_name": "corpus.modern.Rectangle",
+      "qualified_name": "corpus.modern.Rectangle#component:width",
+      "start_line": 5,
+      "type": "record_component"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "component_type": "double",
+        "index": 1,
+        "language": "java"
+      },
+      "name": "height",
+      "parent_qualified_name": "corpus.modern.Rectangle",
+      "qualified_name": "corpus.modern.Rectangle#component:height",
+      "start_line": 5,
+      "type": "record_component"
     },
     {
       "end_line": 14,
@@ -147,6 +186,19 @@
       "qualified_name": "corpus.modern.Area#calculate(Shape)",
       "start_line": 8,
       "type": "method"
+    },
+    {
+      "end_line": 8,
+      "meta": {
+        "index": 0,
+        "language": "java",
+        "parameter_type": "Shape"
+      },
+      "name": "shape",
+      "parent_qualified_name": "corpus.modern.Area#calculate(Shape)",
+      "qualified_name": "corpus.modern.Area#calculate(Shape)@param:shape",
+      "start_line": 8,
+      "type": "parameter"
     }
   ]
 }

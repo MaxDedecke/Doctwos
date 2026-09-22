@@ -134,6 +134,51 @@ record User(String name) { User { if (name == null) throw new RuntimeException()
     assert "types.Label#code()" in by_qname
 
 
+def test_o308_addresses_record_components_parameters_locals_lambdas_and_references() -> None:
+    result = parse_java_file(
+        """package demo;
+record User(String name, int age) {}
+class App {
+    void run(String input) {
+        int count = 1;
+        var text = input;
+        java.util.function.Function<String, Integer> fn = value -> value.length();
+        java.util.function.BiFunction<String, String, Integer> sum = (var left, var right) -> left.length() + right.length();
+        java.util.function.Supplier<String> trim = input::trim;
+        class Local { void work() {} }
+        Runnable task = new Runnable() { public void run() {} };
+    }
+}
+""",
+        "src/demo/App.java",
+    )
+    by_qname = {entity.qualified_name: entity for entity in result.entities}
+
+    assert by_qname["demo.User#component:name"].type == "record_component"
+    assert by_qname["demo.User#component:age"].meta["component_type"] == "int"
+    method = by_qname["demo.App#run(String)"]
+    assert by_qname["demo.App#run(String)@param:input"].parent_qualified_name == method.qualified_name
+    assert any(entity.type == "local_variable" and entity.name == "count" for entity in result.entities)
+    assert any(entity.type == "local_variable" and entity.name == "text" for entity in result.entities)
+    lambda_entity = next(entity for entity in result.entities if entity.type == "lambda")
+    assert lambda_entity.parent_qualified_name == method.qualified_name
+    assert any(
+        entity.type == "parameter"
+        and entity.parent_qualified_name == lambda_entity.qualified_name
+        and entity.name == "value"
+        for entity in result.entities
+    )
+    assert any(
+        entity.type == "parameter"
+        and entity.meta.get("parameter_type") == "var"
+        and entity.name == "left"
+        for entity in result.entities
+    )
+    assert any(entity.type == "method_reference" and entity.name == "input::trim" for entity in result.entities)
+    assert any(entity.type == "local_class" and entity.name == "Local" for entity in result.entities)
+    assert any(entity.type == "anonymous_class" for entity in result.entities)
+
+
 def test_package_and_module_descriptors_are_supported() -> None:
     package_result = parse_java_file("@Deprecated package docs;\n", "package-info.java")
     module_result = parse_java_file(

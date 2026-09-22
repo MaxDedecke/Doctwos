@@ -17,7 +17,15 @@ from ._antlr.JavaParser import JavaParser
 from ._antlr.JavaParserVisitor import JavaParserVisitor
 
 
-_TYPE_ENTITY_TYPES = {"class", "interface", "enum", "record", "annotation_type"}
+_TYPE_ENTITY_TYPES = {
+    "class",
+    "interface",
+    "enum",
+    "record",
+    "annotation_type",
+    "local_class",
+    "anonymous_class",
+}
 _ASSIGNMENT_OPERATORS = {
     "=",
     "+=",
@@ -101,7 +109,12 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         )
 
     def _entity_for_type(self, name: str) -> Entity | None:
-        parent = self.current_type.qualified_name if self.current_type else self._package_name
+        if self.current_type is None:
+            parent = self._package_name
+        elif self._scopes[-1].type in {"method", "constructor", "lambda"}:
+            parent = self._scopes[-1].qualified_name
+        else:
+            parent = self.current_type.qualified_name
         candidates = [
             entity
             for entity in self._entities

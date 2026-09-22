@@ -268,7 +268,13 @@ class JavaDeclarationVisitor(JavaParserVisitor):
 
     def _type(self, context, entity_type: str, body_context: ParserRuleContext):
         name = context.identifier().getText()
-        if self.parent.type in _TYPE_RULES.values():
+        if self.parent.type in _TYPE_RULES.values() or self.parent.type in {
+            "method",
+            "constructor",
+            "lambda",
+            "anonymous_class",
+            "local_class",
+        }:
             qualified_name = f"{self.parent.qualified_name}.{name}"
         elif self._package_name:
             qualified_name = f"{self._package_name}.{name}"
@@ -285,11 +291,14 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "annotations": self._annotation_names(entity_context),
             },
         )
+        if entity_type == "record":
+            self._record_components(context, entity)
         with self._type_scope(entity, entity_context, body_context):
             return self.visit(body_context)
 
     def visitClassDeclaration(self, context):
-        return self._type(context, "class", context.classBody())
+        entity_type = "local_class" if self.parent.type in {"method", "constructor", "lambda"} else "class"
+        return self._type(context, entity_type, context.classBody())
 
     def visitInterfaceDeclaration(self, context):
         return self._type(context, "interface", context.interfaceBody())
@@ -347,12 +356,12 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         parameters_context: ParserRuleContext | None,
         *,
         constructor: bool = False,
-    ) -> None:
+    ) -> Entity:
         parameter_types = self._parameter_types(parameters_context) if parameters_context else []
         signature = f"{name}({','.join(parameter_types)})"
         qname_name = "<init>" if constructor else name
         qualified_name = f"{self.parent.qualified_name}#{qname_name}({','.join(parameter_types)})"
-        self._add(
+        entity = self._add(
             self._declaration_context(context),
             "constructor" if constructor else "method",
             name,
@@ -365,24 +374,34 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 **({} if constructor else {"return_type": return_type}),
             },
         )
+        self._parameters(entity, parameters_context)
+        return entity
 
     def visitMethodDeclaration(self, context):
-        self._method_entity(
+        entity = self._method_entity(
             context,
             context.identifier().getText(),
             context.typeTypeOrVoid().getText(),
             context.formalParameters(),
         )
-        return None
+        self._parents.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._parents.pop()
 
     def visitInterfaceCommonBodyDeclaration(self, context):
-        self._method_entity(
+        entity = self._method_entity(
             context,
             context.identifier().getText(),
             context.typeTypeOrVoid().getText(),
             context.formalParameters(),
         )
-        return None
+        self._parents.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._parents.pop()
 
     def visitAnnotationMethodRest(self, context):
         name = context.identifier().getText()
@@ -392,14 +411,18 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         return None
 
     def visitConstructorDeclaration(self, context):
-        self._method_entity(
+        entity = self._method_entity(
             context,
             context.identifier().getText(),
             None,
             context.formalParameters(),
             constructor=True,
         )
-        return None
+        self._parents.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._parents.pop()
 
     def visitCompactConstructorDeclaration(self, context):
         record = context.parentCtx.parentCtx
@@ -413,7 +436,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 parameter_types.append(value)
         signature = f"<init>({','.join(parameter_types)})"
         qualified_name = f"{self.parent.qualified_name}#{signature}"
-        self._add(
+        entity = self._add(
             context,
             "constructor",
             context.identifier().getText(),
@@ -425,7 +448,199 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 **self._modifier_meta(context),
             },
         )
+        self._parents.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._parents.pop()
+
+    def _parameters(
+        self, owner: Entity, context: ParserRuleContext | None, *, lambda_parameter: bool = False
+    ) -> None:
+        if context is None:
+            return
+        parameters = []
+        first = getattr(context, "formalParameter", lambda: None)()
+        if first is not None:
+            parameters.append(first)
+        for parameter_list in getattr(context, "formalParameterList", lambda: [])() or []:
+            parameters.extend(parameter_list.formalParameter())
+        for index, parameter in enumerate(parameters):
+            identifier = parameter.variableDeclaratorId().identifier()
+            name = identifier.getText()
+            parameter_type = parameter.typeType().getText()
+            if parameter.ELLIPSIS() is not None:
+                parameter_type += "[]"
+            start_line, end_line = self._span(parameter)
+            self.entities.append(
+                Entity(
+                    type="parameter",
+                    name=name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    parent_name=owner.name,
+                    qualified_name=f"{owner.qualified_name}@param:{name}",
+                    parent_qualified_name=owner.qualified_name,
+                    meta={
+                        "language": "java",
+                        "parameter_type": parameter_type,
+                        "index": index,
+                        **({"lambda": True} if lambda_parameter else {}),
+                    },
+                )
+            )
+
+    def _record_components(self, context: ParserRuleContext, owner: Entity) -> None:
+        header = context.recordHeader()
+        components = header.recordComponentList() if header is not None else None
+        if components is None:
+            return
+        for index, component in enumerate(components.recordComponent()):
+            name = component.identifier().getText()
+            component_type = component.typeType().getText()
+            if component.ELLIPSIS() is not None:
+                component_type += "[]"
+            start_line, end_line = self._span(component)
+            self.entities.append(
+                Entity(
+                    type="record_component",
+                    name=name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    parent_name=owner.name,
+                    qualified_name=f"{owner.qualified_name}#component:{name}",
+                    parent_qualified_name=owner.qualified_name,
+                    meta={
+                        "language": "java",
+                        "component_type": component_type,
+                        "index": index,
+                    },
+                )
+            )
+
+    def visitLocalVariableDeclaration(self, context):
+        if self.parent.type in {"method", "constructor", "lambda", "initializer"}:
+            if context.VAR() is not None:
+                declarations = [(context.identifier(), None)]
+                variable_type = "var"
+            else:
+                variable_type = context.typeType().getText()
+                declarations = [
+                    (declarator.variableDeclaratorId().identifier(), declarator)
+                    for declarator in context.variableDeclarators().variableDeclarator()
+                ]
+            for identifier, declarator in declarations:
+                start_line, end_line = self._span(declarator or context)
+                name = identifier.getText()
+                self.entities.append(
+                    Entity(
+                        type="local_variable",
+                        name=name,
+                        start_line=start_line,
+                        end_line=end_line,
+                        parent_name=self.parent.name,
+                        qualified_name=(
+                            f"{self.parent.qualified_name}@local:{name}:"
+                            f"{start_line}:{identifier.start.column}"
+                        ),
+                        parent_qualified_name=self.parent.qualified_name,
+                        meta={"language": "java", "variable_type": variable_type},
+                    )
+                )
+        return self.visitChildren(context)
+
+    def visitCreator(self, context):
+        rest = context.classCreatorRest()
+        class_body = rest.classBody() if rest is not None else None
+        if class_body is None:
+            return self.visitChildren(context)
+        start_line, end_line = self._span(class_body)
+        owner = self.parent
+        name = f"<anonymous@{start_line}:{class_body.start.column}>"
+        entity = self._add(
+            class_body,
+            "anonymous_class",
+            name,
+            f"{owner.qualified_name}@anonymous:{start_line}:{class_body.start.column}",
+            meta={"anonymous": True, "created_type": context.createdName().getText()},
+        )
+        self._parents.append(entity)
+        try:
+            self.visit(class_body)
+        finally:
+            self._parents.pop()
         return None
+
+    def visitLambdaExpression(self, context):
+        start_line, end_line = self._span(context)
+        owner = self.parent
+        entity = self._add(
+            context,
+            "lambda",
+            f"<lambda@{start_line}:{context.start.column}>",
+            f"{owner.qualified_name}@lambda:{start_line}:{context.start.column}",
+            meta={"lambda": True},
+        )
+        parameters = context.lambdaParameters()
+        formal_list = parameters.formalParameterList()
+        if formal_list is not None:
+            self._parameters(entity, formal_list, lambda_parameter=True)
+        else:
+            identifiers = parameters.identifier()
+            if identifiers:
+                for index, identifier in enumerate(identifiers):
+                    self.entities.append(
+                        Entity(
+                            type="parameter",
+                            name=identifier.getText(),
+                            start_line=identifier.start.line,
+                            end_line=identifier.stop.line,
+                            parent_name=entity.name,
+                            qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
+                            parent_qualified_name=entity.qualified_name,
+                            meta={"language": "java", "parameter_type": "unknown", "index": index, "lambda": True},
+                        )
+                    )
+            else:
+                lvti_list = parameters.lambdaLVTIList()
+                if lvti_list is not None:
+                    for index, parameter in enumerate(lvti_list.lambdaLVTIParameter()):
+                        identifier = parameter.identifier()
+                        self.entities.append(
+                            Entity(
+                                type="parameter",
+                                name=identifier.getText(),
+                                start_line=identifier.start.line,
+                                end_line=identifier.stop.line,
+                                parent_name=entity.name,
+                                qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
+                                parent_qualified_name=entity.qualified_name,
+                                meta={
+                                    "language": "java",
+                                    "parameter_type": "var",
+                                    "index": index,
+                                    "lambda": True,
+                                },
+                            )
+                        )
+        self._parents.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._parents.pop()
+
+    def visitMethodReferenceExpression(self, context):
+        start_line, end_line = self._span(context)
+        owner = self.parent
+        text = context.getText()
+        self._add(
+            context,
+            "method_reference",
+            text,
+            f"{owner.qualified_name}@method-ref:{start_line}:{context.start.column}",
+            meta={"reference": text},
+        )
+        return self.visitChildren(context)
 
     def _field(
         self,
