@@ -30,7 +30,11 @@ def test_cics_exec_has_clickable_block_operation_and_literal_resources():
         ("EXECUTES", "LINK", "resolved"),
         ("USES", "PAYMENT", "resolved"),
         ("USES", "CUSTOMER", "resolved"),
+        ("CALL", "PAYMENT", "resolved"),
     ]
+    call = next(edge for edge in edges if edge.type == "CALL")
+    assert call.scope is None
+    assert call.meta["invocation_kind"] == "cics_link"
 
 
 def test_ims_and_unknown_exec_dialects_remain_visible_and_dynamic_operands_do_not_resolve():
@@ -39,7 +43,7 @@ def test_ims_and_unknown_exec_dialects_remain_visible_and_dynamic_operands_do_no
         "       PROGRAM-ID. IMSDEMO.\n"
         "       PROCEDURE DIVISION.\n"
         "       MAIN-PARA.\n"
-        "           EXEC DLI\n"
+        "           EXEC DL/I\n"
         "               GU PCB(PCB-ORDER) SEGMENT('ORDER')\n"
         "           END-EXEC.\n"
         "           EXEC FOO\n"
@@ -58,3 +62,29 @@ def test_ims_and_unknown_exec_dialects_remain_visible_and_dynamic_operands_do_no
     assert dynamic.resolution == "dynamic"
     resource = next(entity for entity in result.entities if entity.name == "WS-QUEUE")
     assert resource.meta["dynamic"] is True
+
+
+def test_cics_dynamic_program_and_explicit_web_resources_stay_visible_without_guessing():
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. CICSWEB.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC CICS\n"
+        "               XCTL PROGRAM(WS-NEXT-PGM) URIMAP('ORDERS')\n"
+        "               WEBSERVICE('ORDER-SVC') CHANNEL('REQUEST')\n"
+        "           END-EXEC.\n",
+        "CICSWEB.CBL",
+    )
+
+    resources = [entity for entity in result.entities if entity.type == "exec_resource"]
+    assert {(entity.name, entity.meta["resource_kind"]) for entity in resources} == {
+        ("WS-NEXT-PGM", "PROGRAM"),
+        ("ORDERS", "URIMAP"),
+        ("ORDER-SVC", "WEBSERVICE"),
+        ("REQUEST", "CHANNEL"),
+    }
+    call = next(edge for edge in result.edges if edge.type == "CALL")
+    assert (call.dst_name, call.resolution, call.meta["invocation_kind"]) == (
+        "WS-NEXT-PGM", "dynamic", "cics_xctl"
+    )

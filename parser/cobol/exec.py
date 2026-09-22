@@ -19,7 +19,9 @@ _END_EXEC_RE = re.compile(r"END-EXEC", re.IGNORECASE)
 _OPERATION_RE = re.compile(r"[A-Za-z][A-Za-z0-9-]*")
 _RESOURCE_RE = re.compile(
     r"\b(PROGRAM|FILE|DATASET|QUEUE|TRANSID|MAP|MAPSET|TERMID|"
-    r"PCB|PSB|SEGMENT|DATABASE|TDQUEUE|TSQUEUE)\s*\(\s*"
+    r"PCB|PSB|PSBNAME|SEGMENT|DATABASE|DBDNAME|TDQUEUE|TSQUEUE|"
+    r"CHANNEL|CONTAINER|URIMAP|WEBSERVICE|PIPELINE|TCPIPSERVICE|"
+    r"MQNAME|TOPIC|APPLID|CONNECTION|SESSION|TRANSACTION)\s*\(\s*"
     r"(?:'([^']*)'|\"([^\"]*)\"|([A-Za-z][A-Za-z0-9-]*))\s*\)",
     re.IGNORECASE,
 )
@@ -34,7 +36,8 @@ def scan(
     edges: list[ParsedEdge] = []
 
     for block in blocks:
-        if block.dialect == "SQL":
+        dialect = _normalize_dialect(block.dialect)
+        if dialect == "SQL":
             continue
         if own_range is not None and not own_range[0] <= block.start_line <= own_range[1]:
             continue
@@ -42,10 +45,10 @@ def scan(
         body = _strip_wrapper(block.content)
         operation = _operation(body)
         resources = _resources(body)
-        name = f"EXEC-{block.dialect}-BLOCK@{block.start_line}"
+        name = f"EXEC-{dialect}-BLOCK@{block.start_line}"
         exec_block = ExecBlock(
             name=name,
-            dialect=block.dialect,
+            dialect=dialect,
             operation=operation,
             start_line=block.start_line,
             end_line=block.end_line,
@@ -57,7 +60,7 @@ def scan(
         operation_qname = f"{block_qname}.{operation}@{block.start_line}"
         common = {
             "program": program.name,
-            "dialect": block.dialect,
+            "dialect": dialect,
             "language": "cobol",
         }
         edges.append(
@@ -74,7 +77,7 @@ def scan(
         )
         for resource in resources:
             resource_qname = (
-                f"{program.name}.EXEC-RESOURCE@{block.dialect}:{resource.kind}:{resource.name}"
+                f"{program.name}.EXEC-RESOURCE@{dialect}:{resource.kind}:{resource.name}"
             )
             edges.append(
                 ParsedEdge(
@@ -93,7 +96,37 @@ def scan(
                 )
             )
 
+        # CICS LINK and XCTL name an actual COBOL program when PROGRAM has a
+        # literal operand. Preserve that control-flow fact in addition to the
+        # resource edge so callers can navigate after global CALL resolution.
+        # A variable operand is evidence too, but must remain dynamic.
+        if dialect == "CICS" and operation in {"LINK", "XCTL"}:
+            for resource in resources:
+                if resource.kind != "PROGRAM":
+                    continue
+                edges.append(
+                    ParsedEdge(
+                        type="CALL",
+                        src_name=block_qname,
+                        dst_name=resource.name,
+                        resolution="dynamic" if resource.dynamic else "resolved",
+                        src_start_line=block.start_line,
+                        src_end_line=block.end_line,
+                        meta={
+                            **common,
+                            "invocation_kind": f"cics_{operation.lower()}",
+                            "resource_kind": "PROGRAM",
+                        },
+                    )
+                )
+
     return exec_blocks, edges, []
+
+
+def _normalize_dialect(dialect: str) -> str:
+    """Keep the common ``EXEC DL/I`` spelling on the DLI identity."""
+    normalized = dialect.upper()
+    return "DLI" if normalized in {"DL/I", "DLI"} else normalized
 
 
 def _strip_wrapper(content: str) -> str:
