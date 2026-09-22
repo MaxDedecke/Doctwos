@@ -54,7 +54,7 @@ unmittelbarer Ersatz für einen bereits mit Qwen eingebetteten Datenbestand.
 ## ID-Zuordnung und Prioritäten
 
 Alle Aufgaben dieses Chats werden hier im O-XXX-Format geführt und im zentralen
-[Entwicklungsbacklog](OFFENE_ENTWICKLUNGSPUNKTE.md) registriert. Bestehende
+[Entwicklungsbacklog](TODO.md) registriert. Bestehende
 O-190–O-199 bleiben unverändert. Die früheren lokalen IDs wurden überführt:
 
 | Bereich | Alte IDs | Verbindliche IDs |
@@ -381,7 +381,7 @@ Verhalten mit den Befunden dieser Liste abgleichen und bei Umsetzung aktualisier
 Ergänzung vom 18.09.2026 auf Nutzerwunsch. Die folgenden O-XXX-Aufgaben sind
 Produktverbesserungen und keine zusätzlichen pauschalen Blocker für den ersten
 On-Prem-Test. Die IDs sind im zentralen
-[Entwicklungsbacklog](OFFENE_ENTWICKLUNGSPUNKTE.md#chat-agent-ansichten-während-der-arbeit)
+[Entwicklungsbacklog](TODO.md#chat-agent-ansichten-während-der-arbeit)
 registriert; die Detailplanung und Abnahme stehen hier. O-190 bis O-192 sind
 inzwischen als geführte, explizit gestartete Tour umgesetzt.
 

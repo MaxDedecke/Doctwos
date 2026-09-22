@@ -1339,6 +1339,17 @@
       "exit": "Exit"
     }
   },
+  "insightDraft": {
+    "action": "Save insight",
+    "title": "Title",
+    "content": "Insight",
+    "contentHint": "Record the evidence-backed conclusion …",
+    "saveDraft": "Save draft",
+    "saveFailed": "The draft could not be saved.",
+    "noEvidence": "This draft needs evidence.",
+    "chatDefaultTitle": "Chat insight",
+    "processDefaultTitle": "Process insight"
+  },
   "provenance": {
     "kindLabel": "Claim type",
     "statusLabel": "Review status",

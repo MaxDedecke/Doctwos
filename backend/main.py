@@ -82,6 +82,7 @@ from api import (
     jobs,
     audit,
     feedback_diagnostics,
+    insights,
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user
@@ -143,5 +144,6 @@ app.include_router(change_packages.router, dependencies=_authenticated)
 app.include_router(jobs.router, dependencies=_authenticated)
 app.include_router(audit.router, dependencies=[Depends(require_admin)])
 app.include_router(feedback_diagnostics.router, dependencies=[Depends(require_admin)])
+app.include_router(insights.router, dependencies=_authenticated)
 app.include_router(teams.router)
 app.include_router(users.router)

@@ -138,6 +138,51 @@ class ProjectAccessRequest(Base):
     )
 
 
+class Insight(Base):
+    """A human-owned, evidence-backed project finding.
+
+    Source provenance on a chunk or code edge says where a fact came from; it
+    does not establish that a user-facing conclusion has been reviewed.  An
+    Insight is deliberately separate from both link-review tables so its
+    four-eyes approval remains auditable and cannot be inferred from an
+    approved semantic link.
+    """
+
+    __tablename__ = "insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(240), nullable=False)
+    content = Column(Text, nullable=False)
+    # chat | code | process: the user workflow which produced the draft.
+    origin_kind = Column(String(20), nullable=False)
+    # Immutable locator/snapshot supplied by that workflow (chat message,
+    # source citations, CodeEntity or process edge IDs).
+    evidence_json = Column(JSON, nullable=False)
+    status = Column(String(20), nullable=False, default="draft", index=True)
+    # Keep the audit trail internally consistent: a verified record cannot
+    # survive deletion of its verifier with a NULL reviewer. Accounts with
+    # authored insights therefore require explicit archival handling.
+    created_by_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    verified_by_id = Column(Integer, ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
+
+    project = relationship("Project", backref=backref("insights", passive_deletes=True))
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    verified_by = relationship("User", foreign_keys=[verified_by_id])
+
+    __table_args__ = (
+        CheckConstraint("origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"),
+        CheckConstraint("status IN ('draft', 'verified')", name="ck_insights_status"),
+        CheckConstraint(
+            "(status = 'draft' AND verified_by_id IS NULL AND verified_at IS NULL) OR "
+            "(status = 'verified' AND verified_by_id IS NOT NULL AND verified_at IS NOT NULL)",
+            name="ck_insights_verification_state",
+        ),
+    )
+
+
 class KnowledgeSource(Base):
     __tablename__ = "knowledge_sources"
     id = Column(Integer, primary_key=True, index=True)

@@ -8,7 +8,7 @@ Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
-**Vor jeder Arbeit lesen:** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` (zentrale Liste
+**Vor jeder Arbeit lesen:** `docs/TODO.md` (zentrale, priorisierte Liste
 offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 
 ## Architekturprinzipien

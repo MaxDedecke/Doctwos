@@ -1,7 +1,7 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
 **Stand:** 06.09.2026 (D-1 bis D-4 entschieden, D-1 bis D-3 mit Codeänderung; offen ist nur D-5. PS-15/PS-16 mit [O-091] behoben — keine roten Zellen mehr)
-**Anlass:** [O-092](OFFENE_ENTWICKLUNGSPUNKTE.md) — „Eine Aktion in einer Ansicht wird
+**Anlass:** O-092 (abgeschlossen; aktiver Backlog: [TODO.md](TODO.md)) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
 
@@ -223,7 +223,7 @@ Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
 
 ## 7. Verweise
 
-- [Offene Entwicklungspunkte](OFFENE_ENTWICKLUNGSPUNKTE.md) — O-091 (PS-15/PS-16), O-092 (dieses Dokument)
+- [Priorisierte TODO-Liste](TODO.md) — aktiver Backlog; O-091/O-092 sind abgeschlossen
 - `frontend/hooks/panelSyncMatrix.test.tsx` — Regressionstests, nach `PS-nn` benannt
 - `frontend/lib/panelNavigation.ts` — Zielauflösung des Pfads B
 - `frontend/hooks/useWorkspaceLayout.ts` — Sync-Regel, Einfrieren, Panel-Historie

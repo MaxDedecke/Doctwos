@@ -68,6 +68,8 @@ export const api = {
     createProject: (data: { name: string; description?: string; team_id?: number; color?: string }) => axios.post<Project>(`${API_URL}/projects`, data),
     updateProject: (id: number, data: { name?: string; description?: string; color?: string; is_archived?: boolean; expose_code_analysis_globally?: boolean }) => axios.patch<Project>(`${API_URL}/projects/${id}`, data),
     deleteProject: (id: number) => axios.delete(`${API_URL}/projects/${id}`),
+    createInsight: (projectId: number, data: { title: string; content: string; origin_kind: 'chat' | 'code' | 'process'; evidence: Array<Record<string, unknown>> }) =>
+        axios.post(`${API_URL}/projects/${projectId}/insights`, data),
     getTypingStatement: () => axios.get(`${API_URL}/chat/typing-statement`),
     completeProject: (id: number, data: { promote_source_ids: number[] }) => axios.post(`${API_URL}/projects/${id}/complete`, data),
     attachRepository: (projectId: number, data: { name: string; url: string; branch?: string; username?: string; token?: string }) => axios.post(`${API_URL}/projects/${projectId}/repository`, data),

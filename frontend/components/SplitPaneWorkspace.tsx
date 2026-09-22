@@ -27,6 +27,7 @@ import {
 import { KnowledgeGraphView } from './KnowledgeGraphView';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { ChangePackageAction } from './ChangePackageAction';
+import { InsightDraftAction } from './InsightDraftAction';
 
 import { api, API_URL } from '@/app/services/api';
 import { MarkdownContent } from "@/components/MarkdownContent";
@@ -1009,6 +1010,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {activeRightTab === 'code' && selectedFile && selectedProject && (
+                <InsightDraftAction
+                  projectId={selectedProject.id}
+                  origin="code"
+                  evidence={[{ entity_id: selectedEntity?.file_path === selectedFile ? selectedEntity.id : undefined, source_id: selectedEntity?.source_id, file: selectedFile, start_line: selectedEntity?.start_line }]}
+                  defaultTitle={selectedEntity?.file_path === selectedFile ? (selectedEntity.qualified_name || selectedEntity.name) : selectedFile}
+                  theme={theme}
+                />
+              )}
               {activeRightTab === 'code' && selectedFile && selectedProject && (
                 <ChangePackageAction
                   projectId={selectedProject.id}

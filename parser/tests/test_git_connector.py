@@ -1262,8 +1262,8 @@ async def test_git_connector_dispatches_via_structure_parser_registry():
     Weiche. Das hier haengt einen Fake-"Sprache"-Eintrag in genau diese
     Registry ein und beweist so, dass der Dispatch-Mechanismus selbst fuer
     JEDE registrierte Sprache greift -- ohne eine zweite echte Sprache
-    vorzutaeuschen oder zu bauen (siehe docs/OFFENE_ENTWICKLUNGSPUNKTE.md
-    O-077, das bewusst gegen eine neue `parser/languages/`-Vorrats-
+    vorzutaeuschen oder zu bauen (siehe docs/ADDING_A_LANGUAGE.md;
+    O-077 entschied bewusst gegen eine neue `parser/languages/`-Vorrats-
     Abstraktion entscheidet). Der Fake-Eintrag hat bewusst keinen
     prepare_source-Hook (O-079)."""
     connector = GitConnector(source_id=-1)

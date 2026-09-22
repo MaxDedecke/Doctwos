@@ -4,7 +4,7 @@
 **Zweck:** Antworten auf wiederkehrende Fragen aus Vertriebs-/Kundengesprächen zu
 O-042 (fehlender Konnektor für mainframe-native Quellcode-Verwaltung), damit
 diese nicht bei jedem Gespräch neu hergeleitet werden müssen. Ergänzt den
-Eintrag in [OFFENE_ENTWICKLUNGSPUNKTE.md](OFFENE_ENTWICKLUNGSPUNKTE.md).
+Eintrag in [TODO.md](TODO.md).
 
 ---
 
@@ -120,7 +120,7 @@ nativer Konnektor müsste stattdessen direkt gegen Endevors REST-API sprechen
 
 ## Referenzen
 
-- [OFFENE_ENTWICKLUNGSPUNKTE.md](OFFENE_ENTWICKLUNGSPUNKTE.md) — O-042 (Status/nächste Aktion)
+- [TODO.md](TODO.md) — O-042 (Status/nächste Aktion)
 - `parser/connectors/base.py` — `BaseConnector`, `Document`-Format
 - `parser/connectors/registry.py` — Connector-Registrierung
 - `parser/connectors/git.py` — Referenzimplementierung für einen Code-Connector

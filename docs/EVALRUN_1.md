@@ -288,5 +288,5 @@ Ergebnis je Sprache getrennt bewerten. Vorab keine pauschale Freigabe aus einer
 Gesamtpunktzahl ableiten. Für jede kritische Fehlantwort die Ursache als
 Retrieval, Parser/Index, Agenten-Tool-Nutzung, Modellantwort oder fehlendes
 Referenzwissen einordnen. Danach priorisierte Folge-Todos mit konkreten
-Fundstellen und reproduzierbaren Fällen in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
+Fundstellen und reproduzierbaren Fällen in `docs/TODO.md`
 übernehmen.

@@ -10,6 +10,7 @@ import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
+import { InsightDraftAction } from './InsightDraftAction';
 import { ProvenanceDisclosure } from './ProvenanceDisclosure';
 import { AlertTriangle, Compass, FileCode, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -457,6 +458,13 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           theme={theme}
           onOpenCode={onFileSelect}
           onOpenDoc={onOpenDoc}
+        />
+        <InsightDraftAction
+          projectId={projectId}
+          origin="process"
+          evidence={currentRoot ? [{ entity_id: currentRoot.id, process_root: currentRoot.name }] : []}
+          defaultTitle={currentRoot?.name || t('insightDraft.processDefaultTitle')}
+          theme={theme}
         />
         {customFlow && onClearCustomFlow && (
           <button

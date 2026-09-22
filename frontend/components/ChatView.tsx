@@ -10,6 +10,7 @@ import { api } from '@/app/services/api';
 import { DoctusIcon } from "@/components/Logo";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
+import { InsightDraftAction } from '@/components/InsightDraftAction';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -1062,6 +1063,13 @@ export function ChatView({
                                 >
                                   <Copy className="w-3.5 h-3.5" />
                                 </Button>
+                                <InsightDraftAction
+                                  projectId={selectedProject?.id}
+                                  origin="chat"
+                                  evidence={(m.sources || []).map(source => ({ chat_message_id: m.id, source_id: source.source_id, file: source.file, lines: source.lines }))}
+                                  defaultTitle={m.content.split('\n')[0].slice(0, 240) || t('insightDraft.chatDefaultTitle')}
+                                  theme={theme}
+                                />
 
                                 <Button
                                   variant="ghost"

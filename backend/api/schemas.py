@@ -8,7 +8,7 @@ die Router-Dateien. Router-Module importieren nur was sie brauchen.
 """
 
 from typing import List, Optional, Union, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RepoCreate(BaseModel):
@@ -49,6 +49,19 @@ class ProjectAccessRequestUpdate(BaseModel):
 
 class ProjectCompleteRequest(BaseModel):
     promote_source_ids: List[int] = []
+
+
+class InsightCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    content: str = Field(min_length=1)
+    origin_kind: str
+    evidence: List[Dict[str, Any]] = Field(min_length=1)
+
+
+class InsightVerification(BaseModel):
+    """Explicit confirmation avoids accidental approvals from a GET-like UI action."""
+
+    confirm: bool
 
 
 class ChatRequest(BaseModel):

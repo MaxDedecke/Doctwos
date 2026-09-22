@@ -1339,6 +1339,17 @@
       "exit": "Ausstieg"
     }
   },
+  "insightDraft": {
+    "action": "Erkenntnis sichern",
+    "title": "Titel",
+    "content": "Erkenntnis",
+    "contentHint": "Belegte Schlussfolgerung festhalten …",
+    "saveDraft": "Entwurf sichern",
+    "saveFailed": "Der Entwurf konnte nicht gesichert werden.",
+    "noEvidence": "Für diesen Entwurf fehlt ein Beleg.",
+    "chatDefaultTitle": "Chat-Erkenntnis",
+    "processDefaultTitle": "Prozess-Erkenntnis"
+  },
   "provenance": {
     "kindLabel": "Aussagetyp",
     "statusLabel": "Prüfstatus",

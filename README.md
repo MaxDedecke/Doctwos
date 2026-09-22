@@ -13,7 +13,7 @@ chat, references, knowledge graphs, and call graphs.
 
 The implementation work packages are complete. Remaining product decisions,
 external acceptance work, and follow-up improvements are tracked in
-[open development points](docs/OFFENE_ENTWICKLUNGSPUNKTE.md). See also the
+[prioritized TODO list](docs/TODO.md). See also the
 [access-control model](docs/ACCESS_CONTROL.md) and
 [design guidelines](docs/DESIGN_GUIDELINES.md).
 

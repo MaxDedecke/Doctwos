@@ -161,8 +161,8 @@ Quelle: `parser/connectors/git.py` (`sync`, `fetch_documents`,
 `_looks_like_text`), `parser/cobol/registry.py` (`STRUCTURE_PARSERS`,
 `ParserEntry`), `parser/code_parser.py` (`CodeParser.chunk_file`,
 `_merge_small_chunks`, `_split_oversized_line`), `parser/ollama_client.py`
-(`is_gpu_accelerated`). Siehe `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
-O-071/O-072/O-074/O-075 sowie O-077/O-079 (Registry-Dispatch statt
+(`is_gpu_accelerated`). Siehe `docs/TODO.md` für O-074 sowie die Git-Historie
+für O-071/O-072/O-075 und O-077/O-079 (Registry-Dispatch statt
 hartkodierter Sprachweiche) und O-083/O-084/O-085 (section-bewusste
 Chunk-Grenzen, Winzling-Merge, Einzelzeilen-Split) für die
 Entstehungsgeschichte der einzelnen Bausteine; `docs/ADDING_A_LANGUAGE.md`

@@ -95,7 +95,7 @@ Worktree-Operationen ohne offensichtlichen Zusammenhang zur Ursache.
 
 Zusätzlich bleibt nach Abschluss der Erstindexierung optional `git repack -a -d` +
 `git fetch --refetch` zum „Auffüllen" als Performance-Evaluation erhalten. Die
-Messung ist unter O-006 in `OFFENE_ENTWICKLUNGSPUNKTE.md` dokumentiert, aber
+Messung ist unter O-006 in `TODO.md` dokumentiert, aber
 aktuell kein offener Implementierungsauftrag.
 
 **Stand 02.09.2026.** Der Schalter ist umgesetzt: `DOCTUS_GIT_PARTIAL_CLONE`
@@ -206,8 +206,8 @@ AP-2 ist damit abgeschlossen, sobald `parse_program()` existiert **und** das
 Testkorpus-Teilstück aus §6.6 steht (`99_garbage.cbl`, `golden/*.json`,
 CI-Job `parser-golden`) — nicht erst mit Pass 0-2/DB-Anbindung.
 
-**Fundstelle.** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` und der technische
-Implementierungsplan; die frühere Umsetzungschronik wurde konsolidiert.
+**Fundstelle.** Der technische Implementierungsplan und die Git-Historie der
+früheren Backlog-Datei; die frühere Umsetzungschronik wurde konsolidiert.
 Chunking (chunking)" und „Nächste Schritte" tragen einen Verweis hierher.
 
 ---
@@ -325,12 +325,12 @@ env-steuerbar (Docker-Compose-kompatibel wie `COMPLIANCE_LLM_TIMEOUT`), damit
 sie sich ohne Codeänderung an gemessene Kundenhardware anpassen lassen. Das
 ist eine technische Entscheidung innerhalb bestehender Architekturprinzipien
 (keine neue Abhängigkeit, keine Kundendaten nötig) — anders als die formale
-Lasttest-Abnahme selbst, die einen echten Bestand braucht (siehe
-`docs/OFFENE_ENTWICKLUNGSPUNKTE.md` Abschnitt „Umsetzungs- und Übergabestatus").
+Lasttest-Abnahme selbst, die einen echten Bestand braucht (siehe O-001 in
+`docs/TODO.md`).
 
 **Fundstelle.** `parser/ollama_client.py::get_embeddings_batch`,
-`parser/tests/test_ollama_client.py`, `docs/OFFENE_ENTWICKLUNGSPUNKTE.md` Abschnitt
-„AP-9 — Härtung".
+`parser/tests/test_ollama_client.py` und die Git-Historie der früheren
+Backlog-Datei, Abschnitt „AP-9 — Härtung".
 
 ---
 
@@ -368,7 +368,7 @@ technische Entscheidungen innerhalb bestehender Prinzipien):**
   danach 0 Vulnerabilities; TypeScript, Vitest (4/4) und Produktions-Build
   grün.
 - E-8 (Embedding-Batchgröße/Timeout) umgesetzt, siehe oben.
-- Offene Punkte und Übergabestatus in `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
+- Offene Punkte und Übergabestatus in `docs/TODO.md`
   konsolidiert.
 
 **Entscheidung.** AP-9 gilt damit als für den Implementierungsauftrag
@@ -381,7 +381,8 @@ werden. E-7 (GPL-`Unidecode`) war unabhängig davon ein eigener,
 dokumentierter Release-Blocker — inzwischen (08.08.2026) durch das
 MIT-Shim-Paket gelöst, siehe oben, keine Auftraggeber-Rückmeldung mehr nötig.
 
-**Fundstelle.** `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`.
+**Fundstelle.** Dieses Entscheidungslog; offene Abnahmen stehen in
+`docs/TODO.md`.
 
 ## E-10 — Confluence/Jira-MCP-Anbindung: on-prem (Server/Data Center) nachgezogen
 
@@ -554,8 +555,8 @@ Vier Teilentscheidungen dabei:
    Kontoverknüpfung, die im Erfolgsfall vollen Zugriff auf ein bestehendes
    Konto gibt. Ein Nutzer mit bereits bestehendem lokalen Konto bekommt beim
    ersten SSO-Login ein zweites, separates Konto; explizites Zusammenführen
-   ist nicht umgesetzt (kein aktueller Bedarf, siehe O-041 in
-   `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`).
+   ist nicht umgesetzt (kein aktueller Bedarf; O-041 ist abgeschlossen und in
+   der Git-Historie der früheren Backlog-Datei dokumentiert).
 3. **`password_hash` wird nullable statt eines zufälligen, nie ausgegebenen
    Hash-Werts.** Deutlicher im Datenmodell sichtbar ("dieses Konto hat kein
    lokales Passwort") als ein Hash, der nie verifizieren soll, und spart eine

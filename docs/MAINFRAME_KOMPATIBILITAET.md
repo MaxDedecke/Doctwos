@@ -1,7 +1,7 @@
 # Mainframe-COBOL: Kompatibilität und Ausbauplan
 
 Stand: 14.09.2026. Zugehörige Arbeitspunkte: O-117 bis O-156 in
-[OFFENE_ENTWICKLUNGSPUNKTE.md](OFFENE_ENTWICKLUNGSPUNKTE.md).
+[TODO.md](TODO.md).
 
 ## Ziel und Grenzen
 

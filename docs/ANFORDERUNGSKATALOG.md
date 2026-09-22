@@ -18,8 +18,8 @@ bereinigt.
 
 **Nachtrag 03.09.2026:** erneuter Codeabgleich (29 Commits seit der v1.3-Ground-Truth
 `fdfb906`). Ergebnisse: DOC-F-069 ist inzwischen erfüllt; mehrere TEILWEISE-Punkte
-bestehen unverändert und sind jetzt als Folge-Todos O-029–O-036 in
-[`OFFENE_ENTWICKLUNGSPUNKTE.md`](OFFENE_ENTWICKLUNGSPUNKTE.md) nachgetragen; zwei
+bestehen unverändert und wurden ursprünglich als Folge-Todos O-029–O-036
+erfasst; die noch offenen Punkte O-033 und O-035 stehen in [`TODO.md`](TODO.md); zwei
 zuvor nicht formulierte, bereits umgesetzte Anforderungen (DOC-F-090, DOC-F-091)
 sind ergänzt.
 
@@ -194,7 +194,7 @@ Der Abgleich wurde gegen den Quellcode und die aktuelle Projektdokumentation dur
 Relevante Nachweise liegen insbesondere in:
 
 - `README.md`
-- `docs/OFFENE_ENTWICKLUNGSPUNKTE.md`
+- `docs/TODO.md`
 - `docs/IMPLEMENTIERUNGSPLAN.md`
 - `docs/ACCESS_CONTROL.md`
 - `docs/OSS-CLEARING.md`
