@@ -54,7 +54,7 @@ export function InsightDraftAction({ projectId, origin, evidence, defaultTitle, 
         <Lightbulb className="h-3.5 w-3.5" />{t('insightDraft.action')}
       </button>
       {open && (
-        <div className={cn('absolute right-0 z-30 mt-1 w-80 rounded-lg border p-3 shadow-xl', theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-300 bg-white')}>
+        <div className={cn('absolute right-0 z-30 mt-1 w-80 rounded-lg border p-3 shadow-xl', theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-300 bg-ds-white')}>
           <label className="block text-[10px] font-semibold text-ds-zinc-500">{t('insightDraft.title')}</label>
           <input value={title} onChange={event => setTitle(event.target.value)} maxLength={240} className="mt-1 w-full rounded border border-ds-zinc-600 bg-transparent px-2 py-1.5 text-xs" />
           <label className="mt-2 block text-[10px] font-semibold text-ds-zinc-500">{t('insightDraft.content')}</label>
