@@ -13,6 +13,8 @@ from agent import (
     MAX_MCP_TOOL_RESULT_CHARS,
     _cap_tool_result,
     _tool_result_was_truncated,
+    find_repo_files,
+    list_repo_files,
     run_agent_loop,
 )
 
@@ -35,6 +37,21 @@ def test_cap_tool_result_truncates_and_notes_how_much_was_removed():
 
 def test_tool_result_was_truncated_false_for_untouched_text():
     assert _tool_result_was_truncated("kurzes Ergebnis") is False
+
+
+def test_source_wide_file_lookup_reaches_deep_paths_and_omits_git_metadata(monkeypatch, tmp_path):
+    target = tmp_path / "app" / "transaction" / "db2" / "cbl" / "COTRTLIC.cbl"
+    target.parent.mkdir(parents=True)
+    target.write_text("IDENTIFICATION DIVISION.\n", encoding="utf-8")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text("private metadata", encoding="utf-8")
+    monkeypatch.setattr(
+        "agent.get_repo_path",
+        lambda _repo_id, file_path="": str(tmp_path / file_path) if file_path else str(tmp_path),
+    )
+
+    assert find_repo_files(1, "COTRTLIC.cbl") == ["app/transaction/db2/cbl/COTRTLIC.cbl"]
+    assert list_repo_files(1)["files"] == ["app/transaction/db2/cbl/COTRTLIC.cbl"]
 
 
 class _FakeMcpClient:

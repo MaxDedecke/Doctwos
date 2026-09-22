@@ -41,6 +41,25 @@ def get_repo_path(repo_id: int, file_path: str = "") -> str:
 
 
 # Local repository tools implementation
+_REPOSITORY_IGNORED_DIRS = frozenset({".git", "node_modules", "__pycache__", ".next", "dist", "build"})
+
+
+def _repository_file_paths(repo_id: int, directory: str = "") -> list[str]:
+    """Return every visible file below a repository path in stable order."""
+    base_dir = get_repo_path(repo_id)
+    target_dir = get_repo_path(repo_id, directory)
+    if not os.path.isdir(target_dir):
+        return []
+    paths = []
+    for root, dirs, files in os.walk(target_dir):
+        dirs[:] = [name for name in dirs if name not in _REPOSITORY_IGNORED_DIRS]
+        paths.extend(
+            os.path.relpath(os.path.join(root, name), base_dir).replace(os.sep, "/")
+            for name in files
+        )
+    return sorted(paths)
+
+
 def list_repo_files(repo_id: int, directory: str = "") -> dict:
     """Lists files inside the repository recursively or in a subdirectory."""
     try:
@@ -48,35 +67,14 @@ def list_repo_files(repo_id: int, directory: str = "") -> dict:
         if not os.path.exists(target_dir):
             return {"error": f"Directory '{directory}' does not exist"}
 
-        files_list = []
-        for root, dirs, files in os.walk(target_dir):
-            # Ignore common build and control folders
-            for d in list(dirs):
-                if d in (".git", "node_modules", "__pycache__", ".next", "dist", "build"):
-                    dirs.remove(d)
-            for f in files:
-                # Ignore binary or large log files
-                if f.endswith(
-                    (
-                        ".png",
-                        ".jpg",
-                        ".jpeg",
-                        ".gif",
-                        ".pdf",
-                        ".zip",
-                        ".tar",
-                        ".gz",
-                        ".db",
-                        ".sqlite",
-                        ".exe",
-                        ".dll",
-                        ".so",
-                    )
-                ):
-                    continue
-                full_file_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_file_path, get_repo_path(repo_id))
-                files_list.append(rel_path)
+        binary_or_archive_suffixes = (
+            ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".tar", ".gz",
+            ".db", ".sqlite", ".exe", ".dll", ".so",
+        )
+        files_list = [
+            path for path in _repository_file_paths(repo_id, directory)
+            if not path.lower().endswith(binary_or_archive_suffixes)
+        ]
 
         truncated = len(files_list) > 250
         return {"files": files_list[:250], "total_files": len(files_list), "truncated": truncated}
@@ -94,20 +92,12 @@ def find_repo_files(repo_id: int, target: str) -> list[str]:
     target = str(target or "").replace("\\", "/").lstrip("./")
     basename = os.path.basename(target).lower()
     suffix = target.lower()
-    matches: list[str] = []
-    base_dir = get_repo_path(repo_id)
-    if not os.path.isdir(base_dir):
-        return matches
-    for root, dirs, files in os.walk(base_dir):
-        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", "dist", "build"}]
-        for name in files:
-            rel = os.path.relpath(os.path.join(root, name), base_dir).replace(os.sep, "/")
-            rel_lower = rel.lower()
-            if name.lower() == basename and ("/" not in target or rel_lower.endswith(suffix)):
-                matches.append(rel)
-                if len(matches) >= 40:
-                    return matches
-    return matches
+    return [
+        path
+        for path in _repository_file_paths(repo_id)
+        if os.path.basename(path).lower() == basename
+        and ("/" not in target or path.lower().endswith(suffix))
+    ][:40]
 
 
 def view_repo_file(repo_id: int, file_path: str, start_line: int = 1, end_line: int = 150) -> dict:

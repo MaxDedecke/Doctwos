@@ -23,6 +23,7 @@ from models.database import (
     KnowledgeSource,
     Project,
     ProjectMembership,
+    SourceScanFile,
     Team,
     TeamMembership,
     User,
@@ -407,6 +408,30 @@ def test_list_project_files_lists_worktree_contents(
     res = client.get(f"/projects/{test_project}/files")
     assert res.status_code == 200
     assert set(res.json()) == {os.path.join("src", "ACCOUNT.cbl"), "README.md"}
+
+
+def test_list_project_files_uses_scan_journal_after_import(
+    client, db_session, test_project, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(projects_api, "REPOS_ROOT", str(tmp_path))
+    proj = db_session.query(Project).filter(Project.id == test_project).first()
+    source = KnowledgeSource(
+        name="Git Source", type="Git", project_id=test_project, team_id=proj.team_id, spaces={}
+    )
+    db_session.add(source)
+    db_session.commit()
+    db_session.add_all(
+        [
+            SourceScanFile(source_id=source.id, file_path="app/cbl/COTRTLIC.cbl", content_hash="a"),
+            SourceScanFile(source_id=source.id, file_path="app/data/EBCDIC/CARD.DAT", content_hash="b"),
+        ]
+    )
+    db_session.commit()
+
+    res = client.get(f"/projects/{test_project}/files")
+
+    assert res.status_code == 200
+    assert res.json() == ["app/cbl/COTRTLIC.cbl", "app/data/EBCDIC/CARD.DAT"]
 
 
 def test_list_project_files_requires_project_membership(

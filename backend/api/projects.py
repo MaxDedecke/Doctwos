@@ -25,6 +25,7 @@ from models.database import (
     User,
     TeamMembership,
     KnowledgeSource,
+    SourceScanFile,
     DocumentChunk,
     CodeEntity,
     EntityDocLink,
@@ -362,16 +363,33 @@ def list_project_files(
     if not git_source:
         return []
 
+    # The scan journal is authoritative after an import: it also contains
+    # skipped/partial files which have no DocumentChunk and would otherwise
+    # disappear from the project tree.  This keeps the project listing aligned
+    # with GET /knowledge-sources/{id}/files.
+    journal_paths = {
+        row.file_path.split("#", 1)[0]
+        for row in db.query(SourceScanFile.file_path)
+        .filter(SourceScanFile.source_id == git_source.id)
+        .all()
+        if row.file_path
+    }
+    if journal_paths:
+        return sorted(journal_paths)
+
     # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id> (Bare-Mirror +
     # Worktree, siehe parser/git_utils.py), nicht mehr flach unter REPOS_ROOT.
+    # During the first scan no journal exists yet, so retain a complete,
+    # deterministic fallback without Git/build artefacts.
     repo_path = os.path.join(REPOS_ROOT, "wt", f"ks_{git_source.id}")
     if not os.path.exists(repo_path):
         return []
-    return [
-        os.path.relpath(os.path.join(root, f), repo_path)
-        for root, _, files in os.walk(repo_path)
-        for f in files
-    ]
+    ignored_dirs = {".git", "node_modules", "__pycache__", ".next", "dist", "build"}
+    files = []
+    for root, dirs, names in os.walk(repo_path):
+        dirs[:] = [directory for directory in dirs if directory not in ignored_dirs]
+        files.extend(os.path.relpath(os.path.join(root, name), repo_path) for name in names)
+    return sorted(files)
 
 
 @router.get("/{id}/entities")
