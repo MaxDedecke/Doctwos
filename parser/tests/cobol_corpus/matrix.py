@@ -59,9 +59,19 @@ MATRIX: list[CompatCase] = [
     CompatCase("04_copy_replacing", "COPY ... REPLACING", "nicht geprüft"),
     CompatCase("05_copy_missing", "COPY auf fehlendes Copybook", "nicht geprüft"),
     CompatCase("06_data_qualified", "qualifizierte Datenfeldnamen", "nicht geprüft"),
-    CompatCase("07_exec_sql", "EXEC SQL-Block", "nicht geprüft"),
     CompatCase(
-        "08_exec_cics", "EXEC CICS-Block (nur Maskierung, keine Ressourcenanalyse)", "nicht geprüft"
+        "07_exec_sql",
+        "EXEC SQL-Block einschließlich INCLUDE-Metadaten",
+        "teilweise",
+        ticket="O-288",
+        note="SQL-INCLUDE-Mitglieder werden als adressierbare lokale Beziehung erfasst; Varianten müssen am Zielbestand abgenommen werden.",
+    ),
+    CompatCase(
+        "08_exec_cics",
+        "EXEC CICS-Block mit Operation (SEND)",
+        "teilweise",
+        ticket="O-306",
+        note="Block und Operation sind adressierbar; CICS-/IMS-Ressourcen werden nur bei expliziten KEYWORD(OPERAND)-Formen extrahiert.",
     ),
     CompatCase("09_dynamic_call", "dynamischer CALL", "nicht geprüft"),
     CompatCase("10_perform_thru", "PERFORM ... THRU", "nicht geprüft"),

@@ -37,7 +37,7 @@ from . import antlr_bridge
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
 from .antlr_bridge import COPY_PLACEHOLDER_NAME, EXEC_PLACEHOLDER_NAME
-from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine, ParseDiagnostic
+from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine, ParseDiagnostic, ParsedEdge
 
 _CONDITION_LEVEL = 88
 _RENAMES_LEVEL = 66
@@ -84,6 +84,32 @@ def parse(
         and data_division.start_line <= f.start_line <= data_division.end_line
     ]
     return items, file_descriptors, errors, diagnostics
+
+
+def file_descriptor_edges(
+    program: CobolProgram, file_descriptors: list[FileDescriptor], items: list[DataItem]
+) -> list[ParsedEdge]:
+    """Connect each FD/SD to its directly described record (O-288).
+
+    This records layout ownership only.  Runtime ``READ``/``WRITE`` semantics
+    intentionally remain O-307 work, so an FD is never claimed to be read or
+    written merely because it has a record layout.
+    """
+    fd_names = {fd.name for fd in file_descriptors}
+    return [
+        ParsedEdge(
+            type="DEFINES",
+            src_name=item.parent,
+            dst_name=item.name,
+            resolution="resolved",
+            src_start_line=item.start_line,
+            src_end_line=item.end_line,
+            scope=program.name,
+            meta={"program": program.name, "relationship": "file_record_layout"},
+        )
+        for item in items
+        if item.parent in fd_names
+    ]
 
 
 class _DataDivisionVisitor(Cobol85Visitor):

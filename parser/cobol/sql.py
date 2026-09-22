@@ -83,6 +83,7 @@ def scan(
 
         tokens = _TOKEN_RE.findall(_strip_exec_wrapper(block.content))
         statement_type, cursor_name = _classify(tokens)
+        include_name = tokens[1] if statement_type == "INCLUDE" and len(tokens) >= 2 else None
         tables = _dedupe(_extract_tables(tokens))
         host_variables = _dedupe(tok[1:] for tok in tokens if tok.startswith(":"))
 
@@ -94,6 +95,7 @@ def scan(
             tables=tables,
             host_variables=host_variables,
             cursor_name=cursor_name,
+            include_name=include_name,
         )
         sql_blocks.append(sql_block)
 

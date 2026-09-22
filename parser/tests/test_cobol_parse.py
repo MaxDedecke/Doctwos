@@ -247,6 +247,36 @@ def test_sql_block_becomes_entity_with_extraction_meta():
     assert declare.meta["tables"] == ["EMPLOYEE"]
 
 
+def test_sql_include_and_file_descriptor_record_are_explicit_relationships():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. RELATIONS.\n"
+        "       DATA DIVISION.\n"
+        "       FILE SECTION.\n"
+        "       FD  ORDERS-FILE.\n"
+        "       01  ORDER-RECORD PIC X(20).\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "           EXEC SQL INCLUDE SQLCA END-EXEC.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "relations.cbl")
+
+    include = next(entity for entity in result.entities if entity.type == "sql_include")
+    assert include.name == "SQLCA"
+    include_edge = next(edge for edge in result.edges if edge.type == "INCLUDES")
+    assert include_edge.dst_name == "SQLCA"
+    assert include_edge.resolution == "resolved"
+
+    layout_edge = next(edge for edge in result.edges if edge.type == "DEFINES")
+    assert (layout_edge.src_name, layout_edge.dst_name, layout_edge.resolution) == (
+        "ORDERS-FILE",
+        "ORDER-RECORD",
+        "resolved",
+    )
+
+
 def test_edges_combine_call_perform_copy_sql_and_xref():
     text = (
         "       IDENTIFICATION DIVISION.\n"

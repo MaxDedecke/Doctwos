@@ -571,6 +571,36 @@
   ],
   "edges": [
     {
+      "type": "DEFINES",
+      "src_name": "EMPLOYEE-FILE",
+      "dst_name": "EMPLOYEE-RECORD",
+      "resolution": "resolved",
+      "src_start_line": 6,
+      "src_end_line": 6,
+      "scope": "DATAQUAL",
+      "meta": {
+        "program": "DATAQUAL",
+        "relationship": "file_record_layout",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/06_data_qualified.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
       "type": "USES",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-CODE",

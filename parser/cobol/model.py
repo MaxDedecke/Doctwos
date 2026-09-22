@@ -248,3 +248,30 @@ class SqlBlock:
     tables: list[str] = field(default_factory=list)
     host_variables: list[str] = field(default_factory=list)
     cursor_name: str | None = None
+    include_name: str | None = None
+
+
+@dataclass
+class ExecResource:
+    """Eine explizit benannte Ressource eines eingebetteten EXEC-Aufrufs.
+
+    ``dynamic`` bedeutet, dass die Quelle eine COBOL-Variable statt eines
+    Literals übergibt. Die Ressource bleibt trotzdem sichtbar, darf aber nie
+    als tatsächlich aufgelöst ausgegeben werden.
+    """
+
+    kind: str
+    name: str
+    dynamic: bool = False
+
+
+@dataclass
+class ExecBlock:
+    """Ein nicht-SQL ``EXEC <dialect> ... END-EXEC``-Block (O-306)."""
+
+    name: str
+    dialect: str
+    operation: str
+    start_line: int
+    end_line: int
+    resources: list[ExecResource] = field(default_factory=list)

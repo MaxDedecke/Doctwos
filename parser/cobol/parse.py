@@ -40,6 +40,7 @@ from . import conditional as conditional_mod
 from . import data_division as data_division_mod
 from . import divisions as divisions_mod
 from . import embedded as embedded_mod
+from . import exec as exec_mod
 from . import lexer as lexer_mod
 from . import procedure as procedure_mod
 from . import replace as replace_mod
@@ -54,6 +55,7 @@ from .model import (
     CobolProgram,
     DataItem,
     Division,
+    ExecBlock,
     Entity,
     FileDescriptor,
     ParseDiagnostic,
@@ -175,6 +177,9 @@ def parse_program(
 
         sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items, own_range)
         errors.extend(sql_errors)
+        sql_include_edges = _sql_include_edges(program, sql_blocks)
+        exec_blocks, exec_edges, exec_errors = exec_mod.scan(program, embedded_blocks, own_range)
+        errors.extend(exec_errors)
 
         data_division_index = next(
             (index for index, division in enumerate(program.divisions) if division.name == "DATA"),
@@ -200,8 +205,19 @@ def parse_program(
         xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
         errors.extend(xref_errors)
 
-        edges.extend([*proc_edges, *copy_edges, *sql_edges, *xref_edges])
-        entities.extend(_build_entities(program, items, file_descriptors, sql_blocks))
+        fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)
+        edges.extend(
+            [
+                *proc_edges,
+                *copy_edges,
+                *sql_edges,
+                *sql_include_edges,
+                *exec_edges,
+                *fd_edges,
+                *xref_edges,
+            ]
+        )
+        entities.extend(_build_entities(program, items, file_descriptors, sql_blocks, exec_blocks))
 
         program_chunks = chunk_paragraphs(program, source_lines, source_format)
         if not program_chunks:
@@ -235,6 +251,7 @@ def _build_entities(
     items: list[DataItem],
     file_descriptors: list[FileDescriptor],
     sql_blocks: list[SqlBlock],
+    exec_blocks: list[ExecBlock],
 ) -> list[Entity]:
     entities: list[Entity] = []
 
@@ -322,11 +339,105 @@ def _build_entities(
                     "tables": block.tables,
                     "host_variables": block.host_variables,
                     "cursor_name": block.cursor_name,
+                    "include_name": block.include_name,
                 },
             )
         )
+        if block.include_name:
+            include_qname = f"{_qualify(program.name, block.name)}.INCLUDE@{block.start_line}"
+            entities.append(
+                Entity(
+                    type="sql_include",
+                    name=block.include_name,
+                    start_line=block.start_line,
+                    end_line=block.end_line,
+                    parent_name=block.name,
+                    qualified_name=include_qname,
+                    parent_qualified_name=_qualify(program.name, block.name),
+                    meta={"statement_type": "INCLUDE"},
+                )
+            )
+
+    # Blocks, operations and resources are separate entities: each is a
+    # stable deep-link target, while edges preserve the source relationship.
+    seen_resource_qnames: set[str] = set()
+    for block in exec_blocks:
+        block_qname = _qualify(program.name, block.name)
+        entities.append(
+            Entity(
+                type="exec_block",
+                name=block.name,
+                start_line=block.start_line,
+                end_line=block.end_line,
+                parent_name=program.name,
+                qualified_name=block_qname,
+                parent_qualified_name=program.name,
+                meta={"dialect": block.dialect, "operation": block.operation},
+            )
+        )
+        entities.append(
+            Entity(
+                type="exec_operation",
+                name=block.operation,
+                start_line=block.start_line,
+                end_line=block.end_line,
+                parent_name=block.name,
+                qualified_name=f"{block_qname}.{block.operation}@{block.start_line}",
+                parent_qualified_name=block_qname,
+                meta={"dialect": block.dialect},
+            )
+        )
+        for resource in block.resources:
+            resource_qname = (
+                f"{program.name}.EXEC-RESOURCE@{block.dialect}:{resource.kind}:{resource.name}"
+            )
+            if resource_qname in seen_resource_qnames:
+                continue
+            seen_resource_qnames.add(resource_qname)
+            entities.append(
+                Entity(
+                    type="exec_resource",
+                    name=resource.name,
+                    start_line=block.start_line,
+                    end_line=block.end_line,
+                    parent_name=program.name,
+                    qualified_name=resource_qname,
+                    parent_qualified_name=program.name,
+                    meta={
+                        "dialect": block.dialect,
+                        "resource_kind": resource.kind,
+                        "dynamic": resource.dynamic,
+                    },
+                )
+            )
 
     return entities
+
+
+def _sql_include_edges(program: CobolProgram, blocks: list[SqlBlock]) -> list[ParsedEdge]:
+    """Make ``EXEC SQL INCLUDE member`` a first-class local relationship."""
+    edges: list[ParsedEdge] = []
+    for block in blocks:
+        if not block.include_name:
+            continue
+        block_qname = _qualify(program.name, block.name)
+        edges.append(
+            ParsedEdge(
+                type="INCLUDES",
+                src_name=block_qname,
+                dst_name=block.include_name,
+                resolution="resolved",
+                src_start_line=block.start_line,
+                src_end_line=block.end_line,
+                scope=program.name,
+                meta={
+                    "program": program.name,
+                    "language": "cobol",
+                    "target_qualified_name": f"{block_qname}.INCLUDE@{block.start_line}",
+                },
+            )
+        )
+    return edges
 
 
 def _build_field_entities(

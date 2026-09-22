@@ -57,9 +57,99 @@
           "condition": null
         }
       }
+    },
+    {
+      "type": "exec_block",
+      "name": "EXEC-CICS-BLOCK@5",
+      "start_line": 5,
+      "end_line": 8,
+      "parent_name": "EXECDEMO",
+      "qualified_name": "EXECDEMO.EXEC-CICS-BLOCK@5",
+      "meta": {
+        "dialect": "CICS",
+        "operation": "SEND",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+            "start_line": 5,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "exec_operation",
+      "name": "SEND",
+      "start_line": 5,
+      "end_line": 8,
+      "parent_name": "EXEC-CICS-BLOCK@5",
+      "qualified_name": "EXECDEMO.EXEC-CICS-BLOCK@5.SEND@5",
+      "meta": {
+        "dialect": "CICS",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+            "start_line": 5,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
-  "edges": [],
+  "edges": [
+    {
+      "type": "EXECUTES",
+      "src_name": "EXECDEMO.EXEC-CICS-BLOCK@5",
+      "dst_name": "SEND",
+      "resolution": "resolved",
+      "src_start_line": 5,
+      "src_end_line": 8,
+      "scope": "EXECDEMO",
+      "meta": {
+        "program": "EXECDEMO",
+        "dialect": "CICS",
+        "language": "cobol",
+        "target_qualified_name": "EXECDEMO.EXEC-CICS-BLOCK@5.SEND@5",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+            "start_line": 5,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
   "chunks": [
     {
       "content": "       MAIN-PARA.\n           EXEC CICS\n               SEND TEXT FROM('HELLO. WORLD.')\n               LENGTH(13)\n           END-EXEC.\n           STOP RUN.",

@@ -367,6 +367,36 @@
   ],
   "edges": [
     {
+      "type": "DEFINES",
+      "src_name": "PRÜF-DATEI",
+      "dst_name": "PRÜF-SATZ",
+      "resolution": "resolved",
+      "src_start_line": 12,
+      "src_end_line": 12,
+      "scope": "KONTOSTATUSPRÜFUNG",
+      "meta": {
+        "program": "KONTOSTATUSPRÜFUNG",
+        "relationship": "file_record_layout",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 12,
+            "end_line": 12
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
       "type": "USES",
       "src_name": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
       "dst_name": "WS-STATUS-FLAG",

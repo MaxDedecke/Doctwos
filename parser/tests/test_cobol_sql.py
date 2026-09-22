@@ -151,3 +151,21 @@ def test_no_exec_block_produces_no_sql_blocks_without_crashing():
     assert errors == []
     assert blocks == []
     assert edges == []
+
+
+def test_sql_include_keeps_the_member_name_on_the_sql_block():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. SQLINC.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "           EXEC SQL INCLUDE SQLCA END-EXEC.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    _, blocks, edges, errors = _scan(text)
+    assert errors == []
+    assert blocks[0].statement_type == "INCLUDE"
+    assert blocks[0].include_name == "SQLCA"
+    assert edges == []

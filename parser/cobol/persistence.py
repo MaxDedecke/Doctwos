@@ -14,7 +14,9 @@ from models.database import CodeEntity
 LOCAL_TARGET_TYPES: dict[str, tuple[str, ...]] = {
     "PERFORM": ("paragraph", "section"),
     "GOTO": ("paragraph", "section"),
-    "USES": ("data_item",),
+    "USES": ("data_item", "exec_resource"),
+    "EXECUTES": ("exec_operation",),
+    "INCLUDES": ("sql_include",),
     "DEFINES": ("data_item",),
 }
 
@@ -23,7 +25,10 @@ SOURCE_TYPES: dict[str, tuple[str, ...]] = {
     "PERFORM": ("program", "paragraph"),
     "GOTO": ("program", "paragraph"),
     "COPY": ("program", "paragraph"),
-    "USES": ("program", "paragraph", "sql_block"),
+    "USES": ("program", "paragraph", "sql_block", "exec_block"),
+    "EXECUTES": ("exec_block",),
+    "INCLUDES": ("sql_block",),
+    "DEFINES": ("file_fd",),
 }
 
 
@@ -74,6 +79,11 @@ def resolve_local_target(
     edge: ParsedEdge, by_qname: dict[str, CodeEntity], by_name: dict[str, list[CodeEntity]]
 ) -> CodeEntity | None:
     """Resolve PERFORM/GOTO/USES/DEFINES inside one COBOL program."""
+    target_qname = (edge.meta or {}).get("target_qualified_name")
+    if target_qname:
+        direct = by_qname.get(target_qname)
+        if direct is not None:
+            return direct
     allowed = LOCAL_TARGET_TYPES.get(edge.type)
     candidates = [
         row

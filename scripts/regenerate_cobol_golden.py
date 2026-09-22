@@ -36,11 +36,15 @@ def main() -> None:
             text = f.read()
 
         logical_path = f"cobol_corpus/fixtures/{name}"
-        result = parse_program(text, logical_path)
+        result = dataclasses.asdict(parse_program(text, logical_path))
+        # Parent QNames have their own contract test. Keep the established
+        # COBOL goldens focused on parse output that predates that addition.
+        for entity in result["entities"]:
+            entity.pop("parent_qualified_name", None)
 
         golden_name = name.rsplit(".", 1)[0] + ".json"
         with open(os.path.join(GOLDEN, golden_name), "w") as f:
-            json.dump(dataclasses.asdict(result), f, indent=2, ensure_ascii=False)
+            json.dump(result, f, indent=2, ensure_ascii=False)
             f.write("\n")
         print(f"wrote {golden_name}")
 
