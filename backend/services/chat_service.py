@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 import httpx
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
@@ -65,6 +65,10 @@ _CODE_INTENT_RE = re.compile(
     r"projekt|build|fehler|bug|implementierung|konfiguration|config)\b",
     re.IGNORECASE,
 )
+_EXPLICIT_FILE_RE = re.compile(
+    r"(?i)(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+\.(?:java|cbl|cpy|xsl|xml|jcl|pom)\b"
+)
+_COBOL_PROGRAM_REF_RE = re.compile(r"\b([A-Z][A-Z0-9]{3,})\.(?:MAIN-PARA|[A-Z0-9-]+)\b")
 
 
 @dataclass(frozen=True)
@@ -74,6 +78,50 @@ class ChatIntent:
     kind: str
     use_retrieval: bool
     use_agent: bool
+
+
+def extract_explicit_file_targets(message: str, pinned_file: Optional[str] = None) -> tuple[str, ...]:
+    """Return the file scope explicitly requested by the user.
+
+    A file mentioned in a question is a retrieval boundary, not merely a
+    semantic-search hint.  This intentionally accepts bare filenames and the
+    prevalent ``PROGRAM.PARAGRAPH`` COBOL notation as well as full paths.
+    """
+    targets = [pinned_file] if pinned_file else []
+    targets.extend(_EXPLICIT_FILE_RE.findall(message or ""))
+    targets.extend(f"{name}.cbl" for name in _COBOL_PROGRAM_REF_RE.findall(message or ""))
+    normalized = []
+    seen = set()
+    for target in targets:
+        value = str(target or "").replace("\\", "/").lstrip("./")
+        if not value or value.lower() in seen:
+            continue
+        seen.add(value.lower())
+        normalized.append(value)
+    return tuple(normalized)
+
+
+def _file_target_clause(targets: tuple[str, ...]):
+    """Build a literal, case-insensitive path/basename predicate for chunks."""
+    clauses = []
+    for target in targets:
+        escaped = target.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        path = func.lower(DocumentChunk.file_path)
+        clauses.append(or_(path == escaped, path.like(f"%/{escaped}", escape="\\")))
+    return or_(*clauses) if clauses else None
+
+
+def _restrict_to_file_targets(chunks: list[DocumentChunk], targets: tuple[str, ...]) -> list[DocumentChunk]:
+    """Keep graph-expanded chunks inside the original explicit file scope."""
+    if not targets:
+        return chunks
+    lowered = {target.lower() for target in targets}
+    return [
+        chunk
+        for chunk in chunks
+        if (path := str(chunk.file_path or "").replace("\\", "/").lstrip("./").lower()) in lowered
+        or any("/" not in target and path.endswith(f"/{target}") for target in lowered)
+    ]
 
 
 def classify_chat_intent(
@@ -453,6 +501,7 @@ async def retrieve_chat_context(
     results: list[DocumentChunk] = []
     context = ""
     multi_project_names: list[str] = []
+    file_targets = extract_explicit_file_targets(message, pinned_file)
     resolved_repo_id = resolve_repository_id(project_id, db) if project_id else None
     focused_source_id = pinned_source_id or source_id or resolved_repo_id
 
@@ -473,6 +522,13 @@ async def retrieve_chat_context(
 
     selected_embedding_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
     model_filter = embedding_model_filter(selected_embedding_model)
+
+    def in_file_scope(query):
+        clause = _file_target_clause(file_targets)
+        return query.filter(clause) if clause is not None else query
+
+    def keep_file_scope(chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+        return _restrict_to_file_targets(chunks, file_targets)
 
     focused_entity = _focused_entity(
         db,
@@ -565,11 +621,13 @@ async def retrieve_chat_context(
         )
 
         if source_id:
-            base_query = db.query(DocumentChunk).filter(
+            base_query = in_file_scope(db.query(DocumentChunk).filter(
                 DocumentChunk.source_id == source_id, model_filter
-            )
+            ))
             results = hybrid_chunk_search(base_query, query_embedding, query_text, 4)
-            results = gate_graph_neighbors(db, expand_chunks_with_graph(db, results), project_id)
+            results = keep_file_scope(
+                gate_graph_neighbors(db, expand_chunks_with_graph(db, results), project_id)
+            )
             context = "\n\n".join(_format_chunk_context(row, "File") for row in results)
         elif project_id:
             project_source_ids = [
@@ -578,37 +636,37 @@ async def retrieve_chat_context(
                 .filter(KnowledgeSource.project_id == project_id)
                 .all()
             ]
-            repo_query = db.query(DocumentChunk).filter(
+            repo_query = in_file_scope(db.query(DocumentChunk).filter(
                 DocumentChunk.project_id == project_id,
                 DocumentChunk.source_id.is_(None),
                 model_filter,
-            )
+            ))
             repo_results = hybrid_chunk_search(repo_query, query_embedding, query_text, 4)
-            repo_results = gate_graph_neighbors(
+            repo_results = keep_file_scope(gate_graph_neighbors(
                 db, expand_chunks_with_graph(db, repo_results), project_id
-            )
+            ))
 
             project_source_results: list[DocumentChunk] = []
-            if project_source_ids:
-                source_query = db.query(DocumentChunk).filter(
+            if project_source_ids and not file_targets:
+                source_query = in_file_scope(db.query(DocumentChunk).filter(
                     DocumentChunk.source_id.in_(project_source_ids), model_filter
-                )
+                ))
                 project_source_results = hybrid_chunk_search(
                     source_query, query_embedding, query_text, 4
                 )
-                project_source_results = gate_graph_neighbors(
+                project_source_results = keep_file_scope(gate_graph_neighbors(
                     db, expand_chunks_with_graph(db, project_source_results), project_id
-                )
+                ))
 
             global_results: list[DocumentChunk] = []
-            if global_source_ids:
-                global_query = db.query(DocumentChunk).filter(
+            if global_source_ids and not file_targets:
+                global_query = in_file_scope(db.query(DocumentChunk).filter(
                     DocumentChunk.source_id.in_(global_source_ids), model_filter
-                )
+                ))
                 global_results = hybrid_chunk_search(global_query, query_embedding, query_text, 2)
-                global_results = gate_graph_neighbors(
+                global_results = keep_file_scope(gate_graph_neighbors(
                     db, expand_chunks_with_graph(db, global_results), project_id
-                )
+                ))
 
             results = repo_results + project_source_results + global_results
             context_parts = []
@@ -661,9 +719,11 @@ async def retrieve_chat_context(
             if base_query is not None:
                 if code_gate is not None:
                     base_query = base_query.filter(code_gate)
-                base_query = base_query.filter(model_filter)
+                base_query = in_file_scope(base_query.filter(model_filter))
                 results = hybrid_chunk_search(base_query, query_embedding, query_text, 6)
-                results = gate_graph_neighbors(db, expand_chunks_with_graph(db, results), None)
+                results = keep_file_scope(gate_graph_neighbors(
+                    db, expand_chunks_with_graph(db, results), None
+                ))
 
             result_project_ids = sorted(
                 {row.project_id for row in results if row.project_id is not None}

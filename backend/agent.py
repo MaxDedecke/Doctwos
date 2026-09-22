@@ -4,6 +4,7 @@ import json
 import re
 import time
 import httpx
+from sqlalchemy import func
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from xml.sax.saxutils import escape
 import core.config as cfg
@@ -218,7 +219,9 @@ def search_repo_code(repo_id: int, query: str) -> dict:
         return {"error": str(e)}
 
 
-def get_repo_entities(project_id: int, db_session, query: str = "", limit: int = 80) -> dict:
+def get_repo_entities(
+    project_id: int, db_session, query: str = "", limit: int = 80, file_paths: Optional[list[str]] = None
+) -> dict:
     """Retrieves parsed program symbols/code entities (like classes, functions, etc.) from the DB."""
     try:
         try:
@@ -226,6 +229,8 @@ def get_repo_entities(project_id: int, db_session, query: str = "", limit: int =
         except (TypeError, ValueError):
             limit = 80
         db_query = db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id)
+        if file_paths:
+            db_query = db_query.filter(func.lower(CodeEntity.file_path).in_([path.lower() for path in file_paths]))
         if query:
             db_query = db_query.filter(CodeEntity.name.ilike(f"%{query}%"))
 
@@ -841,6 +846,13 @@ async def run_agent_loop(
     # Successful call flows are scoped to this agent turn and can only be
     # referenced by a guided walkthrough after the trace tool has returned.
     validated_call_flows: dict[str, dict] = {}
+    file_focus_paths: set[str] = set()
+
+    def _is_in_file_focus(path: str) -> bool:
+        if not file_focus_paths:
+            return True
+        normalized = str(path or "").replace("\\", "/").lstrip("./").lower()
+        return normalized in file_focus_paths
 
     # Local function to execute a tool by name and arguments
     async def execute_tool(name: str, args: dict, tool_call_id: Optional[str] = None) -> str:
@@ -848,11 +860,26 @@ async def run_agent_loop(
         if name == "list_repo_files" and repo_available:
             dir_val = args.get("directory", "")
             res = list_repo_files(repo_id, dir_val)
+            if file_focus_paths and "files" in res:
+                res["files"] = [path for path in res["files"] if _is_in_file_focus(path)]
+                res["total_files"] = len(res["files"])
+                res["truncated"] = False
             return json.dumps(res)
         elif name == "view_repo_file" and repo_available:
             path_val = args.get("file_path", "")
             start_val = args.get("start_line", 1)
             end_val = args.get("end_line", 150)
+            if file_focus_paths and not _is_in_file_focus(path_val):
+                focused_matches = [
+                    path for path in find_repo_files(repo_id, path_val) if _is_in_file_focus(path)
+                ]
+                if len(focused_matches) == 1:
+                    path_val = focused_matches[0]
+                else:
+                    return json.dumps({
+                        "error": "Die Frage ist auf eine konkrete Datei begrenzt; diese Datei liegt außerhalb des Dateifokus.",
+                        "file_focus": sorted(file_focus_paths),
+                    })
             res = view_repo_file(repo_id, path_val, start_val, end_val)
             if res.get("error") and path_val:
                 # Models sometimes infer the wrong COBOL subdirectory from a
@@ -869,6 +896,10 @@ async def run_agent_loop(
         elif name == "search_repo_code" and repo_available:
             query_val = args.get("query", "")
             res = search_repo_code(repo_id, query_val)
+            if file_focus_paths:
+                res["matches"] = [match for match in res["matches"] if _is_in_file_focus(match.get("file", ""))]
+                res["total_matches"] = len(res["matches"])
+                res["truncated"] = False
             return json.dumps(res)
         elif name == "offer_code_walkthrough" and (repo_available or project_id):
             title = str(args.get("title", "")).strip()[:120]
@@ -964,7 +995,10 @@ async def run_agent_loop(
             return json.dumps({"status": "ok", "title": title, "steps": steps})
         elif name == "get_repo_entities" and project_id:
             query_val = args.get("query", "")
-            res = get_repo_entities(project_id, db_session, query_val, args.get("limit", 80))
+            focused_paths = sorted(file_focus_paths) or None
+            res = get_repo_entities(
+                project_id, db_session, query_val, args.get("limit", 80), focused_paths
+            )
             return json.dumps(res)
         elif name == "trace_call_flow" and project_id:
             res = trace_call_flow(
@@ -1094,6 +1128,11 @@ async def run_agent_loop(
             # Preserve prompt order and avoid duplicate paths.
             candidates = list(dict.fromkeys(candidates))
             if candidates:
+                # This scope is enforced by every local repository tool for
+                # the rest of the turn.  It is intentionally set before the
+                # bootstrap call, so a model cannot replace an explicitly
+                # named program with a semantically similar neighbour.
+                file_focus_paths.update(path.replace("\\", "/").lstrip("./").lower() for path in candidates)
                 # If the question contains a module/path hint, prefer the
                 # candidate matching that hint; otherwise a unique basename is
                 # safe and deterministic.

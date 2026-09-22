@@ -12,6 +12,7 @@ from services.chat_service import (
     build_entity_breadcrumb,
     build_chat_prompt,
     build_pinned_context,
+    extract_explicit_file_targets,
     stream_standard_rag_events,
 )
 from models.database import CodeEntity
@@ -24,6 +25,18 @@ def _fake_chunk(start_line, end_line, content):
         content=content,
         metadata_json=None,
         file_path="cbl/PROGRAM.cbl",
+    )
+
+
+def test_explicit_file_targets_cover_paths_filenames_and_cobol_program_references():
+    targets = extract_explicit_file_targets(
+        "Prüfe core/rest-cxf/UserServiceImpl.java und COPAUA0C.MAIN-PARA in COTRTLIC.cbl"
+    )
+
+    assert targets == (
+        "core/rest-cxf/UserServiceImpl.java",
+        "COTRTLIC.cbl",
+        "COPAUA0C.cbl",
     )
 
 
