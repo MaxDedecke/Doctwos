@@ -646,7 +646,11 @@ def _validate_answer_sources(
         claimed_path, claimed_line = match.group(1).replace("\\", "/").lstrip("./"), int(match.group(2))
         path_key = claimed_path.lower()
         ranges = evidence.get(path_key)
-        if ranges is None:
+        # A basename may be convenient in a human-written citation, but never
+        # use it to bless a different, explicitly named path.  Otherwise
+        # ``neighbour/Foo.java:12`` could be accepted for evidence from
+        # ``actual/Foo.java:12``.
+        if ranges is None and "/" not in claimed_path:
             candidates = basenames.get(os.path.basename(path_key), set())
             if len(candidates) == 1:
                 ranges = evidence[next(iter(candidates))]

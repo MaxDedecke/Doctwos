@@ -1,0 +1,13 @@
+[
+  {"id":"J1","file":"core/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java","line":10},
+  {"id":"J2","file":"core/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java","line":20,"edge":["create","UserLogic"]},
+  {"id":"J3","file":"core/pom.xml","line":8},
+  {"id":"J4","file":"core/rest-cxf/src/main/resources/wadl2html/index.xsl","line":12,"edge":["wadl:resource","methods"]},
+  {"id":"J5","file":"core/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java","line":10},
+  {"id":"C1","file":"app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl","line":15,"edge":["MAIN-PARA","1000-INITIALIZE"]},
+  {"id":"C2","file":"app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl","line":6},
+  {"id":"C3","file":"app/app-transaction-type-db2/cbl/COTRTLIC.cbl","line":20},
+  {"id":"C4","file":"app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl","line":25},
+  {"id":"C5","file":"app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl","line":1},
+  {"id":"C6","file":"app/app-transaction-type-db2/cbl/COTRTLIC.cbl","line":1}
+]
