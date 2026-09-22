@@ -1363,6 +1363,9 @@
     "evidenceCount": "{{count}} evidence item(s)",
     "sourceChanged": "Source changed ({{count}}) – another subject-matter review is required.",
     "provenanceSnapshot": "The evidence includes the source state captured when it was saved.",
+    "pendingLinks": "{{count}} new link suggestions in Link Manager",
+    "rejectedLinks": "{{count}} rejected links",
+    "filter": { "all": "All", "outdated": "Review again", "draft": "Drafts", "verified": "Approved" },
     "status": { "draft": "Draft", "verified": "Approved", "outdated": "Review again" },
     "origin": { "chat": "Chat", "code": "Code", "process": "Process" }
   },

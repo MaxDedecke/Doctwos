@@ -1363,6 +1363,9 @@
     "evidenceCount": "{{count}} Beleg(e)",
     "sourceChanged": "Quelle geändert ({{count}}) – erneute fachliche Prüfung erforderlich.",
     "provenanceSnapshot": "Der Beleg enthält den beim Speichern erfassten Quellenstand.",
+    "pendingLinks": "{{count}} neue Link-Vorschläge im Link Manager",
+    "rejectedLinks": "{{count}} abgelehnte Links",
+    "filter": { "all": "Alle", "outdated": "Erneut prüfen", "draft": "Entwürfe", "verified": "Freigegeben" },
     "status": { "draft": "Entwurf", "verified": "Freigegeben", "outdated": "Erneut prüfen" },
     "origin": { "chat": "Chat", "code": "Code", "process": "Prozess" }
   },
