@@ -269,7 +269,18 @@ class JavaDeclarationVisitor(JavaParserVisitor):
 
     def _type(self, context, entity_type: str, body_context: ParserRuleContext):
         name = context.identifier().getText()
-        if self.parent.type in _TYPE_RULES.values() or self.parent.type in {
+        local_owner_types = {"method", "constructor", "lambda", "anonymous_class", "local_class"}
+        if self.parent.type in local_owner_types:
+            # Java permits equal local type names in distinct nested blocks of
+            # one method. A plain ``owner.Local`` QName would merge them at
+            # persistence time, so local declarations receive the same stable
+            # source-location identity used for locals and lambdas.
+            start_line, _ = self._span(context)
+            qualified_name = (
+                f"{self.parent.qualified_name}@local-type:{name}:"
+                f"{start_line}:{context.start.column}"
+            )
+        elif self.parent.type in _TYPE_RULES.values() or self.parent.type in {
             "method",
             "constructor",
             "lambda",
@@ -298,7 +309,11 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             return self.visit(body_context)
 
     def visitClassDeclaration(self, context):
-        entity_type = "local_class" if self.parent.type in {"method", "constructor", "lambda"} else "class"
+        entity_type = (
+            "local_class"
+            if self.parent.type in {"method", "constructor", "lambda", "anonymous_class", "local_class"}
+            else "class"
+        )
         return self._type(context, entity_type, context.classBody())
 
     def visitInterfaceDeclaration(self, context):

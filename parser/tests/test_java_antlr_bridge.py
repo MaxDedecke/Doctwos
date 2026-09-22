@@ -179,6 +179,25 @@ class App {
     assert any(entity.type == "anonymous_class" for entity in result.entities)
 
 
+def test_o308_distinguishes_same_named_local_classes_in_separate_blocks() -> None:
+    result = parse_java_file(
+        """package demo;
+class Scoped {
+    void run(boolean enabled) {
+        if (enabled) { class Worker { } }
+        else { class Worker { } }
+    }
+}
+""",
+        "demo/Scoped.java",
+    )
+
+    workers = [entity for entity in result.entities if entity.type == "local_class"]
+    assert len(workers) == 2
+    assert len({entity.qualified_name for entity in workers}) == 2
+    assert all("@local-type:Worker:" in entity.qualified_name for entity in workers)
+
+
 def test_typed_lambda_parameter_list_is_flattened_before_declaration_visit() -> None:
     result = parse_java_file(
         """package demo;
