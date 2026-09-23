@@ -1,24 +1,27 @@
 # Graph View und Call Graph: fachlicher Schnitt und Skalierung
 
-Stand: 21.09.2026
+Stand: 23.09.2026
 
 ## Verantwortlichkeiten
 
 | Ansicht | Nutzerfrage | Knoten | Beziehungen |
 |---|---|---|---|
-| Call Graph | „Wie hängt der Code technisch zusammen?“ | ausschließlich Code-Entities | `CodeEdge` und synthetische Strukturkanten wie `CONTAINS` |
-| Graph View | „Welche Elemente hängen zusammen und wo sind sie dokumentiert?“ | Code-Entities und Dokumente | typneutral zusammengefasste `CodeEdge`s, `EntityDocLink` und `KnowledgeLink` |
+| Process View / Call Graph | „Wie hängt der Code technisch zusammen und was läuft als Nächstes?“ | Code-Entities | `CodeEdge` und synthetische Strukturkanten wie `CONTAINS` |
+| Wissensgraph | „Welche Dateien, Systeme und Wissensquellen hängen zusammen – und warum?“ | Code-Dateien und quellenspezifische Wissensressourcen wie Confluence-Seiten, Jira-Issues oder Dokumente | Datei-zu-Datei-Projektionen aus `CodeEdge`, `EntityDocLink` und `KnowledgeLink` |
 
-Codeabhängigkeiten bleiben in der Graph View sichtbar und werden zu einer
-typneutralen Beziehung `code_dependency` zusammengefasst. Die Kante behält ihre
-Richtung vom aufrufenden bzw. verwendenden Code zum Ziel. Der Call Graph ergänzt
-dazu den konkreten Kantentyp und den Aufrufpfad.
+Der Wissensgraph zeigt keine Code-Entities als Knoten. Er fasst Parserobjekte
+pro Quelldatei zusammen und projiziert gerichtete Beziehungen zwischen
+verschiedenen Dateien. Kanten innerhalb derselben Datei und unaufgelöste Ziele
+bleiben in der Process View bzw. im Call Graph, wo der konkrete Codepfad
+sichtbar ist. Datei-Kanten nennen die Parserbeziehungen und repräsentative
+Codeobjekte als Beleg.
 
-Bei `EntityDocLink` ist der Dokumentknoten das Dokument und die Kante trägt die
-konkrete Belegstelle: Chunk, Datei, Quelle, Zeilenbereich, Seite, Abschnitt und
-URL-Anker, soweit die Quelle diese Daten liefert. So bleibt sichtbar, an welcher
-Stelle ein Codeelement dokumentiert wird, ohne das Dokument für jeden Chunk als
-eigenen Knoten zu vervielfachen.
+Bei `EntityDocLink` zeigt die Richtung von der Wissensressource zur Code-Datei:
+Die Seite oder das Dokument dokumentiert die Datei. Die Kante hält zusätzlich
+fest, welches Codeobjekt die Beziehung begründet und wo die Dokumentpassage
+liegt. Ressourcen werden je Quelle identifiziert; Confluence- und Notion-Seiten
+nutzen ihre native Seiten-ID, andere Quellen ihre URL oder Quelldatei. Chunks
+derselben Ressource erzeugen keine zusätzlichen Graphknoten.
 
 ## Richtungstaxonomie
 
@@ -30,8 +33,8 @@ Jede Kante verwendet genau eine der drei Richtungen:
 | `undirected` | Verbindung ohne fachlichen Fluss | keine Pfeilspitze |
 | `bidirectional` | Fluss in beide Richtungen | Pfeilspitzen an beiden Enden |
 
-Codekanten und `EntityDocLink`s sind gerichtet. Ein `EntityDocLink` läuft vom
-Codeelement zum Dokument. `KnowledgeLink`s speichern die Richtung explizit;
+Dateiabhängigkeiten sind gerichtet. Ein `EntityDocLink` läuft von der
+Dokumentationsressource zur Code-Datei. `KnowledgeLink`s speichern die Richtung explizit;
 manuell angelegte Links starten ungerichtet, können im Dialog aber gerichtet
 oder beidseitig gerichtet angelegt werden. Der Richtungsfilter blendet die drei
 Kantengruppen unabhängig von Beziehungstyp und Knotentyp ein oder aus.
@@ -66,15 +69,15 @@ Abschneidung in der Antwort ausweisen.
 
 ## Unmittelbare Entlastung
 
-- `GET /graph` liest nur eine begrenzte Codekantenmenge und fasst technische
-  Kantentypen pro Elementpaar als `code_dependency` zusammen.
-- `GET /graph/focus` liefert bis zu 500 direkte, ebenfalls typneutral
-  zusammengefasste Codeabhängigkeiten sowie die Wissenslinks der Entity.
+- `GET /graph` liest nur eine begrenzte Codekantenmenge und fasst Beziehungen
+  pro Dateipaar als beschreibende `code_dependency`-Kante zusammen.
+- `GET /graph/focus` und `/graph/neighborhood` fokussieren Code-Dateien und
+  liefern Dateiabhängigkeiten, Dokumentationsbelege und Wissenslinks.
 - Alle isolierten Entities und Dokumente werden nur noch beim expliziten
   Inventarmodus `include_isolated=true` geladen.
 - Die interaktive Graph View bietet den Inventarmodus nicht mehr an. Der API-
   Parameter bleibt für Exporte und administrative Auswertungen erhalten.
-- Dokumentationskanten liefern die konkrete Fundstelle mit.
+- Dokumentationskanten liefern die konkrete Code- und Dokumentfundstelle mit.
 - Die Graph View beendet das Neuzeichnen nach dem Layout. Der begrenzte Call
   Graph animiert die ausgehenden Kanten der ausgewählten Node und behält beim
   Öffnen einer Quelldatei seine Wurzel und sein bestehendes Layout.

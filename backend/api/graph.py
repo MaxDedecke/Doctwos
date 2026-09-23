@@ -20,10 +20,11 @@ Endpoints:
 import csv
 import io
 from typing import Optional
+from urllib.parse import quote, unquote
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from core import config as cfg
@@ -50,6 +51,91 @@ from core.projects import (
 )
 
 router = APIRouter(prefix="/graph", tags=["graph"])
+
+
+def _code_file_id(project_id: Optional[int], source_id: Optional[int], file_path: str) -> str:
+    """Stable knowledge-graph identity for a source file."""
+    return f"file:{project_id or 'global'}:{source_id or 'none'}:{quote(file_path, safe='')}"
+
+
+def _code_file_node(
+    project_id: Optional[int],
+    source_id: Optional[int],
+    file_path: str,
+    entities: Optional[list[CodeEntity]] = None,
+) -> dict:
+    entities = entities or []
+    languages = sorted({
+        str((entity.meta_json or {}).get("language"))
+        for entity in entities
+        if (entity.meta_json or {}).get("language")
+    })
+    return {
+        "id": _code_file_id(project_id, source_id, file_path),
+        "type": "code_file",
+        "label": file_path,
+        "file_path": file_path,
+        "project_id": project_id,
+        "source_type": "Git",
+        "url": None,
+        "source_id": source_id,
+        "language": languages[0] if len(languages) == 1 else None,
+        # Keep parser entities as drill-down evidence, never as graph nodes.
+        "entity_ids": [entity.id for entity in entities],
+    }
+
+
+def _entity_file_node(entity: CodeEntity) -> dict:
+    return _code_file_node(entity.project_id, entity.source_id, entity.file_path, [entity])
+
+
+def _ensure_entity_file_node(nodes: dict[str, dict], entity: CodeEntity) -> str:
+    node_id = _code_file_id(entity.project_id, entity.source_id, entity.file_path)
+    node = nodes.setdefault(node_id, _entity_file_node(entity))
+    ids = set(node.get("entity_ids", []))
+    ids.add(entity.id)
+    node["entity_ids"] = sorted(ids)
+    return node_id
+
+
+def _document_resource_type(
+    source_type: Optional[str], title: str, metadata: Optional[dict] = None
+) -> str:
+    source = (source_type or "").strip().lower()
+    metadata = metadata or {}
+    if source == "confluence":
+        return "confluence_attachment" if metadata.get("attachment_filename") else "confluence_page"
+    if source == "notion":
+        return "notion_page"
+    if source == "jira":
+        return "jira_issue"
+    if title.lower().endswith(".pdf"):
+        return "pdf_document"
+    return "document"
+
+
+def _document_node_id(
+    title: str,
+    source_type: Optional[str],
+    url: Optional[str],
+    chunk: Optional[DocumentChunk] = None,
+) -> str:
+    """Identify a source-native resource (page/issue/file), not a chunk title."""
+    metadata = chunk.metadata_json if chunk and isinstance(chunk.metadata_json, dict) else {}
+    resource_key = (
+        metadata.get("attachment_filename")
+        and f"{metadata.get('page_id', '')}/attachment/{metadata['attachment_filename']}"
+    ) or (
+        metadata.get("page_id")
+        or metadata.get("notion_page_id")
+        or metadata.get("issue_key")
+        or metadata.get("id")
+        or (url or metadata.get("url"))
+        or (chunk.file_path if chunk else None)
+        or title
+    )
+    source_key = chunk.source_id if chunk and chunk.source_id is not None else "none"
+    return f"doc:{source_key}:{quote(str(resource_key), safe='')}"
 
 
 def _entity_node(entity: CodeEntity) -> dict:
@@ -83,7 +169,7 @@ def _attach_graph_analysis_status(db: Session, nodes: list[dict]) -> None:
         {
             (node.get("source_id"), node.get("file_path"))
             for node in nodes
-            if node.get("type") == "entity"
+            if node.get("type") == "code_file"
         },
     )
     for node in nodes:
@@ -105,17 +191,24 @@ def _doc_node(
     des storage_key wird hier abgeschnitten), damit das Frontend die Datei öffnen kann.
     """
     meta = (chunk.metadata_json or {}) if chunk else {}
+    source_type = meta.get("source_type") or source_type
+    url = meta.get("url") or url
     file_path = chunk.file_path.split("#")[0] if (chunk and chunk.file_path) else None
     return {
-        "id": f"doc:{title}",
+        "id": _document_node_id(title, source_type, url, chunk),
         "type": "document",
         "label": title,
         "source_type": source_type,
+        "resource_type": _document_resource_type(source_type, title, meta),
+        "resource_id": (
+            f"{meta.get('page_id', '')}/attachment/{meta['attachment_filename']}"
+            if meta.get("attachment_filename")
+            else meta.get("page_id") or meta.get("notion_page_id") or meta.get("issue_key") or meta.get("id")
+        ),
         "url": url,
-        "entity_type": meta.get("element_type"),
         "file_path": file_path,
-        "start_line": None,
         "source_id": chunk.source_id if chunk else None,
+        "project_id": chunk.project_id if chunk else None,
     }
 
 
@@ -150,55 +243,56 @@ def _document_locator(chunk: Optional[DocumentChunk], document_url: Optional[str
 def _append_code_dependencies(
     nodes: dict[str, dict], edges: list[dict], code_edges: list[CodeEdge], entities: dict[int, CodeEntity]
 ) -> None:
-    """Add a type-neutral, deduplicated code relationship projection.
-
-    Code relationships retain their persisted direction.  The overview may still
-    be capped, but callers must never have to infer upstream/downstream from a
-    lossy, undirected projection (O-270).
-    """
+    """Project parser relationships onto files, keeping element names as evidence."""
+    grouped: dict[tuple[str, str], dict] = {}
     for code_edge in code_edges:
         source_entity = entities.get(code_edge.src_entity_id)
         if not source_entity:
             continue
-        source_id = f"entity:{source_entity.id}"
-        nodes.setdefault(source_id, _entity_node(source_entity))
-
         target_entity = entities.get(code_edge.dst_entity_id) if code_edge.dst_entity_id else None
-        if target_entity:
-            target_id = f"entity:{target_entity.id}"
-            nodes.setdefault(target_id, _entity_node(target_entity))
-        else:
-            target_id = f"unresolved:code:{code_edge.dst_name}"
-            nodes.setdefault(
-                target_id,
-                {
-                    "id": target_id,
-                    "type": "external",
-                    "label": code_edge.dst_name,
-                    "entity_type": None,
-                    "file_path": None,
-                    "start_line": None,
-                    "project_id": code_edge.project_id,
-                    "source_type": None,
-                    "url": None,
-                    "source_id": code_edge.source_id,
-                    "unresolved": True,
-                },
-            )
+        # Unresolved names have no concrete destination file, and same-file calls
+        # belong in the Process View rather than as self-loops in this graph.
+        if not target_entity or (
+            source_entity.project_id == target_entity.project_id
+            and source_entity.source_id == target_entity.source_id
+            and source_entity.file_path == target_entity.file_path
+        ):
+            continue
+        source_id = _ensure_entity_file_node(nodes, source_entity)
+        target_id = _ensure_entity_file_node(nodes, target_entity)
+        bucket = grouped.setdefault((source_id, target_id), {
+            "types": set(), "evidence": [], "target_evidence": [], "edge_ids": [],
+        })
+        bucket["types"].add(code_edge.type)
+        bucket["edge_ids"].append(code_edge.id)
+        bucket["evidence"].append(source_entity.qualified_name or source_entity.name)
+        bucket["target_evidence"].append(target_entity.qualified_name or target_entity.name)
 
-        edges.append(
-            {
-            "id": f"code-dependency:{code_edge.id}",
+    for (source_id, target_id), bucket in grouped.items():
+        edge_types = sorted(bucket["types"])
+        examples = sorted(set(bucket["evidence"]))[:5]
+        targets = sorted(set(bucket["target_evidence"]))[:5]
+        reason = f"{', '.join(edge_types)}-Beziehung"
+        if examples:
+            reason += f": {', '.join(examples)}"
+        if targets:
+            reason += f" → {', '.join(targets)}"
+        edges.append({
+            "id": f"code-files:{source_id}:{target_id}",
             "source": source_id,
             "target": target_id,
             "link_type": "code_dependency",
             "relation_type": "code_dependency",
             "direction": "directed",
             "score": None,
-            "context": None,
-            "meta": {"edge_count": 1, "edge_types": [code_edge.type]},
-            }
-        )
+            "context": reason,
+            "meta": {
+                "edge_count": len(bucket["edge_ids"]),
+                "edge_types": edge_types,
+                "evidence": examples,
+                "target_evidence": targets,
+            },
+        })
 
 
 def _traverse_code_dependencies(
@@ -298,13 +392,11 @@ def _side_node_id(
         entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
         if not entity:
             return None
-        nid = f"entity:{entity.id}"
-        nodes.setdefault(nid, _entity_node(entity))
-        return nid
+        return _ensure_entity_file_node(nodes, entity)
     chunk = (
         db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first() if chunk_id else None
     )
-    nid = f"doc:{title}"
+    nid = _document_node_id(title, source_type, url, chunk)
     nodes.setdefault(nid, _doc_node(title, source_type, url, chunk))
     return nid
 
@@ -506,7 +598,7 @@ def get_graph(
                 or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
             )
         for entity in entity_query.order_by(CodeEntity.id).all():
-            nodes[f"entity:{entity.id}"] = _entity_node(entity)
+            _ensure_entity_file_node(nodes, entity)
 
     # ── Entity → Document links ──────────────────────────────────────────────
     eq = db.query(EntityDocLink).filter(EntityDocLink.status == status)
@@ -536,25 +628,32 @@ def get_graph(
             entity = entities.get(lnk.entity_id)
             if not entity:
                 continue
-            eid = f"entity:{entity.id}"
-            nodes.setdefault(eid, _entity_node(entity))
-            did = f"doc:{lnk.doc_title}"
+            file_id = _ensure_entity_file_node(nodes, entity)
+            doc_chunk = chunks.get(lnk.chunk_id)
+            did = _document_node_id(lnk.doc_title, lnk.source_type, lnk.doc_url, doc_chunk)
             nodes.setdefault(
                 did,
-                _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id)),
+                _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, doc_chunk),
             )
-            preserved_node_ids.add(eid)
+            preserved_node_ids.add(file_id)
             preserved_node_ids.add(did)
             edges.append(
                 {
                     "id": f"edl:{lnk.id}",
-                    "source": eid,
-                    "target": did,
+                    # The page/document explains the code file. The more
+                    # detailed parser entity remains attached as edge evidence.
+                    "source": did,
+                    "target": file_id,
                     "link_type": lnk.link_type,
                     "relation_type": "documented",
                     "direction": "directed",
                     "score": lnk.score,
-                    "context": lnk.context,
+                    "context": lnk.context or f"Dokumentiert {entity.qualified_name or entity.name}.",
+                    "code_file_path": entity.file_path,
+                    "code_entity_id": entity.id,
+                    "code_entity_name": entity.qualified_name or entity.name,
+                    "code_entity_type": entity.type,
+                    "code_start_line": entity.start_line,
                     **_document_locator(chunks.get(lnk.chunk_id), lnk.doc_url),
                 }
             )
@@ -789,15 +888,64 @@ def get_graph_neighborhood(
 
     # Fall 1: Dokument-Knoten (doc:...)
     if node_id.startswith("doc:") or node_id.startswith("document:"):
-        doc_title = node_id[len("doc:"):] if node_id.startswith("doc:") else node_id[len("document:"):]
-        focus_id = f"doc:{doc_title}"
+        raw_key = node_id[len("doc:"):] if node_id.startswith("doc:") else node_id[len("document:"):]
+        resource_chunks: list[DocumentChunk] = []
+        source_part = raw_key.split(":", 1)[0]
+        if node_id.startswith("doc:") and ":" in raw_key and (source_part.isdigit() or source_part == "none"):
+            source_key, encoded_resource = raw_key.split(":", 1)
+            resource_key = unquote(encoded_resource)
+            attachment_parent = None
+            attachment_filename = None
+            if "/attachment/" in resource_key:
+                attachment_parent, attachment_filename = resource_key.split("/attachment/", 1)
+            chunk_query = db.query(DocumentChunk)
+            if source_key.isdigit():
+                chunk_query = chunk_query.filter(DocumentChunk.source_id == int(source_key))
+            else:
+                chunk_query = chunk_query.filter(DocumentChunk.source_id.is_(None))
+            chunk_query = chunk_query.filter(or_(
+                DocumentChunk.file_path == resource_key,
+                DocumentChunk.metadata_json["page_id"].as_string() == resource_key,
+                DocumentChunk.metadata_json["notion_page_id"].as_string() == resource_key,
+                DocumentChunk.metadata_json["issue_key"].as_string() == resource_key,
+                DocumentChunk.metadata_json["attachment_filename"].as_string() == resource_key,
+                DocumentChunk.metadata_json["id"].as_string() == resource_key,
+                DocumentChunk.metadata_json["url"].as_string() == resource_key,
+                and_(
+                    DocumentChunk.metadata_json["page_id"].as_string() == attachment_parent,
+                    DocumentChunk.metadata_json["attachment_filename"].as_string() == attachment_filename,
+                ) if attachment_parent is not None else False,
+            ))
+            if project_id:
+                chunk_query = chunk_query.filter(DocumentChunk.project_id == project_id)
+            resource_chunks = chunk_query.order_by(DocumentChunk.id).all()
+            chunk = resource_chunks[0] if resource_chunks else None
+            meta = (chunk.metadata_json or {}) if chunk else {}
+            doc_title = meta.get("title") or (chunk.file_path if chunk else resource_key)
+            source_type = meta.get("source_type")
+            doc_url = meta.get("url")
+            focus_id = _document_node_id(doc_title, source_type, doc_url, chunk) if chunk else node_id
+        else:
+            doc_title = raw_key
+            chunk_query = db.query(DocumentChunk).filter(
+                or_(DocumentChunk.file_path == doc_title, DocumentChunk.file_path.like(f"%{doc_title}%"))
+            )
+            if project_id:
+                chunk_query = chunk_query.filter(DocumentChunk.project_id == project_id)
+            chunk = chunk_query.first()
+            if chunk:
+                doc_title = (chunk.metadata_json or {}).get("title") or chunk.file_path
+            focus_id = _document_node_id(
+                doc_title,
+                (chunk.metadata_json or {}).get("source_type") if chunk else None,
+                (chunk.metadata_json or {}).get("url") if chunk else None,
+                chunk,
+            )
+            resource_chunks = [chunk] if chunk else []
 
-        chunk_query = db.query(DocumentChunk).filter(
-            or_(DocumentChunk.file_path == doc_title, DocumentChunk.file_path.like(f"%{doc_title}%"))
-        )
         if project_id:
-            chunk_query = chunk_query.filter(DocumentChunk.project_id == project_id)
-        chunk = chunk_query.first()
+            resource_chunks = [c for c in resource_chunks if c.project_id in (None, project_id)]
+        chunk = resource_chunks[0] if resource_chunks else None
         if chunk and chunk.project_id:
             assert_team_visible(chunk.project_id, user, db, "Dokument nicht gefunden")
             assert_project_visible(chunk.project_id, user, db)
@@ -839,17 +987,21 @@ def get_graph_neighborhood(
                 ent = ents.get(lnk.entity_id)
                 if not ent:
                     continue
-                eid = f"entity:{ent.id}"
-                nodes.setdefault(eid, _entity_node(ent))
+                file_id = _ensure_entity_file_node(nodes, ent)
                 edges.append({
                     "id": f"edl:{lnk.id}",
-                    "source": eid,
-                    "target": focus_id,
+                    "source": focus_id,
+                    "target": file_id,
                     "link_type": lnk.link_type,
                     "relation_type": "documented",
                     "direction": "directed",
                     "score": lnk.score,
-                    "context": lnk.context,
+                    "context": lnk.context or f"Dokumentiert {ent.qualified_name or ent.name}.",
+                    "code_file_path": ent.file_path,
+                    "code_entity_id": ent.id,
+                    "code_entity_name": ent.qualified_name or ent.name,
+                    "code_entity_type": ent.type,
+                    "code_start_line": ent.start_line,
                     **_document_locator(chunks_map.get(lnk.chunk_id), lnk.doc_url),
                 })
 
@@ -901,7 +1053,203 @@ def get_graph_neighborhood(
         _attach_graph_analysis_status(db, response["nodes"])
         return response
 
-    # Fall 2: Entity-Knoten
+    # Fall 2: Code-Datei-Knoten. Parser-Entities werden nur für die
+    # Beziehungs- und Belegauflösung geladen, nie als Graphknoten ausgegeben.
+    if node_id.startswith("file:"):
+        parts = node_id.split(":", 3)
+        if len(parts) != 4:
+            raise HTTPException(status_code=400, detail=f"Ungültige Datei-node_id: {node_id}")
+        _, project_key, source_key, encoded_path = parts
+        file_path = unquote(encoded_path)
+        file_project_id = int(project_key) if project_key.isdigit() else None
+        source_id = int(source_key) if source_key.isdigit() else None
+        if project_id is not None and file_project_id not in (None, project_id):
+            raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+
+        entity_query = db.query(CodeEntity).filter(CodeEntity.file_path == file_path)
+        if file_project_id is not None:
+            entity_query = entity_query.filter(CodeEntity.project_id == file_project_id)
+        else:
+            entity_query = entity_query.filter(CodeEntity.project_id.is_(None))
+        if source_id is not None:
+            entity_query = entity_query.filter(CodeEntity.source_id == source_id)
+        else:
+            entity_query = entity_query.filter(CodeEntity.source_id.is_(None))
+        file_entities = entity_query.order_by(CodeEntity.id).all()
+        if not file_entities:
+            raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+        root_entity = file_entities[0]
+        proj_id = root_entity.project_id
+        if proj_id:
+            proj = db.query(Project).filter(Project.id == proj_id).first()
+            if not proj:
+                raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+            assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+            assert_project_visible(proj_id, user, db)
+            if not is_project_code_visible_in_context(proj_id, project_id, db):
+                raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+        focus_id = _code_file_id(proj_id, root_entity.source_id, root_entity.file_path)
+        nodes = {focus_id: _code_file_node(
+            proj_id, root_entity.source_id, root_entity.file_path, file_entities
+        )}
+        edges: list[dict] = []
+        has_more = False
+        entity_ids = {entity.id for entity in file_entities}
+
+        if "code_dependency" in allowed_rels:
+            clauses = []
+            if direction in {"outgoing", "both"}:
+                clauses.append(CodeEdge.src_entity_id.in_(entity_ids))
+            if direction in {"incoming", "both"}:
+                clauses.append(CodeEdge.dst_entity_id.in_(entity_ids))
+            code_query = db.query(CodeEdge).filter(CodeEdge.project_id == proj_id, or_(*clauses))
+            code_edges = code_query.order_by(CodeEdge.id).offset(offset).limit(limit + 1).all()
+            if len(code_edges) > limit:
+                has_more = True
+                code_edges = code_edges[:limit]
+            related_ids = {
+                related_id
+                for edge in code_edges
+                for related_id in (edge.src_entity_id, edge.dst_entity_id)
+                if related_id is not None
+            }
+            related_entities = {
+                entity.id: entity
+                for entity in db.query(CodeEntity).filter(
+                    CodeEntity.id.in_(related_ids), CodeEntity.project_id == proj_id
+                ).all()
+            } if related_ids else {}
+            related_entities.update({entity.id: entity for entity in file_entities})
+            _append_code_dependencies(nodes, edges, code_edges, related_entities)
+
+        if "documented" in allowed_rels:
+            doc_links = db.query(EntityDocLink).filter(
+                EntityDocLink.entity_id.in_(entity_ids), EntityDocLink.status == status
+            ).order_by(EntityDocLink.id).offset(offset).limit(limit + 1).all()
+            if len(doc_links) > limit:
+                has_more = True
+                doc_links = doc_links[:limit]
+            chunk_ids = {link.chunk_id for link in doc_links if link.chunk_id is not None}
+            chunks = {chunk.id: chunk for chunk in db.query(DocumentChunk).filter(
+                DocumentChunk.id.in_(chunk_ids)
+            ).all()} if chunk_ids else {}
+            entity_by_id = {entity.id: entity for entity in file_entities}
+            for link in doc_links:
+                entity = entity_by_id.get(link.entity_id)
+                if not entity:
+                    continue
+                doc_chunk = chunks.get(link.chunk_id)
+                doc_id = _document_node_id(link.doc_title, link.source_type, link.doc_url, doc_chunk)
+                nodes.setdefault(doc_id, _doc_node(
+                    link.doc_title, link.source_type, link.doc_url, doc_chunk
+                ))
+                edges.append({
+                    "id": f"edl:{link.id}",
+                    "source": doc_id,
+                    "target": focus_id,
+                    "link_type": link.link_type,
+                    "relation_type": "documented",
+                    "direction": "directed",
+                    "score": link.score,
+                    "context": link.context or f"Dokumentiert {entity.qualified_name or entity.name}.",
+                    "code_file_path": entity.file_path,
+                    "code_entity_id": entity.id,
+                    "code_entity_name": entity.qualified_name or entity.name,
+                    "code_entity_type": entity.type,
+                    "code_start_line": entity.start_line,
+                    **_document_locator(chunks.get(link.chunk_id), link.doc_url),
+                })
+
+        if "manual" in allowed_rels:
+            manual_links = db.query(KnowledgeLink).filter(
+                KnowledgeLink.status == status,
+                or_(
+                    (KnowledgeLink.source_a_type == "entity")
+                    & KnowledgeLink.source_a_entity_id.in_(entity_ids),
+                    (KnowledgeLink.source_b_type == "entity")
+                    & KnowledgeLink.source_b_entity_id.in_(entity_ids),
+                ),
+            ).order_by(KnowledgeLink.id).offset(offset).limit(limit + 1).all()
+            if len(manual_links) > limit:
+                has_more = True
+                manual_links = manual_links[:limit]
+            for link in manual_links:
+                if not (
+                    _is_side_visible(
+                        link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id,
+                        team_ids, visible_project_ids, db, project_id,
+                    )
+                    and _is_side_visible(
+                        link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id,
+                        team_ids, visible_project_ids, db, project_id,
+                    )
+                ):
+                    continue
+                source_side = (
+                    link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id,
+                    link.source_a_title, link.source_a_source_type, link.source_a_url,
+                )
+                target_side = (
+                    link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id,
+                    link.source_b_title, link.source_b_source_type, link.source_b_url,
+                )
+                src_id = _side_node_id(nodes, db, *source_side)
+                tgt_id = _side_node_id(nodes, db, *target_side)
+                if not src_id or not tgt_id:
+                    continue
+                edges.append({
+                    "id": f"kl:{link.id}",
+                    "source": src_id,
+                    "target": tgt_id,
+                    "link_type": link.link_type,
+                    "direction": getattr(link, "direction", None) or "undirected",
+                    "score": link.score,
+                    "context": link.context,
+                })
+
+        next_cursor = str(offset + limit) if has_more else None
+        response = {
+            "focus_id": focus_id,
+            "nodes": list(nodes.values()),
+            "edges": edges,
+            "has_more": has_more,
+            "next_cursor": next_cursor,
+            "graph_revision": f"proj:{proj_id}:file-{source_id}:{file_path}",
+            "relationships": list(allowed_rels),
+            "direction": direction,
+            "hops": 1,
+            "total_edges": len(edges),
+            "truncated": {"incoming": has_more, "outgoing": has_more},
+        }
+        _attach_graph_analysis_status(db, response["nodes"])
+        return response
+
+    # Fall 3: resolve old entity URLs to their containing file so this API
+    # never returns code-object nodes, even for bookmarked legacy links.
+    if node_id.startswith("entity:") or node_id.isdigit():
+        raw_entity_id = node_id[len("entity:"):] if node_id.startswith("entity:") else node_id
+        try:
+            entity_id = int(raw_entity_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Ungültige entity ID in {node_id}")
+        entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
+        if not entity:
+            raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+        return get_graph_neighborhood(
+            node_id=_code_file_id(entity.project_id, entity.source_id, entity.file_path),
+            project_id=project_id,
+            relationships=relationships,
+            status=status,
+            direction=direction,
+            hops=hops,
+            limit=limit,
+            cursor=cursor,
+            db=db,
+            user=user,
+        )
+
+    # Legacy entity implementation remains below for source compatibility;
+    # active graph node IDs are redirected to file focus above.
     ent_id = None
     if node_id.startswith("entity:"):
         try:
@@ -996,9 +1344,10 @@ def get_graph_neighborhood(
             else {}
         )
         for lnk in doc_links:
-            did = f"doc:{lnk.doc_title}"
+            doc_chunk = chunks.get(lnk.chunk_id)
+            did = _document_node_id(lnk.doc_title, lnk.source_type, lnk.doc_url, doc_chunk)
             nodes.setdefault(
-                did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, chunks.get(lnk.chunk_id))
+                did, _doc_node(lnk.doc_title, lnk.source_type, lnk.doc_url, doc_chunk)
             )
             edges.append(
                 {
@@ -1109,15 +1458,20 @@ def get_graph_focus(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Ein-Hop-Nachbarschaft inklusive neutral projizierter Codeabhängigkeiten."""
+    """Compatibility endpoint: resolve an entity ID and focus its source file."""
     if not isinstance(limit, int):
         limit = 500
     if not isinstance(cursor, str):
         cursor = None
     if not isinstance(status, str):
         status = "approved"
+    entity = db.query(CodeEntity).filter(
+        CodeEntity.id == entity_id, CodeEntity.project_id == project_id
+    ).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Code-Datei nicht gefunden")
     return get_graph_neighborhood(
-        node_id=f"entity:{entity_id}",
+        node_id=_code_file_id(entity.project_id, entity.source_id, entity.file_path),
         project_id=project_id,
         status=status,
         direction=direction,

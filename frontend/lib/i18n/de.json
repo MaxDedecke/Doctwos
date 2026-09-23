@@ -1079,6 +1079,16 @@
     "pageValue": "Seite {{page}}",
     "lineValue": "Zeilen {{start}}–{{end}}",
     "openDocumentLocation": "Fundstelle öffnen",
+    "openCodeEvidence": "Code-Beleg öffnen",
+    "resourceLabel": "Ressource",
+    "resourceTypes": {
+      "confluence_page": "Confluence-Seite",
+      "confluence_attachment": "Confluence-Anhang",
+      "notion_page": "Notion-Seite",
+      "jira_issue": "Jira-Vorgang",
+      "pdf_document": "PDF-Dokument",
+      "document": "Dokument"
+    },
     "fromLabel": "Von",
     "toLabel": "Nach",
     "legendLabel": "Legende",

@@ -1079,6 +1079,16 @@
     "pageValue": "Page {{page}}",
     "lineValue": "Lines {{start}}–{{end}}",
     "openDocumentLocation": "Open document location",
+    "openCodeEvidence": "Open code evidence",
+    "resourceLabel": "Resource",
+    "resourceTypes": {
+      "confluence_page": "Confluence page",
+      "confluence_attachment": "Confluence attachment",
+      "notion_page": "Notion page",
+      "jira_issue": "Jira issue",
+      "pdf_document": "PDF document",
+      "document": "Document"
+    },
     "fromLabel": "From",
     "toLabel": "To",
     "legendLabel": "Legend",

@@ -233,7 +233,7 @@ export function getGraphNodeIconKind(node: GraphTaxonomyNode | null | undefined)
   const url = node.url || node.node_url || node.nodeUrl;
 
   if (
-    nodeType === 'entity' || nodeType === 'code' || nodeType === 'cobol' ||
+    nodeType === 'entity' || nodeType === 'code_file' || nodeType === 'code' || nodeType === 'cobol' ||
     nodeType === 'jcl' || nodeType === 'git' || nodeType === 'copybook' ||
     nodeType === 'external' || CODE_ENTITY_TYPES.has(entityType)
   ) return 'code';
@@ -248,6 +248,13 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   if (!node) return 'document';
   const nodeType = textValue(node.type || node.node_type || node.kind);
   const entityType = textValue(node.entity_type || node.entityType);
+  if (nodeType === 'code_file') {
+    const path = String(node.file_path || node.label || '').toLowerCase();
+    if (/\.(cbl|cob|cobol)$/.test(path)) return 'cobol';
+    if (/\.(cpy|copy)$/.test(path)) return 'copybook';
+    if (/\.(jcl|proc|prc)$/.test(path)) return 'jcl';
+    return 'git';
+  }
   if (nodeType === 'entity') return entityType === 'copybook' ? 'copybook' : 'git';
   if (nodeType === 'copybook') return 'copybook';
   if (nodeType === 'external') return 'external';

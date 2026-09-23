@@ -14,12 +14,12 @@ from models.database import (
 )
 
 
-def _entity_node_ids(response_json: dict) -> set[str]:
-    return {n["id"] for n in response_json["nodes"] if n["type"] == "entity"}
+def _code_file_paths(response_json: dict) -> set[str]:
+    return {n["file_path"] for n in response_json["nodes"] if n["type"] == "code_file"}
 
 
 def _doc_node_ids(response_json: dict) -> set[str]:
-    return {n["id"] for n in response_json["nodes"] if n["type"] == "document"}
+    return {n["label"] for n in response_json["nodes"] if n["type"] == "document"}
 
 
 def test_general_graph_hides_project_entities_unless_opted_in(
@@ -55,12 +55,12 @@ def test_general_graph_hides_project_entities_unless_opted_in(
             "/graph", params={"project_id": test_project, "include_isolated": "true"}
         )
         assert scoped.status_code == 200
-        assert f"entity:{entity.id}" in _entity_node_ids(scoped.json())
+        assert "SCOPED.CBL" in _code_file_paths(scoped.json())
 
         # "Allgemein" (kein project_id) -- default aus, Entity darf nicht auftauchen.
         general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
-        assert f"entity:{entity.id}" not in _entity_node_ids(general.json())
+        assert "SCOPED.CBL" not in _code_file_paths(general.json())
 
         # Nach Opt-in erscheint dieselbe Entity auch im Allgemein-Graph.
         db_session.query(Project).filter(Project.id == test_project).update(
@@ -68,7 +68,7 @@ def test_general_graph_hides_project_entities_unless_opted_in(
         )
         db_session.commit()
         general_after_optin = client.get("/graph", params={"include_isolated": "true"})
-        assert f"entity:{entity.id}" in _entity_node_ids(general_after_optin.json())
+        assert "SCOPED.CBL" in _code_file_paths(general_after_optin.json())
     finally:
         db_session.query(Project).filter(Project.id == test_project).update(
             {"expose_code_analysis_globally": False}
@@ -127,15 +127,15 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
             "/graph", params={"project_id": test_project, "include_isolated": "true"}
         )
         assert scoped.status_code == 200
-        assert "doc:SCOPED.CBL" not in _doc_node_ids(scoped.json())
-        assert "doc:Runbook" not in _doc_node_ids(scoped.json())
+        assert "SCOPED.CBL" not in _doc_node_ids(scoped.json())
+        assert "Runbook" not in _doc_node_ids(scoped.json())
 
         # "Allgemein" -- kein projektgebundener Chunk ist sichtbar.
         general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
         general_docs = _doc_node_ids(general.json())
-        assert "doc:SCOPED.CBL" not in general_docs
-        assert "doc:Runbook" not in general_docs
+        assert "SCOPED.CBL" not in general_docs
+        assert "Runbook" not in general_docs
 
         # Das Opt-in betrifft nur Code-Analyse; die Doku bleibt projektgebunden.
         db_session.query(Project).filter(Project.id == test_project).update(
@@ -143,8 +143,8 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
         )
         db_session.commit()
         general_after_optin = client.get("/graph", params={"include_isolated": "true"})
-        assert "doc:SCOPED.CBL" not in _doc_node_ids(general_after_optin.json())
-        assert "doc:Runbook" not in _doc_node_ids(general_after_optin.json())
+        assert "SCOPED.CBL" not in _doc_node_ids(general_after_optin.json())
+        assert "Runbook" not in _doc_node_ids(general_after_optin.json())
     finally:
         db_session.query(Project).filter(Project.id == test_project).update(
             {"expose_code_analysis_globally": False}
@@ -233,9 +233,9 @@ def test_graph_document_nodes_require_an_approved_relationship(
         )
         assert response.status_code == 200
         nodes = _doc_node_ids(response.json())
-        assert "doc:approved.md" in nodes
-        assert "doc:pending.md" not in nodes
-        assert "doc:unlinked.md" not in nodes
+        assert "approved.md" in nodes
+        assert "pending.md" not in nodes
+        assert "unlinked.md" not in nodes
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id.in_(link_ids)).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -290,8 +290,8 @@ def test_general_graph_hides_project_documents_through_knowledge_links(
         # Die Kante wird verworfen, weil ihr anderes Ende projektgebunden und
         # im globalen Graph nicht sichtbar ist. Das globale Dokument bleibt
         # damit ebenfalls außerhalb des Graphen, statt isoliert aufzutauchen.
-        assert "doc:global.md" not in docs
-        assert "doc:private.pdf" not in docs
+        assert "global.md" not in docs
+        assert "private.pdf" not in docs
     finally:
         db_session.delete(link)
         db_session.query(DocumentChunk).filter(

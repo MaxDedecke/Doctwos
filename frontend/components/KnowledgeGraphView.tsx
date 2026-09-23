@@ -46,7 +46,7 @@ function nodeTypeKey(node: GraphNode): string {
 // either overlapping (radius too small) or spaced needlessly far apart
 // (radius too large).
 function nodeRadius(node: GraphNode): number {
-  return node?.type === 'entity' ? 8 : 7;
+  return node?.type === 'entity' || node?.type === 'code_file' ? 8 : 7;
 }
 
 export const LINK_COLORS = EDGE_TYPE_COLORS;
@@ -75,7 +75,7 @@ function extractEntityDbId(id: unknown): number | null {
 
 export interface GraphNode {
   id: string;
-  type: 'entity' | 'document' | 'copybook' | 'external';
+  type: 'entity' | 'code_file' | 'document' | 'copybook' | 'external';
   label: string;
   entity_type?: string;
   language?: string;
@@ -88,6 +88,9 @@ export interface GraphNode {
   project_id?: number;
   unresolved?: boolean;
   source_id?: number | string | null;
+  entity_ids?: number[];
+  resource_type?: string;
+  resource_id?: string | number | null;
   x?: number;
   y?: number;
 }
@@ -118,6 +121,11 @@ export interface GraphEdge {
   document_section?: string | null;
   document_url_anchor?: string | null;
   document_url?: string | null;
+  code_file_path?: string | null;
+  code_entity_id?: number | null;
+  code_entity_name?: string | null;
+  code_entity_type?: string | null;
+  code_start_line?: number | null;
 }
 
 export function isEdgeDirected(edge: GraphEdge): boolean {
@@ -357,9 +365,10 @@ export function KnowledgeGraphView({
      * Supports cursor-based expansion (has_more, next_cursor).
      */
     const isDoc = node.type === 'document' || node.id.startsWith('doc:');
+    const isFile = node.type === 'code_file' || node.id.startsWith('file:');
     const entityDbId = isDoc ? null : extractEntityDbId(node.id);
     const projectId = neighborhoodProjectId(node);
-    if (!isDoc && (entityDbId === null || projectId === null)) {
+    if (!isDoc && !isFile && (entityDbId === null || projectId === null)) {
       setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodUnavailable'));
       return;
     }
@@ -367,7 +376,7 @@ export function KnowledgeGraphView({
     setNeighborhoodError(null);
     try {
       let res: Response;
-      if (isDoc) {
+      if (isDoc || isFile) {
         const params = new URLSearchParams({ node_id: node.id, status: 'approved' });
         if (projectId !== null) params.set('project_id', String(projectId));
         res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
@@ -413,10 +422,11 @@ export function KnowledgeGraphView({
     setNeighborhoodError(null);
     try {
       const isDoc = neighborhoodFocusNode.type === 'document' || neighborhoodFocusNode.id.startsWith('doc:');
+      const isFile = neighborhoodFocusNode.type === 'code_file' || neighborhoodFocusNode.id.startsWith('file:');
       const entityDbId = isDoc ? null : extractEntityDbId(neighborhoodFocusNode.id);
       const projectId = neighborhoodProjectId(neighborhoodFocusNode);
       let res: Response;
-      if (isDoc) {
+      if (isDoc || isFile) {
         const params = new URLSearchParams({
           node_id: neighborhoodFocusNode.id,
           status: 'approved',
@@ -467,8 +477,10 @@ export function KnowledgeGraphView({
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
     if (!sourceNode || !targetNode || sourceNode.id === targetNode.id) return;
     const sideFromNode = (n: GraphNode) => {
-      if (n.type === 'entity') {
-        const numId = parseInt(n.id.slice('entity:'.length), 10);
+      if (n.type === 'entity' || n.type === 'code_file') {
+        const numId = n.type === 'entity'
+          ? parseInt(n.id.slice('entity:'.length), 10)
+          : n.entity_ids?.[0];
         return { type: 'entity', entity_id: Number.isNaN(numId) ? null : numId, title: n.label, url: n.url ?? null, source_type: n.entity_type ?? null };
       }
       return { type: 'document', entity_id: null, title: n.label, url: n.url ?? null, source_type: n.source_type ?? null };
@@ -590,10 +602,11 @@ export function KnowledgeGraphView({
     setPrevSelectedNodeIdDeps({ selectedEntity, selectedDoc, selectedFile, rawNodes });
 
     if (selectedEntity) {
-      const entId = extractEntityDbId(selectedEntity.id);
-      if (entId != null) {
-        setSelectedNodeId(`entity:${entId}`);
-      }
+      const fileNode = rawNodes.find((n: GraphNode) =>
+        n.type === 'code_file' && n.file_path === selectedEntity.file_path &&
+        (selectedEntity.source_id == null || n.source_id === selectedEntity.source_id),
+      );
+      if (fileNode) setSelectedNodeId(fileNode.id);
     } else if (selectedDoc) {
       const docNode = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
       if (docNode) setSelectedNodeId(docNode.id);
@@ -602,7 +615,7 @@ export function KnowledgeGraphView({
       if (fileNode) {
         setSelectedNodeId(fileNode.id);
       } else {
-        const entNode = rawNodes.find((n: GraphNode) => n.type === 'entity' && n.file_path === selectedFile);
+        const entNode = rawNodes.find((n: GraphNode) => n.type === 'code_file' && n.file_path === selectedFile);
         if (entNode) setSelectedNodeId(entNode.id);
       }
     }
@@ -952,8 +965,7 @@ export function KnowledgeGraphView({
 
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
-  // node id is `doc:<title>` (see backend/api/graph.py's _doc_node), NOT
-  // `doc:<sourceId>` — the real source id is node.source_id.
+  // node IDs identify source-native resources; source_id remains the connector ID.
   // node.label is the connector's *relative* title (see parser/connectors/folder.py:
   // `title=rel_path`), which 404s against the backend's file
   // lookup for any folder-scanned source — only node.file_path (the real absolute
@@ -961,7 +973,7 @@ export function KnowledgeGraphView({
   // store non-path strings (issue key, page title) as their storage_key, so those
   // keep using url/label instead.
   const isWebOriginSourceType = (sourceType: string | null | undefined) =>
-    !!sourceType && ['confluence', 'jira'].includes(sourceType.toLowerCase());
+    !!sourceType && ['confluence', 'notion', 'jira'].includes(sourceType.toLowerCase());
 
   const resolveDocSelector = (node: GraphNode) => {
     const pathVal = (node.file_path && !isWebOriginSourceType(node.source_type))
@@ -1202,7 +1214,7 @@ export function KnowledgeGraphView({
                 </span>
               </div>
             )}
-            {selectedNode.file_path && selectedNode.type === 'entity' && (
+            {selectedNode.file_path && (selectedNode.type === 'entity' || selectedNode.type === 'code_file') && (
               <div className="flex items-baseline gap-2">
                 <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
                 <span className={cn('text-[10px] font-mono break-all leading-snug', textMain)}>
@@ -1216,6 +1228,14 @@ export function KnowledgeGraphView({
                 <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.sourceLabel')}</span>
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
                   {selectedNode.source_type}
+                </span>
+              </div>
+            )}
+            {selectedNode.resource_type && (
+              <div className="flex items-baseline gap-2">
+                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.resourceLabel')}</span>
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+                  {t(`knowledgeGraphView.resourceTypes.${selectedNode.resource_type}`)}
                 </span>
               </div>
             )}
@@ -1259,11 +1279,11 @@ export function KnowledgeGraphView({
 
           {/* Aktionen */}
           <div className="flex flex-col gap-2">
-            {selectedNode.type === 'entity' && selectedNode.file_path && onFileSelect && (
+            {(selectedNode.type === 'entity' || selectedNode.type === 'code_file') && selectedNode.file_path && onFileSelect && (
               <button
                 onClick={() => {
                   onFileSelect(selectedNode.file_path!, selectedNode.start_line ?? null, selectedNode.source_id ?? null);
-                  onEntitySelect?.({
+                  if (selectedNode.type === 'entity') onEntitySelect?.({
                     name: selectedNode.label,
                     type: selectedNode.entity_type,
                     id: extractEntityDbId(selectedNode.id) ?? undefined,
@@ -1305,7 +1325,7 @@ export function KnowledgeGraphView({
               </button>
             )}
 
-            {((selectedNode.type === 'entity' && neighborhoodProjectId(selectedNode) !== null) || selectedNode.type === 'document' || selectedNode.id.startsWith('doc:')) && (
+            {((selectedNode.type === 'entity' || selectedNode.type === 'code_file') && neighborhoodProjectId(selectedNode) !== null || selectedNode.type === 'document' || selectedNode.id.startsWith('doc:')) && (
               <div className="flex flex-wrap items-center gap-1.5">
                 {selectedNode.type === 'entity' && (
                   <>
@@ -1352,8 +1372,12 @@ export function KnowledgeGraphView({
             )}
 
             <button
+              disabled={selectedNode.type === 'code_file' && !selectedNode.entity_ids?.length}
               onClick={() => { setIsLinkPickerOpen(o => !o); setLinkCreateError(null); }}
-              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+              className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                selectedNode.type === 'code_file' && !selectedNode.entity_ids?.length
+                  ? 'opacity-40 cursor-not-allowed text-ds-zinc-500'
+                  : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
               <Link2 className="w-3 h-3" />
               {t('knowledgeGraphView.createLink')}
             </button>
@@ -1481,6 +1505,19 @@ export function KnowledgeGraphView({
               <p className={cn('text-[10px]', textMuted)}>{t('knowledgeGraphView.documentLocationLabel')}</p>
               <p className={cn('text-[10px] font-mono break-words', textMain)}>{selectedEdgeLocation}</p>
             </div>
+          )}
+
+          {selectedEdge.code_file_path && edgeTgt && onFileSelect && (
+            <button
+              onClick={() => onFileSelect(
+                selectedEdge.code_file_path!,
+                selectedEdge.code_start_line ?? null,
+                edgeTgt.source_id ?? null,
+              )}
+              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+              <ExternalLink className="w-3 h-3" />
+              {t('knowledgeGraphView.openCodeEvidence')}
+            </button>
           )}
 
           {selectedEdge.relation_type === 'documented' && edgeTgt && onFileSelect && (
@@ -1744,7 +1781,7 @@ export function KnowledgeGraphView({
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
-                if (node.type === 'entity') {
+                if (node.type === 'entity' || node.type === 'code_file') {
                   // Ein einfacher Klick stupst nur ein bereits offenes, nicht eingefrorenes
                   // Code-Panel an — er öffnet nie ein neues (openIfMissing=false).
                   // source_id muss mit, sonst kann page.tsx::handlePanelFileSelect die
@@ -1756,7 +1793,7 @@ export function KnowledgeGraphView({
                   if (node.file_path && onFileSelect) {
                     onFileSelect(node.file_path, node.start_line || null, node.source_id ?? null, false);
                   }
-                  if (onEntitySelect) {
+                  if (node.type === 'entity' && onEntitySelect) {
                     onEntitySelect({
                       name: node.label,
                       type: node.entity_type,
@@ -1866,7 +1903,7 @@ export function KnowledgeGraphView({
             <div className={cn('flex items-center justify-between px-3 py-2 border-b shrink-0', border)}>
               <span className={cn('text-xs font-semibold', textMain)}>
                 {selectedNode
-                  ? (selectedNode.type === 'entity' ? t('knowledgeGraphView.codeEntityLabel') : t('knowledgeGraphView.documentLabel'))
+                  ? (selectedNode.type === 'code_file' ? t('knowledgeGraphView.fileLabel') : selectedNode.type === 'entity' ? t('knowledgeGraphView.codeEntityLabel') : t('knowledgeGraphView.documentLabel'))
                   : t('knowledgeGraphView.linkLabel')}
               </span>
               <button onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
