@@ -234,6 +234,7 @@ export function LinkManagerView({
   const [docBQuery, setDocBQuery] = useState('');
   const [docBResults, setDocBResults] = useState<PickerDocument[]>([]);
   const [selectedDocB, setSelectedDocB] = useState<PickerDocument | null>(null);
+  const [manualDirection, setManualDirection] = useState<'directed' | 'undirected' | 'bidirectional'>('undirected');
   const [manualDescription, setManualDescription] = useState('');
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
   const [manualError, setManualError] = useState('');
@@ -659,6 +660,7 @@ export function LinkManagerView({
     setSelectedDoc(null);
     setDocAQuery(''); setDocAResults([]); setSelectedDocA(null);
     setDocBQuery(''); setDocBResults([]); setSelectedDocB(null);
+    setManualDirection('undirected');
     setManualDescription('');
     setManualError('');
   };
@@ -689,7 +691,7 @@ export function LinkManagerView({
           body: JSON.stringify({
             source_a_type: 'document', source_a_title: selectedDocA.title, source_a_url: selectedDocA.url || null, source_a_source_type: selectedDocA.source_type || null,
             source_b_type: 'document', source_b_title: selectedDocB.title, source_b_url: selectedDocB.url || null, source_b_source_type: selectedDocB.source_type || null,
-            link_type: 'manual', status: 'approved', context: manualDescription.trim() || null,
+            link_type: 'manual', direction: manualDirection, status: 'approved', context: manualDescription.trim() || null,
           }),
         });
         if (!res.ok) { const err = await res.json(); setManualError(err.detail || t('linkManagerView.manualForm.genericError')); return; }
@@ -1177,6 +1179,23 @@ export function LinkManagerView({
                             </div>
                           </div>
                         </>
+                      )}
+
+                      {manualKind === 'knowledge' && (
+                        <div className="mt-4">
+                          <label htmlFor="link-manager-manual-direction" className={cn('text-[11px] font-medium block mb-1.5', subText)}>
+                            {t('linkManagerView.manualForm.directionLabel')}
+                          </label>
+                          <select
+                            id="link-manager-manual-direction"
+                            value={manualDirection}
+                            onChange={event => setManualDirection(event.target.value as 'directed' | 'undirected' | 'bidirectional')}
+                            className={cn('w-full text-xs rounded-md px-2.5 py-1.5 border focus:outline-none', inputCls)}>
+                            <option value="undirected">{t('linkManagerView.manualForm.directionUndirected')}</option>
+                            <option value="directed">{t('linkManagerView.manualForm.directionDirected')}</option>
+                            <option value="bidirectional">{t('linkManagerView.manualForm.directionBidirectional')}</option>
+                          </select>
+                        </div>
                       )}
 
                       {manualKind && (

@@ -117,11 +117,17 @@ export interface GraphEdge {
   document_url?: string | null;
 }
 
+type GraphEdgeDirection = 'directed' | 'undirected' | 'bidirectional';
+
 export function isEdgeDirected(edge: GraphEdge): boolean {
   if (edge.direction === 'directed') return true;
   if (edge.direction === 'undirected') return false;
   if (edge.direction === 'bidirectional') return true;
   return edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:');
+}
+
+function graphEdgeDirection(edge: GraphEdge): GraphEdgeDirection {
+  return edge.direction ?? (isEdgeDirected(edge) ? 'directed' : 'undirected');
 }
 
 function graphEdgeType(edge: Pick<GraphEdge, 'link_type' | 'relation_type'>): string {
@@ -222,6 +228,7 @@ export function KnowledgeGraphView({
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
   const [linkPickerQuery, setLinkPickerQuery] = useState('');
   const [linkPickerTargetId, setLinkPickerTargetId] = useState<string | null>(null);
+  const [manualLinkDirection, setManualLinkDirection] = useState<GraphEdgeDirection>('undirected');
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreateError, setLinkCreateError] = useState<string | null>(null);
 
@@ -239,6 +246,7 @@ export function KnowledgeGraphView({
 
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [hiddenLinkTypes, setHiddenLinkTypes] = useState<Set<string>>(new Set());
+  const [hiddenEdgeDirections, setHiddenEdgeDirections] = useState<Set<GraphEdgeDirection>>(new Set());
   const [linkFilterResetToken, setLinkFilterResetToken] = useState(0);
   const [isLegendOpen, setIsLegendOpen] = useState(true);
 
@@ -472,7 +480,7 @@ export function KnowledgeGraphView({
         body: JSON.stringify({
           source_a_type: a.type, source_a_entity_id: a.entity_id, source_a_title: a.title, source_a_url: a.url, source_a_source_type: a.source_type,
           source_b_type: b.type, source_b_entity_id: b.entity_id, source_b_title: b.title, source_b_url: b.url, source_b_source_type: b.source_type,
-          link_type: 'manual', status: 'approved',
+          link_type: 'manual', direction: manualLinkDirection, status: 'approved',
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -482,19 +490,21 @@ export function KnowledgeGraphView({
         source: sourceNode.id,
         target: targetNode.id,
         link_type: 'manual',
+        direction: manualLinkDirection,
         score: null,
         context: null,
       }]);
       setIsLinkPickerOpen(false);
       setLinkPickerQuery('');
       setLinkPickerTargetId(null);
+      setManualLinkDirection('undirected');
     } catch (e) {
       console.error('[KnowledgeGraph] manual link creation failed', e);
       setLinkCreateError(t('knowledgeGraphView.createLinkError'));
     } finally {
       setIsCreatingLink(false);
     }
-  }, [t]);
+  }, [t, manualLinkDirection]);
 
   // Reset the link-creation picker whenever the selection changes so it doesn't
   // linger open/stale against a now-different node. Done during render
@@ -601,7 +611,10 @@ export function KnowledgeGraphView({
     const visibleEdges = rawEdges.filter(e => {
       const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
       const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-      return !hiddenLinkTypes.has(graphEdgeType(e)) && candidateIds.has(src) && candidateIds.has(tgt);
+      return !hiddenLinkTypes.has(graphEdgeType(e))
+        && !hiddenEdgeDirections.has(graphEdgeDirection(e))
+        && candidateIds.has(src)
+        && candidateIds.has(tgt);
     });
 
     let visibleNodes = candidateNodes;
@@ -617,7 +630,7 @@ export function KnowledgeGraphView({
     }
 
     return { nodes: visibleNodes, links: visibleEdges };
-  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, onlyLinked]);
+  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
 
   // Camera centering on node/edge selection
   useEffect(() => {
@@ -692,6 +705,12 @@ export function KnowledgeGraphView({
     return Array.from(s);
   }, [rawEdges]);
 
+  const edgeDirections = useMemo(() => {
+    const directions = new Set<GraphEdgeDirection>();
+    rawEdges.forEach(edge => directions.add(graphEdgeDirection(edge)));
+    return Array.from(directions);
+  }, [rawEdges]);
+
   // A freshly loaded knowledge graph starts with every relationship family
   // visible. The backend already collapses parser-specific code edge types into
   // one bounded code_dependency family.
@@ -702,6 +721,7 @@ export function KnowledgeGraphView({
     if (lastLinkFilterResetRef.current === filterKey) return;
     lastLinkFilterResetRef.current = filterKey;
     setHiddenLinkTypes(new Set());
+    setHiddenEdgeDirections(new Set());
   }, [linkFilterResetToken, linkTypes, selectedProject?.id]);
 
   // Tune the force simulation whenever the visible node/link set changes. The
@@ -1034,6 +1054,14 @@ export function KnowledgeGraphView({
     });
   };
 
+  const toggleEdgeDirection = (direction: GraphEdgeDirection) => {
+    setHiddenEdgeDirections(prev => {
+      const next = new Set(prev);
+      next.has(direction) ? next.delete(direction) : next.add(direction);
+      return next;
+    });
+  };
+
   // Layout
   const panelOpen = !!(selectedNode || selectedEdge);
   const PANEL_W = 260;
@@ -1317,6 +1345,20 @@ export function KnowledgeGraphView({
                     <p className={cn('text-[10px] px-1.5 py-1', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
                   )}
                 </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="manual-link-direction" className={cn('text-[10px] shrink-0', textMuted)}>
+                    {t('knowledgeGraphView.createLinkDirectionLabel')}
+                  </label>
+                  <select
+                    id="manual-link-direction"
+                    value={manualLinkDirection}
+                    onChange={event => setManualLinkDirection(event.target.value as GraphEdgeDirection)}
+                    className={cn('min-w-0 flex-1 rounded border px-1.5 py-1 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-700')}>
+                    <option value="undirected">{t('knowledgeGraphView.edgeDirection.undirected')}</option>
+                    <option value="directed">{t('knowledgeGraphView.edgeDirection.directed')}</option>
+                    <option value="bidirectional">{t('knowledgeGraphView.edgeDirection.bidirectional')}</option>
+                  </select>
+                </div>
                 {linkCreateError && <p className="text-[10px] text-ds-red-400">{linkCreateError}</p>}
                 <div className="flex items-center gap-2 justify-end">
                   <button onClick={() => { setIsLinkPickerOpen(false); setLinkPickerTargetId(null); setLinkCreateError(null); }}
@@ -1355,6 +1397,9 @@ export function KnowledgeGraphView({
             <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
             <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
               {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
+            </span>
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+              {t(`knowledgeGraphView.edgeDirection.${graphEdgeDirection(selectedEdge)}`)}
             </span>
             {selectedEdge.score !== null && (
               <span className="text-[10px] font-mono text-ds-emerald-500">
@@ -1464,6 +1509,30 @@ export function KnowledgeGraphView({
                     hidden ? 'opacity-30' : 'opacity-100')}>
                   <span className="w-4 rounded-sm shrink-0" style={{ background: color, height: 2 }} />
                   {getLinkLabel(t, type) ?? type}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {linkTypes.length > 0 && edgeDirections.length > 0 && (
+          <div className={cn('h-4 w-px shrink-0', border)} />
+        )}
+
+        {/* Direction filter for the currently focused graph data */}
+        {edgeDirections.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>
+              {t('knowledgeGraphView.directionFilterLabel')}
+            </span>
+            {edgeDirections.map(direction => {
+              const hidden = hiddenEdgeDirections.has(direction);
+              return (
+                <button key={direction} onClick={() => toggleEdgeDirection(direction)}
+                  aria-pressed={!hidden}
+                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
+                    hidden ? 'opacity-30' : 'opacity-100')}>
+                  {t(`knowledgeGraphView.edgeDirection.${direction}`)}
                 </button>
               );
             })}
