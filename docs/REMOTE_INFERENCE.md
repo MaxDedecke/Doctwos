@@ -61,7 +61,7 @@ Ollama's privileged `/api/pull` endpoint.
 In typical high-security on-premise enterprise environments, Doctus operates across two machines in the same private LAN without internet access:
 
 - **Machine A (Doctus Host)**: Runs PostgreSQL (pgvector), Valkey, backend-api, parser-workers, and frontend. It also retains the local Ollama container and model weights as an instant offline fallback.
-- **Machine B (Inference/GPU Host)**: Runs a dedicated Ollama container or service with GPU acceleration (NVIDIA Container Toolkit).
+- **Machine B (Inference/GPU Host)**: Runs a dedicated Ollama container or high-throughput **vLLM** service with GPU acceleration (NVIDIA Container Toolkit, PagedAttention, Continuous Batching, see O-338–O-341 in `docs/TODO.md`).
 
 ### 1. Setting up Machine B (Inference Host)
 
