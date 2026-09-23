@@ -45,8 +45,9 @@ function nodeTypeKey(node: GraphNode): string {
 // always matches what's actually painted — a mismatch would leave nodes
 // either overlapping (radius too small) or spaced needlessly far apart
 // (radius too large).
-function nodeRadius(node: GraphNode): number {
-  return node?.type === 'entity' || node?.type === 'code_file' ? 8 : 7;
+function nodeRadius(node: GraphNode, degree = 0): number {
+  const baseRadius = node?.type === 'entity' || node?.type === 'code_file' ? 8 : 7;
+  return baseRadius + Math.min(9, Math.sqrt(degree) * 1.8);
 }
 
 export const LINK_COLORS = EDGE_TYPE_COLORS;
@@ -654,6 +655,17 @@ export function KnowledgeGraphView({
     return { nodes: visibleNodes, links: visibleEdges };
   }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
 
+  const nodeDegrees = useMemo(() => {
+    const degrees = new Map<string, number>();
+    for (const edge of filteredData.links) {
+      const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
+      const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
+      degrees.set(sourceId, (degrees.get(sourceId) ?? 0) + 1);
+      degrees.set(targetId, (degrees.get(targetId) ?? 0) + 1);
+    }
+    return degrees;
+  }, [filteredData.links]);
+
   // Camera centering on node/edge selection
   useEffect(() => {
     if (!graphRef.current) return;
@@ -765,13 +777,28 @@ export function KnowledgeGraphView({
     const nodeCount = filteredData.nodes.length;
     if (nodeCount === 0) return;
 
-    graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => nodeRadius(n) + 10).iterations(2));
+    graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => {
+      const degree = nodeDegrees.get(n.id) ?? 0;
+      return nodeRadius(n, degree) + 16 + Math.sqrt(degree) * 2;
+    }).iterations(3));
 
     const chargeStrength = -Math.min(260, 40 + nodeCount * 0.6);
-    graphRef.current.d3Force('charge', forceManyBody().strength(chargeStrength).distanceMax(600));
+    graphRef.current.d3Force('charge', forceManyBody()
+      .strength((n: unknown) => {
+        const degree = nodeDegrees.get((n as GraphNode).id) ?? 0;
+        return chargeStrength - Math.min(180, degree * 8);
+      })
+      .distanceMax(900));
 
     const linkForce = graphRef.current.d3Force('link');
-    if (linkForce) linkForce.distance(50).strength(0.25);
+    if (linkForce) {
+      linkForce.distance((edge: GraphEdge) => {
+        const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
+        const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
+        const endpointDegrees = Math.sqrt(nodeDegrees.get(sourceId) ?? 0) + Math.sqrt(nodeDegrees.get(targetId) ?? 0);
+        return 65 + Math.min(55, endpointDegrees * 5);
+      }).strength(0.25);
+    }
 
     // O-270: a bounded directional neighborhood is easier to read as layers
     // than as a force-directed cloud.  Cycles are harmless here: BFS assigns
@@ -824,7 +851,7 @@ export function KnowledgeGraphView({
     }
 
     graphRef.current.d3ReheatSimulation();
-  }, [ForceGraphComponent, filteredData, viewMode, neighborhoodFocusNode, traversalDirection]);
+  }, [ForceGraphComponent, filteredData, nodeDegrees, viewMode, neighborhoodFocusNode, traversalDirection]);
 
   // Nodes directly connected to focusNodeId (incl. itself) — everything else dims.
   // Clicking an edge produces the same soft-focus effect for just its two endpoints,
@@ -924,13 +951,13 @@ export function KnowledgeGraphView({
       const dy = targetNode.y - sourceNode.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > 0) {
-        const r = nodeRadius(targetNode);
+    const r = nodeRadius(targetNode, nodeDegrees.get(targetNode.id) ?? 0);
         const targetOffset = (r + 1) / dist;
         return Math.max(0.1, Math.min(0.95, 1 - targetOffset));
       }
     }
     return 0.88;
-  }, []);
+  }, [nodeDegrees]);
 
   const drawBidirectionalSourceArrow = useCallback((edge: GraphEdge, ctx: CanvasRenderingContext2D) => {
     if (graphEdgeDirection(edge) !== 'bidirectional') return;
@@ -947,7 +974,7 @@ export function KnowledgeGraphView({
     const uy = dy / distance;
     const px = -uy;
     const py = ux;
-    const tipDistance = nodeRadius(source) + 1;
+    const tipDistance = nodeRadius(source, nodeDegrees.get(source.id) ?? 0) + 1;
     const tipX = source.x + ux * tipDistance;
     const tipY = source.y + uy * tipDistance;
     const arrowLength = 5;
@@ -966,7 +993,7 @@ export function KnowledgeGraphView({
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-  }, [isDark, selectedEdgeId, rawNodes]);
+  }, [isDark, selectedEdgeId, rawNodes, nodeDegrees]);
 
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
@@ -998,7 +1025,7 @@ export function KnowledgeGraphView({
 
   // Canvas node drawing — Neo4j style circles with labels
   const drawNode = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const r = nodeRadius(node);
+    const r = nodeRadius(node, nodeDegrees.get(node.id) ?? 0);
     const isSelected = node.id === selectedNodeId;
     const isFocus = node.id === focusNodeId;
     const isPrimary = isSelected || isFocus;
@@ -1081,8 +1108,6 @@ export function KnowledgeGraphView({
 
     if (globalScale > 0.45) {
       const label = getNodeDisplayLabel(node) ?? '';
-      const maxLen = Math.min(14, Math.max(6, Math.floor(globalScale * 7)));
-      const truncated = label.length > maxLen ? label.slice(0, maxLen) + '…' : label;
       const fontSize = Math.min(11, 8 / globalScale * 1.8);
       ctx.font = `${isPrimary ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
@@ -1090,10 +1115,10 @@ export function KnowledgeGraphView({
       ctx.fillStyle = isPrimary
         ? (isDark ? '#f8fafc' : '#0f172a')
         : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-      ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
+      ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
     }
     ctx.restore();
-  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds]);
+  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds, nodeDegrees]);
 
   const toggleNodeType = (type: string) => {
     setHiddenNodeTypes(prev => {
@@ -1752,7 +1777,7 @@ export function KnowledgeGraphView({
               nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(node.x ?? 0, node.y ?? 0, 10, 0, 2 * Math.PI);
+                ctx.arc(node.x ?? 0, node.y ?? 0, nodeRadius(node, nodeDegrees.get(node.id) ?? 0) + 4, 0, 2 * Math.PI);
                 ctx.fill();
               }}
               linkColor={(l: GraphEdge) => {
