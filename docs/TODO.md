@@ -23,7 +23,7 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 | 9 | O-299 | Workflow „Was macht dieses Element?“ von Frage bis Originalbeleg verbinden. | **Umgesetzt, fachliche E2E-Abnahme offen.** Chat-Zitate, geführte Code-/Prozessschritte sowie Java-/COBOL-Referenz-Locators öffnen die Originalquelle an der belegten Stelle. Je eine reale Java- und COBOL-Frage vollständig abnehmen. |
 | 10 | O-300 | Workflow „Änderung untersuchen“ fachlich an Java und COBOL abnehmen. | Teilweise. Technischer Impact-Schnitt ist umgesetzt; Bestandsabnahme fehlt. |
 | 11 | O-304 | Produktschnitt mit versionierten Java-/COBOL-Szenarien und Ground Truth messen. | Offen. Erst starten, wenn O-299 bis O-303 fachlich abnehmbar sind. |
-| 12 | O-311 | COBOL-Parser darf keine doppelten `data_item`-Entities mit gleichem Source-/Varianten-/Pfad-/Qualified-Name persistieren. | CardDemo-Fund `app/cbl/COACTUPC.cbl`: `WS-EDIT-DATE-X` erzeugte bei `REDEFINES` eine `uq_code_entities_source_variant_file_qname`-Verletzung. Vor Reindex: Parser-Deduplizierung oder eindeutige Modellierung ergänzen, Regression mit diesem Fall anlegen; die einzelne Datei muss danach strukturiert statt `error` sein. |
+| 12 | O-311 | COBOL-Parser darf keine doppelten `data_item`-Entities mit gleichem Source-/Varianten-/Pfad-/Qualified-Name persistieren. | **Umgesetzt.** Kollisionsfreie Qualified-Name-Disambiguierung für REDEFINES und gleichnamige Geschwister über Level-Stack und Zeilenanker umgesetzt; Defense-in-Depth-Deduplizierung in structure_persist.py ergänzt. Regressionen in test_cobol_parse.py und test_structure_persist_cobol_scoping.py; COACTUPC.cbl und COTRTUPC.cbl indizieren mit 627 bzw. 191 Entitäten fehlerfrei strukturiert. |
 | 13 | O-312 | Remote-Ollama während langer Imports stabil betreiben: Modellresidenz, Admission und Verbindungsabbrüche beobachten. | Der laufende CardDemo-Import fängt einzelne Dateifehler korrekt ab. Vor weiterer Lastabnahme prüfen, dass `qwen3-embedding:4b` nicht unnötig entladen/neu geladen wird und keine EOF-/Verbindungsabbrüche an der Ollama-/Proxy-Grenze auftreten; `/api/ps`, GPU-Telemetrie, Queue-Wartezeit und Container-Logs gemeinsam protokollieren. Keine Container-Rollouts während eines aktiven Imports. |
 | 14 | O-314 | COBOL-Importdurchsatz gezielt optimieren. | CardDemo war pro Datei deutlich langsamer als Syncope. Parsezeit, Chunk-Anzahl, Embedding-Batchgröße und Admission-Wartezeit je Datei erfassen; große Text-/Datenartefakte in begrenzte, faire Batches teilen und COBOL-Parallelität anhand der 1/2/3-Request-Messung einstellen. Ziel: keine minutenlange Slot-Blockade durch einzelne Dateien. |
 | 15 | O-315 | Automatischen Link-Builder vom normalen Quellenimport entkoppeln. | Nach einem erfolgreichen Import darf kein kostenintensiver Entity-Link-Lauf ohne expliziten Nutzerauftrag starten. Link-Build als separat sichtbaren, start-/abbruchbaren Job mit Kosten-/Umfangshinweis anbieten; statische Parserkanten, Chunks und Quellenbelege müssen ohne ihn vollständig nutzbar bleiben. |
@@ -97,6 +97,13 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 | 49 | O-250, O-260, O-261, O-262, O-263 | Umgesetzte Mischsprachen-, Shell-, HTML-, Ablauf- und Intent-Fixes ausrollen, reindizieren und an den realen Beständen abnehmen. | Rollout/Reindex und Remote-Qwen erforderlich. |
 | 50 | O-264 | Datenbankmigration für Kantenrichtung beim Rollout anwenden. | Technisch umgesetzt; Migrationsnachweis offen. |
 
+### Entwickler-Workflow & IDE-Integration
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 51 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Stellt Wissensgraph, AST-Entitäten, Call-Flows und semantisches Retrieval als standardisierte MCP-Tools im internen Netz bereit (für Continue.dev, VS Code, Cursor). Konkrete Umsetzung zu O-171. |
+| 52 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | Direktsprung von Quelltextzeilen in den Doctus-Graph sowie CodeLens-/Hover-Informationen für Cross-References (`CALL`, `COPY`) in der lokalen IDE. |
+
 ## P2 – Pilot- und Mainframe-Fähigkeit
 
 ### Mainframe-/COBOL-Kompatibilität
@@ -118,6 +125,9 @@ Die detaillierten Abnahmeregeln stehen in
 | 60 | O-153, O-154 | Ressourcenverbrauch und Analysequalität am Kundenbestand messen. | Repräsentative Stichprobe. |
 | 61 | O-155, O-156 | Dialekterweiterung, Generatorstände, Provenienz und CI reproduzierbar dokumentieren. | Nach erstem zusätzlichen Kundenprofil. |
 | 62 | O-313 | EBCDIC-Datendateien optional, kontrolliert erschließen. | CardDemo-Dateien unter `app/data/EBCDIC/` bleiben aktuell korrekt als Nicht-UTF-8 übersprungen. Erst bei fachlichem Bedarf CCSID, Record-Format (FB/VB, LRECL) und Zweck je Dataset belegen; dann einen Decoder für lesbare Daten-/Testfallansichten ergänzen. Daten niemals als COBOL-Quellcode parsen oder daraus unbelegte Kontrollfluss-/Strukturkanten ableiten. |
+| 63 | O-329 | Strukturellen JCL-Parser für Batch-Abläufe und Programm-Dataset-Verknüpfungen ergänzen. | Parser-Erweiterung für JCL/PROCs zur Extraktion von Job-Steps, `EXEC`-Programmen und Datasets (`EXECUTES`-, `READS`-, `WRITES`-Kanten), um Batch-Ablaufketten im Call-Graph zu schließen (Erweiterung zu O-145–O-147). |
+| 64 | O-330 | Native EBCDIC-Quelltextautokonvertierung für Host-Dateien und Copybooks umsetzen. | Automatische CCSID-Erkennung (z. B. IBM-273 / 1141) und transparenter Decoder im Connector-Vorlauf, um manuelle Vorabkonvertierung von Mainframe-Quellen zu vermeiden. |
+| 65 | O-337 | Subsystem- und Schnittstellenbeziehungen für Assembler, PL/I und dynamische CICS-Links erfassen. | Auflösung von `EXEC CICS LINK/XCTL PROGRAM(...)`-Zielen und Erfassung von Aufrufen zu externen Assembler-Makros bzw. PL/I-Modulen mit explizitem Unresolved-/Dynamic-Status. |
 
 ### On-Prem-Deployment und Zielbestand
 
@@ -134,6 +144,9 @@ Details und Checkboxen stehen ausschließlich in
 | 67 | O-251 | Remote-Qwen-Embedding-Vertrag live abnehmen. | Der konfigurierte Host lieferte zuletzt 404; Betreiberaktion nötig. |
 | 68 | O-252 | Fingerprint-/Reembedding-Verhalten vollständig gegen PostgreSQL abnehmen. | Isolierte Integrationsumgebung. |
 | 69 | O-157 | Vollständigen Offline-Installationslauf mit aktuellem Versionsstand wiederholen. | Bewusst vorgemerkt; erst mit freigegebener Testinstanz ausführen. |
+| 70 | O-333 | Gehärtete Kubernetes- und OpenShift-Helm-Charts für Enterprise-Bereitstellung erstellen. | Bereitstellung der Compose-Dienste als standardisierte Helm-Charts mit Non-Root SecurityContext, ServiceAccounts, NetworkPolicies und persistenten StorageClasses für Air-Gapped K8s/OpenShift-Cluster. |
+| 71 | O-334 | Inkrementelle Delta-Offline-Bundles für wartungsarme Air-Gap-Updates einführen. | Skript und Spezifikation für differenzielle Update-Archive (nur geänderte Container-Layer, DB-Migrationen und App-Assets) zur Vermeidung wiederholter 5-GB-Volltransfers. |
+| 72 | O-335 | Ressourcen-Governance und Quoten-Management (Multi-Team / Multi-Projekt) umsetzen. | Durchsetzung konfigurierbarer Quoten für Festplattenplatz, Repository-Anzahl und Inferenz-Slots pro Benutzer/Team gemäß `OPERATIONS_LIMITS.md`. |
 
 ## P3 – Entscheidung oder bestätigter Bedarf
 
@@ -154,10 +167,12 @@ Details und Checkboxen stehen ausschließlich in
 | 82 | O-074 | Vision-Modell/Bildbeschreibung oder dauerhaften Bild-Skip entscheiden. | Fachliche Entscheidung. |
 | 83 | O-161 | RP-initiated OIDC-Logout ergänzen. | IdP-Anforderung und ID-Token-/`sid`-Strategie. |
 | 84 | O-163 | SSO-Sitzungsdauer und erneute IdP-Prüfung festlegen. | Sicherheitszusage des Betreibers. |
-| 85 | O-171 | Doctus als schreibgeschütztes Werkzeug-Backend/MCP-Server strategisch bewerten. | Roadmap-Entscheidung. |
+| 85 | O-171 | Doctus als schreibgeschütztes Werkzeug-Backend/MCP-Server strategisch bewerten. | Roadmap-Entscheidung; konkrete Umsetzung in O-324. |
 | 86 | O-172 | Interviewbasierte Wissensquelle mit zwingender menschlicher Freigabe zuschneiden. | Fachliche Priorisierung. |
 | 87 | O-173 | Keyword-/Volltext-Fallback unter Verschlüsselung evaluieren. | Belegter Recall-Fehler. |
 | 88 | O-174 | Strukturtreue PDF-Extraktion evaluieren. | Belegter Qualitätsfall mit komplexen PDFs. |
+| 89 | O-328 | Pre-Commit- & CI-Impact-Analyse CLI für Entwickler-Workstations liefern. | Standalone-CLI/Hook zur schnellen lokalen Überprüfung von Git-Diffs gegen den Doctus-Callgraphen mit Ausgabe des betroffenen Explosionsradius vor dem Commit. |
+| 90 | O-332 | Persistentes RAG- und Erklärungs-Caching im Wissensgraphen evaluieren. | Wiederkehrende Erklärungen zu Modulen, Paragraphen und Datenstrukturen persistent als Graph-Knoten ablegen, um lokale Inferenz-Slots nachhaltig zu entlasten. |
 
 ## Bewusst zurückgestellt
 
@@ -171,6 +186,10 @@ Details und Checkboxen stehen ausschließlich in
 | O-148 | Scheduler-, SDF- und Utility-Steuerkarten. | Nach O-117 anhand eines konkreten Exportformats. |
 | O-158 | Upgrade von `mcp-atlassian`/`fastmcp`. | Nach OSS-Freigabe der MPL-2.0-Transitive `orjson` und `pathspec`. |
 | O-166 | Serverseitige Link-Manager-Pagination. | Bei fünfstelliger Linkmenge oder wieder spürbarer Ladezeit. |
+| O-326 | Deterministische Unified-Diff- & Patch-Vorschläge. | Zurückgestellt: Produkt bleibt strikt rein lesend/analysierend; vorerst keine Codegenerierung. |
+| O-327 | Automatische Testfall- und Testtreiber-Generierung. | Zurückgestellt: Fokus liegt auf Code-Verständnis und Navigation, vorerst keine Codegenerierung. |
+| O-331 | Leichtgewichtiges CPU-Coder-Modell für reine CPU-Hosts. | Zurückgestellt: CPU-only Inferenz wird nicht verfolgt; GPU-Inferenz ist für produktiven Chatbetrieb gesetzt. |
+| O-336 | Automatisierter Living-Documentation-Export ins Repository. | Zurückgestellt: Doctus schreibt keine generierten Dokumentationsdateien in Kunden-Repositories. |
 
 ## Pflege
 

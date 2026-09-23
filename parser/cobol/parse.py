@@ -257,6 +257,21 @@ def _build_entities(
     exec_blocks: list[ExecBlock],
 ) -> list[Entity]:
     entities: list[Entity] = []
+    used_qnames: set[str] = set()
+
+    def add_entity(entity: Entity) -> None:
+        qname = entity.qualified_name or entity.name
+        if qname in used_qnames:
+            candidate = f"{qname}@{entity.start_line}"
+            counter = 1
+            disambiguated = candidate
+            while disambiguated in used_qnames:
+                counter += 1
+                disambiguated = f"{candidate}#{counter}"
+            entity.qualified_name = disambiguated
+            qname = disambiguated
+        used_qnames.add(qname)
+        entities.append(entity)
 
     # O-138: ein echt verschachteltes Unterprogramm bekommt einen
     # elternqualifizierten qualified_name ("AUSSEN.INNEN") - sonst würden
@@ -265,7 +280,7 @@ def _build_entities(
     # Sections/Paragraphen/Felder bleiben trotzdem am einfachen `program.name`
     # verankert (siehe unten) - das ist die Invariante, auf die sich
     # structure_persist.py::_belongs_to_program() verlässt.
-    entities.append(
+    add_entity(
         Entity(
             type="program",
             name=program.name,
@@ -281,7 +296,7 @@ def _build_entities(
     for section in program.sections:
         qname = _qualify(program.name, section.name)
         section_qnames[section.name] = qname
-        entities.append(
+        add_entity(
             Entity(
                 type="section",
                 name=section.name,
@@ -299,7 +314,7 @@ def _build_entities(
             if paragraph.section
             else program.name
         )
-        entities.append(
+        add_entity(
             Entity(
                 type="paragraph",
                 name=paragraph.name,
@@ -311,10 +326,14 @@ def _build_entities(
             )
         )
 
-    entities.extend(_build_field_entities(program.name, items, file_descriptors))
+    entities.extend(
+        _build_field_entities(
+            program.name, items, file_descriptors, used_qnames=used_qnames
+        )
+    )
 
     for entry in program.entry_points:
-        entities.append(
+        add_entity(
             Entity(
                 type="entry",
                 name=entry.name,
@@ -328,7 +347,7 @@ def _build_entities(
         )
 
     for block in sql_blocks:
-        entities.append(
+        add_entity(
             Entity(
                 type="sql_block",
                 name=block.name,
@@ -348,7 +367,7 @@ def _build_entities(
         )
         if block.include_name:
             include_qname = f"{_qualify(program.name, block.name)}.INCLUDE@{block.start_line}"
-            entities.append(
+            add_entity(
                 Entity(
                     type="sql_include",
                     name=block.include_name,
@@ -363,9 +382,9 @@ def _build_entities(
 
         for table in block.tables:
             table_qname = f"{program.name}.SQL-TABLE@{table.upper()}"
-            if any(entity.qualified_name == table_qname for entity in entities):
+            if table_qname in used_qnames:
                 continue
-            entities.append(
+            add_entity(
                 Entity(
                     type="sql_table",
                     name=table,
@@ -383,7 +402,7 @@ def _build_entities(
     seen_resource_qnames: set[str] = set()
     for block in exec_blocks:
         block_qname = _qualify(program.name, block.name)
-        entities.append(
+        add_entity(
             Entity(
                 type="exec_block",
                 name=block.name,
@@ -395,7 +414,7 @@ def _build_entities(
                 meta={"dialect": block.dialect, "operation": block.operation},
             )
         )
-        entities.append(
+        add_entity(
             Entity(
                 type="exec_operation",
                 name=block.operation,
@@ -414,7 +433,7 @@ def _build_entities(
             if resource_qname in seen_resource_qnames:
                 continue
             seen_resource_qnames.add(resource_qname)
-            entities.append(
+            add_entity(
                 Entity(
                     type="exec_resource",
                     name=resource.name,
@@ -460,8 +479,16 @@ def _sql_include_edges(program: CobolProgram, blocks: list[SqlBlock]) -> list[Pa
     return edges
 
 
+_STANDALONE_LEVEL = 77
+_RENAMES_LEVEL = 66
+_CONDITION_LEVEL = 88
+
+
 def _build_field_entities(
-    root_name: str, items: list[DataItem], file_descriptors: list[FileDescriptor]
+    root_name: str,
+    items: list[DataItem],
+    file_descriptors: list[FileDescriptor],
+    used_qnames: set[str] | None = None,
 ) -> list[Entity]:
     """FD/SD- und DataItem-Entities unter einer Wurzel (Programm- oder
     Copybook-Name) - gemeinsam genutzt von _build_entities() und
@@ -475,11 +502,21 @@ def _build_field_entities(
     beiden, ohne dass am Namen selbst zu erkennen ist, welches gemeint war.
     """
     entities: list[Entity] = []
+    if used_qnames is None:
+        used_qnames = set()
     field_qnames: dict[str, str] = {}
-    qname_occurrences: dict[str, int] = {}
 
     for fd in file_descriptors:
-        qname = _qualify(root_name, fd.name)
+        base_qname = _qualify(root_name, fd.name)
+        candidate = base_qname
+        if candidate in used_qnames:
+            candidate = f"{base_qname}@{fd.start_line}"
+            counter = 1
+            while candidate in used_qnames:
+                counter += 1
+                candidate = f"{base_qname}@{fd.start_line}#{counter}"
+        qname = candidate
+        used_qnames.add(qname)
         field_qnames[fd.name] = qname
         entities.append(
             Entity(
@@ -493,27 +530,62 @@ def _build_field_entities(
             )
         )
 
+    # Gruppenhierarchie über einen Level-Stack spiegeln (wie data_division.py),
+    # damit gleichnamige Geschwister (z.B. mehrere FILLER) oder tiefere Felder
+    # nicht versehentlich die parent_qname nachfolgender Geschwister vergiften.
+    stack: list[tuple[int, str]] = []
+
     for item in items:
-        parent_qname = field_qnames.get(item.parent, root_name) if item.parent else root_name
-        qname = _qualify(parent_qname, item.name)
+        if item.level in (_STANDALONE_LEVEL, _RENAMES_LEVEL):
+            parent_qname = root_name
+        elif item.level == _CONDITION_LEVEL:
+            parent_qname = (
+                stack[-1][1]
+                if stack
+                else (field_qnames.get(item.parent, root_name) if item.parent else root_name)
+            )
+        else:
+            while stack and stack[-1][0] >= item.level:
+                stack.pop()
+            parent_qname = (
+                stack[-1][1]
+                if stack
+                else (field_qnames.get(item.parent, root_name) if item.parent else root_name)
+            )
+
         # COBOL erlaubt neben namenlosen FILLERs auch gleichnamige Geschwister
         # für alternative REDEFINES-Beschreibungen. Der Klartextname allein ist
         # deshalb kein stabiler Entity-Schlüssel. Die erste Deklaration behält
         # ihren lesbaren Qualified Name; jede weitere erhält ihre physische
-        # Startzeile als stabile Disambiguierung. Ein Zähler deckt mehrere
-        # Beschreibungen auf derselben physischen Zeile ab.
-        base_qname = qname
+        # Startzeile als stabile Disambiguierung. Mehrfache Deklarationen auf
+        # derselben physischen Zeile werden über einen Zähler (#2, #3, ...)
+        # garantiert kollisionsfrei dedupliziert (O-311).
+        base_qname = _qualify(parent_qname, item.name)
         if canonical_identifier(item.name) == "FILLER":
-            base_qname = f"{base_qname}@{item.start_line}"
-        occurrence = qname_occurrences.get(base_qname, 0) + 1
-        qname_occurrences[base_qname] = occurrence
-        if occurrence > 1:
-            qname = f"{base_qname}@{item.start_line}"
-            if occurrence > 2:
-                qname = f"{qname}#{occurrence}"
+            preferred_qname = f"{base_qname}@{item.start_line}"
         else:
-            qname = base_qname
+            preferred_qname = base_qname
+
+        if preferred_qname not in used_qnames:
+            qname = preferred_qname
+        else:
+            candidate = (
+                f"{base_qname}@{item.start_line}"
+                if not preferred_qname.endswith(f"@{item.start_line}")
+                else preferred_qname
+            )
+            counter = 1
+            disambiguated = candidate
+            while disambiguated in used_qnames:
+                counter += 1
+                disambiguated = f"{candidate}#{counter}"
+            qname = disambiguated
+
+        used_qnames.add(qname)
         field_qnames[item.name] = qname
+        if item.level not in (_STANDALONE_LEVEL, _RENAMES_LEVEL, _CONDITION_LEVEL):
+            stack.append((item.level, qname))
+
         entities.append(
             Entity(
                 type="data_item",
@@ -676,7 +748,8 @@ def parse_copybook(
             parent_qualified_name=None,
         )
     ]
-    entities.extend(_build_field_entities(name, items, file_descriptors))
+    used_qnames = {name}
+    entities.extend(_build_field_entities(name, items, file_descriptors, used_qnames=used_qnames))
 
     chunks = [
         Chunk(

@@ -603,3 +603,87 @@ def test_literal_profile_and_invalid_hex_are_visible_on_parse_result():
         "COBOL_LITERAL_DELIMITER_MISMATCH",
         "COBOL_INVALID_HEX_LITERAL",
     }
+
+
+def test_carddemo_redefines_and_filler_siblings_preserve_hierarchy_and_uniqueness():
+    """CardDemo case (COACTUPC.cbl / COTRTUPC.cbl): WS-EDIT-DATE-X REDEFINES
+
+    WS-EDIT-DATE-X under CICS-OUTPUT-EDIT-VARS must not throw UniqueViolation,
+    and elementary FILLER items must not pollute parent_qname of subsequent
+    sibling items (O-311).
+    """
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. COACTUPC.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       05 CICS-OUTPUT-EDIT-VARS.\n"
+        "          10  WS-EDIT-DATE-X                      PIC X(10).\n"
+        "          10  FILLER REDEFINES WS-EDIT-DATE-X.\n"
+        "              20 WS-EDIT-DATE-X-YEAR              PIC X(4).\n"
+        "              20 FILLER                           PIC X(1).\n"
+        "              20 WS-EDIT-DATE-MONTH               PIC X(2).\n"
+        "              20 FILLER                           PIC X(1).\n"
+        "              20 WS-EDIT-DATE-DAY                 PIC X(2).\n"
+        "          10  WS-EDIT-DATE-X REDEFINES\n"
+        "              WS-EDIT-DATE-X                      PIC 9(10).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "app/cbl/COACTUPC.cbl")
+    qnames = [e.qualified_name for e in result.entities]
+    assert len(set(qnames)) == len(qnames), "All qualified names must be strictly unique"
+
+    dates = [e for e in result.entities if e.type == "data_item" and e.name == "WS-EDIT-DATE-X"]
+    assert len(dates) == 2
+    assert dates[0].qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X"
+    assert dates[1].qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X@13"
+    assert dates[1].parent_qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS"
+
+    # WS-EDIT-DATE-MONTH and WS-EDIT-DATE-DAY must be direct children of FILLER@7,
+    # not nested inside the sibling elementary FILLERs at line 9 or 11.
+    month = next(e for e in result.entities if e.name == "WS-EDIT-DATE-MONTH")
+    day = next(e for e in result.entities if e.name == "WS-EDIT-DATE-DAY")
+    assert month.parent_qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.FILLER@7"
+    assert month.qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.FILLER@7.WS-EDIT-DATE-MONTH"
+    assert day.parent_qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.FILLER@7"
+    assert day.qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.FILLER@7.WS-EDIT-DATE-DAY"
+
+
+def test_multiple_redefines_and_fillers_on_same_line_disambiguated():
+    """Multiple FILLERs or REDEFINES on the same line must be numbered #2, #3 without collisions."""
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. SAMELINE.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 REC.\n"
+        "          05 FILLER PIC X. 05 FILLER PIC X.\n"
+        "          05 A PIC X.\n"
+        "          05 A REDEFINES A PIC 9. 05 A REDEFINES A PIC 9.\n"
+        "          05 A REDEFINES A PIC S9.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+
+    result = parse_program(text, "sameline.cbl")
+    qnames = [e.qualified_name for e in result.entities]
+    assert len(set(qnames)) == len(qnames), "All qualified names must be strictly unique"
+
+    fillers = [e for e in result.entities if e.type == "data_item" and e.name == "FILLER"]
+    assert [e.qualified_name for e in fillers] == [
+        "SAMELINE.REC.FILLER@6",
+        "SAMELINE.REC.FILLER@6#2",
+    ]
+
+    items = [e for e in result.entities if e.type == "data_item" and e.name == "A"]
+    assert [e.qualified_name for e in items] == [
+        "SAMELINE.REC.A",
+        "SAMELINE.REC.A@8",
+        "SAMELINE.REC.A@8#2",
+        "SAMELINE.REC.A@9",
+    ]
+

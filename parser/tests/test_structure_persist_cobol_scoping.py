@@ -165,3 +165,68 @@ def test_dotted_root_qname_does_not_get_an_inferred_parent():
     root = _entity(11, "Example.java", "compilation_unit", "com.acme.Example.java")
 
     assert _parent_id(root.qualified_name, {}, {}, legacy_parent_name=None) is None
+
+
+def test_persist_parse_result_deduplicates_duplicate_qnames_without_violating_constraint():
+    """O-311: If a ParseResult contains duplicate qualified names, persist_parse_result
+
+    must deduplicate them instead of attempting duplicate inserts that trigger
+    uq_code_entities_source_variant_file_qname.
+    """
+    from unittest.mock import MagicMock
+    from core.model import Entity, ParseResult
+    from structure_persist import persist_parse_result
+
+    mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.all.return_value = []
+    mock_db.query.return_value.filter.return_value.first.return_value = None
+
+    def mock_flush():
+        for call in mock_db.add.call_args_list:
+            obj = call[0][0]
+            if getattr(obj, "id", None) is None:
+                obj.id = 1
+
+    mock_db.flush.side_effect = mock_flush
+
+    result = ParseResult(
+        program_name="COACTUPC",
+        path="app/cbl/COACTUPC.cbl",
+        source_format="fixed",
+        entities=[
+            Entity(
+                type="data_item",
+                name="WS-EDIT-DATE-X",
+                start_line=361,
+                end_line=361,
+                qualified_name="COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X",
+            ),
+            Entity(
+                type="data_item",
+                name="WS-EDIT-DATE-X",
+                start_line=368,
+                end_line=369,
+                qualified_name="COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X",
+            ),
+        ],
+        edges=[],
+    )
+
+    summary = persist_parse_result(
+        mock_db,
+        project_id=1,
+        source_id=1,
+        file_path="app/cbl/COACTUPC.cbl",
+        content_hash="h1",
+        result=result,
+    )
+
+    code_entity_adds = [
+        call[0][0]
+        for call in mock_db.add.call_args_list
+        if type(call[0][0]).__name__ == "CodeEntity"
+    ]
+    assert len(code_entity_adds) == 1
+    assert code_entity_adds[0].qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X"
+    assert summary["entities"] == 1
+

@@ -125,6 +125,11 @@ def persist_parse_result(
 
     for ent in result.entities:
         qname = ent.qualified_name or ent.name
+        if qname in by_qname:
+            # O-311: Duplikate innerhalb desselben Parse-Ergebnisses abfangen,
+            # um eine uq_code_entities_source_variant_file_qname-Verletzung
+            # sicher auszuschließen (Defense-in-Depth).
+            continue
         seen_qnames.add(qname)
         row = existing.get(qname)
         was_new = row is None
@@ -170,6 +175,7 @@ def persist_parse_result(
         # immer in Eltern-vor-Kind-Reihenfolge aufgebaut).
         db.flush()
         by_qname[qname] = row
+        existing[qname] = row
         if project_id is not None and (was_new or previous_hash != content_hash):
             enqueue_dirty_item(
                 db,
