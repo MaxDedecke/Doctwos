@@ -859,21 +859,19 @@ export function KnowledgeGraphView({
     graphRef.current.d3ReheatSimulation();
   }, [ForceGraphComponent, filteredData, nodeDegrees, viewMode, neighborhoodFocusNode, traversalDirection]);
 
-  // Nodes directly connected to focusNodeId (incl. itself) — everything else dims.
-  // Clicking an edge produces the same soft-focus effect for just its two endpoints,
-  // as long as no explicit node focus is active (that takes priority — it has its
-  // own toolbar indicator/"clear focus" affordance and shouldn't get silently
-  // swapped out by an incidental edge click). selectedEdgeId already resets to null
-  // on any node click and switches to the new id on any other edge click (see
-  // onNodeClick/onLinkClick below), so this normalizes on its own without extra state.
+  // Selecting a node highlights its direct one-hop neighborhood. The current
+  // graph selection takes priority over a stale/external focus; when no node is
+  // selected, an explicit focusNodeId can keep the neighborhood pinned.
+  // Selecting an edge highlights only its endpoints and that edge otherwise.
+  const activeFocusNodeId = selectedNodeId ?? focusNodeId;
   const focusNeighborIds = useMemo(() => {
-    if (focusNodeId) {
-      const ids = new Set<string>([focusNodeId]);
+    if (activeFocusNodeId) {
+      const ids = new Set<string>([activeFocusNodeId]);
       filteredData.links.forEach((l: GraphEdge) => {
         const src = typeof l.source === 'object' ? l.source.id : l.source;
         const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-        if (src === focusNodeId) ids.add(tgt);
-        if (tgt === focusNodeId) ids.add(src);
+        if (src === activeFocusNodeId) ids.add(tgt);
+        if (tgt === activeFocusNodeId) ids.add(src);
       });
       return ids;
     }
@@ -885,20 +883,20 @@ export function KnowledgeGraphView({
       return new Set<string>([src, tgt]);
     }
     return null;
-  }, [focusNodeId, selectedEdgeId, filteredData]);
+  }, [activeFocusNodeId, selectedEdgeId, filteredData]);
 
-  // Only links touching focusNodeId itself stay colored — a link between two of its
-  // neighbors (but not the focus node) still dims, matching the dimmed-node set above.
-  // For an edge-driven soft focus, only that single edge stays colored.
+  // Keep only edges incident to the focused/selected node at full color. Edges
+  // between two highlighted neighbors dim so the one-hop star stays readable.
+  // An edge selection without a node focus keeps only that edge colored.
   const isLinkTouchingFocus = useCallback((l: GraphEdge) => {
-    if (focusNodeId) {
+    if (activeFocusNodeId) {
       const src = typeof l.source === 'object' ? l.source.id : l.source;
       const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-      return src === focusNodeId || tgt === focusNodeId;
+      return src === activeFocusNodeId || tgt === activeFocusNodeId;
     }
     if (selectedEdgeId) return l.id === selectedEdgeId;
     return true;
-  }, [focusNodeId, selectedEdgeId]);
+  }, [activeFocusNodeId, selectedEdgeId]);
 
   const selectedNode = useMemo(() => rawNodes.find(n => n.id === selectedNodeId) ?? null, [rawNodes, selectedNodeId]);
   const selectedEdge = useMemo(() => rawEdges.find(e => e.id === selectedEdgeId) ?? null, [rawEdges, selectedEdgeId]);
@@ -1764,7 +1762,7 @@ export function KnowledgeGraphView({
             </div>
           )}
 
-          {!isLoading && focusNodeId && focusNeighborIds && focusNeighborIds.size <= 1 && (
+          {!isLoading && activeFocusNodeId && focusNeighborIds && focusNeighborIds.size <= 1 && (
             <div className={cn('absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-[11px]', chipBase, textMuted)}>
               <Info className="w-3 h-3" />
               {t('knowledgeGraphView.noLinkedObjectsFound')}
