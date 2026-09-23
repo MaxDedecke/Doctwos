@@ -31,6 +31,7 @@ from models.database import (
     DocumentChunk,
     EntityDocLink,
     KnowledgeSource,
+    LinkBuilderDirtyItem,
     LinkBuilderRun,
     Project,
     User,
@@ -171,6 +172,105 @@ def create_manual_link(
     return serialize_link(link, entity)
 
 
+@router.get("/projects/{project_id}/link-recommendations/estimate")
+def estimate_link_computation_scope(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    O-315: Liefert Kosten- und Umfangshinweise für den nächsten Entity-Link-Lauf
+    (Code-Entities ↔ Dokument-Chunks). Prüft dirty items, Bootstrap-Bedarf
+    und ob bereits ein Lauf aktiv ist.
+    """
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+    assert_project_visible(project_id, user, db)
+
+    entity_count = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).count()
+    chunk_count = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.project_id == project_id, DocumentChunk.source_id.isnot(None))
+        .count()
+    )
+
+    dirty_entities = (
+        db.query(LinkBuilderDirtyItem.entity_id)
+        .filter(
+            LinkBuilderDirtyItem.project_id == project_id,
+            LinkBuilderDirtyItem.status == "pending",
+            LinkBuilderDirtyItem.entity_id.isnot(None),
+        )
+        .distinct()
+        .count()
+    )
+    dirty_chunks = (
+        db.query(LinkBuilderDirtyItem.chunk_id)
+        .filter(
+            LinkBuilderDirtyItem.project_id == project_id,
+            LinkBuilderDirtyItem.status == "pending",
+            LinkBuilderDirtyItem.chunk_id.isnot(None),
+        )
+        .distinct()
+        .count()
+    )
+
+    has_previous_run = (
+        db.query(LinkBuilderRun)
+        .filter(
+            LinkBuilderRun.project_id == project_id,
+            LinkBuilderRun.task_type == "entity_links",
+            LinkBuilderRun.status == "completed",
+        )
+        .first()
+        is not None
+    )
+
+    is_bootstrap = (not has_previous_run) and (dirty_entities == 0 and dirty_chunks == 0)
+    entities_to_scan = entity_count if (is_bootstrap or dirty_chunks > 0) else dirty_entities
+
+    active_run = (
+        db.query(LinkBuilderRun)
+        .filter(
+            LinkBuilderRun.project_id == project_id,
+            LinkBuilderRun.task_type == "entity_links",
+            LinkBuilderRun.status.in_(["pending", "running"]),
+        )
+        .order_by(LinkBuilderRun.created_at.desc())
+        .first()
+    )
+
+    if entity_count == 0 or chunk_count == 0:
+        cost_notice = "Keine Verknüpfung möglich: Projekt benötigt sowohl Code-Entities als auch Dokument-Chunks."
+    elif is_bootstrap:
+        cost_notice = (
+            f"Vollständiger Erstlauf für {entity_count} Code-Entitäten und {chunk_count} Dokument-Abschnitte. "
+            "Dieser Batch-Lauf führt Vektor-Embeddings und LLM-Prüfungen durch."
+        )
+    elif entities_to_scan > 0:
+        cost_notice = (
+            f"Inkrementeller Lauf: {entities_to_scan} Entitäten zu prüfen "
+            f"({dirty_entities} geänderte Entitäten, {dirty_chunks} geänderte Dokumente)."
+        )
+    else:
+        cost_notice = "Keine neuen Änderungen ausstehend. Ein erneuter Lauf prüft bestehende Kandidaten."
+
+    return {
+        "project_id": project_id,
+        "entity_count": entity_count,
+        "chunk_count": chunk_count,
+        "dirty_entity_count": dirty_entities,
+        "dirty_chunk_count": dirty_chunks,
+        "is_bootstrap": is_bootstrap,
+        "entities_to_scan": entities_to_scan,
+        "has_active_run": active_run is not None,
+        "active_run_id": active_run.id if active_run else None,
+        "cost_notice": cost_notice,
+    }
+
+
 @router.post("/projects/{project_id}/link-recommendations/compute")
 def trigger_link_computation(
     project_id: int,
@@ -195,6 +295,25 @@ def trigger_link_computation(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
+    # O-315: Deduplizierung – Falls bereits ein aktiver Lauf für dieses Projekt existiert,
+    # diesen zurückgeben statt einen zweiten teuren Batch-Lauf zu starten.
+    active = (
+        db.query(LinkBuilderRun)
+        .filter(
+            LinkBuilderRun.project_id == project_id,
+            LinkBuilderRun.task_type == "entity_links",
+            LinkBuilderRun.status.in_(["pending", "running"]),
+        )
+        .first()
+    )
+    if active is not None:
+        return {
+            "message": "Für dieses Projekt läuft bereits eine Link-Berechnung",
+            "project_id": project_id,
+            "run_id": active.id,
+            "deduplicated": True,
+        }
+
     # O-180: Der Worker verarbeitet nur die persistente Dirty-Queue. Pending-
     # Vorschläge werden dort nur für tatsächlich geänderte Entity-/Chunk-
     # Endpunkte invalidiert; ein unveränderter Folgelauf bleibt dadurch billig.
@@ -204,6 +323,12 @@ def trigger_link_computation(
         project_id=project_id,
         status="pending",
         embedding_model=embedding_model.strip() if embedding_model else None,
+        scope_json={
+            "project_id": project_id,
+            "min_confidence": min_confidence,
+            "embedding_model": embedding_model.strip() if embedding_model else None,
+        },
+        triggered_by_user_id=user.id,
     )
     db.add(run)
     db.commit()

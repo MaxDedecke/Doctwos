@@ -351,3 +351,67 @@ def test_admin_can_stop_running_diagnostics_job(client, db_session, monkeypatch)
     ]
     db_session.delete(run)
     db_session.commit()
+
+
+def test_admin_can_restart_and_resume_cancelled_link_builder_run(
+    client, db_session, test_project, monkeypatch
+):
+    """O-315: Cancelled link builder runs can be resumed or restarted from JobCenter."""
+    run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        status="cancelled",
+        embedding_model="test-embed",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    # 1. Check capability flags in job listing
+    res = client.get(f"/jobs?project_id={test_project}")
+    assert res.status_code == 200
+    job = next(j for j in res.json()["jobs"] if j["key"] == f"link_builder:{run.id}")
+    assert job["can_resume"] is True
+    assert job["can_start"] is True
+
+    # 2. Test restart (creates a new run)
+    sent_tasks = []
+    monkeypatch.setattr(
+        jobs_api,
+        "send_tracked_task",
+        lambda db, record, task_name, args, kwargs=None, queue=None: sent_tasks.append(
+            (task_name, args, kwargs)
+        ),
+    )
+    start_res = client.post(f"/jobs/link_builder/{run.id}/start")
+    assert start_res.status_code == 200
+    new_run_key = start_res.json()["key"]
+    assert new_run_key != f"link_builder:{run.id}"
+    new_run_id = int(new_run_key.split(":")[1])
+
+    new_run = db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == new_run_id).first()
+    assert new_run is not None
+    assert new_run.status == "pending"
+    assert new_run.embedding_model == "test-embed"
+    assert len(sent_tasks) == 1
+    assert sent_tasks[0][0] == "compute_entity_links"
+    assert sent_tasks[0][1] == [new_run.id, test_project]
+
+    db_session.delete(new_run)
+
+    # 3. Test resume of cancelled run
+    sent_tasks.clear()
+    resume_res = client.post(f"/jobs/link_builder/{run.id}/resume")
+    assert resume_res.status_code == 200
+    resumed_run_key = resume_res.json()["key"]
+    resumed_run_id = int(resumed_run_key.split(":")[1])
+    resumed_run = (
+        db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == resumed_run_id).first()
+    )
+    assert resumed_run is not None
+    assert resumed_run.status == "pending"
+    assert len(sent_tasks) == 1
+
+    db_session.delete(resumed_run)
+    db_session.delete(run)
+    db_session.commit()

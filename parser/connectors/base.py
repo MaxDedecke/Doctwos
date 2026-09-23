@@ -25,7 +25,7 @@ Ablauf eines sync()-Aufrufs
           store DocumentChunk
     → source.last_synced_at = sync_start_time
     → source.sync_status = "completed"
-    → celery: compute_entity_links     # Verknüpfungen neu berechnen
+    → link_builder_dirty_items erfasst Änderungen (Link-Build erfordert expliziten Nutzerauftrag, O-315)
 """
 
 import json

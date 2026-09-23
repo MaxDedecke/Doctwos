@@ -437,13 +437,15 @@ export function LinkManagerView({
 
   const triggerAutoLink = async () => {
     if (isComputing) return;
-    if (!projectId || selectedScopeSourceIds.length < 2) {
+    if (!projectId) {
       setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.scopeRequired') });
       return;
     }
-    const confirmed = window.confirm(
-      `Globaler Cross-Source-Lauf für ${selectedScopeSourceIds.length} Wissensquellen im aktuellen Projekt starten? Dieser Batch-Lauf kann viele Embeddings und LLM-Prüfungen auslösen.`,
-    );
+    const hasKnowledgeScope = selectedScopeSourceIds.length >= 2;
+    const confirmMessage = hasKnowledgeScope
+      ? `Globaler Link-Builder-Lauf für Projekt und ${selectedScopeSourceIds.length} Wissensquellen starten? Dieser Batch-Lauf kann viele Embeddings und LLM-Prüfungen auslösen.`
+      : `Entity-Link-Lauf (Code ↔ Dokumentation) für das aktuelle Projekt starten? Dieser Batch-Lauf kann Embeddings und LLM-Prüfungen auslösen.`;
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
@@ -451,17 +453,22 @@ export function LinkManagerView({
 
     const confidenceParam = `min_confidence=${minConfidence}`;
     const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
-    const scopeParams = new URLSearchParams({
-      project_id: String(projectId),
-      min_confidence: String(minConfidence),
-      embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
-      confirm: 'true',
-    });
-    selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
-    await Promise.all([
+    const calls: Promise<unknown>[] = [
       api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {}),
-      api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }).catch(() => {}),
-    ]);
+    ];
+    if (hasKnowledgeScope) {
+      const scopeParams = new URLSearchParams({
+        project_id: String(projectId),
+        min_confidence: String(minConfidence),
+        embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
+        confirm: 'true',
+      });
+      selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
+      calls.push(
+        api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }).catch(() => {})
+      );
+    }
+    await Promise.all(calls);
 
     const poll = async (attempt: number) => {
       const [entityData, knowledgeData] = await Promise.all([

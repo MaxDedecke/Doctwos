@@ -17,7 +17,7 @@ import logging
 
 from connectors.registry import get_connector
 from db import SessionLocal
-from models.database import KnowledgeSource, LinkBuilderRun
+from models.database import KnowledgeSource
 
 logger = logging.getLogger(__name__)
 
@@ -56,24 +56,15 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
         else:
             await connector.sync()
 
-        # Semantische Verknüpfungen mit Code-Entities neu berechnen, falls sich Chunks geändert haben
+        # O-315: Automatischen Link-Builder vom normalen Quellenimport entkoppeln.
+        # Nach einem erfolgreichen Import startet kein automatischer, kostenintensiver
+        # Entity-Link-Lauf. Statische Parserkanten, Chunks und Quellenbelege sind
+        # bereits persistiert und vollständig nutzbar. Dirty Items verbleiben in
+        # link_builder_dirty_items und werden erst auf expliziten Nutzerauftrag verarbeitet.
         if source.project_id and getattr(connector, "has_changes", False):
-            from celery import current_app as celery_app
-
-            link_run = LinkBuilderRun(
-                task_type="entity_links", project_id=source.project_id, status="pending"
-            )
-            db.add(link_run)
-            db.commit()
-            db.refresh(link_run)
-            result = celery_app.send_task(
-                "compute_entity_links", args=[link_run.id, source.project_id]
-            )
-            if getattr(result, "id", None):
-                link_run.celery_task_id = result.id
-                db.commit()
             logger.info(
-                f"[Sync] Link-Berechnung für Projekt {source.project_id} gestartet, da Änderungen vorliegen."
+                f"[Sync] Import für Quelle {source.id} (Projekt {source.project_id}) abgeschlossen. "
+                "Entity-Link-Berechnung erfordert expliziten Nutzerauftrag (O-315)."
             )
 
     except Exception as e:

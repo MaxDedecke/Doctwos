@@ -93,8 +93,8 @@ def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
         "error_message": run.error_message,
         "created_at": _iso(run.created_at),
         "finished_at": _iso(run.finished_at),
-        "can_resume": run.status == "failed",
-        "can_start": admin and run.status == "failed",
+        "can_resume": run.status in {"failed", "cancelled"},
+        "can_start": admin and run.status in {"failed", "cancelled"},
         "can_delete": admin and run.status in TERMINAL,
         "can_stop": admin and run.status in ACTIVE,
     }
@@ -281,8 +281,8 @@ def start_job(
             raise HTTPException(409, "Unbekannter Jobtyp")
         if previous.status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
-        if previous.status != "failed":
-            raise HTTPException(409, "Nur fehlgeschlagene Jobs können neu angestoßen werden")
+        if previous.status not in {"failed", "cancelled"}:
+            raise HTTPException(409, "Nur fehlgeschlagene oder abgebrochene Jobs können neu angestoßen werden")
         return _queue_link_builder(previous, db)
 
     if kind == "diagnostics":
@@ -436,8 +436,8 @@ def resume_job(
         previous = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == job_id).first()
         if not previous:
             raise HTTPException(404, "Job nicht gefunden")
-        if previous.status != "failed":
-            raise HTTPException(409, "Nur fehlgeschlagene Jobs können wiederaufgenommen werden")
+        if previous.status not in {"failed", "cancelled"}:
+            raise HTTPException(409, "Nur fehlgeschlagene oder abgebrochene Jobs können wiederaufgenommen werden")
         project_ids = get_visible_project_ids(user, db)
         if previous.project_id is None and not is_admin(user):
             raise HTTPException(403, "Kein Zugriff auf diesen Job")

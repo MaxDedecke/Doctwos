@@ -29,6 +29,7 @@ from models.database import (
     DocumentChunk,
     EntityDocLink,
     KnowledgeSource,
+    LinkBuilderDirtyItem,
     LinkBuilderRun,
     Project,
     ProjectMembership,
@@ -414,6 +415,76 @@ def test_trigger_link_computation_rejects_team_member_without_project(
         f"/projects/{test_project}/link-recommendations/compute"
     )
     assert res.status_code == 403
+
+
+def test_trigger_link_computation_deduplicates_when_run_is_active(
+    client, db_session, test_project
+):
+    """O-315: Do not trigger duplicate expensive link runs if one is already active."""
+    active_run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        status="running",
+    )
+    db_session.add(active_run)
+    db_session.commit()
+    db_session.refresh(active_run)
+
+    sent = []
+    with patch.object(entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: sent.append(a)):
+        res = client.post(f"/projects/{test_project}/link-recommendations/compute")
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["deduplicated"] is True
+    assert data["run_id"] == active_run.id
+    assert len(sent) == 0
+
+    db_session.delete(active_run)
+    db_session.commit()
+
+
+def test_estimate_link_computation_scope_returns_scope_and_notice(
+    client, db_session, test_project, source_entity_chunk
+):
+    """O-315: Estimate endpoint returns scope and cost warning before running."""
+    source, entity, chunk = source_entity_chunk
+
+    res = client.get(f"/projects/{test_project}/link-recommendations/estimate")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["project_id"] == test_project
+    assert data["entity_count"] >= 1
+    assert data["chunk_count"] >= 1
+    assert data["is_bootstrap"] is True
+    assert data["has_active_run"] is False
+    assert "Erstlauf" in data["cost_notice"]
+
+    # Now add a completed previous run and pending dirty item
+    prev_run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        status="completed",
+    )
+    dirty_item = LinkBuilderDirtyItem(
+        project_id=test_project,
+        entity_id=entity.id,
+        status="pending",
+        reason="content_changed",
+    )
+    db_session.add_all([prev_run, dirty_item])
+    db_session.commit()
+
+    res2 = client.get(f"/projects/{test_project}/link-recommendations/estimate")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["is_bootstrap"] is False
+    assert data2["dirty_entity_count"] == 1
+    assert "Inkrementeller Lauf" in data2["cost_notice"]
+
+    db_session.delete(dirty_item)
+    db_session.delete(prev_run)
+    db_session.commit()
 
 
 # ── GET /projects/{id}/link-builder-runs ─────────────────────────────────────
