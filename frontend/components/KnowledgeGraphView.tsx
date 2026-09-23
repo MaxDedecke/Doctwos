@@ -94,6 +94,8 @@ export interface GraphNode {
   resource_id?: string | number | null;
   x?: number;
   y?: number;
+  fx?: number;
+  fy?: number;
 }
 
 function getNodeDisplayLabel(node: GraphNode): string {
@@ -1854,6 +1856,13 @@ export function KnowledgeGraphView({
                   // über onDocFocus traf sonst auch hier ein offenes doc-Panel.
                   if (onFileSelect) onFileSelect(pathVal, null, sourceIdVal, false);
                 }
+              }}
+              onNodeDragEnd={(node: GraphNode) => {
+                // Force-graph releases fx/fy after a drag by default, so the
+                // simulation pulls the node back into its previous layout.
+                // Keep the user's chosen position fixed while other nodes settle.
+                if (node.x != null) node.fx = node.x;
+                if (node.y != null) node.fy = node.y;
               }}
               onLinkClick={(link: GraphEdge) => {
                 // Eine Kante wählt nur sich selbst aus (zeigt die Edge-Detailkarte) und
