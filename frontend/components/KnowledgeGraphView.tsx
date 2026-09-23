@@ -18,7 +18,7 @@ import {
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { forceCollide, forceManyBody } from 'd3-force-3d';
+import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
 import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
@@ -779,16 +779,22 @@ export function KnowledgeGraphView({
 
     graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => {
       const degree = nodeDegrees.get(n.id) ?? 0;
-      return nodeRadius(n, degree) + 16 + Math.sqrt(degree) * 2;
-    }).iterations(3));
+      return nodeRadius(n, degree) + 24 + Math.sqrt(degree) * 4;
+    }).iterations(4));
 
-    const chargeStrength = -Math.min(260, 40 + nodeCount * 0.6);
+    const chargeStrength = -Math.min(1000, 120 + nodeCount * 1.8);
     graphRef.current.d3Force('charge', forceManyBody()
       .strength((n: unknown) => {
         const degree = nodeDegrees.get((n as GraphNode).id) ?? 0;
-        return chargeStrength - Math.min(180, degree * 8);
+        return chargeStrength - Math.min(500, degree * 18);
       })
-      .distanceMax(900));
+      .distanceMax(1800));
+
+    const radialForce = forceRadial((n: GraphNode) => {
+      const degree = nodeDegrees.get(n.id) ?? 0;
+      return 130 + Math.min(770, Math.sqrt(degree) * 75);
+    }).strength(viewMode === 'overview' ? 0.12 : 0);
+    graphRef.current.d3Force('radial', radialForce);
 
     const linkForce = graphRef.current.d3Force('link');
     if (linkForce) {
@@ -796,8 +802,8 @@ export function KnowledgeGraphView({
         const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
         const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
         const endpointDegrees = Math.sqrt(nodeDegrees.get(sourceId) ?? 0) + Math.sqrt(nodeDegrees.get(targetId) ?? 0);
-        return 65 + Math.min(55, endpointDegrees * 5);
-      }).strength(0.25);
+        return 100 + Math.min(260, endpointDegrees * 24);
+      }).strength(0.12);
     }
 
     // O-270: a bounded directional neighborhood is easier to read as layers

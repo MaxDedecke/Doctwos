@@ -17,6 +17,13 @@ declare module 'd3-force-3d' {
     distanceMax(value: number): this;
   }
 
+  interface RadialForce<Node> {
+    (alpha: number): void;
+    strength(): (node: Node, index: number, nodes: Node[]) => number;
+    strength(value: number | ((node: Node, index: number, nodes: Node[]) => number)): this;
+  }
+
   export function forceCollide<Node = unknown>(radius?: number | ((node: Node, index: number, nodes: Node[]) => number)): CollisionForce<Node>;
   export function forceManyBody<Node = unknown>(): ManyBodyForce<Node>;
+  export function forceRadial<Node = unknown>(radius: number | ((node: Node, index: number, nodes: Node[]) => number), x?: number, y?: number, z?: number): RadialForce<Node>;
 }
