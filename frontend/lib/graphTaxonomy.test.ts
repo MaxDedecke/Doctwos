@@ -1,13 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EDGE_DIRECTION_TAXONOMY,
   getEntityTypeLabel,
   getGraphEdgeColor,
   getGraphEdgeLabelKey,
   getGraphNodeCategory,
   getGraphNodeIconKind,
+  normalizeGraphEdgeDirection,
 } from './graphTaxonomy';
 
 describe('graph taxonomy', () => {
+  it('defines flow and arrowheads consistently for each edge direction', () => {
+    expect(EDGE_DIRECTION_TAXONOMY.directed).toMatchObject({ flow: 'source_to_target', arrowheads: 1 });
+    expect(EDGE_DIRECTION_TAXONOMY.undirected).toMatchObject({ flow: 'none', arrowheads: 0 });
+    expect(EDGE_DIRECTION_TAXONOMY.bidirectional).toMatchObject({ flow: 'both', arrowheads: 2 });
+
+    expect(normalizeGraphEdgeDirection('directed')).toBe('directed');
+    expect(normalizeGraphEdgeDirection('undirected')).toBe('undirected');
+    expect(normalizeGraphEdgeDirection('bidirectional')).toBe('bidirectional');
+    expect(normalizeGraphEdgeDirection('unknown', 'directed')).toBe('directed');
+    expect(normalizeGraphEdgeDirection(null)).toBe('undirected');
+  });
+
   it('classifies Java entities and source-backed documents through the shared policy', () => {
     expect(getGraphNodeCategory({ type: 'entity', entity_type: 'class' })).toBe('git');
     expect(getGraphNodeCategory({ type: 'entity', entity_type: 'copybook' })).toBe('copybook');

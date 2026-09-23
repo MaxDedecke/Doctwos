@@ -9,17 +9,37 @@ Stand: 21.09.2026
 | Call Graph | „Wie hängt der Code technisch zusammen?“ | ausschließlich Code-Entities | `CodeEdge` und synthetische Strukturkanten wie `CONTAINS` |
 | Graph View | „Welche Elemente hängen zusammen und wo sind sie dokumentiert?“ | Code-Entities und Dokumente | typneutral zusammengefasste `CodeEdge`s, `EntityDocLink` und `KnowledgeLink` |
 
-Codeabhängigkeiten bleiben in der Graph View sichtbar, werden dort aber bewusst
-zu einer ungerichteten Beziehung `code_dependency` zusammengefasst. Mehrere
-Aufrufe, Vererbungs- oder Datenzugriffskanten zwischen demselben Elementpaar
-erscheinen als eine Kante. Die exakten Typen, Richtungen und Aufrufpfade bleiben
-Aufgabe des Call Graph.
+Codeabhängigkeiten bleiben in der Graph View sichtbar und werden zu einer
+typneutralen Beziehung `code_dependency` zusammengefasst. Die Kante behält ihre
+Richtung vom aufrufenden bzw. verwendenden Code zum Ziel. Der Call Graph ergänzt
+dazu den konkreten Kantentyp und den Aufrufpfad.
 
 Bei `EntityDocLink` ist der Dokumentknoten das Dokument und die Kante trägt die
 konkrete Belegstelle: Chunk, Datei, Quelle, Zeilenbereich, Seite, Abschnitt und
 URL-Anker, soweit die Quelle diese Daten liefert. So bleibt sichtbar, an welcher
 Stelle ein Codeelement dokumentiert wird, ohne das Dokument für jeden Chunk als
 eigenen Knoten zu vervielfachen.
+
+## Richtungstaxonomie
+
+Jede Kante verwendet genau eine der drei Richtungen:
+
+| Richtung | Bedeutung | Darstellung |
+|---|---|---|
+| `directed` | Fluss von `source` nach `target` | Pfeil am Ziel |
+| `undirected` | Verbindung ohne fachlichen Fluss | keine Pfeilspitze |
+| `bidirectional` | Fluss in beide Richtungen | Pfeilspitzen an beiden Enden |
+
+Codekanten und `EntityDocLink`s sind gerichtet. Ein `EntityDocLink` läuft vom
+Codeelement zum Dokument. `KnowledgeLink`s speichern die Richtung explizit;
+manuell angelegte Links starten ungerichtet, können im Dialog aber gerichtet
+oder beidseitig gerichtet angelegt werden. Der Richtungsfilter blendet die drei
+Kantengruppen unabhängig von Beziehungstyp und Knotentyp ein oder aus.
+
+Die Auswahl „Upstream“, „Downstream“ oder „Beide Richtungen“ beim Laden einer
+Fokusnachbarschaft ist davon getrennt: Sie begrenzt, welche gerichteten
+Codeabhängigkeiten der API-Aufruf traversiert. Der Toolbar-Filter blendet
+dagegen bereits geladene Kanten nach ihrer Beziehungsausrichtung aus.
 
 ## Gemessener Ausgangszustand
 

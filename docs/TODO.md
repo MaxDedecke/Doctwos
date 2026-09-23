@@ -57,7 +57,6 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 24 | O-268 | Richtungs-Taxonomie, Tests und Graph-Dokumentation ergänzen. | Nach O-267. |
 | 26 | O-286 | Dokumentknoten nur bei einer echten genehmigten Beziehung in den Graph aufnehmen. | Backendtest für verbundene und unverbundene Chunks. |
 | 27 | O-273 | Änderungsfolgenanalyse um Diff, Revision und belastbare Test-/Owner-Bezüge abschließen. | Teilweise umgesetzt; mit O-300 fachlich abnehmen. |
 | 28 | O-274 | PR-/MR-Diskussionen und ADRs mit Herkunft, Version und Prüfstatus erschließen. | Erst nach stabilem Erkenntnismodell O-271/O-301. |

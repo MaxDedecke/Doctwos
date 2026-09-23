@@ -185,6 +185,11 @@ flowchart TD
   hinweg berechnet, oder manuell für ein beliebiges Knotenpaar aus der
   Graph-UI angelegt (dort sofort `approved`, ohne Review-Schritt).
 
+`KnowledgeLink.direction` verwendet `directed` (`source_a → source_b`),
+`undirected` (keine Flussrichtung) oder `bidirectional` (Fluss in beide
+Richtungen). Neue manuelle Links beginnen standardmäßig ungerichtet; die
+Graph- und Link-Manager-Dialoge können die Richtung beim Erstellen setzen.
+
 ## Wie daraus ein Graph wird — drei unabhängige Verbraucher
 
 Dieselben Tabellen speisen drei völlig verschiedene Ansichten/Zwecke, die
@@ -194,7 +199,7 @@ unterschiedliche Node-/Edge-Mengen ziehen und unterschiedlich kappen:
 |---|---|---|---|
 | **Zweck** | Visualisierung: Beziehungen zwischen Elementen sowie Code ↔ Dokumentation und Dokument ↔ Dokument | Visualisierung: reine Code-Struktur/-Aufrufe mit technischen Kantentypen und Richtung | Kein sichtbarer Graph — reichert den Chat-Kontext eines Vektor-Treffers an |
 | **Knoten** | Endpunkte der begrenzten Codeprojektion sowie bestätigter `EntityDocLink`-/`KnowledgeLink`-Beziehungen: `CodeEntity` + `DocumentChunk` (Dokumente dedupliziert je Titel; die konkrete Fundstelle liegt auf der Kante) | `CodeEntity` (BFS über 0–5 `hops` ab einer Wurzel-Entity) | `CodeEntity`, ermittelt über Datei+Zeilen-Überlappung mit dem Vektor-Treffer |
-| **Kanten** | `CodeEdge`s werden typneutral und ungerichtet als `code_dependency` zusammengefasst; dazu `EntityDocLink` + `KnowledgeLink`, nur `status=approved` (Default) | `CodeEdge` mit exaktem Typ und Richtung + **synthetische** `CONTAINS`-Kante aus `CodeEntity.parent_id` (nur Vorfahren nachgezogen, nie Kinder — sonst würde ein Paragraph-Fokus den Knotendeckel mit Datenfeldern sprengen) | Aufgelöste `CodeEdge`s mit `type ∈ {COPY, CALL, CALLS, INSTANTIATES, EXTENDS, IMPLEMENTS, USES_TYPE, READS, WRITES}` ab den getroffenen Entities |
+| **Kanten** | Typneutral zusammengefasste `CodeEdge`s behalten `source → target`; dazu gerichtete `EntityDocLink`s und `KnowledgeLink`s gemäß gespeichertem `direction`, nur `status=approved` (Default) | `CodeEdge` mit exaktem Typ und Richtung + **synthetische** `CONTAINS`-Kante aus `CodeEntity.parent_id` (nur Vorfahren nachgezogen, nie Kinder — sonst würde ein Paragraph-Fokus den Knotendeckel mit Datenfeldern sprengen) | Aufgelöste `CodeEdge`s mit `type ∈ {COPY, CALL, CALLS, INSTANTIATES, EXTENDS, IMPLEMENTS, USES_TYPE, READS, WRITES}` ab den getroffenen Entities |
 | **Deckel** | Die Übersicht liest höchstens `2 × KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES` Codekanten und liefert höchstens `KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES` Knoten (Default 2000). `/graph/focus` liefert höchstens 500 direkte Codekanten plus Wissenslinks. Der explizite Inventarmodus `include_isolated=true` darf isolierte Knoten ergänzen. | 500 Knoten hart (`MAX_NODES`), BFS bricht ab, sobald erreicht | Zeichenbudget (`token_budget * 4`, Default 1800 Token) statt Knotenzahl — Nachbar-Chunks werden aufgenommen, bis das Budget aufgebraucht ist |
 | **Sichtbarkeit** | Team/Projekt + `expose_code_analysis_globally`-Gate pro Knoten/Kante | `_assert_entity_visible` auf die Wurzel-Entity (Nachbarn werden nicht einzeln nachgeprüft — bewusst, da BFS sonst pro Hop einen weiteren DB-Join bräuchte) | Kein eigener Sichtbarkeits-Check — läuft serverseitig innerhalb einer bereits autorisierten Chat-Anfrage |
 | **Export** | CSV, GraphML, Cypher (Neo4j) — `/graph/export`, `/graph/export/neo4j` | JSON, CSV, GraphML — `/callgraph/export` | Kein Export (interner Zwischenschritt) |

@@ -7,6 +7,43 @@
 
 export type GraphIconKind = 'code' | 'document' | 'web';
 export type GraphLocale = 'de' | 'en';
+export type GraphEdgeDirection = 'directed' | 'undirected' | 'bidirectional';
+
+export interface GraphEdgeDirectionDefinition {
+  labelKey: string;
+  flow: 'source_to_target' | 'none' | 'both';
+  arrowheads: 0 | 1 | 2;
+}
+
+/** Shared meaning of relationship direction across graph views and filters. */
+export const EDGE_DIRECTION_TAXONOMY: Record<GraphEdgeDirection, GraphEdgeDirectionDefinition> = {
+  directed: {
+    labelKey: 'knowledgeGraphView.edgeDirection.directed',
+    flow: 'source_to_target',
+    arrowheads: 1,
+  },
+  undirected: {
+    labelKey: 'knowledgeGraphView.edgeDirection.undirected',
+    flow: 'none',
+    arrowheads: 0,
+  },
+  bidirectional: {
+    labelKey: 'knowledgeGraphView.edgeDirection.bidirectional',
+    flow: 'both',
+    arrowheads: 2,
+  },
+};
+
+/** Normalize open API strings while retaining a caller-supplied legacy fallback. */
+export function normalizeGraphEdgeDirection(
+  value: unknown,
+  fallback: GraphEdgeDirection = 'undirected',
+): GraphEdgeDirection {
+  if (typeof value === 'string' && Object.prototype.hasOwnProperty.call(EDGE_DIRECTION_TAXONOMY, value)) {
+    return value as GraphEdgeDirection;
+  }
+  return fallback;
+}
 
 export interface GraphTaxonomyNode {
   node_type?: unknown;

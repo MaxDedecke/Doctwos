@@ -7,10 +7,13 @@ import {
   EDGE_TYPE_COLORS,
   NODE_TYPE_TAXONOMY,
   getEntityTypeLabel,
+  EDGE_DIRECTION_TAXONOMY,
   getGraphEdgeColor,
   getGraphEdgeLabelKey,
+  normalizeGraphEdgeDirection,
   getGraphNodeCategory,
   getGraphNodeColor,
+  type GraphEdgeDirection,
 } from '@/lib/graphTaxonomy';
 import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -117,17 +120,18 @@ export interface GraphEdge {
   document_url?: string | null;
 }
 
-type GraphEdgeDirection = 'directed' | 'undirected' | 'bidirectional';
-
 export function isEdgeDirected(edge: GraphEdge): boolean {
-  if (edge.direction === 'directed') return true;
-  if (edge.direction === 'undirected') return false;
-  if (edge.direction === 'bidirectional') return true;
-  return edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:');
+  const legacyFallback = edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:')
+    ? 'directed'
+    : 'undirected';
+  return EDGE_DIRECTION_TAXONOMY[normalizeGraphEdgeDirection(edge.direction, legacyFallback)].arrowheads > 0;
 }
 
 function graphEdgeDirection(edge: GraphEdge): GraphEdgeDirection {
-  return edge.direction ?? (isEdgeDirected(edge) ? 'directed' : 'undirected');
+  const legacyFallback = edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:')
+    ? 'directed'
+    : 'undirected';
+  return normalizeGraphEdgeDirection(edge.direction, legacyFallback);
 }
 
 function graphEdgeType(edge: Pick<GraphEdge, 'link_type' | 'relation_type'>): string {
@@ -910,6 +914,42 @@ export function KnowledgeGraphView({
     return 0.88;
   }, []);
 
+  const drawBidirectionalSourceArrow = useCallback((edge: GraphEdge, ctx: CanvasRenderingContext2D) => {
+    if (graphEdgeDirection(edge) !== 'bidirectional') return;
+    const source = resolveNode(edge.source);
+    const target = resolveNode(edge.target);
+    if (!source || !target || source.x == null || source.y == null || target.x == null || target.y == null) return;
+
+    const dx = source.x - target.x;
+    const dy = source.y - target.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance === 0) return;
+
+    const ux = dx / distance;
+    const uy = dy / distance;
+    const px = -uy;
+    const py = ux;
+    const tipDistance = nodeRadius(source) + 1;
+    const tipX = source.x + ux * tipDistance;
+    const tipY = source.y + uy * tipDistance;
+    const arrowLength = 5;
+    const halfWidth = 2;
+    const baseX = tipX - ux * arrowLength;
+    const baseY = tipY - uy * arrowLength;
+
+    ctx.save();
+    ctx.fillStyle = edge.id === selectedEdgeId
+      ? (isDark ? '#38bdf8' : '#0284c7')
+      : resolveDsColor(getGraphEdgeColor(graphEdgeType(edge)));
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(baseX + px * halfWidth, baseY + py * halfWidth);
+    ctx.lineTo(baseX - px * halfWidth, baseY - py * halfWidth);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }, [isDark, selectedEdgeId, rawNodes]);
+
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
   // node id is `doc:<title>` (see backend/api/graph.py's _doc_node), NOT
@@ -1354,9 +1394,9 @@ export function KnowledgeGraphView({
                     value={manualLinkDirection}
                     onChange={event => setManualLinkDirection(event.target.value as GraphEdgeDirection)}
                     className={cn('min-w-0 flex-1 rounded border px-1.5 py-1 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-700')}>
-                    <option value="undirected">{t('knowledgeGraphView.edgeDirection.undirected')}</option>
-                    <option value="directed">{t('knowledgeGraphView.edgeDirection.directed')}</option>
-                    <option value="bidirectional">{t('knowledgeGraphView.edgeDirection.bidirectional')}</option>
+                    <option value="undirected">{t(EDGE_DIRECTION_TAXONOMY.undirected.labelKey)}</option>
+                    <option value="directed">{t(EDGE_DIRECTION_TAXONOMY.directed.labelKey)}</option>
+                    <option value="bidirectional">{t(EDGE_DIRECTION_TAXONOMY.bidirectional.labelKey)}</option>
                   </select>
                 </div>
                 {linkCreateError && <p className="text-[10px] text-ds-red-400">{linkCreateError}</p>}
@@ -1399,7 +1439,7 @@ export function KnowledgeGraphView({
               {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
             </span>
             <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
-              {t(`knowledgeGraphView.edgeDirection.${graphEdgeDirection(selectedEdge)}`)}
+              {t(EDGE_DIRECTION_TAXONOMY[graphEdgeDirection(selectedEdge)].labelKey)}
             </span>
             {selectedEdge.score !== null && (
               <span className="text-[10px] font-mono text-ds-emerald-500">
@@ -1532,7 +1572,7 @@ export function KnowledgeGraphView({
                   aria-pressed={!hidden}
                   className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
                     hidden ? 'opacity-30' : 'opacity-100')}>
-                  {t(`knowledgeGraphView.edgeDirection.${direction}`)}
+                  {t(EDGE_DIRECTION_TAXONOMY[direction].labelKey)}
                 </button>
               );
             })}
@@ -1672,6 +1712,8 @@ export function KnowledgeGraphView({
               linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 4.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
               linkDirectionalArrowLength={getLinkArrowLength}
               linkDirectionalArrowRelPos={getLinkArrowRelPos}
+              linkCanvasObject={drawBidirectionalSourceArrow}
+              linkCanvasObjectMode={() => 'after'}
               linkCurvature={getLinkCurvature}
               linkDirectionalParticles={(l: GraphEdge) => l.id === selectedEdgeId ? 3 : 0}
               linkDirectionalParticleSpeed={(l: GraphEdge) => l.id === selectedEdgeId ? 0.012 : 0.005}

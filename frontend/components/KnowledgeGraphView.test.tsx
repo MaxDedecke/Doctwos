@@ -28,6 +28,9 @@ type GraphStubProps = {
   linkDirectionalArrowLength?: (link: GraphEdge) => number;
   linkDirectionalArrowRelPos?: (link: GraphEdge) => number;
   linkCurvature?: (link: GraphEdge) => number;
+  linkCanvasObject?: (link: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => void;
+  linkCanvasObjectMode?: () => string;
+  onLinkClick?: (link: GraphEdge) => void;
 };
 const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
   React.useImperativeHandle(ref, () => ({
@@ -44,15 +47,30 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
           {node.label}
         </button>
       ))}
-      {props.graphData.links.map((link) => (
-        <span
-          key={link.id}
-          data-testid={`link-${link.id}`}
-          data-arrow-length={props.linkDirectionalArrowLength ? props.linkDirectionalArrowLength(link) : undefined}
-          data-arrow-rel-pos={props.linkDirectionalArrowRelPos ? props.linkDirectionalArrowRelPos(link) : undefined}
-          data-curvature={props.linkCurvature ? props.linkCurvature(link) : undefined}
-        />
-      ))}
+      {props.graphData.links.map((link) => {
+        let sourceArrow = false;
+        const ctx = {
+          save: () => undefined,
+          restore: () => undefined,
+          beginPath: () => undefined,
+          moveTo: () => undefined,
+          lineTo: () => undefined,
+          closePath: () => undefined,
+          fill: () => { sourceArrow = true; },
+        } as unknown as CanvasRenderingContext2D;
+        props.linkCanvasObject?.(link, ctx, 1);
+        return (
+          <span
+            key={link.id}
+            data-testid={`link-${link.id}`}
+            data-arrow-length={props.linkDirectionalArrowLength ? props.linkDirectionalArrowLength(link) : undefined}
+            data-arrow-rel-pos={props.linkDirectionalArrowRelPos ? props.linkDirectionalArrowRelPos(link) : undefined}
+            data-source-arrow={sourceArrow}
+            data-curvature={props.linkCurvature ? props.linkCurvature(link) : undefined}
+            onClick={() => props.onLinkClick?.(link)}
+          />
+        );
+      })}
     </div>
   );
 });
@@ -658,6 +676,44 @@ describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
     // Relative position = 1 - 9/100 = 0.91
     const relPos = Number(linkEl.getAttribute('data-arrow-rel-pos'));
     expect(relPos).toBeCloseTo(0.91, 2);
+  });
+});
+
+describe('KnowledgeGraphView direction taxonomy (O-268)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('filters by direction, labels a selected edge, and draws both arrowheads for bidirectional links', async () => {
+    const nodeA: GraphNode = { id: 'entity:1', type: 'entity', label: 'A', x: 0, y: 0 };
+    const nodeB: GraphNode = { id: 'entity:2', type: 'entity', label: 'B', x: 100, y: 0 };
+    const edges: GraphEdge[] = [
+      { id: 'kl:201', source: nodeA.id, target: nodeB.id, link_type: 'manual', direction: 'directed', score: null, context: null },
+      { id: 'kl:202', source: nodeA.id, target: nodeB.id, link_type: 'manual', direction: 'undirected', score: null, context: null },
+      { id: 'kl:203', source: nodeA.id, target: nodeB.id, link_type: 'manual', direction: 'bidirectional', score: null, context: null },
+    ];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ nodes: [nodeA, nodeB], edges }),
+    }));
+
+    renderGraph();
+
+    const undirectedFilter = await screen.findByRole('button', { name: 'Ungerichtet' });
+    fireEvent.click(undirectedFilter);
+    expect(screen.queryByTestId('link-kl:202')).toBeNull();
+    expect(screen.getByTestId('link-kl:201')).toBeTruthy();
+
+    const bidirectional = screen.getByTestId('link-kl:203');
+    expect(Number(bidirectional.getAttribute('data-arrow-length'))).toBeGreaterThan(0);
+    expect(bidirectional.getAttribute('data-source-arrow')).toBe('true');
+    fireEvent.click(bidirectional);
+    expect(screen.getAllByText('Beidseitig gerichtet').length).toBeGreaterThan(0);
   });
 });
 

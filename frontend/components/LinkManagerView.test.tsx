@@ -502,12 +502,14 @@ describe('LinkManagerView', () => {
       fireEvent.click(await within(pickerA).findByRole('button', { name: /Fachkonzept/ }));
       fireEvent.change(within(pickerB).getByPlaceholderText('Seitentitel suchen…'), { target: { value: 'Fach' } });
       fireEvent.click(await within(pickerB).findByRole('button', { name: /Fachkonzept/ }));
+      fireEvent.change(screen.getByLabelText('Richtung von Dokument 1 zu Dokument 2'), { target: { value: 'directed' } });
 
       fireEvent.click(screen.getByText('Verknüpfung speichern'));
 
       await waitFor(() => expect(calls(fetchMock, '/knowledge-links', 'POST')).toHaveLength(1));
       const body = bodyOf(fetchMock, '/knowledge-links', 'POST');
       expect(body.link_type).toBe('manual');
+      expect(body.direction).toBe('directed');
       expect(body.status).toBe('approved');
       expect(body.source_a_title).toBe('Fachkonzept');
       expect(body.source_b_title).toBe('Fachkonzept');
