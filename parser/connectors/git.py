@@ -25,6 +25,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -32,11 +33,14 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator
 
 import redis
+from sqlalchemy import and_, func
+from sqlalchemy.orm import aliased
 
 import git_utils
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
+from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
 from cobol import copybook as copybook_mod
@@ -50,6 +54,7 @@ from java.modules import module_from_path
 from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
 from insight_review import mark_source_insights_outdated
 from ollama_client import (
+    EMBED_BATCH_MAX_CHUNKS,
     ensure_model_pulled,
     get_embeddings_batch,
     get_embedding,
@@ -405,23 +410,56 @@ def _analysis_dependency_paths(db, source_id: int) -> dict[str, set[str]]:
     resource edges may also already have a concrete ``dst_entity_id``. Using
     both forms means a changed, deleted, or moved target invalidates its
     unchanged caller on the next sync instead of leaving a stale edge behind.
+    Uses targeted SQL joins and projections instead of loading all source
+    entities and edges into Python memory.
     """
-    entities = {
-        entity.id: entity.file_path
-        for entity in db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-        if entity.file_path
-    }
+    SrcEntity = aliased(CodeEntity)
+    DstEntity = aliased(CodeEntity)
+    bind = db.get_bind() if hasattr(db, "get_bind") else getattr(db, "bind", None)
+    dialect_name = getattr(bind, "name", "postgresql")
+    if dialect_name == "sqlite":
+        target_from_meta = func.nullif(
+            func.json_extract(CodeEdge.meta_json, "$.target_file_path"), ""
+        )
+    else:
+        target_from_meta = func.nullif(
+            func.json_extract_path_text(CodeEdge.meta_json, "target_file_path"), ""
+        )
+
+    target_path_expr = func.coalesce(target_from_meta, DstEntity.file_path)
+
+    rows = (
+        db.query(SrcEntity.file_path, target_path_expr)
+        .select_from(CodeEdge)
+        .join(
+            SrcEntity,
+            and_(
+                SrcEntity.id == CodeEdge.src_entity_id,
+                SrcEntity.source_id == CodeEdge.source_id,
+            ),
+        )
+        .outerjoin(
+            DstEntity,
+            and_(
+                DstEntity.id == CodeEdge.dst_entity_id,
+                DstEntity.source_id == CodeEdge.source_id,
+            ),
+        )
+        .filter(
+            CodeEdge.source_id == source_id,
+            SrcEntity.file_path.isnot(None),
+            SrcEntity.file_path != "",
+            target_path_expr.isnot(None),
+            target_path_expr != "",
+            target_path_expr != SrcEntity.file_path,
+        )
+        .distinct()
+        .all()
+    )
+
     dependencies: dict[str, set[str]] = defaultdict(set)
-    for edge in db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all():
-        source_path = entities.get(edge.src_entity_id)
-        if not source_path:
-            continue
-        metadata = edge.meta_json or {}
-        target_path = metadata.get("target_file_path")
-        if not target_path and edge.dst_entity_id:
-            target_path = entities.get(edge.dst_entity_id)
-        if target_path and target_path != source_path:
-            dependencies[source_path].add(target_path)
+    for source_path, target_path in rows:
+        dependencies[source_path].add(target_path)
     return dependencies
 
 
@@ -609,6 +647,7 @@ class GitConnector(BaseConnector):
             self._log(f"Embedding gestartet für '{doc['title']}'.")
             lang = doc.get("extra_meta", {}).get("language", "text")
 
+            parse_start = time.monotonic()
             parse_result: ParseResult | None = None
             entry = STRUCTURE_PARSERS.get(lang)
             if entry is not None and not doc["extra_meta"].get("deleted"):
@@ -665,6 +704,9 @@ class GitConnector(BaseConnector):
                     chunks, get_embedding_input_budget(self.embedding_model)
                 )
 
+            parse_duration_ms = int((time.monotonic() - parse_start) * 1000)
+            chunk_count = len(chunks)
+
             # O-122: Ein Profil- oder Bibliothekswechsel kann die Struktur
             # ändern, obwohl einzelne indexierbare Textpassagen identisch
             # bleiben. Diese Vektoren werden aus den bisherigen Chunks
@@ -681,23 +723,49 @@ class GitConnector(BaseConnector):
                     .all()
                 )
             to_embed = _reuse_unchanged_embeddings(chunks, old_chunks, self.embedding_model)
+            embed_batch_size = len(to_embed)
             embeddings = []
+            admission_wait_ms = 0
             if to_embed:
-                try:
-                    embeddings = await get_embeddings_batch(
-                        [c["content"] for c in to_embed], model=self.embedding_model
-                    )
-                except Exception as e:
-                    # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
-                    # Exception-Typname macht die Meldung erst brauchbar (sonst
-                    # nur "Embedding-Fehler für X: " ohne jeden Hinweis, was
-                    # schiefging). Datei ist trotzdem nicht verloren: chunks
-                    # bleiben ohne "embedding"-Feld, reindex_chunks_preserving_links
-                    # embedded sie unten einzeln nach (langsamer, aber vollständig).
-                    self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
+                # O-314: Große Text-/Datenartefakte in begrenzte, faire Batches
+                # unterteilen, damit einzelne Dateien mit vielen Chunks nicht
+                # minutenlang Inferenz-Slots blockieren. Zwischen den Batches
+                # wird kurz an die Event-Loop abgegeben (0.05s Pause), damit
+                # wartende Chat-Anfragen oder andere Dateien einen Inferenz-Slot
+                # erhalten können.
+                fair_batch_size = int(
+                    os.getenv("EMBED_FAIR_BATCH_SIZE", str(EMBED_BATCH_MAX_CHUNKS or 20))
+                )
+                with track_admission_wait() as wait_times:
+                    try:
+                        for offset in range(0, len(to_embed), fair_batch_size):
+                            batch = to_embed[offset : offset + fair_batch_size]
+                            batch_embeddings = await get_embeddings_batch(
+                                [c["content"] for c in batch], model=self.embedding_model
+                            )
+                            embeddings.extend(batch_embeddings)
+                            if offset + fair_batch_size < len(to_embed):
+                                await asyncio.sleep(0.05)
+                    except Exception as e:
+                        # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
+                        # Exception-Typname macht die Meldung erst brauchbar (sonst
+                        # nur "Embedding-Fehler für X: " ohne jeden Hinweis, was
+                        # schiefging). Datei ist trotzdem nicht verloren: chunks
+                        # bleiben ohne "embedding"-Feld, reindex_chunks_preserving_links
+                        # embedded sie unten einzeln nach (langsamer, aber vollständig).
+                        self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
+                admission_wait_ms = sum(wait_times) if wait_times else 0
 
             for chunk, embedding in zip(to_embed, embeddings):
                 chunk["embedding"] = embedding
+
+            # O-314: Granulare Metriken je Datei festhalten
+            doc["extra_meta"]["metrics"] = {
+                "parse_duration_ms": parse_duration_ms,
+                "chunk_count": chunk_count,
+                "embed_batch_size": embed_batch_size,
+                "admission_wait_ms": admission_wait_ms,
+            }
 
             return doc, chunks, parse_result
 
@@ -1329,12 +1397,18 @@ class GitConnector(BaseConnector):
             # O-071: CPU-only-Ollama rechnet Batches intern sequentiell --
             # EMBED_CONCURRENCY parallele Anfragen stauen sich dort nur und
             # laufen in Timeout/Fallback-Schleifen. GPU-Installationen
-            # profitieren dagegen von echter Nebenläufigkeit, daher pro
-            # Sync-Start neu ermitteln statt pauschal zu drosseln.
+            # O-314: Embedding-Nebenläufigkeit an die tatsächliche Admission-Batch-
+            # Kapazität anpassen (MAX_CONCURRENCY - CHAT_RESERVE), damit Batch-
+            # Anfragen keine Warteschlangen aufstauen.
+            available_batch_slots = max(1, MAX_CONCURRENCY - CHAT_RESERVE)
             if await is_gpu_accelerated(self.embedding_model):
-                embed_concurrency = config.EMBED_CONCURRENCY
+                embed_concurrency = min(config.EMBED_CONCURRENCY, available_batch_slots)
             else:
-                embed_concurrency = min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY)
+                embed_concurrency = min(
+                    config.EMBED_CONCURRENCY,
+                    config.EMBED_CONCURRENCY_CPU_ONLY,
+                    available_batch_slots,
+                )
                 self._log(
                     f"Ollama läuft CPU-only — drossle Embedding-Nebenläufigkeit auf {embed_concurrency} "
                     f"(statt {config.EMBED_CONCURRENCY})."
@@ -1366,7 +1440,15 @@ class GitConnector(BaseConnector):
                         processed += 1
                         self.has_changes = True
                         if not doc["extra_meta"].get("index_error"):
-                            self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                            metrics = doc.get("extra_meta", {}).get("metrics")
+                            metric_suffix = (
+                                f", Parse: {metrics['parse_duration_ms']}ms, "
+                                f"Embed-Batch: {metrics['embed_batch_size']}, "
+                                f"Admission-Wartezeit: {metrics['admission_wait_ms']}ms"
+                                if metrics
+                                else ""
+                            )
+                            self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks{metric_suffix}).")
                         else:
                             failed_files += 1
                         # O-075: parsed_files/progress hier setzen, nicht beim
@@ -1391,7 +1473,15 @@ class GitConnector(BaseConnector):
                     processed += 1
                     self.has_changes = True
                     if not doc["extra_meta"].get("index_error"):
-                        self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+                        metrics = doc.get("extra_meta", {}).get("metrics")
+                        metric_suffix = (
+                            f", Parse: {metrics['parse_duration_ms']}ms, "
+                            f"Embed-Batch: {metrics['embed_batch_size']}, "
+                            f"Admission-Wartezeit: {metrics['admission_wait_ms']}ms"
+                            if metrics
+                            else ""
+                        )
+                        self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks{metric_suffix}).")
                     else:
                         failed_files += 1
                     self.source.parsed_files = processed

@@ -58,10 +58,10 @@ CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 # from the chat context window.
 EMBEDDING_CONTEXT_LENGTH: int = int(os.getenv("EMBEDDING_CONTEXT_LENGTH", "8100"))
 
-# Anzahl paralleler Chunk+Embed-Tasks im Git-Konnektor (Producer/Consumer-Loop,
-# Plan §7.3/NF-004). Env-steuerbar, damit eine schwächere Ollama-Instanz
-# gedrosselt werden kann, ohne Code zu ändern.
-EMBED_CONCURRENCY: int = int(os.getenv("EMBED_CONCURRENCY", "20"))
+# O-314: Standard-Embedding-Nebenläufigkeit auf die Admission-Batch-Kapazität (3)
+# begrenzen (bei MAX_CONCURRENCY=4 und CHAT_RESERVE=1), um Redis-Warteschlangen
+# und Slot-Blockaden zu verhindern. Env-steuerbar für dedizierte GPU-Hardware.
+EMBED_CONCURRENCY: int = int(os.getenv("EMBED_CONCURRENCY", "3"))
 
 # O-071: EMBED_CONCURRENCY parallele Batch-Anfragen an eine CPU-only-Ollama-
 # Instanz stauen sich (die intern sequentiell rechnet), reißen den

@@ -9,18 +9,35 @@ slots on a shared endpoint.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import logging
 import os
 import time
 import uuid
-from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from contextlib import asynccontextmanager, contextmanager
+from typing import Any, AsyncIterator, Iterator
 from urllib.parse import urlsplit
 
 import redis
 
 logger = logging.getLogger(__name__)
+
+admission_wait_tracker: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar(
+    "admission_wait_tracker", default=None
+)
+
+
+@contextmanager
+def track_admission_wait() -> Iterator[list[int]]:
+    """Context manager to record admission wait times (in ms) for inference requests."""
+    times: list[int] = []
+    token = admission_wait_tracker.set(times)
+    try:
+        yield times
+    finally:
+        admission_wait_tracker.reset(token)
+
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 MAX_CONCURRENCY = max(2, int(os.getenv("INFERENCE_MAX_CONCURRENCY", "4")))
@@ -225,6 +242,9 @@ async def inference_slot(
     """
     global _redis_warning_logged, _redis_unavailable_until
     if time.monotonic() < _redis_unavailable_until:
+        tracker = admission_wait_tracker.get()
+        if tracker is not None:
+            tracker.append(0)
         yield
         return
     class_index, class_limit = _class_settings(kind)
@@ -262,12 +282,18 @@ async def inference_slot(
                     exc_info=True,
                 )
                 _redis_warning_logged = True
+            tracker = admission_wait_tracker.get()
+            if tracker is not None:
+                tracker.append(waited_ms)
             yield
             return
 
         acquired, active, _, _ = map(int, result)
         if acquired:
             _log_metrics(pool_id, kind, active, waited_ms)
+            tracker = admission_wait_tracker.get()
+            if tracker is not None:
+                tracker.append(waited_ms)
             renew_task = asyncio.create_task(_renew(class_key, token))
             try:
                 yield
@@ -302,6 +328,9 @@ async def inference_slot(
             warned_waiting = True
         if elapsed >= wait_limit:
             waited_ms = int(elapsed * 1000)
+            tracker = admission_wait_tracker.get()
+            if tracker is not None:
+                tracker.append(waited_ms)
             try:
                 await _eval(_WAIT_METRIC_SCRIPT, (metrics_key,), kind, waited_ms)
             except Exception:
