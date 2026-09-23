@@ -95,6 +95,11 @@ export interface GraphNode {
   y?: number;
 }
 
+function getNodeDisplayLabel(node: GraphNode): string {
+  if (node.type !== 'code_file' || !node.file_path) return node.label;
+  return node.file_path.split(/[\\/]/).filter(Boolean).pop() || node.label;
+}
+
 export interface GraphEdge {
   id: string;
   source: string | GraphNode;
@@ -1075,7 +1080,7 @@ export function KnowledgeGraphView({
     }
 
     if (globalScale > 0.45) {
-      const label = node.label ?? '';
+      const label = getNodeDisplayLabel(node) ?? '';
       const maxLen = Math.min(14, Math.max(6, Math.floor(globalScale * 7)));
       const truncated = label.length > maxLen ? label.slice(0, maxLen) + '…' : label;
       const fontSize = Math.min(11, 8 / globalScale * 1.8);
@@ -1178,12 +1183,12 @@ export function KnowledgeGraphView({
     <>
       {/* Node detail */}
       {selectedNode && (
-        <div className="px-3 py-3 space-y-4 flex-1">
+        <div className="min-w-0 px-3 py-3 space-y-4 flex-1">
           {showNodeName && (
             <div className="flex items-start gap-2">
               <KnowledgeNodeIcon node={selectedNode} className="w-3.5 h-3.5 mt-0.5 shrink-0 text-ds-indigo-400" />
               <p className={cn('text-xs font-semibold leading-snug break-words', textMain)}>
-                {selectedNode.label}
+                {getNodeDisplayLabel(selectedNode)}
               </p>
             </div>
           )}
@@ -1215,13 +1220,24 @@ export function KnowledgeGraphView({
               </div>
             )}
             {selectedNode.file_path && (selectedNode.type === 'entity' || selectedNode.type === 'code_file') && (
-              <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
-                <span className={cn('text-[10px] font-mono break-all leading-snug', textMain)}>
-                  {selectedNode.file_path}
-                  {selectedNode.start_line ? `:${selectedNode.start_line}` : ''}
-                </span>
-              </div>
+              selectedNode.type === 'code_file' ? (
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
+                  <span
+                    className={cn('min-w-0 flex-1 truncate text-[10px] font-mono leading-snug', textMain)}
+                    title={selectedNode.file_path}
+                  >
+                    {selectedNode.file_path}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
+                  <span className={cn('text-[10px] font-mono break-all leading-snug', textMain)}>
+                    {selectedNode.file_path}{selectedNode.start_line ? `:${selectedNode.start_line}` : ''}
+                  </span>
+                </div>
+              )
             )}
             {selectedNode.source_type && (
               <div className="flex items-baseline gap-2">
@@ -1478,7 +1494,7 @@ export function KnowledgeGraphView({
               <button onClick={() => { setSelectedNodeId(edgeSrc.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeSrc} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
-                <span className={cn('font-medium truncate', textMain)}>{edgeSrc.label}</span>
+                <span className={cn('min-w-0 font-medium truncate', textMain)}>{getNodeDisplayLabel(edgeSrc)}</span>
               </button>
             </div>
           )}
@@ -1489,13 +1505,13 @@ export function KnowledgeGraphView({
               <button onClick={() => { setSelectedNodeId(edgeTgt.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeTgt} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
-                <span className={cn('font-medium truncate', textMain)}>{edgeTgt.label}</span>
+                <span className={cn('min-w-0 font-medium truncate', textMain)}>{getNodeDisplayLabel(edgeTgt)}</span>
               </button>
             </div>
           )}
 
           {selectedEdge.context && (
-            <div className={cn('p-2 rounded text-[10px] leading-relaxed', isDark ? 'bg-ds-zinc-800 text-ds-zinc-300' : 'bg-ds-zinc-50 text-ds-zinc-600')}>
+            <div className={cn('box-border min-w-0 w-full max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-2 rounded text-[10px] leading-relaxed', isDark ? 'bg-ds-zinc-800 text-ds-zinc-300' : 'bg-ds-zinc-50 text-ds-zinc-600')}>
               {selectedEdge.context}
             </div>
           )}
@@ -1777,7 +1793,7 @@ export function KnowledgeGraphView({
                 }
                 ctx.restore();
               }}
-              autoPauseRedraw
+              autoPauseRedraw={!selectedNodeId && !focusNodeId}
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
@@ -1932,7 +1948,7 @@ export function KnowledgeGraphView({
                 <span className="w-4 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
               )}
               <span className={cn('text-xs font-semibold truncate flex-1', textMain)}>
-                {selectedNode ? selectedNode.label : (selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '')}
+                {selectedNode ? getNodeDisplayLabel(selectedNode) : (selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '')}
               </span>
               <button onClick={(e) => { e.stopPropagation(); setSelectedNodeId(null); setSelectedEdgeId(null); }}
                 className={cn('p-1 rounded transition-colors shrink-0', iconBtn)}>
