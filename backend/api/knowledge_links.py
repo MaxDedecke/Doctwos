@@ -279,6 +279,7 @@ def create_knowledge_link(
         source_b_url=link.source_b_url,
         source_b_source_type=link.source_b_source_type,
         link_type=link.link_type or "manual",
+        direction=link.direction,
         status=link.status or "approved",
         context=link.context,
         created_by="user",
@@ -403,6 +404,8 @@ def update_knowledge_link_status(
     # wieder) — Pendant zur gleichen Erweiterung bei entity_links.py::update_link_status.
     if update.context is not None:
         db_link.context = update.context.strip() or None
+    if update.direction is not None:
+        db_link.direction = update.direction
     db.commit()
     db.refresh(db_link)
     return serialize_knowledge_link(db_link)

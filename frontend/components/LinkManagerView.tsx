@@ -70,6 +70,7 @@ interface EntityDocLink {
   source_type: string | null;
   score: number | null;
   link_type: string;
+  direction?: 'directed' | 'undirected' | 'bidirectional';
   status: string;
   context: string | null;
   created_by: string;
@@ -90,6 +91,7 @@ interface KnowledgeLink {
   source_b: KnowledgeLinkSide;
   score: number | null;
   link_type: string;
+  direction?: 'directed' | 'undirected' | 'bidirectional';
   status: string;
   context: string | null;
   created_by: string;
@@ -134,6 +136,7 @@ interface UnifiedLink {
   right: UnifiedSide;
   score: number | null;
   linkType: string;
+  direction?: 'directed' | 'undirected' | 'bidirectional';
   status: string;
   context: string | null;
 }
@@ -717,6 +720,7 @@ export function LinkManagerView({
       right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null },
       score: l.score,
       linkType: l.link_type,
+      direction: l.direction,
       status: l.status,
       context: l.context,
     }));
@@ -734,6 +738,7 @@ export function LinkManagerView({
       },
       score: l.score,
       linkType: l.link_type,
+      direction: l.direction,
       status: l.status,
       context: l.context,
     }));

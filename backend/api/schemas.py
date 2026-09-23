@@ -7,7 +7,7 @@ Alle Eingabe-Validierungsmodelle sind hier zentralisiert statt verteilt über
 die Router-Dateien. Router-Module importieren nur was sie brauchen.
 """
 
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Union, Dict, Any, Literal
 from pydantic import BaseModel, Field
 
 
@@ -337,6 +337,7 @@ class KnowledgeLinkCreate(BaseModel):
     source_b_source_type: Optional[str] = None
 
     link_type: Optional[str] = "manual"
+    direction: Literal["directed", "undirected", "bidirectional"] = "undirected"
     status: Optional[str] = "approved"
     context: Optional[str] = None
     chat_session_id: Optional[int] = None
@@ -345,6 +346,7 @@ class KnowledgeLinkCreate(BaseModel):
 class KnowledgeLinkUpdate(BaseModel):
     status: Optional[str] = None  # "approved" | "rejected" | "pending"
     context: Optional[str] = None  # Beschreibung, wie die Verknüpfung inhaltlich zusammenhängt
+    direction: Optional[Literal["directed", "undirected", "bidirectional"]] = None
 
 
 class TopicCreate(BaseModel):
