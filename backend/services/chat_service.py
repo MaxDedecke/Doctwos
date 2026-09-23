@@ -1278,9 +1278,12 @@ def build_chat_prompt(
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "
         "`path/to/file.ext:line`, with exactly one line number. Cite extensionless knowledge "
         "sources by their exact title without a line number. Do not cite uninvolved context. "
-        "Treat Java, XSLT, XML, JSP/HTML and shell files as distinct languages: describe only "
-        "source-backed relationships visible in the context. Text retrieval alone is evidence "
-        "of a matching passage, never proof of a complete call graph.\n\n"
+        "Treat Java, COBOL, XSLT, XML, JSP/HTML and shell files as distinct languages. Use "
+        "language-specific symbols only when the cited file or indexed entity supports them; "
+        "describe cross-language links (for example Java-to-XSLT/JSP or shell-to-Java) only "
+        "when an indexed relationship or cited source proves the link. Text retrieval alone "
+        "shows a matching passage; it does not prove a complete call graph. State when a "
+        "relationship is heuristic, unresolved, or unavailable.\n\n"
     )
     return (
         "Context:\n<untrusted_context>\n"

@@ -1034,6 +1034,7 @@
     "documentLabel": "Dokument",
     "linkLabel": "Verknüpfung",
     "typeLabel": "Typ",
+    "languageLabel": "Sprache",
     "fileLabel": "Datei",
     "sourceLabel": "Quelle",
     "statusLabel": "Status",

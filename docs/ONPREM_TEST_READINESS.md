@@ -932,9 +932,9 @@ Modelle. Vorhandene Java-Persistenz-/T5.1-Tests auf isolierter Datenbank ausfüh
 
 ### O-253 – P1 / UI und Agent: Mischsprachen korrekt anzeigen und belegen
 
-- [ ] Backend-Sprachlabels, Editor-Spracherkennung, Entitytypen und Quellen-
+- [x] Backend-Sprachlabels, Editor-Spracherkennung, Entitytypen und Quellen-
   Navigation aufeinander abstimmen; XSLT/JSP/Shell nicht als COBOL behandeln.
-- [ ] Vorhandene Agenten-Recherche für Java und die Begleitsprachen prüfen.
+- [x] Vorhandene Agenten-Recherche für Java und die Begleitsprachen prüfen.
   O-191–O-197 um passende Beispiele und Ziele für diesen Bestand ergänzen.
 - [ ] Unterstützungsniveau in Analysebericht, Graph und Antwort unterscheiden:
   strukturell erkannt, Textfallback, heuristisch verbunden oder unbekannt.

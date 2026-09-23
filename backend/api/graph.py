@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from core import config as cfg
 from core.db_setup import get_db
+from core.analysis_status import load_analysis_status
 from models.database import (
     CodeEdge,
     CodeEntity,
@@ -58,6 +59,11 @@ def _entity_node(entity: CodeEntity) -> dict:
         "type": "entity",
         "label": entity.name,
         "entity_type": entity.type,
+        # Keep the source language alongside the domain entity type. In a
+        # mixed Java repository, e.g. an `html_document` or `xslt_stylesheet`
+        # must not look like a Java/COBOL object merely because it shares the
+        # same project graph.
+        "language": (entity.meta_json or {}).get("language"),
         "file_path": entity.file_path,
         "start_line": entity.start_line,
         "project_id": entity.project_id,
@@ -68,6 +74,23 @@ def _entity_node(entity: CodeEntity) -> dict:
         "variant_key": entity.variant_key,
         "evidence": (entity.meta_json or {}).get("evidence"),
     }
+
+
+def _attach_graph_analysis_status(db: Session, nodes: list[dict]) -> None:
+    """Expose file-level parser limitations on knowledge-graph code nodes."""
+    status_by_key = load_analysis_status(
+        db,
+        {
+            (node.get("source_id"), node.get("file_path"))
+            for node in nodes
+            if node.get("type") == "entity"
+        },
+    )
+    for node in nodes:
+        info = status_by_key.get((node.get("source_id"), node.get("file_path")))
+        if info:
+            node["analysis_status"] = info["status"]
+            node["analysis_reasons"] = info["reasons"]
 
 
 def _doc_node(
@@ -647,6 +670,7 @@ def get_graph(
     result["graph_revision"] = f"proj:{project_id or 'global'}:overview"
     result["has_more"] = result.get("truncated", False)
     result["next_cursor"] = None
+    _attach_graph_analysis_status(db, result["nodes"])
     return result
 
 
@@ -886,7 +910,7 @@ def get_graph_neighborhood(
                 })
 
         next_cursor = str(offset + limit) if has_more else None
-        return {
+        response = {
             "focus_id": focus_id,
             "nodes": list(nodes.values()),
             "edges": edges,
@@ -897,6 +921,8 @@ def get_graph_neighborhood(
             "total_edges": len(edges),
             "truncated": {"incoming": has_more, "outgoing": has_more},
         }
+        _attach_graph_analysis_status(db, response["nodes"])
+        return response
 
     # Fall 2: Entity-Knoten
     ent_id = None
@@ -1077,7 +1103,7 @@ def get_graph_neighborhood(
             )
 
     next_cursor = str(offset + limit) if has_more else None
-    return {
+    response = {
         "focus_id": focus_id,
         "nodes": list(nodes.values()),
         "edges": edges,
@@ -1090,6 +1116,8 @@ def get_graph_neighborhood(
         "total_edges": len(edges),
         "truncated": {"incoming": has_more, "outgoing": has_more},
     }
+    _attach_graph_analysis_status(db, response["nodes"])
+    return response
 
 
 @router.get("/focus")

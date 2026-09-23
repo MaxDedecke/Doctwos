@@ -75,6 +75,9 @@ export interface GraphNode {
   type: 'entity' | 'document' | 'copybook' | 'external';
   label: string;
   entity_type?: string;
+  language?: string;
+  analysis_status?: 'partial' | 'text_fallback' | 'skipped' | 'error';
+  analysis_reasons?: string[];
   file_path?: string;
   start_line?: number;
   source_type?: string;
@@ -1111,6 +1114,23 @@ export function KnowledgeGraphView({
                 <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.typeLabel')}</span>
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
                   {getEntityTypeLabel(selectedNode.entity_type, language)}
+                </span>
+              </div>
+            )}
+            {selectedNode.language && (
+              <div className="flex items-baseline gap-2">
+                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.languageLabel')}</span>
+                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>{selectedNode.language}</span>
+              </div>
+            )}
+            {selectedNode.analysis_status && (
+              <div className="flex items-baseline gap-2">
+                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('provenance.analysisStatusLabel')}</span>
+                <span
+                  className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}
+                  title={selectedNode.analysis_reasons?.join('; ')}
+                >
+                  {t(`analysisStatus.${selectedNode.analysis_status}`)}
                 </span>
               </div>
             )}

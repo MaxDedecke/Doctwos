@@ -105,14 +105,19 @@ export const detectLanguage = (filename: string | null) => {
   if (!filename) return 'text';
   const ext = filename.split('.').pop()?.toLowerCase();
   switch(ext) {
-    case 'py': return 'python';
+    case 'py':
+    case 'pyw': return 'python';
     case 'cob':
     case 'cbl':
     case 'cpy': return 'cobol';
     case 'js':
-    case 'jsx': return 'javascript';
+    case 'jsx':
+    case 'mjs':
+    case 'cjs': return 'javascript';
     case 'ts':
-    case 'tsx': return 'typescript';
+    case 'tsx':
+    case 'mts':
+    case 'cts': return 'typescript';
     case 'json': return 'json';
     case 'md': return 'markdown';
     case 'html': return 'html';
@@ -130,6 +135,7 @@ export const detectLanguage = (filename: string | null) => {
     case 'xsl':
     case 'xslt': return 'xml';
     case 'properties': return 'ini';
+    case 'sql': return 'sql';
     case 'css': return 'css';
     case 'sh': return 'shell';
     case 'bash':
@@ -141,6 +147,8 @@ export const detectLanguage = (filename: string | null) => {
     case 'c': return 'c';
     case 'cpp':
     case 'cc':
+    case 'cxx':
+    case 'hxx':
     case 'h':
     case 'hpp': return 'cpp';
     case 'cs': return 'csharp';
