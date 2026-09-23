@@ -23,7 +23,7 @@ from typing import Optional
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from core import config as cfg
@@ -507,29 +507,6 @@ def get_graph(
             )
         for entity in entity_query.order_by(CodeEntity.id).all():
             nodes[f"entity:{entity.id}"] = _entity_node(entity)
-
-        doc_query = db.query(DocumentChunk)
-        if project_id:
-            doc_query = doc_query.filter(DocumentChunk.project_id == project_id)
-        else:
-            doc_query = doc_query.filter(DocumentChunk.project_id.is_(None))
-
-        min_ids_subquery = (
-            doc_query.with_entities(func.min(DocumentChunk.id))
-            .group_by(DocumentChunk.file_path)
-            .subquery()
-        )
-        distinct_docs = (
-            db.query(DocumentChunk)
-            .filter(DocumentChunk.id.in_(min_ids_subquery))
-            .order_by(DocumentChunk.id)
-            .all()
-        )
-        for chunk in distinct_docs:
-            meta = chunk.metadata_json or {}
-            title = meta.get("title") or chunk.file_path
-            did = f"doc:{title}"
-            nodes.setdefault(did, _doc_node(title, meta.get("source_type"), meta.get("url"), chunk))
 
     # ── Entity → Document links ──────────────────────────────────────────────
     eq = db.query(EntityDocLink).filter(EntityDocLink.status == status)

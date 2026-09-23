@@ -57,48 +57,47 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 26 | O-286 | Dokumentknoten nur bei einer echten genehmigten Beziehung in den Graph aufnehmen. | Backendtest für verbundene und unverbundene Chunks. |
-| 27 | O-273 | Änderungsfolgenanalyse um Diff, Revision und belastbare Test-/Owner-Bezüge abschließen. | Teilweise umgesetzt; mit O-300 fachlich abnehmen. |
-| 28 | O-274 | PR-/MR-Diskussionen und ADRs mit Herkunft, Version und Prüfstatus erschließen. | Erst nach stabilem Erkenntnismodell O-271/O-301. |
-| 29 | O-275 | Fachbereichsübersichten aus Zweck, Systemen, Regeln, Sonderfällen und Verantwortung bilden. | Bestätigte Quellen und Verantwortlichkeiten erforderlich. |
-| 30 | O-276 | Geprüfte, widersprüchliche und veraltete Erkenntnisse in Chat und Ansichten sichtbar machen. | Mit O-272/O-302 abschließen. |
-| 31 | O-277 | Repräsentative Such- und Antwortfragen mit erwarteten Fundstellen versionieren. | Grundlage für O-284/O-304. |
-| 32 | O-278 | Pilotaufgaben und Ausgangswerte für Fehleranalyse, Einarbeitung und Änderungsvorbereitung erfassen. | Pilotteam erforderlich. |
-| 33 | O-279, O-280 | Entity-Kontext und semantische Linkprüfung fachlich am Referenzbestand abnehmen und Restlücken schließen. | Teilweise umgesetzt; harte Kontextgrenzen beibehalten. |
-| 34 | O-284 | EVALRUN_1 um feste Java-/COBOL-Positionen, erwartete Dokumentpassagen und Negativfälle erweitern. | Nach O-277. |
+| 26 | O-273 | Änderungsfolgenanalyse um Diff, Revision und belastbare Test-/Owner-Bezüge abschließen. | Teilweise umgesetzt; mit O-300 fachlich abnehmen. |
+| 27 | O-274 | PR-/MR-Diskussionen und ADRs mit Herkunft, Version und Prüfstatus erschließen. | Erst nach stabilem Erkenntnismodell O-271/O-301. |
+| 28 | O-275 | Fachbereichsübersichten aus Zweck, Systemen, Regeln, Sonderfällen und Verantwortung bilden. | Bestätigte Quellen und Verantwortlichkeiten erforderlich. |
+| 29 | O-276 | Geprüfte, widersprüchliche und veraltete Erkenntnisse in Chat und Ansichten sichtbar machen. | Mit O-272/O-302 abschließen. |
+| 30 | O-277 | Repräsentative Such- und Antwortfragen mit erwarteten Fundstellen versionieren. | Grundlage für O-284/O-304. |
+| 31 | O-278 | Pilotaufgaben und Ausgangswerte für Fehleranalyse, Einarbeitung und Änderungsvorbereitung erfassen. | Pilotteam erforderlich. |
+| 32 | O-279, O-280 | Entity-Kontext und semantische Linkprüfung fachlich am Referenzbestand abnehmen und Restlücken schließen. | Teilweise umgesetzt; harte Kontextgrenzen beibehalten. |
+| 33 | O-284 | EVALRUN_1 um feste Java-/COBOL-Positionen, erwartete Dokumentpassagen und Negativfälle erweitern. | Nach O-277. |
 
 ### Link-Berechnung und Laufzeit
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 35 | O-179 | Run-Budget, Kostenschätzung, Fortschritt und Abbruch für Link-Läufe liefern. | Vor breiter Lastabnahme. |
-| 36 | O-181 | Kandidatenbildung über begrenzten, verschlüsselungskonformen Vorfilter skalieren. | Repräsentative Korpusmessung. |
-| 37 | O-182 | Entity-Embeddings persistent cachen und per Inhalt sowie Modellversion invalidieren. | Aktives Embedding-Profil berücksichtigen. |
-| 38 | O-183 | Top-k, Deduplizierung, Schwellen, Batch-Review und Parallelität als Run-Parameter führen. | Nach O-179/O-182. |
-| 39 | O-184 | Kandidaten und Persistenz bündeln; Unique-Constraints und Bulk-Upserts ergänzen. | Nach O-183. |
-| 40 | O-185 | Kontingente für Import, Linking und globale Batch-Läufe trennen. | SLOs mit Betreiber vereinbaren. |
-| 41 | O-186 | Versionierten Benchmark für Import, Delta-Sync, Linking, Suche und Speicher erstellen. | Nach O-179 bis O-185. |
+| 34 | O-179 | Run-Budget, Kostenschätzung, Fortschritt und Abbruch für Link-Läufe liefern. | Vor breiter Lastabnahme. |
+| 35 | O-181 | Kandidatenbildung über begrenzten, verschlüsselungskonformen Vorfilter skalieren. | Repräsentative Korpusmessung. |
+| 36 | O-182 | Entity-Embeddings persistent cachen und per Inhalt sowie Modellversion invalidieren. | Aktives Embedding-Profil berücksichtigen. |
+| 37 | O-183 | Top-k, Deduplizierung, Schwellen, Batch-Review und Parallelität als Run-Parameter führen. | Nach O-179/O-182. |
+| 38 | O-184 | Kandidaten und Persistenz bündeln; Unique-Constraints und Bulk-Upserts ergänzen. | Nach O-183. |
+| 39 | O-185 | Kontingente für Import, Linking und globale Batch-Läufe trennen. | SLOs mit Betreiber vereinbaren. |
+| 40 | O-186 | Versionierten Benchmark für Import, Delta-Sync, Linking, Suche und Speicher erstellen. | Nach O-179 bis O-185. |
 
 ### Chat-Agent: Ansichten während der Arbeit
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 42 | O-199 | Ziel-Qwen, Streaming, Berechtigungen und Panel-Regeln gezielt abnehmen. | Begleitend zu allen Agentenansichten. |
-| 43 | O-193 | Suchergebnisse mit nachvollziehbarem Projekt- und Quellenfilter öffnen. | O-190 ist umgesetzt. |
-| 44 | O-194 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern öffnen. | O-190 ist umgesetzt. |
-| 45 | O-197 | Link-Manager auf eine konkrete Verknüpfung und ihre Belege fokussieren. | O-190 bis O-192 sind umgesetzt. |
-| 46 | O-198 | Quellen- und Jobstatus im Job Center lesend öffnen. | Niedrigere Produktpriorität. |
-| 47 | O-258 | Import und Chat parallel gegen das Zielmodell testen und First-Token-SLO abnehmen. | Betreiber und Zielmodell erforderlich. |
-| 48 | O-187, O-259 | Profil-Verfügbarkeitsprüfung und Mismatch-Telemetrie abschließen; Remote-Qwen-Tool-Aufrufe und belastbare Zitation live abnehmen. | **O-187 teilweise umgesetzt:** Der Profiltest prüft jetzt zusätzlich zur Endpoint-Erreichbarkeit, dass Chat- und Embedding-Modell tatsächlich am Endpoint verfügbar sind; abweichende Modellkennungen werden als Readiness-Mismatch geloggt und als Fehler zurückgegeben. Der Embedding-Profiltest prüft weiterhin die konfigurierte Dimension. Remote-Qwen-Tool-Aufrufe und belastbare Zitation (O-259) am bereitgestellten Endpunkt live abnehmen. |
-| 49 | O-250, O-260, O-261, O-262, O-263 | Umgesetzte Mischsprachen-, Shell-, HTML-, Ablauf- und Intent-Fixes ausrollen, reindizieren und an den realen Beständen abnehmen. | Rollout/Reindex und Remote-Qwen erforderlich. |
-| 50 | O-264 | Datenbankmigration für Kantenrichtung beim Rollout anwenden. | Technisch umgesetzt; Migrationsnachweis offen. |
+| 41 | O-199 | Ziel-Qwen, Streaming, Berechtigungen und Panel-Regeln gezielt abnehmen. | Begleitend zu allen Agentenansichten. |
+| 42 | O-193 | Suchergebnisse mit nachvollziehbarem Projekt- und Quellenfilter öffnen. | O-190 ist umgesetzt. |
+| 43 | O-194 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern öffnen. | O-190 ist umgesetzt. |
+| 44 | O-197 | Link-Manager auf eine konkrete Verknüpfung und ihre Belege fokussieren. | O-190 bis O-192 sind umgesetzt. |
+| 45 | O-198 | Quellen- und Jobstatus im Job Center lesend öffnen. | Niedrigere Produktpriorität. |
+| 46 | O-258 | Import und Chat parallel gegen das Zielmodell testen und First-Token-SLO abnehmen. | Betreiber und Zielmodell erforderlich. |
+| 47 | O-187, O-259 | Profil-Verfügbarkeitsprüfung und Mismatch-Telemetrie abschließen; Remote-Qwen-Tool-Aufrufe und belastbare Zitation live abnehmen. | **O-187 teilweise umgesetzt:** Der Profiltest prüft jetzt zusätzlich zur Endpoint-Erreichbarkeit, dass Chat- und Embedding-Modell tatsächlich am Endpoint verfügbar sind; abweichende Modellkennungen werden als Readiness-Mismatch geloggt und als Fehler zurückgegeben. Der Embedding-Profiltest prüft weiterhin die konfigurierte Dimension. Remote-Qwen-Tool-Aufrufe und belastbare Zitation (O-259) am bereitgestellten Endpunkt live abnehmen. |
+| 48 | O-250, O-260, O-261, O-262, O-263 | Umgesetzte Mischsprachen-, Shell-, HTML-, Ablauf- und Intent-Fixes ausrollen, reindizieren und an den realen Beständen abnehmen. | Rollout/Reindex und Remote-Qwen erforderlich. |
+| 49 | O-264 | Datenbankmigration für Kantenrichtung beim Rollout anwenden. | Technisch umgesetzt; Migrationsnachweis offen. |
 
 ### Entwickler-Workflow & IDE-Integration
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 51 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Stellt Wissensgraph, AST-Entitäten, Call-Flows und semantisches Retrieval als standardisierte MCP-Tools im internen Netz bereit (für Continue.dev, VS Code, Cursor). Konkrete Umsetzung zu O-171. |
-| 52 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | Direktsprung von Quelltextzeilen in den Doctus-Graph sowie CodeLens-/Hover-Informationen für Cross-References (`CALL`, `COPY`) in der lokalen IDE. |
+| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Stellt Wissensgraph, AST-Entitäten, Call-Flows und semantisches Retrieval als standardisierte MCP-Tools im internen Netz bereit (für Continue.dev, VS Code, Cursor). Konkrete Umsetzung zu O-171. |
+| 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | Direktsprung von Quelltextzeilen in den Doctus-Graph sowie CodeLens-/Hover-Informationen für Cross-References (`CALL`, `COPY`) in der lokalen IDE. |
 
 ## P2 – Pilot- und Mainframe-Fähigkeit
 

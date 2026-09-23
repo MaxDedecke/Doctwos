@@ -4,7 +4,14 @@ das der Nutzer irgendeine Team-/Projekt-Sichtbarkeit hatte -- unabhängig vom
 Projekt-Kontext. Jetzt braucht das Ziel-Projekt dafür das explizite Opt-in
 `expose_code_analysis_globally` (siehe core/projects.py, backend/api/graph.py)."""
 
-from models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource, Project
+from models.database import (
+    CodeEntity,
+    DocumentChunk,
+    EntityDocLink,
+    KnowledgeLink,
+    KnowledgeSource,
+    Project,
+)
 
 
 def _entity_node_ids(response_json: dict) -> set[str]:
@@ -114,12 +121,14 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
     db_session.refresh(doc_chunk)
 
     try:
-        # Innerhalb des eigenen Projekt-Kontexts sind beide sichtbar.
+        # Ein Projekt-Chunk erscheint erst, wenn ihn eine genehmigte Beziehung
+        # in den Graph aufnimmt.
         scoped = client.get(
             "/graph", params={"project_id": test_project, "include_isolated": "true"}
         )
         assert scoped.status_code == 200
-        assert {"doc:SCOPED.CBL", "doc:Runbook"} <= _doc_node_ids(scoped.json())
+        assert "doc:SCOPED.CBL" not in _doc_node_ids(scoped.json())
+        assert "doc:Runbook" not in _doc_node_ids(scoped.json())
 
         # "Allgemein" -- kein projektgebundener Chunk ist sichtbar.
         general = client.get("/graph", params={"include_isolated": "true"})
@@ -143,6 +152,93 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
         db_session.query(KnowledgeSource).filter(
             KnowledgeSource.id.in_([git_source.id, doc_source.id])
         ).delete(synchronize_session=False)
+        db_session.commit()
+
+
+def test_graph_document_nodes_require_an_approved_relationship(
+    client, db_session, test_project, test_team
+):
+    source = KnowledgeSource(
+        name="approved-document-links",
+        type="Local",
+        project_id=test_project,
+        team_id=test_team,
+    )
+    db_session.add(source)
+    db_session.flush()
+    entity = CodeEntity(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="APP.CBL",
+        name="APP",
+        qualified_name="APP",
+        type="program",
+        start_line=1,
+        end_line=10,
+    )
+    approved_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="approved.md",
+        content="Approved documentation",
+        start_line=1,
+        end_line=5,
+        metadata_json={"title": "approved.md"},
+    )
+    pending_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="pending.md",
+        content="Unreviewed documentation",
+        start_line=1,
+        end_line=5,
+        metadata_json={"title": "pending.md"},
+    )
+    unlinked_chunk = DocumentChunk(
+        project_id=test_project,
+        source_id=source.id,
+        file_path="unlinked.md",
+        content="Unlinked documentation",
+        start_line=1,
+        end_line=5,
+        metadata_json={"title": "unlinked.md"},
+    )
+    db_session.add_all([entity, approved_chunk, pending_chunk, unlinked_chunk])
+    db_session.flush()
+    links = [
+        EntityDocLink(
+            project_id=test_project,
+            entity_id=entity.id,
+            chunk_id=approved_chunk.id,
+            doc_title="approved.md",
+            source_type="local_document",
+            status="approved",
+        ),
+        EntityDocLink(
+            project_id=test_project,
+            entity_id=entity.id,
+            chunk_id=pending_chunk.id,
+            doc_title="pending.md",
+            source_type="local_document",
+            status="pending",
+        ),
+    ]
+    db_session.add_all(links)
+    db_session.commit()
+    link_ids = [link.id for link in links]
+
+    try:
+        response = client.get(
+            "/graph", params={"project_id": test_project, "include_isolated": "true"}
+        )
+        assert response.status_code == 200
+        nodes = _doc_node_ids(response.json())
+        assert "doc:approved.md" in nodes
+        assert "doc:pending.md" not in nodes
+        assert "doc:unlinked.md" not in nodes
+    finally:
+        db_session.query(EntityDocLink).filter(EntityDocLink.id.in_(link_ids)).delete()
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
 
 
@@ -191,7 +287,10 @@ def test_general_graph_hides_project_documents_through_knowledge_links(
         general = client.get("/graph", params={"include_isolated": "true"})
         assert general.status_code == 200
         docs = _doc_node_ids(general.json())
-        assert "doc:global.md" in docs
+        # Die Kante wird verworfen, weil ihr anderes Ende projektgebunden und
+        # im globalen Graph nicht sichtbar ist. Das globale Dokument bleibt
+        # damit ebenfalls außerhalb des Graphen, statt isoliert aufzutauchen.
+        assert "doc:global.md" not in docs
         assert "doc:private.pdf" not in docs
     finally:
         db_session.delete(link)
