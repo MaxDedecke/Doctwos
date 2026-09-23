@@ -293,6 +293,21 @@ describe('MarkdownContent — Codeblöcke', () => {
     expect(container.querySelector('pre code')!.textContent).toBe("print('hi')\n");
   });
 
+  it('keeps code-block source line locators stable across rerenders', () => {
+    const content = 'Intro\n```java\nclass A {}\n```\nEnd';
+    const { container, rerender } = render(
+      <MarkdownContent content={content} onFileClick={vi.fn()} theme="dark" />,
+    );
+    const block = container.querySelector('[data-document-line-start="2"]')!;
+    expect(block.getAttribute('data-document-line-start')).toBe('2');
+    expect(block.getAttribute('data-document-line-end')).toBe('4');
+
+    rerender(<MarkdownContent content={content} onFileClick={vi.fn()} theme="dark" />);
+    const rerenderedBlock = container.querySelector('[data-document-line-start="2"]')!;
+    expect(rerenderedBlock.getAttribute('data-document-line-start')).toBe('2');
+    expect(rerenderedBlock.getAttribute('data-document-line-end')).toBe('4');
+  });
+
   it('falls back to a generic label when the fence has no language', () => {
     render(<MarkdownContent content={'```\nplain\n```'} onFileClick={vi.fn()} theme="dark" />);
     expect(screen.getByText('code')).toBeTruthy();

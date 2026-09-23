@@ -22,7 +22,11 @@ def test_eval_case_never_substitutes_a_neighbouring_file(monkeypatch, tmp_path, 
     """
     primary = tmp_path / case["file"]
     primary.parent.mkdir(parents=True)
-    primary.write_text("\n".join(f"LINE-{number}" for number in range(1, 41)), encoding="utf-8")
+    line_count = max(40, int(case["line"]))
+    primary.write_text(
+        "\n".join(f"LINE-{number}" for number in range(1, line_count + 1)),
+        encoding="utf-8",
+    )
     decoy = tmp_path / "neighbour" / primary.name
     decoy.parent.mkdir(parents=True, exist_ok=True)
     decoy.write_text("wrong program", encoding="utf-8")
@@ -38,10 +42,11 @@ def test_eval_case_never_substitutes_a_neighbouring_file(monkeypatch, tmp_path, 
     assert len(find_repo_files(1, primary.name)) == 2
 
     answer = f"Belegt: `{case['file']}:{case['line']}`."
-    _, accepted = _validate_answer_sources(answer, [{"file": case["file"], "lines": [1, 40]}])
+    evidence = [{"file": case["file"], "lines": [1, line_count]}]
+    _, accepted = _validate_answer_sources(answer, evidence)
     fallback, accepted_fallback = _validate_answer_sources(
         f"Falsch: `neighbour/{primary.name}:{case['line']}`.",
-        [{"file": case["file"], "lines": [1, 40]}],
+        evidence,
     )
 
     assert accepted

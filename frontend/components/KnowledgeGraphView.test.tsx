@@ -110,6 +110,36 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(centerAt).toHaveBeenCalledWith(12, 34, 800));
   });
 
+  it('shows a code node language and parser limitation in its details (O-253)', async () => {
+    const javaNode: GraphNode = {
+      id: 'entity:language-aware',
+      type: 'entity',
+      label: 'ReportTransform',
+      entity_type: 'xslt_stylesheet',
+      language: 'xslt',
+      file_path: 'resources/report.xsl',
+      start_line: 1,
+      analysis_status: 'partial',
+      analysis_reasons: ['unterminated template'],
+    };
+    const docNode: GraphNode = { id: 'doc:runbook', type: 'document', label: 'Runbook' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [javaNode, docNode],
+        edges: [{ id: 'link:1', source: javaNode.id, target: docNode.id, link_type: 'semantic', score: 1, context: null }],
+      }),
+    }));
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId(`node-${javaNode.id}`));
+
+    expect(screen.getByText('xslt')).toBeTruthy();
+    expect(screen.getByText('Teilweise analysiert')).toBeTruthy();
+    expect(screen.getByText('resources/report.xsl:1')).toBeTruthy();
+    expect(screen.getByText('Teilweise analysiert').getAttribute('title')).toContain('unterminated template');
+  });
+
   it('shows a truncation notice with the true totals when the backend caps the overview', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

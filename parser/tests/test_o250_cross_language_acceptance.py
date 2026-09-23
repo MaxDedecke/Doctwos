@@ -18,6 +18,7 @@ def _persisted_rows(results):
             row = Row(
                 id=len(entities) + 1,
                 file_path=result.path,
+                start_line=entity.start_line,
                 variant_key="default",
                 type=entity.type,
                 qualified_name=entity.qualified_name,
@@ -83,6 +84,33 @@ public class Main {
         ),
     ]
     entities, edges = _persisted_rows(results)
+
+    # The five mixed-repository languages remain identifiable on their
+    # navigable file-root entities; the entity type itself is language-neutral.
+    root_paths_by_language = {
+        language: {
+            entity.file_path
+            for entity in entities
+            if entity.meta_json.get("is_file_root")
+            and entity.meta_json.get("language") == language
+        }
+        for language in ("shell", "java", "xslt", "xml", "jsp")
+    }
+    assert root_paths_by_language == {
+        "shell": {"run.sh"},
+        "java": {"app/src/main/java/app/Main.java"},
+        "xslt": {"app/src/main/resources/templates/report.xsl"},
+        "xml": {"app/src/main/resources/templates/input.xml"},
+        "jsp": {
+            "app/src/main/resources/views/result.jsp",
+            "app/src/main/resources/views/fragment.jsp",
+        },
+    }
+    assert all(
+        entity.start_line == 1
+        for entity in entities
+        if entity.meta_json.get("is_file_root")
+    )
 
     resolve_resource_edges(entities, edges)
 

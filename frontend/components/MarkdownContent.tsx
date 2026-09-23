@@ -589,12 +589,16 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
   const { t } = useLanguage();
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
-  let sourceLine = 1;
   return (
     <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
       {parts.map((part, index) => {
-        const startLine = sourceLine;
-        sourceLine += (part.match(/\n/g) || []).length;
+        // Compute offsets from immutable preceding parts. Mutating a render-
+        // scoped counter inside `map` violates React's render purity and can
+        // also make citation/document line locators unstable across renders.
+        const startLine = 1 + parts
+          .slice(0, index)
+          .reduce((line, previous) => line + (previous.match(/\n/g) || []).length, 0);
+        const endLine = startLine + (part.match(/\n/g) || []).length;
         if (part.startsWith('```') && part.endsWith('```')) {
           const match = part.match(/```(\w*)\n([\s\S]*?)```/);
           const lang = match ? match[1] : 'code';
@@ -603,7 +607,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
             <div
               key={index}
               data-document-line-start={startLine}
-              data-document-line-end={sourceLine}
+              data-document-line-end={endLine}
             >
               <CodeBlock language={lang} code={code} theme={theme} />
             </div>

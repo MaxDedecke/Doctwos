@@ -936,14 +936,16 @@ Modelle. Vorhandene Java-Persistenz-/T5.1-Tests auf isolierter Datenbank ausfüh
   Navigation aufeinander abstimmen; XSLT/JSP/Shell nicht als COBOL behandeln.
 - [x] Vorhandene Agenten-Recherche für Java und die Begleitsprachen prüfen.
   O-191–O-197 um passende Beispiele und Ziele für diesen Bestand ergänzen.
-- [ ] Unterstützungsniveau in Analysebericht, Graph und Antwort unterscheiden:
+- [x] Unterstützungsniveau in Analysebericht, Graph und Antwort unterscheiden:
   strukturell erkannt, Textfallback, heuristisch verbunden oder unbekannt.
 
 **Abnahme:** Fundstellen öffnen richtige Dateien und Originalzeilen. Normale
 Zitatnavigation funktioniert auch ohne die optionalen neuen Live-Ansicht-Tools.
 Der Agent erläutert Java-Symbole und Transformationsbezüge anhand von Belegen,
 behauptet aus Textindexierung aber keine vollständigen Aufrufgraphen. Die fünf
-Sprachen sind in einer kleinen Ende-zu-Ende-Probe berücksichtigt.
+Sprachen sind in einer kleinen Ende-zu-Ende-Probe berücksichtigt. Offline-Fixture,
+Editor-/Graph-UI und Prompt-Regressionsprüfungen decken diese technische Abnahme ab;
+die fachliche Bestätigung am freigegebenen Betreiberbestand gehört zu O-254.
 
 ### O-254 – P1 / Freigabe: Qualitäts- und Lastprobe des tatsächlichen Bestands
 
@@ -953,9 +955,38 @@ Sprachen sind in einer kleinen Ende-zu-Ende-Probe berücksichtigt.
 - [ ] Repräsentative Teilmenge und anschließend Zielumfang auf geeigneter Hardware
   mit Remote-Qwen prüfen; CPU/RAM, Speicher, Embedding-Durchsatz und Graphumfang
   messen. Sprachprozente sind keine Hardwaredimensionierung.
-- [ ] Eine Regression für jede kleine Begleitsprache und für mindestens eine reale
+- [x] Eine Regression für jede kleine Begleitsprache und für mindestens eine reale
   sprachübergreifende Analysefrage aufnehmen; 94 % Java darf den Rest nicht aus
   der Qualitätsbewertung verdrängen.
+
+**Offline-Generalprobe 23.09.2026:** Der modellfreie Parserlauf über den lokalen,
+versionierten Syncope-2.1.14-Bestand (`84ed68fb63cb05a723a90325aee8d2a2f081b4eb`)
+ist mit `parser/scripts/benchmark_mixed_language.py` reproduzierbar. Auf diesem
+Quellstand erkannte er 2.534 Java-, 4 XSLT-, 137 XML-, 10 JSP- und 22 Shell-Dateien
+(darunter endungslose Shebang-Skripte). 2.692 von 2.707 Dateien wurden als `complete`
+klassifiziert; 15 XML-Dateien waren `partial` (13 blockierte externe DTD-Deklarationen,
+2 XML-Syntaxfehler). Es gab keine Dekodier- oder Laufzeitfehler. Die größte Quelldatei
+hatte 253.485 Bytes; der sequenzielle Parserlauf dauerte auf diesem Host 297,6 Sekunden.
+Das ist eine Parser-/Strukturmessung: `complete` bestätigt keine vollständige
+Beziehungsauflösung. Unaufgelöste Java-Symbole und dynamische Ressourcen bleiben in
+der Ausgabe sichtbar und brauchen die vereinbarte Build-/Referenzumgebung für eine
+fachliche Bewertung. Es wurden weder Builds gestartet noch Chat-/Embedding-Endpunkte
+angesprochen.
+
+Die Regression ergänzt die fünfsprachige O-250-Fixture um J6: Im Syncope-Stand
+erzeugt `WADLServlet` ab Zeile 82 den HTML-Ausgabeweg mit `index.xsl`; Ground Truth
+verknüpft Java-Datei und XSLT-Fundstelle. Der Parserlauf liefert dazu die
+Sprachabdeckung, die fachliche Modellantwort bleibt Teil der Remote-Abnahme.
+
+Der Messlauf belegt Parser- und Datenabdeckung, aber weder Qwen-Retrievalqualität noch
+Produktionskapazität. Für die Freigabe mit dem Betreiber bleiben messbare Grenzwerte,
+der vereinbarte Zieldatensatz, Remote-Qwen-Antwortqualität und Last unter paralleler
+Import-/Chat-Nutzung offen. Die Messung lässt sich so wiederholen:
+
+```bash
+PYTHONPATH=parser .venv-parser/bin/python parser/scripts/benchmark_mixed_language.py \
+  <checkout> --revision <commit>
+```
 
 **Abnahme:** Ergebnisprotokoll mit Datensatzrevision, Doctus-Version, Modellkennungen,
 Ressourcen und verbleibenden Analysegrenzen liegt vor. Parallel nutzbarer Chat während
