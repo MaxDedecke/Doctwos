@@ -314,7 +314,7 @@ def _build_edge(
             dst_entity = resolve_local_target(edge, by_qname, by_name)
             if dst_entity is None:
                 resolution = "unresolved"
-    elif (edge.meta or {}).get("language") in {"java", "xslt", "jsp", "html", "shell"}:
+    elif (edge.meta or {}).get("language") in {"java", "xslt", "jsp", "html", "shell", "jcl"}:
         # Java and XSLT have no COBOL-style scope column.  Local resolution is
         # represented by a stable target QName in edge metadata.  Only mark a
         # DB edge resolved once its target row is actually present; the

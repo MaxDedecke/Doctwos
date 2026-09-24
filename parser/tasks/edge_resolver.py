@@ -364,6 +364,39 @@ def _resolve_shell_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _resolve_jcl_edges(db: Session, source_id: int) -> int:
+    """Resolve literal JCL PGM/PROC targets within one source and variant."""
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    edges = db.query(CodeEdge).filter(
+        CodeEdge.source_id == source_id,
+        CodeEdge.type == "EXECUTES",
+        CodeEdge.resolution == "unresolved",
+    ).all()
+    by_variant_type_name: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
+    for entity in entities:
+        key_name = entity.name.upper()
+        by_variant_type_name[(entity.variant_key, entity.type, key_name)].append(entity)
+
+    resolved = 0
+    for edge in edges:
+        meta = edge.meta_json or {}
+        if meta.get("language") != "jcl" or meta.get("dynamic_target"):
+            continue
+        target_type = meta.get("target_entity_type")
+        target_name = meta.get("target_program_name") or meta.get("target_proc_name")
+        if not target_type or not target_name:
+            continue
+        candidates = by_variant_type_name.get((edge.variant_key, target_type, target_name.upper()), [])
+        if len(candidates) == 1:
+            edge.dst_entity_id = candidates[0].id
+            edge.resolution = "resolved"
+            meta["target_qualified_name"] = candidates[0].qualified_name
+            meta["resolution_scope"] = "source"
+            edge.meta_json = meta
+            resolved += 1
+    return resolved
+
+
 def resolve_global_edges(db: Session, source_id: int) -> int:
     """Resolve persisted COBOL and Java edges for one source.
 
@@ -376,6 +409,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_xslt_edges(db, source_id)
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)
+    resolved += _resolve_jcl_edges(db, source_id)
     resolved += resolve_resource_edges(
         db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all(),
         db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all(),

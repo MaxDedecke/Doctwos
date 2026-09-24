@@ -23,7 +23,9 @@ The persisted contract deliberately keeps edge types open strings.  These
 sets only define the useful default view; callers can request any persisted
 type through ``types`` (including types added by a future parser).
 """
-CALL_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES"}
+CALL_EDGE_TYPES = {
+    "CALL", "PERFORM", "GOTO", "COPY", "CALLS", "INSTANTIATES", "EXECUTES", "CONTAINS"
+}
 RESOURCE_EDGE_TYPES = {
     "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
     "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "LINKS_TO",

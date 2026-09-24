@@ -34,12 +34,14 @@ EDGE_KIND = {
     "PERFORM": "call",
     "INSTANTIATES": "call",
     "EXECUTES": "call",
+    "CONTAINS": "call",
     "EXECUTES_SCRIPT": "call",
     "STARTS_JAVA": "call",
     "GOTO": "jump",
     "USES": "data_access",
     "READS": "data_access",
     "WRITES": "data_access",
+    "USES_DATASET": "data_access",
     "USES_RESOURCE": "data_access",
     "TRANSFORMS_WITH": "data_access",
 }
@@ -93,6 +95,8 @@ def _node_kind(entity: CodeEntity, root: CodeEntity) -> str:
         "sql_block", "sql_table", "file_fd", "data_item",
     }:
         return "data_access"
+    if _language(entity).lower() == "jcl" and entity.type == "jcl_dataset":
+        return "data_access"
     return "step"
 
 
@@ -101,6 +105,8 @@ def _certainty(edge: CodeEdge, source: CodeEntity) -> str:
         return "possible"
     if edge.resolution != "resolved":
         return "unresolved"
+    if (edge.meta_json or {}).get("access_certainty") == "possible":
+        return "possible"
     # Java's resolver can identify the statically declared method, but a
     # virtual call may dispatch to an implementation that is not knowable from
     # this repository snapshot. Do not present that declaration as certain.

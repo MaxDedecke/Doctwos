@@ -1023,6 +1023,8 @@
       "imports": "Imports",
       "reads": "Reads",
       "writes": "Writes",
+      "executes": "Executes",
+      "usesDataset": "Uses dataset",
       "contains": "contains",
       "boundary": "bounded by"
     },

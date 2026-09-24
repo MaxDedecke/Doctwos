@@ -50,6 +50,7 @@ COPY maven/ maven/
 COPY markup/ markup/
 COPY xslt/ xslt/
 COPY shell/ shell/
+COPY jcl/ jcl/
 COPY connectors/ connectors/
 COPY core/ core/
 COPY models/ models/

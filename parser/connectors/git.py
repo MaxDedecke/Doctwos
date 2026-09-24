@@ -78,7 +78,7 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
     **{language: set(suffixes) for language, suffixes in DEFAULT_LANGUAGE_EXTENSIONS.items()},
     "cobol": {".cbl", ".cob", ".cobol"},
     "copybook": {".cpy", ".copy"},
-    "jcl": {".jcl", ".proc", ".prc"},  # v1: nur Text-Index, keine Strukturanalyse (F-026)
+    "jcl": {".jcl", ".proc", ".prc"},
 }
 _JAVA_BUILD_EXCLUDED_DIRS = {
     "target",

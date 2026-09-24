@@ -39,9 +39,8 @@ SourceFormat = Literal["fixed", "free", "variable", "extended"]
 EntityType = str
 
 EdgeType = str
-# "GOTO" ist noch nicht in backend/models/database.py::CodeEdge.type (Kommentar
-# listet nur "CALL | PERFORM | COPY | DEFINES | USES | READS | WRITES") — nachziehen,
-# sobald parse.py/die DB-Schicht ans Ergebnis von procedure.py angebunden wird.
+# Die persistierten Edge-Strings sind bewusst offen und enthalten inzwischen
+# auch Sprachbeziehungen wie Java-Aufrufe, XML-Referenzen und JCL-EXECUTES.
 
 Resolution = Literal["resolved", "unresolved", "dynamic"]
 

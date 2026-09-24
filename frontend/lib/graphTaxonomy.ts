@@ -133,6 +133,9 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   shell_function: { de: 'Shell-Funktion', en: 'Shell function' },
   jcl_job: { de: 'JCL-Job', en: 'JCL job' },
   jcl_step: { de: 'JCL-Schritt', en: 'JCL step' },
+  jcl_file: { de: 'JCL-Datei', en: 'JCL file' },
+  jcl_proc: { de: 'JCL-Prozedur', en: 'JCL procedure' },
+  jcl_dataset: { de: 'JCL-Dataset', en: 'JCL dataset' },
 };
 
 /** Link colors are shared by the knowledge graph, call graph and detail panes. */
@@ -157,6 +160,8 @@ export const EDGE_TYPE_COLORS: Record<string, string> = {
   CONTAINS: 'rgb(var(--ds-graph-b-base))',
   CALLS: 'rgb(var(--ds-danger-base))',
   INSTANTIATES: 'rgb(var(--ds-info-base))',
+  EXECUTES: 'rgb(var(--ds-danger-base))',
+  USES_DATASET: 'rgb(var(--ds-info-base))',
   EXTENDS: 'rgb(var(--ds-accent))',
   IMPLEMENTS: 'rgb(var(--ds-success-base))',
 };
@@ -196,6 +201,8 @@ const EDGE_TYPE_LABEL_KEYS: Record<string, string> = {
   IMPORTS: 'graphLabels.linkTypes.imports',
   READS: 'graphLabels.linkTypes.reads',
   WRITES: 'graphLabels.linkTypes.writes',
+  EXECUTES: 'graphLabels.linkTypes.executes',
+  USES_DATASET: 'graphLabels.linkTypes.usesDataset',
 };
 
 const CODE_ENTITY_TYPES = new Set([
@@ -203,6 +210,7 @@ const CODE_ENTITY_TYPES = new Set([
   'sql_table', 'sql_block', 'entry', 'compilation_unit', 'package', 'module',
   'class', 'interface', 'enum', 'record', 'annotation_type', 'method',
   'constructor', 'field', 'enum_constant', 'initializer', 'jcl_job', 'jcl_step',
+  'jcl_file', 'jcl_proc', 'jcl_dataset',
   'parameter', 'record_component', 'local_variable', 'local_class', 'anonymous_class',
   'lambda', 'method_reference',
   'xslt_stylesheet', 'xslt_template', 'xslt_section', 'xml_document', 'jsp_page',

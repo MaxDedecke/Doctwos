@@ -11,6 +11,7 @@ from core.analysis_fingerprint import grammar_fingerprint as cobol_grammar_finge
 from core.model import ParseResult
 from java.fingerprint import grammar_fingerprint as java_grammar_fingerprint
 from java.parse import parse_java_file
+from jcl.parse import parse_jcl_file
 from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
@@ -60,6 +61,11 @@ def _parse_java(text: str, path: str, *, prepared_source: Any = None, **kwargs: 
 
 
 STRUCTURE_PARSERS: dict[str, ParserEntry] = {
+    "jcl": ParserEntry(
+        parse=parse_jcl_file,
+        root_entity_types=("jcl_file",),
+        parser_version="jcl-structure-1",
+    ),
     "cobol": ParserEntry(
         parse=_parse_cobol,
         prepare_source=prepare_copybook_index,

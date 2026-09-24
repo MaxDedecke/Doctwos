@@ -14,6 +14,7 @@ XSLT_IDE_EDGE_TYPES = ("IMPORTS", "INCLUDES", "CALLS_TEMPLATE", "APPLIES_TEMPLAT
 MARKUP_IDE_EDGE_TYPES = ("INCLUDES", "LINKS_TO", "REFERENCES_RESOURCE", "SUBMITS_TO")
 SHELL_IDE_EDGE_TYPES = ("CALLS", "SOURCES", "EXECUTES_SCRIPT", "TRANSFORMS_WITH", "STARTS_JAVA")
 MAVEN_IDE_EDGE_TYPES = ("CONTAINS_MODULE", "DEPENDS_ON", "USES_PLUGIN")
+JCL_IDE_EDGE_TYPES = ("CONTAINS", "EXECUTES", "READS", "WRITES", "USES_DATASET")
 XML_INBOUND_EDGE_TYPES = ("READS_XML", "REFERENCES_RESOURCE", "LINKS_TO", "INCLUDES")
 
 
@@ -72,6 +73,8 @@ def file_annotations(
         edge_types = MARKUP_IDE_EDGE_TYPES
     elif lower_path.endswith((".sh", ".bash", ".ksh")):
         edge_types = SHELL_IDE_EDGE_TYPES
+    elif lower_path.endswith((".jcl", ".proc", ".prc")):
+        edge_types = JCL_IDE_EDGE_TYPES
     elif basename == "pom.xml" and any((entity.meta_json or {}).get("language") == "maven" for entity in entities):
         edge_types = MAVEN_IDE_EDGE_TYPES
     elif lower_path.endswith(".xml"):

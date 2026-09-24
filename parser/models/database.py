@@ -530,7 +530,7 @@ class CodeEntity(Base):
     file_path = Column(String, index=True)
     name = Column(String, index=True)
     # 'program'|'copybook'|'section'|'paragraph'|'data_item'|'file_fd'|'sql_table'|'sql_block'|'entry'
-    # v2 zusätzlich: 'jcl_job'|'jcl_step'
+    # Inkl. strukturierter Java-, XML-, Shell-, JCL- und Maven-Entitäten.
     type = Column(String, index=True)
     parent_id = Column(
         Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True
@@ -606,7 +606,7 @@ class CodeEdge(Base):
         Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True, index=True
     )
     dst_name = Column(String, nullable=False, index=True)
-    # v1: CALL | PERFORM | GOTO | COPY | DEFINES | USES | READS | WRITES — v2: EXECUTES
+    # Offene Beziehungstypen, u. a. CALL/PERFORM/COPY, EXECUTES, READS/WRITES.
     type = Column(String, nullable=False, index=True)
     # 'resolved' | 'unresolved' | 'dynamic'
     resolution = Column(String, nullable=False, server_default="unresolved")
