@@ -66,6 +66,7 @@ class InsightVerification(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    mode: Literal["normal", "evidence"] = "evidence"
     session_id: Optional[int] = None
     project_id: Optional[int] = None
     source_id: Optional[int] = None

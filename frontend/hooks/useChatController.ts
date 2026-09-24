@@ -43,6 +43,7 @@ interface ChatControllerOptions {
   branch: string;
   temperature: number;
   systemPrompt: string;
+  chatMode?: 'normal' | 'evidence';
   activeProfileId: string;
   activeEmbeddingModel?: string;
   llmProfiles: LlmProfile[];
@@ -74,6 +75,7 @@ export function useChatController({
   branch,
   temperature,
   systemPrompt,
+  chatMode = 'evidence',
   activeProfileId,
   activeEmbeddingModel,
   llmProfiles,
@@ -652,7 +654,7 @@ export function useChatController({
     const newUserMsg: ChatMessage = {
       role: 'user',
       content: userMsgContent,
-      metadata: createChatMetadata(turnFocus, extraMetadata),
+      metadata: { ...createChatMetadata(turnFocus, extraMetadata), chat_mode: chatMode },
     };
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
@@ -663,6 +665,7 @@ export function useChatController({
       metadata: {
         model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
+        chat_mode: chatMode,
         agent_steps: []
       }
     };
@@ -676,6 +679,7 @@ export function useChatController({
 
     await runChatStream({
       message: userMsgContent,
+      mode: chatMode,
       session_id: activeSessionId,
       ...chatFocusRequestFields(turnFocus),
       branch,
@@ -687,7 +691,7 @@ export function useChatController({
       embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: newUserMsg.metadata || {}
     }, targetIndex);
-  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
+  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, chatMode, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 
   const handleRetryMessage = useCallback(async (index: number) => {
     if (isLoading) return;
@@ -704,6 +708,7 @@ export function useChatController({
       metadata: {
         model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
+        chat_mode: userMsg.metadata?.chat_mode === 'normal' ? 'normal' : 'evidence',
         agent_steps: []
       }
     };
@@ -719,6 +724,7 @@ export function useChatController({
 
     await runChatStream({
       message: userMsg.content,
+      mode: userMsg.metadata?.chat_mode === 'normal' ? 'normal' : 'evidence',
       session_id: activeSessionId,
       ...chatFocusRequestFields(turnFocus),
       branch,

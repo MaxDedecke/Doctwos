@@ -743,6 +743,17 @@
     "noFiles": "Keine Dateien vorhanden"
   },
   "chatView": {
+    "modeLabel": "Chatmodus",
+    "mode": {
+      "normal": "Normal",
+      "evidence": "Evidenz",
+      "normalDescription": "Direkte Antworten ohne Recherche oder Belegpflicht. Aussagen über Projektinhalte bitte prüfen.",
+      "evidenceDescription": "Recherchiert Projektinhalte und prüft Belege und Quellen streng."
+    },
+    "normalSuggestions": {
+      "explainConcept": { "label": "Etwas erklären", "desc": "Ein Thema verständlich machen", "prompt": "Erkläre mir bitte einfach, wie " },
+      "draftText": { "label": "Text entwerfen", "desc": "Eine Nachricht oder Zusammenfassung formulieren", "prompt": "Hilf mir, einen kurzen Text zu schreiben über " }
+    },
     "projectLabel": "Projekt: {{name}}",
     "greeting": "Hallo.",
     "suggestions": {

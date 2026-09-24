@@ -96,6 +96,16 @@ function AppContent() {
 
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [chatMode, setChatMode] = useState<'normal' | 'evidence'>('normal');
+  useEffect(() => {
+    if (window.localStorage.getItem('doctus-chat-mode') === 'evidence') {
+      queueMicrotask(() => setChatMode('evidence'));
+    }
+  }, []);
+  const changeChatMode = useCallback((mode: 'normal' | 'evidence') => {
+    setChatMode(mode);
+    window.localStorage.setItem('doctus-chat-mode', mode);
+  }, []);
   const isEditorNavigatingRef = useRef(false);
   const aiSettings = useAiSettings({ isLoggedIn, t });
   const displaySettings = useDisplaySettings();
@@ -522,6 +532,7 @@ function AppContent() {
     branch,
     temperature,
     systemPrompt,
+    chatMode,
     activeProfileId,
     activeEmbeddingModel,
     llmProfiles,
@@ -918,6 +929,8 @@ function AppContent() {
       setCurrentMessage={setCurrentMessage}
       isLoading={isLoading}
       handleSendChat={handleSendChat}
+      chatMode={chatMode}
+      setChatMode={changeChatMode}
       handleRetryMessage={handleRetryMessage}
       handleFeedback={handleFeedback}
       addAssistantHint={addAssistantHint}

@@ -70,6 +70,8 @@ interface ChatViewProps {
   setCurrentMessage: (msg: string) => void;
   isLoading: boolean;
   handleSendChat: (overrideMsg?: string, extraMetadata?: ChatMetadata) => void;
+  chatMode?: 'normal' | 'evidence';
+  setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
@@ -114,6 +116,8 @@ export function ChatView({
   setCurrentMessage,
   isLoading,
   handleSendChat,
+  chatMode = 'evidence',
+  setChatMode,
   handleRetryMessage,
   handleFeedback,
   addAssistantHint,
@@ -317,10 +321,24 @@ export function ChatView({
 
       {/* Upper Spacer to offset Sidebar Menu button */}
       <div className={cn(
-        "h-16 flex items-center justify-end px-4 @sm/chat:px-6 backdrop-blur-sm bg-opacity-20 transition-colors duration-250",
+        "h-16 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4 @sm/chat:px-6 backdrop-blur-sm bg-opacity-20 transition-colors duration-250",
         theme === 'dark' ? "bg-ds-zinc-950/20" : "bg-ds-zinc-100/20"
       )}>
-        <div className="flex flex-col items-end gap-1.5 py-2">
+        <div aria-hidden="true" />
+        <div role="group" aria-label={t('chatView.modeLabel')} className={cn(
+          "flex items-center rounded-full border p-1 shadow-sm",
+          theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-200 bg-ds-white'
+        )}>
+          {(['normal', 'evidence'] as const).map(mode => (
+            <button key={mode} type="button" aria-pressed={chatMode === mode} disabled={isLoading}
+              onClick={() => setChatMode?.(mode)} title={t(`chatView.mode.${mode}Description`)}
+              className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60', chatMode === mode
+                ? 'bg-ds-indigo-600 text-white' : 'text-ds-zinc-500 hover:text-ds-zinc-200')}>
+              {t(`chatView.mode.${mode}`)}
+            </button>
+          ))}
+        </div>
+        <div className="flex min-w-0 flex-col items-end gap-1.5 overflow-hidden py-2">
           <div className={cn(
             "flex items-center gap-2 border px-2 @sm/chat:px-3 py-1 rounded-sm text-xs font-semibold tracking-wide shadow-sm",
             selectedProject
@@ -421,12 +439,15 @@ export function ChatView({
 
               {/* Pre-canned Suggestions grids */}
               <div className="grid grid-cols-1 @lg/chat:grid-cols-2 gap-4 w-full max-w-2xl relative z-10">
-                {[
+                {(chatMode === 'normal' ? [
+                  { id: 'explainConcept', label: t('chatView.normalSuggestions.explainConcept.label'), icon: <BookOpen className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.normalSuggestions.explainConcept.desc'), prompt: t('chatView.normalSuggestions.explainConcept.prompt') },
+                  { id: 'draftText', label: t('chatView.normalSuggestions.draftText.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.normalSuggestions.draftText.desc'), prompt: t('chatView.normalSuggestions.draftText.prompt') },
+                ] : [
                   { id: 'explainProgram', label: t('chatView.suggestions.explainProgram.label'), icon: <Code className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.suggestions.explainProgram.desc'), clarify: t('chatView.suggestions.explainProgram.clarify'), template: t('chatView.suggestions.explainProgram.template') },
                   { id: 'traceCall', label: t('chatView.suggestions.traceCall.label'), icon: <Database className="w-4.5 h-4.5 text-ds-indigo-500" />, desc: t('chatView.suggestions.traceCall.desc'), clarify: t('chatView.suggestions.traceCall.clarify'), template: t('chatView.suggestions.traceCall.template') },
                   { id: 'summarizeDocs', label: t('chatView.suggestions.summarizeDocs.label'), icon: <History className="w-4.5 h-4.5 text-ds-emerald-500" />, desc: t('chatView.suggestions.summarizeDocs.desc') },
                   { id: 'findField', label: t('chatView.suggestions.findField.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.suggestions.findField.desc'), clarify: t('chatView.suggestions.findField.clarify'), template: t('chatView.suggestions.findField.template') }
-                ].map((hint, idx) => {
+                ]).map((hint, idx) => {
                   const isOnboarding = hint.id === 'summarizeDocs';
                   const isDisabled = isOnboarding && !selectedProject;
                   return (
@@ -437,6 +458,11 @@ export function ChatView({
                     disabled={isDisabled}
                     title={isDisabled ? t('chatView.suggestions.summarizeDocs.noProjectTooltip') : undefined}
                     onClick={() => {
+                      if ('prompt' in hint && hint.prompt) {
+                        setCurrentMessage(hint.prompt);
+                        requestAnimationFrame(() => document.getElementById('chat-textarea')?.focus());
+                        return;
+                      }
                       if (isOnboarding) {
                         if (!selectedProject) {
                           showToast(t('chatView.suggestions.summarizeDocs.noProjectToast'), "error");
@@ -587,7 +613,7 @@ export function ChatView({
                             )
                           )}
 
-                          {m.content && (!isLoading || i !== chatMessages.length - 1) && (
+                          {m.metadata?.chat_mode === 'evidence' && m.content && (!isLoading || i !== chatMessages.length - 1) && (
                             <ProvenanceDisclosure
                               theme={theme}
                               className="mt-2"
@@ -1168,15 +1194,17 @@ export function ChatView({
                                       <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
                                       <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
                                     </button>
-                                    <ProvenanceDisclosure
-                                      theme={theme}
-                                      provenance={src.provenance ?? {
-                                        kind: 'unknown',
-                                        verification_status: 'unavailable',
-                                        verification_note: t('provenance.historicalSourceNote'),
-                                        locator: { file: src.file, lines: src.lines },
-                                      }}
-                                    />
+                                    {m.metadata?.chat_mode === 'evidence' && (
+                                      <ProvenanceDisclosure
+                                        theme={theme}
+                                        provenance={src.provenance ?? {
+                                          kind: 'unknown',
+                                          verification_status: 'unavailable',
+                                          verification_note: t('provenance.historicalSourceNote'),
+                                          locator: { file: src.file, lines: src.lines },
+                                        }}
+                                      />
+                                    )}
                                   </span>
                                 );
                               })}
@@ -1200,14 +1228,6 @@ export function ChatView({
                                 >
                                   <Copy className="w-3.5 h-3.5" />
                                 </Button>
-                                <InsightDraftAction
-                                  projectId={selectedProject?.id}
-                                  origin="chat"
-                                  evidence={(m.sources || []).map(source => ({ chat_message_id: m.id, source_id: source.source_id, file: source.file, lines: source.lines }))}
-                                  defaultTitle={m.content.split('\n')[0].slice(0, 240) || t('insightDraft.chatDefaultTitle')}
-                                  theme={theme}
-                                />
-
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1253,6 +1273,16 @@ export function ChatView({
                                 >
                                   <RotateCcw className="w-3.5 h-3.5" />
                                 </Button>
+
+                                {m.metadata?.chat_mode === 'evidence' && (
+                                  <InsightDraftAction
+                                    projectId={selectedProject?.id}
+                                    origin="chat"
+                                    evidence={(m.sources || []).map(source => ({ chat_message_id: m.id, source_id: source.source_id, file: source.file, lines: source.lines }))}
+                                    defaultTitle={m.content.split('\n')[0].slice(0, 240) || t('insightDraft.chatDefaultTitle')}
+                                    theme={theme}
+                                  />
+                                )}
                               </div>
 
                               {m.metadata && m.metadata.model && (
@@ -1262,6 +1292,7 @@ export function ChatView({
                                 )}>
                                   <Cpu className="w-3 h-3" />
                                   <span className="text-[10px] font-bold uppercase tracking-widest">{m.metadata.model}</span>
+                                  {m.metadata.chat_mode && <span className="text-[10px] font-semibold">· {t(`chatView.mode.${m.metadata.chat_mode}`)}</span>}
                                 </div>
                               )}
                             </div>
@@ -1503,8 +1534,8 @@ export function ChatView({
             </div>
           </div>
           {/* AI Warning Disclaimer */}
-          <div className="mt-1 text-[8px] leading-tight text-ds-zinc-650 text-center font-bold tracking-wider uppercase px-3">
-            {t('chatView.aiDisclaimer')}
+          <div className="mt-1 text-[10px] leading-snug text-ds-zinc-500 text-center px-3">
+            {t(chatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
           </div>
         </div>
       </div>

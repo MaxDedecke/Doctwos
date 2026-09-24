@@ -65,6 +65,7 @@ from core.projects import (
     resolve_repository_id,
 )
 from services.chat_service import (
+    ChatIntent,
     classify_chat_intent,
     find_pinned_chunks,
     hybrid_chunk_search,
@@ -1173,6 +1174,8 @@ async def chat(
                 project_id=request.project_id,
                 pinned_file=request.pinned_file,
                 mcp_scope=bool(request.source_id),
+            ) if request.mode == "evidence" else ChatIntent(
+                "normal", use_retrieval=False, use_agent=False
             )
             if chat_intent.use_retrieval:
                 retrieval_started_at = monotonic()
@@ -1240,7 +1243,9 @@ async def chat(
             )
 
             base_sys_prompt = (
-                effective_system_prompt
+                "Du bist Doctus, ein hilfreicher Gesprächsassistent."
+                if request.mode == "normal"
+                else effective_system_prompt
                 or "Du bist Doctus, ein hilfreicher Enterprise AI Knowledge-Assistent."
             )
             language_instructions = (
@@ -1265,9 +1270,19 @@ async def chat(
             # vertrauenswürdiger Prompt-Text angehängt statt als <untrusted_...>-Block.
             from services.source_context import build_source_context_block
 
-            full_system_prompt_for_chat += build_source_context_block(
-                db, project_id=request.project_id, source_id=request.source_id
-            )
+            if request.mode == "evidence":
+                full_system_prompt_for_chat += build_source_context_block(
+                    db, project_id=request.project_id, source_id=request.source_id
+                )
+            if request.mode == "normal":
+                full_system_prompt_for_chat += (
+                    "\n\n### Normaler Chat:\n"
+                    "Antworte direkt und verständlich auf allgemeine Fragen. Verlange keine "
+                    "Quellenangaben und erfinde keine Dateipfade, Zeilennummern oder Belege. "
+                    "Für konkrete Aussagen über Projektdateien, Aufrufketten oder interne "
+                    "Dokumente steht dir in diesem Modus keine Recherche zur Verfügung. "
+                    "Wenn solche Fakten nötig sind, empfehle kurz den Evidenzmodus."
+                )
 
             # Kandidaten zum Auflösen von LLM-Zitationen auf vollen Pfad/source_id —
             # die Sichtbarkeit in "Referenzierte Quellen" entscheidet erst _resolve_cited_sources
@@ -1521,6 +1536,9 @@ async def chat(
                         first_token = telemetry.record_first_token()
                         if first_token:
                             yield f"data: {json.dumps(first_token)}\n\n"
+                        if request.mode == "normal":
+                            yield f"data: {json.dumps(event)}\n\n"
+                            continue
                         # Standard RAG has no tool loop, but its retrieved
                         # chunks are still the only admissible evidence.  Hold
                         # the stream until their citations have been checked.
@@ -1529,9 +1547,12 @@ async def chat(
                         model_end = telemetry.record_model_end()
                         if model_end:
                             yield f"data: {json.dumps(model_end)}\n\n"
-                        answer, answer_is_source_consistent = _validate_answer_sources(
-                            event["content"], candidate_sources
-                        )
+                        if request.mode == "evidence":
+                            answer, answer_is_source_consistent = _validate_answer_sources(
+                                event["content"], candidate_sources
+                            )
+                        else:
+                            answer = event["content"]
                         event = {**event, "content": answer}
                     yield f"data: {json.dumps(event)}\n\n"
                     if event["type"] == "error":
@@ -1557,6 +1578,7 @@ async def chat(
             )
             message_saved_event = telemetry.record_message_saved()
             assistant_metadata = dict(assistant_msg.metadata_json or {})
+            assistant_metadata["chat_mode"] = request.mode
             assistant_metadata["telemetry"] = {
                 "events": telemetry.events,
                 "metrics": telemetry.metrics(),

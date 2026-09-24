@@ -204,6 +204,7 @@ export type AgentStep =
   | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean }
   | AgentViewAction;
 export interface ChatMetadata {
+  chat_mode?: 'normal' | 'evidence';
   focus?: ChatTurnFocus;
   project?: ChatTurnFocus['project'];
   source?: ChatTurnFocus['source'];
@@ -287,6 +288,7 @@ export interface ChatSession {
 }
 export interface ChatRequest {
   message: string;
+  mode?: 'normal' | 'evidence';
   session_id: number | null;
   project_id: number | string | null;
   source_id: number | string | null;
