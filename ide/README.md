@@ -1,9 +1,18 @@
 # Doctus in der IDE (O-325)
 
-Die Integration zeigt indizierte COBOL-`CALL`-/`COPY`-Referenzen und Java-
-`CALLS`-/`EXTENDS`-/`IMPLEMENTS`-/`INSTANTIATES`-Beziehungen mit Ziel und
-Auflösungsstatus an. In VS Code öffnet ein aufgelöstes Ziel aus derselben Git-
-Quelle die lokale Definition; andere Referenzen öffnen den Doctus-Graph.
+Die Integration zeigt indizierte COBOL-, Java-, XSLT-, JSP/HTML-, Shell- und
+Maven-Beziehungen mit Ziel und Auflösungsstatus an. In VS Code öffnet ein
+aufgelöstes Ziel aus derselben Git-Quelle die lokale Definition; andere
+Referenzen öffnen den Doctus-Graph. XML-Dateien zeigen aufgelöste eingehende
+Ressourcenverwendungen als CodeLens an. Allgemeine XML-Elemente werden nicht
+ohne eine parsergestützte Beziehung als Codeobjekte interpretiert.
+
+Konkret erscheinen Java-Aufrufe, Vererbung, Interfaces und Konstruktoren;
+XSLT-Imports, Includes, Template-Aufrufe und XML-Lesezugriffe; JSP/HTML-Includes,
+Links und Ressourcen; Shell-Aufrufe, Skripte, XSLT-Verarbeitung und Java-Starts;
+sowie Maven-Module, Abhängigkeiten und Plugins. Auf XML-Dateien führen die
+aufgelösten `READS_XML`, `REFERENCES_RESOURCE`, `LINKS_TO` und `INCLUDES`-Kanten
+zur jeweiligen referenzierenden Datei zurück.
 Die URL enthält nur Projekt, Quelle, Repo-Pfad, Zeile und optional die Buildvariante;
 der Browser prüft die normale Doctus-Anmeldung und Projektberechtigung.
 
@@ -21,7 +30,7 @@ der Browser prüft die normale Doctus-Anmeldung und Projektberechtigung.
 ## VS Code
 
 Den Ordner `ide/vscode` als lokale Extension in das VS-Code-Extensionsverzeichnis
-unter dem Namen `doctus-ide-0.1.2` kopieren und VS Code neu laden. Bei Remote-SSH
+unter dem Namen `doctus-ide-0.1.3` kopieren und VS Code neu laden. Bei Remote-SSH
 gehört er in das Extensionsverzeichnis des Remote-Hosts. Alternativ kann der
 Ordner als VSIX paketiert werden.
 Beispiel für `.vscode/settings.json` im Repository:
@@ -126,6 +135,7 @@ der Befehl über Editor-Kontextmenü/Toolbar angeboten werden.
 
 `GET /ide/file?project_id=…&source_id=…&path=…[&variant_key=…]` erwartet
 `Authorization: Bearer <persönliches MCP-Token>` und liefert bis zu 2000
-persistierte COBOL- oder Java-Referenzen einer exakt indizierten Datei. Bei größeren
+persistierte, dateitypspezifische ausgehende Referenzen und bei XML eingehende
+Ressourcenverwendungen einer exakt indizierten Datei. Bei größeren
 Dateien meldet der Server `413`, sodass keine unvollständigen Hinweise als
 vollständig erscheinen. Die Antwort trägt `Cache-Control: no-store`.

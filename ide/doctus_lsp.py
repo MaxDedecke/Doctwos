@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small stdio Language Server for Doctus CALL/COPY hints (O-325).
+"""Small stdio Language Server for file-scoped Doctus references (O-325).
 
 Uses only Python's standard library. Configuration is read from DOCTUS_* env
 variables so any IDE with a stdio LSP client can launch it.
@@ -61,8 +61,8 @@ def source_path(uri):
         return None
 
 
-def graph_url(path, line):
-    query = urlencode({"ide_project": PROJECT_ID, "ide_source": SOURCE_ID,
+def graph_url(path, line, source_id=None):
+    query = urlencode({"ide_project": PROJECT_ID, "ide_source": source_id or SOURCE_ID,
                        "ide_path": path, "ide_line": line,
                        **({"ide_variant": VARIANT_KEY} if VARIANT_KEY else {})})
     return f"{WEB_URL}/?{query}"
@@ -135,10 +135,19 @@ def code_lenses(uri):
             continue
         target = ref.get("target")
         destination = f"{target['file_path']}:{target.get('start_line') or 1}" if target else ref.get("resolution", "unresolved")
+        title = (
+            f"Doctus: {ref['type']} from {destination}"
+            if ref.get("direction") == "incoming"
+            else f"Doctus: {ref['type']} {ref['name']} → {destination}"
+        )
         result.append({"range": location, "command": {
-            "title": f"Doctus: {ref['type']} {ref['name']} → {destination}",
+            "title": title,
             "command": "doctus.openGraph",
-            "arguments": [graph_url(path, ref["line"])]}})
+            "arguments": [
+                graph_url(target["file_path"], target.get("start_line") or 1, target.get("source_id"))
+                if ref.get("direction") == "incoming" and target
+                else graph_url(path, ref["line"])
+            ]}})
     return result
 
 
@@ -147,6 +156,8 @@ def hover(uri, position):
     if path is None:
         return None
     for ref in rows:
+        if ref.get("direction") == "incoming":
+            continue
         location = ref_range(uri, ref)
         if not location or position.get("line") != location["start"]["line"]:
             continue

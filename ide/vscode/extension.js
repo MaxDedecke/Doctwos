@@ -32,6 +32,17 @@ function graphUrl(settings, line) {
   return url.toString();
 }
 
+function graphUrlForReference(settings, ref) {
+  if (ref.direction !== 'incoming' || !ref.target) return graphUrl(settings, ref.line);
+  const url = new URL(settings.webUrl);
+  url.searchParams.set('ide_project', String(settings.projectId));
+  url.searchParams.set('ide_source', String(ref.target.source_id || settings.sourceId));
+  url.searchParams.set('ide_path', ref.target.file_path);
+  url.searchParams.set('ide_line', String(ref.target.start_line || 1));
+  if (settings.variantKey) url.searchParams.set('ide_variant', settings.variantKey);
+  return url.toString();
+}
+
 async function annotations(document, context) {
   const settings = config(document);
   if (!settings) return null;
@@ -54,6 +65,9 @@ async function annotations(document, context) {
 }
 
 function label(ref) {
+  if (ref.direction === 'incoming') {
+    return `Doctus: ${ref.type} from ${ref.target?.file_path || ref.name}:${ref.target?.start_line || 1}`;
+  }
   const destination = ref.target ? `${ref.target.file_path}:${ref.target.start_line || 1}` : ref.resolution;
   return `Doctus: ${ref.type} ${ref.name} → ${destination}`;
 }
@@ -94,7 +108,7 @@ async function openTarget(settings, ref) {
   const target = ref?.target;
   if (!target || ref.resolution !== 'resolved' || target.source_id !== settings.sourceId ||
       typeof target.file_path !== 'string') {
-    await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, ref.line)));
+    await vscode.env.openExternal(vscode.Uri.parse(graphUrlForReference(settings, ref)));
     return;
   }
   const folder = vscode.workspace.workspaceFolders?.find(item => {
@@ -102,14 +116,14 @@ async function openTarget(settings, ref) {
     return root === settings.repositoryRoot;
   });
   if (!folder) {
-    await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, ref.line)));
+    await vscode.env.openExternal(vscode.Uri.parse(graphUrlForReference(settings, ref)));
     return;
   }
   const root = settings.repositoryRoot;
   const absolute = path.resolve(root, target.file_path);
   const relative = path.relative(root, absolute);
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-    await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, ref.line)));
+    await vscode.env.openExternal(vscode.Uri.parse(graphUrlForReference(settings, ref)));
     return;
   }
   try {
@@ -123,7 +137,7 @@ async function openTarget(settings, ref) {
     const line = Math.max(0, Math.min(document.lineCount - 1, (target.start_line || 1) - 1));
     await vscode.window.showTextDocument(document, { selection: new vscode.Range(line, 0, line, 0) });
   } catch {
-    await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, ref.line)));
+    await vscode.env.openExternal(vscode.Uri.parse(graphUrlForReference(settings, ref)));
   }
 }
 
@@ -189,6 +203,7 @@ async function activate(context) {
       try {
         const result = await annotations(document, context);
         const ref = result?.references.find(item => {
+          if (item.direction === 'incoming') return false;
           const range = item.line && referenceRange(document, item);
           return range && range.contains(position);
         });
@@ -197,7 +212,7 @@ async function activate(context) {
           (ref.target ? `Target: ${markdownText(ref.target.file_path)}:${ref.target.start_line || 1}\n\n` : '') +
           (ref.resolution_reason ? `Resolution: ${markdownText(ref.resolution_reason)}\n\n` : '') +
           (ref.dispatch_scope ? `Dispatch: ${markdownText(ref.dispatch_scope)}\n\n` : '') +
-          `[Open in Doctus graph](${graphUrl(result.settings, ref.line)})`);
+          `[Open in Doctus graph](${graphUrlForReference(result.settings, ref)})`);
         return new vscode.Hover(body, referenceRange(document, ref));
       } catch (error) {
         console.error('Doctus hover:', error);
