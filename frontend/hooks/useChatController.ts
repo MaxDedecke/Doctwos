@@ -396,6 +396,7 @@ export function useChatController({
                   step.type === 'tool_result' && step.id === data.tool_call_id && (
                     (data.view === 'callgraph' && (step.name === 'trace_call_flow' || step.name === 'inspect_change_impact')) ||
                     (data.view === 'graph' && step.name === 'show_graph_neighborhood') ||
+                    (data.view === 'search' && step.name === 'search_knowledge') ||
                     (data.view === 'code' && step.name === 'view_repo_file') ||
                     (data.view === 'walkthrough' &&
                       (step.name === 'offer_code_walkthrough' || step.name === 'offer_source_walkthrough'))
@@ -407,6 +408,7 @@ export function useChatController({
                 let hasMatchingCodeLocation = false;
                 let hasMatchingWalkthrough = false;
                 let hasMatchingGraphNeighborhood = false;
+                let hasMatchingSearch = false;
                 if (data.view === 'code' && matchingResult?.type === 'tool_result') {
                   try {
                     const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
@@ -470,6 +472,24 @@ export function useChatController({
                     hasMatchingGraphNeighborhood = false;
                   }
                 }
+                if (data.view === 'search' && matchingResult?.type === 'tool_result' && matchingResult.name === 'search_knowledge') {
+                  try {
+                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
+                    const types = Array.isArray(result.types) ? result.types : [];
+                    const results = Array.isArray(result.results) ? result.results : [];
+                    hasMatchingSearch = result.status === 'ok' &&
+                      result.query === data.target.query &&
+                      result.project_id === data.target.project_id &&
+                      result.source_id === data.target.source_id &&
+                      result.limit === data.target.limit &&
+                      JSON.stringify(types) === JSON.stringify(data.target.types) &&
+                      results.length <= data.target.limit * data.target.types.length &&
+                      results.every(item => item && typeof item === 'object' &&
+                        data.target.types.includes((item as Record<string, unknown>).node_type as 'entity' | 'document'));
+                  } catch {
+                    hasMatchingSearch = false;
+                  }
+                }
                 let status: ViewActionOutcome = 'rejected';
                 const requestProjectId = requestBody.project_id == null ? null : Number(requestBody.project_id);
                 const isCurrentTurn = activeSessionIdRef.current === data.session_id &&
@@ -482,6 +502,7 @@ export function useChatController({
                 } else if (
                   (data.view === 'callgraph' && (!flow || flow.root.id !== data.target.entity_id)) ||
                   (data.view === 'graph' && !hasMatchingGraphNeighborhood) ||
+                  (data.view === 'search' && !hasMatchingSearch) ||
                   (data.view === 'code' && !hasMatchingCodeLocation) ||
                   (data.view === 'walkthrough' && !hasMatchingWalkthrough)
                 ) {

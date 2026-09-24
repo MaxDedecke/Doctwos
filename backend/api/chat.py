@@ -291,6 +291,64 @@ def _derive_view_action(
         return None
 
     tool_name = event.get("name")
+    if tool_name == "search_knowledge":
+        query = result.get("query")
+        search_types = result.get("types")
+        result_project_id = result.get("project_id")
+        source_id = result.get("source_id")
+        result_limit = result.get("limit")
+        allowed_types = {"entity", "document"}
+        results = result.get("results")
+        if (
+            result.get("status") != "ok"
+            or project_id is None
+            or result_project_id != project_id
+            or not isinstance(query, str)
+            or not query.strip()
+            or len(query) > 200
+            or not isinstance(search_types, list)
+            or not search_types
+            or len(search_types) > len(allowed_types)
+            or any(not isinstance(item, str) or item not in allowed_types for item in search_types)
+            or len(set(search_types)) != len(search_types)
+            or (source_id is not None and (
+                not isinstance(source_id, int) or isinstance(source_id, bool) or source_id < 1 or search_types != ["document"]
+            ))
+            or result_limit != 10
+            or not isinstance(results, list)
+            or len(results) > 20
+            or any(
+                not isinstance(item, dict)
+                or item.get("node_type") not in search_types
+                or not isinstance(item.get("node_id"), int)
+                or isinstance(item.get("node_id"), bool)
+                or not isinstance(item.get("node_label"), str)
+                for item in results
+            )
+        ):
+            return None
+        target = {
+            "query": query.strip(),
+            "types": search_types,
+            "project_id": project_id,
+            "source_id": source_id,
+            "limit": result_limit,
+        }
+        view = "search"
+        target_key = hashlib.sha256(json.dumps(target, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
+        action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
+        return {
+            "type": "view_action",
+            "action_id": action_id,
+            "session_id": session_id,
+            "turn_id": turn_id,
+            "project_id": project_id,
+            "tool_call_id": event["id"],
+            "view": view,
+            "target": target,
+            "status": "requested",
+        }
     if tool_name == "show_graph_neighborhood":
         focus_id = result.get("focus_id")
         focus_label = result.get("focus_label")

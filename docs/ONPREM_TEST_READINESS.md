@@ -492,14 +492,22 @@ Ursprungssystem intern darstellbar.
 
 ### O-193 – P2: Suchergebnisse als Ansicht öffnen
 
-- [ ] `search_knowledge` mit Öffnung einer gefilterten Suchansicht anbinden;
-  vorhandene Code-Suche bei Bedarf in denselben Mechanismus integrieren.
+- [ ] `search_knowledge` mit Öffnung einer gefilterten Suchansicht am Zielbestand
+  abnehmen; vorhandene Code-Suche bei Bedarf in denselben Mechanismus integrieren.
 
 **Nutzen:** Bei Fragen wie „Wo wird Kundenstatus verarbeitet?“ können Nutzer die
 Treffermenge sehen, während der Agent einzelne Treffer weiter untersucht.
 
 **Parameter:** Suchtext, erlaubter Projekt-/Quellenbereich, vorhandene Suchart und
 unterstützte Filter, begrenzte Trefferzahl. Bestehende Suchservices wiederverwenden.
+
+**Umsetzungsstand:** Das neue lokale `search_knowledge`-Werkzeug verwendet den
+vorhandenen, berechtigungsgeprüften Suchservice für Code-Entitätsnamen/-pfade und
+Dokumenttitel/-pfade. Es begrenzt die Treffer auf 10 je Typ und bleibt im
+aktuellen Projekt oder einer explizit gewählten Quelle. Die Ansicht zeigt leere,
+gekürzte und fehlgeschlagene Suchen; Treffer öffnen Code oder Dokument. Die
+lexikalische Suche benötigt kein Embedding-Modell. Abnahme mit Agent und
+Zielbestand steht noch aus.
 
 **Abnahme:** Die Ansicht zeigt dieselbe Suche und denselben Berechtigungsbereich
 wie das Werkzeug. Treffer navigieren zu Code oder Dokument. Kein Treffer, gekürzte

@@ -141,6 +141,16 @@ export interface AgentGraphViewAction extends AgentViewActionBase {
     relationships: Array<'code_dependency' | 'documented' | 'manual'>;
   };
 }
+export interface AgentSearchViewAction extends AgentViewActionBase {
+  view: 'search';
+  target: {
+    query: string;
+    types: Array<'entity' | 'document'>;
+    project_id: number;
+    source_id: number | null;
+    limit: 10;
+  };
+}
 export interface AgentCodeViewAction extends AgentViewActionBase {
   view: 'code';
   target: { file_path: string; start_line: number; end_line: number };
@@ -187,7 +197,7 @@ export interface AgentDocumentViewAction extends AgentViewActionBase {
   view: 'document';
   target: DocumentWalkthroughStep;
 }
-export type AgentViewAction = AgentCallGraphViewAction | AgentGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction | AgentDocumentViewAction;
+export type AgentViewAction = AgentCallGraphViewAction | AgentGraphViewAction | AgentSearchViewAction | AgentCodeViewAction | AgentWalkthroughViewAction | AgentDocumentViewAction;
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }

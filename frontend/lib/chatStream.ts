@@ -35,6 +35,17 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
       target.relationships.every((relationship: unknown) => typeof relationship === 'string' && allowedRelationships.has(relationship)) &&
       new Set(target.relationships).size === target.relationships.length;
   }
+  if (value.view === 'search') {
+    const target = value.target;
+    return typeof target.query === 'string' && target.query.trim().length > 0 && target.query.length <= 200 &&
+      Number.isSafeInteger(target.project_id) && Number(target.project_id) > 0 &&
+      (target.source_id === null || (Number.isSafeInteger(target.source_id) && Number(target.source_id) > 0)) &&
+      Array.isArray(target.types) && target.types.length > 0 && target.types.length <= 2 &&
+      target.types.every((type: unknown) => type === 'entity' || type === 'document') &&
+      new Set(target.types).size === target.types.length &&
+      (target.source_id === null || (target.types.length === 1 && target.types[0] === 'document')) &&
+      target.limit === 10;
+  }
   const isDocumentTarget = (target: Record<string, unknown>) =>
     target.kind === 'document' &&
     Number.isSafeInteger(target.chunk_id) && Number(target.chunk_id) > 0 &&

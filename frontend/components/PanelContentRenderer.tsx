@@ -2,12 +2,13 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
+import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, SearchResult, User, WorkspaceDocument } from '@/types/domain';
 
 import { ProcessView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
 import { InsightReviewView } from '@/components/InsightReviewView';
+import { AgentSearchResultsView } from '@/components/AgentSearchResultsView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
 import type { CallFlowData } from '@/lib/callFlow';
 import type { PanelSelection } from '@/lib/panelHistory';
@@ -70,6 +71,7 @@ type PanelContentRendererProps = {
   onOpenCallFlow?: (flow: CallFlowData) => boolean;
   onApplyAgentViewAction?: (action: AgentViewAction, flow?: CallFlowData) => Exclude<AgentViewActionStatus, 'requested'>;
   onAgentViewActionOutcome?: (actionId: string, status: Exclude<AgentViewActionStatus, 'requested'>) => void;
+  handleSearchResultSelect?: (result: SearchResult) => void | Promise<void>;
 };
 
 /**
@@ -126,6 +128,7 @@ export function PanelContentRenderer({
   onOpenCallFlow,
   onApplyAgentViewAction,
   onAgentViewActionOutcome,
+  handleSearchResultSelect,
 }: PanelContentRendererProps) {
   if (contentType === 'chat') {
     return (
@@ -177,6 +180,18 @@ export function PanelContentRenderer({
         }}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
         onOpenDoc={handleDocFocusRequest}
+      />
+    );
+  }
+
+  if (contentType === 'search') {
+    return (
+      <AgentSearchResultsView
+        target={selection.agentSearch}
+        selectedProject={selectedProject}
+        connectedSources={connectedSources}
+        theme={theme}
+        onSelectResult={handleSearchResultSelect ?? (() => {})}
       />
     );
   }

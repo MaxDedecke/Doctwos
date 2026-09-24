@@ -104,6 +104,7 @@
       "code": "💻 Code-Editor",
       "doc": "📖 Dokumentation",
       "graph": "🕸️ Wissensnetz (Graph)",
+      "search": "🔎 Agentensuche",
       "callgraph": "🔀 Process View",
       "webview": "🌐 Web-Vorschau",
       "linkmanager": "🔗 Link Manager",
@@ -822,6 +823,12 @@
     "graphNeighborhoodOpenButton": "Graph öffnen",
     "graphNeighborhoodReopen": "Graph erneut öffnen",
     "graphNeighborhoodOpened": "Im Wissensgraphen geöffnet",
+    "searchResultsPrompt": "Soll ich die Suchtreffer im Workspace öffnen?",
+    "searchResultsOpenButton": "Treffer anzeigen",
+    "searchResultsReopen": "Treffer erneut anzeigen",
+    "searchResultsOpened": "Suchtreffer im Workspace geöffnet",
+    "searchProjectScope": "Projekt {{project}}",
+    "searchSourceScope": "Quelle {{source}}",
     "codeLocationPrompt": "Darf ich diese Code-Stelle im Editor öffnen?",
     "codeLocationOpened": "Im Editor geöffnet",
     "codeLocationReopen": "Code-Stelle anzeigen",
@@ -1101,6 +1108,17 @@
     "toLabel": "Nach",
     "legendLabel": "Legende",
     "onlyLinkedElements": "Nur verlinkte Elemente anzeigen"
+  },
+  "agentSearchView": {
+    "noSearch": "Keine Agentensuche ausgewählt.",
+    "loading": "Suchtreffer werden geladen …",
+    "loadError": "Die Suchansicht konnte nicht geladen werden. Prüfe Verbindung und Projektzugriff.",
+    "empty": "Keine Treffer für „{{query}}“ in diesem Suchbereich.",
+    "summary": "{{count}} angezeigte Treffer",
+    "truncated": "Weitere {{count}} Treffer sind wegen des Ergebnislimits ausgeblendet.",
+    "projectScope": "Projekt {{project}}",
+    "sourceScope": "Quelle {{source}}",
+    "types": { "entity": "Code", "document": "Dokument" }
   },
   "globalSearch": {
     "groups": {

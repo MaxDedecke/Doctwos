@@ -104,6 +104,7 @@
       "code": "💻 Code editor",
       "doc": "📖 Documentation",
       "graph": "🕸️ Knowledge graph",
+      "search": "🔎 Agent search",
       "callgraph": "🔀 Process View",
       "webview": "🌐 Web preview",
       "linkmanager": "🔗 Link manager",
@@ -822,6 +823,12 @@
     "graphNeighborhoodOpenButton": "Open graph",
     "graphNeighborhoodReopen": "Reopen graph",
     "graphNeighborhoodOpened": "Opened in the knowledge graph",
+    "searchResultsPrompt": "Would you like to open these search results in the workspace?",
+    "searchResultsOpenButton": "Show results",
+    "searchResultsReopen": "Show results again",
+    "searchResultsOpened": "Search results opened in the workspace",
+    "searchProjectScope": "Project {{project}}",
+    "searchSourceScope": "Source {{source}}",
     "codeLocationPrompt": "May I open this code location in the editor?",
     "codeLocationOpened": "Opened in the editor",
     "codeLocationReopen": "Show code location",
@@ -1101,6 +1108,17 @@
     "toLabel": "To",
     "legendLabel": "Legend",
     "onlyLinkedElements": "Show only linked elements"
+  },
+  "agentSearchView": {
+    "noSearch": "No agent search selected.",
+    "loading": "Loading search results…",
+    "loadError": "The search view could not be loaded. Check the connection and project access.",
+    "empty": "No results for “{{query}}” in this search scope.",
+    "summary": "{{count}} results shown",
+    "truncated": "{{count}} more results are hidden by the result limit.",
+    "projectScope": "Project {{project}}",
+    "sourceScope": "Source {{source}}",
+    "types": { "entity": "Code", "document": "Document" }
   },
   "globalSearch": {
     "groups": {

@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentSearchViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 
@@ -47,6 +47,7 @@ import {
   Plus,
   Play,
   RotateCcw,
+  Search,
   Send,
   Sparkles,
   ThumbsDown,
@@ -150,6 +151,10 @@ export function ChatView({
   };
   const handleOpenGraphNeighborhood = (action: AgentViewAction) => {
     if (action.view !== 'graph' || !onApplyAgentViewAction) return;
+    onAgentViewActionOutcome?.(action.action_id, onApplyAgentViewAction(action));
+  };
+  const handleOpenSearchResults = (action: AgentSearchViewAction) => {
+    if (!onApplyAgentViewAction) return;
     onAgentViewActionOutcome?.(action.action_id, onApplyAgentViewAction(action));
   };
   const handleDeclineViewAction = (action: AgentViewAction) => {
@@ -862,6 +867,68 @@ export function ChatView({
                                     >
                                       <GitBranch className="w-3.5 h-3.5 mr-1.5" />
                                       {isOpen || isDeclined ? t('chatView.graphNeighborhoodReopen') : t('chatView.graphNeighborhoodOpenButton')}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {m.metadata?.agent_steps?.filter((step): step is AgentSearchViewAction =>
+                            step.type === 'view_action' && step.view === 'search',
+                          ).map((action) => {
+                            const isOpen = action.status === 'opened' || action.status === 'updated';
+                            const isDeclined = action.status === 'declined';
+                            const isUnavailable = action.status === 'rejected' || action.status === 'stale_context';
+                            const scopeLabel = action.target.source_id !== null
+                              ? t('chatView.searchSourceScope', {
+                                source: connectedSources.find(source => Number(source.id) === action.target.source_id)?.name || action.target.source_id,
+                              })
+                              : selectedProject?.id === action.target.project_id
+                                ? selectedProject.name
+                                : t('chatView.searchProjectScope', { project: action.target.project_id });
+                            return (
+                              <div
+                                key={action.action_id}
+                                data-testid={`search-results-action-${action.action_id}`}
+                                className={cn(
+                                  'mt-3.5 p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm text-xs',
+                                  theme === 'dark'
+                                    ? 'bg-ds-indigo-950/20 border-ds-indigo-500/30 text-ds-zinc-200'
+                                    : 'bg-ds-indigo-50/60 border-ds-indigo-200 text-ds-zinc-800',
+                                )}
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold tracking-tight">
+                                    {isOpen ? t('chatView.searchResultsOpened') : t('chatView.searchResultsPrompt')}
+                                  </p>
+                                  <p className="text-[10px] text-ds-zinc-500 truncate" title={action.target.query}>
+                                    {action.target.query} · {scopeLabel} · {action.target.types.map(type => t(`agentSearchView.types.${type}`)).join(', ')}
+                                  </p>
+                                  {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
+                                  {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                </div>
+                                {!isUnavailable && (
+                                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                    {!isOpen && !isDeclined && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeclineViewAction(action)}
+                                        className="h-7 px-2 text-xs text-ds-zinc-500 cursor-pointer"
+                                      >
+                                        {t('chatView.callGraphDismissButton')}
+                                      </Button>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => handleOpenSearchResults(action)}
+                                      className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                    >
+                                      <Search className="w-3.5 h-3.5 mr-1.5" />
+                                      {isOpen || isDeclined ? t('chatView.searchResultsReopen') : t('chatView.searchResultsOpenButton')}
                                     </Button>
                                   </div>
                                 )}

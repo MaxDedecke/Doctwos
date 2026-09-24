@@ -10,12 +10,15 @@ from xml.sax.saxutils import escape
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
 from mcp_client import MCPClient
-from models.database import CodeEntity, User
+from models.database import CodeEntity, KnowledgeSource, User
+from core.projects import get_visible_project_ids
+from core.teams import get_visible_team_ids
 from services.mcp_audit import record_mcp_tool_call
 from services.call_flow import trace_call_flow
 from services.change_impact import inspect_change_impact
 from services.change_package import inspect_change_package
 from api.graph import get_graph_neighborhood
+from services.search import search_nodes
 
 logger = logging.getLogger(__name__)
 
@@ -571,6 +574,31 @@ async def run_agent_loop(
             }
         )
     if project_id:
+        local_tools_def.append(
+            {
+                "name": "search_knowledge",
+                "description": (
+                    "Runs a bounded lexical search in the current project over indexed code entity names/paths "
+                    "and document titles/paths. It does not perform semantic or full-text chunk search. "
+                    "Use the returned query, types, and source scope unchanged when offering its results view."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "minLength": 1, "maxLength": 200},
+                        "types": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": ["entity", "document"]},
+                            "minItems": 1,
+                            "maxItems": 2,
+                            "uniqueItems": True,
+                        },
+                        "source_id": {"type": "integer", "minimum": 1},
+                    },
+                    "required": ["query"],
+                },
+            }
+        )
         local_tools_def.append(
             {
                 "name": "show_graph_neighborhood",
@@ -1192,6 +1220,70 @@ async def run_agent_loop(
                 "limit": 40,
                 "relationships": relationships,
             })
+        elif name == "search_knowledge" and project_id:
+            query = args.get("query")
+            if not isinstance(query, str) or not query.strip() or len(query) > 200:
+                return json.dumps({"error": "query must contain 1 to 200 characters."})
+            types = args.get("types", ["entity", "document"])
+            allowed_types = {"entity", "document"}
+            if (
+                not isinstance(types, list)
+                or not types
+                or len(types) > len(allowed_types)
+                or any(not isinstance(item, str) or item not in allowed_types for item in types)
+                or len(set(types)) != len(types)
+            ):
+                return json.dumps({"error": "types must contain unique supported search types."})
+            source_id = args.get("source_id")
+            if source_id is not None and (
+                not isinstance(source_id, int) or isinstance(source_id, bool) or source_id < 1 or "document" not in types
+            ):
+                return json.dumps({"error": "source_id requires document search and a positive source ID."})
+            user = db_session.query(User).filter(User.id == audit_user_id).first() if audit_user_id is not None else None
+            if not user:
+                return json.dumps({"error": "The current user context is unavailable."})
+            visible_project_ids = get_visible_project_ids(user, db_session)
+            if visible_project_ids is not None and project_id not in visible_project_ids:
+                return json.dumps({"error": "The current project is not available to this user."})
+            if source_id is not None:
+                source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+                visible_team_ids = get_visible_team_ids(user, db_session)
+                if (
+                    not source
+                    or source.project_id != project_id
+                    or (visible_team_ids is not None and source.team_id not in visible_team_ids)
+                ):
+                    return json.dumps({"error": "The selected source is unavailable in the current project context."})
+                types = ["document"]
+            try:
+                results, counts = search_nodes(
+                    db_session,
+                    q=query.strip(),
+                    types=",".join(types),
+                    project_id=project_id,
+                    source_id=source_id,
+                    limit=10,
+                    visible_team_ids=get_visible_team_ids(user, db_session),
+                    visible_project_ids=visible_project_ids,
+                )
+            except Exception as ex:
+                logger.warning("Knowledge search failed: %s", ex)
+                return json.dumps({"error": "The knowledge search could not be completed."})
+            has_more = any(int(counts.get(search_type, 0) or 0) > sum(
+                1 for result in results if isinstance(result, dict) and result.get("node_type") == search_type
+            ) for search_type in types)
+            return json.dumps({
+                "status": "ok",
+                "query": query.strip(),
+                "types": types,
+                "project_id": project_id,
+                "source_id": source_id,
+                "limit": 10,
+                "results": results[:20],
+                "counts": {search_type: int(counts.get(search_type, 0) or 0) for search_type in types},
+                "has_more": has_more,
+                "truncated": has_more,
+            }, ensure_ascii=False)
         elif name == "inspect_change_impact" and project_id:
             res = inspect_change_impact(
                 db_session,

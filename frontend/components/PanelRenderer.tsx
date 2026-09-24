@@ -17,6 +17,7 @@ import {
   Globe,
   Lock,
   RefreshCw,
+  Search,
   Terminal,
   X,
 } from 'lucide-react';
@@ -100,6 +101,7 @@ export function PanelRenderer({
             <SelectItem value="code" className="text-xs">{t('page.viewTypes.code')}</SelectItem>
             <SelectItem value="doc" className="text-xs">{t('page.viewTypes.doc')}</SelectItem>
             <SelectItem value="graph" className="text-xs">{t('page.viewTypes.graph')}</SelectItem>
+            <SelectItem value="search" className="text-xs">{t('page.viewTypes.search')}</SelectItem>
             <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
             <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
             {linkManagerEnabled && <SelectItem value="linkmanager" className="text-xs">{t('page.viewTypes.linkmanager')}</SelectItem>}
@@ -156,6 +158,7 @@ function historyButtonClass(theme: string) {
 
 function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate) {
   if (focusObject) return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: 'text-ds-purple-400' };
+  if (selection.agentSearch) return { Icon: Search, label: selection.agentSearch.query, kind: t('page.viewTypes.search'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: selection.selectedEntity.type || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedDoc) {
     const isWeb = selection.selectedDoc.isWebOrigin || ['confluence', 'jira'].includes((selection.selectedDoc.type || '').toLowerCase());

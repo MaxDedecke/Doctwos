@@ -356,6 +356,29 @@ function AppContent() {
     agentViewActionHandlerRef.current = (action, flow) => {
       if (action.project_id !== null && (!selectedProject || Number(selectedProject.id) !== action.project_id)) return 'rejected';
       if (action.project_id === null && action.view !== 'document') return 'rejected';
+      if (action.view === 'search') {
+        if (!selectedProject || Number(selectedProject.id) !== action.target.project_id) return 'rejected';
+        const selection: PanelSelection = {
+          selectedFile: null,
+          selectedDoc: null,
+          selectedEntity: null,
+          selectedLine: null,
+          customCallFlow: null,
+          graphNeighborhood: null,
+          agentSearch: action.target,
+        };
+        const liveSearchIndex = panelConfigs.findIndex((type, index) => type === 'search' && !panelFrozen[index]);
+        if (liveSearchIndex !== -1) {
+          setPanelSelections(previous => {
+            const next = [...previous];
+            next[liveSearchIndex] = { ...next[liveSearchIndex], ...selection };
+            return next;
+          });
+          return 'updated';
+        }
+        if (panelConfigs.length >= 4) return 'no_space';
+        return addPanel('search', selection) ? 'opened' : 'no_space';
+      }
       if (action.view === 'graph') {
         if (!(action.target.focus_id.startsWith('file:') || action.target.focus_id.startsWith('doc:'))) return 'rejected';
         const selection: PanelSelection = {
@@ -929,6 +952,7 @@ function AppContent() {
       onOpenCallFlow={handleOpenCallFlow}
       onApplyAgentViewAction={handleOpenAgentViewAction}
       onAgentViewActionOutcome={recordAgentViewActionOutcome}
+      handleSearchResultSelect={handleSearchResultSelect}
     />
   );
 

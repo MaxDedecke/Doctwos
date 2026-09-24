@@ -83,7 +83,7 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
 | 41 | O-199 | Ziel-Qwen, Streaming, Berechtigungen und Panel-Regeln gezielt abnehmen. | Begleitend zu allen Agentenansichten. |
-| 42 | O-193 | Suchergebnisse mit nachvollziehbarem Projekt- und Quellenfilter öffnen. | O-190 ist umgesetzt. |
+| 42 | O-193 | Suchergebnisse mit nachvollziehbarem Projekt- und Quellenfilter öffnen. | **Implementiert:** lexikalische Agentensuche für Code-Entitätsnamen/-pfade und Dokumenttitel/-pfade; Trefferansicht lädt dieselbe Suche innerhalb desselben Projekts bzw. derselben Quelle. Zielbestandsabnahme offen. |
 | 43 | O-194 | Begrenzte Wissensgraph-Nachbarschaft mit Fokus und Beziehungsfiltern öffnen. | **Implementiert.** Das lesende Agenten-Tool nutzt die berechtigungsgeprüfte Graph-API, begrenzt die Auswahl auf 40 Kanten und schlägt das bestehende Graph-Panel nach explizitem Nutzerklick vor. Zielbestands-/LLM-Abnahme bleibt offen. |
 | 44 | O-197 | Link-Manager auf eine konkrete Verknüpfung und ihre Belege fokussieren. | O-190 bis O-192 sind umgesetzt. |
 | 45 | O-198 | Quellen- und Jobstatus im Job Center lesend öffnen. | Niedrigere Produktpriorität. |
