@@ -96,17 +96,24 @@ def test_search_code_matches_qualified_names_and_pipe_alternatives(
     entities = [
         CodeEntity(
             project_id=project_id,
-            name="MENU-ENTRY",
+            name="ConnectorLogic",
             type="program",
             file_path="app/menu.cbl",
-            qualified_name="CARDDEMO.AWS.MENU-ENTRY",
+            qualified_name="org.example.ConnectorLogic",
         ),
         CodeEntity(
             project_id=project_id,
-            name="ACCOUNT-FIELD",
-            type="data_item",
+            name="DefaultNotificationManager",
+            type="class",
             file_path="app/account.cpy",
-            qualified_name="CARDDEMO.ACCOUNT-FIELD",
+            qualified_name="org.example.DefaultNotificationManager",
+        ),
+        CodeEntity(
+            project_id=project_id,
+            name="PullJobDelegate",
+            type="class",
+            file_path="app/jobs.cpy",
+            qualified_name="org.example.PullJobDelegate",
         ),
     ]
     db_session.add_all(entities)
@@ -116,7 +123,7 @@ def test_search_code_matches_qualified_names_and_pipe_alternatives(
     result = mcp_server.search_code(
         _context(user.id),
         project_id=project_id,
-        query="CARDDEMO | AWS",
+        query=("class ConnectorLogic|class DefaultNotificationManager|class PullJobDelegate"),
         limit=10,
     )
 
@@ -218,7 +225,10 @@ async def test_search_knowledge_reports_upstream_http_status_safely(
 
     monkeypatch.setattr(mcp_server, "search_project_chunks", failing_search)
 
-    with pytest.raises(ValueError, match="upstream service returned HTTP 404"):
+    with pytest.raises(
+        ValueError,
+        match="embedding endpoint returned HTTP 404; check the active embedding profile URL and path",
+    ):
         await mcp_server.search_knowledge(
             _context(user.id),
             project_id=project_id,

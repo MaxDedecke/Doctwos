@@ -1,6 +1,7 @@
 """Read-only inbound MCP transport and tools for IDE clients."""
 
 import logging
+import re
 import time
 from contextlib import contextmanager
 from urllib.parse import urlsplit
@@ -35,6 +36,18 @@ from services.search import search_nodes
 
 logger = logging.getLogger(__name__)
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True)
+
+
+def _search_code_alternatives(query: str) -> list[str]:
+    """Normalize symbol alternatives supplied as prose or source declarations."""
+    alternatives = []
+    seen = set()
+    for part in query.split("|"):
+        term = re.sub(r"^(?:class|interface|enum|record)\s+", "", part.strip(), flags=re.I)
+        if term and term.casefold() not in seen:
+            seen.add(term.casefold())
+            alternatives.append(term)
+    return alternatives
 
 
 def _bounded(value: str | None, limit: int = 1200) -> tuple[str | None, bool]:
@@ -99,9 +112,11 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         if safe_message in {"invalid query", "invalid cursor", "invalid direction", "invalid relationship"}:
             raise ValueError(safe_message) from None
         if isinstance(exc, httpx.HTTPStatusError):
-            raise ValueError(
-                f"upstream service returned HTTP {exc.response.status_code}"
-            ) from None
+            upstream = "embedding endpoint" if name == "search_knowledge" else "upstream service"
+            detail = f"{upstream} returned HTTP {exc.response.status_code}"
+            if name == "search_knowledge" and exc.response.status_code == 404:
+                detail += "; check the active embedding profile URL and path"
+            raise ValueError(detail) from None
         raise ValueError("MCP request failed or access denied") from None
     finally:
         record_mcp_tool_call(
@@ -159,7 +174,8 @@ def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dic
 def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> dict:
     """Find indexed code entities by symbol, qualified name, or file path in one project.
 
-    Separate alternatives with ``|`` (for example, ``CARDDEMO|AWS CardDemo``).
+    Separate alternatives with ``|``. Optional declaration prefixes such as
+    ``class`` are ignored (for example, ``class ConnectorLogic|class Other``).
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
@@ -167,7 +183,7 @@ def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> d
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
-        alternatives = list(dict.fromkeys(part.strip() for part in query.split("|") if part.strip()))
+        alternatives = _search_code_alternatives(query)
         if len(alternatives) > 12:
             raise ValueError("invalid query")
         hits = []
