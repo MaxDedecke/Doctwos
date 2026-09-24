@@ -60,6 +60,10 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
   const [open, setOpen] = React.useState(false);
   const [description, setDescription] = React.useState('');
   const [direction, setDirection] = React.useState<'incoming' | 'outgoing' | 'both'>('both');
+  const [inputMode, setInputMode] = React.useState<'target' | 'diff'>('target');
+  const [baseRef, setBaseRef] = React.useState('');
+  const [headRef, setHeadRef] = React.useState('');
+  const [diffSourceId, setDiffSourceId] = React.useState('');
   const [packageData, setPackageData] = React.useState<RecordValue | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -67,14 +71,21 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
 
   const runAnalysis = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!projectId || !target || !description.trim()) return;
+    if (!projectId || !target || !description.trim() || (inputMode === 'diff' && (!baseRef.trim() || !headRef.trim()))) return;
     setLoading(true);
     setError(null);
     setPackageData(null);
     try {
       const params = new URLSearchParams({ direction, hops: '2', limit: '40' });
-      if (target.entityId) params.set('entity_id', String(target.entityId));
-      if (target.filePath) params.set('file_path', target.filePath);
+      if (inputMode === 'diff') {
+        params.set('base_ref', baseRef.trim());
+        params.set('head_ref', headRef.trim());
+        const sourceId = diffSourceId.trim() || String(target.sourceId ?? '');
+        if (sourceId) params.set('source_id', sourceId);
+      } else {
+        if (target.entityId) params.set('entity_id', String(target.entityId));
+        if (target.filePath) params.set('file_path', target.filePath);
+      }
       const response = await api.fetch(`${API_URL}/projects/${projectId}/change-package?${params}`);
       const data: unknown = await response.json();
       if (!response.ok) {
@@ -118,6 +129,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
   };
 
   const impact = record(packageData?.change_impact);
+  const impactTarget = record(impact.target);
   const scope = record(packageData?.scope);
   const nodes = list(impact.nodes);
   const sourceForEntity = (id: unknown) => nodes.find(node => node.id === id)?.source_id ?? target?.sourceId ?? null;
@@ -245,6 +257,22 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                 placeholder={t('changePackage.descriptionPlaceholder')}
                 className={`w-full resize-y rounded-md border px-3 py-2 text-xs outline-none focus:border-ds-indigo-500 ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900 placeholder:text-ds-zinc-400'}`}
               />
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+                <label className="flex items-center gap-1.5"><input type="radio" name="change-package-mode" checked={inputMode === 'target'} onChange={() => setInputMode('target')} />{t('changePackage.targetMode')}</label>
+                <label className="flex items-center gap-1.5"><input type="radio" name="change-package-mode" checked={inputMode === 'diff'} onChange={() => setInputMode('diff')} />{t('changePackage.diffMode')}</label>
+              </div>
+              {inputMode === 'diff' && <div className="mt-2 flex flex-wrap gap-2">
+                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-base">{t('changePackage.baseRevision')}
+                  <input id="change-package-base" value={baseRef} onChange={event => setBaseRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                </label>
+                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-head">{t('changePackage.headRevision')}
+                  <input id="change-package-head" value={headRef} onChange={event => setHeadRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                </label>
+                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-source">{t('changePackage.sourceId')}
+                  <input id="change-package-source" type="number" min="1" step="1" value={diffSourceId || String(target.sourceId ?? '')} onChange={event => setDiffSourceId(event.target.value)} className={`h-8 w-24 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                </label>
+                <p className={`self-end pb-1 text-[10px] ${muted}`}>{t('changePackage.diffHint')}</p>
+              </div>}
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <p className={`max-w-2xl text-[10px] ${muted}`}>{t('changePackage.descriptionHint')}</p>
                 <div className="flex flex-wrap items-end gap-2">
@@ -261,7 +289,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       <option value="both">{t('changePackage.directionBoth')}</option>
                     </select>
                   </label>
-                  <button type="submit" disabled={loading || !description.trim()} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ds-indigo-600 px-3 text-xs font-semibold text-white hover:bg-ds-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="submit" disabled={loading || !description.trim() || (inputMode === 'diff' && (!baseRef.trim() || !headRef.trim()))} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ds-indigo-600 px-3 text-xs font-semibold text-white hover:bg-ds-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
                     {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                     {loading ? t('changePackage.loading') : t('changePackage.run')}
                   </button>
@@ -281,6 +309,13 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     nodes: nodes.length,
                     edges: codeEdges.length,
                   })}</p>
+                  {impactTarget.kind === 'diff' && <section className={sectionClass}>
+                    <h3 className="mb-1 text-xs font-semibold">{t('changePackage.diffSummary')}</h3>
+                    <p className={`break-all text-[10px] ${muted}`}>{text(impactTarget.base_commit)} → {text(impactTarget.head_commit)}</p>
+                    <p className={`mt-1 text-[10px] ${muted}`}>{t('changePackage.diffFiles', { count: Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.length : 0 })}</p>
+                    <p className="mt-1 break-words text-xs">{Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.join(', ') : ''}</p>
+                    {Array.isArray(impactTarget.unindexed_files) && impactTarget.unindexed_files.length > 0 && <p className={`mt-1 text-[10px] ${muted}`}>{t('changePackage.unindexedFiles')}: {impactTarget.unindexed_files.join(', ')}</p>}
+                  </section>}
                   <section className="rounded-lg border border-ds-indigo-500/30 bg-ds-indigo-500/5 p-3">
                     <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ds-indigo-400">{t('changePackage.requestedChange')}</h3>
                     <p className="whitespace-pre-wrap text-xs">{description.trim()}</p>

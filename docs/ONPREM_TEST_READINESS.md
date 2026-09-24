@@ -575,8 +575,9 @@ dynamische Aufrufe getrennt ausweisen.
 **Abnahme:** Betroffene Fundstellen lassen sich öffnen. Unvollständige Indexierung
 und dynamische Aufrufe werden als Grenzen angezeigt; keine Behauptung vollständiger
 Auswirkungsanalyse. Das Tool führt weder Codeänderungen noch Reindexierung aus.
-O-273 bleibt offen und ergänzt diese Basis um Dokumentation, Fehlerhistorie,
-Tests und Verantwortlichkeiten sowie eine gemeinsame API.
+O-273 ergänzt diese Basis inzwischen um Dokumentation, Fehlerhistorie,
+Tests, Verantwortlichkeiten und eine gemeinsame API mit Diff-Eingabe.
+Die fachliche Bestandsabnahme erfolgt mit O-300.
 
 ### O-197 – P2: Verknüpfungen samt Belegen im Link-Manager prüfen
 

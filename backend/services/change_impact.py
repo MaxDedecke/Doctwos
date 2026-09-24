@@ -44,6 +44,7 @@ def inspect_change_impact(
     project_id: int,
     entity_id: int | None = None,
     file_path: str | None = None,
+    source_id: int | None = None,
     direction: str = "incoming",
     hops: int = 2,
     limit: int = 40,
@@ -58,6 +59,8 @@ def inspect_change_impact(
     """
     if entity_id is None and file_path is None:
         return {"error": "Provide entity_id, file_path, or both for the same indexed file."}
+    if source_id is not None and (not isinstance(source_id, int) or isinstance(source_id, bool) or source_id <= 0):
+        return {"error": "source_id must be a positive integer."}
     if entity_id is not None and (
         not isinstance(entity_id, int) or isinstance(entity_id, bool) or entity_id <= 0
     ):
@@ -78,27 +81,27 @@ def inspect_change_impact(
         if normalized_path is None:
             return {"error": "file_path must be a safe repository-relative path."}
         if entity_id is not None:
-            matching_entity = (
-                db.query(CodeEntity.id)
-                .filter(
+            matching_query = (
+                db.query(CodeEntity.id).filter(
                     CodeEntity.id == entity_id,
                     CodeEntity.project_id == project_id,
                     CodeEntity.file_path == normalized_path,
                 )
-                .first()
             )
+            if source_id is not None:
+                matching_query = matching_query.filter(CodeEntity.source_id == source_id)
+            matching_entity = matching_query.first()
             if matching_entity is None:
                 return {"error": "When both selectors are provided, entity_id must belong to file_path in the current project."}
-        file_entities = (
-            db.query(CodeEntity)
-            .filter(
+        file_query = (
+            db.query(CodeEntity).filter(
                 CodeEntity.project_id == project_id,
                 CodeEntity.file_path == normalized_path,
             )
-            .order_by(CodeEntity.start_line, CodeEntity.id)
-            .limit(MAX_IMPACT_NODES + 1)
-            .all()
         )
+        if source_id is not None:
+            file_query = file_query.filter(CodeEntity.source_id == source_id)
+        file_entities = file_query.order_by(CodeEntity.start_line, CodeEntity.id).limit(MAX_IMPACT_NODES + 1).all()
         if not file_entities:
             return {"error": "No indexed code entities were found for this file in the current project."}
         file_root = next(
@@ -111,11 +114,10 @@ def inspect_change_impact(
         target_kind = "file"
         target_count_truncated = len(file_entities) > len(target_entities)
     else:
-        target = (
-            db.query(CodeEntity)
-            .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
-            .first()
-        )
+        target_query = db.query(CodeEntity).filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
+        if source_id is not None:
+            target_query = target_query.filter(CodeEntity.source_id == source_id)
+        target = target_query.first()
         if target is None:
             return {"error": "Entity was not found in the current project."}
         target_entities = [target]

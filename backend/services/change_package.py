@@ -605,6 +605,15 @@ def _diff_targets(
     head_commit, error = _git_commit(worktree, head_ref)
     if error:
         return {"error": error}
+    cursor = source.sync_cursor if isinstance(source.sync_cursor, dict) else {}
+    indexed_commit = cursor.get("last_commit")
+    if source.sync_status != "completed" or not indexed_commit:
+        return {"error": "Diff analysis requires a completed Git source sync with a recorded indexed commit."}
+    if indexed_commit != head_commit:
+        return {"error": "The requested head revision differs from the indexed source revision; sync that revision before analyzing its impact."}
+    worktree_commit, error = _git_commit(worktree, "HEAD")
+    if error or worktree_commit != head_commit:
+        return {"error": "The local Git worktree differs from the indexed head revision; sync the source before analyzing its impact."}
     try:
         result = subprocess.run(
             [
@@ -620,9 +629,12 @@ def _diff_targets(
     if result.returncode:
         return {"error": "The local Git worktree rejected the requested diff."}
     diff_bytes = result.stdout
-    raw_paths = diff_bytes[:MAX_DIFF_OUTPUT_BYTES].decode("utf-8", errors="replace").split("\0")
-    paths = [PurePosixPath(path).as_posix() for path in raw_paths if _safe_diff_path(path)]
     output_truncated = len(diff_bytes) > MAX_DIFF_OUTPUT_BYTES
+    bounded_bytes = diff_bytes[:MAX_DIFF_OUTPUT_BYTES]
+    if output_truncated:
+        bounded_bytes = bounded_bytes.rsplit(b"\0", 1)[0] + b"\0" if b"\0" in bounded_bytes else b""
+    raw_paths = bounded_bytes.decode("utf-8", errors="replace").split("\0")
+    paths = [PurePosixPath(path).as_posix() for path in raw_paths if _safe_diff_path(path)]
     indexed_paths = {
         path for (path,) in db.query(CodeEntity.file_path).filter(
             CodeEntity.project_id == project_id,
@@ -636,7 +648,7 @@ def _diff_targets(
         "base_commit": base_commit,
         "head_commit": head_commit,
         "changed_files": paths[:MAX_DIFF_REPORTED_FILES],
-        "changed_file_count": len(paths),
+        "changed_file_count": len(paths) if not output_truncated else None,
         "indexed_files": selected,
         "unindexed_files": [
             path for path in paths if path not in indexed_paths
@@ -669,7 +681,8 @@ def _diff_impact(
         return target
     impacts = [
         inspect_change_impact(
-            db, project_id=project_id, file_path=path, direction=direction, hops=hops, limit=limit
+            db, project_id=project_id, file_path=path, source_id=target["source_id"],
+            direction=direction, hops=hops, limit=limit
         )
         for path in target["indexed_files"]
     ]
@@ -691,20 +704,28 @@ def _diff_impact(
         for edge in impact.get("unknown_edges", [])
         if isinstance(edge, dict) and "id" in edge
     }
+    visible_nodes = dict(list(nodes.items())[:limit])
+    visible_edges = [edge for edge in edges.values() if edge.get("source") in visible_nodes and edge.get("target") in visible_nodes][:limit]
+    visible_unknown_edges = [edge for edge in unknown_edges.values() if edge.get("source_entity_id") in visible_nodes][:limit]
     return {
         "status": "ok" if nodes else "no_indexed_impact",
         "target": {"kind": "diff", "source_id": target["source_id"], "base_ref": base_ref, "head_ref": head_ref,
                    "base_commit": target["base_commit"], "head_commit": target["head_commit"],
                    "changed_files": target["changed_files"], "indexed_files": target["indexed_files"],
                    "unindexed_files": target["unindexed_files"], "changed_file_count": target["changed_file_count"],
-                   "entity_ids": [entity_id for impact in impacts for entity_id in impact.get("target", {}).get("entity_ids", [])]},
+                   "entity_ids": sorted({
+                       entity_id for impact in impacts
+                       for entity_id in impact.get("target", {}).get("entity_ids", [])
+                       if entity_id in visible_nodes
+                   })},
         "direction": direction, "hops": hops,
-        "nodes": list(nodes.values())[:limit], "edges": list(edges.values())[:limit],
-        "unknown_edges": list(unknown_edges.values())[:limit],
+        "nodes": list(visible_nodes.values()), "edges": visible_edges,
+        "unknown_edges": visible_unknown_edges,
         "truncated": target["truncated"] or len(nodes) > limit or len(edges) > limit
         or len(unknown_edges) > limit or any(impact.get("truncated") for impact in impacts),
         "impact_summary": {"limitations": [
             "The diff is read from the local synced Git worktree; it can only include revisions available there.",
+            "The analysis uses the indexed head revision and reports changed files, not changed lines or historical graph states.",
             "Only changed files with indexed code entities are analyzed. Deleted, renamed-only, unindexed and non-code files are listed but have no code impact graph.",
         ]},
     }
