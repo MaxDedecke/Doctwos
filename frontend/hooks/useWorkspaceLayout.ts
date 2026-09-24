@@ -206,7 +206,7 @@ export function useWorkspaceLayout({
       // D-3: der Call-Graph zeigt ein Objekt, keine Datei. Eine eingehende
       // Auswahl ohne Objektbezug (Dokument, Webseite, geleerte Auswahl) würde
       // ihn nur leeren -- er behält stattdessen seinen Fokus.
-      if (panelType === 'callgraph' && !selectedEntity) return selection;
+      if (panelType === 'callgraph' && (selection.customCallFlow || !selectedEntity)) return selection;
       if (
         selection.selectedFile !== selectedFile ||
         selection.selectedDoc !== selectedDoc ||

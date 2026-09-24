@@ -124,6 +124,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
   const [truncated, setTruncated] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const graphLoadVersionRef = useRef(0);
   const isImpactMode = customFlow?.mode === 'impact';
 
   useEffect(() => {
@@ -202,8 +203,10 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
   }, [selectedNode, onInvestigateFromHere]);
 
   useEffect(() => {
+    const version = ++graphLoadVersionRef.current;
     if (!customFlow) return;
     queueMicrotask(() => {
+      if (graphLoadVersionRef.current !== version) return;
       setLoading(false);
       setError(null);
       const nodes: CallNode[] = (customFlow.nodes || []).map((node) => ({
@@ -218,7 +221,25 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         analysis_reasons: node.analysis_reasons,
       }));
       const known = new Set(nodes.map(node => node.id));
+      const rootId = `entity:${customFlow.root.id}`;
+      if (!known.has(rootId)) {
+        nodes.push({
+          id: rootId,
+          entityId: customFlow.root.id,
+          name: customFlow.root.name,
+          type: customFlow.root.type || 'entity',
+          file_path: customFlow.root.file_path || undefined,
+          start_line: customFlow.root.start_line,
+          source_id: customFlow.root.source_id,
+        });
+        known.add(rootId);
+      }
       const edges: CallEdge[] = (customFlow.edges || []).map((edge) => {
+        const source = `entity:${edge.source}`;
+        if (!known.has(source)) {
+          nodes.push({ id: source, entityId: edge.source, name: `Entity ${edge.source}`, type: 'entity' });
+          known.add(source);
+        }
         let target = edge.target == null ? `unresolved:${edge.id}` : `entity:${edge.target}`;
         if (!known.has(target)) {
           nodes.push({ id: target, name: edge.target_name, type: 'external', unresolved: true });
@@ -226,7 +247,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         }
         return {
           id: `edge:${edge.id}`,
-          source: `entity:${edge.source}`,
+          source,
           target,
           type: edge.type,
           resolution: edge.resolution,
@@ -247,6 +268,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
 
   const loadGraph = useCallback(async () => {
     if (customFlow) return;
+    const requestVersion = ++graphLoadVersionRef.current;
     if (!currentRoot?.id) {
       setGraph({ nodes: [], edges: [] });
       return;
@@ -256,6 +278,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
     try {
       const projectParam = projectId ? `&project_id=${projectId}` : '';
       const response = await api.fetch(`${API_URL}/process/focus?entity_id=${currentRoot.id}&hops=${hops}${projectParam}`);
+      if (graphLoadVersionRef.current !== requestVersion) return;
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       type ProcessNode = {
         id: string; kind: string; label: string; entity_id?: number | null;
@@ -270,11 +293,13 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         meta?: CallFlowEdge['meta'];
       };
       const data: { nodes: ProcessNode[]; transitions: ProcessTransition[]; truncation: { truncated: boolean; reasons: string[] } } = await response.json();
+      if (graphLoadVersionRef.current !== requestVersion) return;
       const decisionSourceIds = new Set((data.transitions || [])
         .filter(transition => transition.kind === 'branch')
         .map(transition => transition.source));
 
       setGraph(prevGraph => {
+        if (graphLoadVersionRef.current !== requestVersion) return prevGraph;
         const existingPositions = new Map<string, { x?: number; y?: number; vx?: number; vy?: number; fx?: number; fy?: number }>();
         prevGraph.nodes.forEach(n => {
           if (n.x != null && n.y != null) {
@@ -332,9 +357,11 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       setSelectedEdgeId(null);
       setSelectedNodeId(`entity:${currentRoot.id}`);
     } catch (err) {
-      setError((err instanceof Error ? err.message : undefined) || t('callGraphView.loadError'));
+      if (graphLoadVersionRef.current === requestVersion) {
+        setError((err instanceof Error ? err.message : undefined) || t('callGraphView.loadError'));
+      }
     } finally {
-      setLoading(false);
+      if (graphLoadVersionRef.current === requestVersion) setLoading(false);
     }
   }, [customFlow, currentRoot, hops, projectId, t]);
 
