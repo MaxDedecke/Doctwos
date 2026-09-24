@@ -636,7 +636,7 @@ def test_llm_review_updates_score_and_context_but_not_status(
         assert res.status_code == 200
         body = res.json()
         assert body["score"] == pytest.approx(0.87)
-        assert body["context"] == "Deckt sich inhaltlich."
+        assert body["context"] == "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."
         assert body["status"] == "pending"  # unverändert — Nutzer entscheidet
         # O-114: dieser Endpunkt lädt entity+chunk ohnehin schon fürs LLM-Prompt —
         # beide Navigationsfelder müssen also auch hier mitkommen.

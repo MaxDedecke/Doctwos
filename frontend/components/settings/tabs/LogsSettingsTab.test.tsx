@@ -43,6 +43,7 @@ vi.mock('@/lib/i18n/LanguageContext', () => ({
 }));
 
 import { LogsSettingsTab } from './LogsSettingsTab';
+import { EvaluationSettingsTab } from './EvaluationSettingsTab';
 
 const disabledSettings = { collection_enabled: false, support_export_enabled: false, retention_days: 90, updated_at: null };
 
@@ -53,16 +54,16 @@ afterEach(() => {
   settingsState.connectedSources = [];
 });
 
-describe('LogsSettingsTab feedback diagnostics', () => {
+describe('EvaluationSettingsTab feedback diagnostics', () => {
   it('keeps export locked until collection and explicit export consent are enabled', async () => {
     apiMocks.getFeedbackDiagnosticSettings.mockResolvedValue({ data: disabledSettings });
     apiMocks.updateFeedbackDiagnosticSettings.mockImplementation(async (data) => ({ data: { ...data, updated_at: null } }));
-    render(<LogsSettingsTab />);
+    render(<EvaluationSettingsTab />);
 
     const [collect, allowExport] = await screen.findAllByRole('checkbox');
     expect((collect as HTMLInputElement).checked).toBe(false);
     expect((allowExport as HTMLInputElement).disabled).toBe(true);
-    expect(screen.queryByText('settings.logsTab.feedbackDiagnosticsDownload')).toBeNull();
+    expect(screen.queryByText('settings.evaluationTab.diagnosticsDownload')).toBeNull();
 
     fireEvent.click(collect);
     await waitFor(() => expect(apiMocks.updateFeedbackDiagnosticSettings).toHaveBeenCalledWith({ collection_enabled: true, support_export_enabled: false, retention_days: 90 }));
@@ -74,10 +75,10 @@ describe('LogsSettingsTab feedback diagnostics', () => {
   it('offers the manual download only after both consents and confirms deletion', async () => {
     apiMocks.getFeedbackDiagnosticSettings.mockResolvedValue({ data: { ...disabledSettings, collection_enabled: true, support_export_enabled: true } });
     vi.stubGlobal('confirm', vi.fn(() => true));
-    render(<LogsSettingsTab />);
+    render(<EvaluationSettingsTab />);
 
-    expect(await screen.findByText('settings.logsTab.feedbackDiagnosticsDownload')).toBeTruthy();
-    fireEvent.click(screen.getByText('settings.logsTab.feedbackDiagnosticsDelete'));
+    expect(await screen.findByText('settings.evaluationTab.diagnosticsDownload')).toBeTruthy();
+    fireEvent.click(screen.getByText('settings.evaluationTab.diagnosticsDelete'));
     await waitFor(() => expect(apiMocks.deleteFeedbackDiagnosticCases).toHaveBeenCalledOnce());
   });
 
@@ -93,10 +94,10 @@ describe('LogsSettingsTab feedback diagnostics', () => {
         limit: 100,
       },
     });
-    render(<LogsSettingsTab />);
+    render(<EvaluationSettingsTab />);
 
-    expect(await screen.findByText('settings.logsTab.feedbackSession:1')).toBeTruthy();
-    expect(screen.getByText('settings.logsTab.feedbackSession:2')).toBeTruthy();
+    expect(await screen.findByText('settings.evaluationTab.feedbackSession:1')).toBeTruthy();
+    expect(screen.getByText('settings.evaluationTab.feedbackSession:2')).toBeTruthy();
     // Nirgends im gerenderten Auszug taucht ein Hinweis auf, wer die Sitzung
     // geführt hat — nur Frage/Antwort und das anonyme, laufende Label.
     expect(screen.queryByText(/session_id/i)).toBeNull();

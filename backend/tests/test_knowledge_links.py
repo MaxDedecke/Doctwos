@@ -416,7 +416,7 @@ def test_llm_review_updates_score_and_context_but_not_status(
         assert res.status_code == 200
         body = res.json()
         assert body["score"] == pytest.approx(0.87)
-        assert body["context"] == "Deckt sich inhaltlich."
+        assert body["context"] == "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."
         assert body["status"] == "pending"  # unverändert — Nutzer entscheidet
     finally:
         db_session.query(KnowledgeLink).filter(KnowledgeLink.id == link.id).delete()
@@ -530,7 +530,7 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
     db_session.refresh(second_source)
     calls = []
 
-    def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
+    def fake_send_tracked_task(db, record, task_name, args, kwargs=None, **options):
         calls.append((task_name, args, kwargs))
 
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
@@ -621,7 +621,7 @@ def test_trigger_computation_reuses_active_run_for_same_project_scope(
         db_session.commit()
 
 
-def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
+def test_trigger_computation_preserves_pending_and_reviewed_links(
     client, db_session, two_chunks
 ):
     source, chunk_a, chunk_b = two_chunks
@@ -635,9 +635,8 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
     original_source_id = chunk_b.source_id
     chunk_b.source_id = second_source.id
     db_session.commit()
-    # IDs vorab festhalten: die Route löscht "pending" serverseitig per Bulk-
-    # DELETE (synchronize_session=False), ein Attributzugriff danach auf das
-    # Python-Objekt würfe ObjectDeletedError.
+    # A budgeted run may only process part of this scope. Existing proposals
+    # must therefore remain available until their corresponding pair is reviewed.
     pending_id = _make_link(db_session, chunk_a, chunk_b, status="pending").id
     approved_id = _make_link(db_session, chunk_a, chunk_b, status="approved").id
     rejected_id = _make_link(db_session, chunk_a, chunk_b, status="rejected").id
@@ -657,7 +656,7 @@ def test_trigger_computation_clears_pending_but_keeps_reviewed_links(
             KnowledgeLink.id.in_([pending_id, approved_id, rejected_id])
         )
     }
-    assert remaining_ids == {approved_id, rejected_id}
+    assert remaining_ids == {pending_id, approved_id, rejected_id}
 
     db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == run_id).delete()
     db_session.query(KnowledgeLink).filter(KnowledgeLink.id.in_([approved_id, rejected_id])).delete(

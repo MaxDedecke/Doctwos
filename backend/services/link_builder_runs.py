@@ -39,6 +39,8 @@ def _scope_key(project_id: int | None, scope: dict | None) -> tuple[int | None, 
     # Queue metadata is operational, not part of the requested analysis scope.
     normalized.pop("queue", None)
     normalized.pop("confirmed", None)
+    for key in ("max_items", "min_confidence", "processed_items", "total_items", "resume_after_id"):
+        normalized.pop(key, None)
     if resolved_project_id is not None:
         normalized["project_id"] = resolved_project_id
     source_ids = normalized.get("source_ids")

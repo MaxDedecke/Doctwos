@@ -68,7 +68,6 @@ def client(unauthenticated_client, db_session):
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
-
     # Ensure the user is a member of the Default Team for general endpoint access
     default_team = db_session.query(Team).filter(Team.name == "Default Team").first()
     if not default_team:
@@ -120,6 +119,11 @@ def member_client(unauthenticated_client, db_session):
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
+    else:
+        # Existing local test data may have been created with elevated access.
+        # Keep this fixture's security contract explicit on every run.
+        user.role = "user"
+        db_session.commit()
 
     default_team = db_session.query(Team).filter(Team.name == "Default Team").first()
     if not default_team:
@@ -216,7 +220,7 @@ requires_ollama = pytest.mark.skipif(
 )
 
 
-def make_fake_llm_json(confidence: float = 87, reason: str = "Deckt sich inhaltlich."):
+def make_fake_llm_json(confidence: float = 87, reason: str = "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."):
     """Fake für `services.ollama_client.ask_llm_json_for_profile`, geteilt
     zwischen den llm-review-Tests in test_entity_links.py (O-108) und
     test_knowledge_links.py (O-109) -- beide Routen rufen dieselbe Funktion

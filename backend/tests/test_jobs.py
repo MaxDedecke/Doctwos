@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from api import jobs as jobs_api
+from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from services import link_builder_runs as link_builder_runs_service
 from models.database import (
     DiagnosticsRun,
@@ -8,6 +9,9 @@ from models.database import (
     KnowledgeSource,
     LinkBuilderRun,
     Project,
+    ProjectMembership,
+    TeamMembership,
+    User,
 )
 
 
@@ -349,6 +353,76 @@ def test_admin_can_stop_running_diagnostics_job(client, db_session, monkeypatch)
             {"terminate": True, "signal": "SIGTERM"},
         )
     ]
+    db_session.delete(run)
+    db_session.commit()
+
+
+def test_link_builder_owner_can_stop_own_run(
+    member_client, db_session, test_project, test_team, monkeypatch
+):
+    member = db_session.query(User).filter(User.username == "test-fixture-member").first()
+    # test_project depends on the admin client and shares the underlying
+    # TestClient cookie jar; restore the ordinary member session after setup.
+    member_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(member.id))
+    db_session.add(ProjectMembership(project_id=test_project, user_id=member.id, role="member"))
+    db_session.add(TeamMembership(team_id=test_team, user_id=member.id))
+    run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        triggered_by_user_id=member.id,
+        status="running",
+        celery_task_id="owned-link-task",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+    revoked = []
+    monkeypatch.setattr(
+        jobs_api.celery_app.control,
+        "revoke",
+        lambda *args, **kwargs: revoked.append((args, kwargs)),
+    )
+
+    listed = member_client.get(f"/jobs?project_id={test_project}")
+    job = next(job for job in listed.json()["jobs"] if job["key"] == f"link_builder:{run.id}")
+    assert job["can_stop"] is True
+    response = member_client.post(f"/jobs/link_builder/{run.id}/stop")
+
+    assert response.status_code == 200
+    db_session.refresh(run)
+    assert run.status == "cancelled"
+    assert run.progress_message == "Vom Nutzer abgebrochen"
+    assert revoked == [(("owned-link-task",), {"terminate": True, "signal": "SIGTERM"})]
+    db_session.delete(run)
+    db_session.query(ProjectMembership).filter(
+        ProjectMembership.project_id == test_project,
+        ProjectMembership.user_id == member.id,
+    ).delete(synchronize_session=False)
+    db_session.query(TeamMembership).filter(
+        TeamMembership.team_id == test_team,
+        TeamMembership.user_id == member.id,
+    ).delete(synchronize_session=False)
+    db_session.commit()
+
+
+def test_link_builder_non_owner_cannot_stop_another_users_run(
+    member_client, db_session, test_project
+):
+    member = db_session.query(User).filter(User.username == "test-fixture-member").first()
+    member_client.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(member.id))
+    run = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        triggered_by_user_id=None,
+        status="running",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    response = member_client.post(f"/jobs/link_builder/{run.id}/stop")
+
+    assert response.status_code == 403
     db_session.delete(run)
     db_session.commit()
 

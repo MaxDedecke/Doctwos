@@ -57,6 +57,7 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "links_created": run.links_created,
         "embedding_model": run.embedding_model,
         "scope": run.scope_json,
+        "progress": round(100 * (run.scope_json or {}).get("processed_items", 0) / max(1, (run.scope_json or {}).get("total_items", 1))) if (run.scope_json or {}).get("total_items") else None,
     }
 
 
@@ -268,6 +269,9 @@ def estimate_link_computation_scope(
         "has_active_run": active_run is not None,
         "active_run_id": active_run.id if active_run else None,
         "cost_notice": cost_notice,
+        "estimated_llm_reviews_max": entities_to_scan,
+        "estimated_embedding_calls_max": entities_to_scan,
+        "estimate_kind": "upper_bound",
     }
 
 
@@ -286,6 +290,7 @@ def trigger_link_computation(
         max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
+    max_items: int = Query(200, ge=1, le=5000, description="Maximale Zahl Code-Entitäten pro Lauf; ein begrenzter Lauf kann fortgesetzt werden."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -327,6 +332,7 @@ def trigger_link_computation(
             "project_id": project_id,
             "min_confidence": min_confidence,
             "embedding_model": embedding_model.strip() if embedding_model else None,
+            "max_items": max_items,
         },
         triggered_by_user_id=user.id,
     )
@@ -458,14 +464,24 @@ async def llm_review_link(
             detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden",
         )
 
+    code_chunk = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == link.project_id,
+        DocumentChunk.file_path == entity.file_path,
+        DocumentChunk.start_line <= entity.start_line,
+        DocumentChunk.end_line >= entity.start_line,
+    ).order_by(DocumentChunk.start_line.desc()).first()
+    code_excerpt = (code_chunk.content or "")[:900] if code_chunk else "(kein indexierter Codeauszug verfügbar)"
+
     prompt = (
         "Du bist ein Programmier- und Code-Dokumentations-Experte.\n"
         "Bewerte, wie relevant der folgende Dokumentationsabschnitt für diese Code-Entity ist:\n"
         f"Entity: [{entity.type}] {entity.name} in Datei '{entity.file_path}'\n\n"
-        f"Dokument [{link.source_type or '—'}] '{link.doc_title}':\n{(chunk.content or '')[:250]}...\n\n"
+        f"Codeauszug: {code_excerpt}\n\n"
+        f"Dokument [{link.source_type or '—'}] '{link.doc_title}':\n{(chunk.content or '')[:900]}\n\n"
+        "Nenne die konkrete Verbindung zwischen Code und Dokument, je ein belegendes Detail aus beiden Seiten sowie offene Unsicherheit. Keine bloße Ähnlichkeitsaussage.\n"
         "Antworte NUR mit einem JSON-Objekt der Form "
         '{"confidence": <Ganzzahl 0-100, wie sicher du bezüglich der Relevanz bist>, '
-        '"reason": "<kurze Begründung auf Deutsch, 1-2 Sätze>"}.'
+        '"reason": "<konkrete Begründung auf Deutsch, 2-4 Sätze>"}.'
     )
 
     try:
@@ -484,10 +500,12 @@ async def llm_review_link(
     confidence = data.get("confidence")
     if not isinstance(confidence, (int, float)):
         raise HTTPException(status_code=502, detail="LLM lieferte keine gültige Konfidenz")
+    reason = str(data.get("reason") or "").strip()
+    if len(reason) < 40:
+        raise HTTPException(status_code=502, detail="LLM lieferte keine ausreichende Begründung")
 
     link.score = round(max(0.0, min(100.0, float(confidence))) / 100.0, 4)
-    if data.get("reason"):
-        link.context = data["reason"]
+    link.context = reason
     db.commit()
     db.refresh(link)
     return serialize_link(link, entity, chunk)

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Job = {
   key: string; kind: string; id: number; label: string; status: string;
   progress: number | null; progress_message?: string; error_message?: string;
+  budget?: number | null;
   created_at?: string; can_resume: boolean;
   can_start?: boolean; can_delete?: boolean; can_stop?: boolean;
 };
@@ -149,13 +150,14 @@ export function JobCenter({
                   {currentUser?.is_admin && job.can_delete && <button disabled={removing === job.key} onClick={() => remove(job)} aria-label={t("jobCenter.remove")} title={t("jobCenter.remove")} className="text-ds-zinc-500 hover:text-ds-rose-500 disabled:opacity-50"><X className="h-3.5 w-3.5" /></button>}
                   {failed && job.error_message && <button onClick={() => setExpanded(expanded === job.key ? null : job.key)} aria-expanded={expanded === job.key} className="text-ds-zinc-500"><ChevronDown className={cn("h-4 w-4 transition-transform", expanded === job.key && "rotate-180")} /></button>}
                 </div>
-                {running && job.progress !== null && <div className="mt-2 h-1.5 rounded bg-ds-zinc-700/30 overflow-hidden"><div className="h-full bg-ds-indigo-500" style={{ width: `${Math.max(2, Math.min(100, job.progress))}%` }} /></div>}
+                {(running || (job.kind === 'link_builder' && cancelled)) && job.progress !== null && <div className="mt-2 h-1.5 rounded bg-ds-zinc-700/30 overflow-hidden"><div className="h-full bg-ds-indigo-500" style={{ width: `${Math.max(2, Math.min(100, job.progress))}%` }} /></div>}
+                {job.kind === 'link_builder' && job.budget != null && <p className="mt-1 text-[10px] text-ds-zinc-500">{t('jobCenter.linkBudget', { count: job.budget })}{job.progress !== null ? ` · ${job.progress} %` : ''}</p>}
                 {job.progress_message && <p className="mt-1.5 text-[10px] text-ds-zinc-500">{job.progress_message}</p>}
                 {expanded === job.key && <pre className="mt-2 whitespace-pre-wrap break-words rounded bg-ds-rose-950/20 p-2 text-[10px] text-ds-rose-400">{job.error_message}</pre>}
                 <div className="mt-2 flex items-center gap-3">
                   {job.can_resume && !currentUser?.is_admin && <button disabled={resuming === job.key || starting === job.key} onClick={() => resume(job)} className="flex items-center gap-1.5 text-[10px] font-semibold text-ds-indigo-500 disabled:opacity-50"><Play className="h-3 w-3" />{t("jobCenter.resume")}</button>}
                   {currentUser?.is_admin && job.can_start && <button disabled={resuming === job.key || starting === job.key} onClick={() => start(job)} className="flex items-center gap-1.5 text-[10px] font-semibold text-ds-indigo-500 disabled:opacity-50"><RefreshCw className={cn("h-3 w-3", starting === job.key && "animate-spin")} />{t("jobCenter.restart")}</button>}
-                  {currentUser?.is_admin && job.can_stop && <button disabled={stopping === job.key} onClick={() => stop(job)} className="flex items-center gap-1.5 text-[10px] font-semibold text-ds-amber-500 disabled:opacity-50"><Square className="h-3 w-3" />{t("jobCenter.stop")}</button>}
+                  {job.can_stop && <button disabled={stopping === job.key} onClick={() => stop(job)} className="flex items-center gap-1.5 text-[10px] font-semibold text-ds-amber-500 disabled:opacity-50"><Square className="h-3 w-3" />{t("jobCenter.stop")}</button>}
                 </div>
               </article>;
             })}

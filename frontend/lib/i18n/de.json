@@ -1190,6 +1190,19 @@
     "scopeLabel": "Scope ({{count}} Quellen)",
     "scopeHint": "Der Cross-Source-Lauf bleibt auf das ausgewählte Projekt und mindestens zwei Quellen begrenzt.",
     "scopeNoSources": "Keine Projektquellen verfügbar.",
+    "budget": {
+      "label": "Budget",
+      "hint": "Maximale Zahl Code-Entitäten bzw. Dokument-Abschnitte je Lauf (1–5000). Im Job Center kann ein begrenzter Lauf fortgesetzt oder ein aktiver Lauf abgebrochen werden.",
+      "confirm": "Geschätzte Obergrenze für diesen Lauf:\nCode: {{entityCount}} von {{entityTotal}} Entitäten, bis zu {{embeddingCalls}} Embedding-Aufrufe und {{llmCalls}} LLM-Prüfungen insgesamt.\nCross-Source: {{knowledgeCount}} Dokument-Abschnitte.\nBudget pro Lauf: {{limit}} Elemente. Die tatsächlichen Aufrufe können geringer sein. Lauf starten?",
+      "estimateFailed": "Die Aufwandsschätzung konnte nicht geladen werden. Der Lauf wurde nicht gestartet.",
+      "startFailed": "Mindestens ein Link-Lauf konnte nicht gestartet werden. Laufende Jobs stehen im Job Center.",
+      "progress": "Link-Berechnung läuft: {{progress}} % der geplanten Elemente geprüft.",
+      "reached": "Lauf angehalten oder Budget erreicht. Im Job Center kann er fortgesetzt werden.",
+      "failed": "Der Link-Lauf ist fehlgeschlagen. Ursache und Fortsetzung stehen im Job Center.",
+      "missingReason": "Keine konkrete Begründung vorhanden. Bitte vor der Freigabe erneut per LLM prüfen oder die Quellen selbst vergleichen.",
+      "editReason": "Begründung bearbeiten",
+      "reasonLabel": "Warum diese Verknüpfung?"
+    },
     "manualLabel": "Manuell",
     "tabLabels": {
       "pending": "Offen",
@@ -1331,6 +1344,7 @@
     "no2dDataAvailable": "Für dieses Dateiformat ist keine 2D-Vektorzeichnung verfügbar."
   },
   "jobCenter": {
+    "linkBudget": "Budget: {{count}} Elemente je Lauf",
     "title": "Job-Center",
     "subtitle": "Verlauf und Steuerung der Hintergrundjobs",
     "empty": "Noch keine Jobs vorhanden.",

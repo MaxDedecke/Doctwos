@@ -80,7 +80,7 @@ def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
     }
 
 
-def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
+def _run_job(run: LinkBuilderRun, admin: bool = False, user_id: int | None = None) -> dict:
     label = "Entity-Verknüpfungen" if run.task_type == "entity_links" else "Wissens-Verknüpfungen"
     return {
         "key": f"link_builder:{run.id}",
@@ -88,15 +88,16 @@ def _run_job(run: LinkBuilderRun, admin: bool = False) -> dict:
         "id": run.id,
         "label": label,
         "status": run.status,
-        "progress": None,
+        "progress": round(100 * (run.scope_json or {}).get("processed_items", 0) / max(1, (run.scope_json or {}).get("total_items", 1))) if (run.scope_json or {}).get("total_items") else None,
         "progress_message": run.progress_message,
+        "budget": (run.scope_json or {}).get("max_items"),
         "error_message": run.error_message,
         "created_at": _iso(run.created_at),
         "finished_at": _iso(run.finished_at),
         "can_resume": run.status in {"failed", "cancelled"},
         "can_start": admin and run.status in {"failed", "cancelled"},
         "can_delete": admin and run.status in TERMINAL,
-        "can_stop": admin and run.status in ACTIVE,
+        "can_stop": (admin or (user_id is not None and run.triggered_by_user_id == user_id)) and run.status in ACTIVE,
     }
 
 
@@ -149,7 +150,7 @@ def list_jobs(
         run_query = run_query.filter(LinkBuilderRun.project_id.in_(project_ids or []))
 
     jobs = [_source_job(row, admin) for row in source_query.all()]
-    jobs += [_run_job(row, admin) for row in run_query.all()]
+    jobs += [_run_job(row, admin, user.id) for row in run_query.all()]
     if admin and project_id is None:
         jobs += [_diagnostics_job(row, admin) for row in db.query(DiagnosticsRun).all()]
     dismissed = {(row.kind, row.job_id) for row in db.query(JobCenterDismissal).all()}
@@ -223,8 +224,12 @@ def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
     args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
     task_kwargs = {"trace_id": get_trace_id()}
-    if run.task_type == "knowledge_links" and run.scope_json:
-        task_kwargs.update(run.scope_json)
+    scope = run.scope_json or {}
+    task_kwargs["min_confidence"] = scope.get("min_confidence")
+    task_kwargs["embedding_model"] = run.embedding_model
+    if run.task_type == "knowledge_links":
+        task_kwargs["project_id"] = run.project_id
+        task_kwargs["source_ids"] = scope.get("source_ids")
     send_tracked_task(
         db,
         run,
@@ -348,13 +353,15 @@ def delete_job(
     return {"message": "Job aus dem Job-Center entfernt", "key": f"{kind}:{job_id}"}
 
 
-@router.post("/{kind}/{job_id}/stop", dependencies=[Depends(require_admin)])
+@router.post("/{kind}/{job_id}/stop")
 def stop_job(
     kind: str, job_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Cancel an active job and revoke its Celery task when an id is available."""
     task_id = None
     if kind == "source":
+        if not is_admin(user):
+            raise HTTPException(403, "Nur für Administratoren")
         record = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
         if not record:
             raise HTTPException(404, "Job nicht gefunden")
@@ -376,14 +383,20 @@ def stop_job(
         record = db.query(LinkBuilderRun).filter(LinkBuilderRun.id == job_id).first()
         if not record:
             raise HTTPException(404, "Job nicht gefunden")
+        if not is_admin(user):
+            visible = get_visible_project_ids(user, db) or []
+            if record.triggered_by_user_id != user.id or record.project_id not in visible:
+                raise HTTPException(403, "Nur der auslösende Nutzer oder ein Administrator darf den Lauf abbrechen")
         if record.status not in ACTIVE:
             raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
         task_id = record.celery_task_id
         record.status = "cancelled"
-        record.progress_message = "Vom Administrator abgebrochen"
-        record.error_message = "Job wurde vom Administrator abgebrochen"
+        record.progress_message = "Vom Nutzer abgebrochen"
+        record.error_message = "Job wurde vom Nutzer abgebrochen"
         record.finished_at = datetime.now(timezone.utc)
     elif kind == "diagnostics":
+        if not is_admin(user):
+            raise HTTPException(403, "Nur für Administratoren")
         record = db.query(DiagnosticsRun).filter(DiagnosticsRun.id == job_id).first()
         if not record:
             raise HTTPException(404, "Job nicht gefunden")
@@ -476,8 +489,12 @@ def resume_job(
         )
         args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
         task_kwargs = dict(trace)
-        if run.task_type == "knowledge_links" and run.scope_json:
-            task_kwargs.update(run.scope_json)
+        scope = run.scope_json or {}
+        task_kwargs["min_confidence"] = scope.get("min_confidence")
+        task_kwargs["embedding_model"] = run.embedding_model
+        if run.task_type == "knowledge_links":
+            task_kwargs["project_id"] = run.project_id
+            task_kwargs["source_ids"] = scope.get("source_ids")
         send_tracked_task(
             db,
             run,

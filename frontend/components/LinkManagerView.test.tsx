@@ -81,6 +81,8 @@ interface Routes {
   llmReview?: { score?: number; context?: string; detail?: string };
   llmReviewOk?: boolean;
   projectSources?: Array<{ id: number; name: string }>;
+  entityEstimate?: { entities_to_scan: number; estimated_llm_reviews_max: number; estimated_embedding_calls_max: number };
+  knowledgeEstimate?: { chunk_count: number; estimated_llm_reviews_max: number };
 }
 
 /** fetch-Stub, der die Endpunkte der Ansicht nach URL + Methode beantwortet. */
@@ -92,8 +94,10 @@ function stubFetch(routes: Routes = {}) {
     if (method === 'PATCH') return json({ context: JSON.parse(String(init!.body)).context ?? null }, routes.patchOk !== false);
     if (method === 'DELETE') return json({}, true);
     if (url.includes('/llm-review')) return json(routes.llmReview ?? { score: 0.95, context: 'LLM-Begründung' }, routes.llmReviewOk !== false);
-    if (method === 'POST' && url.includes('/compute')) return json({ started: true });
+    if (method === 'POST' && url.includes('/compute')) return json({ started: true, run_id: 1 });
     if (method === 'POST') return json(routes.postOk === false ? { detail: routes.postError ?? 'Serverfehler' } : {}, routes.postOk !== false);
+    if (url.includes('/link-recommendations/estimate')) return json(routes.entityEstimate ?? { entities_to_scan: 12, estimated_llm_reviews_max: 12, estimated_embedding_calls_max: 12 });
+    if (url.includes('/knowledge-links/estimate')) return json(routes.knowledgeEstimate ?? { chunk_count: 4, estimated_llm_reviews_max: 20 });
 
     if (url.includes('/doc-chunks/search')) return json(routes.docSearch ?? []);
     if (url.includes('/knowledge-sources')) return json(routes.projectSources ?? [{ id: 7, name: 'Code' }, { id: 9, name: 'Handbuch' }]);
@@ -273,7 +277,7 @@ describe('LinkManagerView', () => {
     it('startet die automatische Suche mit der eingestellten Mindest-Wahrscheinlichkeit', async () => {
       const fetchMock = stubFetch();
 
-      renderView();
+      renderView({ currentUser: { is_admin: true } });
       fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
 
       fireEvent.click(screen.getByRole('button', { name: /Automatisch verknüpfen/ }));
@@ -683,10 +687,10 @@ describe('LinkManagerView', () => {
       renderView();
       await screen.findByText('ZAHLUNG');
 
-      fireEvent.click(screen.getByText('+ Beschreibung'));
+      fireEvent.click(screen.getByRole('button', { name: 'Begründung bearbeiten' }));
       const input = screen.getByPlaceholderText('Wie hängt das zusammen?');
       fireEvent.change(input, { target: { value: '  Gehört zum selben Lauf  ' } });
-      fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true });
 
       await waitFor(() => expect(bodyOf(fetchMock, '/entity-doc-links/1', 'PATCH').context).toBe('Gehört zum selben Lauf'));
       await waitFor(() => expect(screen.getByText('Gehört zum selben Lauf')).toBeTruthy());
@@ -698,7 +702,7 @@ describe('LinkManagerView', () => {
       renderView();
       await screen.findByText('Alter Text');
 
-      fireEvent.click(screen.getByText('Alter Text'));
+      fireEvent.click(screen.getByRole('button', { name: 'Begründung bearbeiten' }));
       const input = screen.getByPlaceholderText('Wie hängt das zusammen?');
       fireEvent.change(input, { target: { value: 'Neuer Text' } });
       fireEvent.keyDown(input, { key: 'Escape' });
@@ -713,8 +717,8 @@ describe('LinkManagerView', () => {
       renderView();
       await screen.findByText('Alter Text');
 
-      fireEvent.click(screen.getByText('Alter Text'));
-      fireEvent.keyDown(screen.getByPlaceholderText('Wie hängt das zusammen?'), { key: 'Enter' });
+      fireEvent.click(screen.getByRole('button', { name: 'Begründung bearbeiten' }));
+      fireEvent.keyDown(screen.getByPlaceholderText('Wie hängt das zusammen?'), { key: 'Enter', ctrlKey: true });
 
       await waitFor(() => expect(screen.getByText('Alter Text')).toBeTruthy());
       expect(calls(fetchMock, '/entity-doc-links/1', 'PATCH')).toHaveLength(0);

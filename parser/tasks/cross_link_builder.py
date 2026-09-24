@@ -7,10 +7,7 @@ Computes semantic connections between different knowledge sources and Git reposi
 Logic:
 1. Load all DocumentChunks (Confluence, Notion, Jira, Git, etc.)
 2. For each chunk: Find nearest neighbors using HNSW index
-3. LLM-Review pro Kandidatenpaar: verwirft schwache/falsche Treffer, schreibt eine
-   echte Begründung statt des kanonischen "Similarity score: X%"-Strings. Bei
-   LLM-Fehler wird der Kandidat mit dem Embedding-Score durchgereicht (kein
-   Rauschen-Filter, aber der Scan liefert trotzdem Ergebnisse).
+3. LLM-Review pro Kandidatenpaar: nur begründete Treffer werden gespeichert.
 4. Create knowledge_links for top matches across different sources
 """
 
@@ -64,34 +61,29 @@ async def _llm_review_pair(
     heuristic_score: float,
     min_confidence: int = LLM_MIN_CONFIDENCE,
 ) -> dict:
-    """Judges one candidate cross-source pair. Never raises — falls back to the heuristic score/canned context on LLM failure."""
+    """Judge one pair; an embedding score alone never establishes a link."""
     meta_a, meta_b = chunk_a.metadata_json or {}, chunk_b.metadata_json or {}
     title_a = meta_a.get("title") or chunk_a.file_path
     title_b = meta_b.get("title") or chunk_b.file_path
     prompt = (
         "Du bewertest, ob zwei Dokument-Ausschnitte aus unterschiedlichen Quellen wirklich inhaltlich zusammenhängen.\n\n"
-        f'Dokument A [{source_type_a}] "{title_a}": {(chunk_a.content or "")[:300]}\n\n'
-        f'Dokument B [{source_type_b}] "{title_b}": {(chunk_b.content or "")[:300]}\n\n'
+        f'Dokument A [{source_type_a}] "{title_a}": {(chunk_a.content or "")[:900]}\n\n'
+        f'Dokument B [{source_type_b}] "{title_b}": {(chunk_b.content or "")[:900]}\n\n'
+        "Beschreibe den konkreten gemeinsamen Sachverhalt und welche Details aus A und B ihn belegen. "
+        "Benenne Unsicherheit oder Widersprüche. Gib keine bloße Ähnlichkeitsaussage zurück.\n"
         "Antworte NUR mit einem JSON-Objekt der Form "
-        '{"confidence": <0-100>, "keep": <bool>, "reason": "<kurze Begründung auf Deutsch>"}.'
+        '{"confidence": <0-100>, "keep": <bool>, "reason": "<konkrete Begründung in 2-4 Sätzen auf Deutsch>"}.'
     )
     try:
         data = await get_chat_json(prompt, config.LLM_MODEL)
         confidence = float(data.get("confidence", 0))
+        reason = str(data.get("reason") or "").strip()
         keep = bool(data.get("keep", False)) and confidence >= min_confidence
-        return {"keep": keep, "score": confidence / 100.0, "context": data.get("reason") or None}
+        if keep and len(reason) < 40:
+            raise ValueError("LLM lieferte für einen bestätigten Kandidaten keine konkrete Begründung")
+        return {"keep": keep, "score": confidence / 100.0, "context": reason or None}
     except Exception as e:
-        logger.warning(
-            f"[CrossLinkBuilder] LLM-Review fehlgeschlagen, verwende Embedding-Score: {e}"
-        )
-        # Ohne LLM-Urteil ist der heuristische Score der einzige Anhaltspunkt — denselben
-        # vom Nutzer eingestellten Schwellwert anwenden statt immer zu behalten, sonst
-        # umgeht ein LLM-Ausfall den Regler stillschweigend.
-        return {
-            "keep": round(heuristic_score * 100) >= min_confidence,
-            "score": heuristic_score,
-            "context": f"Similarity score: {round(heuristic_score * 100)}%. This content from {source_type_a} and {source_type_b} seems highly related.",
-        }
+        raise RuntimeError(f"LLM-Prüfung für Cross-Source-Kandidat fehlgeschlagen: {e}") from e
 
 
 async def compute_knowledge_links_async(
@@ -140,14 +132,14 @@ async def compute_knowledge_links_async(
         db.close()
         return
     run.project_id = selected_project_id
-    run.scope_json = {"project_id": selected_project_id, "source_ids": selected_source_ids}
+    run.scope_json = {**scope, "project_id": selected_project_id, "source_ids": selected_source_ids}
 
     selected_embedding_model = (
         embedding_model or run.embedding_model or config.EMBED_MODEL
     ).strip()
     run.embedding_model = selected_embedding_model
 
-    links_created = 0
+    links_created = int(run.links_created or 0)
     try:
         logger.info("[CrossLinkBuilder] Starting cross-source analysis...")
         run.status = "running"
@@ -160,9 +152,24 @@ async def compute_knowledge_links_async(
             DocumentChunk.project_id == selected_project_id,
             DocumentChunk.source_id.in_(selected_source_ids),
             DocumentChunk.embedding.isnot(None), model_filter
-        ).all()
+        ).order_by(DocumentChunk.id).all()
 
-        for chunk in chunks:
+        scope = dict(run.scope_json or {})
+        resume_after_id = int(scope.get("resume_after_id") or 0)
+        chunks = [chunk for chunk in chunks if chunk.id > resume_after_id]
+        processed_before = int(scope.get("processed_items") or 0) if resume_after_id else 0
+        max_items = max(1, min(5000, int(scope.get("max_items") or 200)))
+        total_items = int(scope.get("total_items") or len(chunks)) if resume_after_id else len(chunks)
+        scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items)
+        run.scope_json = scope
+        run.progress_message = f"{processed_before} von {total_items} Dokument-Abschnitten geprüft (Budget: {max_items})."
+        db.commit()
+
+        for processed_index, chunk in enumerate(chunks, start=1):
+            db.refresh(run)
+            if run.status == "cancelled":
+                logger.info("[CrossLinkBuilder] Run %s abgebrochen.", run_id)
+                return
             # Determine source type and ID for exclusion
             source_id_a = chunk.source_id
             project_id_a = chunk.project_id
@@ -277,7 +284,19 @@ async def compute_knowledge_links_async(
                         )
                     )
                     links_created += 1
+            scope = dict(run.scope_json or {})
+            overall_processed = processed_before + processed_index
+            scope.update(processed_items=overall_processed, resume_after_id=chunk.id)
+            run.scope_json = scope
+            run.progress_message = f"{overall_processed} von {total_items} Dokument-Abschnitten geprüft (Budget: {max_items})."
             db.commit()
+            if processed_index >= max_items and overall_processed < total_items:
+                run.status = "cancelled"
+                run.progress_message = f"Budget nach {overall_processed} von {total_items} Abschnitten erreicht; im Job Center fortsetzen."
+                run.links_created = links_created
+                run.finished_at = datetime.now(timezone.utc)
+                db.commit()
+                return
 
         logger.info("[CrossLinkBuilder] Cross-source analysis finished.")
         run.status = "completed"

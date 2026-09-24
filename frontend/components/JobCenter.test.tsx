@@ -202,7 +202,7 @@ describe('JobCenter', () => {
     const resumable = makeJob({ status: 'failed', can_resume: true, can_start: true, can_stop: true, can_delete: true });
 
     it('zeigt einem Nicht-Admin nur das Wiederaufnehmen', async () => {
-      stubJobs([resumable]);
+      stubJobs([{ ...resumable, can_stop: false }]);
 
       await openPanel({ currentUser: USER });
       await screen.findByText('COBOL-Repo synchronisieren');
@@ -226,7 +226,7 @@ describe('JobCenter', () => {
     });
 
     it('behandelt einen fehlenden Nutzer wie einen Nicht-Admin', async () => {
-      stubJobs([resumable]);
+      stubJobs([{ ...resumable, can_stop: false }]);
 
       await openPanel({ currentUser: null });
       await screen.findByText('COBOL-Repo synchronisieren');

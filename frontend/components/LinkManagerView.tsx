@@ -139,6 +139,7 @@ interface UnifiedLink {
   direction?: 'directed' | 'undirected' | 'bidirectional';
   status: string;
   context: string | null;
+  createdBy: string;
 }
 
 // ── Min-confidence setting ──────────────────────────────────────────────────
@@ -158,6 +159,7 @@ function readStoredMinConfidence(): number {
 // score is stored as a 0..1 float and rounded for display (ScoreBadge: Math.round(score * 100)).
 // Guard against float noise (e.g. 0.999999...) so "100%" candidates are still caught.
 const PERFECT_SCORE_THRESHOLD = 0.995;
+const hasConcreteReason = (link: UnifiedLink) => link.createdBy !== 'auto' || Boolean(link.context?.trim() && !/^Similarity score:/i.test(link.context.trim()));
 
 // Grobe Höhe einer Link-Karte inkl. `space-y-2`-Abstand — vom Virtualizer nur
 // als Startschätzung gebraucht, `measureElement` gleicht danach an die
@@ -199,6 +201,7 @@ export function LinkManagerView({
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [minScore, setMinScore] = useState(0);
   const [minConfidence, setMinConfidence] = useState<number>(readStoredMinConfidence);
+  const [maxItems, setMaxItems] = useState(200);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
@@ -445,20 +448,43 @@ export function LinkManagerView({
       setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.scopeRequired') });
       return;
     }
-    const hasKnowledgeScope = selectedScopeSourceIds.length >= 2;
-    const confirmMessage = hasKnowledgeScope
-      ? `Globaler Link-Builder-Lauf für Projekt und ${selectedScopeSourceIds.length} Wissensquellen starten? Dieser Batch-Lauf kann viele Embeddings und LLM-Prüfungen auslösen.`
-      : `Entity-Link-Lauf (Code ↔ Dokumentation) für das aktuelle Projekt starten? Dieser Batch-Lauf kann Embeddings und LLM-Prüfungen auslösen.`;
+    const hasKnowledgeScope = isAdmin && selectedScopeSourceIds.length >= 2;
+    const limit = Math.max(1, Math.min(5000, Math.round(maxItems) || 200));
+    let entityEstimate: { entities_to_scan: number; estimated_llm_reviews_max: number; estimated_embedding_calls_max: number };
+    let knowledgeEstimate: { chunk_count: number; estimated_llm_reviews_max: number } | null = null;
+    try {
+      const entityResponse = await api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/estimate`);
+      if (!entityResponse.ok) throw new Error(`HTTP ${entityResponse.status}`);
+      entityEstimate = await entityResponse.json();
+      if (hasKnowledgeScope) {
+        const scope = new URLSearchParams({ project_id: String(projectId) });
+        selectedScopeSourceIds.forEach(id => scope.append('source_ids', String(id)));
+        const response = await api.fetch(`${API_URL}/knowledge-links/estimate?${scope}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        knowledgeEstimate = await response.json();
+      }
+    } catch {
+      setMessage({ type: 'empty', text: t('linkManagerView.budget.estimateFailed') });
+      return;
+    }
+    const confirmMessage = t('linkManagerView.budget.confirm', {
+      entityCount: Math.min(limit, entityEstimate.entities_to_scan),
+      entityTotal: entityEstimate.entities_to_scan,
+      embeddingCalls: Math.min(limit, entityEstimate.estimated_embedding_calls_max),
+      llmCalls: Math.min(limit, entityEstimate.estimated_llm_reviews_max) + (knowledgeEstimate ? Math.min(limit, knowledgeEstimate.chunk_count) * 5 : 0),
+      knowledgeCount: knowledgeEstimate ? Math.min(limit, knowledgeEstimate.chunk_count) : 0,
+      limit,
+    });
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
-    const confidenceParam = `min_confidence=${minConfidence}`;
+    const confidenceParam = `min_confidence=${minConfidence}&max_items=${limit}`;
     const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
-    const calls: Promise<unknown>[] = [
-      api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }).catch(() => {}),
+    const calls: Promise<Response>[] = [
+      api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }),
     ];
     if (hasKnowledgeScope) {
       const scopeParams = new URLSearchParams({
@@ -466,32 +492,47 @@ export function LinkManagerView({
         min_confidence: String(minConfidence),
         embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
         confirm: 'true',
+        max_items: String(limit),
       });
       selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
-      calls.push(
-        api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }).catch(() => {})
-      );
+      calls.push(api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }));
     }
-    await Promise.all(calls);
+    const started = await Promise.allSettled(calls);
+    const runIds: number[] = [];
+    for (const result of started) {
+      if (result.status !== 'fulfilled' || !result.value.ok) continue;
+      const payload = await result.value.json();
+      if (typeof payload.run_id === 'number') runIds.push(payload.run_id);
+    }
+    if (runIds.length !== calls.length) {
+      setMessage({ type: 'empty', text: t('linkManagerView.budget.startFailed') });
+    }
+    if (runIds.length === 0) {
+      setIsComputing(false);
+      return;
+    }
 
-    const poll = async (attempt: number) => {
-      const [entityData, knowledgeData] = await Promise.all([
-        projectId ? fetchEntityLinks(true) : Promise.resolve(null),
-        fetchKnowledgeLinks(true),
-      ]);
-      const newPending = (entityData?.counts?.pending ?? 0) + (knowledgeData?.counts?.pending ?? 0);
-      if (newPending > prevPendingRef.current) {
-        setMessage({ type: 'success', text: t('linkManagerView.computeMessages.newLinks', { count: newPending - prevPendingRef.current }) });
-        setTab('pending');
-        setIsComputing(false);
-      } else if (attempt >= 2) {
-        setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.noneFound') });
-        setIsComputing(false);
-      } else {
-        timerRef.current = setTimeout(() => poll(attempt + 1), 5000);
-      }
+    const poll = async () => {
+      try {
+        const jobs = (await api.getJobs(projectId)).data.jobs as Array<{ id: number; kind: string; status: string; progress: number | null }>;
+        const active = jobs.filter(job => job.kind === 'link_builder' && runIds.includes(job.id));
+        if (active.length === runIds.length && active.every(job => ['completed', 'cancelled', 'failed', 'skipped'].includes(job.status))) {
+          const [entityData, knowledgeData] = await Promise.all([fetchEntityLinks(true), fetchKnowledgeLinks(true)]);
+          const newPending = (entityData?.counts?.pending ?? 0) + (knowledgeData?.counts?.pending ?? 0);
+          const count = Math.max(0, newPending - prevPendingRef.current);
+          setMessage({ type: active.some(job => job.status === 'failed') ? 'empty' : count ? 'success' : 'info', text: active.some(job => job.status === 'failed')
+            ? t('linkManagerView.budget.failed')
+            : active.some(job => job.status === 'cancelled') ? t('linkManagerView.budget.reached')
+              : count ? t('linkManagerView.computeMessages.newLinks', { count }) : t('linkManagerView.computeMessages.noneFound') });
+          setIsComputing(false);
+          return;
+        }
+        const progress = active.filter(job => job.progress !== null).map(job => job.progress as number);
+        if (progress.length) setMessage({ type: 'info', text: t('linkManagerView.budget.progress', { progress: Math.round(progress.reduce((a, b) => a + b, 0) / progress.length) }) });
+      } catch { /* Job Center continues to show the persisted run state. */ }
+      timerRef.current = setTimeout(poll, 3000);
     };
-    timerRef.current = setTimeout(() => poll(0), 4000);
+    timerRef.current = setTimeout(poll, 1000);
   };
 
   const updateLinkStatus = async (link: UnifiedLink, status: 'approved' | 'rejected') => {
@@ -725,6 +766,7 @@ export function LinkManagerView({
       direction: l.direction,
       status: l.status,
       context: l.context,
+      createdBy: l.created_by,
     }));
     const fromKnowledge: UnifiedLink[] = knowledgeLinks.map(l => ({
       id: `k-${l.id}`,
@@ -743,6 +785,7 @@ export function LinkManagerView({
       direction: l.direction,
       status: l.status,
       context: l.context,
+      createdBy: l.created_by,
     }));
     return [...fromEntity, ...fromKnowledge].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
   }, [entityLinks, knowledgeLinks, t]);
@@ -755,7 +798,7 @@ export function LinkManagerView({
   }), [unifiedLinks, kindFilter, search]);
 
   const perfectPendingLinks = tab === 'pending'
-    ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD)
+    ? filteredLinks.filter(l => (l.score ?? 0) >= PERFECT_SCORE_THRESHOLD && hasConcreteReason(l))
     : [];
 
   // O-165: Die Liste rendert gefenstert. Ein Projekt mit vierstelliger
@@ -971,12 +1014,19 @@ export function LinkManagerView({
                   />
                   <span className="hidden @md/linkmgr:inline">%</span>
                 </div>
+                <label className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')} title={t('linkManagerView.budget.hint')}>
+                  <span>{t('linkManagerView.budget.label')}</span>
+                  <input type="number" min={1} max={5000} step={1} value={maxItems} disabled={isComputing}
+                    onChange={event => setMaxItems(Math.max(1, Math.min(5000, Number(event.target.value) || 1)))}
+                    aria-label={t('linkManagerView.budget.label')}
+                    className={cn('w-12 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')} />
+                </label>
                 <button onClick={triggerAutoLink} disabled={isComputing}
                   className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
                   <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
-                <details className="relative">
+                {isAdmin && <details className="relative">
                   <summary className={cn('cursor-pointer list-none text-[10px] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
                     {t('linkManagerView.scopeLabel', { count: selectedScopeSourceIds.length })}
                   </summary>
@@ -1000,7 +1050,7 @@ export function LinkManagerView({
                       );
                     })}
                   </div>
-                </details>
+                </details>}
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
                   className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />
@@ -1264,22 +1314,6 @@ export function LinkManagerView({
                           <div className="flex items-center gap-2 mt-1">
                             <ScoreBadge score={link.score} isDark={isDark} />
                             {link.linkType !== 'semantic' && <span className={cn('text-[10px] px-1 rounded', cardMuted)}>{link.linkType}</span>}
-                            {editingContextId === link.id ? (
-                              <input autoFocus value={contextDraft} onChange={e => setContextDraft(e.target.value)}
-                                onBlur={() => commitLinkContext(link, contextDraft.trim())}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') { e.preventDefault(); commitLinkContext(link, contextDraft.trim()); }
-                                  if (e.key === 'Escape') { setEditingContextId(null); }
-                                }}
-                                placeholder={t('linkManagerView.contextPlaceholder')}
-                                className={cn('text-[10px] px-1.5 py-0.5 rounded border flex-1 min-w-0 max-w-[240px] focus:outline-none', inputCls)} />
-                            ) : (
-                              <button onClick={() => { setEditingContextId(link.id); setContextDraft(link.context || ''); }}
-                                title={link.context || t('linkManagerView.addDescriptionTitle')}
-                                className={cn('text-[10px] truncate max-w-[200px] text-left hover:underline shrink', link.context ? cardMuted : emptyText)}>
-                                {link.context || t('linkManagerView.addDescriptionLabel')}
-                              </button>
-                            )}
                           </div>
                         </div>
                         <div className="flex items-center justify-self-end gap-1 shrink-0 pt-0.5">
@@ -1306,6 +1340,30 @@ export function LinkManagerView({
                               <button onClick={() => deleteLink(link)} title={t('linkManagerView.actions.delete')}
                                 className={cn('p-1.5 rounded-md transition-colors', actionDel)}><X className="w-3.5 h-3.5" /></button>
                             </>
+                          )}
+                        </div>
+                        <div className="min-w-0 border-t border-ds-zinc-700/20 pt-2 @sm/linkcard:col-span-4">
+                          <p className={cn('mb-1 text-[10px] font-semibold', cardMuted)}>{t('linkManagerView.budget.reasonLabel')}</p>
+                          {editingContextId === link.id ? (
+                            <textarea autoFocus rows={4} value={contextDraft} onChange={e => setContextDraft(e.target.value)}
+                              onBlur={() => commitLinkContext(link, contextDraft.trim())}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitLinkContext(link, contextDraft.trim()); }
+                                if (e.key === 'Escape') { setEditingContextId(null); }
+                              }}
+                              placeholder={t('linkManagerView.contextPlaceholder')}
+                              className={cn('w-full text-[11px] leading-relaxed px-2 py-1.5 rounded border resize-y focus:outline-none', inputCls)} />
+                          ) : (
+                            <div>
+                              <p className={cn('whitespace-pre-wrap break-words text-[11px] leading-relaxed', link.context && !/^Similarity score:/i.test(link.context) ? cardMuted : emptyText)}>
+                                {link.context && !/^Similarity score:/i.test(link.context)
+                                  ? link.context
+                                  : link.createdBy === 'auto' ? t('linkManagerView.budget.missingReason') : t('linkManagerView.addDescriptionLabel')}
+                              </p>
+                              <button onClick={() => { setEditingContextId(link.id); setContextDraft(link.context || ''); }}
+                                title={t('linkManagerView.addDescriptionTitle')}
+                                className={cn('mt-1 text-[10px] underline', cardMuted)}>{t('linkManagerView.budget.editReason')}</button>
+                            </div>
                           )}
                         </div>
                       </div>

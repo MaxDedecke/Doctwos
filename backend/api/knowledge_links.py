@@ -471,10 +471,11 @@ async def llm_review_knowledge_link(
 
     prompt = (
         "Du bewertest, ob zwei Dokument-Ausschnitte aus unterschiedlichen Quellen wirklich inhaltlich zusammenhängen.\n\n"
-        f'Dokument A [{db_link.source_a_source_type or "—"}] "{db_link.source_a_title}": {(chunk_a.content or "")[:300]}\n\n'
-        f'Dokument B [{db_link.source_b_source_type or "—"}] "{db_link.source_b_title}": {(chunk_b.content or "")[:300]}\n\n'
+        f'Dokument A [{db_link.source_a_source_type or "—"}] "{db_link.source_a_title}": {(chunk_a.content or "")[:900]}\n\n'
+        f'Dokument B [{db_link.source_b_source_type or "—"}] "{db_link.source_b_title}": {(chunk_b.content or "")[:900]}\n\n'
+        "Nenne den konkreten gemeinsamen Sachverhalt, je ein belegendes Detail aus A und B und offene Unsicherheit. Keine bloße Ähnlichkeitsaussage.\n"
         "Antworte NUR mit einem JSON-Objekt der Form "
-        '{"confidence": <Ganzzahl 0-100>, "reason": "<kurze Begründung auf Deutsch>"}.'
+        '{"confidence": <Ganzzahl 0-100>, "reason": "<konkrete Begründung auf Deutsch, 2-4 Sätze>"}.'
     )
 
     try:
@@ -493,10 +494,12 @@ async def llm_review_knowledge_link(
     confidence = data.get("confidence")
     if not isinstance(confidence, (int, float)):
         raise HTTPException(status_code=502, detail="LLM lieferte keine gültige Konfidenz")
+    reason = str(data.get("reason") or "").strip()
+    if len(reason) < 40:
+        raise HTTPException(status_code=502, detail="LLM lieferte keine ausreichende Begründung")
 
     db_link.score = round(max(0.0, min(100.0, float(confidence))) / 100.0, 4)
-    if data.get("reason"):
-        db_link.context = data["reason"]
+    db_link.context = reason
     db.commit()
     db.refresh(db_link)
     return serialize_knowledge_link(db_link)
@@ -525,6 +528,41 @@ def delete_knowledge_link(
     return {"message": "Link erfolgreich gelöscht"}
 
 
+@router.get("/estimate")
+def estimate_knowledge_link_computation(
+    project_id: int = Query(..., ge=1),
+    source_ids: list[int] = Query(..., min_length=2),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Nur für Administratoren")
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    selected = set(source_ids)
+    visible = {
+        row[0] for row in db.query(KnowledgeSource.id).filter(
+            KnowledgeSource.id.in_(selected),
+            KnowledgeSource.team_id == project.team_id,
+            or_(KnowledgeSource.project_id == project_id, KnowledgeSource.project_id.is_(None)),
+        ).all()
+    }
+    if len(selected) < 2 or visible != selected:
+        raise HTTPException(status_code=400, detail="Ungültiger Wissensquellen-Scope")
+    chunks = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == project_id,
+        DocumentChunk.source_id.in_(selected),
+        DocumentChunk.embedding.isnot(None),
+    ).count()
+    return {
+        "project_id": project_id,
+        "chunk_count": chunks,
+        "estimated_llm_reviews_max": chunks * 5,
+        "estimate_kind": "upper_bound",
+    }
+
+
 @router.post("/compute")
 def trigger_knowledge_link_computation(
     project_id: Optional[int] = Query(None, ge=1, description="Projektkontext des Cross-Source-Laufs."),
@@ -541,6 +579,7 @@ def trigger_knowledge_link_computation(
         max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
+    max_items: int = Query(200, ge=1, le=5000, description="Maximale Zahl Dokument-Abschnitte pro Lauf; der Lauf kann fortgesetzt werden."),
     confirm: bool = Query(False, description="Explizite Bestätigung des teuren Batch-Laufs."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -584,6 +623,8 @@ def trigger_knowledge_link_computation(
         "source_ids": selected_source_ids,
         "queue": "global_link_runs",
         "confirmed": True,
+        "max_items": max_items,
+        "min_confidence": min_confidence,
     }
     existing = find_active_knowledge_link_run(db, project_id, scope)
     if existing is not None:
@@ -594,21 +635,6 @@ def trigger_knowledge_link_computation(
             "scope": existing.scope_json,
             "deduplicated": True,
         }
-
-    # Ein Refresh startet den Cross-Source-Scan von neuem — bisher unbestätigte
-    # (pending) Vorschläge sind noch nicht reviewt und würden sonst als
-    # Karteileichen neben den frisch berechneten liegen bleiben, da
-    # compute_knowledge_links_async einen bestehenden Link (jeden Status) pro
-    # Chunk-Paar nie überschreibt. Approved/rejected Links bleiben unangetastet.
-    scoped_chunk_ids = db.query(DocumentChunk.id).filter(
-        DocumentChunk.project_id == project_id,
-        DocumentChunk.source_id.in_(selected_source_ids),
-    ).subquery()
-    db.query(KnowledgeLink).filter(
-        KnowledgeLink.status == "pending",
-        KnowledgeLink.source_a_chunk_id.in_(scoped_chunk_ids),
-        KnowledgeLink.source_b_chunk_id.in_(scoped_chunk_ids),
-    ).delete(synchronize_session=False)
 
     run = LinkBuilderRun(
         task_type="knowledge_links",

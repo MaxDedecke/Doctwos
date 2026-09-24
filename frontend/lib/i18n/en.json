@@ -1190,6 +1190,19 @@
     "scopeLabel": "Scope ({{count}} sources)",
     "scopeHint": "The cross-source run is limited to the selected project and at least two sources.",
     "scopeNoSources": "No project sources available.",
+    "budget": {
+      "label": "Budget",
+      "hint": "Maximum code entities or document sections per run (1–5000). Resume a limited run or stop an active run in Job Center.",
+      "confirm": "Estimated upper bound for this run:\nCode: {{entityCount}} of {{entityTotal}} entities, up to {{embeddingCalls}} embedding calls and {{llmCalls}} LLM reviews overall.\nCross-source: {{knowledgeCount}} document sections.\nBudget per run: {{limit}} items. Actual calls may be lower. Start?",
+      "estimateFailed": "Could not load the effort estimate. The run was not started.",
+      "startFailed": "At least one link run could not be started. Active jobs appear in Job Center.",
+      "progress": "Link computation: {{progress}}% of planned items checked.",
+      "reached": "Run stopped or budget reached. Resume it in Job Center.",
+      "failed": "The link run failed. Check the cause and resume it in Job Center.",
+      "missingReason": "No concrete explanation is available. Review with the LLM again or compare the sources before approving.",
+      "editReason": "Edit explanation",
+      "reasonLabel": "Why are these linked?"
+    },
     "manualLabel": "Manual",
     "tabLabels": {
       "pending": "Pending",
@@ -1331,6 +1344,7 @@
     "no2dDataAvailable": "No 2D vector drawing is available for this file format."
   },
   "jobCenter": {
+    "linkBudget": "Budget: {{count}} items per run",
     "title": "Job center",
     "subtitle": "Background job history and controls",
     "empty": "No jobs yet.",

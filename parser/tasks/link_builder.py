@@ -418,7 +418,7 @@ async def _llm_review(
     for idx, (chunk, score, link_type) in enumerate(top_pages):
         meta = chunk.metadata_json or {}
         title = meta.get("title") or chunk.file_path
-        prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'\nInhalt: {chunk.content[:250]}...\n\n"
+        prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'\nInhalt: {(chunk.content or '')[:900]}\n\n"
 
     prompt += (
         "Gib deine Bewertung als valides JSON-Array von Objekten zurück (eines pro Kandidat, in derselben Reihenfolge):\n"
@@ -426,7 +426,7 @@ async def _llm_review(
         "  {\n"
         '    "index": 0,\n'
         '    "confidence": 85, // Ganzzahl 0-100, wie sicher bist du bezüglich der Relevanz\n'
-        '    "reason": "Erkläre kurz in 1-2 Sätzen, warum diese Doku für die Entity wichtig ist."\n'
+        '    "reason": "Erkläre in 2-4 Sätzen, welche konkrete Stelle der Entity mit welchem Detail des Dokuments verbunden ist und was ungewiss bleibt. Keine bloße Ähnlichkeitsaussage."\n'
         "  }\n"
         "]\n"
     )
@@ -441,6 +441,8 @@ async def _llm_review(
             response_arr = next((v for v in response.values() if isinstance(v, list)), [])
         else:
             response_arr = response if isinstance(response, list) else []
+        if not response_arr:
+            raise ValueError("LLM lieferte keine Kandidatenbewertung")
         reviewed = []
         for r in response_arr:
             if not isinstance(r, dict):
@@ -451,21 +453,14 @@ async def _llm_review(
                 continue
             if confidence < min_confidence:
                 continue
+            reason = str(r.get("reason") or "").strip()
+            if len(reason) < 40:
+                raise ValueError("LLM lieferte für einen Kandidaten keine konkrete Begründung")
             chunk, _, link_type = top_pages[idx]
-            reviewed.append((chunk, confidence / 100.0, link_type, r.get("reason") or None))
+            reviewed.append((chunk, confidence / 100.0, link_type, reason))
         return reviewed
     except Exception as e:
-        logger.warning(
-            f"[LinkBuilder] LLM-Review fehlgeschlagen für {entity.name}, verwende ungeprüfte Kandidaten: {e}"
-        )
-        # Ohne LLM-Urteil ist der heuristische Score (0..1) der einzige Anhaltspunkt —
-        # denselben vom Nutzer eingestellten Schwellwert anwenden statt alles durchzureichen,
-        # sonst umgeht ein LLM-Ausfall den Regler stillschweigend.
-        return [
-            (chunk, score, link_type, None)
-            for chunk, score, link_type in top_pages
-            if round(score * 100) >= min_confidence
-        ]
+        raise RuntimeError(f"LLM-Prüfung für {entity.name} fehlgeschlagen: {e}") from e
 
 
 def _entity_content_hash(entity: CodeEntity) -> str:
@@ -669,42 +664,23 @@ async def compute_entity_links_async(
                 f"[LinkBuilder] Projekt {project_id}: inkrementeller Lauf ({len(entities)} geänderte Entities)…"
             )
 
+        scope = dict(run.scope_json or {})
+        resume_after_id = int(scope.get("resume_after_id") or 0)
+        entities = sorted((entity for entity in entities if entity.id > resume_after_id), key=lambda entity: entity.id)
+        processed_before = int(scope.get("processed_items") or 0) if resume_after_id else 0
+        max_items = max(1, min(5000, int(scope.get("max_items") or 200)))
+        total_items = int(scope.get("total_items") or len(entities)) if resume_after_id else len(entities)
+        scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items)
+        run.scope_json = scope
+        run.progress_message = f"{processed_before} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
+        db.commit()
+
         if not entities:
             run.status = "completed"
             run.progress_message = "Keine neuen oder geänderten Link-Kandidaten."
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             return
-
-        # Only pending automatic recommendations are stale work products.
-        # Human-created links and approved/rejected decisions are never erased.
-        if bootstrap:
-            pass
-        elif dirty_entity_ids:
-            for link in (
-                db.query(EntityDocLink)
-                .filter(
-                    EntityDocLink.project_id == project_id,
-                    EntityDocLink.entity_id.in_(dirty_entity_ids),
-                    EntityDocLink.status == "pending",
-                )
-                .all()
-            ):
-                if _is_auto_link(link):
-                    db.delete(link)
-        if dirty_chunk_ids:
-            for link in (
-                db.query(EntityDocLink)
-                .filter(
-                    EntityDocLink.project_id == project_id,
-                    EntityDocLink.chunk_id.in_(dirty_chunk_ids),
-                    EntityDocLink.status == "pending",
-                )
-                .all()
-            ):
-                if _is_auto_link(link):
-                    db.delete(link)
-        db.flush()
 
         relationships_by_entity = _build_relationship_index(
             project_id,
@@ -718,7 +694,7 @@ async def compute_entity_links_async(
 
         await ensure_model_pulled(selected_embedding_model)
 
-        for entity in entities:
+        for processed_index, entity in enumerate(entities, start=1):
             db.refresh(run)
             if run.status == "cancelled":
                 logger.info(f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen.")
@@ -734,6 +710,21 @@ async def compute_entity_links_async(
                 candidate_chunk_ids = None
             else:
                 continue
+
+            # Replace stale automatic suggestions only for this entity. A
+            # budgeted or failed run must preserve links for untouched entities.
+            if not bootstrap and (entity.id in dirty_entity_ids or dirty_chunk_ids):
+                stale_query = db.query(EntityDocLink).filter(
+                    EntityDocLink.project_id == project_id,
+                    EntityDocLink.entity_id == entity.id,
+                    EntityDocLink.status == "pending",
+                )
+                if entity.id not in dirty_entity_ids:
+                    stale_query = stale_query.filter(EntityDocLink.chunk_id.in_(dirty_chunk_ids))
+                for link in stale_query.all():
+                    if _is_auto_link(link):
+                        db.delete(link)
+                db.flush()
 
             entity_context = _build_entity_context(
                 entity,
@@ -821,12 +812,29 @@ async def compute_entity_links_async(
             entity.embedding_model = selected_embedding_model
             for item_id in queue_ids:
                 item = db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id == item_id).first()
-                if item is not None and (
-                    item.entity_id == entity.id
-                    or item.chunk_id in (candidate_chunk_ids or set())
-                ):
+                if item is not None and item.entity_id == entity.id:
                     db.delete(item)
 
+            scope = dict(run.scope_json or {})
+            overall_processed = processed_before + processed_index
+            scope.update(processed_items=overall_processed, resume_after_id=entity.id)
+            run.scope_json = scope
+            run.progress_message = f"{overall_processed} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
+            db.commit()
+            if processed_index >= max_items and overall_processed < total_items:
+                run.status = "cancelled"
+                run.progress_message = f"Budget nach {overall_processed} von {total_items} Entitäten erreicht; im Job Center fortsetzen."
+                run.links_created = db.query(EntityDocLink).filter(
+                    EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
+                ).count()
+                run.finished_at = datetime.now(timezone.utc)
+                db.commit()
+                return
+
+        # A changed document affects every entity. Remove its dirty marker only
+        # after the entire scan has finished, including across budgeted runs.
+        if dirty_chunk_ids:
+            db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id.in_(queue_ids)).delete(synchronize_session=False)
             db.commit()
 
         total_new = (
@@ -852,6 +860,7 @@ async def compute_entity_links_async(
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
     finally:
+        requeue_scope = dict(run.scope_json or {}) if run is not None else {}
         db.close()
         # Read the pending flag before releasing the lock to prevent race conditions
         has_pending = redis_client.get(pending_key) == b"true"
@@ -874,13 +883,20 @@ async def compute_entity_links_async(
                     task_type="entity_links",
                     project_id=project_id,
                     status="pending",
+                    embedding_model=selected_embedding_model,
+                    scope_json={
+                        "project_id": project_id,
+                        "max_items": max(1, min(5000, int(requeue_scope.get("max_items") or 200))),
+                        "min_confidence": effective_min_confidence,
+                    },
                     progress_message="Erneuter Durchlauf wegen Änderungen während der letzten Berechnung.",
                 )
                 requeue_db.add(new_run)
                 requeue_db.commit()
                 requeue_db.refresh(new_run)
                 result = current_app.send_task(
-                    "compute_entity_links", args=[new_run.id, project_id]
+                    "compute_entity_links", args=[new_run.id, project_id],
+                    kwargs={"min_confidence": effective_min_confidence, "embedding_model": selected_embedding_model},
                 )
                 if getattr(result, "id", None):
                     new_run.celery_task_id = result.id
