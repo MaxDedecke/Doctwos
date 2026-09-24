@@ -31,6 +31,8 @@ type PanelContentRendererProps = {
   setCurrentMessage: (message: string) => void;
   isLoading: boolean;
   handleSendChat: (overrideMessage?: string, extraMetadata?: ChatMetadata) => void;
+  chatMode?: 'normal' | 'evidence';
+  setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
@@ -94,6 +96,8 @@ export function PanelContentRenderer({
   setCurrentMessage,
   isLoading,
   handleSendChat,
+  chatMode,
+  setChatMode,
   handleRetryMessage,
   handleFeedback,
   addAssistantHint,
@@ -144,6 +148,8 @@ export function PanelContentRenderer({
         setCurrentMessage={setCurrentMessage}
         isLoading={isLoading}
         handleSendChat={handleSendChat}
+        chatMode={chatMode ?? 'evidence'}
+        setChatMode={setChatMode}
         handleRetryMessage={handleRetryMessage}
         handleFeedback={handleFeedback}
         addAssistantHint={addAssistantHint}
