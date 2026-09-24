@@ -130,6 +130,17 @@ export interface AgentCallGraphViewAction extends AgentViewActionBase {
   view: 'callgraph';
   target: { entity_id: number; focus_entity_id?: number; highlighted_edge_id?: number };
 }
+export interface AgentGraphViewAction extends AgentViewActionBase {
+  view: 'graph';
+  target: {
+    focus_id: string;
+    focus_label: string;
+    direction: 'incoming' | 'outgoing' | 'both';
+    hops: 1;
+    limit: number;
+    relationships: Array<'code_dependency' | 'documented' | 'manual'>;
+  };
+}
 export interface AgentCodeViewAction extends AgentViewActionBase {
   view: 'code';
   target: { file_path: string; start_line: number; end_line: number };
@@ -176,7 +187,7 @@ export interface AgentDocumentViewAction extends AgentViewActionBase {
   view: 'document';
   target: DocumentWalkthroughStep;
 }
-export type AgentViewAction = AgentCallGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction | AgentDocumentViewAction;
+export type AgentViewAction = AgentCallGraphViewAction | AgentGraphViewAction | AgentCodeViewAction | AgentWalkthroughViewAction | AgentDocumentViewAction;
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }

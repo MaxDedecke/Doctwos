@@ -1,4 +1,4 @@
-import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
+import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from './callFlow';
 export type PanelSelection = {
   selectedFile: string | null;
@@ -6,6 +6,7 @@ export type PanelSelection = {
   selectedEntity: CodeEntity | null;
   selectedLine: number | null;
   customCallFlow?: CallFlowData | null;
+  graphNeighborhood?: AgentGraphViewAction['target'] | null;
 };
 
 export type PanelHistoryEntry = {
@@ -21,6 +22,7 @@ export const EMPTY_PANEL_SELECTION: PanelSelection = {
   selectedEntity: null,
   selectedLine: null,
   customCallFlow: null,
+  graphNeighborhood: null,
 };
 
 export function panelSelectionsEqual(a: PanelSelection, b: PanelSelection): boolean {
@@ -28,7 +30,8 @@ export function panelSelectionsEqual(a: PanelSelection, b: PanelSelection): bool
     a.selectedDoc === b.selectedDoc &&
     a.selectedEntity === b.selectedEntity &&
     a.selectedLine === b.selectedLine &&
-    a.customCallFlow === b.customCallFlow;
+    a.customCallFlow === b.customCallFlow &&
+    JSON.stringify(a.graphNeighborhood ?? null) === JSON.stringify(b.graphNeighborhood ?? null);
 }
 
 /**

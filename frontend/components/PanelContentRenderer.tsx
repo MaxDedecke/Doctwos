@@ -251,6 +251,7 @@ export function PanelContentRenderer({
       onNavigateBack={handleNavigateBack}
       onDocFocus={contentType === 'webview' ? undefined : handleDocFocusRequest}
       layoutMode={contentType === 'graph' ? layoutMode : undefined}
+      agentGraphFocus={selection.graphNeighborhood}
     />
   );
 }

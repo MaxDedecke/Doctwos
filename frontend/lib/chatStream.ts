@@ -23,6 +23,18 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
         Number.isSafeInteger(value.target.highlighted_edge_id) && Number(value.target.highlighted_edge_id) > 0
       ));
   }
+  if (value.view === 'graph') {
+    const target = value.target;
+    const allowedRelationships = new Set(['code_dependency', 'documented', 'manual']);
+    return typeof target.focus_id === 'string' &&
+      (target.focus_id.startsWith('file:') || target.focus_id.startsWith('doc:')) &&
+      typeof target.focus_label === 'string' && target.focus_label.length > 0 &&
+      ['incoming', 'outgoing', 'both'].includes(String(target.direction)) &&
+      target.hops === 1 && Number.isSafeInteger(target.limit) && Number(target.limit) >= 1 && Number(target.limit) <= 40 &&
+      Array.isArray(target.relationships) && target.relationships.length > 0 && target.relationships.length <= 3 &&
+      target.relationships.every((relationship: unknown) => typeof relationship === 'string' && allowedRelationships.has(relationship)) &&
+      new Set(target.relationships).size === target.relationships.length;
+  }
   const isDocumentTarget = (target: Record<string, unknown>) =>
     target.kind === 'document' &&
     Number.isSafeInteger(target.chunk_id) && Number(target.chunk_id) > 0 &&

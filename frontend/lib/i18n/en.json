@@ -818,6 +818,10 @@
     "changeImpactReopen": "Reopen impact graph",
     "changeImpactOpened": "Opened in the impact graph.",
     "changeImpactNoSpace": "No space in the workspace for another panel. Please close a panel first.",
+    "graphNeighborhoodPrompt": "May I open this focused knowledge graph view?",
+    "graphNeighborhoodOpenButton": "Open graph",
+    "graphNeighborhoodReopen": "Reopen graph",
+    "graphNeighborhoodOpened": "Opened in the knowledge graph",
     "codeLocationPrompt": "May I open this code location in the editor?",
     "codeLocationOpened": "Opened in the editor",
     "codeLocationReopen": "Show code location",
@@ -1017,6 +1021,10 @@
     }
   },
   "knowledgeGraphView": {
+    "agentDirectionIncoming": "incoming",
+    "agentDirectionOutgoing": "outgoing",
+    "agentDirectionBoth": "both directions",
+    "agentNeighborhoodScope": "{{focus}} · {{direction}} · {{relationships}} · up to {{limit}} links per page",
     "nodesLabel": "Nodes",
     "linksLabel": "Links",
     "clearFocusTitle": "Clear focus",

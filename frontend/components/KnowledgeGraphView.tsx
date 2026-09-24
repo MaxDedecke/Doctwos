@@ -1,5 +1,5 @@
 "use client";
-import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
+import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import { api, API_URL } from '@/app/services/api';
@@ -171,6 +171,7 @@ interface Props {
   // open at once there isn't room for a right-hand sidebar, so the detail panel
   // moves into a collapsible bottom drawer instead.
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
+  agentGraphFocus?: AgentGraphViewAction['target'] | null;
 }
 
 // A fresh `[]` literal as a default parameter value is a NEW array reference on
@@ -194,7 +195,8 @@ export function KnowledgeGraphView({
   projectEntities = EMPTY_PROJECT_ENTITIES,
   onEntitySelect,
   onFileSelect,
-  layoutMode
+  layoutMode,
+  agentGraphFocus
 }: Props) {
   const { t, language } = useLanguage();
   const isDark = theme === 'dark';
@@ -226,6 +228,8 @@ export function KnowledgeGraphView({
   const [neighborhoodCursor, setNeighborhoodCursor] = useState<string | null>(null);
   const [neighborhoodHasMore, setNeighborhoodHasMore] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [neighborhoodRelationships, setNeighborhoodRelationships] = useState<Array<'code_dependency' | 'documented' | 'manual'>>(['code_dependency', 'documented', 'manual']);
+  const [neighborhoodLimit, setNeighborhoodLimit] = useState(150);
   const [traversalDirection, setTraversalDirection] = useState<'incoming' | 'outgoing' | 'both'>('both');
   const [traversalHops, setTraversalHops] = useState<1 | 2 | 3 | 4 | 5>(1);
   // The knowledge graph is a relationship view. Unlinked inventory belongs in
@@ -365,7 +369,7 @@ export function KnowledgeGraphView({
     return node.project_id ?? selectedProject?.id ?? null;
   }, [selectedProject]);
 
-  const loadNeighborhood = useCallback(async (node: GraphNode) => {
+  const loadNeighborhood = useCallback(async (node: GraphNode, focusOptions?: AgentGraphViewAction['target']) => {
     /**
      * O-053 / O-298: hard focus / neighborhood -- fetches this node's actual one-hop
      * neighborhood via GET /graph/focus (for entities) or GET /graph/neighborhood (for docs)
@@ -376,6 +380,10 @@ export function KnowledgeGraphView({
     const isFile = node.type === 'code_file' || node.id.startsWith('file:');
     const entityDbId = isDoc ? null : extractEntityDbId(node.id);
     const projectId = neighborhoodProjectId(node);
+    const relationships = focusOptions?.relationships ?? ['code_dependency', 'documented', 'manual'];
+    const limit = focusOptions?.limit ?? 150;
+    const direction = focusOptions?.direction ?? traversalDirection;
+    const hops = focusOptions?.hops ?? traversalHops;
     if (!isDoc && !isFile && (entityDbId === null || projectId === null)) {
       setNeighborhoodError(t('knowledgeGraphView.loadNeighborhoodUnavailable'));
       return;
@@ -385,13 +393,19 @@ export function KnowledgeGraphView({
     try {
       let res: Response;
       if (isDoc || isFile) {
-        const params = new URLSearchParams({ node_id: node.id, status: 'approved' });
+        const params = new URLSearchParams({
+          node_id: node.id,
+          status: 'approved',
+          relationships: relationships.join(','),
+          direction,
+          limit: String(limit),
+        });
         if (projectId !== null) params.set('project_id', String(projectId));
         res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
       } else {
         const params = new URLSearchParams({
           status: 'approved', project_id: String(projectId), entity_id: String(entityDbId),
-          direction: traversalDirection, hops: String(traversalHops),
+          direction, hops: String(hops),
         });
         res = await api.fetch(`${API_URL}/graph/focus?${params}`);
       }
@@ -411,6 +425,10 @@ export function KnowledgeGraphView({
       setNeighborhoodFocusNode(node);
       setNeighborhoodHasMore(Boolean(data.has_more));
       setNeighborhoodCursor(data.next_cursor ?? null);
+      setNeighborhoodRelationships(relationships);
+      setNeighborhoodLimit(limit);
+      setTraversalDirection(direction);
+      setTraversalHops(hops);
       setLinkFilterResetToken(previous => previous + 1);
       setOverviewTruncation(null);
       setSelectedNodeId(data.focus_id ?? node.id);
@@ -439,6 +457,9 @@ export function KnowledgeGraphView({
           node_id: neighborhoodFocusNode.id,
           status: 'approved',
           cursor: neighborhoodCursor,
+          relationships: neighborhoodRelationships.join(','),
+          direction: traversalDirection,
+          limit: String(neighborhoodLimit),
         });
         if (projectId !== null) params.set('project_id', String(projectId));
         res = await api.fetch(`${API_URL}/graph/neighborhood?${params}`);
@@ -479,7 +500,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoadingMore(false);
     }
-  }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, t, traversalDirection, traversalHops]);
+  }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, neighborhoodRelationships, neighborhoodLimit, t, traversalDirection, traversalHops]);
 
   const createManualLink = useCallback(async (sourceNode: GraphNode, targetNode: GraphNode) => {
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
@@ -590,13 +611,35 @@ export function KnowledgeGraphView({
     }
   }
 
-  // Overview-Graph laden — bleibt immer vollständig geladen, "Fokus" ist rein visuell.
+  // An agent request, load the real bounded neighborhood directly. The action
+  // target contains a server-validated graph node ID; no free-form path is used.
   useEffect(() => {
-    (async () => {
-      await loadOverview();
-    })();
+    if (agentGraphFocus) return;
+    void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id]);
+
+  const lastAgentGraphFocusKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!agentGraphFocus) {
+      lastAgentGraphFocusKeyRef.current = null;
+      return;
+    }
+    const requestKey = `${selectedProject?.id ?? 'none'}:${JSON.stringify(agentGraphFocus)}`;
+    if (lastAgentGraphFocusKeyRef.current === requestKey) return;
+    lastAgentGraphFocusKeyRef.current = requestKey;
+    const isDocumentNode = agentGraphFocus.focus_id.startsWith('doc:');
+    const focusNode: GraphNode = {
+      id: agentGraphFocus.focus_id,
+      type: isDocumentNode ? 'document' : 'code_file',
+      label: agentGraphFocus.focus_label,
+      project_id: selectedProject?.id,
+    };
+    void loadNeighborhood(focusNode, agentGraphFocus);
+    // The request key prevents state changes inside loadNeighborhood from
+    // repeating the same agent action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject?.id, agentGraphFocus]);
 
   // Sync selectedNodeId based on external props changes (selectedDoc, selectedFile,
   // selectedEntity). During render, same reasoning as the focus sync above.
@@ -1180,6 +1223,14 @@ export function KnowledgeGraphView({
   const textMuted  = isDark ? 'text-ds-zinc-500'               : 'text-ds-zinc-400';
   const panelBg    = isDark ? 'bg-ds-zinc-900 border-ds-zinc-800' : 'bg-ds-white border-ds-zinc-200';
   const chipBase   = isDark ? 'border-ds-zinc-700 hover:border-ds-zinc-500' : 'border-ds-zinc-300 hover:border-ds-zinc-400';
+  const agentDirectionLabel = agentGraphFocus?.direction === 'incoming'
+    ? t('knowledgeGraphView.agentDirectionIncoming')
+    : agentGraphFocus?.direction === 'outgoing'
+      ? t('knowledgeGraphView.agentDirectionOutgoing')
+      : t('knowledgeGraphView.agentDirectionBoth');
+  const agentRelationshipLabels = agentGraphFocus?.relationships
+    .map(type => getLinkLabel(t, type) ?? type)
+    .join(', ');
   const iconBtn    = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-200 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
   const badge      = isDark ? 'bg-ds-zinc-800 text-ds-zinc-400'  : 'bg-ds-zinc-100 text-ds-zinc-500';
   const connRow    = isDark ? 'hover:bg-ds-zinc-800/60'        : 'hover:bg-ds-zinc-50';
@@ -1665,6 +1716,24 @@ export function KnowledgeGraphView({
 
         {/* Right: focus indicator + counts + controls */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && (
+            <span
+              className={cn('max-w-56 truncate rounded-sm border px-2 py-1 text-[10px]', chipBase, textMuted)}
+              title={t('knowledgeGraphView.agentNeighborhoodScope', {
+                focus: agentGraphFocus.focus_label,
+                direction: agentDirectionLabel,
+                relationships: agentRelationshipLabels,
+                limit: neighborhoodLimit,
+              })}
+            >
+              {t('knowledgeGraphView.agentNeighborhoodScope', {
+                focus: agentGraphFocus.focus_label,
+                direction: agentDirectionLabel,
+                relationships: agentRelationshipLabels,
+                limit: neighborhoodLimit,
+              })}
+            </span>
+          )}
           {viewMode === 'neighborhood' && (
             <>
               <button onClick={() => loadOverview()} title={t('knowledgeGraphView.backToOverview')}

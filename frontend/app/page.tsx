@@ -356,6 +356,28 @@ function AppContent() {
     agentViewActionHandlerRef.current = (action, flow) => {
       if (action.project_id !== null && (!selectedProject || Number(selectedProject.id) !== action.project_id)) return 'rejected';
       if (action.project_id === null && action.view !== 'document') return 'rejected';
+      if (action.view === 'graph') {
+        if (!(action.target.focus_id.startsWith('file:') || action.target.focus_id.startsWith('doc:'))) return 'rejected';
+        const selection: PanelSelection = {
+          selectedFile: null,
+          selectedDoc: null,
+          selectedEntity: null,
+          selectedLine: null,
+          customCallFlow: null,
+          graphNeighborhood: action.target,
+        };
+        const liveGraphIndex = panelConfigs.findIndex((type, index) => type === 'graph' && !panelFrozen[index]);
+        if (liveGraphIndex !== -1) {
+          setPanelSelections(previous => {
+            const next = [...previous];
+            next[liveGraphIndex] = { ...next[liveGraphIndex], ...selection };
+            return next;
+          });
+          return 'updated';
+        }
+        if (panelConfigs.length >= 4) return 'no_space';
+        return addPanel('graph', selection) ? 'opened' : 'no_space';
+      }
       if (action.view === 'callgraph') {
         if (!flow || flow.root.id !== action.target.entity_id) return 'rejected';
         let graphFlow = flow;
@@ -443,7 +465,7 @@ function AppContent() {
   const handleOpenAgentViewAction = useCallback((action: AgentViewAction, flow?: CallFlowData) => {
     const outcome = agentViewActionHandlerRef.current(action, flow);
     if (outcome === 'opened' || outcome === 'updated') {
-      setActiveMobileTab(action.view === 'callgraph' ? 'graph' : 'editor');
+      setActiveMobileTab(action.view === 'callgraph' || action.view === 'graph' ? 'graph' : 'editor');
     }
     return outcome;
   }, [setActiveMobileTab]);

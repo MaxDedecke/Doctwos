@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 
@@ -27,6 +27,7 @@ import {
   SelectTrigger
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getGraphEdgeLabelKey } from '@/lib/graphTaxonomy';
 import { cn, copyToClipboard } from "@/lib/utils";
 import {
   ArrowRight,
@@ -145,6 +146,10 @@ export function ChatView({
   };
   const handleOpenCodeLocation = (action: AgentViewAction) => {
     if (action.view !== 'code' || !onApplyAgentViewAction) return;
+    onAgentViewActionOutcome?.(action.action_id, onApplyAgentViewAction(action));
+  };
+  const handleOpenGraphNeighborhood = (action: AgentViewAction) => {
+    if (action.view !== 'graph' || !onApplyAgentViewAction) return;
     onAgentViewActionOutcome?.(action.action_id, onApplyAgentViewAction(action));
   };
   const handleDeclineViewAction = (action: AgentViewAction) => {
@@ -798,6 +803,71 @@ export function ChatView({
                               </div>
                             );
                           })()}
+
+                          {m.metadata?.agent_steps?.filter((step): step is AgentGraphViewAction =>
+                            step.type === 'view_action' && step.view === 'graph',
+                          ).map((action) => {
+                            const isOpen = action.status === 'opened' || action.status === 'updated';
+                            const isDeclined = action.status === 'declined';
+                            const isUnavailable = action.status === 'rejected' || action.status === 'stale_context';
+                            const direction = action.target.direction === 'incoming'
+                              ? t('knowledgeGraphView.agentDirectionIncoming')
+                              : action.target.direction === 'outgoing'
+                                ? t('knowledgeGraphView.agentDirectionOutgoing')
+                                : t('knowledgeGraphView.agentDirectionBoth');
+                            return (
+                              <div
+                                key={action.action_id}
+                                data-testid={`graph-neighborhood-action-${action.action_id}`}
+                                className={cn(
+                                  'mt-3.5 p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm text-xs',
+                                  theme === 'dark'
+                                    ? 'bg-ds-indigo-950/20 border-ds-indigo-500/30 text-ds-zinc-200'
+                                    : 'bg-ds-indigo-50/60 border-ds-indigo-200 text-ds-zinc-800',
+                                )}
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold tracking-tight">
+                                    {isOpen ? t('chatView.graphNeighborhoodOpened') : t('chatView.graphNeighborhoodPrompt')}
+                                  </p>
+                                  <p className="text-[10px] text-ds-zinc-500 truncate" title={action.target.focus_label}>
+                                    {action.target.focus_label} · {direction} · {action.target.relationships
+                                      .map(type => {
+                                        const labelKey = getGraphEdgeLabelKey(type);
+                                        return labelKey ? t(labelKey) : type;
+                                      })
+                                      .join(', ')}
+                                  </p>
+                                  {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
+                                  {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                </div>
+                                {!isUnavailable && (
+                                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                    {!isOpen && !isDeclined && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeclineViewAction(action)}
+                                        className="h-7 px-2 text-xs text-ds-zinc-500 cursor-pointer"
+                                      >
+                                        {t('chatView.callGraphDismissButton')}
+                                      </Button>
+                                    )}
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      onClick={() => handleOpenGraphNeighborhood(action)}
+                                      className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                    >
+                                      <GitBranch className="w-3.5 h-3.5 mr-1.5" />
+                                      {isOpen || isDeclined ? t('chatView.graphNeighborhoodReopen') : t('chatView.graphNeighborhoodOpenButton')}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
 
                           {/* A code location is only offered after view_repo_file returned the bounded location. */}
                           {legacyViewPromptsEnabled && m.metadata?.agent_steps?.filter((step): step is AgentCodeViewAction =>

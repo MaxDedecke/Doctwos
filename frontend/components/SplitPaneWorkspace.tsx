@@ -1,4 +1,4 @@
-import type { CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentGraphViewAction, CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocument } from '@/types/domain';
 import Editor, { loader } from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 import type { editor as MonacoEditor } from 'monaco-editor';
@@ -202,6 +202,7 @@ interface SplitPaneWorkspaceProps {
   // view swap its detail sidebar for a space-saving bottom drawer once 3+ panels
   // are open (see KnowledgeGraphView's layoutMode prop).
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
+  agentGraphFocus?: AgentGraphViewAction['target'] | null;
 }
 
 export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
@@ -242,7 +243,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   onNavigateBack,
   selectedLine = null,
   onDocFocus,
-  layoutMode
+  layoutMode,
+  agentGraphFocus
 }) => {
   const { t } = useLanguage();
   const [cursorColumn, setCursorColumn] = useState<number>(1);
@@ -963,6 +965,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 onEntitySelect={handleEntitySelect}
                 onFileSelect={handleFileSelect}
                 layoutMode={layoutMode}
+                agentGraphFocus={agentGraphFocus}
               />
             </div>
           )}

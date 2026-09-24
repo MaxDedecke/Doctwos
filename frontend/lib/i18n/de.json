@@ -818,6 +818,10 @@
     "changeImpactReopen": "Betroffenengraph erneut öffnen",
     "changeImpactOpened": "Im Betroffenengraph geöffnet.",
     "changeImpactNoSpace": "Kein Platz mehr im Workspace für ein weiteres Panel. Bitte schließe zuerst ein Panel.",
+    "graphNeighborhoodPrompt": "Darf ich den fokussierten Wissensgraphen öffnen?",
+    "graphNeighborhoodOpenButton": "Graph öffnen",
+    "graphNeighborhoodReopen": "Graph erneut öffnen",
+    "graphNeighborhoodOpened": "Im Wissensgraphen geöffnet",
     "codeLocationPrompt": "Darf ich diese Code-Stelle im Editor öffnen?",
     "codeLocationOpened": "Im Editor geöffnet",
     "codeLocationReopen": "Code-Stelle anzeigen",
@@ -1017,6 +1021,10 @@
     }
   },
   "knowledgeGraphView": {
+    "agentDirectionIncoming": "eingehend",
+    "agentDirectionOutgoing": "ausgehend",
+    "agentDirectionBoth": "beide Richtungen",
+    "agentNeighborhoodScope": "{{focus}} · {{direction}} · {{relationships}} · bis zu {{limit}} Kanten je Seite",
     "nodesLabel": "Knoten",
     "linksLabel": "Links",
     "clearFocusTitle": "Fokus aufheben",

@@ -508,7 +508,7 @@ ungefragt den für den Turn vereinbarten Projektkontext.
 
 ### O-194 – P2: Wissensgraph auf eine Frage fokussieren
 
-- [ ] `show_graph_neighborhood` für die vorhandene Wissensgraph-Ansicht ergänzen.
+- [ ] `show_graph_neighborhood` für die vorhandene Wissensgraph-Ansicht ergänzen und am Zielbestand abnehmen.
 
 **Nutzen:** Der Agent zeigt etwa die Beziehungen eines Programms zu Dokumenten,
 Themen oder anderen Code-Entities als begrenzten Graph-Ausschnitt.
@@ -516,6 +516,12 @@ Themen oder anderen Code-Entities als begrenzten Graph-Ausschnitt.
 **Parameter:** Validierte Fokus-ID mit Knotentyp, erlaubte Beziehungstypen,
 Richtung und begrenzte Tiefe/Knotenanzahl. Vorhandene Graph-API und deren Limits
 verwenden. Gewählte Filter für den Nutzer sichtbar machen.
+
+**Umsetzungsstand:** Das lesende Agenten-Tool löst eine Entity im aktuellen,
+berechtigten Projekt auf und nutzt die bestehende Graph-API. Es lädt einen
+Ein-Hop-Ausschnitt mit bis zu 40 Kanten und bietet das vorhandene Graph-Panel
+als Nutzeraktion an. Filter und Richtung erscheinen im Panel; ein echter
+Agentenaufruf und die fachliche Abnahme am Zielbestand stehen noch aus.
 
 **Abnahme:** Der Fokus und die erklärten Beziehungen sind sichtbar. Große Bestände
 werden nicht vollständig geladen. Bei expliziter Auswahl eines Beziehungstyps

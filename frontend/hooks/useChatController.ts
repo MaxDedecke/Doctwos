@@ -395,6 +395,7 @@ export function useChatController({
                 const matchingResult = [...accumulatedSteps].reverse().find(step =>
                   step.type === 'tool_result' && step.id === data.tool_call_id && (
                     (data.view === 'callgraph' && (step.name === 'trace_call_flow' || step.name === 'inspect_change_impact')) ||
+                    (data.view === 'graph' && step.name === 'show_graph_neighborhood') ||
                     (data.view === 'code' && step.name === 'view_repo_file') ||
                     (data.view === 'walkthrough' &&
                       (step.name === 'offer_code_walkthrough' || step.name === 'offer_source_walkthrough'))
@@ -405,6 +406,7 @@ export function useChatController({
                   : null;
                 let hasMatchingCodeLocation = false;
                 let hasMatchingWalkthrough = false;
+                let hasMatchingGraphNeighborhood = false;
                 if (data.view === 'code' && matchingResult?.type === 'tool_result') {
                   try {
                     const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
@@ -449,6 +451,25 @@ export function useChatController({
                     hasMatchingWalkthrough = false;
                   }
                 }
+                if (data.view === 'graph' && matchingResult?.type === 'tool_result') {
+                  try {
+                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
+                    const nodes = Array.isArray(result.nodes) ? result.nodes : [];
+                    const edges = Array.isArray(result.edges) ? result.edges : [];
+                    hasMatchingGraphNeighborhood = result.status === 'ok' &&
+                      result.focus_id === data.target.focus_id &&
+                      result.focus_label === data.target.focus_label &&
+                      result.direction === data.target.direction &&
+                      result.hops === data.target.hops &&
+                      result.limit === data.target.limit &&
+                      JSON.stringify(result.relationships) === JSON.stringify(data.target.relationships) &&
+                      edges.length > 0 && edges.length <= data.target.limit &&
+                      nodes.some(node => node && typeof node === 'object' &&
+                        (node as Record<string, unknown>).id === data.target.focus_id);
+                  } catch {
+                    hasMatchingGraphNeighborhood = false;
+                  }
+                }
                 let status: ViewActionOutcome = 'rejected';
                 const requestProjectId = requestBody.project_id == null ? null : Number(requestBody.project_id);
                 const isCurrentTurn = activeSessionIdRef.current === data.session_id &&
@@ -460,6 +481,7 @@ export function useChatController({
                   status = 'stale_context';
                 } else if (
                   (data.view === 'callgraph' && (!flow || flow.root.id !== data.target.entity_id)) ||
+                  (data.view === 'graph' && !hasMatchingGraphNeighborhood) ||
                   (data.view === 'code' && !hasMatchingCodeLocation) ||
                   (data.view === 'walkthrough' && !hasMatchingWalkthrough)
                 ) {

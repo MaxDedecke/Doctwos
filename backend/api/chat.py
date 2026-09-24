@@ -291,6 +291,62 @@ def _derive_view_action(
         return None
 
     tool_name = event.get("name")
+    if tool_name == "show_graph_neighborhood":
+        focus_id = result.get("focus_id")
+        focus_label = result.get("focus_label")
+        nodes = result.get("nodes")
+        edges = result.get("edges")
+        relationships = result.get("relationships")
+        direction = result.get("direction")
+        result_limit = result.get("limit")
+        focus_node = next(
+            (node for node in nodes if isinstance(node, dict) and node.get("id") == focus_id),
+            None,
+        ) if isinstance(nodes, list) else None
+        allowed_relationships = {"code_dependency", "documented", "manual"}
+        if (
+            result.get("status") != "ok"
+            or project_id is None
+            or not isinstance(focus_id, str)
+            or not (focus_id.startswith("file:") or focus_id.startswith("doc:"))
+            or not isinstance(focus_label, str)
+            or not focus_label.strip()
+            or not focus_node
+            or not isinstance(edges, list)
+            or not edges
+            or len(edges) > 40
+            or not isinstance(relationships, list)
+            or not relationships
+            or len(relationships) > len(allowed_relationships)
+            or any(not isinstance(item, str) or item not in allowed_relationships for item in relationships)
+            or len(set(relationships)) != len(relationships)
+            or direction not in {"incoming", "outgoing", "both"}
+            or result_limit != 40
+        ):
+            return None
+        target = {
+            "focus_id": focus_id,
+            "focus_label": focus_label.strip()[:500],
+            "direction": direction,
+            "hops": 1,
+            "limit": result_limit,
+            "relationships": relationships,
+        }
+        view = "graph"
+        target_key = hashlib.sha256(json.dumps(target, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
+        action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
+        return {
+            "type": "view_action",
+            "action_id": action_id,
+            "session_id": session_id,
+            "turn_id": turn_id,
+            "project_id": project_id,
+            "tool_call_id": event["id"],
+            "view": view,
+            "target": target,
+            "status": "requested",
+        }
     if tool_name == "inspect_change_impact":
         root = result.get("root")
         nodes = result.get("nodes")

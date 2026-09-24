@@ -10,11 +10,12 @@ from xml.sax.saxutils import escape
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
 from mcp_client import MCPClient
-from models.database import CodeEntity
+from models.database import CodeEntity, User
 from services.mcp_audit import record_mcp_tool_call
 from services.call_flow import trace_call_flow
 from services.change_impact import inspect_change_impact
 from services.change_package import inspect_change_package
+from api.graph import get_graph_neighborhood
 
 logger = logging.getLogger(__name__)
 
@@ -570,6 +571,33 @@ async def run_agent_loop(
             }
         )
     if project_id:
+        local_tools_def.append(
+            {
+                "name": "show_graph_neighborhood",
+                "description": (
+                    "Loads a read-only, bounded knowledge-graph neighborhood around an indexed entity "
+                    "in the current project. Use get_repo_entities first to obtain its exact entity_id. "
+                    "Use only relationships that help explain the answer; code_dependency is indexed "
+                    "parser structure, documented links point to source documents, and manual links are "
+                    "reviewed knowledge links. The graph view action is offered to the user separately."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "entity_id": {"type": "integer", "minimum": 1},
+                        "relationships": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": ["code_dependency", "documented", "manual"]},
+                            "minItems": 1,
+                            "maxItems": 3,
+                            "uniqueItems": True,
+                        },
+                        "direction": {"type": "string", "enum": ["incoming", "outgoing", "both"]},
+                    },
+                    "required": ["entity_id"],
+                },
+            }
+        )
         if not repo_available:
             local_tools_def.append(
                 {
@@ -1066,6 +1094,104 @@ async def run_agent_loop(
                 validated_call_flows[tool_call_id] = res
                 res = {**res, "tool_call_id": tool_call_id}
             return json.dumps(res)
+        elif name == "show_graph_neighborhood" and project_id:
+            entity_id = args.get("entity_id")
+            if not isinstance(entity_id, int) or isinstance(entity_id, bool) or entity_id < 1:
+                return json.dumps({"error": "A positive indexed entity_id is required."})
+            direction = args.get("direction", "both")
+            if direction not in {"incoming", "outgoing", "both"}:
+                return json.dumps({"error": "direction must be incoming, outgoing, or both."})
+            allowed_relationships = {"code_dependency", "documented", "manual"}
+            relationships = args.get("relationships", ["code_dependency", "documented", "manual"])
+            if (
+                not isinstance(relationships, list)
+                or not relationships
+                or len(relationships) > len(allowed_relationships)
+                or any(not isinstance(item, str) or item not in allowed_relationships for item in relationships)
+                or len(set(relationships)) != len(relationships)
+            ):
+                return json.dumps({"error": "relationships must contain unique supported relationship types."})
+            entity = db_session.query(CodeEntity).filter(
+                CodeEntity.id == entity_id,
+                CodeEntity.project_id == project_id,
+            ).first()
+            user = db_session.query(User).filter(User.id == audit_user_id).first() if audit_user_id is not None else None
+            if not entity or not user:
+                return json.dumps({"error": "The indexed entity is unavailable in the current project context."})
+            try:
+                graph = get_graph_neighborhood(
+                    node_id=f"entity:{entity_id}",
+                    project_id=project_id,
+                    relationships=",".join(relationships),
+                    status="approved",
+                    direction=direction,
+                    hops=1,
+                    limit=40,
+                    cursor=None,
+                    db=db_session,
+                    user=user,
+                )
+            except Exception as ex:
+                logger.warning("Knowledge graph neighborhood lookup failed: %s", ex)
+                return json.dumps({"error": "The graph neighborhood could not be loaded."})
+            focus_id = graph.get("focus_id")
+            focus_node = next(
+                (node for node in graph.get("nodes", []) if isinstance(node, dict) and node.get("id") == focus_id),
+                None,
+            )
+            if not isinstance(focus_id, str) or not focus_node:
+                return json.dumps({"error": "The indexed entity has no visible graph neighborhood."})
+            raw_edges = graph.get("edges", [])
+            matching_edges = []
+            if isinstance(raw_edges, list):
+                for edge in raw_edges:
+                    if not isinstance(edge, dict):
+                        continue
+                    relation = edge.get("relation_type")
+                    edge_direction = edge.get("direction") or "undirected"
+                    source = edge.get("source")
+                    target = edge.get("target")
+                    source_id = source.get("id") if isinstance(source, dict) else source
+                    target_id = target.get("id") if isinstance(target, dict) else target
+
+                    # The graph endpoint applies direction to code dependencies.
+                    # Apply it here for the other edge types, which it returns
+                    # without directional filtering.
+                    if relation == "documented" and direction == "outgoing":
+                        continue
+                    if str(edge.get("id", "")).startswith("kl:") and edge_direction == "directed":
+                        if direction == "outgoing" and source_id != focus_id:
+                            continue
+                        if direction == "incoming" and target_id != focus_id:
+                            continue
+                    matching_edges.append(edge)
+            edges = matching_edges[:40]
+            visible_node_ids = {focus_id}
+            for edge in edges:
+                if not isinstance(edge, dict):
+                    continue
+                for endpoint in (edge.get("source"), edge.get("target")):
+                    endpoint_id = endpoint.get("id") if isinstance(endpoint, dict) else endpoint
+                    if isinstance(endpoint_id, str):
+                        visible_node_ids.add(endpoint_id)
+            nodes = [
+                node for node in graph.get("nodes", [])
+                if isinstance(node, dict) and node.get("id") in visible_node_ids
+            ]
+            was_truncated = len(matching_edges) > len(edges) or bool(graph.get("has_more"))
+            return json.dumps({
+                **graph,
+                "nodes": nodes,
+                "edges": edges,
+                "has_more": was_truncated,
+                "truncated": was_truncated,
+                "status": "ok",
+                "focus_label": str(focus_node.get("label") or focus_node.get("name") or "")[:500],
+                "direction": direction,
+                "hops": 1,
+                "limit": 40,
+                "relationships": relationships,
+            })
         elif name == "inspect_change_impact" and project_id:
             res = inspect_change_impact(
                 db_session,
