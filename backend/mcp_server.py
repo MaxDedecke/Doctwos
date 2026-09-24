@@ -25,7 +25,7 @@ from core.projects import (
     get_visible_projects_page,
 )
 from core.teams import get_visible_team_ids
-from models.database import CodeEntity, KnowledgeSource, Project, User
+from models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project, User
 from services.call_flow import trace_call_flow
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
@@ -80,6 +80,26 @@ def _source_visible(db: Session, user: User, source_id: int | None) -> bool:
         return True
     source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if source is None:
+        return False
+    try:
+        assert_knowledge_source_visible(source, user, db)
+    except HTTPException:
+        return False
+    return True
+
+
+def _knowledge_chunk_in_project(
+    db: Session, user: User, project_id: int, chunk: DocumentChunk
+) -> bool:
+    """Require both the requested project scope and its optional source ACL."""
+    if chunk.project_id not in (None, project_id):
+        return False
+    if chunk.source_id is None:
+        # Source-less Git chunks belong to a project directly. Unscoped legacy
+        # chunks must not become visible just because they have no source ACL.
+        return chunk.project_id == project_id
+    source = db.query(KnowledgeSource).filter(KnowledgeSource.id == chunk.source_id).first()
+    if source is None or source.project_id != project_id:
         return False
     try:
         assert_knowledge_source_visible(source, user, db)
@@ -389,7 +409,7 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
         _project(db, user, project_id)
         results = []
         for chunk in chunks[:limit]:
-            if not _source_visible(db, user, chunk.source_id):
+            if not _knowledge_chunk_in_project(db, user, project_id, chunk):
                 continue
             excerpt, clipped = _bounded(chunk.content, 1200)
             results.append({

@@ -18,7 +18,7 @@ import re
 from typing import Optional
 
 import httpx
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
@@ -163,29 +163,37 @@ async def search_project_chunks(
         s.id
         for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).all()
     ]
-    filters = [DocumentChunk.project_id == project_id]
+    # Project scope is one grouped predicate.  In particular, do not combine
+    # it with model/dimension alternatives in a flat OR: those conditions must
+    # narrow the already scoped set, never broaden it to other projects.
+    project_scope = DocumentChunk.project_id == project_id
     if source_ids:
-        filters.append(DocumentChunk.source_id.in_(source_ids))
+        project_scope = or_(
+            project_scope,
+            and_(
+                DocumentChunk.project_id.is_(None),
+                DocumentChunk.source_id.in_(source_ids),
+            ),
+        )
+    filters = [project_scope]
     selected_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
     if selected_model == cfg.OLLAMA_EMBED_MODEL:
-        filters.append(
-            or_(
-                DocumentChunk.embedding_model == selected_model,
-                DocumentChunk.embedding_model.is_(None),
-            )
+        model_scope = or_(
+            DocumentChunk.embedding_model == selected_model,
+            DocumentChunk.embedding_model.is_(None),
         )
     else:
-        filters.append(DocumentChunk.embedding_model == selected_model)
+        model_scope = DocumentChunk.embedding_model == selected_model
 
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
-    filters.append(DocumentChunk.embedding_dimension == len(query_embedding))
+    dimension_scope = DocumentChunk.embedding_dimension == len(query_embedding)
     # Größerer Kandidatenpool, falls danach noch in Python gefiltert wird
     # (pgvector kennt keine nativen Filter auf JSON-Metadaten kombiniert mit Vektor-Sortierung).
     pool_size = limit * 4 if (metadata_filters or max_distance is not None) else limit
 
     rows = (
         db.query(DocumentChunk, distance.label("distance"))
-        .filter(or_(*filters))
+        .filter(*filters, model_scope, dimension_scope)
         .order_by(distance)
         .limit(pool_size)
         .all()

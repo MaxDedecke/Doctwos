@@ -221,6 +221,17 @@ function AppContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const chatUuidParam = searchParams.get('chat');
+  const ideLink = searchParams.get('ide_project') && searchParams.get('ide_source')
+    ? {
+        projectId: Number(searchParams.get('ide_project')),
+        sourceId: Number(searchParams.get('ide_source')),
+        path: searchParams.get('ide_path') || '',
+        line: Number(searchParams.get('ide_line') || '1'),
+        variant: searchParams.get('ide_variant') || '',
+      }
+    : null;
+  const ideLinkKey = ideLink ? `${ideLink.projectId}:${ideLink.sourceId}:${ideLink.path}:${ideLink.line}:${ideLink.variant}` : null;
+  const openedIdeLinkRef = useRef<string | null>(null);
 
   // Source state and loading live in useKnowledgeSources.
 
@@ -357,6 +368,67 @@ function AppContent() {
 
     await selectProject(project);
   }, [activeSessionId, resetChatSession, selectProject, sessions, showToast, t]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !ideLink || !ideLinkKey || projects.length === 0 || openedIdeLinkRef.current === ideLinkKey) return;
+    openedIdeLinkRef.current = ideLinkKey;
+    const project = projects.find(item => item.id === ideLink.projectId);
+    if (!project || !Number.isSafeInteger(ideLink.sourceId) || ideLink.sourceId <= 0 ||
+        !Number.isSafeInteger(ideLink.line) || ideLink.line <= 0 || !ideLink.path) {
+      showToast('IDE-Link ist ungültig oder das Projekt ist nicht zugänglich.', 'error');
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (project.url && project.status !== 'completed') {
+          showToast('Das Projekt ist noch nicht fertig indiziert.', 'warning');
+          return;
+        }
+        const response = await api.getProjectEntities(project.id);
+        if (cancelled) return;
+        const candidates = response.data.filter(entity =>
+          entity.source_id === ideLink.sourceId && entity.file_path === ideLink.path &&
+          (!ideLink.variant || entity.variant_key === ideLink.variant) &&
+          entity.start_line != null && entity.start_line <= ideLink.line &&
+          (entity.end_line ?? entity.start_line) >= ideLink.line);
+        const entity = candidates.sort((a, b) =>
+          ((a.end_line ?? a.start_line ?? 0) - (a.start_line ?? 0)) -
+          ((b.end_line ?? b.start_line ?? 0) - (b.start_line ?? 0)))[0] ??
+          response.data.find(item => item.source_id === ideLink.sourceId && item.file_path === ideLink.path &&
+            (!ideLink.variant || item.variant_key === ideLink.variant));
+        if (!entity) {
+          showToast('Die Datei aus dem IDE-Link ist in diesem Projekt nicht indiziert.', 'error');
+          return;
+        }
+        await selectProject(project);
+        if (cancelled) return;
+        setSelectedFile(ideLink.path);
+        setSelectedLine(ideLink.line);
+        setSelectedEntity(entity);
+        const encodedPath = encodeURIComponent(ideLink.path).replace(/[!'()*]/g, character =>
+          `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+        const graphNeighborhood = {
+          focus_id: `file:${project.id}:${ideLink.sourceId}:${encodedPath}`,
+          focus_label: ideLink.path,
+          direction: 'both' as const,
+          hops: 1 as const,
+          limit: 150,
+          relationships: ['code_dependency', 'documented', 'manual'] as Array<'code_dependency' | 'documented' | 'manual'>,
+        };
+        setPanelConfigs(['graph']);
+        setPanelSelections([{ selectedFile: ideLink.path, selectedDoc: null, selectedEntity: entity,
+          selectedLine: ideLink.line, graphNeighborhood }]);
+        setActiveRightTab('graph');
+        setActiveMobileTab('graph');
+      } catch (error) {
+        if (!cancelled) showToast('IDE-Link konnte nicht geöffnet werden.', 'error', error);
+      }
+    })();
+    return () => { cancelled = true; };
+  // The URL key is the navigation boundary; state setters do not change its target.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ideLinkKey, isLoggedIn, projects]);
 
   const agentViewActionHandlerRef = useRef<(
     action: AgentViewAction,

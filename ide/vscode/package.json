@@ -1,0 +1,29 @@
+{
+  "name": "doctus-ide",
+  "publisher": "doctus",
+  "displayName": "Doctus IDE",
+  "description": "Doctus graph links and indexed CALL/COPY references",
+  "version": "0.1.1",
+  "private": true,
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      { "command": "doctus.setToken", "title": "Doctus: Set personal token" },
+      { "command": "doctus.openGraph", "title": "Doctus: Open source line in graph" }
+    ],
+    "configuration": {
+      "title": "Doctus",
+      "properties": {
+        "doctus.apiUrl": { "type": "string", "default": "http://localhost:8000", "description": "Doctus backend URL" },
+        "doctus.webUrl": { "type": "string", "default": "http://localhost:3000", "description": "Doctus browser URL" },
+        "doctus.projectId": { "type": "integer", "default": 0, "description": "Doctus project ID for this workspace" },
+        "doctus.sourceId": { "type": "integer", "default": 0, "description": "Doctus Git source ID for this workspace" },
+        "doctus.variantKey": { "type": "string", "default": "", "description": "Optional indexed build variant" },
+        "doctus.repositoryRoot": { "type": "string", "default": ".", "description": "Repository path relative to the VS Code workspace folder" }
+      }
+    },
+    "menus": { "editor/context": [{ "command": "doctus.openGraph", "group": "navigation" }] }
+  }
+}

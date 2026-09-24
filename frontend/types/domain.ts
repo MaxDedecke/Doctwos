@@ -50,6 +50,7 @@ export interface CodeEntity {
   start_line: number | null;
   end_line?: number | null;
   source_id?: number | string | null;
+  variant_key?: string;
   project_id?: number | null;
   parent_id?: number | null;
   qualified_name?: string | null;

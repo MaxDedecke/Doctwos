@@ -85,6 +85,7 @@ from api import (
     feedback_diagnostics,
     insights,
     mcp_tokens,
+    ide,
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user
@@ -152,6 +153,7 @@ app.include_router(insights.router, dependencies=_authenticated)
 app.include_router(teams.router)
 app.include_router(users.router)
 app.include_router(mcp_tokens.router, dependencies=_authenticated)
+app.include_router(ide.router)
 # The SDK handles the exact /mcp route. A root mount avoids Starlette's
 # /mcp -> /mcp/ redirect while ordinary FastAPI routes keep precedence.
 app.mount("/", inbound_mcp_app)

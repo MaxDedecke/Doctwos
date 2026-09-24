@@ -418,6 +418,7 @@ def get_project_entities(
             "end_line": e.end_line,
             "project_id": e.project_id,
             "source_id": e.source_id,
+            "variant_key": e.variant_key,
         }
         for e in q.all()
     ]

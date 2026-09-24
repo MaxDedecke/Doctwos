@@ -19,6 +19,7 @@ from models.database import CodeEdge, CodeEntity
 
 CALL_FLOW_MAX_HOPS = 5
 CALL_FLOW_MAX_NODES = 150
+CALL_FLOW_MAX_EDGES = 500
 CALL_FLOW_EDGE_TYPES = {
     "CALL",
     "PERFORM",
@@ -165,16 +166,18 @@ def trace_call_flow(
             predicates.append(CodeEdge.src_entity_id.in_(frontier))
         if direction in {"incoming", "both"}:
             predicates.append(CodeEdge.dst_entity_id.in_(frontier))
-        rows = (
-            db.query(CodeEdge)
-            .filter(
-                CodeEdge.project_id == project_id,
-                CodeEdge.type.in_(CALL_FLOW_EDGE_TYPES),
-                or_(*predicates),
-            )
-            .order_by(CodeEdge.id)
-            .all()
+        remaining_edges = CALL_FLOW_MAX_EDGES - len(edge_rows)
+        query = db.query(CodeEdge).filter(
+            CodeEdge.project_id == project_id,
+            CodeEdge.type.in_(CALL_FLOW_EDGE_TYPES),
+            or_(*predicates),
         )
+        if edge_rows:
+            query = query.filter(CodeEdge.id.notin_(edge_rows))
+        rows = query.order_by(CodeEdge.id).limit(remaining_edges + 1).all()
+        if len(rows) > remaining_edges:
+            truncated = True
+            rows = rows[:remaining_edges]
         next_frontier: set[int] = set()
         for edge in rows:
             edge_rows[edge.id] = edge
@@ -187,6 +190,8 @@ def trace_call_flow(
                 seen.add(candidate)
                 next_frontier.add(candidate)
         frontier = next_frontier
+        if truncated:
+            break
 
     entities = (
         db.query(CodeEntity)

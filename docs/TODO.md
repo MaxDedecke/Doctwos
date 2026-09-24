@@ -8,6 +8,11 @@ innerhalb einer Priorität ist zugleich die empfohlene Ausführungsreihenfolge.
 Erledigte Punkte stehen nicht mehr im aktiven Backlog; ihr Nachweis bleibt in der
 Git-Historie und in den verlinkten Fachunterlagen erhalten.
 
+**MCP-Sicherheitsprüfung vom 24.09.2026:** Die zwei reproduzierten Befunde zu
+Projektisolation der Wissenssuche und unbeschränkter Call-Flow-Abfrage wurden
+behoben; 27 isolierte Sicherheitsprüfungen sowie 9 MCP-Regressionen bestanden.
+Details: [MCP-Sicherheitsbericht](MCP_SECURITY_REVIEW_2026-09-24.md).
+
 ## P0 – abgeschlossen (Entwicklung abgeschlossen, Abnahmen laufen begleitend)
 
 | Rang | ID | Ergebnis | Status / Abnahme |
@@ -96,8 +101,8 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Backend-Endpunkt, persönliche Tokens und sechs lesende Tools implementiert. Migration `0031_mcp_access_tokens` und Rollout im aktuellen Doctus-Stack abgeschlossen; Backend gesund, unautorisierter `/mcp`-Aufruf liefert `401`. Offen: Abnahme mit einem echten IDE-Client einschließlich Token-Widerruf und projektübergreifender Zugriffsverweigerung. |
-| 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | Direktsprung von Quelltextzeilen in den Doctus-Graph sowie CodeLens-/Hover-Informationen für Cross-References (`CALL`, `COPY`) in der lokalen IDE. |
+| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | MCP-Sicherheitsprüfung am 24.09.2026: zwei Befunde zu `search_knowledge`-Projektisolation und Call-Flow-Ressourcenlimits behoben; 27 isolierte Prüfungen und 9 Regressionen bestanden, siehe [Sicherheitsbericht](MCP_SECURITY_REVIEW_2026-09-24.md). Backend, Tokens, sechs lesende Tools, Migration und Rollout sind implementiert; Remote-VS-Code-MCP-Client ist konfiguriert. Direkte fremde Projekt-/Entity-Zugriffe, abgelaufene/widerrufene Tokens und deaktivierte Konten werden korrekt abgewehrt. `search_knowledge` kann wegen des unabhängigen Embedding-HTTP-Fehlers aus O-251 noch funktional fehlschlagen. **O-171 abgeschlossen:** Die strategische Entscheidung für Doctus als schreibgeschütztes Werkzeug-Backend bleibt abgeschlossen. |
+| 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | VS-Code-Extension und tokengebundene IDE-API für `CALL`/`COPY` sind implementiert; ein stdio-Language-Server bietet Hover, CodeLens und Graph-Deep-Links für LSP-Clients. JetBrains/Eclipse-Abnahme mit realen Clients und Zielbestand offen. Für Eclipse LSP4E ist Hover grundsätzlich passend; CodeLens, `workspace/executeCommand` und externes Öffnen über `window/showDocument` müssen in der konkreten Eclipse-Version geprüft werden. Falls CodeLens/Commands dort nicht nutzbar sind, Eclipse-Plugin mit Secure-Storage-Einstellungen und Browser-Command als native Integration ergänzen. Einrichtung: `ide/README.md`. |
 
 ## P2 – Pilot- und Mainframe-Fähigkeit
 
@@ -173,7 +178,6 @@ Ollama bleibt der standardmäßige, vorkonfigurierte Container für lokale Entwi
 | 82 | O-074 | Vision-Modell/Bildbeschreibung oder dauerhaften Bild-Skip entscheiden. | Fachliche Entscheidung. |
 | 83 | O-161 | RP-initiated OIDC-Logout ergänzen. | IdP-Anforderung und ID-Token-/`sid`-Strategie. |
 | 84 | O-163 | SSO-Sitzungsdauer und erneute IdP-Prüfung festlegen. | Sicherheitszusage des Betreibers. |
-| 85 | O-171 | Doctus als schreibgeschütztes Werkzeug-Backend/MCP-Server strategisch bewerten. | Roadmap-Entscheidung; konkrete Umsetzung in O-324. |
 | 86 | O-172 | Interviewbasierte Wissensquelle mit zwingender menschlicher Freigabe zuschneiden. | Fachliche Priorisierung. |
 | 87 | O-173 | Keyword-/Volltext-Fallback unter Verschlüsselung evaluieren. | Belegter Recall-Fehler. |
 | 88 | O-174 | Strukturtreue PDF-Extraktion evaluieren. | Belegter Qualitätsfall mit komplexen PDFs. |

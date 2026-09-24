@@ -210,6 +210,7 @@ replace pytest or provide mypy-style type checking.
 frontend/   Next.js workspace and UI components
 backend/    FastAPI APIs, auth, RAG, graph retrieval, and migrations
 parser/     Celery workers, connectors, COBOL parser, and persistence
+ide/        VS Code extension, stdio Language Server, and setup guide
 config/     Runtime feature configuration
 scripts/    Installation, diagnostics, and delivery tooling
 docs/       Plan, status, decisions, operations, and security documentation
