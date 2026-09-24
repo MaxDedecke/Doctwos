@@ -6,8 +6,10 @@ RunPod-Endpunkt bereitgestellt wird. Bei der Aufforderung „Schau dir
 `EVALRUN_1.md` an und let's go – hier ist der Pod“ dieses Dokument als
 Arbeitsablauf verwenden.
 
-**Status:** Vorbereitet, noch nicht ausgeführt. Kein RunPod-Aufruf und keine
-Reindexierung im Rahmen der Vorbereitung.
+**vLLM-Status:** Für den nächsten RunPod-Termin vorbereitet, aber gegen diesen
+Eval-Korpus noch nicht live abgenommen. Die weiter unten dokumentierten
+Ollama-Werte bleiben die Referenz; diese Dokumentationsänderung selbst hat
+keinen RunPod-Aufruf oder Reindex ausgelöst.
 
 ## Festgelegte Projekte und Indexstand
 
@@ -61,6 +63,82 @@ Jedes Modell einzeln bis zum erfolgreichen Abschluss laden; erst wenn beide in
 starten. Modellkennung und bestätigten Ladezustand im Ergebnisprotokoll
 festhalten. Zugangsdaten und vollständige Pod-URLs gehören weiterhin nur in die
 Doctus-Profilverwaltung.
+
+### vLLM im RunPod vorbereiten (Chat-/Tool-Calling-Eval)
+
+Für den vLLM-Vergleich wird derselbe Doctus-Index verwendet. Das vermeidet eine
+unnötige Neueinbettung: Chat- und Embedding-Profil sind getrennt. Das bestehende
+Embedding-Profil `qwen3-embedding:4b` mit 1024 Dimensionen aktiv lassen, solange
+der Lauf nur den Chat-Backendwechsel evaluiert. Ein Embedding-Modellwechsel
+erfordert dagegen einen eigenen, konsistenten Reindex-Lauf.
+
+**Modell und Startkonfiguration vor dem Pod-Start festhalten.** Als konkreter
+Ausgangspunkt eignet sich `Qwen/Qwen2.5-Coder-14B-Instruct`; vLLM stellt es
+unter einem stabilen Namen bereit. Falls im RunPod ein anderes Modell oder eine
+quantisierte Variante gewählt wird, den exakten Repository-Namen, Revision und
+Quantisierung dokumentieren und die Vergleichbarkeit entsprechend
+einschränken.
+
+Beispiel für einen vLLM-Server mit Qwen2.5-Tool-Calling:
+
+```sh
+vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --served-model-name qwen2.5-coder-14b \
+  --enable-auto-tool-choice \
+  --tool-call-parser hermes
+```
+
+Der Hermes-Parser ist für Qwen2.5 vorgesehen. Auto-Tool-Calling benötigt in
+vLLM sowohl `--enable-auto-tool-choice` als auch `--tool-call-parser`; ohne
+diese Optionen kann normaler Chat funktionieren, während Agenten-Tool-Aufrufe
+fehlschlagen. Siehe die [vLLM Tool-Calling-Dokumentation](https://docs.vllm.ai/en/latest/features/tool_calling/).
+Die konkrete Modell-Chat-Template-Kompatibilität mit der installierten vLLM-
+Version gehört zur Abnahme.
+
+Im Doctus-Backend-Netz (nicht nur im lokalen Browser) müssen vor den Evalfragen
+diese API-Funktionen erreichbar sein:
+
+1. `GET /health` liefert HTTP 200.
+2. `GET /v1/models` liefert als Modell-ID genau den konfigurierten Namen
+   `qwen2.5-coder-14b`.
+3. `POST /v1/chat/completions` mit kurzem Prompt, registrierten Tools,
+   `tool_choice: "required"` und `stream: false` liefert einen strukturierten
+   `tool_calls`-Eintrag.
+
+Der Doctus-Test des vLLM-Chatprofils soll diese Prüfungen ausführen. Erst wenn
+auch der erzwungene Tool-Aufruf bestanden ist, mit J1–C6 beginnen. Der Test
+erzeugt echte Inferenz und kann RunPod-GPU-Zeit verbrauchen. Bei Fehlern zuerst
+Modell-ID, Parser/Chat-Template und die beiden vLLM-Flags prüfen; Fehler nicht
+durch stilles Entfernen der Tools oder durch Wechsel auf einen anderen Index
+kaschieren.
+
+**Doctus-Profil:** ein Remote-Chatprofil mit Provider `vllm`, OpenAI-Chat-
+Protokoll, Basis-URL des Pods mit `/v1`, Modell-ID exakt wie
+`--served-model-name` und passendem API-Key, falls aktiviert. Der API-Key gehört
+nur in die Profilverwaltung. Das separate Embedding-Profil bleibt auf dem
+aktuellen Ollama-Modell, solange die Chunks unverändert bleiben. In den
+Ergebnisdaten nur den nicht geheimen Host-/Pod-Bezeichner notieren, niemals
+Token oder URL mit eingebettetem Token.
+
+**Netzgrenze:** vLLM dokumentiert, dass der API-Key die API-Routen schützt,
+`/health` jedoch nicht. Den RunPod-Endpunkt deshalb auf vertrauenswürdige
+Netze beziehungsweise den benötigten Doctus-Zugriff beschränken und nicht
+ungeschützt öffentlich lassen. Details: [vLLM Security](https://docs.vllm.ai/en/latest/usage/security/).
+
+**RunPod-Preflight protokollieren:** GPU-Modell, Anzahl und VRAM, Treiber/CUDA,
+vLLM-Version, Modell-Revision, dtype/Quantisierung, `--max-model-len`,
+`--tensor-parallel-size`, GPU-Speichergrenze, Start-/Ladezeit sowie kalte und
+warme Antwortzeiten notieren. OOM, KV-Cache-Fehler oder lange Queue-Zeiten mit
+geheimnisfreier Fehlermeldung und den tatsächlich gesetzten Modellparametern
+festhalten.
+
+Dieser vLLM-Lauf prüft zunächst Chat und Agenten-Tools, nicht die Qualität eines
+anderen Embedding-Raums. Die bestehende Ollama-Referenz nutzt `qwen3:32b`, der
+vorgeschlagene vLLM-Start ein Qwen2.5-Coder-Modell. Daher ist der erste Vergleich
+ein System-/Workflowvergleich und kein isolierter Benchmark des Inferenz-
+Backends. Modell- und Größenunterschiede bei jeder Interpretation nennen.
 
 ### Lessons Learned und Run-2-Preflight (22.09.2026)
 
@@ -176,9 +254,10 @@ prüfen → Syncope importieren → Syncope abnehmen → CardDemo importieren.
 2. **Doctus-Zustand aufnehmen:** laufende API-Version/SHA, Compose-Health,
    aktives Chat- und Embedding-Profil, Quellstatus, letzter Commit und
    Chunk-Modell/Dimension für Projekt 727 und 728 festhalten.
-3. **Profile separat prüfen:** Chat-Antwort und Embedding-Aufruf mit dem
-   bereitgestellten Pod verifizieren. Kontext, Tool-Aufrufe und 1024
-   Embedding-Dimension bestätigen. Erst dann den Fragenkatalog starten.
+3. **Profile separat prüfen:** Bei Ollama Chat-Antwort und Embedding-Aufruf
+   verifizieren. Bei vLLM zusätzlich `/health`, `/v1/models` und den erzwungenen
+   Tool-Calling-Profiltest bestehen lassen. Das unabhängige Embedding-Profil
+   muss weiterhin 1024 Dimensionen liefern. Erst dann den Fragenkatalog starten.
 4. **Indexstand aktualisieren:** aktuelle Parseränderungen ausrollen, falls sie
    noch nicht aktiv sind; danach Syncope wegen der 87 übersprungenen
    `.properties`-Dateien reindizieren. CardDemo nur dann reindizieren, wenn der
@@ -375,6 +454,38 @@ eintragen.
 | Gesamtpunkte Java (30 mögliche Punkte) | Vorläufig 12/30 |
 | Gesamtpunkte COBOL (36 mögliche Punkte) | Vorläufig 10/36 |
 | Fehlerfälle, Indexlücken und Folge-Todos | Initial falscher Dateifokus bei Entity-/COBOL-Fragen; nach API-Fix werden `COPAUA0C.cbl` und `COTRTLIC.cbl` gefunden, SQL-/Tiefenbelege bleiben offen; siehe O-316 und O-317–O-323 |
+
+### vLLM-RunPod-Vergleich (separat ausfüllen)
+
+Die obigen Werte sind der Ollama-Referenzlauf. Diese Tabelle beim nächsten
+RunPod-Termin für vLLM neu ausfüllen. Gleiche Projekte, Indexstände,
+Fragenformulierungen und Bewertungsregeln verwenden. Jede Frage in einer
+frischen Unterhaltung starten; keine parallelen Imports während der
+Einzelabfragen.
+
+| Feld | vLLM-Lauf |
+|---|---|
+| Datum / Zeitzone | Offen |
+| Doctus API-Version und SHA | Offen |
+| RunPod-Pod-Bezeichner (ohne geheime URL) | Offen |
+| GPU / Anzahl / VRAM / Treiber / CUDA | Offen |
+| vLLM-Version / Modell-Revision | Offen |
+| Exakte Modell-ID / Served-Model-Name | Offen |
+| dtype / Quantisierung / max-model-len / Tensor Parallel | Offen |
+| Chat-Profil / Provider / Protokoll | vLLM / OpenAI Chat |
+| Embedding-Profil / Modell / Dimension | Bestehendes Ollama-Profil / `qwen3-embedding:4b` / 1024 |
+| `/health`, `/v1/models`, Tool-Calling-Profiltest | Offen; alle drei müssen bestehen |
+| Server-Startzeit / Modell-Ladezeit / kalter Aufruf / warmer Aufruf | Offen |
+| GPU-Auslastung / VRAM während aktiver Anfrage | Offen |
+| Syncope- und CardDemo-Quell-/Parserstand | Wie Ollama-Referenz bestätigen |
+| Gesamtergebnis Java (30 mögliche Punkte) | Offen |
+| Gesamtergebnis COBOL (36 mögliche Punkte) | Offen |
+| Abweichungen, Fehler und nächste Schritte | Offen |
+
+Beim Ergebnisvergleich die Modellabweichung (Ollama `qwen3:32b` gegenüber dem
+tatsächlich verwendeten vLLM-Modell) berücksichtigen. Ein Backendvergleich mit
+gleichem Modell ist erst möglich, wenn dieselbe Modellfamilie und möglichst
+dieselbe Präzision auf beiden Servern bereitgestellt werden.
 
 ### Einzelresultate
 
