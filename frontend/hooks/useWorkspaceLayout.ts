@@ -198,8 +198,10 @@ export function useWorkspaceLayout({
       // panel's destination and leave its editor blank until the next action.
       if (explicitlySeededPanelIdsRef.current.has(panelIds[index])) return selection;
       const panelType = panelConfigs[index];
-      const shouldSync = panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
-        || incomingType === null || incomingType === panelType;
+      const shouldSync = panelType !== 'search' && (
+        panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
+        || incomingType === null || incomingType === panelType
+      );
       if (!shouldSync) return selection;
       // D-3: der Call-Graph zeigt ein Objekt, keine Datei. Eine eingehende
       // Auswahl ohne Objektbezug (Dokument, Webseite, geleerte Auswahl) würde
@@ -287,12 +289,17 @@ export function useWorkspaceLayout({
       selectedEntity: selectionOverride?.selectedEntity ?? selectedEntity,
       selectedLine: selectionOverride?.selectedLine ?? null,
       customCallFlow: selectionOverride?.customCallFlow ?? null,
+      graphNeighborhood: selectionOverride?.graphNeighborhood ?? null,
+      agentSearch: selectionOverride?.agentSearch ?? null,
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
     const newPanelId = `panel-${panelIdCounterRef.current++}`;
     const hasExplicitDestination = Boolean(
-      selectionOverride && (selectionOverride.selectedFile || selectionOverride.selectedDoc || selectionOverride.selectedEntity)
+      selectionOverride && (
+        selectionOverride.selectedFile || selectionOverride.selectedDoc || selectionOverride.selectedEntity ||
+        selectionOverride.graphNeighborhood || selectionOverride.agentSearch
+      )
     );
     if (hasExplicitDestination) {
       explicitlySeededPanelIdsRef.current.add(newPanelId);
