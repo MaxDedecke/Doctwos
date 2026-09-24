@@ -262,11 +262,22 @@ def _append_code_dependencies(
         target_id = _ensure_entity_file_node(nodes, target_entity)
         bucket = grouped.setdefault((source_id, target_id), {
             "types": set(), "evidence": [], "target_evidence": [], "edge_ids": [],
+            "references": [],
         })
         bucket["types"].add(code_edge.type)
         bucket["edge_ids"].append(code_edge.id)
         bucket["evidence"].append(source_entity.qualified_name or source_entity.name)
         bucket["target_evidence"].append(target_entity.qualified_name or target_entity.name)
+        if len(bucket["references"]) < 5:
+            bucket["references"].append({
+                "edge_id": code_edge.id,
+                "project_id": source_entity.project_id,
+                "source_id": source_entity.source_id,
+                "file_path": source_entity.file_path,
+                "start_line": code_edge.src_start_line,
+                "end_line": code_edge.src_end_line,
+                "resolution": code_edge.resolution,
+            })
 
     for (source_id, target_id), bucket in grouped.items():
         edge_types = sorted(bucket["types"])
@@ -291,6 +302,7 @@ def _append_code_dependencies(
                 "edge_types": edge_types,
                 "evidence": examples,
                 "target_evidence": targets,
+                "references": bucket["references"],
             },
         })
 

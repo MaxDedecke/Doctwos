@@ -59,6 +59,9 @@ axios.interceptors.response.use(
 export const api = {
     fetch: fetchWithSessionHandling,
     getMe: () => axios.get<User>(`${API_URL}/auth/me`),
+    getMcpTokens: () => axios.get<Array<{ id: number; name: string; prefix: string; created_at: string; expires_at: string; revoked_at: string | null }>>(`${API_URL}/mcp-tokens`),
+    createMcpToken: (name: string, expires_in_days: number) => axios.post<{ id: number; name: string; prefix: string; created_at: string; expires_at: string; revoked_at: null; token: string }>(`${API_URL}/mcp-tokens`, { name, expires_in_days }),
+    revokeMcpToken: (id: number) => axios.delete(`${API_URL}/mcp-tokens/${id}`),
     login: (username: string, password: string) => axios.post<{ must_change_password: boolean }>(`${API_URL}/auth/login`, { username, password }),
     logout: () => axios.post(`${API_URL}/auth/logout`),
     changePassword: (old_password: string, new_password: string) =>

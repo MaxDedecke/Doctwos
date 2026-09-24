@@ -23,6 +23,7 @@ def search_nodes(
     limit: int = 10,
     visible_team_ids: Optional[list[int]] = None,
     visible_project_ids: Optional[list[int]] = None,
+    count_total: bool = True,
 ):
     """
     Searches across different tables for matches with `q`.
@@ -91,7 +92,8 @@ def search_nodes(
             query = query.filter(
                 or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
             )
-        counts["entity"] = query.count()
+        if count_total:
+            counts["entity"] = query.count()
         for e in query.order_by(CodeEntity.name).limit(limit).all():
             results.append(
                 {

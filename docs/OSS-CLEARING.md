@@ -38,6 +38,11 @@ E-7, `backend/vendor/unidecode_shim/README.md`.
 
 ## 1. Python — Backend (`backend/requirements.txt`)
 
+O-324 pins the already transitively installed official `mcp==1.29.0` SDK
+directly for the inbound server. Its package license is MIT. The implementation
+uses the bundled `mcp.server.fastmcp` module; it does not add a standalone
+FastMCP upgrade or the `orjson`/`pathspec` dependencies deferred in O-158.
+
 Geprüft mit `pip-licenses` gegen `scripts/license_allowlist_python.txt`
 (alle MIT-/BSD-/Apache-2.0-Varianten plus PSF-2.0 und Unlicense/Public
 Domain, wie sie pip-licenses tatsächlich meldet). 143 installierte Pakete

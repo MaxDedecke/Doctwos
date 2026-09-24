@@ -30,4 +30,5 @@ markdown==3.10.2
 # Anforderung dagegen auf statt das echte PyPI-Paket zu laden.
 ./vendor/unidecode_shim
 mcp-atlassian==0.22.1
-
+# Inbound MCP server uses the official SDK already present transitively.
+mcp==1.29.0

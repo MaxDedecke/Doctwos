@@ -43,7 +43,7 @@ COPY models/ models/
 COPY services/ services/
 COPY alembic/ alembic/
 COPY alembic.ini .
-COPY main.py agent.py mcp_client.py ./
+COPY main.py agent.py mcp_client.py mcp_server.py ./
 COPY docker-entrypoint.sh .
 RUN chmod +x docker-entrypoint.sh
 

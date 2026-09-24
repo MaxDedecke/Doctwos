@@ -162,6 +162,7 @@ async def search_project_chunks(
         filters.append(DocumentChunk.embedding_model == selected_model)
 
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
+    filters.append(DocumentChunk.embedding_dimension == len(query_embedding))
     # Größerer Kandidatenpool, falls danach noch in Python gefiltert wird
     # (pgvector kennt keine nativen Filter auf JSON-Metadaten kombiniert mit Vektor-Sortierung).
     pool_size = limit * 4 if (metadata_filters or max_distance is not None) else limit

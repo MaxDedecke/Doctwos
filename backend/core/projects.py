@@ -50,6 +50,15 @@ def get_visible_project_ids(user: User, db: Session) -> Optional[list[int]]:
     return [r[0] for r in rows]
 
 
+def get_visible_projects_page(user: User, db: Session, limit: int, offset: int) -> list[Project]:
+    """Return a bounded page using the same project membership rule as the API."""
+    visible_ids = get_visible_project_ids(user, db)
+    query = db.query(Project)
+    if visible_ids is not None:
+        query = query.filter(Project.id.in_(visible_ids))
+    return query.order_by(Project.id).offset(offset).limit(limit).all()
+
+
 def get_globally_exposed_project_ids(db: Session) -> list[int]:
     """Projekt-IDs, deren Code-Analyse-Objekte per Opt-in (`Project.expose_code_analysis_globally`)
     außerhalb ihres eigenen Projekt-Kontexts sichtbar sind (Allgemein-Suche/-Graph-View).

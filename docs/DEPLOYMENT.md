@@ -111,6 +111,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | `FRONTEND_URL` | Used for CORS (`allow_origins`) — must be the exact origin the browser loads the frontend from. |
 | `LOG_LEVEL` | Backend log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO`. The parser worker's verbosity is set separately via `--loglevel` on its `celery` command (`parser/Dockerfile`), not by this var. |
 | `MCP_AUDIT_RETENTION_DAYS` | Retention period for redacted MCP tool-call audit entries, default `90`; visible to administrators under Settings > Logs. |
+| `MCP_ALLOWED_HOSTS` / `MCP_ALLOWED_ORIGINS` | Optional comma-separated allowlists for the inbound `/mcp` endpoint. `API_URL` and loopback hosts are accepted by default; set the IDE-facing reverse-proxy host if different. Origins must be full origin URLs. |
 | `BOOTSTRAP_SUPERUSER` / `BOOTSTRAP_SUPERUSER_PASSWORD` / `BOOTSTRAP_SUPERUSER_EMAIL` | The first admin account, created once on first start (F-001). Leave the password empty and the backend generates one and prints it **once** into the startup log and the installer output (O-070). Admin = `User.role == "superuser"` (`backend/core/teams.py::is_admin`): bypasses team-based visibility, manages teams/members. Users arriving via SSO are created with role `user` by default (or `superuser` if mapped via `OIDC_ADMIN_ROLES`); an existing admin can also promote them under Settings > Users. |
 
 ## TLS
@@ -122,11 +123,41 @@ Put a reverse proxy the customer already trusts (or already runs) in front of bo
 ```
 your-doctus-domain.example.com {
     reverse_proxy /auth/* localhost:8000
+    reverse_proxy /mcp localhost:8000
+    reverse_proxy /mcp-tokens* localhost:8000
     reverse_proxy /* localhost:3000
 }
 ```
 
 Then set `FRONTEND_URL=https://your-doctus-domain.example.com` and `API_URL` to the `https://` address the browser reaches the backend on — and, if SSO is in use, register `<API_URL>/auth/oidc/callback` with that same `https://` address on the IdP client.
+
+## Read-only MCP access for IDEs
+
+The existing backend serves Streamable HTTP at `<API_URL>/mcp`; no additional
+container or database is required. Signed-in users create and revoke
+personal MCP tokens under **Settings > IDE / MCP**. The cleartext token appears
+only once. Tokens expire after 7, 30 or 90 days, can be revoked immediately,
+and each call uses the user's current project and team permissions. Disabling a
+user also disables their MCP access.
+The pinned Python SDK negotiates protocol version `2025-11-25`; support for
+the newer `2026-07-28` revision has not been claimed or accepted yet.
+
+Configure an HTTP/Streamable HTTP MCP server in the IDE with the exact `/mcp`
+URL and `Authorization: Bearer <personal-token>`. Store the token in the IDE's
+personal secret store or user configuration, never in a project configuration
+file. VS Code supports `headers.Authorization` with an input variable;
+Continue supports `requestOptions.headers`; Cursor supports HTTP `headers`.
+These are manual bearer credentials, not automatic MCP OAuth sign-in.
+
+The SDK validates Host and Origin headers. `API_URL` and loopback hosts are
+accepted by default. For an IDE-facing host that differs from `API_URL`, add
+that `host:port` to `MCP_ALLOWED_HOSTS`. Native IDE clients typically omit
+Origin; browser clients need their exact origin in `MCP_ALLOWED_ORIGINS` and
+the backend CORS configuration. The Doctus `FRONTEND_URL` is allowed by both
+by default.
+Keep TLS enabled at the existing reverse proxy for non-loopback access. The
+same backend image and environment keys are used by the online and offline
+Compose files and by the air-gap bundle.
 
 > **The #1 way a fresh install ends up with broken login:** `FRONTEND_URL` and `API_URL` both default to `localhost` in `.env.example`. That only works if the browser you're testing with runs on the *same machine* as the Docker host. As soon as you (or the customer) open Doctus from another machine against the server's IP/hostname, both break differently but simultaneously: the frontend's API calls get CORS-rejected (`FRONTEND_URL` no longer matches the real browser origin), and — with SSO in use — the post-login redirect from the IdP goes nowhere, because the redirect URI is derived from `API_URL` (`<API_URL>/auth/oidc/callback`) and it is the *browser*, not the backend, that navigates there. Set both to the server's actual reachable address before the first real login attempt, and re-register the derived callback URI on the IdP client — and remember `.env` edits need `docker compose up -d` (not `docker compose restart`) to actually take effect, since Compose only injects env vars at container creation.
 

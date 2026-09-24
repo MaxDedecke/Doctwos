@@ -31,6 +31,7 @@ Auth:
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -83,21 +84,24 @@ from api import (
     audit,
     feedback_diagnostics,
     insights,
+    mcp_tokens,
 )
 from api.config_router import router as config_router
 from core.auth_dependency import get_current_user
 from core.db_setup import SessionLocal, bootstrap_superuser
 from services.ai_settings import initialize_runtime_settings
 from core.teams import require_admin
+from mcp_server import asgi_app as inbound_mcp_app, mcp as inbound_mcp
 
-app = FastAPI(title="Doctus AI Backend")
-
-
-@app.on_event("startup")
-def _bootstrap() -> None:
-    """Erster Start: genau einen Superuser anlegen (F-001). Idempotent."""
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
     bootstrap_superuser()
     initialize_runtime_settings(SessionLocal)
+    async with inbound_mcp.session_manager.run():
+        yield
+
+
+app = FastAPI(title="Doctus AI Backend", lifespan=_lifespan)
 
 
 app.add_middleware(
@@ -147,3 +151,7 @@ app.include_router(feedback_diagnostics.router, dependencies=[Depends(require_ad
 app.include_router(insights.router, dependencies=_authenticated)
 app.include_router(teams.router)
 app.include_router(users.router)
+app.include_router(mcp_tokens.router, dependencies=_authenticated)
+# The SDK handles the exact /mcp route. A root mount avoids Starlette's
+# /mcp -> /mcp/ redirect while ordinary FastAPI routes keep precedence.
+app.mount("/", inbound_mcp_app)

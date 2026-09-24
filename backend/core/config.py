@@ -32,6 +32,12 @@ def _positive_int_env(name: str, default: int) -> int:
 # MCP audit entries are retained for a bounded period so the audit table cannot
 # grow without limit. Deployments can choose a stricter customer policy via env.
 MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90)
+MCP_ALLOWED_HOSTS: list[str] = [
+    item.strip() for item in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if item.strip()
+]
+MCP_ALLOWED_ORIGINS: list[str] = [
+    item.strip() for item in os.getenv("MCP_ALLOWED_ORIGINS", "").split(",") if item.strip()
+]
 
 # O-053: GET /graph (Knowledge-Graph-Übersicht) lädt sonst jede sichtbare Code-
 # Entity und jeden Dokument-Chunk unbegrenzt -- bei einem großen COBOL-Bestand

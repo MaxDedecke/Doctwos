@@ -188,7 +188,13 @@ def trace_call_flow(
                 next_frontier.add(candidate)
         frontier = next_frontier
 
-    entities = db.query(CodeEntity).filter(CodeEntity.id.in_(seen)).order_by(CodeEntity.id).all()
+    entities = (
+        db.query(CodeEntity)
+        .filter(CodeEntity.id.in_(seen), CodeEntity.project_id == project_id)
+        .order_by(CodeEntity.id)
+        .all()
+    )
+    visible_ids = {entity.id for entity in entities}
     nodes = [_node_json(entity) for entity in entities]
     edges = [
         {
@@ -203,7 +209,8 @@ def trace_call_flow(
             "end_line": edge.src_end_line,
         }
         for edge in edge_rows.values()
-        if edge.src_entity_id in seen and (edge.dst_entity_id is None or edge.dst_entity_id in seen)
+        if edge.src_entity_id in visible_ids
+        and (edge.dst_entity_id is None or edge.dst_entity_id in visible_ids)
     ]
     return {
         "root": _node_json(root),

@@ -96,7 +96,7 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Stellt Wissensgraph, AST-Entitäten, Call-Flows und semantisches Retrieval als standardisierte MCP-Tools im internen Netz bereit (für Continue.dev, VS Code, Cursor). Konkrete Umsetzung zu O-171. |
+| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | Backend-Endpunkt, persönliche Tokens und sechs lesende Tools implementiert. Migration `0031_mcp_access_tokens` und Rollout im aktuellen Doctus-Stack abgeschlossen; Backend gesund, unautorisierter `/mcp`-Aufruf liefert `401`. Offen: Abnahme mit einem echten IDE-Client einschließlich Token-Widerruf und projektübergreifender Zugriffsverweigerung. |
 | 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | Direktsprung von Quelltextzeilen in den Doctus-Graph sowie CodeLens-/Hover-Informationen für Cross-References (`CALL`, `COPY`) in der lokalen IDE. |
 
 ## P2 – Pilot- und Mainframe-Fähigkeit
