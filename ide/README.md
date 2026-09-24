@@ -39,6 +39,26 @@ Secret Storage. Danach erscheinen CodeLens über indizierten `CALL`-/`COPY`-Zeil
 und Hover-Informationen am referenzierten Namen. **Doctus: Open source line in
 graph** öffnet die aktuelle Editorzeile auch ohne eine solche Referenz.
 
+### Copilot-Agent und MCP
+
+Die Editor-Extension und der MCP-Server haben unterschiedliche Aufgaben: CodeLens
+und Hover helfen im Editor; Copilot kann über MCP indizierte Beziehungen prüfen.
+Für die Remote-SSH-Session muss der MCP-Server `doctus` im Agenten aktiviert sein.
+Die projektweite Datei [`.github/copilot-instructions.md`](../.github/copilot-instructions.md)
+gibt Copilot konkrete Anlässe für Doctus-Abfragen vor. Für andere indizierte
+Repositories kann dieselbe Anweisung als persönliche Copilot-Anweisung unter
+`~/.copilot/copilot-instructions.md` auf dem Agent-Host liegen. Die Projekt-ID
+liest der Agent aus der jeweiligen `.vscode/settings.json`; bei fehlender ID
+fragt er die sichtbaren Projekte über MCP ab.
+
+In VS Code **Chat: Open Customizations** öffnen und für den aktiven Copilot-
+Harness prüfen, ob die Anweisung geladen und die `doctus`-Tools aktiviert sind.
+In einem neuen Agent-Chat beispielsweise nach der Aufrufkette eines indizierten
+Symbols fragen. In **References** und den Tool-Aufrufen kontrollieren, ob Copilot
+die Anweisung und mindestens ein passendes Doctus-Tool verwendet hat. Ein
+MCP-Fehler oder ein fehlender Index muss im Ergebnis als Lücke benannt werden;
+der Index ersetzt nicht den aktuellen Quellcode im Workspace.
+
 ## JetBrains
 
 `ide/doctus_lsp.py` ist ein stdio Language Server ohne
