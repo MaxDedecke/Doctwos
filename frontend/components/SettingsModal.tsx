@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Cpu, Database, Layers, Server, Sliders, Terminal, UserCog, Users } from 'lucide-react';
+import { ClipboardList, Cpu, Database, Layers, Server, Sliders, Terminal, UserCog, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { AiSettingsTab } from '@/components/settings/tabs/AiSettingsTab';
 import { ConfigSettingsTab } from '@/components/settings/tabs/ConfigSettingsTab';
+import { EvaluationSettingsTab } from '@/components/settings/tabs/EvaluationSettingsTab';
 import { GitSetupTab } from '@/components/settings/tabs/GitSetupTab';
 import { LayoutSettingsTab } from '@/components/settings/tabs/LayoutSettingsTab';
 import { LogsSettingsTab } from '@/components/settings/tabs/LogsSettingsTab';
@@ -48,7 +49,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const { language, t } = useLanguage();
   const features = useFeatures();
-  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users' | 'config'>('sources');
+  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'evaluation' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users' | 'config'>('sources');
 
 
 
@@ -123,6 +124,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'config', label: t('settings.nav.systemConfig') || 'System & SSO', icon: <Server className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
                     { id: 'ai', label: t('settings.nav.ai'), icon: <Cpu className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.ai },
                     { id: 'logs', label: t('settings.nav.logs'), icon: <Terminal className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.logs },
+                    { id: 'evaluation', label: t('settings.nav.evaluation'), icon: <ClipboardList className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.logs && !!currentUser?.is_admin },
                     { id: 'layout', label: t('settings.nav.layout'), icon: <Sliders className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.layout }
                   ].filter(tab => tab.enabled).map(tab => (
                     <button
@@ -168,6 +170,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    settingsTab === 'config' ? (t('settings.header.systemConfig') || 'System & SSO-Konfiguration') :
                    settingsTab === 'ai' ? t('settings.nav.ai') :
                    settingsTab === 'logs' ? t('settings.nav.logs') :
+                   settingsTab === 'evaluation' ? t('settings.nav.evaluation') :
                    t('settings.nav.layout')}
                 </h3>
               </div>
@@ -218,6 +221,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Tab 4: Logs & Status */}
                   {settingsTab === 'logs' && <LogsSettingsTab />}
+
+                  {/* Tab: Negative feedback review and evaluation settings */}
+                  {settingsTab === 'evaluation' && <EvaluationSettingsTab />}
 
                   {/* Tab 5: Layout & Design (inkl. Monaco Editor Optionen) */}
                   {settingsTab === 'layout' && <LayoutSettingsTab />}
