@@ -5,6 +5,7 @@ import time
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
+import httpx
 from fastapi import HTTPException
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -25,6 +26,7 @@ from core.projects import (
 from core.teams import get_visible_team_ids
 from models.database import CodeEntity, KnowledgeSource, Project, User
 from services.call_flow import trace_call_flow
+from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
 from services.ollama_client import search_project_chunks
@@ -96,6 +98,10 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         safe_message = str(exc) if isinstance(exc, ValueError) else ""
         if safe_message in {"invalid query", "invalid cursor", "invalid direction", "invalid relationship"}:
             raise ValueError(safe_message) from None
+        if isinstance(exc, httpx.HTTPStatusError):
+            raise ValueError(
+                f"upstream service returned HTTP {exc.response.status_code}"
+            ) from None
         raise ValueError("MCP request failed or access denied") from None
     finally:
         record_mcp_tool_call(
@@ -151,23 +157,36 @@ def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dic
 
 @mcp.tool(annotations=READ_ONLY)
 def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> dict:
-    """Find indexed code entities by symbol name or original file path in one project."""
+    """Find indexed code entities by symbol, qualified name, or file path in one project.
+
+    Separate alternatives with ``|`` (for example, ``CARDDEMO|AWS CardDemo``).
+    """
     query = query.strip()
     limit = max(1, min(limit, 20))
     with _tool_context(ctx, "search_code", project_id, {"limit": limit}) as (db, user):
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
-        hits, _ = search_nodes(
-            db,
-            q=query,
-            types="entity",
-            project_id=project_id,
-            limit=limit + 1,
-            visible_team_ids=get_visible_team_ids(user, db),
-            visible_project_ids=get_visible_project_ids(user, db),
-            count_total=False,
-        )
+        alternatives = list(dict.fromkeys(part.strip() for part in query.split("|") if part.strip()))
+        if len(alternatives) > 12:
+            raise ValueError("invalid query")
+        hits = []
+        seen_ids = set()
+        for alternative in alternatives:
+            alternative_hits, _ = search_nodes(
+                db,
+                q=alternative,
+                types="entity",
+                project_id=project_id,
+                limit=limit + 1,
+                visible_team_ids=get_visible_team_ids(user, db),
+                visible_project_ids=get_visible_project_ids(user, db),
+                count_total=False,
+            )
+            for hit in alternative_hits:
+                if hit["node_id"] not in seen_ids:
+                    seen_ids.add(hit["node_id"])
+                    hits.append(hit)
         visible = []
         for hit in hits:
             try:
@@ -332,10 +351,22 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
         if not query or len(query) > 500:
             raise ValueError("invalid query")
         _project(db, user, project_id)
+        profile = get_active_embedding_profile(db)
+        embedding_config = {
+            "embedding_model": profile.model,
+            "embedding_provider": profile.provider,
+            "embedding_base_url": profile.base_url,
+            "embedding_path": profile.path,
+            "embedding_api_key": profile.api_key,
+            "embedding_dimension": profile.dimension,
+            "embedding_context_length": profile.context_length,
+        }
         # The embedding request can wait on an external model. Return the DB
         # connection to the pool while it runs, then check current ACLs again.
         db.close()
-        chunks = await search_project_chunks(db, project_id, query, limit=limit + 1)
+        chunks = await search_project_chunks(
+            db, project_id, query, limit=limit + 1, **embedding_config
+        )
         user = db.query(User).filter(User.id == user.id, User.is_active.is_(True)).first()
         if user is None:
             raise HTTPException(status_code=401)

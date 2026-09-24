@@ -132,6 +132,12 @@ async def search_project_chunks(
     metadata_filters: Optional[dict] = None,
     max_distance: Optional[float] = None,
     embedding_model: Optional[str] = None,
+    embedding_provider: Optional[str] = None,
+    embedding_base_url: Optional[str] = None,
+    embedding_path: Optional[str] = None,
+    embedding_api_key: Optional[str] = None,
+    embedding_dimension: Optional[int] = None,
+    embedding_context_length: Optional[int] = None,
 ) -> list[DocumentChunk]:
     """Embeddet `query` und liefert die nächsten DocumentChunks für ein Projekt
     (=project_id): Chunks mit project_id==project_id ODER source_id einer KnowledgeSource
@@ -141,7 +147,17 @@ async def search_project_chunks(
     max_distance: verwirft Treffer, deren Cosine-Distance darüber liegt — pgvector
     liefert sonst immer die "nächsten" Chunks, egal wie irrelevant sie tatsächlich sind.
     """
-    query_embedding = await embed_text(query, is_query=True, model=embedding_model)
+    query_embedding = await embed_text(
+        query,
+        is_query=True,
+        model=embedding_model,
+        provider=embedding_provider,
+        base_url=embedding_base_url,
+        path=embedding_path,
+        api_key=embedding_api_key,
+        dimension=embedding_dimension,
+        context_length=embedding_context_length,
+    )
 
     source_ids = [
         s.id

@@ -64,6 +64,7 @@ def search_nodes(
             or_(
                 CodeEntity.name.ilike(f"%{q}%"),
                 CodeEntity.file_path.ilike(f"%{q}%"),
+                CodeEntity.qualified_name.ilike(f"%{q}%"),
             )
         )
         if project_id:
