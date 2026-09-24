@@ -1,7 +1,9 @@
 # Doctus in der IDE (O-325)
 
-Die Integration zeigt indizierte `CALL`- und `COPY`-Referenzen mit Ziel und
-Auflösungsstatus an. Ein Klick öffnet die betreffende Quellzeile im Doctus-Graph.
+Die Integration zeigt indizierte COBOL-`CALL`-/`COPY`-Referenzen und Java-
+`CALLS`-/`EXTENDS`-/`IMPLEMENTS`-/`INSTANTIATES`-Beziehungen mit Ziel und
+Auflösungsstatus an. In VS Code öffnet ein aufgelöstes Ziel aus derselben Git-
+Quelle die lokale Definition; andere Referenzen öffnen den Doctus-Graph.
 Die URL enthält nur Projekt, Quelle, Repo-Pfad, Zeile und optional die Buildvariante;
 der Browser prüft die normale Doctus-Anmeldung und Projektberechtigung.
 
@@ -19,7 +21,7 @@ der Browser prüft die normale Doctus-Anmeldung und Projektberechtigung.
 ## VS Code
 
 Den Ordner `ide/vscode` als lokale Extension in das VS-Code-Extensionsverzeichnis
-unter dem Namen `doctus-ide-0.1.0` kopieren und VS Code neu laden. Bei Remote-SSH
+unter dem Namen `doctus-ide-0.1.2` kopieren und VS Code neu laden. Bei Remote-SSH
 gehört er in das Extensionsverzeichnis des Remote-Hosts. Alternativ kann der
 Ordner als VSIX paketiert werden.
 Beispiel für `.vscode/settings.json` im Repository:
@@ -35,8 +37,10 @@ Beispiel für `.vscode/settings.json` im Repository:
 ```
 
 Das Token über **Doctus: Set personal token** eingeben; VS Code speichert es in
-Secret Storage. Danach erscheinen CodeLens über indizierten `CALL`-/`COPY`-Zeilen
-und Hover-Informationen am referenzierten Namen. **Doctus: Open source line in
+Secret Storage. Danach erscheinen CodeLens über indizierten COBOL- und Java-
+Beziehungen und Hover-Informationen am referenzierten Namen. Für Java nutzt der
+Hover die exakte Symbolposition aus neu indizierten Dateien; bei älteren Indizes
+wird nur eine eindeutige Textfundstelle hervorgehoben. **Doctus: Open source line in
 graph** öffnet die aktuelle Editorzeile auch ohne eine solche Referenz.
 
 ### Copilot-Agent und MCP
@@ -122,6 +126,6 @@ der Befehl über Editor-Kontextmenü/Toolbar angeboten werden.
 
 `GET /ide/file?project_id=…&source_id=…&path=…[&variant_key=…]` erwartet
 `Authorization: Bearer <persönliches MCP-Token>` und liefert bis zu 2000
-persistierte `CALL`-/`COPY`-Vorkommen einer exakt indizierten Datei. Bei größeren
+persistierte COBOL- oder Java-Referenzen einer exakt indizierten Datei. Bei größeren
 Dateien meldet der Server `413`, sodass keine unvollständigen Hinweise als
 vollständig erscheinen. Die Antwort trägt `Cache-Control: no-store`.

@@ -96,21 +96,32 @@ def references(uri):
     return path, rows
 
 
-def ref_range(uri, ref):
+def ref_range(uri, ref, line_fallback=False):
     line = ref.get("line")
     if not isinstance(line, int) or line < 1:
         return None
     content = documents.get(uri, "").splitlines()
     source_line = content[line - 1] if line <= len(content) else ""
-    name = str(ref.get("name", ""))
-    keyword = str(ref.get("type", ""))
-    start = source_line.casefold().find(name.casefold()) if name else -1
-    length = len(name)
-    if start < 0:
-        start = max(0, source_line.casefold().find(keyword.casefold()))
-        length = len(keyword)
+    start = ref.get("start_column")
+    end = ref.get("end_column")
+    if isinstance(start, int) and isinstance(end, int) and 0 <= start < end <= len(source_line):
+        symbol = ref.get("symbol_name")
+        if not symbol or source_line[start:end] == symbol:
+            start = len(source_line[:start].encode("utf-16-le")) // 2
+            end = len(source_line[:end].encode("utf-16-le")) // 2
+            return {"start": {"line": line - 1, "character": start},
+                    "end": {"line": line - 1, "character": end}}
+    name = str(ref.get("symbol_name") or ref.get("name") or "")
+    haystack, needle = source_line.lower(), name.lower()
+    start = haystack.find(needle) if needle else -1
+    if start < 0 or haystack.find(needle, start + 1) >= 0:
+        if not line_fallback:
+            return None
+        start, name = 0, ""
+    end = len(source_line[:start + len(name)].encode("utf-16-le")) // 2
+    start = len(source_line[:start].encode("utf-16-le")) // 2
     return {"start": {"line": line - 1, "character": start},
-            "end": {"line": line - 1, "character": start + length}}
+            "end": {"line": line - 1, "character": end}}
 
 
 def code_lenses(uri):
@@ -119,7 +130,7 @@ def code_lenses(uri):
         return []
     result = []
     for ref in rows:
-        location = ref_range(uri, ref)
+        location = ref_range(uri, ref, line_fallback=True)
         if not location:
             continue
         target = ref.get("target")

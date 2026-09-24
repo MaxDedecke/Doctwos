@@ -9,6 +9,7 @@ from models.database import CodeEdge, CodeEntity, KnowledgeSource, User
 from services.mcp_tokens import find_token_user
 
 router = APIRouter(prefix="/ide", tags=["ide"])
+JAVA_IDE_EDGE_TYPES = ("CALLS", "EXTENDS", "IMPLEMENTS", "INSTANTIATES")
 
 
 def _ide_user(
@@ -32,7 +33,7 @@ def file_annotations(
     db: Session = Depends(get_db),
     user: User = Depends(_ide_user),
 ):
-    """Return persisted CALL/COPY occurrences for one exact indexed file."""
+    """Return persisted COBOL and Java references for one exact indexed file."""
     response.headers["Cache-Control"] = "no-store"
     assert_project_visible(project_id, user, db)
     source = db.query(KnowledgeSource).filter(
@@ -56,11 +57,12 @@ def file_annotations(
         raise HTTPException(status_code=413, detail="Zu viele Entitäten in der Datei")
 
     entity_ids = [entity.id for entity in entities]
+    edge_types = JAVA_IDE_EDGE_TYPES if path.lower().endswith(".java") else ("CALL", "COPY")
     edges = db.query(CodeEdge).filter(
         CodeEdge.project_id == project_id,
         CodeEdge.source_id == source_id,
         CodeEdge.src_entity_id.in_(entity_ids),
-        CodeEdge.type.in_(("CALL", "COPY")),
+        CodeEdge.type.in_(edge_types),
     ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(2001).all()
     if len(edges) > 2000:
         raise HTTPException(status_code=413, detail="Zu viele Referenzen in der Datei")
@@ -85,6 +87,7 @@ def file_annotations(
             pass
     references = []
     for edge in edges:
+        meta = edge.meta_json or {}
         target = targets.get(edge.dst_entity_id)
         # A resolved target from another source is shown only when that source
         # is visible to the same user. The occurrence itself remains useful.
@@ -95,7 +98,12 @@ def file_annotations(
             "type": edge.type,
             "name": edge.dst_name,
             "line": edge.src_start_line if edge.src_start_line > 0 else None,
+            "start_column": meta.get("symbol_start_column", meta.get("src_start_column")),
+            "end_column": meta.get("symbol_end_column", meta.get("src_end_column")),
+            "symbol_name": meta.get("method_name") if edge.type == "CALLS" else None,
             "resolution": edge.resolution if target or edge.dst_entity_id is None else "unresolved",
+            "resolution_reason": meta.get("resolution_reason"),
+            "dispatch_scope": meta.get("dispatch_scope"),
             "target": {
                 "id": target.id,
                 "name": target.name,

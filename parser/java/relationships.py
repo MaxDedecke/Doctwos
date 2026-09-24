@@ -92,6 +92,12 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             return
         start, end = self._span(context)
         source = source or self.scope
+        start_column = context.start.column if context.start is not None else None
+        end_column = (
+            context.stop.column + len(context.stop.text)
+            if context.stop is not None and context.stop.line == start and context.stop.text
+            else None
+        )
         self.edges.append(
             ParsedEdge(
                 type=edge_type,
@@ -103,6 +109,8 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 meta={
                     "language": "java",
                     "source_qualified_name": source.qualified_name,
+                    "src_start_column": start_column,
+                    "src_end_column": end_column,
                     **(meta or {}),
                 },
             )
@@ -382,6 +390,14 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             context,
             meta={
                 "method_name": name,
+                "symbol_start_column": (
+                    identifier.start.column if identifier is not None and identifier.start is not None else None
+                ),
+                "symbol_end_column": (
+                    identifier.stop.column + len(identifier.stop.text)
+                    if identifier is not None and identifier.stop is not None and identifier.stop.text
+                    else None
+                ),
                 "receiver": receiver,
                 "argument_count": self._argument_count(context.arguments()),
                 "argument_types": self._argument_types(context.arguments()),
@@ -440,6 +456,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             context,
             meta={
                 "method_name": name,
+                "symbol_start_column": identifier.start.column if identifier.start is not None else None,
+                "symbol_end_column": (
+                    identifier.stop.column + len(identifier.stop.text)
+                    if identifier.stop is not None and identifier.stop.text else None
+                ),
                 "receiver": receiver,
                 "argument_count": self._argument_count(arguments),
                 "argument_types": self._argument_types(arguments),

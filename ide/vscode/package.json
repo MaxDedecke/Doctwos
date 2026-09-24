@@ -2,8 +2,8 @@
   "name": "doctus-ide",
   "publisher": "doctus",
   "displayName": "Doctus IDE",
-  "description": "Doctus graph links and indexed CALL/COPY references",
-  "version": "0.1.1",
+  "description": "Doctus graph links and indexed COBOL/Java references",
+  "version": "0.1.2",
   "private": true,
   "engines": { "vscode": "^1.85.0" },
   "main": "./extension.js",
@@ -11,7 +11,8 @@
   "contributes": {
     "commands": [
       { "command": "doctus.setToken", "title": "Doctus: Set personal token" },
-      { "command": "doctus.openGraph", "title": "Doctus: Open source line in graph" }
+      { "command": "doctus.openGraph", "title": "Doctus: Open source line in graph" },
+      { "command": "doctus.openTarget", "title": "Doctus: Open indexed target" }
     ],
     "configuration": {
       "title": "Doctus",
