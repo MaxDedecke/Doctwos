@@ -47,6 +47,7 @@ from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.inference_admission import InferenceAdmissionTimeout, admitted_post
+from core.inference_errors import VllmCapacityError
 from models.database import (
     ChatLinkFeedbackSignal,
     ChatMessage,
@@ -1503,6 +1504,10 @@ async def chat(
                             candidate_sources.append(s)
             except InferenceAdmissionTimeout as exc:
                 logger.warning("Chat-Agent wartet vergeblich auf Modellkapazität: %s", exc)
+                yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+                return
+            except VllmCapacityError as exc:
+                logger.warning("vLLM meldet ausgeschöpfte GPU-/KV-Cache-Kapazität: %s", exc)
                 yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
                 return
             except Exception as e:

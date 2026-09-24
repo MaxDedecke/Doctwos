@@ -9,6 +9,7 @@ import httpx
 from typing import Dict, List, Any, Optional
 
 import core.config as cfg
+from core.inference_errors import raise_for_inference_status
 
 logger = logging.getLogger(__name__)
 
@@ -324,7 +325,7 @@ async def execute_chat_with_mcp(
     print(f"MCP: Registered {len(mcp_tools)} tools for execution", file=sys.stderr)
     sys.stderr.flush()
 
-    if provider == "openai":
+    if provider in {"openai", "vllm"}:
         url = base_url or "https://api.openai.com/v1"
         if url.endswith("/"):
             url = url[:-1]
@@ -360,7 +361,7 @@ async def execute_chat_with_mcp(
                     payload["temperature"] = temperature if temperature is not None else 0.7
 
                 resp = await client_http.post(full_url, json=payload, headers=headers)
-                resp.raise_for_status()
+                raise_for_inference_status(resp, provider)
                 res_data = resp.json()
 
                 choice = res_data["choices"][0]

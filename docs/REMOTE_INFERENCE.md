@@ -12,13 +12,14 @@ modes:
 - **Local Ollama** always addresses the Compose service at
   `http://ollama:11434`.
 - **Remote On-Premise** accepts a URL (including port and optional base
-  subpath), native Ollama or OpenAI-compatible chat, a chat path/model/key and
+  subpath), native Ollama, generic OpenAI-compatible chat, or vLLM chat, a chat path/model/key and
   an independently configurable embedding URL/path/model/key.
 - **Cloud** offers OpenAI (Responses API), Anthropic and Gemini when
   `llm.allowCloudProviders` is enabled in `config/features.json`.
 
 Use **Test** before activation. It checks chat and embedding discovery with
-their respective URL and key. Activation is deployment-wide and is consumed
+their respective URL and key. A vLLM profile also checks `/health`, `/v1/models`
+and a forced native tool call against `/v1/chat/completions`. Activation is deployment-wide and is consumed
 by the API, parser worker, retrieval and link reviews without a container
 restart. Keys are encrypted in PostgreSQL and API responses expose only a
 `*_api_key_set` flag.
@@ -55,6 +56,23 @@ such as `/v1` if the provider requires it.
 The parser sends an `Authorization: Bearer …` header whenever a key is set.
 For managed endpoints set `EMBEDDING_AUTO_PULL=false`; Doctus then never calls
 Ollama's privileged `/api/pull` endpoint.
+
+### vLLM chat profile
+
+In **Settings → AI → Remote On-Premise**, choose **vLLM (OpenAI API)**, set the
+served model name from `/v1/models`, and use a base URL such as
+`https://gpu-host.example/v1` with chat path `/chat/completions`. Keep embeddings
+on their independently configured service. Doctus stores the vLLM API key
+encrypted and sends it only as a Bearer token.
+
+The profile test sends `tool_choice: "required"`; this option requires vLLM
+0.8.3 or later. Automatic agent tool calling also needs a model-compatible
+tool parser and chat template, commonly enabled using
+`--enable-auto-tool-choice --tool-call-parser <parser>` when starting `vllm
+serve`. The **Test** action reports whether the endpoint actually returned the
+probe tool call. Restrict vLLM network access to Doctus and trusted operators:
+vLLM's `--api-key` protects versioned inference paths such as `/v1`, while its
+`/health` endpoint is outside that API-key protection.
 
 ## On-Premise Two-Machine Architecture (Machine A + Machine B)
 
@@ -135,4 +153,3 @@ The offline delivery bundle (`dist/doctus-offline-bundle-...`) is completely sel
   - **Fonts**: All UI typography (Archivo, Space Grotesk, IBM Plex Mono) is bundled statically inside the frontend image. No requests to Google Fonts or CDNs are made.
   - **Code Viewer**: Monaco Editor is pre-packaged locally (`/monaco/vs/`); it never requests CDN scripts.
   - **Model Pulling**: `EMBEDDING_AUTO_PULL=false` by default; Doctus never attempts to pull models over the internet.
-

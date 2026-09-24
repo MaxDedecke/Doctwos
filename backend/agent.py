@@ -9,6 +9,7 @@ from typing import Dict, List, Any, Optional, AsyncGenerator
 from xml.sax.saxutils import escape
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
+from core.inference_errors import raise_for_inference_status
 from mcp_client import MCPClient
 from models.database import CodeEntity, KnowledgeSource, User
 from core.projects import get_visible_project_ids
@@ -1632,7 +1633,7 @@ async def run_agent_loop(
         }
         return
 
-    if provider == "openai" or provider == "ollama":
+    if provider in {"openai", "ollama", "vllm"}:
         # Both support standard OpenAI-like JSON interface
         is_ollama = provider == "ollama"
 
@@ -1737,7 +1738,7 @@ async def run_agent_loop(
                 async with admitted_stream(
                     client_http, full_url, kind="chat", json=payload, headers=headers
                 ) as resp:
-                    resp.raise_for_status()
+                    raise_for_inference_status(resp, provider)
                     async for line in resp.aiter_lines():
                         if not line.strip():
                             continue

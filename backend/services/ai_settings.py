@@ -168,6 +168,7 @@ def apply_runtime_settings(settings: AISettings) -> None:
     cfg.OLLAMA_LLM_MODEL = settings.llm_model
     cfg.OLLAMA_BASE_URL = (settings.llm_base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
     cfg.OLLAMA_API_KEY = settings.llm_api_key or ""
+    cfg.ACTIVE_LLM_PROVIDER = settings.llm_provider.lower()
     cfg.ACTIVE_LLM_PROTOCOL = (
         "ollama" if settings.llm_provider.lower() == "ollama" else "openai_chat"
     )

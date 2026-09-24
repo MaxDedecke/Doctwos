@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.inference_admission import admitted_post
+from core.inference_errors import raise_for_inference_status
 from models.database import DocumentChunk, KnowledgeSource
 
 logger = logging.getLogger(__name__)
@@ -267,7 +268,7 @@ async def ask_llm_json_for_profile(
             resp.raise_for_status()
             return _extract_json_object(resp.json()["message"]["content"])
 
-    if provider == "openai":
+    if provider in {"openai", "vllm"}:
         base = (base_url or "https://api.openai.com/v1").rstrip("/")
         if protocol == "openai_responses":
             url = f"{base}/{(path or '/responses').lstrip('/')}"
@@ -305,7 +306,7 @@ async def ask_llm_json_for_profile(
             resp = await admitted_post(
                 client, url, kind="batch", json=payload, headers=headers
             )
-            resp.raise_for_status()
+            raise_for_inference_status(resp, provider)
             return _extract_json_object(resp.json()["choices"][0]["message"]["content"])
 
     if provider == "gemini":

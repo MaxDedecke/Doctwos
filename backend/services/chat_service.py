@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
+from core.inference_errors import raise_for_inference_status
 from models.database import (
     ChatMessage,
     CodeEdge,
@@ -848,7 +849,7 @@ async def stream_standard_rag_events(
                 async with admitted_stream(
                     client, url, kind="chat", json=payload, headers=headers
                 ) as response:
-                    response.raise_for_status()
+                    raise_for_inference_status(response, provider)
                     async for line in response.aiter_lines():
                         if not line.strip():
                             continue

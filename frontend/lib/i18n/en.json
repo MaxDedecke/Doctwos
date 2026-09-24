@@ -546,6 +546,7 @@
       "remote": "Remote on-premises",
       "cloud": "Cloud provider",
       "protocol": "API protocol",
+      "vllmHint": "Base URL is usually http://<GPU-host>:8000/v1. Agent tools require vLLM tool calling with a matching --tool-call-parser and chat template enabled.",
       "advanced": "Advanced endpoint and embedding settings",
       "activate": "Activate",
       "testProfile": "Test connection",

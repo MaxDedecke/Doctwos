@@ -30,6 +30,7 @@ from api.schemas import (
 )
 from core.auth_dependency import get_current_user
 from core.inference_admission import InferenceAdmissionTimeout, admitted_post
+from core.inference_errors import VllmCapacityError, raise_for_inference_status
 from core.teams import require_admin
 from core.db_setup import engine, get_db
 from models.database import AIProfile, EmbeddingProfile, User
@@ -129,14 +130,24 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
         raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine Embedding-URL")
     if protocol == "ollama" and provider != "ollama":
         raise HTTPException(status_code=400, detail="Ollama-Protokoll benötigt den Ollama-Provider")
-    if protocol in {"openai_chat", "openai_responses"} and provider != "openai":
-        raise HTTPException(status_code=400, detail="OpenAI-Protokoll benötigt den OpenAI-Provider")
+    if protocol == "openai_chat" and provider not in {"openai", "vllm"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Chat-Completions benötigen OpenAI, vLLM oder einen kompatiblen Provider",
+        )
+    if protocol == "openai_responses" and provider != "openai":
+        raise HTTPException(status_code=400, detail="Responses-Protokoll benötigt den OpenAI-Provider")
     if protocol in {"anthropic", "gemini"} and provider != protocol:
         raise HTTPException(status_code=400, detail="Protokoll und Provider passen nicht zusammen")
     if kind == "remote" and protocol not in {"ollama", "openai_chat"}:
         raise HTTPException(
             status_code=400,
             detail="Remote-Profile unterstützen Ollama oder OpenAI-kompatible APIs",
+        )
+    if provider == "vllm" and (kind != "remote" or protocol != "openai_chat"):
+        raise HTTPException(
+            status_code=400,
+            detail="vLLM-Profile benötigen Remote und das Chat-Completions-Protokoll",
         )
     if kind == "cloud" and provider not in cfg.CLOUD_LLM_PROVIDERS:
         raise HTTPException(status_code=400, detail="Unbekannter Cloud-Provider")
@@ -219,12 +230,23 @@ async def health(response: Response):
     try:
         discovery_url, headers = _active_discovery_request()
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(discovery_url, headers=headers)
-            checks["ollama"] = (
-                "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
-            )
+            if getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama") == "vllm":
+                base = cfg.OLLAMA_BASE_URL.rstrip("/")
+                root_url = base[:-3] if base.endswith("/v1") else base
+                health_resp = await client.get(_joined_url(root_url, "/health"), headers=headers)
+                if health_resp.status_code == 200:
+                    resp = await client.get(discovery_url, headers=headers)
+                    checks["vllm"] = "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+                else:
+                    checks["vllm"] = f"error: health HTTP {health_resp.status_code}"
+            else:
+                resp = await client.get(discovery_url, headers=headers)
+                checks["ollama"] = (
+                    "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+                )
     except Exception as e:
-        checks["ollama"] = f"error: {e}"
+        key = "vllm" if getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama") == "vllm" else "ollama"
+        checks[key] = f"error: {e}"
 
     healthy = all(v == "ok" for v in checks.values())
     if not healthy:
@@ -497,6 +519,10 @@ async def test_ai_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
     probes: list[tuple[str, str, str | None]] = []
+    if profile.provider == "vllm":
+        vllm_base = (profile.llm_base_url or "http://vllm:8000/v1").rstrip("/")
+        vllm_root = vllm_base[:-3] if vllm_base.endswith("/v1") else vllm_base
+        probes.append(("health", _joined_url(vllm_root, "/health"), profile.llm_api_key))
     if profile.protocol == "ollama":
         probes.append(
             (
@@ -529,21 +555,98 @@ async def test_ai_profile(
     results = {"chat": "configuration-valid", "embedding": "configuration-valid"}
     label = "profile"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             for label, url, api_key in probes:
                 headers = {"Content-Type": "application/json"}
                 if api_key:
                     headers["Authorization"] = f"Bearer {api_key}"
                 response = await client.get(url, headers=headers)
-                response.raise_for_status()
+                raise_for_inference_status(
+                    response,
+                    profile.embedding_provider if label == "embedding" else profile.provider,
+                )
                 if label == "chat":
                     _require_discovered_model(response, profile.llm_model, profile.provider, label)
-                else:
+                elif label == "embedding":
                     _require_discovered_model(
                         response, profile.embedding_model, profile.embedding_provider, label
                     )
                 results[label] = "reachable"
+            if profile.provider == "vllm":
+                label = "tool_calling"
+                response = await admitted_post(
+                    client,
+                    _joined_url(
+                        profile.llm_base_url or "http://vllm:8000/v1",
+                        profile.llm_path or "/chat/completions",
+                    ),
+                    kind="chat",
+                    wait_timeout_seconds=15.0,
+                    json={
+                        "model": profile.llm_model,
+                        "messages": [{"role": "user", "content": "Call the probe tool now."}],
+                        "tools": [{
+                            "type": "function",
+                            "function": {
+                                "name": "doctus_profile_probe",
+                                "description": "Connection test. Do not perform external actions.",
+                                "parameters": {"type": "object", "properties": {}, "required": []},
+                            },
+                        }],
+                        "tool_choice": "required",
+                        "stream": False,
+                        "max_tokens": 32,
+                    },
+                    headers={
+                        "Content-Type": "application/json",
+                        **({"Authorization": f"Bearer {profile.llm_api_key}"} if profile.llm_api_key else {}),
+                    },
+                )
+                raise_for_inference_status(response, profile.provider)
+                payload = response.json()
+                choices = payload.get("choices", []) if isinstance(payload, dict) else []
+                first_choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+                message = first_choice.get("message", {})
+                tool_calls = message.get("tool_calls", []) if isinstance(message, dict) else []
+                if not any(
+                    isinstance(call.get("function"), dict)
+                    and call["function"].get("name") == "doctus_profile_probe"
+                    for call in tool_calls if isinstance(call, dict)
+                ):
+                    raise ValueError(
+                        "vLLM hat keinen Tool-Aufruf zurückgegeben. Prüfe --enable-auto-tool-choice, "
+                        "--tool-call-parser und das Chat-Template des Modells."
+                    )
+                results[label] = "supported"
         return {"ok": True, **results}
+    except VllmCapacityError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except InferenceAdmissionTimeout as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except httpx.HTTPStatusError as exc:
+        if profile.provider == "vllm":
+            try:
+                detail = exc.response.json().get("error", {}).get("message", "")
+            except (ValueError, AttributeError):
+                detail = ""
+            if any(marker in str(detail).lower() for marker in ("out of memory", "kv cache", "cuda", "gpu memory")):
+                raise HTTPException(
+                    status_code=503,
+                    detail="vLLM ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher. "
+                    "Bitte Parallelität, Kontextlänge oder Modellgröße reduzieren.",
+                ) from exc
+        if profile.provider == "vllm" and label == "tool_calling":
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "vLLM hat den Tool-Calling-Test abgelehnt. Prüfe vLLM >= 0.8.3, "
+                    "--enable-auto-tool-choice, --tool-call-parser und das Chat-Template."
+                ),
+            ) from exc
+        raise HTTPException(
+            status_code=502,
+            detail=f"{label.capitalize()}-Endpunkt fehlgeschlagen (HTTP {exc.response.status_code})",
+        ) from exc
     except (httpx.HTTPError, TypeError, ValueError) as exc:
         raise HTTPException(
             status_code=502,
