@@ -1722,14 +1722,14 @@ export function KnowledgeGraphView({
               title={t('knowledgeGraphView.agentNeighborhoodScope', {
                 focus: agentGraphFocus.focus_label,
                 direction: agentDirectionLabel,
-                relationships: agentRelationshipLabels,
+                relationships: agentRelationshipLabels ?? '',
                 limit: neighborhoodLimit,
               })}
             >
               {t('knowledgeGraphView.agentNeighborhoodScope', {
                 focus: agentGraphFocus.focus_label,
                 direction: agentDirectionLabel,
-                relationships: agentRelationshipLabels,
+                relationships: agentRelationshipLabels ?? '',
                 limit: neighborhoodLimit,
               })}
             </span>
