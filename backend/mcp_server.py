@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.responses import PlainTextResponse
 
@@ -25,7 +26,7 @@ from core.projects import (
     get_visible_projects_page,
 )
 from core.teams import get_visible_team_ids
-from models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project, User
+from models.database import CodeEntity, DocumentChunk, EmbeddingProfile, KnowledgeSource, Project, User
 from services.call_flow import trace_call_flow
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
@@ -106,6 +107,40 @@ def _knowledge_chunk_in_project(
     except HTTPException:
         return False
     return True
+
+
+def _embedding_profile_for_project(db: Session, project_id: int):
+    """Use the unique embedding profile matching a project's indexed vectors.
+
+    The active profile is deployment-wide, while projects may have been
+    indexed with different models. Prefer an unambiguous project model so an
+    MCP query is embedded in the same vector space as its chunks. For legacy
+    projects with multiple models or multiple profiles for the same model,
+    retain the active-profile behavior.
+    """
+    source_models = {
+        model
+        for (model,) in db.query(KnowledgeSource.embedding_model)
+        .filter(KnowledgeSource.project_id == project_id)
+        .distinct()
+        .all()
+        if model
+    }
+    chunk_models = {
+        model
+        for (model,) in db.query(DocumentChunk.embedding_model)
+        .filter(DocumentChunk.project_id == project_id)
+        .distinct()
+        .all()
+        if model
+    }
+    models = source_models or chunk_models
+    if len(models) == 1:
+        model = next(iter(models))
+        profiles = db.query(EmbeddingProfile).filter(EmbeddingProfile.model == model).all()
+        if len(profiles) == 1:
+            return profiles[0]
+    return get_active_embedding_profile(db)
 
 
 @contextmanager
@@ -242,6 +277,72 @@ def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> d
                 "end_line": entity.end_line,
             })
         return {"results": visible[:limit], "truncated": len(hits) > limit or len(visible) < len(hits), "limit_applied": limit}
+
+
+@mcp.tool(annotations=READ_ONLY)
+def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: int = 2) -> dict:
+    """Search symbols and, for one exact candidate, resolve its bounded call flow."""
+    query = query.strip()
+    limit = max(1, min(limit, 12))
+    hops = max(0, min(hops, 3))
+    with _tool_context(ctx, "research_project", project_id, {"limit": limit, "hops": hops}) as (db, user):
+        if not query or len(query) > 200:
+            raise ValueError("invalid query")
+        _project(db, user, project_id)
+        hits, _ = search_nodes(
+            db, q=query, types="entity", project_id=project_id, limit=limit + 1,
+            visible_team_ids=get_visible_team_ids(user, db),
+            visible_project_ids=get_visible_project_ids(user, db), count_total=False,
+        )
+        needle = query.replace("\\", "/").casefold()
+        if "/" in needle or "." in needle:
+            exact_file_entities = (
+                db.query(CodeEntity)
+                .filter(CodeEntity.project_id == project_id, func.lower(CodeEntity.file_path) == needle)
+                .order_by(CodeEntity.start_line, CodeEntity.id)
+                .limit(limit + 1)
+                .all()
+            )
+            known = {hit["node_id"] for hit in hits}
+            hits = [
+                {"node_id": entity.id}
+                for entity in exact_file_entities
+                if entity.id not in known
+            ] + hits
+        candidates = []
+        for hit in hits:
+            try:
+                entity = _entity(db, user, project_id, hit["node_id"])
+            except HTTPException:
+                continue
+            candidates.append({
+                "id": entity.id, "project_id": entity.project_id, "source_id": entity.source_id,
+                "variant_key": entity.variant_key, "name": entity.name,
+                "qualified_name": entity.qualified_name, "type": entity.type,
+                "file_path": entity.file_path, "start_line": entity.start_line,
+                "end_line": entity.end_line,
+            })
+        exact = [item for item in candidates if
+                 item["name"].casefold() == needle or
+                 (item["qualified_name"] or "").casefold() == needle or
+                 (item["file_path"] or "").replace("\\", "/").casefold() == needle]
+        if "/" in needle:
+            file_programs = [item for item in exact if item["type"] in {"program", "cobol_program", "compilation_unit"}]
+            if file_programs:
+                exact = file_programs
+        result = {"project_id": project_id, "query": query, "candidates": candidates[:limit],
+                  "candidate_count": len(candidates), "candidates_truncated": len(candidates) > limit,
+                  "resolution": "no_exact_match"}
+        if len(exact) > 1:
+            result["resolution"] = "ambiguous"
+            return result
+        if len(exact) == 1:
+            entity_id = exact[0]["id"]
+            flow = trace_call_flow(db, project_id=project_id, entity_id=entity_id,
+                                   hops=hops, direction="outgoing")
+            result["resolution"] = "unique_exact_match"
+            result["call_flow"] = flow
+        return result
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -387,7 +488,7 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
         if not query or len(query) > 500:
             raise ValueError("invalid query")
         _project(db, user, project_id)
-        profile = get_active_embedding_profile(db)
+        profile = _embedding_profile_for_project(db, project_id)
         embedding_config = {
             "embedding_model": profile.model,
             "embedding_provider": profile.provider,

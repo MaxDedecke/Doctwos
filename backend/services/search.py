@@ -6,7 +6,7 @@ Cross-type search across Project, CodeEntity, KnowledgeSource, and DocumentChunk
 
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, case
 
 from core.projects import build_document_chunk_code_gate, get_globally_exposed_project_ids
 from models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
@@ -95,7 +95,55 @@ def search_nodes(
             )
         if count_total:
             counts["entity"] = query.count()
-        for e in query.order_by(CodeEntity.name).limit(limit).all():
+        if q:
+            match_score = case(
+                (func.lower(CodeEntity.name) == func.lower(q), 0),
+                (CodeEntity.name.ilike(f"{q}%"), 1),
+                (CodeEntity.name.ilike(f"%{q}%"), 2),
+                (CodeEntity.qualified_name.ilike(f"%{q}%"), 3),
+                else_=4,
+            )
+            type_score = case(
+                (
+                    CodeEntity.type.in_(
+                        [
+                            "program",
+                            "class",
+                            "interface",
+                            "copybook",
+                            "compilation_unit",
+                            "shell_script",
+                            "maven_project",
+                            "maven_module",
+                            "package",
+                        ]
+                    ),
+                    0,
+                ),
+                (
+                    CodeEntity.type.in_(
+                        [
+                            "section",
+                            "paragraph",
+                            "method",
+                            "constructor",
+                            "sql_block",
+                            "sql_table",
+                        ]
+                    ),
+                    1,
+                ),
+                else_=2,
+            )
+            entity_ordering = (
+                match_score,
+                type_score,
+                func.length(CodeEntity.name),
+                CodeEntity.name,
+            )
+        else:
+            entity_ordering = (CodeEntity.name,)
+        for e in query.order_by(*entity_ordering).limit(limit).all():
             results.append(
                 {
                     "node_type": "entity",
