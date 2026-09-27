@@ -120,6 +120,62 @@ def trace_call_flow(
 
     requested_root = root
     entry_resolution = "requested_entity"
+    # COBOL callers often select a program (or its source file) while the
+    # executable call edges are attached to internal paragraphs. Resolve only
+    # a single conventional entry paragraph; otherwise return candidates and
+    # let the caller choose explicitly.
+    if direction == "outgoing" and root.type in {"program", "cobol_program"}:
+        paragraphs = (
+            db.query(CodeEntity)
+            .filter(
+                CodeEntity.project_id == project_id,
+                CodeEntity.source_id == root.source_id,
+                CodeEntity.variant_key == root.variant_key,
+                CodeEntity.parent_id == root.id,
+                CodeEntity.type.in_(["paragraph", "section"]),
+            )
+            .order_by(CodeEntity.start_line, CodeEntity.id)
+            .limit(CALL_FLOW_MAX_NODES + 1)
+            .all()
+        )
+        candidates_truncated = len(paragraphs) > CALL_FLOW_MAX_NODES
+        named_entries = [
+            item for item in paragraphs
+            if item.name.casefold() in {"main-para", "main", "procedure-division"}
+            or (item.qualified_name or "").casefold().endswith((".main-para", ".main", ".procedure-division"))
+        ]
+        if not candidates_truncated and len(named_entries) == 1:
+            root = named_entries[0]
+            entry_resolution = "unique_cobol_entry"
+        elif len(paragraphs) == 1:
+            root = paragraphs[0]
+            entry_resolution = "only_cobol_paragraph"
+        elif paragraphs:
+            return {
+                "status": "entry_point_selection_required",
+                "root": _node_json(root),
+                "requested_root": _node_json(requested_root),
+                "entry_resolution": "ambiguous_cobol_entry",
+                "entry_candidates": [_node_json(item) for item in paragraphs[:CALL_FLOW_MAX_NODES]],
+                "truncated": candidates_truncated,
+                "nodes": [_node_json(root)],
+                "edges": [],
+                "mermaid": "",
+                "notice": "Mehrere COBOL-Einstiegspunkte vorhanden. Wähle einen Absatz anhand der Quelle; es wurde keiner automatisch ausgewählt.",
+            }
+        else:
+            return {
+                "status": "entry_point_not_found",
+                "root": _node_json(root),
+                "requested_root": _node_json(requested_root),
+                "entry_resolution": "missing_cobol_entry",
+                "entry_candidates": [],
+                "truncated": False,
+                "nodes": [_node_json(root)],
+                "edges": [],
+                "mermaid": "",
+                "notice": "Unter diesem COBOL-Programm ist kein Einstieg-Paragraph indexiert.",
+            }
     if direction == "outgoing" and root.type in {"class", "interface", "enum", "record"}:
         methods = (
             db.query(CodeEntity)
