@@ -1,6 +1,6 @@
 # Doctus – priorisierte TODO-Liste
 
-Stand: 22.09.2026
+Stand: 27.09.2026
 
 Diese Datei ist die kanonische Liste der noch offenen Arbeit. Die Reihenfolge
 innerhalb einer Priorität ist zugleich die empfohlene Ausführungsreihenfolge.
@@ -105,6 +105,19 @@ Details: [MCP-Sicherheitsbericht](MCP_SECURITY_REVIEW_2026-09-24.md).
 | 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | VS-Code-Extension und tokengebundene IDE-API für `CALL`/`COPY` sind implementiert; ein stdio-Language-Server bietet Hover, CodeLens und Graph-Deep-Links für LSP-Clients. JetBrains/Eclipse-Abnahme mit realen Clients und Zielbestand offen. Für Eclipse LSP4E ist Hover grundsätzlich passend; CodeLens, `workspace/executeCommand` und externes Öffnen über `window/showDocument` müssen in der konkreten Eclipse-Version geprüft werden. Falls CodeLens/Commands dort nicht nutzbar sind, Eclipse-Plugin mit Secure-Storage-Einstellungen und Browser-Command als native Integration ergänzen. Einrichtung: `ide/README.md`. |
 
 ## P2 – Pilot- und Mainframe-Fähigkeit
+
+### Agenten- und MCP-Nutzbarkeit
+
+Die folgenden Punkte stammen aus den bisherigen Agenten-Benchmarkläufen. Sie
+sind Hypothesen zur Verbesserung der Werkzeugnutzung; ein Laufzeit- oder
+Qualitätsvorteil gilt erst nach einer passenden Vergleichsmessung als belegt.
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 77 | O-342 | MCP-Recherche über Projekt, Code-Entität und Call-Flow in weniger Agentenschritten ermöglichen. | **Implementiert, Vergleichsmessung offen.** Das neue lesende `research_project` kombiniert Symbol-/Pfadsuche und Call-Flow, verfolgt nur einen eindeutigen exakten Treffer und gibt Mehrdeutigkeiten als Kandidaten zurück. Die bisherigen Einzelfunktionen bleiben erhalten. Typische Fragen auf weniger Tool-Aufrufe und Modell-Turns vergleichen. |
+| 78 | O-343 | COBOL-Programmeinstieg und interne Paragraphen für Call-Flow-Abfragen nachvollziehbar auflösen. | **Implementiert, Fallabnahme offen.** Ein eindeutiger `MAIN-PARA`-/`MAIN`-/`PROCEDURE-DIVISION`-Einstieg unter einem COBOL-Programm wird als Call-Flow-Wurzel samt `entry_resolution` ausgewiesen. Ohne eindeutigen Einstieg werden Paragraphen als Kandidaten zurückgegeben und nicht automatisch gewählt. Eindeutige, mehrdeutige und fehlende Einstiegspunkte abnehmen. |
+| 79 | O-344 | Begrenzte MCP-Graphantworten mit Umfang und Fortsetzungshinweisen erklären. | **Implementiert, Grenzfallabnahme offen.** Call-Flow- und Nachbarschaftsantworten enthalten gelieferte/verfügbare/ausgelassene Knoten und Kanten, Kürzungsgrund sowie bei paginierbaren Nachbarschaften den `next_cursor`. `no_indexed_calls` bleibt vom gekürzten Ergebnis unterscheidbar; harte Grenzen bleiben bestehen. |
+| 80 | O-345 | MCP-Verfügbarkeit und tatsächliche Werkzeugnutzung vor Agentenläufen messbar machen. | **Implementiert, Laufabnahme offen.** Agentenläufe speichern einen Preflight mit Serverstatus und `tools/list`; MCP-Tool-Schritte protokollieren Status, Laufzeit und Server, zusätzlich zum bestehenden Auditdatensatz. So sind nicht konfiguriert/nicht verfügbar, nicht aufgerufen und fehlerhaft aufgerufen unterscheidbar. An einem optionalen-MCP-Lauf und einem gezielten Call-Flow-Diagnoselauf abnehmen. |
 
 ### Mainframe-/COBOL-Kompatibilität
 

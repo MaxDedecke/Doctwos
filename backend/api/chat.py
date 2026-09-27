@@ -1324,10 +1324,13 @@ async def chat(
             agent_steps = []
             answer = ""
             agent_ran = False
+            agent_answer_received = False
             agent_sources = []
             agent_edge_pairs: set[tuple[str, str]] = set()
             answer_is_source_consistent = True
             mcp_clients = []
+            mcp_sources = []
+            mcp_initialization_status = []
             team_ids = get_visible_team_ids(user, db)
             document_source_ids = {
                 chunk.source_id for chunk in results if chunk.source_id is not None
@@ -1393,11 +1396,13 @@ async def chat(
                 if chat_intent.use_agent:
                     from mcp_client import init_mcp_clients_for_sources
 
-                    mcp_clients = await init_mcp_clients_for_sources(mcp_sources)
+                    mcp_clients = await init_mcp_clients_for_sources(
+                        mcp_sources, status_callback=mcp_initialization_status.append
+                    )
 
                 if (
                     chat_intent.use_agent
-                    and (request.project_id or resolved_repo_id or walkthrough_documents or mcp_clients)
+                    and (request.project_id or resolved_repo_id or walkthrough_documents or mcp_clients or mcp_initialization_status)
                     and _agent_profile_supports_tools(selected_profile)
                 ):
                     agent_ran = True
@@ -1436,6 +1441,7 @@ async def chat(
                         # eine belastbare Quelle über ein Tool erheben.
                         require_initial_tool_call=True,
                         walkthrough_documents=walkthrough_documents,
+                        mcp_initialization_status=mcp_initialization_status,
                     ):
                         if event["type"] == "content_chunk":
                             first_token = telemetry.record_first_token()
@@ -1452,6 +1458,7 @@ async def chat(
                         elif event["type"] == "tool_result":
                             yield f"data: {json.dumps(telemetry.record('tool_end'))}\n\n"
                         if event["type"] == "answer":
+                            agent_answer_received = True
                             model_end = telemetry.record_model_end()
                             if model_end:
                                 yield f"data: {json.dumps(model_end)}\n\n"
@@ -1468,7 +1475,7 @@ async def chat(
                                 if action["action_id"] not in known_action_ids:
                                     agent_steps.append(action)
                             event = {**event, "content": answer, "agent_steps": agent_steps}
-                        elif event["type"] in ("thought", "tool_call", "tool_result"):
+                        elif event["type"] in ("thought", "tool_call", "tool_result", "mcp_preflight"):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
                             agent_edge_pairs.update(_extract_tool_edge_pairs(event))
@@ -1502,6 +1509,8 @@ async def chat(
                             for c in candidate_sources
                         ):
                             candidate_sources.append(s)
+                    if not agent_answer_received:
+                        agent_ran = False
             except InferenceAdmissionTimeout as exc:
                 logger.warning("Chat-Agent wartet vergeblich auf Modellkapazität: %s", exc)
                 yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"

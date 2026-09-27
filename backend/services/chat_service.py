@@ -1004,6 +1004,7 @@ async def stream_agent_events(
     pinned_end_line: Optional[int] = None,
     require_initial_tool_call: bool = False,
     walkthrough_documents: Optional[list[dict[str, Any]]] = None,
+    mcp_initialization_status: Optional[list[dict[str, Any]]] = None,
 ) -> AsyncIterator[dict]:
     """Yield the agent tool-loop events for one chat turn.
 
@@ -1035,6 +1036,7 @@ async def stream_agent_events(
         audit_chat_message_id=user_message_id,
         require_initial_tool_call=require_initial_tool_call,
         walkthrough_documents=walkthrough_documents,
+        mcp_initialization_status=mcp_initialization_status,
     ):
         yield event
 

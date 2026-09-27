@@ -233,14 +233,18 @@ class MCPClient:
 
 
 # Helper to build and run MCP Clients for active knowledge sources
-async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
+async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None) -> List[MCPClient]:
     clients = []
     for src in sources:
-        if not src.token:
-            continue
-
         src_type = src.type.lower() if src.type else ""
+        server_name = f"{src_type}-{src.id}"
+        if not src.token:
+            if status_callback:
+                status_callback({"server": server_name, "available": False, "status": "not_configured"})
+            continue
         if not src.url:
+            if status_callback:
+                status_callback({"server": server_name, "available": False, "status": "not_configured"})
             continue
 
         if src_type == "jira":
@@ -260,7 +264,10 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
                 env=env,
                 source_id=src.id,
             )
-            if await client.start():
+            started = await client.start()
+            if status_callback:
+                status_callback({"server": server_name, "available": bool(started), "status": "connected" if started else "unavailable"})
+            if started:
                 clients.append(client)
 
         elif src_type == "confluence":
@@ -287,7 +294,10 @@ async def init_mcp_clients_for_sources(sources: List[Any]) -> List[MCPClient]:
                 env=env,
                 source_id=src.id,
             )
-            if await client.start():
+            started = await client.start()
+            if status_callback:
+                status_callback({"server": server_name, "available": bool(started), "status": "connected" if started else "unavailable"})
+            if started:
                 clients.append(client)
 
     return clients

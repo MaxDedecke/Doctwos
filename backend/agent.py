@@ -425,6 +425,7 @@ async def run_agent_loop(
     endpoint_path: Optional[str] = None,
     require_initial_tool_call: bool = False,
     walkthrough_documents: Optional[List[Dict[str, Any]]] = None,
+    mcp_initialization_status: Optional[List[Dict[str, Any]]] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -799,15 +800,49 @@ async def run_agent_loop(
     # 2. Gather MCP tools
     mcp_tools_def = []
     mcp_tool_map = {}
+    mcp_preflight_servers = []
     for client in mcp_clients:
         try:
             tools = await client.list_tools()
+            mcp_preflight_servers.append({
+                "server": client.name,
+                "available": True,
+                "tool_count": len(tools),
+                "tools": [tool.get("name") for tool in tools if tool.get("name")],
+            })
             for t in tools:
                 name = t["name"]
                 mcp_tool_map[name] = client
                 mcp_tools_def.append(t)
         except Exception as e:
             logger.error(f"Error listing tools for MCP client {client.name}: {e}")
+            mcp_preflight_servers.append({
+                "server": client.name,
+                "available": False,
+                "tool_count": 0,
+                "tools": [],
+                "error": str(e)[:240],
+            })
+
+    preflight_by_server = {item["server"]: item for item in mcp_preflight_servers}
+    for item in mcp_initialization_status or []:
+        current = preflight_by_server.get(item.get("server"))
+        if current is None or not item.get("available"):
+            preflight_by_server[item.get("server", "unknown")] = {
+                **item,
+                "tool_count": current.get("tool_count", 0) if current else 0,
+                "tools": current.get("tools", []) if current else [],
+            }
+    mcp_preflight_servers = list(preflight_by_server.values())
+    mcp_preflight = {
+        "type": "mcp_preflight",
+        "status": "ready" if any(item.get("available") for item in mcp_preflight_servers)
+        else ("unavailable" if mcp_preflight_servers else "not_configured"),
+        "servers": mcp_preflight_servers,
+        "tool_count": sum(item.get("tool_count", 0) for item in mcp_preflight_servers),
+    }
+    agent_steps.append(mcp_preflight)
+    yield mcp_preflight
 
     all_tools = local_tools_def + mcp_tools_def
 
@@ -934,6 +969,11 @@ async def run_agent_loop(
         return normalized in file_focus_paths
 
     # Local function to execute a tool by name and arguments
+    mcp_execution_metrics: dict[str, dict[str, Any]] = {}
+
+    def _mcp_execution_metadata(tool_call_id: Optional[str]) -> dict[str, Any]:
+        return mcp_execution_metrics.pop(tool_call_id, {}) if tool_call_id else {}
+
     async def execute_tool(name: str, args: dict, tool_call_id: Optional[str] = None) -> str:
         # Check local tools
         if name == "list_repo_files" and repo_available:
@@ -1335,6 +1375,11 @@ async def run_agent_loop(
                 error_message = ex
                 return f"Fehler beim Aufruf des MCP-Tools: {ex}"
             finally:
+                mcp_execution_metrics[tool_call_id or name] = {
+                    "mcp_server": mcp_client.name,
+                    "mcp_status": "success" if success else "error",
+                    "mcp_duration_ms": int((time.perf_counter() - started_at) * 1000),
+                }
                 if audit_user_id is not None:
                     record_mcp_tool_call(
                         db_session,
@@ -1347,7 +1392,7 @@ async def run_agent_loop(
                         tool_name=name,
                         arguments=args,
                         success=success,
-                        duration_ms=int((time.perf_counter() - started_at) * 1000),
+                        duration_ms=mcp_execution_metrics[tool_call_id or name]["mcp_duration_ms"],
                         error_message=error_message,
                     )
 
@@ -1590,6 +1635,7 @@ async def run_agent_loop(
                         }
 
                         tool_res = await execute_tool(fn_name, fn_args, tc_id)
+                        execution_metadata = _mcp_execution_metadata(tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
                         agent_steps.append(
                             {
@@ -1598,6 +1644,7 @@ async def run_agent_loop(
                                 "result": tool_res,
                                 "id": tc_id,
                                 "truncated": truncated,
+                                **execution_metadata,
                             }
                         )
                         yield {
@@ -1606,6 +1653,7 @@ async def run_agent_loop(
                             "result": tool_res,
                             "id": tc_id,
                             "truncated": truncated,
+                            **execution_metadata,
                         }
                         response_input.append(
                             {
@@ -1849,6 +1897,7 @@ async def run_agent_loop(
                         }
 
                         tool_res = await execute_tool(fn_name, fn_args, tc_id)
+                        execution_metadata = _mcp_execution_metadata(tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
@@ -1858,6 +1907,7 @@ async def run_agent_loop(
                                 "result": tool_res,
                                 "id": tc_id,
                                 "truncated": truncated,
+                                **execution_metadata,
                             }
                         )
                         yield {
@@ -1866,6 +1916,7 @@ async def run_agent_loop(
                             "result": tool_res,
                             "id": tc_id,
                             "truncated": truncated,
+                            **execution_metadata,
                         }
 
                         messages.append(
@@ -1993,6 +2044,7 @@ async def run_agent_loop(
 
                         # Execute
                         tool_res = await execute_tool(fn_name, fn_args, tc_id)
+                        execution_metadata = _mcp_execution_metadata(tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
@@ -2002,6 +2054,7 @@ async def run_agent_loop(
                                 "result": tool_res,
                                 "id": tc_id,
                                 "truncated": truncated,
+                                **execution_metadata,
                             }
                         )
                         yield {
@@ -2010,6 +2063,7 @@ async def run_agent_loop(
                             "result": tool_res,
                             "id": tc_id,
                             "truncated": truncated,
+                            **execution_metadata,
                         }
 
                         tool_result_content.append(
@@ -2110,6 +2164,7 @@ async def run_agent_loop(
 
                         # Execute
                         tool_res = await execute_tool(fn_name, fn_args, tc_id)
+                        execution_metadata = _mcp_execution_metadata(tc_id)
                         truncated = _tool_result_was_truncated(tool_res)
 
                         agent_steps.append(
@@ -2119,6 +2174,7 @@ async def run_agent_loop(
                                 "result": tool_res,
                                 "id": tc_id,
                                 "truncated": truncated,
+                                **execution_metadata,
                             }
                         )
                         yield {
@@ -2127,6 +2183,7 @@ async def run_agent_loop(
                             "result": tool_res,
                             "id": tc_id,
                             "truncated": truncated,
+                            **execution_metadata,
                         }
 
                         response_parts.append(
