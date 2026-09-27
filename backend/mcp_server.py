@@ -394,6 +394,13 @@ def get_call_flow(ctx: Context, project_id: int, entity_id: int, hops: int = 2, 
             for edge in result.get("edges", [])
             if edge.get("source") in allowed and (edge.get("target") is None or edge.get("target") in allowed)
         ][:120]
+        truncated = bool(
+            result.get("truncated")
+            or len(result.get("nodes", [])) > 80
+            or len(result.get("edges", [])) > 120
+            or len(result.get("entry_candidates", [])) > 20
+            or len(nodes) < len(candidate_nodes)
+        )
         return {
             "project_id": project_id,
             "status": result.get("status"),
@@ -404,7 +411,17 @@ def get_call_flow(ctx: Context, project_id: int, entity_id: int, hops: int = 2, 
             "entry_candidates": result.get("entry_candidates", [])[:20],
             "nodes": nodes,
             "edges": edges,
-            "truncated": bool(result.get("truncated") or len(result.get("nodes", [])) > 80 or len(result.get("edges", [])) > 120 or len(result.get("entry_candidates", [])) > 20 or len(nodes) < len(candidate_nodes)),
+            "truncated": truncated,
+            "truncation": {
+                "reason": "node_or_edge_limit_or_source_visibility" if truncated else None,
+                "nodes_returned": len(nodes),
+                "nodes_available": len(result.get("nodes", [])),
+                "nodes_omitted": max(0, len(result.get("nodes", [])) - len(nodes)),
+                "edges_returned": len(edges),
+                "edges_available": len(result.get("edges", [])),
+                "edges_omitted": max(0, len(result.get("edges", [])) - len(edges)),
+                "next_cursor": None,
+            },
         }
 
 
@@ -465,6 +482,9 @@ def get_graph_neighbors(ctx: Context, project_id: int, entity_id: int, relations
             if edge.get("source") in allowed_ids and edge.get("target") in allowed_ids
         ]
         edges = edges[:40]
+        truncated = bool(result.get("has_more") or len(result.get("nodes", [])) > 81
+                         or len(result.get("edges", [])) > 40
+                         or len(nodes) < len(result.get("nodes", [])[:81]))
         return {
             "project_id": project_id,
             "relationship": relationship,
@@ -474,7 +494,19 @@ def get_graph_neighbors(ctx: Context, project_id: int, entity_id: int, relations
             "has_more": bool(result.get("has_more")),
             "next_cursor": result.get("next_cursor"),
             "limit_applied": limit,
-            "truncated": bool(result.get("has_more") or len(result.get("nodes", [])) > 81 or len(result.get("edges", [])) > 40 or len(nodes) < len(result.get("nodes", [])[:81])),
+            "truncated": truncated,
+            "truncation": {
+                "reason": "relationship_page_has_more" if result.get("has_more") else (
+                    "response_limit_or_source_visibility" if truncated else None
+                ),
+                "nodes_returned": len(nodes),
+                "nodes_available": len(result.get("nodes", [])),
+                "nodes_omitted": max(0, len(result.get("nodes", [])) - len(nodes)),
+                "edges_returned": len(edges),
+                "edges_available": len(result.get("edges", [])),
+                "edges_omitted": max(0, len(result.get("edges", [])) - len(edges)),
+                "next_cursor": result.get("next_cursor") if result.get("has_more") else None,
+            },
             "notice": "Only indexed and visible relations are shown; unresolved calls may have no graph target.",
         }
 
