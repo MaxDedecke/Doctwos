@@ -43,7 +43,9 @@ CALL_FLOW_EDGE_TYPES = {
     "REFERENCES_RESOURCE",
     "LINKS_TO",
 }
-CALL_EXECUTION_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "CALLS", "EXECUTES", "STARTS_JAVA"}
+CALL_EXECUTION_EDGE_TYPES = {
+    "CALL", "PERFORM", "GOTO", "CALLS", "STARTS_JAVA", "EXECUTES_SCRIPT"
+}
 CALL_DEPENDENCY_EDGE_TYPES = CALL_FLOW_EDGE_TYPES - CALL_EXECUTION_EDGE_TYPES
 CALL_FLOW_EDGE_PRIORITY = {
     "CALL": 0,
@@ -244,14 +246,24 @@ def trace_call_flow(
         if direction in {"incoming", "both"}:
             predicates.append(CodeEdge.dst_entity_id.in_(frontier))
         remaining_edges = CALL_FLOW_MAX_EDGES - len(edge_rows)
-        edge_types = {
-            "execution": CALL_EXECUTION_EDGE_TYPES,
-            "dependencies": CALL_DEPENDENCY_EDGE_TYPES,
-            "all": CALL_FLOW_EDGE_TYPES,
-        }[scope]
+        if scope == "execution":
+            edge_filter = or_(
+                CodeEdge.type.in_(CALL_EXECUTION_EDGE_TYPES),
+                (CodeEdge.type == "EXECUTES")
+                & (CodeEdge.meta_json["language"].as_string() == "jcl"),
+            )
+        elif scope == "dependencies":
+            language = CodeEdge.meta_json["language"].as_string()
+            edge_filter = or_(
+                CodeEdge.type.in_(CALL_DEPENDENCY_EDGE_TYPES - {"EXECUTES"}),
+                (CodeEdge.type == "EXECUTES")
+                & or_(language.is_(None), language != "jcl"),
+            )
+        else:
+            edge_filter = CodeEdge.type.in_(CALL_FLOW_EDGE_TYPES)
         query = db.query(CodeEdge).filter(
             CodeEdge.project_id == project_id,
-            CodeEdge.type.in_(edge_types),
+            edge_filter,
             or_(*predicates),
         )
         if edge_rows:

@@ -186,6 +186,52 @@ def test_resource_flow_preserves_types_evidence_and_open_targets(
         db_session.commit()
 
 
+def test_execute_edges_are_classified_by_language_metadata(db_session, test_project):
+    step = CodeEntity(
+        project_id=test_project, name="STEP1", type="jcl_step", file_path="JOB.jcl"
+    )
+    jcl_target = CodeEntity(
+        project_id=test_project, name="PROGRAM1", type="program", file_path="PROGRAM1.cbl"
+    )
+    cobol_operation = CodeEntity(
+        project_id=test_project, name="EXEC-SQL", type="exec_operation", file_path="PROGRAM1.cbl"
+    )
+    db_session.add_all([step, jcl_target, cobol_operation])
+    db_session.flush()
+    edges = [
+        CodeEdge(
+            project_id=test_project, src_entity_id=step.id, dst_entity_id=jcl_target.id,
+            dst_name="PROGRAM1", type="EXECUTES", resolution="resolved",
+            meta_json={"language": "jcl"},
+        ),
+        CodeEdge(
+            project_id=test_project, src_entity_id=step.id, dst_entity_id=cobol_operation.id,
+            dst_name="EXEC-SQL", type="EXECUTES", resolution="resolved",
+            meta_json={"language": "cobol"},
+        ),
+    ]
+    db_session.add_all(edges)
+    db_session.commit()
+    try:
+        execution = trace_call_flow(
+            db_session, project_id=test_project, entity_id=step.id, scope="execution"
+        )
+        dependencies = trace_call_flow(
+            db_session, project_id=test_project, entity_id=step.id, scope="dependencies"
+        )
+        assert [edge["target"] for edge in execution["edges"]] == [jcl_target.id]
+        assert [edge["target"] for edge in dependencies["edges"]] == [cobol_operation.id]
+    finally:
+        db_session.query(CodeEdge).filter(CodeEdge.id.in_([edge.id for edge in edges])).delete(
+            synchronize_session=False
+        )
+        db_session.query(CodeEntity).filter(
+            CodeEntity.project_id == test_project,
+            CodeEntity.id.in_([step.id, jcl_target.id, cobol_operation.id]),
+        ).delete(synchronize_session=False)
+        db_session.commit()
+
+
 @pytest.mark.parametrize("mode", ["main", "single", "ambiguous", "empty", "incoming"])
 def test_java_class_entry_selection(db_session, test_project, test_team, mode):
     source = KnowledgeSource(
