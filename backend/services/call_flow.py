@@ -11,7 +11,7 @@ from __future__ import annotations
 from html import escape
 from typing import Literal
 
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from models.database import CodeEdge, CodeEntity
@@ -45,6 +45,16 @@ CALL_FLOW_EDGE_TYPES = {
 }
 CALL_EXECUTION_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "CALLS", "EXECUTES", "STARTS_JAVA"}
 CALL_DEPENDENCY_EDGE_TYPES = CALL_FLOW_EDGE_TYPES - CALL_EXECUTION_EDGE_TYPES
+CALL_FLOW_EDGE_PRIORITY = {
+    "CALL": 0,
+    "PERFORM": 0,
+    "CALLS": 0,
+    "EXECUTES": 0,
+    "STARTS_JAVA": 0,
+    "GOTO": 1,
+    "READS": 1,
+    "WRITES": 1,
+}
 CallFlowDirection = Literal["outgoing", "incoming", "both"]
 CallFlowScope = Literal["execution", "dependencies", "all"]
 
@@ -246,7 +256,20 @@ def trace_call_flow(
         )
         if edge_rows:
             query = query.filter(CodeEdge.id.notin_(edge_rows))
-        rows = query.order_by(CodeEdge.id).limit(remaining_edges + 1).all()
+        edge_priority = case(
+            *[
+                (CodeEdge.type == edge_type, priority)
+                for edge_type, priority in CALL_FLOW_EDGE_PRIORITY.items()
+            ],
+            else_=2,
+        )
+        resolution_priority = case((CodeEdge.resolution == "resolved", 0), else_=1)
+        rows = query.order_by(
+            edge_priority,
+            resolution_priority,
+            CodeEdge.src_start_line,
+            CodeEdge.id,
+        ).limit(remaining_edges + 1).all()
         if len(rows) > remaining_edges:
             truncated = True
             rows = rows[:remaining_edges]
