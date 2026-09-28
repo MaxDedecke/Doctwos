@@ -257,6 +257,16 @@ async def test_is_gpu_accelerated_true_when_size_vram_positive(monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_is_gpu_accelerated_matches_implicit_latest_tag(monkeypatch):
+    fake_client = _fake_ps_client(
+        {"models": [{"model": "bge-m3:latest", "size_vram": 664000265}]}
+    )
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    assert await ollama_client.is_gpu_accelerated("bge-m3") is True
+
+
+@pytest.mark.anyio
 async def test_is_gpu_accelerated_false_when_size_vram_zero(monkeypatch):
     """size_vram == 0 heißt CPU-only -- Aufrufer muss drosseln (O-071)."""
     fake_client = _fake_ps_client({"models": [{"model": "bge-m3", "size_vram": 0}]})

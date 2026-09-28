@@ -223,6 +223,7 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         )
         assert target_hit["node_meta"]["source_id"] == source.id
         assert target_hit["node_meta"]["file_path"] == "TARGET.CBL"
+
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

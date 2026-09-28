@@ -463,7 +463,9 @@ def _analysis_dependency_paths(db, source_id: int) -> dict[str, set[str]]:
     return dependencies
 
 
-def _java_module_metadata_paths(path: str, current_paths: set[str]) -> set[str]:
+def _java_module_metadata_paths(
+    path: str, current_paths: set[str], module_info_paths: tuple[str, ...] | None = None
+) -> set[str]:
     """Find checked-in build/module descriptors affecting a Java source file.
 
     This is intentionally path-based and conservative: Doctus does not run a
@@ -485,9 +487,11 @@ def _java_module_metadata_paths(path: str, current_paths: set[str]) -> set[str]:
             if candidate in current_paths:
                 dependencies.add(candidate)
 
-    for candidate in current_paths:
-        if not candidate.endswith("/module-info.java"):
-            continue
+    if module_info_paths is None:
+        module_info_paths = tuple(
+            candidate for candidate in current_paths if candidate.endswith("/module-info.java")
+        )
+    for candidate in module_info_paths:
         if not module_root or candidate.startswith(module_root + "/"):
             dependencies.add(candidate)
     return dependencies
@@ -1151,13 +1155,18 @@ class GitConnector(BaseConnector):
         excluded_fingerprints: dict[str, tuple[str, str, str]] = {}
         self._profiles_by_path.clear()
         fingerprint_inputs: dict[str, dict[str, Any]] = {}
+        module_info_paths = tuple(
+            path for path in current_hashes if path.endswith("/module-info.java")
+        )
         for path, blob_sha in sorted(current_hashes.items()):
             language = classify_extension(path, extensions)
             profile = profiles_by_path.get(path)
             parser_entry = STRUCTURE_PARSERS.get(language)
             dependencies = {
                 f"module:{dependency}": current_hashes[dependency]
-                for dependency in _java_module_metadata_paths(path, current_hashes)
+                for dependency in _java_module_metadata_paths(
+                    path, current_hashes, module_info_paths
+                )
             }
             fingerprint_inputs[path] = {
                 "source_revision": blob_sha,
@@ -1186,6 +1195,8 @@ class GitConnector(BaseConnector):
             path: analysis_fingerprint(**inputs) for path, inputs in fingerprint_inputs.items()
         }
 
+        fingerprint_cache: dict[str, str] = {}
+
         def expected_fingerprint(path: str, stack: frozenset[str] = frozenset()) -> str:
             """Build the current fingerprint including persisted dependencies."""
             inputs = fingerprint_inputs.get(path)
@@ -1197,6 +1208,8 @@ class GitConnector(BaseConnector):
                 # the cycle finite while direct content/model/parser changes
                 # still invalidate every member of the cycle.
                 return base_fingerprints[path]
+            if path in fingerprint_cache:
+                return fingerprint_cache[path]
             dependencies = dict(inputs.get("dependencies") or {})
             for dependency in sorted(analysis_dependencies.get(path, ())):
                 dependencies[f"source:{dependency}:content_hash"] = current_hashes.get(
@@ -1205,7 +1218,9 @@ class GitConnector(BaseConnector):
                 dependencies[f"source:{dependency}:analysis_fingerprint"] = expected_fingerprint(
                     dependency, stack | {path}
                 )
-            return analysis_fingerprint(**{**inputs, "dependencies": dependencies})
+            result = analysis_fingerprint(**{**inputs, "dependencies": dependencies})
+            fingerprint_cache[path] = result
+            return result
 
         for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)

@@ -487,8 +487,13 @@ async def is_gpu_accelerated(model: str) -> bool:
         )
         response = await client.get(f"{settings['base_url']}/api/ps", timeout=10.0)
         response.raise_for_status()
+        # Ollama reports an implicit :latest tag even when callers use the
+        # untagged model name (for example bge-m3 -> bge-m3:latest).
+        model_names = {model}
+        if ":" not in model:
+            model_names.add(f"{model}:latest")
         for entry in response.json().get("models", []):
-            if entry.get("model") == model or entry.get("name") == model:
+            if entry.get("model") in model_names or entry.get("name") in model_names:
                 return entry.get("size_vram", 0) > 0
     except (httpx.HTTPError, httpx.RequestError, ValueError, KeyError, TypeError) as e:
         logger.warning(

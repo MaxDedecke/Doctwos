@@ -1435,9 +1435,25 @@ async def run_agent_loop(
                 f"{name}.cbl"
                 for name in re.findall(r"\b([A-Z][A-Z0-9]{3,})\.(?:MAIN-PARA|[A-Z0-9-]+)\b", question_text)
             )
+            # COBOL questions often mention only the PROGRAM-ID. Resolve a
+            # matching tracked source file before falling back to unrelated
+            # first-page entities from the same project.
+            explicit_files.extend(
+                f"{name}.cbl"
+                for name in re.findall(r"\b([A-Z][A-Z0-9]{5,})\b", question_text)
+            )
+            available_paths = _repository_file_paths(repo_id)
             candidates: list[str] = []
             for requested in explicit_files:
-                candidates.extend(find_repo_files(repo_id, requested))
+                requested = requested.replace("\\", "/").lstrip("./").lower()
+                basename = os.path.basename(requested)
+                candidates.extend(
+                    [
+                        path for path in available_paths
+                        if os.path.basename(path).lower() == basename
+                        and ("/" not in requested or path.lower().endswith(requested))
+                    ][:40]
+                )
             # Preserve prompt order and avoid duplicate paths.
             candidates = list(dict.fromkeys(candidates))
             if candidates:
@@ -1459,6 +1475,12 @@ async def run_agent_loop(
                     explicit_entity_names.extend(
                         part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)
                     )
+                for owner, member in re.findall(
+                    r"\b([A-Z][A-Z0-9]{3,}|[A-Za-z][A-Za-z0-9]*Impl)\.([A-Za-z][A-Za-z0-9-]*)\b",
+                    question_text,
+                ):
+                    if member.lower() not in {"cbl", "java", "cpy", "xsl", "xml", "jcl"}:
+                        explicit_entity_names.extend((owner, member))
                 explicit_entity_names = list(dict.fromkeys(explicit_entity_names))
                 # If the question contains a module/path hint, prefer the
                 # candidate matching that hint; otherwise a unique basename is
@@ -1476,7 +1498,11 @@ async def run_agent_loop(
                     }
                     bootstrap_name = "get_repo_entities"
                 else:
-                    bootstrap_args = {"file_path": selected, "start_line": 1, "end_line": 150}
+                    # COBOL declarations and COPY statements commonly span
+                    # the DATA DIVISION before the first paragraph. Include
+                    # that bounded region in the initial evidence window.
+                    end_line = 300 if selected.lower().endswith(".cbl") else 150
+                    bootstrap_args = {"file_path": selected, "start_line": 1, "end_line": end_line}
                     bootstrap_name = "view_repo_file"
             else:
                 bootstrap_args = {"limit": 20}
