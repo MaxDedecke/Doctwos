@@ -158,3 +158,26 @@ class Client {
     assert edge.meta["target_qualified_name"] == "demo.Service#run()"
     local = next(e for e in result.entities if e.type == "local_variable")
     assert local.meta["inferred_type"] == "Service"
+
+
+def test_chained_call_receivers_resolve_from_declared_method_return_types():
+    result = parse_java_file(
+        """package demo;
+class Policy { boolean enabled() { return true; } }
+class Resource { Policy getPolicy() { return new Policy(); } }
+class Client {
+    Resource getResource() { return new Resource(); }
+    void run(Client client) { client.getResource().getPolicy().enabled(); }
+}
+""",
+        "Client.java",
+    )
+
+    resolve_global_edges([result])
+    calls = [edge for edge in result.edges if edge.type == "CALLS"]
+    by_name = {edge.meta["method_name"]: edge for edge in calls}
+    assert by_name["getResource"].resolution == "resolved"
+    assert by_name["getPolicy"].resolution == "resolved"
+    assert by_name["enabled"].resolution == "resolved"
+    assert by_name["enabled"].meta["target_qualified_name"] == "demo.Policy#enabled()"
+    assert by_name["enabled"].meta["resolution_reason"] == "resolved_method_return_type"

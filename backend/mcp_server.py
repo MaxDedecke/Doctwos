@@ -429,7 +429,28 @@ def get_call_flow(
                 nodes.append(node)
         allowed = {node["id"] for node in nodes}
         edges = [
-            {key: edge.get(key) for key in ("id", "source", "target", "target_name", "type", "resolution", "start_line", "end_line")}
+            {
+                **{
+                    key: edge.get(key)
+                    for key in ("id", "source", "target", "target_name", "type", "resolution", "start_line", "end_line")
+                },
+                "resolution_evidence": {
+                    key: (edge.get("meta") or {})[key]
+                    for key in (
+                        "target_qualified_name",
+                        "target_file_path",
+                        "resolution_reason",
+                        "resolution_scope",
+                        "receiver",
+                        "receiver_resolution",
+                        "receiver_symbol_qualified_name",
+                        "receiver_type_qualified_name",
+                        "receiver_method_qualified_name",
+                        "dispatch_scope",
+                    )
+                    if key in (edge.get("meta") or {})
+                },
+            }
             for edge in result.get("edges", [])
             if edge.get("source") in allowed and (edge.get("target") is None or edge.get("target") in allowed)
         ][:120]

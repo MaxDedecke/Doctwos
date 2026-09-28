@@ -519,6 +519,7 @@ def _receiver_type_candidates(
     variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
     hierarchy: dict[str, list[str]],
     result_by_type: dict[str, ParseResult],
+    methods_by_qname: dict[str, list[Entity]],
 ) -> tuple[list[Entity], str | None]:
     """Infer a method receiver's declared type from source-backed symbols."""
     receiver = (edge.meta or {}).get("receiver")
@@ -545,9 +546,55 @@ def _receiver_type_candidates(
             types_by_name=types_by_name,
         )
 
+    # A nested method invocation has its own CALLS edge. When that edge has
+    # already resolved, its declared return type is source-backed evidence for
+    # the outer receiver. Keep ambiguous overloads and external return types
+    # unresolved.
+    if "(" in receiver_name and ")" in receiver_name:
+        source_method = _source_method(edge)
+        receiver_symbol = re.sub(r"\([^()]*\)", "", receiver_name)
+        matching_calls = [
+            candidate
+            for candidate in result.edges
+            if candidate.type == "CALLS"
+            and re.sub(r"\([^()]*\)", "", candidate.dst_name) == receiver_symbol
+            and candidate.resolution == "resolved"
+            and _source_method(candidate) == source_method
+            and (candidate.src_start_line or 0) <= (edge.src_start_line or 0)
+        ]
+        targets = {
+            (candidate.meta or {}).get("target_qualified_name")
+            for candidate in matching_calls
+        }
+        targets.discard(None)
+        declarations = [
+            method
+            for target in targets
+            for method in methods_by_qname.get(target, [])
+        ]
+        return_types = {
+            (method.meta or {}).get("return_type")
+            for method in declarations
+            if (method.meta or {}).get("return_type")
+        }
+        if len(return_types) == 1:
+            return_type = next(iter(return_types))
+            method_owner = declarations[0].parent_qualified_name
+            owner_result = result_by_type.get(method_owner or "", result)
+            candidates, reason = _global_type_candidates(
+                return_type,
+                result=owner_result,
+                source_owner=method_owner,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
+            )
+            if candidates:
+                edge.meta["receiver_resolution"] = "resolved_method_return_type"
+                edge.meta["receiver_method_qualified_name"] = next(iter(targets))
+            return candidates, "resolved_method_return_type" if candidates else reason
+
     # ``this.field`` and a one-level ``variable.field`` are the only dotted
-    # receivers inferred here.  Chained expressions need data-flow/type
-    # information that the parser does not have and remain unresolved.
+    # field receivers inferred here. Arbitrary property chains stay open.
     declaration_receiver = receiver_name
     if "." in receiver_name and not receiver_name.startswith(("this.", "super.")):
         first, remainder = receiver_name.split(".", 1)
@@ -563,6 +610,7 @@ def _receiver_type_candidates(
                 variables_by_parent_and_name=variables_by_parent_and_name,
                 hierarchy=hierarchy,
                 result_by_type=result_by_type,
+                methods_by_qname=methods_by_qname,
             )
             if first in {"this", "super"}
             else ([], None)
@@ -586,6 +634,7 @@ def _receiver_type_candidates(
                 variables_by_parent_and_name=variables_by_parent_and_name,
                 hierarchy=hierarchy,
                 result_by_type=result_by_type,
+                methods_by_qname=methods_by_qname,
             )
         if len(base_candidates) != 1:
             return [], base_reason
@@ -684,6 +733,7 @@ def _global_method_candidates(
     fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
     variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
     hierarchy: dict[str, list[str]],
+    methods_by_qname: dict[str, list[Entity]],
 ) -> tuple[list[Entity], str | None]:
     meta = edge.meta or {}
     method_name = meta.get("method_name", edge.dst_name.rsplit(".", 1)[-1])
@@ -768,6 +818,7 @@ def _global_method_candidates(
             variables_by_parent_and_name=variables_by_parent_and_name,
             hierarchy=hierarchy,
             result_by_type=result_by_type,
+            methods_by_qname=methods_by_qname,
         )
 
     if receiver not in {None, "this", "super"} and len(owner_candidates) == 1:
@@ -837,10 +888,13 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
         types_by_name.setdefault(entity.name, []).append(entity)
 
     methods_by_owner_and_name: dict[tuple[str, str], list[Entity]] = {}
+    methods_by_qname: dict[str, list[Entity]] = {}
     fields_by_owner_and_name: dict[tuple[str, str], list[Entity]] = {}
     variables_by_parent_and_name: dict[tuple[str, str], list[Entity]] = {}
     for entity in entities:
         if entity.type == "method" and entity.parent_qualified_name:
+            if entity.qualified_name:
+                methods_by_qname.setdefault(entity.qualified_name, []).append(entity)
             methods_by_owner_and_name.setdefault(
                 (entity.parent_qualified_name, entity.name), []
             ).append(entity)
@@ -866,7 +920,16 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
 
     resolved = 0
     for result in java_results:
-        for edge in result.edges:
+        ordered_edges = sorted(
+            result.edges,
+            key=lambda edge: (
+                edge.src_start_line or 0,
+                len((edge.meta or {}).get("receiver") or "")
+                if edge.type == "CALLS"
+                else -1,
+            ),
+        )
+        for edge in ordered_edges:
             if edge.resolution != "unresolved" or edge.type not in _LOCAL_EDGE_TYPES:
                 continue
             meta = edge.meta or {}
@@ -914,6 +977,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     fields_by_owner_and_name=fields_by_owner_and_name,
                     variables_by_parent_and_name=variables_by_parent_and_name,
                     hierarchy=hierarchy,
+                    methods_by_qname=methods_by_qname,
                 )
                 target = _resolve_overload(edge, candidates)
                 if target is not None:
