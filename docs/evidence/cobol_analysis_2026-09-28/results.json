@@ -1,0 +1,907 @@
+[
+  {
+    "case": "data",
+    "entities": [
+      {
+        "name": "STATE-CODE",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "9",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 5,
+              "end_line": 5
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "ACCEPTED",
+        "type": "data_item",
+        "meta": {
+          "level": 88,
+          "picture": null,
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": "1",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 6,
+              "end_line": 6
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "PACKED-AMOUNT",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "S9(7)V99",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 7,
+              "end_line": 7
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "GROUP-AREA",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": null,
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 8,
+              "end_line": 8
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "FIRST-PART",
+        "type": "data_item",
+        "meta": {
+          "level": 5,
+          "picture": "X",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 9,
+              "end_line": 9
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "LAST-PART",
+        "type": "data_item",
+        "meta": {
+          "level": 5,
+          "picture": "X",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 10,
+              "end_line": 10
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "BOTH-PARTS",
+        "type": "data_item",
+        "meta": {
+          "level": 66,
+          "picture": null,
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "data.cbl",
+              "start_line": 11,
+              "end_line": 11
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      }
+    ],
+    "edges": [],
+    "errors": [],
+    "diagnostics": []
+  },
+  {
+    "case": "control",
+    "entities": [
+      {
+        "name": "TIMES-N",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "9",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": "3",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 5,
+              "end_line": 5
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "type": "PERFORM",
+        "source": "MAIN-PARA",
+        "target": "TIMES-N",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 8,
+              "end_line": 15
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "GOTO",
+        "source": "MAIN-PARA",
+        "target": "DONE-PARA",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 12,
+              "end_line": 15
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "GOTO",
+        "source": "MAIN-PARA",
+        "target": "ELSE",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 12,
+              "end_line": 15
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "GOTO",
+        "source": "MAIN-PARA",
+        "target": "DISPLAY",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 12,
+              "end_line": 15
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "TIMES-N",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 8,
+              "end_line": 8
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "TIMES-N",
+        "meta": {
+          "program": "AUDITCONTROL",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "control.cbl",
+              "start_line": 11,
+              "end_line": 11
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      }
+    ],
+    "errors": [],
+    "diagnostics": []
+  },
+  {
+    "case": "io",
+    "entities": [
+      {
+        "name": "IN-FILE",
+        "type": "file_fd",
+        "meta": {
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 10,
+              "end_line": 10
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "OUT-FILE",
+        "type": "file_fd",
+        "meta": {
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 12,
+              "end_line": 12
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "IN-REC",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "X(10)",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 11,
+              "end_line": 11
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "OUT-REC",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "X(10)",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 13,
+              "end_line": 13
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "name": "BUFFER-DATA",
+        "type": "data_item",
+        "meta": {
+          "level": 1,
+          "picture": "X(10)",
+          "redefines": null,
+          "occurs": null,
+          "occurs_depending_on": null,
+          "value": null,
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 15,
+              "end_line": 15
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "type": "DEFINES",
+        "source": "IN-FILE",
+        "target": "IN-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "relationship": "file_record_layout",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 11,
+              "end_line": 11
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "DEFINES",
+        "source": "OUT-FILE",
+        "target": "OUT-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "relationship": "file_record_layout",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 13,
+              "end_line": 13
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "WRITES",
+        "source": "MAIN-PARA",
+        "target": "OUT-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "operation": "WRITE",
+          "access": "WRITES",
+          "io_target_kind": "record",
+          "target_qualified_name": "AUDITIO.OUT-FILE.OUT-REC",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 18,
+              "end_line": 18
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "READS",
+        "source": "MAIN-PARA",
+        "target": "BUFFER-DATA",
+        "meta": {
+          "program": "AUDITIO",
+          "operation": "WRITE",
+          "access": "READS",
+          "target_qualified_name": "AUDITIO.BUFFER-DATA",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 18,
+              "end_line": 19
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "WRITES",
+        "source": "MAIN-PARA",
+        "target": "OUT-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "operation": "WRITE",
+          "access": "WRITES",
+          "io_target_kind": "record",
+          "target_qualified_name": "AUDITIO.OUT-FILE.OUT-REC",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 19,
+              "end_line": 19
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "READS",
+        "source": "MAIN-PARA",
+        "target": "BUFFER-DATA",
+        "meta": {
+          "program": "AUDITIO",
+          "operation": "WRITE",
+          "access": "READS",
+          "target_qualified_name": "AUDITIO.BUFFER-DATA",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 19,
+              "end_line": 19
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "IN-FILE",
+        "meta": {
+          "program": "AUDITIO",
+          "operation": "CLOSE",
+          "access": "USES",
+          "io_target_kind": "file_fd",
+          "target_qualified_name": "AUDITIO.IN-FILE",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 20,
+              "end_line": 20
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "OUT-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "parent": "OUT-FILE",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 18,
+              "end_line": 18
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "OUT-REC",
+        "meta": {
+          "program": "AUDITIO",
+          "parent": "OUT-FILE",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 19,
+              "end_line": 19
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      },
+      {
+        "type": "USES",
+        "source": "MAIN-PARA",
+        "target": "BUFFER-DATA",
+        "meta": {
+          "program": "AUDITIO",
+          "evidence": {
+            "schema_version": 1,
+            "kind": "source",
+            "source": {
+              "file_path": "io.cbl",
+              "start_line": 19,
+              "end_line": 19
+            },
+            "variant": {
+              "key": "profile:01c199ff7f098e08",
+              "compiler_family": null,
+              "compiler_version": null,
+              "source_format": "free",
+              "resolved_from": {}
+            },
+            "condition": null
+          }
+        }
+      }
+    ],
+    "errors": [],
+    "diagnostics": []
+  },
+  {
+    "sql": "SELECT AMOUNT INTO :RESULT-VALUE FROM BANK.ACCOUNTS WHERE ID = :LOOKUP-ID",
+    "tables": [
+      "BANK"
+    ],
+    "edges": [
+      [
+        "WRITES",
+        "RESULT-VALUE"
+      ],
+      [
+        "WRITES",
+        "LOOKUP-ID"
+      ],
+      [
+        "READS",
+        "BANK"
+      ]
+    ]
+  },
+  {
+    "sql": "SELECT NAME FROM ACCOUNTS WHERE NOTE = 'JOIN FAKE-TABLE'",
+    "tables": [
+      "ACCOUNTS",
+      "FAKE-TABLE"
+    ],
+    "edges": [
+      [
+        "READS",
+        "ACCOUNTS"
+      ],
+      [
+        "READS",
+        "FAKE-TABLE"
+      ]
+    ]
+  },
+  {
+    "sql": "INSERT INTO TARGET-TABLE SELECT VALUE FROM SOURCE-TABLE",
+    "tables": [
+      "TARGET-TABLE",
+      "SOURCE-TABLE"
+    ],
+    "edges": [
+      [
+        "WRITES",
+        "TARGET-TABLE"
+      ],
+      [
+        "WRITES",
+        "SOURCE-TABLE"
+      ]
+    ]
+  },
+  {
+    "exec": "EXEC CICS READ FILE('ACCT') INTO(ACCOUNT-REC) RESP(RESP-CODE) END-EXEC",
+    "resources": [
+      [
+        "FILE",
+        "ACCT"
+      ]
+    ],
+    "edges": [
+      [
+        "EXECUTES",
+        "READ"
+      ],
+      [
+        "USES",
+        "ACCT"
+      ]
+    ]
+  },
+  {
+    "exec": "EXEC DLI ISRT SEGMENT(PAUTDTL1) FROM(PENDING-AUTH-DETAILS) END-EXEC",
+    "resources": [
+      [
+        "SEGMENT",
+        "PAUTDTL1"
+      ]
+    ],
+    "edges": [
+      [
+        "EXECUTES",
+        "ISRT"
+      ],
+      [
+        "USES",
+        "PAUTDTL1"
+      ]
+    ]
+  }
+]
