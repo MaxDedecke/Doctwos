@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from contextlib import contextmanager
+from typing import Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -426,8 +427,19 @@ def get_call_flow(ctx: Context, project_id: int, entity_id: int, hops: int = 2, 
 
 
 @mcp.tool(annotations=READ_ONLY)
-def get_graph_neighbors(ctx: Context, project_id: int, entity_id: int, relationship: str = "code_dependency", limit: int = 25, cursor: str | None = None) -> dict:
-    """Read one relationship class around a code entity; page with next_cursor."""
+def get_graph_neighbors(
+    ctx: Context,
+    project_id: int,
+    entity_id: int,
+    relationship: Literal["code_dependency", "documented", "manual"] = "code_dependency",
+    limit: int = 25,
+    cursor: str | None = None,
+) -> dict:
+    """Read one graph relationship class around an entity and page with next_cursor.
+
+    ``relationship`` selects ``code_dependency``, ``documented``, or ``manual``;
+    call-graph edge types such as ``PERFORM`` are not relationship filters.
+    """
     limit = max(1, min(limit, 40))
     audited_relationship = relationship if relationship in {"code_dependency", "documented", "manual"} else "invalid"
     with _tool_context(ctx, "get_graph_neighbors", project_id, {"entity_id": entity_id, "limit": limit, "relationship": audited_relationship}) as (db, user):
