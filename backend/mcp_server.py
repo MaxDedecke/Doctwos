@@ -27,7 +27,7 @@ from core.projects import (
     get_visible_projects_page,
 )
 from core.teams import get_visible_team_ids
-from models.database import CodeEntity, DocumentChunk, EmbeddingProfile, KnowledgeSource, Project, User
+from models.database import CodeEdge, CodeEntity, DocumentChunk, EmbeddingProfile, KnowledgeSource, Project, User
 from services.call_flow import trace_call_flow
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
@@ -389,6 +389,84 @@ def get_code_entity(ctx: Context, project_id: int, entity_id: int) -> dict:
                 "content": excerpt,
                 "truncated": clipped,
             } if definition else None,
+        }
+
+
+@mcp.tool(annotations=READ_ONLY)
+def trace_data_access(ctx: Context, project_id: int, entity_id: int, limit: int = 12) -> dict:
+    """List indexed READS/WRITES for a data entity or routine with source evidence.
+
+    Results are ordered by source line. They describe indexed references, not
+    a complete path-sensitive runtime data flow; a missing edge is not proof
+    that the source never accesses the data.
+    """
+    limit = max(1, min(limit, 20))
+    with _tool_context(ctx, "trace_data_access", project_id, {"entity_id": entity_id, "limit": limit}) as (db, user):
+        entity = _entity(db, user, project_id, entity_id)
+        access_query = db.query(CodeEdge).filter(
+            CodeEdge.project_id == project_id,
+            CodeEdge.type.in_(["READS", "WRITES"]),
+        )
+        if entity.type in {"data_item", "sql_table", "file_fd", "record"}:
+            access_query = access_query.filter(CodeEdge.dst_entity_id == entity_id)
+        else:
+            access_query = access_query.filter(CodeEdge.src_entity_id == entity_id)
+        rows = access_query.order_by(CodeEdge.src_start_line, CodeEdge.id).limit(limit + 1).all()
+        accesses = []
+        for edge in rows[:limit]:
+            routine_id = edge.src_entity_id
+            routine = db.query(CodeEntity).filter(
+                CodeEntity.id == routine_id, CodeEntity.project_id == project_id
+            ).first()
+            if routine is None or not _source_visible(db, user, routine.source_id):
+                continue
+            line = edge.src_start_line
+            chunk_query = db.query(DocumentChunk).filter(
+                DocumentChunk.project_id == project_id,
+                DocumentChunk.source_id == routine.source_id,
+                DocumentChunk.file_path == routine.file_path,
+            )
+            if line is not None:
+                chunk_query = chunk_query.filter(
+                    DocumentChunk.start_line <= line,
+                    DocumentChunk.end_line >= line,
+                )
+            chunk = chunk_query.order_by(DocumentChunk.start_line, DocumentChunk.id).first()
+            excerpt = None
+            if chunk is not None:
+                content, clipped = _bounded(chunk.content, 1200)
+                excerpt = {
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "content": content,
+                    "truncated": clipped,
+                }
+            meta = edge.meta_json or {}
+            accesses.append({
+                "edge_id": edge.id,
+                "access": edge.type,
+                "resolution": edge.resolution,
+                "operation": meta.get("operation"),
+                "line": line,
+                "end_line": edge.src_end_line,
+                "routine": {
+                    "id": routine.id,
+                    "name": routine.name,
+                    "qualified_name": routine.qualified_name,
+                    "file_path": routine.file_path,
+                },
+                "target_name": edge.dst_name,
+                "target_qualified_name": meta.get("target_qualified_name"),
+                "source_excerpt": excerpt,
+            })
+        truncated = len(rows) > limit or len(accesses) < min(len(rows), limit)
+        return {
+            "project_id": project_id,
+            "entity": {"id": entity.id, "name": entity.name, "type": entity.type},
+            "accesses": accesses,
+            "accesses_returned": len(accesses),
+            "truncated": truncated,
+            "notice": "Indexierte READS/WRITES in Quellreihenfolge; kein vollständiger Kontrollfluss- oder Laufzeitbeweis.",
         }
 
 
