@@ -229,7 +229,13 @@ def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dic
 
 
 @mcp.tool(annotations=READ_ONLY)
-def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> dict:
+def search_code(
+    ctx: Context,
+    project_id: int,
+    query: str,
+    limit: int = 10,
+    include_source: bool = True,
+) -> dict:
     """Find indexed code entities by symbol, qualified name, or file path in one project.
 
     Separate alternatives with ``|``. Optional declaration prefixes such as
@@ -237,7 +243,7 @@ def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> d
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
-    with _tool_context(ctx, "search_code", project_id, {"limit": limit}) as (db, user):
+    with _tool_context(ctx, "search_code", project_id, {"limit": limit, "include_source": include_source}) as (db, user):
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
@@ -262,12 +268,12 @@ def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> d
                     seen_ids.add(hit["node_id"])
                     hits.append(hit)
         visible = []
-        for hit in hits:
+        for hit in hits[:limit]:
             try:
                 entity = _entity(db, user, project_id, hit["node_id"])
             except HTTPException:
                 continue
-            visible.append({
+            item = {
                 "id": entity.id,
                 "project_id": entity.project_id,
                 "source_id": entity.source_id,
@@ -278,7 +284,23 @@ def search_code(ctx: Context, project_id: int, query: str, limit: int = 10) -> d
                 "file_path": entity.file_path,
                 "start_line": entity.start_line,
                 "end_line": entity.end_line,
-            })
+            }
+            # Give the best few symbol matches enough original source to cite
+            # without making every result a full-file response.
+            if include_source and len(visible) < 3:
+                result = entity_api.get_entity(
+                    entity_id=entity.id, project_id=project_id, db=db, user=user
+                )
+                definition = result.get("definition")
+                if definition:
+                    excerpt, clipped = _bounded(definition.get("content"), 1600)
+                    item["source_excerpt"] = {
+                        "start_line": definition["start_line"],
+                        "end_line": definition["end_line"],
+                        "content": excerpt,
+                        "truncated": clipped,
+                    }
+            visible.append(item)
         return {"results": visible[:limit], "truncated": len(hits) > limit or len(visible) < len(hits), "limit_applied": limit}
 
 
