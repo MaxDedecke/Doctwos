@@ -176,6 +176,28 @@ def test_search_code_denies_a_project_the_mcp_user_cannot_open(
         mcp_server.search_code(_context(outsider.id), project_id=project_id, query="CARDDEMO")
 
 
+@pytest.mark.parametrize("direction", ["outgoing", "incoming", "both"])
+def test_get_call_flow_accepts_documented_directions(
+    db_session, mcp_project_context, monkeypatch, direction
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    calls = {}
+    monkeypatch.setattr(mcp_server, "_entity", lambda *_args: None)
+
+    def fake_trace(_db, **kwargs):
+        calls.update(kwargs)
+        return {"status": "ok", "nodes": [], "edges": [], "entry_candidates": []}
+
+    monkeypatch.setattr(mcp_server, "trace_call_flow", fake_trace)
+    result = mcp_server.get_call_flow(
+        _context(user.id), project_id=project_id, entity_id=1, direction=direction
+    )
+
+    assert calls["direction"] == direction
+    assert result["status"] == "ok"
+
+
 @pytest.mark.asyncio
 async def test_search_knowledge_uses_the_active_embedding_profile(
     db_session, mcp_project_context, monkeypatch

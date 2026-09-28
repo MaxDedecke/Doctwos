@@ -369,8 +369,14 @@ def get_code_entity(ctx: Context, project_id: int, entity_id: int) -> dict:
 
 
 @mcp.tool(annotations=READ_ONLY)
-def get_call_flow(ctx: Context, project_id: int, entity_id: int, hops: int = 2, direction: str = "outgoing") -> dict:
-    """Trace bounded, indexed calls; unresolved targets and missing evidence stay explicit."""
+def get_call_flow(
+    ctx: Context,
+    project_id: int,
+    entity_id: int,
+    hops: int = 2,
+    direction: Literal["outgoing", "incoming", "both"] = "outgoing",
+) -> dict:
+    """Trace indexed calls; direction is outgoing, incoming, or both."""
     hops = max(0, min(hops, 3))
     with _tool_context(ctx, "get_call_flow", project_id, {"entity_id": entity_id, "hops": hops}) as (db, user):
         if direction not in {"outgoing", "incoming", "both"}:
