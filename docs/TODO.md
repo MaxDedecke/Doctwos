@@ -65,6 +65,195 @@ Die folgenden Maßnahmen sind offen; ihr Nutzen muss erneut gemessen werden.
 | 5 | O-353 | Begrenzte Datenflussanalyse mit Reihenfolge und Bedingungen für Incident-Fragen liefern. | **Teilweise umgesetzt.** Neues `trace_data_access` listet begrenzte, indexierte `READS`/`WRITES` mit Zeilen und ACL-geprüftem Quellabschnitt in Quellreihenfolge. Pfadsensitive Reihenfolge, Bedingungen und der konkrete CardDemo-Incident-Fall bleiben offen. CardDemo-Rubrik verlangt unter anderem Befüllung/Verwendung von `PA-TRANSACTION-AMT`, XREF-Bedingung des Schreibpfads und fehlende Balancekorrektur im Batch. Quellennahen Ausschnitt für eine Variable mit Schreib-/Lesestellen, belegbarer Reihenfolge und umgebenden Bedingungen liefern; Paragraphenübergänge und unaufgelöste Pfade ausdrücklich begrenzen. Abnahme gegen manuell belegte Originalstellen sowie unabhängigen COBOL-Fall. Fehlende Indexkante darf nicht als Beweis eines fehlenden Schreibzugriffs gelten; Aussagen über ausbleibende Korrekturen benötigen vollständig untersuchten, ausgewiesenen Quellumfang. |
 | 6 | O-354 | MCP-Nutzen mit fairer Bewertung und nachvollziehbarer Fehlerzuordnung erneut messen. | **Offen; nach Auslieferung der Änderungen erneut messen.** Fachliche Richtigkeit, Quellenqualität und MCP-spezifische Indexaussagen separat bewerten; nicht verfügbare Indexinformationen nicht als fachlichen Fehler der Kontrollgruppe zählen. Inhaltliche Vollständigkeit von Zitierformat unterscheiden, neue Rubrik vor Wiederholung einfrieren und Originalauswertung erhalten. Verblindete unabhängige Zweitbewertung soweit möglich; verbleibende erkennbare Toolhinweise dokumentieren. Gepaarte Wiederholung plus bisher ungenutzte Aufgaben; Modell, Prompts, Repo-/Indexrevision und Last festhalten. Wandzeit, Toolzeit/-anzahl, Antwortumfang, lokale Leseaufrufe und Tokenverbrauch soweit verfügbar ausweisen. Fehler je Fall Parser/Resolver, Index, Retrieval, MCP-Projektion oder Antwortbildung zuordnen; Qualitäts- und Zeitvorteile erst aus den neuen Messdaten ableiten. |
 
+### MCP-Folgearbeiten aus Kapitel 2 des Codex-Benchmarks (28.09.2026)
+
+Grundlage: `/root/codex_benchmark.html` und ausschließlich der saubere Lauf
+`/root/doctus_ab_probe/official_luna_benchmark_chapter2/` mit 60 Sitzungen / 30 Paaren;
+`results.json`, `scores.json`, `raw/*_with_mcp.jsonl` und die aktuellen Implementierungen
+in `backend/mcp_server.py`, `backend/services/search.py` und
+`backend/services/call_flow.py`. Der archivierte vermischte Lauf ist ausgeschlossen.
+Die Prioritäten unten beruhen auf beobachteten Fehlern; eine kausale Wirkung der
+vorgeschlagenen Änderungen ist noch nicht gemessen.
+
+Kapitel 2 erreicht insgesamt 66,4 % Rubrikpunkte ohne und 71,1 % mit MCP;
+MCP ist in 9/30 Paaren schneller, der mediane gepaarte Mehraufwand beträgt 12,1 s.
+Die Bewertung stammt von einem einzelnen, nicht verblindeten Luna-Prüfer.
+Besonders relevant sind die schwächeren MCP-Antworten bei `CARD-INCIDENT-02`
+(54,5 % gegenüber 61,8 % ohne MCP) und `SYNC-UPDATE-05` (45,7 % gegenüber 48,6 %).
+Bei `SYNC-CREATE-04` bleibt die Qualität bei 68,6 % gleich; die separaten
+Arm-Mediane liegen bei 154,5 s mit und 93,9 s ohne MCP (keine gepaarte Effektgröße).
+Architektur und einfacher Flow erreichen mit MCP dagegen 97,8 % bzw. 96,7 %.
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 1 | O-355 | `research_project` für mehrere Symbole, verkürzte Methodennamen und fachliche Fragen nutzbar machen. | **Offen; direkt reproduzierbarer Retrieval-Befund.** 18/23 Aufrufe liefern `no_exact_match` mit leerer Kandidatenliste. Beispiele: `UserServiceImpl.update UserLogic.update`, `UserServiceImpl UserLogic.create`, `PullJobDelegate.doExecuteProvisioning` sowie alle fünf fachlichen Incident-Anfragen. Aktuell geht die gesamte Anfrage als Substring an `search_nodes`; die Alternativenzerlegung von `search_code` fehlt hier. Exakte Datei-/Symbolsuche priorisieren, mehrere explizite Symbole getrennt auflösen und kurze Klasse.Methoden-Namen strukturell zuordnen; fachliche Anfragen über begrenztes Code-/Wissensretrieval behandeln. Bei Mehrdeutigkeit Kandidaten und konkrete Folgeargumente liefern, bei leerem Ergebnis eine ausführbare Suchalternative statt stiller Sackgasse. Keine beliebige Teilzeichenfolge zum eindeutigen Einstieg erklären. Abnahme mit allen 18 archivierten Fehlanfragen, unabhängigen Java-/COBOL-Fragen, gleichnamigen Methoden, Quellen-/Variantenkonflikten und ACL-Negativfällen; Recall, falsche Auflösung und Toolzahl messen. |
+| 2 | O-356 | Beleg- und Datenzugriffswerkzeuge aus Such-/Flow-Ergebnissen gezielt erreichbar machen. | **Offen; ergänzt O-351/O-353.** In allen 30 MCP-Sitzungen kein Aufruf von `get_code_entity`, `trace_data_access` oder `search_knowledge`. Vorhandene Fähigkeiten helfen deshalb im Benchmark bisher nicht nachweisbar. Toolbeschreibungen mit konkreten Einsatzzwecken und Antwortverträge mit strukturierten, budgetierten Folgeaktionen samt Toolname und gültigen Argumenten ergänzen: Quellbereich nachlesen, Variable verfolgen, Einstieg auswählen oder leere Suche fachlich fortsetzen. Bei passenden Datenentitäten belegte READS/WRITES optional direkt bündeln; keine pauschale Pflichtkette zusätzlicher Tools. Abnahme: Incident-Fragen erreichen tatsächliche Lese-/Schreibbelege; Annotationen und Rückgaben werden gelesen; Mehrdeutigkeit führt zur Auswahl statt Abbruch. Anzahl sinnvoller Folgeabrufe, lokale Ersatzlesevorgänge, Antwortumfang, Qualität und Gesamtzeit vergleichen; bloße Toolnutzung ist kein Erfolgskriterium. |
+| 3 | O-357 | Java-Methodenkontext für Argumente, Rückgaben und Transaktionsdeklarationen belegbar liefern. | **Offen; baut auf O-351/O-352 auf.** Bei `SYNC-CREATE-04` fehlen in 5/5 MCP-Antworten die normalisierten Managerargumente und die Binder-/`afterCreate`-Nachbearbeitung. Bei `SYNC-UPDATE-05` fehlen in 5/5 die `afterUpdate`-Zusammensetzung, `REQUIRES_NEW` und die Statuslistenrückgabe. Call-Flow-Kanten allein decken diese Aussagen nicht ab. Begrenzte Originalabschnitte für Methodendeklaration inklusive Annotationen, Aufrufargumente, Return-Ausdruck und relevante Nachbearbeitung liefern; genaue Quellbereiche und Revision ausweisen. Deklarierte Transaktionsannotation separat von nachgewiesener Proxy-/Laufzeitwirkung darstellen, Overloads und Selbstaufrufe nicht gleichsetzen. Abnahme mit CREATE/UPDATE und unabhängigem Java-Fall einschließlich Annotation oberhalb des Methodenbereichs, Delegation, Mehrdeutigkeit und nicht belegtem Laufzeiterfolg. |
+| 4 | O-358 | MCP-Mehrkosten und leere bzw. doppelte Recherche getrennt messen und reduzieren. | **Offen; ergänzt die Nutzenmessung O-354.** Wandzeiten beweisen keine langsame Serverausführung. Je Tool monotone Dauer, Payloadgröße, Ergebnis-/Kürzungsstatus und verwendeten Indexstand erfassen; getrennt von Modellzeit, lokalen Leseaufrufen und Antworttokens auswerten. `research_project` liefert teils bereits einen Flow; gleichwertige Folgeabrufe von `get_call_flow` nach Argumenten/Scope/Revision erkennen und durch Wiederverwendung oder gezielte Vertiefung vermeiden. Such-, Flow- und Belegbündel nur unter einem gemeinsamen Antwortbudget anbieten; bestehende Pflichtaufrufe der eingefrorenen Suite nicht nachträglich entfernen. Abnahme an archivierten Anfragefolgen und vorregistrierten neuen Paaren: weniger leere/doppelte Aufrufe und geringere gepaarte Gesamtzeit bei erhaltener Quellenqualität. Keine unbelegte Latenzzusage und kein Cache ohne Berechtigungs-, Varianten- und Revisionsbindung. |
+
+Bestehende Tickets bleiben die Eigentümer der folgenden Restarbeiten; keine
+zweiten Implementierungstickets für dieselbe Lücke anlegen:
+
+- **O-350 – Graphfortsetzung und Relevanz:** Kapitel 2 enthält 8 gekürzte
+  `get_call_flow`-Antworten unter 33 Aufrufen und 4 Fälle
+  `entry_point_selection_required`. Der MCP-Adapter begrenzt nach ID sortierte
+  Knoten auf 80 und Kanten auf 120, der darunterliegende Dienst auf 150/500;
+  `next_cursor` bleibt `None`. Auswahl vom Einstieg und relevanten Pfaden her
+  durchgängig vor beiden Limits durchführen. Eine Fortsetzung muss gezielt
+  ausgelassene Kanten erreichen; bloß denselben Root enger abzufragen kann
+  weiterhin dieselben Ergebnisse liefern. Kürzung durch Budgets und durch
+  Sichtbarkeitsfilter auseinanderhalten, ohne verborgene Daten preiszugeben.
+- **O-351 – Originalbelege:** `search_code`/`get_code_entity` schneiden Text nach
+  1600 Zeichen ab, `trace_data_access` nach 1200, während `end_line` weiterhin
+  die Chunk-Grenze bezeichnet. Den tatsächlich gelieferten Zeilenbereich und
+  einen nachladbaren Rest ausweisen; Belege um die betroffene Aufruf-/Zugriffsstelle
+  zentrieren, damit diese nicht hinter dem abgeschnittenen Chunk-Anfang liegt.
+- **O-353 – Datenfluss:** In 5/5 MCP-Incident-Antworten fehlen das Risiko der
+  vorzeitigen Verwendung von `PA-TRANSACTION-AMT`, die vollständige
+  Datumsrekonstruktion/Defaultfrist und die unveränderte Batch-Kreditbalance;
+  3/5 nennen einen nicht belegten konkreten Onlinebetrag. Die vorhandene
+  READS/WRITES-Liste ist noch keine Analyse von Zuweisungen, Kontrollbedingungen
+  oder paragraphenübergreifender Ausführungsreihenfolge. Indexabdeckung zunächst
+  gegen die Originalstellen prüfen; die belegbare Kette von Zuweisung und
+  Verwendung mit XREF-Bedingung und MQ-/IMS-Reihenfolge liefern. Grenzen und
+  nicht untersuchte Pfade sichtbar halten, unbekannte Werte nicht konkretisieren.
+- **O-354 – Bewertungs- und Laufqualität:** Kapitel 2 als unveränderte Baseline
+  erhalten. Vor neuer Messung Rubriken auf Toolzugangsbonus, reine Zitierformfehler
+  und die Unterscheidung deklarierter Annotation versus tatsächlicher
+  Transaktionswirkung prüfen; auffällige Abwertungen unabhängig nachbewerten.
+  Neues Protokoll samt Hashes für alle sechs Rubriken einfrieren: Die aktuelle
+  `scores.json` enthält Bewertungen für alle sechs Fälle, im Feld
+  `rubric_sha256` jedoch nur `SYNC-PULL-06`. Ein exklusives Runner-Lock, eindeutige
+  Run-ID, atomare Ergebnisdateien und geprüftes Resume gegen das Manifest
+  verhindern erneute Vermischung durch konkurrierende Runner. JSON-Schemavalidierung
+  vor Übernahme jeder Bewertung; Rohantwort und Reparaturprotokoll erhalten.
+  Pro abgeschlossenem Sitzungspaar Zeiten ohne/mit MCP, Differenz und Status
+  ausgeben; Datenvollständigkeit vor dem nächsten Fall prüfen.
+
+### Parser-/Indexabdeckung für den MCP-Benchmark (28.09.2026)
+
+Lesender Abgleich des laufenden PostgreSQL-Index (Projekte 1246/1247), der
+entschlüsselten Quellchunks und der aktuellen Parser-/MCP-Implementierung.
+Zusätzlich `COPAUA0C.cbl` mit dem aktuellen lokalen Parser ausschließlich im
+Speicher neu geparst, ohne Import oder Indexänderung. Ergebnis: **Die benötigten
+Informationen sind noch nicht vollständig strukturiert oder als Quellchunks
+vorhanden.** Einzelheiten: [Parser-Abdeckungsprüfung](MCP_PARSER_COVERAGE_2026-09-28.md).
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+| 1 | O-359 | Unvollständige COBOL-Struktur- und Chunkabdeckung erkennen und fehlenden Originaltext zugänglich halten. | **Abgeschlossen (28.09.2026).** Fehlerursache in `antlr_bridge.py` behoben (Punkt-Injektion bei maskierten EXEC-Blöcken im IF/PERFORM-Kontext entfernte nachfolgende Paragraphen). `COPAUA0C.cbl` parst nun fehlerfrei alle 43 Paragraphen bis Zeile 1025; Chunks decken Zeile 885 und 913–919 vollständig ab. DECLARATIVES-Visitor in `divisions.py` ergänzt. Fallback-Chunking für unvollständige Grammatik-/Syntaxfehlerbereiche in `parse.py` ergänzt. Regressionstests in `test_cobol_parse.py` hinzugefügt. |
+
+Weitere Befunde erweitern vorhandene Tickets:
+
+- **O-353:** `PA-TRANSACTION-AMT` ist als Entity 119377 vorhanden, die Verwendung
+  bei `COPAUA0C.cbl:821` jedoch nur als aufgelöste `USES`-Kante. `trace_data_access`
+  filtert ausschließlich `READS`/`WRITES` und liefert diese Stelle nicht.
+  COBOL-XREF klassifiziert Feldreferenzen derzeit ohne Lese-/Schreibrichtung;
+  MOVE-/ADD-/COMPUTE-Operanden und umgebende Laufzeitbedingungen strukturiert
+  erfassen. O-359 muss zuerst die Zuweisung in Zeile 885 zugänglich machen.
+  Vorhandene `condition`-Metadaten stammen aus bedingter Vorverarbeitung und
+  ersetzen keinen Laufzeit-IF-/ELSE-Kontext.
+- **O-357:** Java-Methoden speichern Annotationsnamen und Rückgabetyp, aber bei
+  den geprüften Manager-Methoden nicht die Annotationswerte. `Transactional`
+  ist indexiert; `propagation = Propagation.REQUIRES_NEW` steht nur im
+  entschlüsselten Originalchunk. CALLS-Metadaten enthalten Argumentanzahl und
+  teils Typen, nicht die konkreten Argumentausdrücke bzw. deren Wertefluss.
+  Vorhandene Originalbelege zuerst korrekt liefern; für strukturierte Abfragen
+  Annotationseigenschaften, Argumentausdrücke und Return-Verknüpfungen ergänzen.
+- **O-351:** Die Entity-Definition liefert nur den ersten überlappenden Chunk.
+  `PullJobDelegate#doExecuteProvisioning` umfasst 213–395, geliefert wird
+  zunächst nur 213–239; beim Manager-create 88–112 zunächst 88–108. Zusätzlich
+  greift das MCP-Zeichenlimit. Bereichsweises Nachladen und eindeutige
+  Vollständigkeitsangaben sind erforderlich, auch wenn alle Java-Chunks bereits
+  gespeichert sind.
+- **O-355:** Methoden sind tatsächlich vorhanden, aber mit Qualified Names wie
+  `PullJobDelegate#doExecuteProvisioning(...)`; die Punktnotation der fünf
+  Benchmark-Anfragen passt nicht zur aktuellen Substring-Suche. Dies ist eine
+  Such-/Normalisierungslücke, kein fehlender Methoden-Parse.
+- **O-352:** Im Live-Index bleibt `pullTask.getResource().getPullPolicy`
+  ungelöst, während `pullTask.getResource` aufgelöst ist. Vor Behauptung einer
+  abgeschlossenen Bestandskorrektur Resolverstand, Neuauflösung und Reindex
+  am konkreten Fall prüfen; aus diesem Audit allein ist die Ursache nicht
+  zwischen altem Index und verbleibender Resolverlücke entschieden.
+- **O-306:** Die lokale Operation `COPAUA0C.EXEC-DLI-BLOCK@825.REPL@825`
+  existiert als Entity 122174; die zugehörige `EXECUTES`-Kante trägt den exakten
+  Ziel-Qualified-Name, bleibt aber `unresolved` mit leerer Ziel-ID. Lokale
+  EXEC-Operationen in Persistenz/Nachauflösung tatsächlich verknüpfen, getrennt
+  von dynamischen externen Ressourcen. Abnahme mit Projekt-/Quellen-/Varianten-
+  Bindung und passendem Operationsbeleg. Keine Laufzeitverfügbarkeit ableiten.
+
+### COBOL-Analyse: strukturelle und semantische Lücken (28.09.2026)
+
+Prüfung der vollständigen Pipeline von Vorverarbeitung über Parserextraktion bis
+zu Persistenz/MCP. Fünf neue Arbeitspakete; vorhandene Tickets weiterverwenden,
+wo dieselbe Lücke bereits beschrieben ist. Nachweise und Grenzen stehen in
+[COBOL-Analyseprüfung](COBOL_ANALYSIS_AUDIT_2026-09-28.md). Kleine In-Memory-Proben
+reproduzieren die Fehler; CardDemo-Live-Index zusätzlich lesend abgeglichen.
+Die ersten drei vollständigen Programmproben liefern keine Parserdiagnosen,
+obwohl Informationen verloren gehen oder falsche Beziehungen entstehen.
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 1 | O-360 | COBOL-Aufruf- und Sprungkanten an echte Anweisungsgrenzen binden; Kontrollkontext erhalten. | **Abgeschlossen (28.09.2026).** Statement-Begrenzer (`_STATEMENT_DELIMITERS`) in `procedure.py` eingeführt, sodass Schlüsselwörter (`ELSE`, `DISPLAY`, `END-IF`) nicht als GOTO-Ziele erfasst werden. `src_end_line` für GO TO, PERFORM und CALL korrigiert. Inline-Perform-Zählvariablen (`TIMES-N TIMES`) von Prozedurzielen getrennt. Kontrollkontext (`IF/ELSE/WHEN/EVALUATE`) an Kantenmetadaten angehängt. 10/10 Tests in `test_cobol_procedure.py` erfolgreich. |
+| 2 | O-362 | Embedded-SQL-Ziele und Lese-/Schreibrichtung korrekt extrahieren. | **Abgeschlossen (28.09.2026).** SQL-Kommentare (`--`, `/* */`) und String-Literale in `sql.py` bereinigt, um Scheintabellen (`'JOIN FAKE-TABLE'`) auszuschließen. Schema-qualifizierte Tabellen (`BANK.ACCOUNTS`) zugelassen. Hostvariablen zwischen `INTO` und Folgeklauseln als WRITES, Prädikate als READS erfasst. Tabellenrollen klauselspezifisch zugeordnet. 13/13 Tests in `test_cobol_sql.py` erfolgreich. |
+| 3 | O-361 | COBOL-Datendeklarationen vollständig genug für Feld-, Layout- und Bedingungsanalyse speichern. | **Abgeschlossen (28.09.2026).** `LOCAL-STORAGE SECTION` Visitor in `data_division.py` hinzugefügt. Level 66 `RENAMES`/`THRU` in `DataItem.renames`/`renames_thru` erfasst. Level 88 Mehrfachwerte und Intervalle (`1 THRU 3, 7`) in `DataItem.values` und `value` erfasst. `USAGE` (z.B. `COMP-3`) extrahiert und in Metadaten propagiert. 16/16 Tests in `test_cobol_data_division.py` erfolgreich. |
+| 4 | O-363 | COBOL-Datei-I/O an einzelne Anweisungen und vollständige Dateideklarationen binden. | **Abgeschlossen (28.09.2026).** `_associated_record` an Statement-Grenzen gebunden (verhindert Übernahme fremder FROM/INTO-Operanden ohne Satzpunkt). Multi-File-`CLOSE` Statements in `io.py` unterstützt. `FILE-CONTROL` Deklarationen (`SELECT ... ASSIGN TO ... FILE STATUS IS ...`) in `FileDescriptor` und Entity-Metadaten übernommen. Tests in `test_cobol_parse.py` erfolgreich. |
+| 5 | O-364 | Ausführbare Copybooks und deren Verwendung im Programm strukturiert analysieren. | **Abgeschlossen (28.09.2026).** `parse_copybook` um Erkennung von ausführbaren (Procedure-) Copybooks erweitert (`_is_procedure_copybook`). Synthetische `PROCEDURE DIVISION`-Kapselung für ANTLR erzeugt, Paragraphen, CALL/PERFORM-Kanten, SQL- und EXEC-Blöcke ohne Syntaxfehler-Abbruch extrahiert. Bug in `_COPY_START_RE` (fälschlicher Match auf Bezeichner wie `COPY-PARA`) behoben. Regressionstest in `test_cobol_parse.py` erfolgreich. |
+
+Bereits offene Arbeit, durch diese Prüfung weiter konkretisiert:
+
+- **O-305/O-359:** Recovery und lückenlose Originaltext-Abdeckung bleiben die
+  erste Voraussetzung. Auch ohne Parserabbruch werden bei vorhandenen Paragraphen
+  ausschließlich Paragraphen gechunkt; DATA/ENVIRONMENT-Bereiche sind dadurch
+  nicht automatisch als Originalchunks zugänglich. Fallback greift derzeit nur,
+  wenn überhaupt keine Paragraphenchunks entstanden sind.
+- **O-353:** MOVE/ADD/COMPUTE und weitere Feldoperationen benötigen getrennte
+  Lese-/Schreiboperanden und Kontrollbedingungen; allgemeines USES reicht nicht.
+  CALL-USING-/RETURNING-Bezüge und Parameterrollen bei Bedarf quellenbelegt
+  anbinden; fehlende Laufzeitwerte nicht aus dem statischen Graphen erfinden.
+- **O-306/O-307:** EXEC CICS READ erfasst FILE, aber nicht INTO-/RESP-Zugriffe;
+  EXEC DLI ISRT erfasst SEGMENT, aber nicht FROM-Puffer als gelesene Daten.
+  Beide Fälle in kleinen Proben bestätigt. Dialektspezifische Operandenrollen
+  und Status-/Fehlerpfade ergänzen, zusätzlich zur bereits offenen Verknüpfung
+  vorhandener EXEC-Operationen. Vorhandene Namen allein belegen noch keine
+  vollständige I/O-Semantik.
+- **O-124/O-135/O-139–O-143:** Präprozessor-, Compiler-, Bibliotheks- und
+  Dialektabdeckung bleibt begrenzt. `conditional.py` wertet aktuell lediglich
+  numerische Gleichheit und DEFINED aus; komplexere Bedingungen bleiben mit
+  Bedingungshinweis erhalten. Das ist eine bewusst konservative Grenze und
+  keine vollständige Compilerpräprozessierung. Neue Dialektunterstützung mit
+  bestätigten Profilen und realen Fixtures abnehmen.
+
+### Java-Parsing und Zielauflösung: belegte Restlücken (28.09.2026)
+
+Lesender Code-/Indexabgleich plus zehn kleine Java-In-Memory-Proben mit
+`parse_java_file`, ohne Import oder Bestandsänderung. Die Proben erzeugten
+keine Syntaxdiagnosen. Einfache lokale Java-Aufrufe und ein einteiliger
+`getB().work()`-Rückgabetyp-Flow funktionieren bereits; die folgenden Fälle
+sind zusätzliche, reproduzierte Lücken. Details und Beispielcode stehen in
+[Java-Analyseprüfung](JAVA_ANALYSIS_AUDIT_2026-09-28.md).
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+| 1 | O-365 | Ausführbare Beziehungen in Lambdas und anonymen Klassen ihrem tatsächlichen Typ-/Methodenkontext zuordnen. | **Abgeschlossen (28.09.2026).** `JavaRelationshipVisitor` in `relationships.py` um Scopes für `visitLambdaExpression` und `visitCreator` (anonyme Klassen) erweitert. Aufrufe in Lambdas erhalten das Lambda als `src_name`. Aufrufe in anonymen Klassenmethoden erhalten die innere Methode als `src_name`. `this.helper()` in anonymer Klasse bindet an die lokale Hilfsmethode der anonymen Klasse; unqualifizierte Aufrufe fallen bei Bedarf lexikalisch auf die äußere Klasse zurück (`resolution.py`). Unit-Tests in `test_java_relationships.py` erfolgreich. |
+| 2 | O-366 | Lokale Java-Variablen anhand lexikalischem Block und Verwendungsposition auflösen. | **Offen, konservative, aber relevante Auslassung reproduziert.** Zwei `first`-Variablen vom Typ `Target` und `Other` in getrennten zulässigen Blöcken erhalten separate Entities. `first.work()` vor und innerhalb des inneren Blocks bleibt in beiden Fällen unresolved; `_receiver_declaration` sammelt nur nach Methode und Name und kann weder Scope noch Deklarationsposition auswählen. Block-/Lebensdauer- und Shadowing-Beleg erhalten; eindeutige sichtbare Deklaration pro Verwendungsstelle wählen, später deklarierte oder außerhalb des Blocks stehende Variablen ausschließen. Abnahme mit geschachtelten Blöcken, Shadowing, `for`/`catch`/Lambda-Parametern, Mehrdeutigkeit und Negativfällen. Kein globaler Name-only-Fallback. Ergänzt O-309/O-352. |
+| 3 | O-367 | Java-Methodenreferenzen auf belegte Zieldeklarationen beziehen. | **Offen, Repräsentationslücke reproduziert.** `this::helper` wird als `method_reference`-Entity angelegt, erzeugt aber keine Beziehung zur vorhandenen Methode. Im Syncope-Index existieren 409 solcher Entities und keine ausgehenden Kanten. Method References (`this::m`, `Type::static`, `obj::m`, `Type::new`) mit Referenzort, Receiver-/Typbeleg, Signatur-/Überladungsgrenze und Auflösungsstatus verbinden. Referenzierung von einem tatsächlichen Laufzeitaufruf unterscheiden. Abnahme auch mit Ambiguität, generischen funktionalen Interfaces und externem Classpath; bei fehlendem Beleg unresolved statt geraten. Ergänzt O-310. |
+| 4 | O-368 | Java-Feldzugriffe über andere Repositorytypen sicher auflösen. | **Offen, auswertbare Kante bleibt unresolved.** Bei `class A { B b; void run(){ b.value=1; int x=b.value; } }` plus `class B { int value; }` entstehen `WRITES`/`READS` auf `b.value`, aber beide bleiben trotz eindeutigem `B`-Feld unresolved. Der globale Resolver überspringt READS/WRITES ausdrücklich; dadurch ist die vorhandene Felddeklaration nicht mit den Zugriffen verbunden. Receiver-Typ aus Parameter/lokaler Variable/Feld und nachweisbarer Vererbung auswerten; Modul-/Source-Set-/Varianten- und Sichtbarkeitsgrenzen beachten. Abnahme mit eindeutigem Ziel, gleichnamigen Klassen, vererbten/verdeckt deklarierten Feldern, generischen Receivern und nicht auflösbarem externen Typ; keine Scheingenauigkeit. Ergänzt O-309/O-310. |
+| 5 | O-369 | Java-Ausnahme- und Abschlusswege als begrenzte, belegte Beziehungen erhalten. | **Offen, Syntax vorhanden, Semantik nicht projiziert.** `run() throws IOException { try { work(); } catch(IOException ex){ recover(); } finally { close(); } }` erzeugt drei einfache CALLS-Kanten ohne Throws-/Catch-/Finally-Rollen; die Method-Entity enthält kein `throws`-Metadatum. Kontroll- und Ausnahmewege mit Quellstellen und deklarierter Ausnahme getrennt vom tatsächlich geworfenen Fehler modellieren; `try` mit Ressourcen, Mehrfach-Catch und verschachtelte Finally-Blöcke berücksichtigen. Abnahme: Prozess-/Impact-Anfragen dürfen `recover()` nicht als unbedingten Folgeaufruf des Erfolgspfads darstellen; dynamische Ausnahmen und Bibliothekscode bleiben sichtbar unsicher. Nach O-365 priorisieren, weil korrekter Scope für diese Projektion vorausgesetzt ist. |
+
+Bestehende Tickets bleiben zuständig für angrenzende Lücken:
+
+- **O-357:** Annotationen sind nur als Namen strukturiert gespeichert.
+  Die Probe `@Flag("critical")` ergibt `annotations=["Flag"]` ohne Wert;
+  `@Transactional(propagation = Propagation.REQUIRES_NEW)` ist in Syncope
+  ebenfalls nur im Originalchunk vollständig. Attribute aus dem Syntaxbaum
+  getrennt vom Laufzeiteffekt erhalten; Quellbelege und Annotationstyp prüfen.
+- **O-352:** Einfache Rückgabetypkette `getB().work()` löst in der Probe sicher
+  auf. Der Syncope-Bestandsfall `pullTask.getResource().getPullPolicy()` bleibt
+  unresolved. Reindex/Resolverstand und mehrstufige Kette gezielt abnehmen,
+  bevor eine generelle Parserlücke behauptet wird.
+- **O-351:** Java-Quellchunks decken Methoden ab, die MCP-Definition nimmt
+  derzeit jedoch nur den ersten überlappenden Chunk und schneidet zusätzlich
+  nach Zeichenbudget ab. Die Evidenzlücke wird nicht allein durch Reparse gelöst.
+
 ### Sprachlogik und anklickbare Codeobjekte
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |

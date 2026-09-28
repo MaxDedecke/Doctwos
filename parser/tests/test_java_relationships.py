@@ -355,3 +355,64 @@ class Client { void call() { new Service().run(1); } }
     )
     assert call.resolution == "resolved"
     assert call.meta["target_qualified_name"] == "api.Service#run(int)"
+
+
+def test_o365_lambda_and_anonymous_class_call_scope() -> None:
+    # 1. Lambda scope
+    lambda_src = parse_java_file(
+        """package demo;
+class A {
+    void outer() { Runnable r = () -> helper(); }
+    void helper() {}
+}
+""",
+        "demo/A.java",
+    )
+    resolve_global_edges([lambda_src])
+    lambda_calls = [e for e in lambda_src.edges if e.type == "CALLS"]
+    assert len(lambda_calls) == 1
+    assert "@lambda:" in lambda_calls[0].src_name
+    assert lambda_calls[0].resolution == "resolved"
+    assert lambda_calls[0].meta["target_qualified_name"] == "demo.A#helper()"
+
+    # 2. Anonymous class method scope
+    anon_src = parse_java_file(
+        """package demo;
+class A {
+    interface Job { void run(); }
+    void outer() { Job j = new Job() { public void run() { helper(); } }; }
+    void helper() {}
+}
+""",
+        "demo/A.java",
+    )
+    resolve_global_edges([anon_src])
+    anon_calls = [e for e in anon_src.edges if e.type == "CALLS"]
+    assert len(anon_calls) == 1
+    assert "@anonymous:" in anon_calls[0].src_name
+    assert anon_calls[0].src_name.endswith("#run()")
+    assert anon_calls[0].resolution == "resolved"
+    assert anon_calls[0].meta["target_qualified_name"] == "demo.A#helper()"
+
+    # 3. Anonymous class this.helper() binds to anonymous class helper, not outer
+    this_src = parse_java_file(
+        """package demo;
+class A {
+    void helper() {}
+    void outer() {
+        Runnable r = new Runnable() {
+            public void run() { this.helper(); }
+            void helper() {}
+        };
+    }
+}
+""",
+        "demo/A.java",
+    )
+    resolve_global_edges([this_src])
+    this_calls = [e for e in this_src.edges if e.type == "CALLS"]
+    assert len(this_calls) == 1
+    assert "@anonymous:" in this_calls[0].src_name
+    assert this_calls[0].resolution == "resolved"
+    assert "@anonymous:" in this_calls[0].meta["target_qualified_name"]
+    assert this_calls[0].meta["target_qualified_name"].endswith("#helper()")

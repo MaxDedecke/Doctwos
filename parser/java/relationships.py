@@ -471,6 +471,25 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         )
         return self.visitChildren(context)
 
+    def visitLambdaExpression(self, context):
+        start_line, _ = self._span(context)
+        col = context.start.column
+        candidates = [
+            e
+            for e in self._entities
+            if e.type == "lambda"
+            and e.start_line == start_line
+            and e.qualified_name.endswith(f"@lambda:{start_line}:{col}")
+        ]
+        entity = candidates[0] if candidates else None
+        if entity is None:
+            return self.visitChildren(context)
+        self._scopes.append(entity)
+        try:
+            return self.visitChildren(context)
+        finally:
+            self._scopes.pop()
+
     def visitCreator(self, context):
         created_name = context.createdName()
         if (
@@ -495,7 +514,37 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     "owner_type": self.current_type.qualified_name if self.current_type else None,
                 },
             )
-        return self.visitChildren(context)
+
+        rest = context.classCreatorRest()
+        class_body = rest.classBody() if rest is not None else None
+        if class_body is None:
+            return self.visitChildren(context)
+
+        if created_name is not None:
+            self.visit(created_name)
+        if rest.arguments() is not None:
+            self.visit(rest.arguments())
+
+        start_line, _ = self._span(class_body)
+        col = class_body.start.column
+        candidates = [
+            e
+            for e in self._entities
+            if e.type == "anonymous_class"
+            and e.start_line == start_line
+            and e.qualified_name.endswith(f"@anonymous:{start_line}:{col}")
+        ]
+        entity = candidates[0] if candidates else None
+        if entity is None:
+            return self.visit(class_body)
+
+        self._types.append(entity)
+        self._scopes.append(entity)
+        try:
+            return self.visit(class_body)
+        finally:
+            self._scopes.pop()
+            self._types.pop()
 
     def _field_names(self) -> set[str]:
         return (

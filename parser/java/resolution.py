@@ -91,6 +91,19 @@ def _method_candidates(
     candidates = list(
         methods_by_owner_and_name.get((owner_type, meta.get("method_name", edge.dst_name)), [])
     )
+    if not candidates and receiver is None:
+        curr = owner_type
+        while not candidates and curr:
+            if "#" in curr:
+                curr = curr.split("#", 1)[0]
+            elif "." in curr:
+                curr = curr.rsplit(".", 1)[0]
+            else:
+                curr = None
+            if curr:
+                candidates = list(
+                    methods_by_owner_and_name.get((curr, meta.get("method_name", edge.dst_name)), [])
+                )
     argument_count = meta.get("argument_count")
     if argument_count is not None:
         candidates = [
@@ -846,6 +859,22 @@ def _global_method_candidates(
                         candidates.append(method)
                         seen_signatures.add(signature)
                 queue.extend(hierarchy.get(current, ()))
+    if not candidates and receiver is None and source_owner and ("#" in source_owner or "@" in source_owner):
+        curr_owner = source_owner.split("#", 1)[0]
+        enclosing_candidates = _scope_candidates(
+            _candidates_at_stage((curr_owner,), types_by_qname), result
+        )
+        for enc_owner in enclosing_candidates:
+            if enc_owner.qualified_name:
+                for method in methods_by_owner_and_name.get((enc_owner.qualified_name, method_name), []):
+                    if not _same_declaration_scope(method, enc_owner):
+                        continue
+                    signature = tuple(method.meta.get("parameter_types", ()))
+                    if signature not in seen_signatures:
+                        candidates.append(method)
+                        seen_signatures.add(signature)
+        if candidates and not owner_reason:
+            owner_reason = "enclosing_type"
     # Duplicate qualified names can occur in separate build modules.  Do not
     # turn that into a false unique call target.
     unique: dict[str, Entity] = {}
