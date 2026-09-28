@@ -10,6 +10,7 @@ from __future__ import annotations
 from .lexer import Token
 from .model import CobolProgram, DataItem, FileDescriptor, ParsedEdge
 from .names import canonical_identifier
+from .procedure import _STATEMENT_DELIMITERS
 
 _FILE_OPERATIONS = {
     "READ": "READS",
@@ -29,6 +30,7 @@ def scan(
     file_descriptors: list[FileDescriptor],
     items: list[DataItem],
 ) -> list[ParsedEdge]:
+    populate_file_control(program, tokens, file_descriptors)
     procedure = next(
         (division for division in program.divisions if division.name == "PROCEDURE"), None
     )
@@ -50,6 +52,16 @@ def scan(
             continue
         if operation == "OPEN":
             _append_open_edges(
+                edges,
+                program,
+                proc_tokens,
+                index,
+                fd_names,
+                src=_enclosing_paragraph(program, token.phys_line),
+            )
+            continue
+        if operation == "CLOSE":
+            _append_close_edges(
                 edges,
                 program,
                 proc_tokens,
@@ -142,9 +154,122 @@ def _associated_record(tokens: list[Token], index: int, operation: str) -> Token
     for offset, token in enumerate(tokens[index + 1 :], index + 1):
         if token.kind == "PERIOD":
             return None
+        if token.kind == "WORD" and canonical_identifier(token.value) in _STATEMENT_DELIMITERS:
+            return None
         if token.kind == "WORD" and canonical_identifier(token.value) == marker:
             return _next_word(tokens, offset + 1)
     return None
+
+
+def _append_close_edges(
+    edges: list[ParsedEdge],
+    program: CobolProgram,
+    tokens: list[Token],
+    start: int,
+    fd_names: dict[str, str],
+    *,
+    src: str,
+) -> None:
+    for token in tokens[start + 1 :]:
+        if token.kind == "PERIOD":
+            break
+        if token.kind != "WORD":
+            continue
+        word = canonical_identifier(token.value)
+        if word in _STATEMENT_DELIMITERS:
+            break
+        if word in {"REEL", "UNIT", "WITH", "NO", "REWIND", "LOCK"}:
+            continue
+        fd_name = fd_names.get(word)
+        edges.append(
+            ParsedEdge(
+                type="USES",
+                src_name=src,
+                dst_name=fd_name or token.value,
+                resolution="resolved" if fd_name is not None else "unresolved",
+                src_start_line=tokens[start].phys_line,
+                src_end_line=token.phys_line,
+                scope=program.name,
+                meta={
+                    "program": program.name,
+                    "operation": "CLOSE",
+                    "access": "USES",
+                    "io_target_kind": "file_fd" if fd_name is not None else "unknown",
+                    **({"target_qualified_name": f"{program.name}.{fd_name}"} if fd_name else {}),
+                    **({"dynamic": True} if fd_name is None else {}),
+                },
+            )
+        )
+
+
+def populate_file_control(
+    program: CobolProgram, tokens: list[Token], file_descriptors: list[FileDescriptor]
+) -> None:
+    env_division = next(
+        (division for division in program.divisions if division.name == "ENVIRONMENT"), None
+    )
+    if env_division is None:
+        return
+    env_tokens = [
+        t for t in tokens if env_division.start_line <= t.phys_line <= env_division.end_line
+    ]
+    fd_by_key = {canonical_identifier(fd.name): fd for fd in file_descriptors}
+    i = 0
+    n = len(env_tokens)
+    while i < n:
+        t = env_tokens[i]
+        if t.kind == "WORD" and canonical_identifier(t.value) == "SELECT":
+            i += 1
+            if i < n and env_tokens[i].kind == "WORD":
+                fd_key = canonical_identifier(env_tokens[i].value)
+                fd = fd_by_key.get(fd_key)
+                assign_target = None
+                status_field = None
+                i += 1
+                while i < n and env_tokens[i].kind != "PERIOD":
+                    w = env_tokens[i]
+                    if w.kind == "WORD" and canonical_identifier(w.value) == "SELECT":
+                        break
+                    if w.kind == "WORD" and canonical_identifier(w.value) == "ASSIGN":
+                        j = i + 1
+                        if (
+                            j < n
+                            and env_tokens[j].kind == "WORD"
+                            and canonical_identifier(env_tokens[j].value) == "TO"
+                        ):
+                            j += 1
+                        if j < n and env_tokens[j].kind in ("WORD", "LITERAL", "STRING"):
+                            assign_target = _clean_name(env_tokens[j].value)
+                    elif w.kind == "WORD" and canonical_identifier(w.value) == "FILE":
+                        j = i + 1
+                        if (
+                            j < n
+                            and env_tokens[j].kind == "WORD"
+                            and canonical_identifier(env_tokens[j].value) == "STATUS"
+                        ):
+                            j += 1
+                            if (
+                                j < n
+                                and env_tokens[j].kind == "WORD"
+                                and canonical_identifier(env_tokens[j].value) == "IS"
+                            ):
+                                j += 1
+                            if j < n and env_tokens[j].kind == "WORD":
+                                status_field = _clean_name(env_tokens[j].value)
+                    i += 1
+                if fd is not None:
+                    if assign_target:
+                        fd.assign = assign_target
+                    if status_field:
+                        fd.file_status = status_field
+                continue
+        i += 1
+
+
+def _clean_name(value: str) -> str:
+    if value[:1] in ("'", '"') and value[-1:] == value[:1]:
+        return value[1:-1]
+    return value
 
 
 def _item_names(

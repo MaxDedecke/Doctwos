@@ -179,6 +179,15 @@ class _StructureVisitor(Cobol85Visitor):
         # the enclosing procedureSection, handled in visitProcedureSection().
         return None
 
+    def visitProcedureDeclarative(self, ctx: Cobol85Parser.ProcedureDeclarativeContext):  # noqa: N802
+        header = ctx.procedureSectionHeader()
+        name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
+        self._stack[-1].sections.append(
+            Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop))
+        )
+        self._collect_paragraphs(ctx.paragraphs(), name)
+        return None
+
     def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
         header = ctx.procedureSectionHeader()
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))

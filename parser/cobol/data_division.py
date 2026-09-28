@@ -33,6 +33,8 @@ Ergebnislisten plus einen Fehlereintrag, nie eine Exception.
 
 from __future__ import annotations
 
+import re
+
 from . import antlr_bridge
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
@@ -145,6 +147,12 @@ class _DataDivisionVisitor(Cobol85Visitor):
             self._visit_entry(entry, stack, current_fd=None)
         return None
 
+    def visitLocalStorageSection(self, ctx: Cobol85Parser.LocalStorageSectionContext):  # noqa: N802
+        stack: list[tuple[int, str]] = []
+        for entry in ctx.dataDescriptionEntry():
+            self._visit_entry(entry, stack, current_fd=None)
+        return None
+
     def visitLinkageSection(self, ctx: Cobol85Parser.LinkageSectionContext):  # noqa: N802
         stack: list[tuple[int, str]] = []
         for entry in ctx.dataDescriptionEntry():
@@ -165,6 +173,15 @@ class _DataDivisionVisitor(Cobol85Visitor):
         fmt2 = entry.dataDescriptionEntryFormat2()
         if fmt2 is not None:
             name = _clean_name(self._name(fmt2.dataName()))
+            renames_from = None
+            renames_thru = None
+            rc = fmt2.dataRenamesClause()
+            if rc is not None:
+                qdns = rc.qualifiedDataName()
+                if qdns:
+                    renames_from = _clean_name(self._name(qdns[0]))
+                    if len(qdns) > 1:
+                        renames_thru = _clean_name(self._name(qdns[1]))
             self.items.append(
                 DataItem(
                     name=name,
@@ -172,6 +189,8 @@ class _DataDivisionVisitor(Cobol85Visitor):
                     start_line=_line(fmt2.start),
                     end_line=_line(fmt2.stop),
                     parent=None,
+                    renames=renames_from,
+                    renames_thru=renames_thru,
                 )
             )
             return
@@ -180,7 +199,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
         if fmt3 is not None:
             name = _clean_name(self._name(fmt3.conditionName()))
             parent = stack[-1][1] if stack else current_fd
-            value = _value_text(fmt3.dataValueClause(), self._source_text)
+            value, values = _value_intervals(fmt3.dataValueClause(), self._source_text)
             self.items.append(
                 DataItem(
                     name=name,
@@ -189,6 +208,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
                     end_line=_line(fmt3.stop),
                     parent=parent,
                     value=value,
+                    values=values,
                 )
             )
             return
@@ -225,6 +245,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
         occurs_ctx = _first(ctx.dataOccursClause())
         picture_ctx = _first(ctx.dataPictureClause())
         value_ctx = _first(ctx.dataValueClause())
+        usage_ctx = _first(ctx.dataUsageClause())
 
         self.items.append(
             DataItem(
@@ -234,6 +255,7 @@ class _DataDivisionVisitor(Cobol85Visitor):
                 end_line=_line(ctx.stop),
                 parent=parent,
                 picture=picture_ctx.pictureString().getText() if picture_ctx is not None else None,
+                usage=_usage_text(usage_ctx, self._source_text) if usage_ctx is not None else None,
                 redefines=_clean_name(self._name(redefines_ctx.dataName()))
                 if redefines_ctx is not None
                 else None,
@@ -270,6 +292,54 @@ def _occurs_count(ctx) -> int | None:
         return int(lit.getText())
     except ValueError:
         return None
+
+
+def _usage_text(ctx, source_text: str | None = None) -> str | None:
+    if ctx is None:
+        return None
+    raw = (
+        antlr_bridge.original_span(source_text, ctx)
+        if source_text is not None
+        else ctx.getText()
+    )
+    cleaned = re.sub(
+        r"^(USAGE\s+IS\s+|USAGE\s+|IS\s+)", "", raw.strip(), flags=re.IGNORECASE
+    )
+    return cleaned.strip()
+
+
+def _value_intervals(
+    ctx, source_text: str | None = None
+) -> tuple[str | None, list[str] | None]:
+    if ctx is None:
+        return None, None
+    intervals = ctx.dataValueInterval()
+    if not intervals:
+        return None, None
+    values_list: list[str] = []
+    for iv in intervals:
+        from_ctx = iv.dataValueIntervalFrom()
+        to_ctx = iv.dataValueIntervalTo()
+        from_val = _clean_name(
+            antlr_bridge.original_span(source_text, from_ctx)
+            if source_text is not None
+            else from_ctx.getText()
+        )
+        if to_ctx is not None:
+            to_val = _clean_name(
+                antlr_bridge.original_span(source_text, to_ctx)
+                if source_text is not None
+                else to_ctx.getText()
+            )
+            values_list.append(f"{from_val} {to_val}")
+        else:
+            values_list.append(from_val)
+
+    if not values_list:
+        return None, None
+    if len(values_list) == 1 and " THRU " not in values_list[0]:
+        return values_list[0], values_list
+    return ", ".join(values_list), values_list
 
 
 def _value_text_from_clause(ctx, source_text: str | None = None) -> str | None:

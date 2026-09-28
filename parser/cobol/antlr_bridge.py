@@ -79,7 +79,7 @@ _DATA_SECTION_RE = re.compile(
     r"^(WORKING-STORAGE|FILE|LINKAGE|LOCAL-STORAGE|SCREEN|REPORT|COMMUNICATION)\s+SECTION\b",
     re.IGNORECASE,
 )
-_COPY_START_RE = re.compile(r"^COPY\b", re.IGNORECASE)
+_COPY_START_RE = re.compile(r"^COPY(?:\s+|$)", re.IGNORECASE)
 _EMBEDDED_BLOCK_RE = re.compile(r"^EMBEDDED-BLOCK-", re.IGNORECASE)
 # IDENTIFICATION-DIVISION-Paragraphen, deren Inhalt frei formulierter Text ist
 # (z.B. "AUTHOR. GEMINI-CLI."). Die Grammatik akzeptiert diesen Text nur als
@@ -248,6 +248,7 @@ def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> lis
             # the normal lexer.
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
+                dot = _ends_with_period(line)
             elif (
                 copybook
                 or (
@@ -257,12 +258,15 @@ def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> lis
                 )
             ):
                 placeholder_text = f"01 {EXEC_PLACEHOLDER_NAME} PIC X"
+                dot = True
             elif current_division == "DATA" and current_data_section == "FILE":
                 placeholder_text = f"FD {EXEC_PLACEHOLDER_NAME}"
+                dot = True
             else:
                 placeholder_text = None
+                dot = False
             result.append(
-                _placeholder(line, line, placeholder_text)
+                _placeholder(line, line, placeholder_text, dot=dot)
                 if placeholder_text
                 else _blank(line, line)
             )
@@ -287,7 +291,7 @@ def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> lis
             # nur der Paragraph-Kopf selbst ("AUTHOR.") bleibt stehen, was die
             # Grammatik ohne commentEntry-Token akzeptiert (siehe authorParagraph()
             # & Co. in Cobol85Parser.py: commentEntry ist optional).
-            result.append(_placeholder(line, lines[j], keyword))
+            result.append(_placeholder(line, lines[j], keyword, dot=True))
             i = j + 1
             continue
 
@@ -297,17 +301,21 @@ def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> lis
                 j += 1
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
+                dot = _ends_with_period(lines[j])
             elif current_division == "DATA" and current_data_section == "FILE":
                 # FILE SECTION akzeptiert nur fileDescriptionEntry (FD ...), kein
                 # bare-01-Datenfeld — ein COPY hier steht praktisch immer für einen
                 # kompletten FD-Block aus dem Copybook (Record-Layout einer Datei).
                 placeholder_text = f"FD {COPY_PLACEHOLDER_NAME}"
+                dot = True
             elif current_division == "DATA" and in_data_section:
                 placeholder_text = f"01 {COPY_PLACEHOLDER_NAME} PIC X"
+                dot = True
             else:
                 placeholder_text = None
+                dot = False
             result.append(
-                _placeholder(line, lines[j], placeholder_text)
+                _placeholder(line, lines[j], placeholder_text, dot=dot)
                 if placeholder_text
                 else _blank(line, lines[j])
             )
@@ -330,10 +338,13 @@ def _ends_with_period(line: LogicalLine) -> bool:
     return any(t.kind == "PERIOD" for t in lexer_mod.tokenize([line]))
 
 
-def _placeholder(first: LogicalLine, last: LogicalLine, text: str) -> LogicalLine:
+def _placeholder(
+    first: LogicalLine, last: LogicalLine, text: str, dot: bool = True
+) -> LogicalLine:
     start = first.phys_start_line
     end = last.phys_end_line
-    return LogicalLine(start, end, [Segment(start, 0, f"{text}.")], first.source_format)
+    suffix = "." if dot else ""
+    return LogicalLine(start, end, [Segment(start, 0, f"{text}{suffix}")], first.source_format)
 
 
 def _blank(first: LogicalLine, last: LogicalLine) -> LogicalLine:

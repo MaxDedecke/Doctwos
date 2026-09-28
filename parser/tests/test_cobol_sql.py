@@ -172,3 +172,66 @@ def test_sql_include_keeps_the_member_name_on_the_sql_block():
     assert blocks[0].statement_type == "INCLUDE"
     assert blocks[0].include_name == "SQLCA"
     assert edges == []
+
+
+def test_select_into_and_where_host_variable_direction_and_schema_table():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O362SQL1.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC SQL\n"
+        "               SELECT AMOUNT INTO :RESULT-VALUE\n"
+        "               FROM BANK.ACCOUNTS\n"
+        "               WHERE ID = :LOOKUP-ID\n"
+        "           END-EXEC.\n"
+        "           STOP RUN.\n"
+    )
+    _, blocks, edges, errors = _scan(text)
+    assert errors == []
+    assert blocks[0].tables == ["BANK.ACCOUNTS"]
+    assert blocks[0].host_variables == ["RESULT-VALUE", "LOOKUP-ID"]
+    res_edge = next(e for e in edges if e.dst_name == "RESULT-VALUE")
+    lookup_edge = next(e for e in edges if e.dst_name == "LOOKUP-ID")
+    table_edge = next(e for e in edges if e.dst_name == "BANK.ACCOUNTS")
+    assert res_edge.type == "WRITES"
+    assert lookup_edge.type == "READS"
+    assert table_edge.type == "READS"
+
+
+def test_sql_string_literal_does_not_create_spurious_table():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O362SQL2.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC SQL\n"
+        "               SELECT NAME FROM ACCOUNTS WHERE NOTE = 'JOIN FAKE-TABLE'\n"
+        "           END-EXEC.\n"
+        "           STOP RUN.\n"
+    )
+    _, blocks, edges, errors = _scan(text)
+    assert errors == []
+    assert blocks[0].tables == ["ACCOUNTS"]
+    assert [e.dst_name for e in edges] == ["ACCOUNTS"]
+    assert edges[0].type == "READS"
+
+
+def test_insert_select_separates_target_and_source_table_access():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O362SQL3.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC SQL\n"
+        "               INSERT INTO TARGET-TABLE SELECT VALUE FROM SOURCE-TABLE\n"
+        "           END-EXEC.\n"
+        "           STOP RUN.\n"
+    )
+    _, blocks, edges, errors = _scan(text)
+    assert errors == []
+    assert blocks[0].tables == ["TARGET-TABLE", "SOURCE-TABLE"]
+    target_edge = next(e for e in edges if e.dst_name == "TARGET-TABLE")
+    source_edge = next(e for e in edges if e.dst_name == "SOURCE-TABLE")
+    assert target_edge.type == "WRITES"
+    assert source_edge.type == "READS"

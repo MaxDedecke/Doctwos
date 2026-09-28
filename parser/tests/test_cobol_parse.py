@@ -687,3 +687,106 @@ def test_multiple_redefines_and_fillers_on_same_line_disambiguated():
         "SAMELINE.REC.A@9",
     ]
 
+
+def test_o363_io_statement_boundaries_multiple_close_and_file_control():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O363IO.\n"
+        "       ENVIRONMENT DIVISION.\n"
+        "       INPUT-OUTPUT SECTION.\n"
+        "       FILE-CONTROL.\n"
+        "           SELECT IN-FILE ASSIGN TO 'INPUT.DAT'.\n"
+        "           SELECT OUT-FILE ASSIGN TO 'OUTPUT.DAT'.\n"
+        "       DATA DIVISION.\n"
+        "       FILE SECTION.\n"
+        "       FD  IN-FILE.\n"
+        "       01  IN-REC PIC X(10).\n"
+        "       FD  OUT-FILE.\n"
+        "       01  OUT-REC PIC X(10).\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  BUFFER-DATA PIC X(10).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           WRITE OUT-REC\n"
+        "           WRITE OUT-REC FROM BUFFER-DATA\n"
+        "           CLOSE IN-FILE OUT-FILE\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "o363io.cbl")
+    fds = {e.name: e for e in result.entities if e.type == "file_fd"}
+    assert fds["IN-FILE"].meta.get("assign") == "INPUT.DAT"
+    assert fds["OUT-FILE"].meta.get("assign") == "OUTPUT.DAT"
+
+    io_edges = [e for e in result.edges if (e.meta or {}).get("operation") in ("WRITE", "CLOSE")]
+    write_edges = [e for e in io_edges if (e.meta or {}).get("operation") == "WRITE"]
+    # First WRITE: WRITES OUT-REC. Second WRITE: WRITES OUT-REC, READS BUFFER-DATA.
+    assert len(write_edges) == 3
+    assert [e.type for e in write_edges] == ["WRITES", "WRITES", "READS"]
+    assert [e.dst_name for e in write_edges] == ["OUT-REC", "OUT-REC", "BUFFER-DATA"]
+
+    close_edges = [e for e in io_edges if (e.meta or {}).get("operation") == "CLOSE"]
+    assert len(close_edges) == 2
+    assert {e.dst_name for e in close_edges} == {"IN-FILE", "OUT-FILE"}
+
+
+def test_o359_embedded_masking_declaratives_and_uncovered_tail():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O359PROG.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  WS-FLAG PIC X VALUE 'Y'.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       DECLARATIVES.\n"
+        "       ERR-SEC SECTION.\n"
+        "           USE AFTER STANDARD ERROR PROCEDURE ON INPUT.\n"
+        "       ERR-PARA.\n"
+        "           DISPLAY 'ERR'.\n"
+        "       END DECLARATIVES.\n"
+        "       MAIN-SEC SECTION.\n"
+        "       0100-MAIN.\n"
+        "           IF WS-FLAG = 'Y'\n"
+        "              EXEC SQL\n"
+        "                   SELECT 1 FROM DUAL\n"
+        "              END-EXEC\n"
+        "           ELSE\n"
+        "              DISPLAY 'NO'\n"
+        "           END-IF\n"
+        "           PERFORM 0200-LOOP.\n"
+        "           STOP RUN.\n"
+        "       0200-LOOP.\n"
+        "           DISPLAY 'DONE'.\n"
+    )
+    result = parse_program(text, "o359prog.cbl")
+    # All paragraphs must be parsed without syntax error abortion
+    para_names = [e.name for e in result.entities if e.type == "paragraph"]
+    assert "ERR-PARA" in para_names
+    assert "0100-MAIN" in para_names
+    assert "0200-LOOP" in para_names
+
+    sec_names = [e.name for e in result.entities if e.type == "section"]
+    assert "ERR-SEC" in sec_names
+    assert "MAIN-SEC" in sec_names
+
+    # Chunks must cover up to 0200-LOOP
+    max_chunk_end = max(c.end_line for c in result.chunks)
+    assert max_chunk_end >= 23
+
+
+def test_o364_procedure_copybook_parsing():
+    text = "COPY-PARA.\n    CALL 'SUBPROG'.\n"
+    result = parse_copybook(text, "logic.cpy", profile=BuildProfile(source_format="free"))
+    assert not result.errors
+    # Must not have syntax error diagnostics
+    assert not [d for d in result.diagnostics if "expecting" in d.message]
+    entity_types = {e.type: e for e in result.entities}
+    assert "copybook" in entity_types
+    assert "paragraph" in entity_types
+    para = entity_types["paragraph"]
+    assert para.name == "COPY-PARA"
+    assert para.qualified_name == "LOGIC.COPY-PARA"
+
+    calls = [e for e in result.edges if e.type == "CALL"]
+    assert len(calls) == 1
+    assert calls[0].src_name == "COPY-PARA"
+    assert calls[0].dst_name == "SUBPROG"

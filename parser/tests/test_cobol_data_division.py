@@ -163,3 +163,64 @@ def test_exec_block_in_standalone_copybook_keeps_data_items():
 
     assert not [d for d in result.diagnostics if d.severity == "error"]
     assert any(entity.name == "COPY-STATUS" for entity in result.entities)
+
+
+def test_local_storage_section_fields_are_extracted():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. LOCALSTORE.\n"
+        "       DATA DIVISION.\n"
+        "       LOCAL-STORAGE SECTION.\n"
+        "       01  LS-COUNTER PIC 9(4).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "localstore.cbl")
+    assert not [d for d in result.diagnostics if d.severity == "error"]
+    ls_item = next(e for e in result.entities if e.name == "LS-COUNTER")
+    assert ls_item.meta.get("level") == 1
+    assert ls_item.meta.get("picture") == "9(4)"
+
+
+def test_level_88_multiple_values_and_intervals():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. VAL88.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  STATE-CODE PIC 9.\n"
+        "           88  ACCEPTED VALUES 1 THRU 3, 7.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "val88.cbl")
+    accepted = next(e for e in result.entities if e.name == "ACCEPTED")
+    assert accepted.meta.get("level") == 88
+    assert accepted.meta.get("values") == ["1 THRU 3", "7"]
+    assert accepted.meta.get("value") == "1 THRU 3, 7"
+
+
+def test_usage_comp3_and_level_66_renames():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. COMPREN.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  PACKED-AMOUNT PIC S9(7)V99 COMP-3.\n"
+        "       01  GROUP-AREA.\n"
+        "           05  FIRST-PART PIC X.\n"
+        "           05  LAST-PART PIC X.\n"
+        "       66  BOTH-PARTS RENAMES FIRST-PART THRU LAST-PART.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "compren.cbl")
+    packed = next(e for e in result.entities if e.name == "PACKED-AMOUNT")
+    assert packed.meta.get("usage") == "COMP-3"
+    renamed = next(e for e in result.entities if e.name == "BOTH-PARTS")
+    assert renamed.meta.get("level") == 66
+    assert renamed.meta.get("renames") == "FIRST-PART"
+    assert renamed.meta.get("renames_thru") == "LAST-PART"

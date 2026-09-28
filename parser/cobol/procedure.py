@@ -32,6 +32,71 @@ from .names import canonical_identifier
 
 _PERFORM_INLINE_KEYWORDS = {"UNTIL", "VARYING", "WITH", "TEST", "FOREVER"}
 
+_STATEMENT_DELIMITERS = {
+    # Scope terminators
+    "ELSE",
+    "END-IF",
+    "END-PERFORM",
+    "END-EVALUATE",
+    "END-READ",
+    "END-WRITE",
+    "END-REWRITE",
+    "END-DELETE",
+    "END-START",
+    "END-CALL",
+    "END-COMPUTE",
+    "END-ADD",
+    "END-SUBTRACT",
+    "END-MULTIPLY",
+    "END-DIVIDE",
+    "END-STRING",
+    "END-UNSTRING",
+    "END-SEARCH",
+    "END-RETURN",
+    "END-EXEC",
+    "WHEN",
+    "THEN",
+    # Verbs / statement starters
+    "ACCEPT",
+    "ADD",
+    "ALTER",
+    "CALL",
+    "CANCEL",
+    "CLOSE",
+    "COMPUTE",
+    "CONTINUE",
+    "DELETE",
+    "DISPLAY",
+    "DIVIDE",
+    "ENTRY",
+    "EVALUATE",
+    "EXIT",
+    "GO",
+    "GOBACK",
+    "IF",
+    "INITIALIZE",
+    "INSPECT",
+    "MERGE",
+    "MOVE",
+    "MULTIPLY",
+    "OPEN",
+    "PERFORM",
+    "READ",
+    "RELEASE",
+    "RETURN",
+    "REWRITE",
+    "SEARCH",
+    "SET",
+    "SORT",
+    "START",
+    "STOP",
+    "STRING",
+    "SUBTRACT",
+    "UNSTRING",
+    "WRITE",
+    "EXEC",
+}
+
 
 def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], list[str]]:
     errors: list[str] = []
@@ -52,15 +117,39 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
         if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
     ]
     n = len(proc_tokens)
+    control_stack: list[dict[str, str]] = []
 
     i = 0
     while i < n:
         tok = proc_tokens[i]
         nxt = proc_tokens[i + 1] if i + 1 < n else None
 
+        if tok.kind == "PERIOD":
+            control_stack.clear()
+            i += 1
+            continue
+
+        if tok.kind == "WORD":
+            w = canonical_identifier(tok.value)
+            if w == "IF":
+                control_stack.append({"type": "IF", "branch": "THEN"})
+            elif w == "ELSE":
+                if control_stack and control_stack[-1]["type"] == "IF":
+                    control_stack[-1]["branch"] = "ELSE"
+            elif w == "END-IF":
+                if control_stack and control_stack[-1]["type"] == "IF":
+                    control_stack.pop()
+            elif w == "EVALUATE":
+                control_stack.append({"type": "EVALUATE", "branch": "WHEN"})
+            elif w == "END-EVALUATE":
+                if control_stack and control_stack[-1]["type"] == "EVALUATE":
+                    control_stack.pop()
+
         if tok.kind == "WORD" and canonical_identifier(tok.value) == "CALL":
             if nxt is not None and nxt.kind in ("LITERAL", "WORD"):
                 dynamic = nxt.kind == "WORD"
+                end_line = _statement_end_line(proc_tokens, i + 1, nxt.phys_line)
+                meta = _build_meta(program.name, control_stack)
                 edges.append(
                     ParsedEdge(
                         type="CALL",
@@ -68,9 +157,9 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         dst_name=_clean_name(nxt.value),
                         resolution="dynamic" if dynamic else "unresolved",
                         src_start_line=tok.phys_line,
-                        src_end_line=_statement_end_line(proc_tokens, i + 1, nxt.phys_line),
+                        src_end_line=end_line,
                         scope=None,
-                        meta={"program": program.name},
+                        meta=meta,
                     )
                 )
             i += 1
@@ -100,13 +189,25 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
             continue
 
         if tok.kind == "WORD" and canonical_identifier(tok.value) == "PERFORM":
-            if (
-                nxt is not None
-                and nxt.kind == "WORD"
-                and canonical_identifier(nxt.value) not in _PERFORM_INLINE_KEYWORDS
-            ):
+            # Check for inline perform
+            is_inline = False
+            if nxt is not None and nxt.kind == "WORD":
+                nxt_canon = canonical_identifier(nxt.value)
+                if nxt_canon in _PERFORM_INLINE_KEYWORDS or nxt_canon in _STATEMENT_DELIMITERS:
+                    is_inline = True
+                elif (
+                    i + 2 < n
+                    and proc_tokens[i + 2].kind == "WORD"
+                    and canonical_identifier(proc_tokens[i + 2].value) == "TIMES"
+                ):
+                    # e.g. PERFORM TIMES-N TIMES (count variable followed by TIMES)
+                    is_inline = True
+            else:
+                is_inline = True
+
+            if not is_inline and nxt is not None and nxt.kind == "WORD":
                 end_idx = i + 1
-                meta: dict = {"program": program.name}
+                meta = _build_meta(program.name, control_stack)
                 thru_idx = i + 2
                 if (
                     thru_idx < n
@@ -128,6 +229,9 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         meta["thru_resolution"] = "unresolved"
                     end_idx = thru_idx + 1
                 resolved = len(local_targets.get(canonical_identifier(nxt.value), [])) == 1
+                end_line = _statement_end_line(
+                    proc_tokens, end_idx, proc_tokens[end_idx].phys_line
+                )
                 edges.append(
                     ParsedEdge(
                         type="PERFORM",
@@ -135,9 +239,7 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         dst_name=nxt.value,
                         resolution="resolved" if resolved else "unresolved",
                         src_start_line=tok.phys_line,
-                        src_end_line=_statement_end_line(
-                            proc_tokens, end_idx, proc_tokens[end_idx].phys_line
-                        ),
+                        src_end_line=end_line,
                         scope=program.name,
                         meta=meta,
                     )
@@ -151,16 +253,49 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
             and _word_at(proc_tokens, i + 1, "TO")
         ):
             j = i + 2
+            # Scan ahead to see if DEPENDING is in this statement before the next statement delimiter
+            k = j
+            has_depending = False
+            depending_idx = -1
+            stmt_end_idx = j
+            while k < n and proc_tokens[k].kind != "PERIOD":
+                if proc_tokens[k].kind == "WORD":
+                    cid = canonical_identifier(proc_tokens[k].value)
+                    if cid == "DEPENDING":
+                        has_depending = True
+                        depending_idx = k
+                    elif cid in _STATEMENT_DELIMITERS:
+                        break
+                stmt_end_idx = k
+                k += 1
+
             targets: list[Token] = []
-            while (
-                j < n
-                and proc_tokens[j].kind == "WORD"
-                and canonical_identifier(proc_tokens[j].value) != "DEPENDING"
-            ):
-                targets.append(proc_tokens[j])
-                j += 1
-            end_line = _statement_end_line(proc_tokens, i + 2, tok.phys_line)
+            if has_depending:
+                for idx in range(j, depending_idx):
+                    if (
+                        proc_tokens[idx].kind == "WORD"
+                        and canonical_identifier(proc_tokens[idx].value) not in _STATEMENT_DELIMITERS
+                    ):
+                        targets.append(proc_tokens[idx])
+                end_line = _statement_end_line(
+                    proc_tokens, depending_idx, proc_tokens[stmt_end_idx].phys_line
+                )
+                next_i = k
+            else:
+                if (
+                    j < n
+                    and proc_tokens[j].kind == "WORD"
+                    and canonical_identifier(proc_tokens[j].value) not in _STATEMENT_DELIMITERS
+                ):
+                    targets.append(proc_tokens[j])
+                    end_line = _statement_end_line(proc_tokens, j, proc_tokens[j].phys_line)
+                    next_i = j + 1
+                else:
+                    end_line = tok.phys_line
+                    next_i = j
+
             src = _enclosing_paragraph(program, tok.phys_line)
+            meta = _build_meta(program.name, control_stack)
             for t in targets:
                 resolved = len(local_targets.get(canonical_identifier(t.value), [])) == 1
                 edges.append(
@@ -172,15 +307,28 @@ def scan(program: CobolProgram, tokens: list[Token]) -> tuple[list[ParsedEdge], 
                         src_start_line=tok.phys_line,
                         src_end_line=end_line,
                         scope=program.name,
-                        meta={"program": program.name},
+                        meta=dict(meta),
                     )
                 )
-            i = j
+            i = next_i
             continue
 
         i += 1
 
     return edges, errors
+
+
+def _build_meta(
+    program_name: str,
+    control_stack: list[dict[str, str]],
+    extra: dict | None = None,
+) -> dict:
+    meta: dict = {"program": program_name}
+    if extra:
+        meta.update(extra)
+    if control_stack:
+        meta["control_context"] = [dict(c) for c in control_stack]
+    return meta
 
 
 def _enclosing_paragraph(program: CobolProgram, line: int) -> str:
@@ -199,10 +347,15 @@ def _word_at(tokens: list[Token], idx: int, word: str) -> bool:
 
 
 def _statement_end_line(tokens: list[Token], start_idx: int, fallback_line: int) -> int:
+    last_line = fallback_line
     for j in range(start_idx, len(tokens)):
-        if tokens[j].kind == "PERIOD":
-            return tokens[j].phys_line
-    return fallback_line
+        t = tokens[j]
+        if t.kind == "PERIOD":
+            return t.phys_line
+        if t.kind == "WORD" and canonical_identifier(t.value) in _STATEMENT_DELIMITERS:
+            return last_line
+        last_line = t.phys_line
+    return last_line
 
 
 def _clean_name(value: str) -> str:

@@ -191,6 +191,8 @@ class FileDescriptor:
     name: str
     start_line: int
     end_line: int
+    assign: str | None = None
+    file_status: str | None = None
 
 
 @dataclass
@@ -218,10 +220,14 @@ class DataItem:
     end_line: int
     parent: str | None = None
     picture: str | None = None
+    usage: str | None = None
     redefines: str | None = None
+    renames: str | None = None
+    renames_thru: str | None = None
     occurs: int | None = None
     occurs_depending_on: str | None = None
     value: str | None = None
+    values: list[str] | None = None
 
 
 @dataclass

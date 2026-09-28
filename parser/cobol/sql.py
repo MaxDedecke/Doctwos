@@ -49,9 +49,24 @@ _STATEMENT_KEYWORDS = {
     "SET",
 }
 _CURSOR_STATEMENTS = ("OPEN", "FETCH", "CLOSE")
-_TABLE_PRECEDING_KEYWORDS = {"FROM", "JOIN", "INTO"}
+_SELECT_CLAUSE_KEYWORDS = {
+    "FROM",
+    "WHERE",
+    "GROUP",
+    "HAVING",
+    "ORDER",
+    "FOR",
+    "UNION",
+    "EXCEPT",
+    "INTERSECT",
+    "FETCH",
+    "OPTIMIZE",
+    "WITH",
+}
 
-_TOKEN_RE = re.compile(r":[A-Za-z][A-Za-z0-9-]*|[A-Za-z][A-Za-z0-9-]*")
+_TOKEN_RE = re.compile(
+    r":[A-Za-z][A-Za-z0-9_-]*|[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)*"
+)
 _LEADING_EXEC_RE = re.compile(r"\A\s*EXEC\s+\S+\s*", re.IGNORECASE)
 _END_EXEC_RE = re.compile(r"END-EXEC", re.IGNORECASE)
 
@@ -81,10 +96,12 @@ def scan(
         if own_range is not None and not (own_range[0] <= block.start_line <= own_range[1]):
             continue
 
-        tokens = _TOKEN_RE.findall(_strip_exec_wrapper(block.content))
+        cleaned_text = _clean_sql_text(block.content)
+        tokens = _TOKEN_RE.findall(cleaned_text)
         statement_type, cursor_name = _classify(tokens)
         include_name = tokens[1] if statement_type == "INCLUDE" and len(tokens) >= 2 else None
-        tables = _dedupe(_extract_tables(tokens))
+        table_entries = _extract_tables_with_access(tokens, statement_type)
+        tables = _dedupe([t[0] for t in table_entries])
         host_variables = _dedupe(tok[1:] for tok in tokens if tok.startswith(":"))
 
         sql_block = SqlBlock(
@@ -119,8 +136,12 @@ def scan(
                 )
             )
 
-        table_access = _table_access(statement_type)
-        for table in tables:
+        seen_table_edges: set[tuple[str, str]] = set()
+        for table, table_access in table_entries:
+            key = (table.upper(), table_access)
+            if key in seen_table_edges:
+                continue
+            seen_table_edges.add(key)
             edges.append(
                 ParsedEdge(
                     type=table_access,
@@ -143,11 +164,17 @@ def scan(
     return sql_blocks, edges, errors
 
 
-def _strip_exec_wrapper(content: str) -> str:
+def _clean_sql_text(content: str) -> str:
     body = _LEADING_EXEC_RE.sub("", content, count=1)
     m = _END_EXEC_RE.search(body)
     if m:
         body = body[: m.start()]
+    # Remove single-line comments -- ...
+    body = re.sub(r"--[^\n]*", " ", body)
+    # Remove multi-line comments /* ... */
+    body = re.sub(r"/\*.*?\*/", " ", body, flags=re.DOTALL)
+    # Replace single-quoted string literals with empty string ''
+    body = re.sub(r"'([^']|'')*'", "''", body)
     return body
 
 
@@ -164,22 +191,31 @@ def _classify(tokens: list[str]) -> tuple[str, str | None]:
     return "OTHER", None
 
 
-def _extract_tables(tokens: list[str]) -> list[str]:
-    tables: list[str] = []
+def _extract_tables_with_access(tokens: list[str], statement_type: str) -> list[tuple[str, str]]:
+    table_entries: list[tuple[str, str]] = []
+    is_delete_target = statement_type == "DELETE"
+
     for i, tok in enumerate(tokens):
         upper = tok.upper()
-        is_table_slot = upper in _TABLE_PRECEDING_KEYWORDS or (i == 0 and upper == "UPDATE")
-        if is_table_slot and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
-            tables.append(tokens[i + 1])
-    return tables
+        if i == 0 and upper == "UPDATE" and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
+            table_entries.append((tokens[i + 1], "WRITES"))
+        elif (
+            upper == "INTO"
+            and statement_type == "INSERT"
+            and i + 1 < len(tokens)
+            and not tokens[i + 1].startswith(":")
+        ):
+            table_entries.append((tokens[i + 1], "WRITES"))
+        elif upper == "FROM":
+            if is_delete_target and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
+                table_entries.append((tokens[i + 1], "WRITES"))
+                is_delete_target = False
+            elif i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
+                table_entries.append((tokens[i + 1], "READS"))
+        elif upper == "JOIN" and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
+            table_entries.append((tokens[i + 1], "READS"))
 
-
-def _table_access(statement_type: str) -> str:
-    if statement_type in {"INSERT", "UPDATE", "DELETE"}:
-        return "WRITES"
-    if statement_type in {"SELECT", "DECLARE_CURSOR"}:
-        return "READS"
-    return "USES"
+    return table_entries
 
 
 def _host_variable_access(tokens: list[str], statement_type: str, variable: str) -> str:
@@ -188,16 +224,34 @@ def _host_variable_access(tokens: list[str], statement_type: str, variable: str)
         i for i, token in enumerate(tokens) if token.upper() == f":{variable.upper()}"
     ]
     position = positions[0] if positions else -1
-    before = {token.upper() for token in tokens[:position]}
-    if statement_type == "FETCH" and "INTO" in before:
-        return "WRITES"
-    if statement_type == "SELECT":
+    if position == -1:
+        return "USES"
+
+    if statement_type == "FETCH":
         into_position = next(
             (i for i, token in enumerate(tokens) if token.upper() == "INTO"), None
         )
         if into_position is not None and position > into_position:
             return "WRITES"
         return "READS"
+
+    if statement_type == "SELECT":
+        into_position = next(
+            (i for i, token in enumerate(tokens) if token.upper() == "INTO"), None
+        )
+        if into_position is not None and position > into_position:
+            next_clause = next(
+                (
+                    i
+                    for i in range(into_position + 1, len(tokens))
+                    if tokens[i].upper() in _SELECT_CLAUSE_KEYWORDS
+                ),
+                None,
+            )
+            if next_clause is None or position < next_clause:
+                return "WRITES"
+        return "READS"
+
     if statement_type in {"INSERT", "UPDATE", "DELETE", "DECLARE_CURSOR", "OPEN"}:
         return "READS"
     return "USES"

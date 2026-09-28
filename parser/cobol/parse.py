@@ -230,6 +230,12 @@ def parse_program(
             # bestehenden Golden Files (F-029, z.B. 99_garbage.cbl).
             fallback_bounds = None if single_program else (program.start_line, program.end_line)
             program_chunks = _fallback_chunks(program, source_lines, source_format, fallback_bounds)
+        else:
+            # O-359: Wenn nach Syntaxfehlern oder unvollständiger Grammatikabdeckung
+            # Codebereiche nicht durch Paragraphenchunks abgedeckt sind,
+            # diese als Fallback-Chunks erfassen, damit kein Quelltext still verloren geht.
+            uncovered_chunks = _collect_uncovered_chunks(program, program_chunks, source_lines, source_format)
+            program_chunks.extend(uncovered_chunks)
         chunks.extend(program_chunks)
 
     result = ParseResult(
@@ -518,6 +524,11 @@ def _build_field_entities(
         qname = candidate
         used_qnames.add(qname)
         field_qnames[fd.name] = qname
+        fd_meta = {}
+        if fd.assign:
+            fd_meta["assign"] = fd.assign
+        if fd.file_status:
+            fd_meta["file_status"] = fd.file_status
         entities.append(
             Entity(
                 type="file_fd",
@@ -527,6 +538,7 @@ def _build_field_entities(
                 parent_name=root_name,
                 qualified_name=qname,
                 parent_qualified_name=root_name,
+                meta=fd_meta,
             )
         )
 
@@ -598,10 +610,14 @@ def _build_field_entities(
                 meta={
                     "level": item.level,
                     "picture": item.picture,
+                    "usage": item.usage,
                     "redefines": item.redefines,
+                    "renames": item.renames,
+                    "renames_thru": item.renames_thru,
                     "occurs": item.occurs,
                     "occurs_depending_on": item.occurs_depending_on,
                     "value": item.value,
+                    "values": item.values,
                 },
             )
         )
@@ -670,6 +686,140 @@ def _fallback_chunks(
     ]
 
 
+def _is_code_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if len(line) >= 7 and line[6] in ("*", "/"):
+        return False
+    if stripped.startswith("*") or stripped.startswith("/"):
+        return False
+    return True
+
+
+def _collect_uncovered_chunks(
+    program: CobolProgram,
+    program_chunks: list[Chunk],
+    source_lines: list[str],
+    source_format: SourceFormat,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> list[Chunk]:
+    if not program.paragraphs or not program_chunks:
+        return []
+
+    uncovered: list[Chunk] = []
+
+    # Gaps between paragraphs
+    sorted_paras = sorted(program.paragraphs, key=lambda p: p.start_line)
+    for i in range(len(sorted_paras) - 1):
+        gap_start = sorted_paras[i].end_line + 1
+        gap_end = sorted_paras[i + 1].start_line - 1
+        if gap_start <= gap_end:
+            if any(
+                _is_code_line(source_lines[ln - 1])
+                for ln in range(gap_start, gap_end + 1)
+                if ln - 1 < len(source_lines)
+            ):
+                for content, s, e in _pack_whole_file(
+                    source_lines, chunk_size, (gap_start, gap_end)
+                ):
+                    uncovered.append(
+                        Chunk(
+                            content=content,
+                            start_line=s,
+                            end_line=e,
+                            meta={
+                                "program": program.name,
+                                "format": source_format,
+                                "fallback": True,
+                                "partial": True,
+                                "unstructured": True,
+                            },
+                        )
+                    )
+
+    # Tail after the last paragraph
+    max_chunk_end = max(c.end_line for c in program_chunks)
+    proc_div = next((d for d in program.divisions if d.name == "PROCEDURE"), None)
+    tail_limit = max(program.end_line, proc_div.end_line if proc_div else 0)
+    if tail_limit > max_chunk_end:
+        tail_start = max_chunk_end + 1
+        tail_end = tail_limit
+        code_lines = [
+            source_lines[ln - 1]
+            for ln in range(tail_start, tail_end + 1)
+            if ln - 1 < len(source_lines) and _is_code_line(source_lines[ln - 1])
+        ]
+        # Avoid creating chunks for lone END PROGRAM statements or trailing blank/comments
+        if code_lines and any(not cl.strip().upper().startswith("END PROGRAM") for cl in code_lines):
+            for content, s, e in _pack_whole_file(
+                source_lines, chunk_size, (tail_start, tail_end)
+            ):
+                uncovered.append(
+                    Chunk(
+                        content=content,
+                        start_line=s,
+                        end_line=e,
+                        meta={
+                            "program": program.name,
+                            "format": source_format,
+                            "fallback": True,
+                            "partial": True,
+                            "unstructured": True,
+                        },
+                    )
+                )
+
+    return uncovered
+
+
+_PROCEDURE_COPYBOOK_VERBS = {
+    "CALL", "PERFORM", "MOVE", "GO", "GOTO", "COMPUTE", "ADD", "SUBTRACT",
+    "MULTIPLY", "DIVIDE", "DISPLAY", "ACCEPT", "STOP", "GOBACK", "EXIT",
+    "IF", "EVALUATE", "INITIALIZE", "STRING", "UNSTRING", "INSPECT", "SEARCH",
+    "READ", "WRITE", "REWRITE", "OPEN", "CLOSE", "DELETE", "START", "ALTER",
+    "CONTINUE", "NEXT", "SET",
+}
+
+
+def _is_procedure_copybook(
+    text: str, tokens: list[lexer_mod.Token], embedded_blocks: list[embedded_mod.EmbeddedBlock]
+) -> bool:
+    upper_text = text.upper()
+    if "PROCEDURE DIVISION" in upper_text:
+        return True
+    if "DATA DIVISION" in upper_text or "WORKING-STORAGE SECTION" in upper_text:
+        return False
+
+    first_tok = None
+    for t in tokens:
+        if t.kind in ("NUMBER", "WORD"):
+            first_tok = t
+            break
+
+    if first_tok is not None:
+        if first_tok.kind == "NUMBER":
+            val = first_tok.value
+            if val.isdigit() and (1 <= int(val) <= 49 or int(val) in (66, 77, 88)):
+                return False
+        if first_tok.kind == "WORD" and first_tok.value.upper() in ("FD", "SD", "RD"):
+            return False
+
+    for t in tokens:
+        if t.kind == "WORD" and t.value.upper() in _PROCEDURE_COPYBOOK_VERBS:
+            return True
+
+    for blk in embedded_blocks:
+        if blk.dialect.upper() == "CICS":
+            return True
+        if blk.dialect.upper() == "SQL":
+            upper_content = blk.content.upper()
+            if any(kw in upper_content for kw in ("SELECT", "INSERT", "UPDATE", "DELETE")):
+                return True
+
+    return False
+
+
 def parse_copybook(
     text: str,
     path: str,
@@ -685,6 +835,9 @@ def parse_copybook(
     jeden DIVISION-Header. data_division.parse() braucht dennoch ein
     CobolProgram mit einer DATA-Division, um deren Zeilenbereich zu kennen -
     hier synthetisch über die gesamte Datei aufgespannt.
+
+    O-364: Unterstützt auch ausführbare (Procedure-) Copybooks, die Paragraphen,
+    CALL/PERFORM/MOVE-Anweisungen oder EXEC SQL/CICS-Blöcke enthalten.
 
     name (= Entity-Typ "copybook") ist der Dateiname ohne Endung, uppercased
     - das ist der Bezeichner, über den COPY-Statements ihn referenzieren
@@ -702,7 +855,7 @@ def parse_copybook(
         logical_lines, profile.defines if profile is not None else {}
     )
     logical_lines = replace_mod.apply(logical_lines)  # O-136, siehe parse_program()
-    masked_lines, _ = embedded_mod.mask(logical_lines)
+    masked_lines, embedded_blocks = embedded_mod.mask(logical_lines)
     tokens = lexer_mod.tokenize(masked_lines)
     lexer_diagnostics = lexer_mod.diagnostics(
         tokens, profile.literal_delimiter if profile is not None else "both"
@@ -724,32 +877,167 @@ def parse_copybook(
 
     start_line = tokens[0].phys_line
     end_line = tokens[-1].phys_line
-    synthetic = CobolProgram(
-        name=name,
-        start_line=start_line,
-        end_line=end_line,
-        divisions=[Division("DATA", start_line, end_line)],
-    )
+    is_procedure = _is_procedure_copybook(text, tokens, embedded_blocks)
 
-    items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
-        synthetic, masked_lines
-    )
-    errors.extend(dd_errors)
-    copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
-    errors.extend(copy_errors)
-
-    entities = [
-        Entity(
-            type="copybook",
+    if is_procedure:
+        synthetic = CobolProgram(
             name=name,
             start_line=start_line,
             end_line=end_line,
-            qualified_name=name,
-            parent_qualified_name=None,
+            divisions=[Division("PROCEDURE", start_line, end_line)],
         )
-    ]
-    used_qnames = {name}
-    entities.extend(_build_field_entities(name, items, file_descriptors, used_qnames=used_qnames))
+        upper_text = text.upper()
+        if "PROCEDURE DIVISION" in upper_text:
+            header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER."
+        else:
+            header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER. PROCEDURE DIVISION."
+        tree, source_text, diags = antlr_bridge.build_tree(masked_lines, header=header)
+        visitor = divisions_mod._StructureVisitor(source_text)
+        visitor.visit(tree)
+        if visitor.programs:
+            synthetic.paragraphs = visitor.programs[0].paragraphs
+            synthetic.sections = visitor.programs[0].sections
+
+        proc_edges, proc_errors = procedure_mod.scan(synthetic, tokens)
+        errors.extend(proc_errors)
+        sql_blocks, sql_edges, sql_errors = sql_mod.scan(synthetic, embedded_blocks, items=[])
+        errors.extend(sql_errors)
+        exec_blocks, exec_edges, exec_errors = exec_mod.scan(synthetic, embedded_blocks)
+        errors.extend(exec_errors)
+        xref_edges, xref_errors = xref_mod.scan(synthetic, tokens, items=[])
+        errors.extend(xref_errors)
+        copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
+        errors.extend(copy_errors)
+
+        all_edges = [*copy_edges, *proc_edges, *sql_edges, *exec_edges, *xref_edges]
+
+        entities = [
+            Entity(
+                type="copybook",
+                name=name,
+                start_line=start_line,
+                end_line=end_line,
+                qualified_name=name,
+                parent_qualified_name=None,
+            )
+        ]
+        used_qnames = {name}
+        for sec in synthetic.sections:
+            qname = f"{name}.{sec.name}"
+            used_qnames.add(qname)
+            entities.append(
+                Entity(
+                    type="section",
+                    name=sec.name,
+                    start_line=sec.start_line,
+                    end_line=sec.end_line,
+                    parent_name=name,
+                    qualified_name=qname,
+                    parent_qualified_name=name,
+                )
+            )
+        for p in synthetic.paragraphs:
+            parent_qname = f"{name}.{p.section}" if p.section else name
+            qname = f"{parent_qname}.{p.name}"
+            used_qnames.add(qname)
+            entities.append(
+                Entity(
+                    type="paragraph",
+                    name=p.name,
+                    start_line=p.start_line,
+                    end_line=p.end_line,
+                    parent_name=p.section or name,
+                    qualified_name=qname,
+                    parent_qualified_name=parent_qname,
+                )
+            )
+        for sb in sql_blocks:
+            entities.append(
+                Entity(
+                    type="sql_block",
+                    name=sb.name,
+                    start_line=sb.start_line,
+                    end_line=sb.end_line,
+                    parent_name=name,
+                    qualified_name=f"{name}.{sb.name}",
+                    parent_qualified_name=name,
+                    meta={"statement_type": sb.statement_type, "tables": sb.tables},
+                )
+            )
+        for eb in exec_blocks:
+            entities.append(
+                Entity(
+                    type="exec_block",
+                    name=eb.name,
+                    start_line=eb.start_line,
+                    end_line=eb.end_line,
+                    parent_name=name,
+                    qualified_name=f"{name}.{eb.name}",
+                    parent_qualified_name=name,
+                    meta={"dialect": eb.dialect, "operation": eb.operation},
+                )
+            )
+        diagnostics_list = diags
+    else:
+        synthetic = CobolProgram(
+            name=name,
+            start_line=start_line,
+            end_line=end_line,
+            divisions=[Division("DATA", start_line, end_line)],
+        )
+
+        items, file_descriptors, dd_errors, dd_diagnostics = data_division_mod.parse(
+            synthetic, masked_lines
+        )
+        errors.extend(dd_errors)
+        copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
+        errors.extend(copy_errors)
+        sql_blocks, sql_edges, sql_errors = sql_mod.scan(synthetic, embedded_blocks, items=items)
+        errors.extend(sql_errors)
+        exec_blocks, exec_edges, exec_errors = exec_mod.scan(synthetic, embedded_blocks)
+        errors.extend(exec_errors)
+
+        all_edges = [*copy_edges, *sql_edges, *exec_edges]
+
+        entities = [
+            Entity(
+                type="copybook",
+                name=name,
+                start_line=start_line,
+                end_line=end_line,
+                qualified_name=name,
+                parent_qualified_name=None,
+            )
+        ]
+        used_qnames = {name}
+        entities.extend(_build_field_entities(name, items, file_descriptors, used_qnames=used_qnames))
+        for sb in sql_blocks:
+            entities.append(
+                Entity(
+                    type="sql_block",
+                    name=sb.name,
+                    start_line=sb.start_line,
+                    end_line=sb.end_line,
+                    parent_name=name,
+                    qualified_name=f"{name}.{sb.name}",
+                    parent_qualified_name=name,
+                    meta={"statement_type": sb.statement_type, "tables": sb.tables},
+                )
+            )
+        for eb in exec_blocks:
+            entities.append(
+                Entity(
+                    type="exec_block",
+                    name=eb.name,
+                    start_line=eb.start_line,
+                    end_line=eb.end_line,
+                    parent_name=name,
+                    qualified_name=f"{name}.{eb.name}",
+                    parent_qualified_name=name,
+                    meta={"dialect": eb.dialect, "operation": eb.operation},
+                )
+            )
+        diagnostics_list = dd_diagnostics
 
     chunks = [
         Chunk(
@@ -767,12 +1055,12 @@ def parse_copybook(
         source_format=source_format,
         variant_key=variant_key(profile),
         entities=entities,
-        edges=copy_edges,
+        edges=all_edges,
         chunks=chunks,
         errors=errors,
         diagnostics=profile_diagnostics
         + lexer_diagnostics
-        + antlr_bridge.consolidate_diagnostics(dd_diagnostics),
+        + antlr_bridge.consolidate_diagnostics(diagnostics_list),
     )
     _attach_source_evidence(result, profile, logical_lines)
     return result

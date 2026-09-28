@@ -113,3 +113,65 @@ def test_no_procedure_division_reports_error_without_crashing():
 
     assert edges == []
     assert errors != []
+
+
+def test_goto_inside_if_else_does_not_produce_keyword_targets():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O360GOTO.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           IF WS-FLAG = 1\n"
+        "               GO TO DONE-PARA\n"
+        "           ELSE\n"
+        "               DISPLAY 'Y'\n"
+        "           END-IF.\n"
+        "       DONE-PARA.\n"
+        "           STOP RUN.\n"
+    )
+    _, edges, errors = _edges(text)
+    assert errors == []
+    gotos = [e for e in edges if e.type == "GOTO"]
+    assert len(gotos) == 1
+    assert gotos[0].dst_name == "DONE-PARA"
+    assert gotos[0].src_start_line == 6
+    assert gotos[0].src_end_line == 6
+    assert gotos[0].meta.get("control_context") == [{"type": "IF", "branch": "THEN"}]
+
+
+def test_perform_times_n_times_does_not_produce_perform_edge():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O360PERF.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           PERFORM TIMES-N TIMES\n"
+        "               DISPLAY 'X'\n"
+        "           END-PERFORM.\n"
+        "           STOP RUN.\n"
+    )
+    _, edges, errors = _edges(text)
+    assert errors == []
+    perf_edges = [e for e in edges if e.type == "PERFORM"]
+    assert perf_edges == []
+
+
+def test_goto_depending_on_captures_all_targets():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. O360DEP.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           GO TO PARA-1 PARA-2 PARA-3 DEPENDING ON WS-IDX.\n"
+        "       PARA-1.\n"
+        "           STOP RUN.\n"
+        "       PARA-2.\n"
+        "           STOP RUN.\n"
+        "       PARA-3.\n"
+        "           STOP RUN.\n"
+    )
+    _, edges, errors = _edges(text)
+    assert errors == []
+    gotos = [e for e in edges if e.type == "GOTO"]
+    assert [g.dst_name for g in gotos] == ["PARA-1", "PARA-2", "PARA-3"]
+    assert all(g.resolution == "resolved" for g in gotos)
