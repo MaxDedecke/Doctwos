@@ -561,6 +561,11 @@ def get_call_flow(
                 "edges_omitted": max(0, len(result.get("edges", [])) - len(edges)),
                 "next_cursor": None,
             },
+            "follow_up_hint": (
+                "Erneut am ausgegebenen root.id abfragen und scope (execution/dependencies/all), "
+                "direction oder hops eingrenzen; dieser Call-Flow hat keinen Seiten-Cursor."
+                if truncated else None
+            ),
         }
 
 
