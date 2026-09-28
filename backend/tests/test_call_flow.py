@@ -173,6 +173,14 @@ def test_resource_flow_preserves_types_evidence_and_open_targets(
                 next(edge for edge in edges if edge["target"] is None)["meta"]["resolution_reason"]
                 == "resource_target_not_found"
             )
+        execution = trace_call_flow(
+            db_session, project_id=test_project, entity_id=nodes[0].id, scope="execution"
+        )
+        dependencies = trace_call_flow(
+            db_session, project_id=test_project, entity_id=nodes[0].id, scope="dependencies"
+        )
+        assert {edge["type"] for edge in execution["edges"]} == {"STARTS_JAVA"}
+        assert {edge["type"] for edge in dependencies["edges"]} == {"USES_RESOURCE"}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

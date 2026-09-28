@@ -165,7 +165,9 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         failure = type(exc).__name__
         logger.warning("MCP tool %s failed (%s)", name, failure)
         safe_message = str(exc) if isinstance(exc, ValueError) else ""
-        if safe_message in {"invalid query", "invalid cursor", "invalid direction", "invalid relationship"}:
+        if safe_message in {"invalid query", "invalid cursor", "invalid direction", "invalid relationship", "invalid scope"}:
+            # Keep validation errors useful to MCP clients without exposing
+            # database or authorization details.
             raise ValueError(safe_message) from None
         if isinstance(exc, httpx.HTTPStatusError):
             upstream = "embedding endpoint" if name == "search_knowledge" else "upstream service"
@@ -340,7 +342,7 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
         if len(exact) == 1:
             entity_id = exact[0]["id"]
             flow = trace_call_flow(db, project_id=project_id, entity_id=entity_id,
-                                   hops=hops, direction="outgoing")
+                                   hops=hops, direction="outgoing", scope="execution")
             result["resolution"] = "unique_exact_match"
             result["call_flow"] = flow
         return result
@@ -375,14 +377,22 @@ def get_call_flow(
     entity_id: int,
     hops: int = 2,
     direction: Literal["outgoing", "incoming", "both"] = "outgoing",
+    scope: Literal["execution", "dependencies", "all"] = "execution",
 ) -> dict:
-    """Trace indexed calls; direction is outgoing, incoming, or both."""
+    """Trace executable calls or resource/data dependencies in a project.
+
+    ``scope`` selects ``execution`` (CALL/PERFORM/etc.), ``dependencies``
+    (COPY/import/resource/data edges), or ``all``. ``direction`` is outgoing,
+    incoming, or both.
+    """
     hops = max(0, min(hops, 3))
-    with _tool_context(ctx, "get_call_flow", project_id, {"entity_id": entity_id, "hops": hops}) as (db, user):
+    with _tool_context(ctx, "get_call_flow", project_id, {"entity_id": entity_id, "hops": hops, "scope": scope}) as (db, user):
         if direction not in {"outgoing", "incoming", "both"}:
             raise ValueError("invalid direction")
+        if scope not in {"execution", "dependencies", "all"}:
+            raise ValueError("invalid scope")
         _entity(db, user, project_id, entity_id)
-        result = trace_call_flow(db, project_id=project_id, entity_id=entity_id, hops=hops, direction=direction)
+        result = trace_call_flow(db, project_id=project_id, entity_id=entity_id, hops=hops, direction=direction, scope=scope)
         root_id = (result.get("root") or {}).get("id")
         candidate_nodes = sorted(
             result.get("nodes", []), key=lambda node: (node.get("id") != root_id, node.get("id", 0))
@@ -415,6 +425,7 @@ def get_call_flow(
             "root": result.get("root"),
             "entry_resolution": result.get("entry_resolution"),
             "hops_applied": hops,
+            "scope": scope,
             "entry_candidates": result.get("entry_candidates", [])[:20],
             "nodes": nodes,
             "edges": edges,

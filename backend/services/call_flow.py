@@ -43,7 +43,10 @@ CALL_FLOW_EDGE_TYPES = {
     "REFERENCES_RESOURCE",
     "LINKS_TO",
 }
+CALL_EXECUTION_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "CALLS", "EXECUTES", "STARTS_JAVA"}
+CALL_DEPENDENCY_EDGE_TYPES = CALL_FLOW_EDGE_TYPES - CALL_EXECUTION_EDGE_TYPES
 CallFlowDirection = Literal["outgoing", "incoming", "both"]
+CallFlowScope = Literal["execution", "dependencies", "all"]
 
 
 def _node_json(entity: CodeEntity) -> dict:
@@ -96,6 +99,7 @@ def trace_call_flow(
     entity_id: int,
     hops: int = CALL_FLOW_MAX_HOPS,
     direction: CallFlowDirection = "outgoing",
+    scope: CallFlowScope = "all",
 ) -> dict:
     """Return a directional call flow rooted at one indexed code entity.
 
@@ -106,6 +110,8 @@ def trace_call_flow(
     """
     if direction not in {"outgoing", "incoming", "both"}:
         return {"error": "direction must be outgoing, incoming, or both"}
+    if scope not in {"execution", "dependencies", "all"}:
+        return {"error": "scope must be execution, dependencies, or all"}
     if not isinstance(hops, int) or isinstance(hops, bool):
         return {"error": "hops must be an integer"}
     hops = max(0, min(hops, CALL_FLOW_MAX_HOPS))
@@ -228,9 +234,14 @@ def trace_call_flow(
         if direction in {"incoming", "both"}:
             predicates.append(CodeEdge.dst_entity_id.in_(frontier))
         remaining_edges = CALL_FLOW_MAX_EDGES - len(edge_rows)
+        edge_types = {
+            "execution": CALL_EXECUTION_EDGE_TYPES,
+            "dependencies": CALL_DEPENDENCY_EDGE_TYPES,
+            "all": CALL_FLOW_EDGE_TYPES,
+        }[scope]
         query = db.query(CodeEdge).filter(
             CodeEdge.project_id == project_id,
-            CodeEdge.type.in_(CALL_FLOW_EDGE_TYPES),
+            CodeEdge.type.in_(edge_types),
             or_(*predicates),
         )
         if edge_rows:
@@ -289,6 +300,7 @@ def trace_call_flow(
         "keine Aufrufkanten indexiert. Das belegt nicht, dass zur Laufzeit keine Aufrufe erfolgen.",
         "hops": hops,
         "direction": direction,
+        "scope": scope,
         "truncated": truncated,
         "nodes": nodes,
         "edges": edges,
