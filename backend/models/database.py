@@ -536,6 +536,9 @@ class MCPToolAuditLog(Base):
     status = Column(String(20), nullable=False)  # "success" or "error"
     error_message = Column(String(1000), nullable=True)
     duration_ms = Column(Integer, nullable=False, default=0)
+    result_payload_bytes = Column(Integer, nullable=True)
+    result_truncated = Column(Boolean, nullable=True)
+    index_revision = Column(String(64), nullable=True)
     trace_id = Column(String(128), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True

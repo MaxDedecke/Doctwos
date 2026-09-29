@@ -31,6 +31,9 @@ def _serialize(entry: MCPToolAuditLog) -> dict:
         "status": entry.status,
         "error_message": entry.error_message,
         "duration_ms": entry.duration_ms,
+        "result_payload_bytes": entry.result_payload_bytes,
+        "result_truncated": entry.result_truncated,
+        "index_revision": entry.index_revision,
         "trace_id": entry.trace_id,
     }
 

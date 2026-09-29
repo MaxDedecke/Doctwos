@@ -3,6 +3,7 @@
 import logging
 import base64
 import binascii
+import hashlib
 import json
 import re
 import time
@@ -125,6 +126,46 @@ def _entity_analysis(entity: CodeEntity) -> dict:
     return {key: meta[key] for key in keys if key in meta}
 
 
+def _capture_mcp_result(ctx: Context, db: Session, project_id: int | None, result: dict) -> None:
+    """Attach content-free result telemetry to this call's audit record."""
+    request = ctx.request_context.request
+    if request is None:
+        return
+
+    def has_truncation(value) -> bool:
+        if isinstance(value, dict):
+            return any(
+                (key in {"truncated", "has_more", "continuation_limit_reached"} and item is True)
+                or has_truncation(item)
+                for key, item in value.items()
+            )
+        if isinstance(value, list):
+            return any(has_truncation(item) for item in value)
+        return False
+
+    try:
+        payload_bytes = len(json.dumps(result, ensure_ascii=False, separators=(",", ":"), default=str).encode())
+        revision = None
+        if project_id is not None:
+            variants = [
+                row[0]
+                for row in db.query(CodeEntity.variant_key)
+                .filter(CodeEntity.project_id == project_id)
+                .distinct()
+                .order_by(CodeEntity.variant_key)
+                .limit(1000)
+                .all()
+            ]
+            revision = f"{len(variants)}:{hashlib.sha256('|'.join(variants).encode()).hexdigest()[:16]}"
+        request.scope.setdefault("state", {})["doctus_mcp_result_metrics"] = {
+            "result_payload_bytes": payload_bytes,
+            "result_truncated": has_truncation(result),
+            "index_revision": revision,
+        }
+    except Exception:
+        logger.debug("Unable to capture MCP result metrics", exc_info=True)
+
+
 def _source_visible(db: Session, user: User, source_id: int | None) -> bool:
     if source_id is None:
         return True
@@ -195,6 +236,8 @@ def _embedding_profile_for_project(db: Session, project_id: int):
 @contextmanager
 def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: dict):
     request = ctx.request_context.request
+    state = request.scope.setdefault("state", {}) if request else {}
+    state.pop("doctus_mcp_result_metrics", None)
     user_id = request.scope.get("state", {}).get("mcp_user_id") if request else None
     if user_id is None:
         raise ValueError("MCP authentication required")
@@ -225,6 +268,7 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
             raise ValueError(detail) from None
         raise ValueError("MCP request failed or access denied") from None
     finally:
+        result_metrics = state.pop("doctus_mcp_result_metrics", {})
         record_mcp_tool_call(
             db,
             user_id=user_id,
@@ -237,6 +281,7 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
             arguments={**audit_args, "requested_project_id": project_id},
             success=success,
             duration_ms=int((time.monotonic() - started) * 1000),
+            **result_metrics,
             error_message=failure,
         )
         db.close()
@@ -377,12 +422,14 @@ def search_code(
                     "arguments": {"project_id": project_id, "entity_id": item["id"], "limit": 12},
                     "reason": "Inspect indexed reads and writes for this data entity.",
                 })
-        return {
+        response = {
             "results": visible[:limit],
             "truncated": len(hits) > limit or len(visible) < len(hits),
             "limit_applied": limit,
             "follow_up_actions": follow_up_actions[:6],
         }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -469,19 +516,22 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
 
         if len(matches) == 1:
             match = matches[0]
-            return {
+            response = {
                 "project_id": project_id, "query": query,
                 "candidates": candidates[:limit], "candidate_count": len(candidates),
                 "candidates_truncated": len(candidates) > limit,
                 **match,
             }
-        return {
-            "project_id": project_id, "query": query,
-            "resolution": "multiple_queries", "matches": matches,
-            "candidates": candidates[:limit], "candidate_count": len(candidates),
-            "candidates_truncated": len(candidates) > limit,
-            "notice": "Jedes explizite Symbol wurde getrennt aufgelöst; Mehrdeutigkeit bleibt pro Symbol sichtbar.",
-        }
+        else:
+            response = {
+                "project_id": project_id, "query": query,
+                "resolution": "multiple_queries", "matches": matches,
+                "candidates": candidates[:limit], "candidate_count": len(candidates),
+                "candidates_truncated": len(candidates) > limit,
+                "notice": "Jedes explizite Symbol wurde getrennt aufgelöst; Mehrdeutigkeit bleibt pro Symbol sichtbar.",
+            }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -550,7 +600,7 @@ def get_code_entity(
                 break
 
         has_more = next_chunk_id is not None
-        return {
+        response = {
             "id": entity.id,
             "project_id": entity.project_id,
             "source_id": entity.source_id,
@@ -582,6 +632,8 @@ def get_code_entity(
                 }] if has_more else [],
             } if sections else None,
         }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -654,7 +706,7 @@ def trace_data_access(ctx: Context, project_id: int, entity_id: int, limit: int 
                 "source_excerpt": excerpt,
             })
         truncated = len(rows) > limit or len(accesses) < min(len(rows), limit)
-        return {
+        response = {
             "project_id": project_id,
             "entity": {"id": entity.id, "name": entity.name, "type": entity.type},
             "accesses": accesses,
@@ -662,6 +714,8 @@ def trace_data_access(ctx: Context, project_id: int, entity_id: int, limit: int 
             "truncated": truncated,
             "notice": "Indexierte READS/WRITES in Quellreihenfolge; kein vollständiger Kontrollfluss- oder Laufzeitbeweis.",
         }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -800,7 +854,7 @@ def get_call_flow(
                 "file_path": requested_root.file_path, "source_id": requested_root.source_id,
                 "start_line": requested_root.start_line, "end_line": requested_root.end_line,
             }
-        return {
+        response = {
             "project_id": project_id,
             "status": result.get("status"),
             "notice": result.get("notice"),
@@ -843,6 +897,8 @@ def get_call_flow(
                 "reason": "Continue the ordered visible call-flow page.",
             }] if next_cursor else [],
         }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -916,7 +972,7 @@ def get_graph_neighbors(
         truncated = bool(result.get("has_more") or len(result.get("nodes", [])) > 81
                          or len(result.get("edges", [])) > 40
                          or len(nodes) < len(result.get("nodes", [])[:81]))
-        return {
+        response = {
             "project_id": project_id,
             "relationship": relationship,
             "focus_id": result.get("focus_id"),
@@ -940,6 +996,8 @@ def get_graph_neighbors(
             },
             "notice": "Only indexed and visible relations are shown; unresolved calls may have no graph target.",
         }
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -986,7 +1044,9 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
                 "content": excerpt,
                 "content_truncated": clipped,
             })
-        return {"results": results, "truncated": len(chunks) > limit or len(results) < min(len(chunks), limit), "limit_applied": limit, "notice": "Semantic similarity is a retrieval hint, not a verified conclusion."}
+        response = {"results": results, "truncated": len(chunks) > limit or len(results) < min(len(chunks), limit), "limit_applied": limit, "notice": "Semantic similarity is a retrieval hint, not a verified conclusion."}
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
 
 
 class MCPBearerGate:
