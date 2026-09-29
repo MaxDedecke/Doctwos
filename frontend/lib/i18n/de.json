@@ -1167,6 +1167,7 @@
       "project": "Projekte",
       "knowledge_source": "Wissensquellen"
     },
+    "openSearch": "Suche öffnen",
     "placeholder": "Programm, Paragraph oder Dokument suchen… (Strg+K)",
     "noResultsFor": "Keine Treffer für „{{query}}\"",
     "moreResults": "+{{count}} weitere — Suche eingrenzen",

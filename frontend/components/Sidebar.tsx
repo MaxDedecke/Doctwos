@@ -170,7 +170,7 @@ export function Sidebar({
             </div>
 
             {/* Action Buttons (New Chat) */}
-            <div className="p-4 space-y-2 border-b border-ds-zinc-800">
+            <div className="px-4 pt-3 pb-3">
               <Button
                 onClick={() => {
                   startNewChat();
@@ -195,10 +195,10 @@ export function Sidebar({
                 <div
                   onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
                   className={cn(
-                    "flex items-center justify-between px-4 py-2.5 select-none cursor-pointer transition-colors shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
+                    "flex items-center justify-between px-4 py-2 select-none cursor-pointer transition-colors shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
                     theme === 'dark'
-                      ? "text-ds-zinc-400 hover:bg-ds-zinc-900/60 bg-ds-zinc-900/10"
-                      : "text-ds-zinc-500 hover:bg-ds-zinc-200/45 bg-ds-zinc-50/20"
+                      ? "text-ds-zinc-400 hover:text-ds-zinc-200"
+                      : "text-ds-zinc-500 hover:text-ds-zinc-800"
                   )}
                 >
                   <span className="flex items-center gap-2">
@@ -260,14 +260,13 @@ export function Sidebar({
                 return (
                   <div
                     className={cn(
-                      "flex flex-col border-t transition-all duration-300 min-h-0 mt-auto shrink-0",
+                      "flex flex-col transition-all duration-300 min-h-0 mt-auto shrink-0 pt-1",
                       expandedFolderId !== null ? "max-h-[50%]" : "max-h-[33%]"
                     )}
-                    style={{ borderColor: theme === 'dark' ? 'rgb(var(--ds-neutral-700))' : 'rgb(var(--ds-neutral-200))' }}
                   >
                     <div className={cn(
-                      "flex items-center justify-between px-4 py-2.5 select-none border-b shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
-                      theme === 'dark' ? "text-ds-zinc-400 bg-ds-zinc-900/10 border-ds-zinc-800/60" : "text-ds-zinc-500 bg-ds-zinc-50/20 border-ds-zinc-200"
+                      "flex items-center justify-between px-4 py-2 select-none shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
+                      theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                     )}>
                       <span>{t('sidebar.knowledgeSources')}</span>
                       <span className={cn(
@@ -297,10 +296,10 @@ export function Sidebar({
                                 <div
                                   key={source.id}
                                   className={cn(
-                                    "rounded-lg border transition-all overflow-hidden",
+                                    "rounded-lg transition-colors overflow-hidden",
                                     theme === 'dark'
-                                      ? (isSelected ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-950 border-ds-zinc-800 hover:bg-ds-zinc-900" )
-                                      : (isSelected ? "bg-ds-zinc-50 border-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50")
+                                      ? (isSelected ? "bg-ds-zinc-800/80" : "hover:bg-ds-zinc-900")
+                                      : (isSelected ? "bg-ds-zinc-200/80" : "hover:bg-ds-zinc-200/50")
                                   )}
                                 >
                                   <button
@@ -339,10 +338,10 @@ export function Sidebar({
                               <div
                                 key={source.id}
                                 className={cn(
-                                  "rounded-lg border transition-all overflow-hidden",
+                                  "rounded-lg transition-colors overflow-hidden",
                                   theme === 'dark'
-                                    ? (isExpanded ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-950 border-ds-zinc-800 hover:bg-ds-zinc-900" )
-                                    : (isExpanded ? "bg-ds-zinc-50 border-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50")
+                                    ? (isExpanded ? "bg-ds-zinc-900" : "hover:bg-ds-zinc-900")
+                                    : (isExpanded ? "bg-ds-zinc-200/60" : "hover:bg-ds-zinc-200/50")
                                 )}
                               >
                                 <button
@@ -386,7 +385,7 @@ export function Sidebar({
                                 </button>
 
                                 {isExpanded && (
-                                  <div className="px-2 pb-2 border-t pt-1.5 space-y-1" style={{ borderColor: theme === 'dark' ? 'rgba(63, 63, 70, 0.4)' : 'rgba(228, 228, 231, 0.6)' }}>
+                                  <div className="px-2 pb-2 pt-0.5 space-y-1">
                                     {isLoadingFiles ? (
                                       <div className="flex items-center gap-1.5 px-2 py-3 text-[10px] text-ds-zinc-500 font-medium">
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -424,10 +423,10 @@ export function Sidebar({
 
             {/* Sidebar Footer Controls */}
             <div className={cn(
-              "p-4 border-t space-y-3.5 z-20 transition-colors duration-200",
-              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-zinc-100 border-ds-zinc-200"
+              "px-4 py-3 border-t z-20 transition-colors duration-200",
+              theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
             )}>
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Avatar */}
                   <div className={cn(

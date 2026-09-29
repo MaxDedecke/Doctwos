@@ -103,6 +103,70 @@ describe('GlobalSearch save-session-without-chat button', () => {
   });
 });
 
+describe('GlobalSearch collapsible search bar', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the search bar hidden behind a search icon until it is clicked', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+
+    expect(document.getElementById('global-search-input')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+
+    const input = document.getElementById('global-search-input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole('button', { name: 'Suche öffnen' })).toBeNull();
+  });
+
+  it('collapses again on Escape while the query is empty', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+
+    fireEvent.keyDown(document.getElementById('global-search-input')!, { key: 'Escape' });
+
+    expect(document.getElementById('global-search-input')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Suche öffnen' })).toBeTruthy();
+  });
+
+  it('stays open on Escape while a query is typed', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({ results: [], total: 0, counts: {} }));
+    renderGlobalSearch();
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+    const input = document.getElementById('global-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'ZAHLUNG' } });
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(document.getElementById('global-search-input')).toBeTruthy();
+  });
+
+  it('collapses an empty search bar on an outside click', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+
+    fireEvent.mouseDown(document.body);
+
+    expect(document.getElementById('global-search-input')).toBeNull();
+  });
+
+  it('opens and focuses the search with Ctrl+K', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    const input = document.getElementById('global-search-input');
+    expect(input).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+  });
+});
+
 describe('GlobalSearch privileged views', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -184,6 +248,7 @@ describe('GlobalSearch Java entity navigation', () => {
     const onSelectResult = vi.fn();
 
     renderGlobalSearch({ onSelectResult });
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
     fireEvent.change(screen.getByPlaceholderText('Programm, Paragraph oder Dokument suchen… (Strg+K)'), {
       target: { value: 'PaymentService' },
     });

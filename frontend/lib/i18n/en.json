@@ -1167,6 +1167,7 @@
       "project": "Projects",
       "knowledge_source": "Knowledge Sources"
     },
+    "openSearch": "Open search",
     "placeholder": "Search programs, paragraphs or documents… (Ctrl+K)",
     "noResultsFor": "No results for \"{{query}}\"",
     "moreResults": "+{{count}} more — refine search",

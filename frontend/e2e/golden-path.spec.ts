@@ -196,6 +196,8 @@ test("goldener Pfad: COBOL-Quelle anbinden, parsen, suchen und an der richtigen 
   await page.reload();
   await selectProject(page, `e2e-golden-${RUN_ID}`);
 
+  // Die Suchleiste ist hinter einem Such-Icon eingeklappt und muss erst geöffnet werden.
+  await page.locator("#global-search-toggle").click();
   await expect(page.locator("#global-search-input")).toBeVisible({ timeout: 15_000 });
   await page.locator("#global-search-input").fill(FIXTURE_ENTITY);
 

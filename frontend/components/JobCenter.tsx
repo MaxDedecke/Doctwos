@@ -122,7 +122,7 @@ export function JobCenter({
       <Button
         variant="ghost" size="icon" onClick={() => setOpen(value => !value)}
         aria-label={t("jobCenter.title")} aria-expanded={open}
-        className={cn("relative h-8 w-8 rounded-lg border", theme === "dark" ? "text-ds-zinc-400 border-ds-zinc-800 hover:bg-ds-zinc-900" : "text-ds-zinc-700 border-ds-zinc-200 hover:bg-ds-zinc-100")}
+        className={cn("relative h-9 w-9 rounded-lg transition-colors duration-150", theme === "dark" ? "text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800" : "text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-200/70")}
       >
         <Activity className="h-4 w-4" />
         {activeCount > 0 && <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full bg-ds-rose-600 text-ds-white text-[9px] leading-4 font-bold">{activeCount}</span>}

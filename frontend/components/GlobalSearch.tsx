@@ -88,6 +88,9 @@ export function GlobalSearch({
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState(selectedProject ? 'current' : 'all');
   const [isOpen, setIsOpen] = useState(false);
+  // Die Suchleiste ist standardmäßig hinter einem Such-Icon eingeklappt und klappt per
+  // Klick, Strg/Cmd+K auf. Solange eine Eingabe steht, bleibt sie offen.
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -136,12 +139,21 @@ export function GlobalSearch({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Beim Aufklappen (Klick oder Strg/Cmd+K) direkt in das Eingabefeld springen.
+  useEffect(() => {
+    if (isSearchExpanded) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isSearchExpanded]);
+
   // --- Keyboard Shortcuts ---
-  // Ctrl/Cmd+K focuses the search from anywhere in the app (Spotlight-style)
+  // Ctrl/Cmd+K öffnet die Suche von überall aus (Spotlight-Stil)
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        setIsSearchExpanded(true);
         inputRef.current?.focus();
         inputRef.current?.select();
       }
@@ -150,16 +162,17 @@ export function GlobalSearch({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Close search results when clicking outside
+  // Trefferliste schließen bei Klick außerhalb; eine leere Suchleiste klappt dabei wieder ein.
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        if (!query.trim()) setIsSearchExpanded(false);
       }
     };
     document.addEventListener('mousedown', onClickOutside);
     return () => document.removeEventListener('mousedown', onClickOutside);
-  }, []);
+  }, [query]);
 
   // Reset limit to 6 when query or scope changes — done during render
   // (guarded by state comparisons) rather than in an effect.
@@ -254,9 +267,16 @@ export function GlobalSearch({
     setQuery('');
     setResults([]);
     inputRef.current?.blur();
+    setIsSearchExpanded(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      inputRef.current?.blur();
+      if (!query.trim()) setIsSearchExpanded(false);
+      return;
+    }
     if (!isOpen || flatForKeyboard.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -268,18 +288,24 @@ export function GlobalSearch({
       e.preventDefault();
       const target = flatForKeyboard[activeIndex >= 0 ? activeIndex : 0];
       if (target) handleSelect(target);
-    } else if (e.key === 'Escape') {
-      setIsOpen(false);
-      inputRef.current?.blur();
     }
   };
+
+  // Alle Icon-Aktionen der Kopfzeile teilen sich denselben ruhigen Stil (ohne Rahmen,
+  // gleiche Höhe wie Projektauswahl und Suche); nur Auswahl-/Primärelemente behalten ihre Kontur.
+  const headerIconButton = cn(
+    "h-9 w-9 rounded-lg transition-colors duration-150 shrink-0",
+    theme === 'dark'
+      ? "text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+      : "text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-200/70"
+  );
 
   return (
     <div
       ref={containerRef}
       className={cn(
         "h-14 shrink-0 w-full flex items-center gap-3 px-4 border-b relative z-40 transition-colors duration-150",
-        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-700" : "bg-ds-white border-ds-zinc-300"
+        theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-700" : "bg-ds-zinc-100 border-ds-zinc-300"
       )}
     >
       <Button
@@ -329,7 +355,7 @@ export function GlobalSearch({
           </SelectContent>
         </Select>
       </div>
-      {features.views.globalSearch ? (
+      {features.views.globalSearch && isSearchExpanded ? (
       <>
       <div className="relative flex-1 max-w-xl">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500" />
@@ -440,7 +466,7 @@ export function GlobalSearch({
 
       <Select value={scope} onValueChange={setScope}>
         <SelectTrigger className={cn(
-          "h-8 w-8 p-0 flex items-center justify-center border rounded-lg shrink-0 [&>svg:last-child]:hidden",
+          "h-9 w-9 p-0 flex items-center justify-center border rounded-lg shrink-0 [&>svg:last-child]:hidden",
           theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700"
         )} title={t('globalSearch.filterTitle') || 'Suchbereich filtern'}>
           <Filter className="h-3.5 w-3.5" />
@@ -466,7 +492,21 @@ export function GlobalSearch({
       )}
 
       {/* Global header actions — add view, knowledge graph, link manager, theme & settings */}
-      <div className="flex items-center gap-1.5 shrink-0 ml-auto pl-1">
+      <div className="flex items-center gap-1 shrink-0 ml-auto pl-1">
+        {features.views.globalSearch && !isSearchExpanded && (
+          <Button
+            variant="ghost"
+            size="icon"
+            id="global-search-toggle"
+            aria-label={t('globalSearch.openSearch')}
+            title={`${t('globalSearch.openSearch')} (Strg/Cmd+K)`}
+            onClick={() => setIsSearchExpanded(true)}
+            className={headerIconButton}
+          >
+            <Search className="w-4 h-4" />
+          </Button>
+        )}
+
         {/* Add view dropdown — pick which view to open */}
         <div className="relative">
           <Button
@@ -476,9 +516,9 @@ export function GlobalSearch({
             onClick={() => setIsAddViewOpen(o => !o)}
             title={panelConfigs.length >= 4 ? t('page.workspace.maxViewsReached') : t('page.workspace.addView')}
             className={cn(
-              "text-[10px] h-8 px-3 rounded-lg font-bold gap-1.5 transition-all cursor-pointer border",
+              "text-[10px] h-9 px-3 rounded-lg font-bold gap-1.5 transition-all cursor-pointer border",
               panelConfigs.length >= 4
-                ? "bg-ds-zinc-900 border-ds-zinc-850 text-ds-zinc-600"
+                ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-600" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-400")
                 : (theme === 'dark'
                     ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100 hover:bg-ds-zinc-800 hover:text-ds-white"
                     : "bg-ds-white border-ds-zinc-200 text-ds-zinc-950 hover:bg-ds-zinc-50 hover:text-ds-black")
@@ -541,12 +581,7 @@ export function GlobalSearch({
                 setIsSaveSessionOpen(true);
               }
             }}
-            className={cn(
-              "h-8 w-8 rounded-lg border transition-all duration-200",
-              theme === 'dark'
-                ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
-                : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
-            )}
+            className={headerIconButton}
           >
             <Save className="w-4 h-4" />
           </Button>
@@ -559,12 +594,7 @@ export function GlobalSearch({
           aria-label={t('chatView.shareChatTitle')}
           title={t('chatView.shareChatTitle')}
           onClick={onShareChat}
-          className={cn(
-            "h-8 w-8 rounded-lg border transition-all duration-200",
-            theme === 'dark'
-              ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
-              : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
-          )}
+          className={headerIconButton}
         >
           <Share2 className="w-4 h-4" />
         </Button>
@@ -574,12 +604,7 @@ export function GlobalSearch({
             variant="ghost"
             size="icon"
             onClick={onOpenGraphView}
-            className={cn(
-              "h-8 w-8 rounded-lg border transition-all duration-200",
-              theme === 'dark'
-                ? "text-ds-zinc-400 border-ds-zinc-800 hover:text-ds-zinc-100 hover:bg-ds-zinc-900"
-                : "text-ds-zinc-800 border-ds-zinc-200 hover:text-ds-zinc-950 hover:bg-ds-zinc-100"
-            )}
+            className={headerIconButton}
             title={t('sidebar.knowledgeGraphTitle')}
           >
             <Network className="w-4 h-4" />
@@ -590,12 +615,7 @@ export function GlobalSearch({
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className={cn(
-            "h-8 w-8 rounded-lg border transition-all duration-200",
-            theme === 'dark'
-              ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
-          )}
+          className={headerIconButton}
           title={theme === 'dark' ? t('globalSearch.toLightModeTitle') : t('globalSearch.toDarkModeTitle')}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -606,12 +626,7 @@ export function GlobalSearch({
           size="icon"
           id="settings-btn"
           onClick={() => setIsSettingsOpen(true)}
-          className={cn(
-            "h-8 w-8 rounded-lg border transition-all duration-200",
-            theme === 'dark'
-              ? "bg-ds-zinc-900/50 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-600 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
-          )}
+          className={headerIconButton}
           title={t('sidebar.settingsTitle')}
         >
           <Settings className="w-4 h-4" />
