@@ -294,11 +294,11 @@ export function ChatEmptyState({
   const stats = isEvidence && hasPulseContent(pulse) ? pulse : null;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-start text-center gap-8 pt-8 pb-16 relative">
+    <div className="flex-1 flex flex-col items-center justify-start text-center gap-5 @3xl/chat:gap-6 pt-2 pb-4 relative">
       {/* Zeilenraster als ruhiger Hintergrund; nutzt die Theme-Variablen, kein Glow. */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-[420px] pointer-events-none z-0"
+        className="absolute inset-x-0 top-0 h-[300px] pointer-events-none z-0"
         style={{
           backgroundImage:
             'linear-gradient(to right, rgb(var(--ds-border) / 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--ds-border) / 0.22) 1px, transparent 1px)',
@@ -308,7 +308,7 @@ export function ChatEmptyState({
         }}
       />
 
-      <div className="relative z-10 w-full max-w-xl space-y-4">
+      <div className="relative z-10 w-full max-w-3xl space-y-3">
         <div
           key={chatMode}
           className="inline-flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ds-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
@@ -323,7 +323,7 @@ export function ChatEmptyState({
         </div>
 
         <h1 className={cn(
-          'text-3xl @md/chat:text-4xl font-heading font-extrabold tracking-tight leading-tight text-center min-h-[2.5em] @md/chat:min-h-[2.4em] flex items-start justify-center',
+          'text-3xl @md/chat:text-4xl font-heading font-extrabold tracking-tight leading-tight text-center min-h-[2.2em] flex items-start justify-center',
           isDark ? 'text-ds-white' : 'text-ds-zinc-900'
         )}>
           <span className="inline-flex items-center justify-center gap-2.5 flex-wrap">
@@ -396,7 +396,7 @@ export function ChatEmptyState({
       </div>
 
       {/* Szenario-Karten: neu aufgebaut beim Moduswechsel, damit der Wechsel sichtbar wird. */}
-      <div key={chatMode} className="grid grid-cols-1 @lg/chat:grid-cols-2 gap-3 w-full max-w-2xl relative z-10">
+      <div key={chatMode} className="grid grid-cols-1 @lg/chat:grid-cols-2 @4xl/chat:grid-cols-4 gap-3 w-full max-w-6xl relative z-10">
         {scenarios.map((scenario, idx) => {
           const interactive = !scenario.disabled;
           return (

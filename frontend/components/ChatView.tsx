@@ -346,7 +346,10 @@ export function ChatView({
 
       {/* Chat message stream container */}
       <ScrollArea className="flex-1 w-full min-w-0">
-        <div className="w-full px-4 @sm/chat:px-6 py-6 @sm/chat:py-8 flex flex-col min-h-full justify-between max-w-4xl mx-auto">
+        <div className={cn(
+          "w-full px-4 @sm/chat:px-6 py-6 @sm/chat:py-8 flex flex-col min-h-full justify-between mx-auto",
+          chatMessages.length === 0 ? "max-w-7xl" : "max-w-4xl"
+        )}>
 
           {/* Zero State / Welcomer */}
           {chatMessages.length === 0 ? (
