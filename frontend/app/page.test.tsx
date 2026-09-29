@@ -49,7 +49,7 @@ vi.mock('@/app/services/api', () => ({
     getProjectEntities: vi.fn(),
     getKnowledgeSources: vi.fn(),
     getProjectReferences: vi.fn(),
-    getChatSessions: vi.fn(),
+    getChatSessionsPage: vi.fn(),
     getChatSessionByUuid: vi.fn(),
     getChatMessages: vi.fn(),
     updateChatMessageFeedback: vi.fn(),
@@ -179,7 +179,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     mockedApi.getProjectEntities.mockResolvedValue(axiosResponse([]));
     mockedApi.getKnowledgeSources.mockResolvedValue(axiosResponse([]));
     mockedApi.getProjectReferences.mockResolvedValue(axiosResponse([]));
-    mockedApi.getChatSessions.mockResolvedValue(axiosResponse([]));
+    mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 30 }));
     mockedApi.getChatMessages.mockResolvedValue(axiosResponse([]));
     mockedApi.getKnowledgeSourceContent.mockResolvedValue(axiosResponse({ content: 'code', format: 'text' }));
     mockedApi.updateChatSessionSnapshot.mockResolvedValue(axiosResponse({}));
@@ -209,7 +209,7 @@ describe('app/page.tsx — Orchestrierung', () => {
 
     expect(mockedApi.getProjects).toHaveBeenCalledTimes(1);
     expect(mockedApi.getKnowledgeSources).toHaveBeenCalledTimes(1);
-    expect(mockedApi.getChatSessions).toHaveBeenCalledTimes(1);
+    expect(mockedApi.getChatSessionsPage).toHaveBeenCalledTimes(1);
   });
 
   it('returns to the login view on logout even when the API call itself fails', async () => {
@@ -225,7 +225,7 @@ describe('app/page.tsx — Orchestrierung', () => {
   describe('Projekt-/Sitzungswechsel', () => {
     async function loginWithActiveSession(session: ChatSession, projects: Project[] = [projectA, projectB]) {
       mockedApi.getProjects.mockResolvedValue(axiosResponse(projects));
-      mockedApi.getChatSessions.mockResolvedValue(axiosResponse([session]));
+      mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [session], has_more: false, limit: 30 }));
       mockedApi.getChatMessages.mockResolvedValue(axiosResponse([
         { id: 1, role: 'user', content: 'Wie hoch ist der Zins?', metadata_json: {} },
         { id: 2, role: 'assistant', content: 'Antwort', sources_json: [] },
@@ -301,7 +301,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     it('resets the chat session when a file is opened while the active session has no project of its own', async () => {
       mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA]));
       const looseSession = chatSession({ id: 9, uuid: 'chat-9', project_id: null });
-      mockedApi.getChatSessions.mockResolvedValue(axiosResponse([looseSession]));
+      mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [looseSession], has_more: false, limit: 30 }));
       mockedApi.getChatMessages.mockResolvedValue(axiosResponse([
         { id: 1, role: 'user', content: 'Allgemeine Frage', metadata_json: {} },
       ]));
@@ -353,7 +353,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     it('selects the session matching the ?chat= parameter once sessions have loaded', async () => {
       searchParamsValue = new URLSearchParams('chat=chat-7');
       mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA]));
-      mockedApi.getChatSessions.mockResolvedValue(axiosResponse([chatSession()]));
+      mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [chatSession()], has_more: false, limit: 30 }));
       mockedApi.getChatMessages.mockResolvedValue(axiosResponse([{ id: 1, role: 'assistant', content: 'Antwort', sources_json: [] }]));
 
       renderApp();
@@ -364,7 +364,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     it('fetches an unrecognized ?chat= session by UUID from the backend and selects it', async () => {
       searchParamsValue = new URLSearchParams('chat=shared-99');
       mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA]));
-      mockedApi.getChatSessions.mockResolvedValue(axiosResponse([]));
+      mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 30 }));
       const shared = chatSession({ id: 42, uuid: 'shared-99', title: 'Geteilte Sitzung', project_id: null });
       mockedApi.getChatSessionByUuid.mockResolvedValue(axiosResponse(shared));
 

@@ -140,6 +140,9 @@ export const api = {
     reindexKnowledgeSource: (id: number, embedding_model?: string) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`, embedding_model ? { embedding_model } : undefined),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get<FileReference[]>(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get<ChatSession[]>(`${API_URL}/chat/sessions`),
+    /** Seitenweise (Cursor `before_id`), neueste zuerst; `general` = nur Sessions ohne Projekt. */
+    getChatSessionsPage: (params: { limit?: number; before_id?: number; project_id?: number; general?: boolean } = {}) =>
+        axios.get<{ sessions: ChatSession[]; has_more: boolean; limit: number }>(`${API_URL}/chat/sessions/page`, { params }),
     // O-038: legt eine benannte Sitzung ohne Chat-Nachricht an -- z.B. ein Befund,
     // der nur über mehrere Views (Graph + Code) entsteht, ohne dass der Chat je
     // benutzt wurde. Gegenstück zur impliziten Session-Erzeugung in POST /chat.

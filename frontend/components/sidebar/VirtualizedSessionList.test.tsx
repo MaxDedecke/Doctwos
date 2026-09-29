@@ -109,4 +109,43 @@ describe('VirtualizedSessionList', () => {
 
     expect(screen.queryByText(/^Sitzung/)).toBeNull();
   });
+
+  describe('loading older sessions', () => {
+    const renderList = (props: Partial<React.ComponentProps<typeof VirtualizedSessionList>> = {}) =>
+      render(
+        <VirtualizedSessionList
+          sessions={makeSessions(8)}
+          activeSessionId={null}
+          theme="dark"
+          onSelect={vi.fn()}
+          onRemove={vi.fn()}
+          deleteSessionTitle="Löschen"
+          {...props}
+        />
+      );
+
+    it('asks for the next page when the end of the loaded sessions is in view', () => {
+      const onLoadMore = vi.fn();
+      renderList({ hasMore: true, onLoadMore });
+      expect(onLoadMore).toHaveBeenCalled();
+    });
+
+    it('does not ask for more when there is nothing older or a page is already loading', () => {
+      const onLoadMore = vi.fn();
+      renderList({ hasMore: false, onLoadMore });
+      renderList({ hasMore: true, isLoadingMore: true, onLoadMore });
+      expect(onLoadMore).not.toHaveBeenCalled();
+    });
+
+    it('does not ask for more while the end of a long list is far out of view', () => {
+      const onLoadMore = vi.fn();
+      renderList({ sessions: makeSessions(500), hasMore: true, onLoadMore });
+      expect(onLoadMore).not.toHaveBeenCalled();
+    });
+
+    it('shows a loading indicator while a page is being fetched', () => {
+      renderList({ hasMore: true, isLoadingMore: true, onLoadMore: vi.fn() });
+      expect(screen.getByRole('status')).toBeTruthy();
+    });
+  });
 });

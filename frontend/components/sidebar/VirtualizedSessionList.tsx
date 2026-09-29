@@ -3,11 +3,15 @@
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageSquare, Trash2 } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
 
 // Grobe Zeilenhöhe (px-3 py-2 + Icon) -- vom Virtualizer nur als Startschätzung
 // gebraucht, `measureElement` gleicht danach an die tatsächliche Höhe an.
 const ESTIMATED_ROW_HEIGHT = 40;
+
+// Ab so vielen Zeilen vor dem Listenende wird die nächste Seite nachgeladen.
+const LOAD_MORE_THRESHOLD = 6;
 
 export interface SidebarSession {
   id: number;
@@ -22,6 +26,10 @@ interface VirtualizedSessionListProps {
   onSelect: (session: SidebarSession) => void;
   onRemove: (id: number, e: React.MouseEvent) => void;
   deleteSessionTitle: string;
+  /** Es gibt ältere Sitzungen, die noch nicht geladen sind. */
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 /**
@@ -35,6 +43,9 @@ export function VirtualizedSessionList({
   onSelect,
   onRemove,
   deleteSessionTitle,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: VirtualizedSessionListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +55,15 @@ export function VirtualizedSessionList({
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 8,
   });
+
+  // Nähert sich die Ansicht dem Ende der geladenen Sitzungen, die nächste Seite holen.
+  const items = virtualizer.getVirtualItems();
+  const lastVisibleIndex = items.length > 0 ? items[items.length - 1].index : -1;
+  useEffect(() => {
+    if (hasMore && !isLoadingMore && onLoadMore && lastVisibleIndex >= sessions.length - 1 - LOAD_MORE_THRESHOLD) {
+      onLoadMore();
+    }
+  }, [hasMore, isLoadingMore, onLoadMore, lastVisibleIndex, sessions.length]);
 
   return (
     <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-1.5">
@@ -93,6 +113,11 @@ export function VirtualizedSessionList({
           );
         })}
       </div>
+      {isLoadingMore && (
+        <div className="flex items-center justify-center gap-1.5 py-2 text-[10px] text-ds-zinc-500" role="status">
+          <Loader2 className="w-3 h-3 animate-spin" />
+        </div>
+      )}
     </div>
   );
 }

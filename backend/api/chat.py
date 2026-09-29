@@ -1681,6 +1681,37 @@ def get_chat_sessions(db: Session = Depends(get_db), user: User = Depends(get_cu
     return [_serialize_session(s, user) for s in sessions]
 
 
+@router.get("/chat/sessions/page")
+def get_chat_sessions_page(
+    limit: int = Query(default=30, ge=1, le=100),
+    before_id: int | None = Query(default=None, ge=1),
+    project_id: int | None = Query(default=None, ge=1),
+    general: bool = Query(default=False),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Eigene Sessions seitenweise, neueste zuerst (für den Verlauf in der Seitenleiste).
+
+    Die Seiten werden per Cursor (`before_id` = kleinste bereits geladene ID) gebildet
+    statt per Offset: Zwischenzeitlich neu angelegte oder gelöschte Sessions verschieben
+    die folgenden Seiten dadurch nicht. `general=true` liefert nur Sessions ohne Projekt,
+    `project_id` nur die eines Projekts. `has_more` sagt, ob es ältere Einträge gibt.
+    """
+    query = db.query(ChatSession).filter(ChatSession.owner_id == user.id)
+    if project_id is not None:
+        query = query.filter(ChatSession.project_id == project_id)
+    elif general:
+        query = query.filter(ChatSession.project_id.is_(None))
+    if before_id is not None:
+        query = query.filter(ChatSession.id < before_id)
+    rows = query.order_by(ChatSession.id.desc()).limit(limit + 1).all()
+    return {
+        "sessions": [_serialize_session(s, user) for s in rows[:limit]],
+        "has_more": len(rows) > limit,
+        "limit": limit,
+    }
+
+
 @router.get("/chat/sessions/by-uuid/{session_uuid}")
 def get_chat_session_by_uuid(
     session_uuid: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)

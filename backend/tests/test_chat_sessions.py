@@ -11,6 +11,7 @@ from models.database import (
     EntityDocLink,
     KnowledgeLink,
     KnowledgeSource,
+    Project,
     User,
 )
 
@@ -428,6 +429,71 @@ def test_chat_feedback_review_rejects_invalid_paging(client):
     assert client.get("/admin/chat-feedback", params={"limit": 0}).status_code == 422
     assert client.get("/admin/chat-feedback", params={"limit": 101}).status_code == 422
     assert client.get("/admin/chat-feedback", params={"offset": -1}).status_code == 422
+
+
+def test_chat_sessions_page_pages_by_cursor_without_skips_or_duplicates(client, make_session, db_session, other_user):
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    mine = [make_session(user.id, title=f"paging-{i}") for i in range(7)]
+    foreign = make_session(other_user.id, title="paging-foreign")
+    ids = sorted((s.id for s in mine), reverse=True)
+
+    first = client.get("/chat/sessions/page", params={"limit": 3}).json()
+    assert first["has_more"] is True
+    assert foreign.id not in [s["id"] for s in first["sessions"]]
+
+    # Nur die eigenen Test-Sessions betrachten: Seiten ab dem jüngsten eigenen Eintrag laufen lassen.
+    seen = []
+    cursor = ids[0] + 1
+    while True:
+        page = client.get("/chat/sessions/page", params={"limit": 3, "before_id": cursor}).json()
+        seen.extend(s["id"] for s in page["sessions"])
+        if not page["sessions"] or not page["has_more"] or set(ids) <= set(seen):
+            break
+        cursor = min(s["id"] for s in page["sessions"])
+    assert [i for i in seen if i in ids] == ids
+    assert len(seen) == len(set(seen))
+
+
+def test_chat_sessions_page_is_stable_when_sessions_are_added_or_deleted_between_pages(client, make_session, db_session):
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    made_ids = [make_session(user.id, title=f"stable-{i}").id for i in range(6)]
+    top = max(made_ids)
+
+    page_one = client.get("/chat/sessions/page", params={"limit": 2, "before_id": top + 1}).json()
+    cursor = min(s["id"] for s in page_one["sessions"])
+    # zwischen den Seiten: neue Session oben, eine bereits geladene wird gelöscht
+    make_session(user.id, title="stable-new")
+    db_session.query(ChatSession).filter(ChatSession.id == page_one["sessions"][0]["id"]).delete()
+    db_session.commit()
+    page_two = client.get("/chat/sessions/page", params={"limit": 2, "before_id": cursor}).json()
+
+    expected = sorted((i for i in made_ids if i < cursor), reverse=True)[:2]
+    assert [s["id"] for s in page_two["sessions"]] == expected
+
+
+def test_chat_sessions_page_filters_by_project_and_general(client, make_session, db_session):
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    general = make_session(user.id, title="filter-general")
+    first_project = db_session.query(Project).first()
+    if first_project is None:
+        pytest.skip("kein Projekt in der Testdatenbank")
+    scoped = make_session(user.id, title="filter-project")
+    scoped.project_id = first_project.id
+    db_session.commit()
+
+    general_ids = [s["id"] for s in client.get("/chat/sessions/page", params={"general": True, "limit": 100}).json()["sessions"]]
+    project_ids = [s["id"] for s in client.get("/chat/sessions/page", params={"project_id": first_project.id, "limit": 100}).json()["sessions"]]
+    assert general.id in general_ids and scoped.id not in general_ids
+    assert scoped.id in project_ids and general.id not in project_ids
+
+
+def test_chat_sessions_page_requires_authentication(unauthenticated_client):
+    assert unauthenticated_client.get("/chat/sessions/page").status_code == 401
+
+
+def test_chat_sessions_page_rejects_invalid_limits(client):
+    assert client.get("/chat/sessions/page", params={"limit": 0}).status_code == 422
+    assert client.get("/chat/sessions/page", params={"limit": 101}).status_code == 422
 
 
 def test_continuing_someone_elses_private_session_via_chat_is_forbidden(

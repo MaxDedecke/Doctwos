@@ -30,6 +30,10 @@ interface SidebarProps {
   backendStatus: string;
   startNewChat: () => void;
   sessions: ChatSession[];
+  /** Es gibt ältere Sitzungen des aktuellen Kontexts auf dem Server, die noch nicht geladen sind. */
+  hasMoreSessions?: boolean;
+  isLoadingMoreSessions?: boolean;
+  onLoadMoreSessions?: () => void;
   activeSessionId: number | null;
   handleSessionSelect: (session: ChatSession) => void;
   handleRemoveSession: (id: number, e: React.MouseEvent) => void;
@@ -50,6 +54,9 @@ export function Sidebar({
   backendStatus,
   startNewChat,
   sessions,
+  hasMoreSessions = false,
+  isLoadingMoreSessions = false,
+  onLoadMoreSessions,
   activeSessionId,
   handleSessionSelect,
   handleRemoveSession,
@@ -130,6 +137,11 @@ export function Sidebar({
     setCollapsedFolders(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
+  // Verlauf des aktuellen Kontexts: Sitzungen des gewählten Projekts, im allgemeinen Kontext die ohne Projekt.
+  const contextSessions = sessions.filter(session => (
+    selectedProject ? session.project_id === selectedProject.id : !session.project_id
+  ));
+
   return (
     <motion.aside
       animate={{ width: isSidebarOpen ? sidebarWidth : 0 }}
@@ -209,25 +221,16 @@ export function Sidebar({
                     "text-[9px] font-mono px-1.5 py-0.5 rounded-sm",
                     theme === 'dark' ? "bg-ds-zinc-800/80 text-ds-zinc-400" : "bg-ds-zinc-200/70 text-ds-zinc-600"
                   )}>
-                    {sessions.filter(session => {
-                      if (selectedProject) {
-                        return session.project_id === selectedProject.id;
-                      } else {
-                        return !session.project_id;
-                      }
-                    }).length}
+                    {hasMoreSessions ? `${contextSessions.length}+` : contextSessions.length}
                   </span>
                 </div>
 
                 {isHistoryExpanded && (
                   <VirtualizedSessionList
-                    sessions={sessions.filter(session => {
-                      if (selectedProject) {
-                        return session.project_id === selectedProject.id;
-                      } else {
-                        return !session.project_id;
-                      }
-                    })}
+                    sessions={contextSessions}
+                    hasMore={hasMoreSessions}
+                    isLoadingMore={isLoadingMoreSessions}
+                    onLoadMore={onLoadMoreSessions}
                     activeSessionId={activeSessionId}
                     theme={theme}
                     onSelect={(session) => {

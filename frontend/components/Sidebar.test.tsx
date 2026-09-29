@@ -124,6 +124,15 @@ describe('Sidebar', () => {
       expect(sectionCount('Verlauf')).toBe('1');
     });
 
+    it('kennzeichnet den Zähler mit "+", solange ältere Sitzungen auf dem Server noch nicht geladen sind', () => {
+      const onLoadMoreSessions = vi.fn();
+      renderSidebar({ sessions, hasMoreSessions: true, onLoadMoreSessions });
+
+      expect(screen.getByText('1+')).toBeTruthy();
+      // Die wenigen geladenen Zeilen liegen im Sichtfenster, also wird die nächste Seite angefordert.
+      expect(onLoadMoreSessions).toHaveBeenCalled();
+    });
+
     it('klappt den Verlauf über die Kopfzeile ein und wieder aus', () => {
       renderSidebar({ sessions });
 

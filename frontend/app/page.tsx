@@ -171,7 +171,7 @@ function AppContent() {
     t,
     showToast,
   });
-  const chatState = useChatSessions({ isLoggedIn, t, showToast });
+  const chatState = useChatSessions({ isLoggedIn, contextProjectId: projectState.selectedProject?.id ?? null, t, showToast });
   const linkManagerEnabled = features.views.linkManager && currentUser?.is_admin === true;
   const workspaceState = useWorkspaceLayout({
     activeSessionId: chatState.activeSessionId,
@@ -196,7 +196,7 @@ function AppContent() {
   } = sourceState;
   const {
     chatMessages, setChatMessages, currentMessage, setCurrentMessage, isLoading,
-    setIsLoading, sessions, setSessions, isSessionsLoaded, activeSessionId,
+    setIsLoading, sessions, setSessions, isSessionsLoaded, hasMoreSessions, isLoadingMoreSessions, loadMoreSessions, activeSessionId,
     setActiveSessionId, handleFeedback, addAssistantHint,
   } = chatState;
   const {
@@ -1177,6 +1177,9 @@ function AppContent() {
         backendStatus={backendStatus}
         startNewChat={startNewChat}
         sessions={sessions}
+        hasMoreSessions={hasMoreSessions}
+        isLoadingMoreSessions={isLoadingMoreSessions}
+        onLoadMoreSessions={loadMoreSessions}
         activeSessionId={activeSessionId}
         handleSessionSelect={handleSessionSelect}
         handleRemoveSession={handleRemoveSession}
