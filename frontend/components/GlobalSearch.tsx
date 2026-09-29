@@ -47,6 +47,10 @@ interface GlobalSearchProps {
 }
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
+
+// Treffer je Rubrik: initial und je Klick auf "weitere laden". Nachgeladen wird nur manuell,
+// damit das Scrollen zur nächsten Rubrik nicht von einer wachsenden vorherigen ausgebremst wird.
+export const SEARCH_PAGE_SIZE = 15;
 const GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   entity: FileCode,
   document: FileText,
@@ -95,7 +99,7 @@ export function GlobalSearch({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [limit, setLimit] = useState(6);
+  const [loadingType, setLoadingType] = useState<string | null>(null);
 
   const filteredSources = React.useMemo(() => {
     return connectedSources.filter(src => {
@@ -138,6 +142,8 @@ export function GlobalSearch({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Kennzeichnet die aktuelle Suche; Nachladeantworten einer älteren Suche werden verworfen.
+  const searchTokenRef = useRef(0);
 
   // Beim Aufklappen (Klick oder Strg/Cmd+K) direkt in das Eingabefeld springen.
   useEffect(() => {
@@ -174,17 +180,7 @@ export function GlobalSearch({
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, [query]);
 
-  // Reset limit to 6 when query or scope changes — done during render
-  // (guarded by state comparisons) rather than in an effect.
-  const [prevQuery, setPrevQuery] = useState(query);
-  const [prevScope, setPrevScope] = useState(scope);
-  if (prevQuery !== query || prevScope !== scope) {
-    setPrevQuery(query);
-    setPrevScope(scope);
-    setLimit(6);
-  }
-
-  // --- Search Logic with Debouncing and Lazy Pagination ---
+  // --- Search Logic with Debouncing; more hits per category are loaded on demand ---
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -200,6 +196,8 @@ export function GlobalSearch({
     const performCall = () => {
       // Abort previous request if one is still running
       abortRef.current?.abort();
+      searchTokenRef.current += 1;
+      setLoadingType(null);
       const controller = new AbortController();
       abortRef.current = controller;
       setIsLoading(true);
@@ -211,7 +209,7 @@ export function GlobalSearch({
         projectId: scopeKind === 'current' ? selectedProject?.id : undefined,
         sourceId: scopeKind === 'source' ? scopeId : undefined,
         types: scopeKind === 'source' ? 'document' : undefined,
-        limit: limit,
+        limit: SEARCH_PAGE_SIZE,
         signal: controller.signal,
       })
         .then(res => {
@@ -227,33 +225,41 @@ export function GlobalSearch({
         .finally(() => setIsLoading(false));
     };
 
-    // If limit is 6, it's a new query/scope typing (use debounce)
-    // If limit > 6, the user scrolled to the bottom (load immediately)
-    if (limit === 6) {
-      debounceRef.current = setTimeout(performCall, 300);
-    } else {
-      performCall();
-    }
+    debounceRef.current = setTimeout(performCall, 300);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, scope, limit, selectedProject]);
+  }, [query, scope, selectedProject]);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    // Check if scrolled near the bottom (within 20px)
-    const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 20;
-    if (isAtBottom && !isLoading) {
-      // Check if there are more results to fetch in any category
-      const hasMore = Object.keys(counts).some(type => {
-        const currentCount = results.filter(r => r.node_type === type).length;
-        return (counts[type] || 0) > currentCount;
+  /** Holt für genau eine Rubrik die nächsten Treffer; die übrigen Rubriken bleiben unverändert. */
+  const loadMoreForType = (type: string) => {
+    if (loadingType) return;
+    const token = searchTokenRef.current;
+    const [scopeKind, scopeIdRaw] = scope.split(':');
+    const scopeId = scopeIdRaw ? parseInt(scopeIdRaw, 10) : undefined;
+    const currentCount = results.filter(r => r.node_type === type).length;
+    setLoadingType(type);
+    api.searchGlobal(query.trim(), {
+      projectId: scopeKind === 'current' ? selectedProject?.id : undefined,
+      sourceId: scopeKind === 'source' ? scopeId : undefined,
+      types: type,
+      limit: currentCount + SEARCH_PAGE_SIZE,
+    })
+      .then(res => {
+        if (token !== searchTokenRef.current) return;
+        const fresh = res.data.results || [];
+        setResults(previous => [...previous.filter(r => r.node_type !== type), ...fresh]);
+        setCounts(previous => ({ ...previous, ...(res.data.counts || {}) }));
+      })
+      .catch(err => {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Loading more search results failed', err);
+        }
+      })
+      .finally(() => {
+        if (token === searchTokenRef.current) setLoadingType(null);
       });
-      if (hasMore) {
-        setLimit(prev => prev + 10);
-      }
-    }
   };
 
   const grouped = GROUP_ORDER
@@ -457,7 +463,6 @@ export function GlobalSearch({
             )}>
               <div
                 className="max-h-96 overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent"
-                onScroll={handleScroll}
               >
                 {grouped.length === 0 && !isLoading && (
                   <div className="px-3 py-4 text-xs text-ds-zinc-500 text-center">{t('globalSearch.noResultsFor', { query })}</div>
@@ -510,19 +515,23 @@ export function GlobalSearch({
                         );
                       })}
                       {(counts[group.type] || 0) > group.items.length && (
-                        <div className="px-3 py-1 text-[10px] text-ds-zinc-500">
-                          {t('globalSearch.moreResults', { count: counts[group.type] - group.items.length })}
-                        </div>
+                        <button
+                          type="button"
+                          data-testid={`global-search-more-${group.type}`}
+                          disabled={loadingType !== null}
+                          onClick={() => loadMoreForType(group.type)}
+                          className={cn(
+                            "w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-left transition-colors disabled:opacity-60",
+                            theme === 'dark' ? "text-ds-indigo-300 hover:bg-ds-zinc-800/60" : "text-ds-indigo-700 hover:bg-ds-zinc-50"
+                          )}
+                        >
+                          {loadingType === group.type && <Loader2 className="h-3 w-3 animate-spin" />}
+                          {t('globalSearch.loadMore', { count: Math.min(SEARCH_PAGE_SIZE, counts[group.type] - group.items.length), remaining: counts[group.type] - group.items.length })}
+                        </button>
                       )}
                     </div>
                   );
                 })}
-                {isLoading && limit > 6 && (
-                  <div className="flex justify-center items-center py-2.5 text-ds-zinc-500 gap-1.5 text-[10px] border-t dark:border-ds-zinc-800/60 border-ds-zinc-100">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-ds-zinc-400" />
-                    <span>{t('common.loading')}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}

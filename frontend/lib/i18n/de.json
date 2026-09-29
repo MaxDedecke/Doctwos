@@ -1171,7 +1171,7 @@
     "openSearch": "Suche öffnen",
     "placeholder": "Programm, Paragraph oder Dokument suchen… (Strg+K)",
     "noResultsFor": "Keine Treffer für „{{query}}\"",
-    "moreResults": "+{{count}} weitere — Suche eingrenzen",
+    "loadMore": "{{count}} weitere laden … ({{remaining}} übrig)",
     "currentProjectScope": "Nur dieses Projekt",
     "allScope": "Alle Projekte",
     "toLightModeTitle": "Hellmodus aktivieren",

@@ -1171,7 +1171,7 @@
     "openSearch": "Open search",
     "placeholder": "Search programs, paragraphs or documents… (Ctrl+K)",
     "noResultsFor": "No results for \"{{query}}\"",
-    "moreResults": "+{{count}} more — refine search",
+    "loadMore": "Load {{count}} more … ({{remaining}} left)",
     "currentProjectScope": "This project only",
     "allScope": "All projects",
     "toLightModeTitle": "Switch to light mode",

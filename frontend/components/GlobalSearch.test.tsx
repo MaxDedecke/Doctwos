@@ -294,7 +294,94 @@ describe('GlobalSearch Java entity navigation', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /PaymentService/ }));
 
-    expect(searchGlobal).toHaveBeenCalledWith('PaymentService', expect.objectContaining({ limit: 6 }));
+    expect(searchGlobal).toHaveBeenCalledWith('PaymentService', expect.objectContaining({ limit: 15 }));
     expect(onSelectResult).toHaveBeenCalledWith(javaResult);
+  });
+});
+
+describe('GlobalSearch manual loading per category', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const hit = (type: string, id: number) => ({
+    node_type: type, node_id: id, node_label: `${type}-${id}`, node_url: null, node_meta: {},
+  });
+  const many = (type: string, from: number, count: number) => Array.from({ length: count }, (_, i) => hit(type, from + i));
+
+  const openAndSearch = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+    fireEvent.change(screen.getByPlaceholderText('Programm, Paragraph oder Dokument suchen… (Strg+K)'), { target: { value: 'ZAHLUNG' } });
+    await screen.findByText('entity-1');
+  };
+
+  it('requests 15 hits per category initially and never loads more by scrolling', async () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    const searchGlobal = vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({
+      results: [...many('entity', 1, 15), ...many('document', 100, 4)], total: 19, counts: { entity: 40, document: 4 },
+    }));
+    renderGlobalSearch();
+    await openAndSearch();
+
+    const scroller = document.querySelector('.overflow-y-auto') as HTMLElement;
+    Object.defineProperty(scroller, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(scroller, 'clientHeight', { value: 400, configurable: true });
+    fireEvent.scroll(scroller, { target: { scrollTop: 100 } });
+    fireEvent.scroll(scroller, { target: { scrollTop: 100 } });
+
+    expect(searchGlobal).toHaveBeenCalledTimes(1);
+    expect(searchGlobal).toHaveBeenCalledWith('ZAHLUNG', expect.objectContaining({ limit: 15 }));
+    expect(screen.getByText('document-100')).toBeTruthy();
+  });
+
+  it('offers a load-more button only for categories with further hits and shows the remaining count', async () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({
+      results: [...many('entity', 1, 15), ...many('document', 100, 4)], total: 19, counts: { entity: 40, document: 4 },
+    }));
+    renderGlobalSearch();
+    await openAndSearch();
+
+    expect(screen.getByTestId('global-search-more-entity').textContent).toContain('15');
+    expect(screen.getByTestId('global-search-more-entity').textContent).toContain('25');
+    expect(screen.queryByTestId('global-search-more-document')).toBeNull();
+  });
+
+  it('loads more for exactly one category on click and leaves the others untouched', async () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    const searchGlobal = vi.spyOn(api, 'searchGlobal')
+      .mockResolvedValueOnce(axiosResponse({
+        results: [...many('entity', 1, 15), ...many('document', 100, 3)], total: 18, counts: { entity: 40, document: 3 },
+      }))
+      .mockResolvedValueOnce(axiosResponse({ results: many('entity', 1, 30), total: 30, counts: { entity: 40 } }));
+    renderGlobalSearch();
+    await openAndSearch();
+
+    fireEvent.click(screen.getByTestId('global-search-more-entity'));
+
+    await screen.findByText('entity-30');
+    expect(searchGlobal).toHaveBeenLastCalledWith('ZAHLUNG', expect.objectContaining({ types: 'entity', limit: 30 }));
+    expect(screen.getByText('document-100')).toBeTruthy();
+    expect(screen.getByText('document-102')).toBeTruthy();
+    expect(screen.getByTestId('global-search-more-entity').textContent).toContain('10');
+  });
+
+  it('drops a load-more answer that arrives after the query changed', async () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    let resolveMore: (value: unknown) => void = () => {};
+    vi.spyOn(api, 'searchGlobal')
+      .mockResolvedValueOnce(axiosResponse({ results: many('entity', 1, 15), total: 15, counts: { entity: 40 } }))
+      .mockReturnValueOnce(new Promise((resolve) => { resolveMore = resolve; }) as never)
+      .mockResolvedValue(axiosResponse({ results: [hit('entity', 900)], total: 1, counts: { entity: 1 } }));
+    renderGlobalSearch();
+    await openAndSearch();
+    fireEvent.click(screen.getByTestId('global-search-more-entity'));
+
+    fireEvent.change(screen.getByPlaceholderText('Programm, Paragraph oder Dokument suchen… (Strg+K)'), { target: { value: 'NEU' } });
+    await screen.findByText('entity-900');
+    await act(async () => { resolveMore(axiosResponse({ results: many('entity', 1, 30), total: 30, counts: { entity: 40 } })); });
+
+    expect(screen.queryByText('entity-30')).toBeNull();
+    expect(screen.getByText('entity-900')).toBeTruthy();
   });
 });
