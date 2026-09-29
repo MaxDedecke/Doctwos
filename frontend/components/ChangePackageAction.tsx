@@ -3,6 +3,7 @@
 import { API_URL, api } from '@/app/services/api';
 import type { WorkspaceDocument } from '@/types/domain';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { HoverExpandButton } from '@/components/HoverExpandButton';
 import { ProvenanceDisclosure } from '@/components/ProvenanceDisclosure';
 import { AlertTriangle, BookOpen, ExternalLink, FileCode2, Loader2, Search, X } from 'lucide-react';
 import React from 'react';
@@ -220,15 +221,14 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
 
   return (
     <>
-      <button
-        type="button"
-        data-testid="investigate-change"
-        onClick={() => setOpen(true)}
+      <HoverExpandButton
+        tone="indigo"
+        testId="investigate-change"
+        icon={<Search className="h-3.5 w-3.5" />}
+        label={t('changePackage.action')}
         title={t('changePackage.actionTitle')}
-        className="inline-flex h-7 items-center gap-1.5 rounded border border-ds-indigo-500/50 bg-ds-indigo-500/10 px-2.5 text-[10px] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/20"
-      >
-        <Search className="h-3.5 w-3.5" />{t('changePackage.action')}
-      </button>
+        onClick={() => setOpen(true)}
+      />
 
       {open && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ds-black/60 p-3 sm:p-6" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setOpen(false); }}>

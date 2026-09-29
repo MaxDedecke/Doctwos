@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from '@/app/services/api';
+import { HoverExpandButton } from '@/components/HoverExpandButton';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { Lightbulb, Loader2, X } from 'lucide-react';
@@ -45,22 +46,15 @@ export function InsightDraftAction({ projectId, origin, evidence, defaultTitle, 
 
   return (
     <div className={cn('relative inline-flex items-center', className)}>
-      <button
-        type="button"
-        disabled={unavailable}
-        onClick={() => setOpen(true)}
+      <HoverExpandButton
+        tone="amber"
+        icon={<Lightbulb className="h-3.5 w-3.5" />}
+        label={t('insightDraft.action')}
         title={unavailable ? t('insightDraft.noEvidence') : t('insightDraft.action')}
-        aria-label={t('insightDraft.action')}
-        aria-expanded={open}
-        className={cn(
-          'group/insight inline-flex h-7 w-7 items-center overflow-hidden rounded-md border border-ds-amber-500/60 bg-ds-amber-500/10 text-ds-amber-500 transition-[width,background-color] duration-200 ease-out hover:w-[132px] hover:bg-ds-amber-500 focus-visible:w-[132px] focus-visible:bg-ds-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:w-7'
-        )}
-      >
-        <Lightbulb className="ml-[7px] h-3.5 w-3.5 shrink-0 transition-colors group-hover/insight:text-ds-black group-focus-visible/insight:text-ds-black" />
-        <span className="ml-2 whitespace-nowrap text-[10px] font-semibold opacity-0 transition-opacity duration-150 group-hover/insight:opacity-100 group-focus-visible/insight:opacity-100 group-hover/insight:text-ds-black group-focus-visible/insight:text-ds-black">
-          {t('insightDraft.action')}
-        </span>
-      </button>
+        disabled={unavailable}
+        ariaExpanded={open}
+        onClick={() => setOpen(true)}
+      />
       {open && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ds-black/60 p-4 backdrop-blur-sm" onMouseDown={event => { if (event.target === event.currentTarget && !saving) setOpen(false); }} onKeyDown={event => { if (event.key === 'Escape' && !saving) setOpen(false); }}>
           <section
