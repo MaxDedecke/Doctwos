@@ -1073,9 +1073,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               <div className="relative shrink-0">
                 {(activeRightTab === 'code' || activeRightTab === 'doc') && (
                   <button
+                    type="button"
                     onClick={() => setIsReferencesDropdownOpen(!isReferencesDropdownOpen)}
                     className={cn(
-                      "p-1 rounded border transition-all duration-155 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer",
+                      "inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-md border px-1.5 transition-colors duration-150 cursor-pointer",
                       isReferencesDropdownOpen
                         ? "bg-ds-indigo-500/10 border-ds-indigo-500/30 text-ds-indigo-400 hover:bg-ds-indigo-500/20"
                         : (theme === 'dark'
@@ -1083,14 +1084,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                             : "bg-transparent border-ds-zinc-200 text-ds-zinc-405 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
                     )}
                     title={t('splitPane.referencesPanelTitle')}
+                    aria-label={referenceBadgeCount > 0 ? `${t('splitPane.references')} (${referenceBadgeCount})` : t('splitPane.references')}
+                    aria-expanded={isReferencesDropdownOpen}
                   >
-                    <Link2 className="w-3 h-3 text-ds-indigo-400" />
-                    <span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('splitPane.references')}</span>
+                    <Link2 className="h-3.5 w-3.5 text-ds-indigo-400" />
                     {referenceBadgeCount > 0 && (
-                      <span className={cn(
-                        "px-1 py-0.2 text-[8px] font-bold rounded-sm leading-none",
-                        theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
-                      )}>
+                      <span
+                        data-testid="references-count"
+                        className={cn(
+                          "px-1 py-0.5 text-[9px] font-bold rounded-sm leading-none",
+                          theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
+                        )}
+                      >
                         {referenceBadgeCount}
                       </span>
                     )}

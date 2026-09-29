@@ -161,6 +161,54 @@ describe('SplitPaneWorkspace', () => {
     vi.clearAllMocks();
   });
 
+  describe('Referenzen-Button', () => {
+    const docReference = (id: number) => ({ id, title: `Doc ${id}`, source: 'Confluence', node_type: 'document' });
+
+    it('zeigt nur das Link-Icon und die Anzahl, ohne die Beschriftung "Referenzen"', () => {
+      renderWorkspace({
+        activeRightTab: 'doc',
+        selectedDoc: { id: 1, name: 'Handbuch.md', url: 'Handbuch.md' } as never,
+        fileReferences: [docReference(1), docReference(2), docReference(3)] as never,
+      });
+
+      const button = screen.getByTitle('Referenzen & Verknüpfte Dokumente');
+      expect(button.textContent).toBe('3');
+      expect(button.querySelector('svg')).toBeTruthy();
+      expect(screen.getByTestId('references-count').textContent).toBe('3');
+      expect(button.getAttribute('aria-label')).toBe('Referenzen (3)');
+      expect(button.className).toContain('h-7');
+    });
+
+    it('zeigt ohne Referenzen nur das Icon und bleibt über aria-label benannt', () => {
+      renderWorkspace({
+        activeRightTab: 'doc',
+        selectedDoc: { id: 1, name: 'Handbuch.md', url: 'Handbuch.md' } as never,
+        fileReferences: [],
+      });
+
+      const button = screen.getByTitle('Referenzen & Verknüpfte Dokumente');
+      expect(button.textContent).toBe('');
+      expect(screen.queryByTestId('references-count')).toBeNull();
+      expect(button.getAttribute('aria-label')).toBe('Referenzen');
+    });
+
+    it('öffnet und schließt das Referenzen-Menü per Klick und meldet den Zustand über aria-expanded', () => {
+      const setIsReferencesDropdownOpen = vi.fn();
+      renderWorkspace({
+        activeRightTab: 'doc',
+        selectedDoc: { id: 1, name: 'Handbuch.md', url: 'Handbuch.md' } as never,
+        fileReferences: [],
+        setIsReferencesDropdownOpen,
+      });
+
+      const button = screen.getByTitle('Referenzen & Verknüpfte Dokumente');
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      fireEvent.click(button);
+
+      expect(setIsReferencesDropdownOpen).toHaveBeenCalledWith(true);
+    });
+  });
+
   describe('Sichtbarkeit des rechten Bereichs', () => {
     it('bleibt leer, solange weder Datei noch Dokument gewählt sind', () => {
       const { container } = renderWorkspace();
