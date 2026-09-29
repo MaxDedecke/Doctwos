@@ -27,6 +27,7 @@ _LOCAL_EDGE_TYPES = {
     "IMPLEMENTS",
     "USES_TYPE",
     "CALLS",
+    "REFERENCES_METHOD",
     "INSTANTIATES",
     "READS",
     "WRITES",
@@ -1053,6 +1054,85 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     resolved += 1
                 elif len(candidates) > 1:
                     meta["resolution_reason"] = "ambiguous_type"
+                continue
+            if edge.type == "REFERENCES_METHOD":
+                if meta.get("reference_kind") == "constructor":
+                    owner_candidates, owner_reason = _global_type_candidates(
+                        meta.get("receiver", ""),
+                        result=result,
+                        source_owner=_source_owner(edge),
+                        types_by_qname=types_by_qname,
+                        types_by_name=types_by_name,
+                    )
+                    constructors = [
+                        entity for owner in owner_candidates for entity in entities
+                        if entity.type == "constructor"
+                        and entity.parent_qualified_name == owner.qualified_name
+                        and _same_declaration_scope(entity, owner)
+                    ]
+                    if len(constructors) == 1:
+                        mark_global(edge, constructors[0], reason="method_reference_constructor")
+                        resolved += 1
+                    elif len(constructors) > 1:
+                        meta["resolution_reason"] = "ambiguous_constructor_reference"
+                    elif len(owner_candidates) > 1:
+                        meta["resolution_reason"] = "ambiguous_constructor_owner"
+                    elif len(owner_candidates) == 1:
+                        mark_global(edge, owner_candidates[0], reason="implicit_constructor_reference")
+                        resolved += 1
+                    else:
+                        meta["resolution_reason"] = owner_reason or "constructor_owner_not_in_repository"
+                    continue
+
+                synthetic = ParsedEdge(
+                    type="CALLS",
+                    src_name=edge.src_name,
+                    dst_name=meta.get("method_name", ""),
+                    resolution="unresolved",
+                    src_start_line=edge.src_start_line,
+                    src_end_line=edge.src_end_line,
+                    meta={
+                        **meta,
+                        "receiver": None if meta.get("receiver_kind") == "type" else meta.get("receiver"),
+                    },
+                )
+                if meta.get("receiver_kind") == "type":
+                    owners, owner_reason = _global_type_candidates(
+                        meta.get("receiver", ""),
+                        result=result,
+                        source_owner=_source_owner(edge),
+                        types_by_qname=types_by_qname,
+                        types_by_name=types_by_name,
+                    )
+                    candidates = [
+                        method
+                        for owner in owners
+                        for method in methods_by_owner_and_name.get(
+                            (owner.qualified_name or "", meta.get("method_name", "")), []
+                        )
+                        if _same_declaration_scope(method, owner)
+                    ]
+                else:
+                    candidates, owner_reason = _global_method_candidates(
+                        synthetic,
+                        result=result,
+                        types_by_qname=types_by_qname,
+                        types_by_name=types_by_name,
+                        methods_by_owner_and_name=methods_by_owner_and_name,
+                        result_by_type=result_by_type,
+                        fields_by_owner_and_name=fields_by_owner_and_name,
+                        variables_by_parent_and_name=variables_by_parent_and_name,
+                        hierarchy=hierarchy,
+                        methods_by_qname=methods_by_qname,
+                    )
+                unique_methods = {item.qualified_name: item for item in candidates if item.qualified_name}
+                if len(unique_methods) == 1:
+                    mark_global(edge, next(iter(unique_methods.values())), reason="method_reference_target")
+                    resolved += 1
+                elif len(unique_methods) > 1:
+                    meta["resolution_reason"] = "ambiguous_method_reference_target"
+                else:
+                    meta["resolution_reason"] = owner_reason or "method_reference_target_not_in_repository"
                 continue
             if edge.type == "CALLS":
                 candidates, reason = _global_method_candidates(

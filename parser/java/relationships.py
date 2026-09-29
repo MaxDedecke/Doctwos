@@ -490,6 +490,34 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         finally:
             self._scopes.pop()
 
+    def visitMethodReferenceExpression(self, context):
+        reference = context.getText()
+        if "::" not in reference:
+            return self.visitChildren(context)
+        receiver, member = reference.split("::", 1)
+        member = re.sub(r"^<.*>", "", member)
+        if member != "new" and not re.fullmatch(r"[A-Za-z_$][\w$]*", member):
+            return self.visitChildren(context)
+        receiver_kind = (
+            "special" if receiver in {"this", "super"}
+            else "type" if receiver[:1].isupper() or "." in receiver
+            else "expression"
+        )
+        self._edge(
+            "REFERENCES_METHOD",
+            reference,
+            context,
+            meta={
+                "method_name": member,
+                "receiver": receiver,
+                "receiver_kind": receiver_kind,
+                "reference_kind": "constructor" if member == "new" else "method",
+                "invocation_kind": "method_reference",
+                "owner_type": self.current_type.qualified_name if self.current_type else None,
+            },
+        )
+        return self.visitChildren(context)
+
     def visitCreator(self, context):
         created_name = context.createdName()
         if (
