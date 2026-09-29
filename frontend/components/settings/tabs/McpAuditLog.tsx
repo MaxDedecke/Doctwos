@@ -132,7 +132,7 @@ export const McpAuditLog: React.FC = () => {
                 'px-2.5 py-1 transition-colors',
                 dark ? 'border-ds-zinc-800' : 'border-ds-zinc-200',
                 statusFilter === option
-                  ? 'bg-ds-indigo-600 text-white'
+                  ? 'bg-ds-indigo-600 text-ds-white'
                   : dark ? 'bg-ds-zinc-900 text-ds-zinc-400 hover:bg-ds-zinc-800' : 'bg-ds-white text-ds-zinc-600 hover:bg-ds-zinc-100',
               )}
             >

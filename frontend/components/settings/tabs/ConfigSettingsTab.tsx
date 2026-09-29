@@ -20,6 +20,7 @@ import {
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { badgeClass, cardClass, ghostIconButtonClass, inputClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass, settingsRoot } from '@/components/settings/settingsStyles';
 import { Button } from "@/components/ui/button";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -126,11 +127,11 @@ export const ConfigSettingsTab: React.FC = () => {
   const redirectUri = sso?.redirect_uri || `${API_URL}/auth/oidc/callback`;
 
   return (
-    <div className="space-y-8 w-full min-w-0 animate-in fade-in duration-200">
+    <div className={settingsRoot}>
       {/* ── Status Banner ────────────────────────────────────────────── */}
       <div
         className={cn(
-          "rounded-xl border p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-sm",
+          "rounded-lg border p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-sm",
           sso?.enabled
             ? theme === 'dark'
               ? "bg-ds-emerald-950/20 border-ds-emerald-800/40 text-ds-emerald-100"
@@ -180,7 +181,7 @@ export const ConfigSettingsTab: React.FC = () => {
           variant="outline"
           size="sm"
           onClick={loadConfig}
-          className="shrink-0 h-8 gap-1.5 text-xs font-semibold self-start md:self-auto"
+          className={cn(secondaryButtonClass(theme), "self-start md:self-auto")}
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Aktualisieren
@@ -189,9 +190,9 @@ export const ConfigSettingsTab: React.FC = () => {
 
       {/* ── Section 1: SSO & IdP-Verbindung ───────────────────────────── */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b pb-2 border-ds-zinc-200 dark:border-ds-zinc-800">
-          <KeyRound className="w-4 h-4 text-ds-indigo-500" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-ds-zinc-900 dark:text-ds-zinc-100">
+        <div className="flex items-center gap-1.5">
+          <KeyRound className="w-3.5 h-3.5 text-ds-indigo-500" />
+          <h4 className={sectionTitleClass(theme)}>
             OpenID Connect / IdP-Konfiguration
           </h4>
         </div>
@@ -199,13 +200,10 @@ export const ConfigSettingsTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Issuer & Client-ID */}
           <div
-            className={cn(
-              "rounded-xl border p-4 space-y-3",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-4 space-y-3")}
           >
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
                 OIDC Issuer (IdP-URL)
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
@@ -214,7 +212,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
                 Client ID
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
@@ -223,7 +221,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
                 Client Secret Status
               </span>
               <div className="text-xs font-semibold flex items-center gap-1.5 mt-0.5">
@@ -249,7 +247,7 @@ export const ConfigSettingsTab: React.FC = () => {
                   variant="outline"
                   onClick={handleTestConnection}
                   disabled={isTestingConnection}
-                  className="w-full h-8 gap-1.5 text-xs font-semibold"
+                  className={cn(secondaryButtonClass(theme), "w-full justify-center")}
                 >
                   {isTestingConnection ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -264,14 +262,11 @@ export const ConfigSettingsTab: React.FC = () => {
 
           {/* Callback / Redirect URI mit 1-Click Copy */}
           <div
-            className={cn(
-              "rounded-xl border p-4 space-y-3 flex flex-col justify-between",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-4 space-y-3 flex flex-col justify-between")}
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
                   Erforderliche Redirect-URI
                 </span>
                 <span className="text-[10px] text-ds-indigo-500 font-semibold">Für IdP-Client</span>
@@ -293,7 +288,7 @@ export const ConfigSettingsTab: React.FC = () => {
                   size="icon"
                   variant="ghost"
                   onClick={handleCopyRedirect}
-                  className="h-7 w-7 rounded shrink-0"
+                  className={cn(ghostIconButtonClass, "h-7 w-7 shrink-0")}
                   title="Redirect-URI kopieren"
                 >
                   {copiedRedirect ? <Check className="w-3.5 h-3.5 text-ds-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -311,7 +306,7 @@ export const ConfigSettingsTab: React.FC = () => {
         {connectionResult && (
           <div
             className={cn(
-              "rounded-xl border p-4 text-xs space-y-2 animate-in fade-in duration-150",
+              "rounded-lg border p-4 text-xs space-y-2 animate-in fade-in duration-150",
               connectionResult.success
                 ? theme === 'dark'
                   ? "bg-ds-emerald-950/20 border-ds-emerald-800 text-ds-emerald-200"
@@ -359,9 +354,9 @@ export const ConfigSettingsTab: React.FC = () => {
 
       {/* ── Section 2: Rollen- & Team-Zuordnung (O-164) ───────────────── */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b pb-2 border-ds-zinc-200 dark:border-ds-zinc-800">
-          <Users className="w-4 h-4 text-ds-indigo-500" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-ds-zinc-900 dark:text-ds-zinc-100">
+        <div className="flex items-center gap-1.5">
+          <Users className="w-3.5 h-3.5 text-ds-indigo-500" />
+          <h4 className={sectionTitleClass(theme)}>
             Rollen- & Team-Zuordnung (O-164)
           </h4>
         </div>
@@ -369,12 +364,9 @@ export const ConfigSettingsTab: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Default Team */}
           <div
-            className={cn(
-              "rounded-xl border p-4 space-y-1.5",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
               Automatisches Standard-Team
             </span>
             <div className="flex items-center gap-2">
@@ -383,11 +375,11 @@ export const ConfigSettingsTab: React.FC = () => {
               </span>
               {sso?.default_team && (
                 sso.default_team_exists ? (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border border-ds-emerald-500/20">
+                  <span className={badgeClass('success')}>
                     Existiert
                   </span>
                 ) : (
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border border-ds-amber-500/20">
+                  <span className={badgeClass('warning')}>
                     Team fehlt in Doctus
                   </span>
                 )
@@ -400,12 +392,9 @@ export const ConfigSettingsTab: React.FC = () => {
 
           {/* Superuser Roles */}
           <div
-            className={cn(
-              "rounded-xl border p-4 space-y-1.5",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
               Superuser-Rollen (Admin)
             </span>
             <div className="flex flex-wrap gap-1">
@@ -429,12 +418,9 @@ export const ConfigSettingsTab: React.FC = () => {
 
           {/* Claims Pfade */}
           <div
-            className={cn(
-              "rounded-xl border p-4 space-y-1.5",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
               Geprüfte IdP-Claims
             </span>
             <div className="text-xs font-mono space-y-0.5">
@@ -449,13 +435,10 @@ export const ConfigSettingsTab: React.FC = () => {
 
         {/* Team Mapping Table */}
         <div
-          className={cn(
-            "rounded-xl border p-4 space-y-3",
-            theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-          )}
+          className={cn(cardClass(theme), "p-4 space-y-3")}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-ds-zinc-500">
+            <span className={sectionTitleClass(theme)}>
               Konfiguriertes Team-Mapping (OIDC_TEAM_MAPPING)
             </span>
             <span className="text-[11px] text-ds-zinc-500">
@@ -484,11 +467,11 @@ export const ConfigSettingsTab: React.FC = () => {
                         <td className="py-2 text-ds-indigo-600 dark:text-ds-indigo-400 font-semibold">{doctusTeam}</td>
                         <td className="py-2 text-right">
                           {exists ? (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border border-ds-emerald-500/20">
+                            <span className={cn(badgeClass('success'), "font-sans")}>
                               Existiert in Doctus
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-sans font-bold bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border border-ds-amber-500/20">
+                            <span className={cn(badgeClass('warning'), "font-sans")}>
                               Noch nicht angelegt
                             </span>
                           )}
@@ -508,13 +491,10 @@ export const ConfigSettingsTab: React.FC = () => {
 
         {/* Interaktiver Mapping-Simulator */}
         <div
-          className={cn(
-            "rounded-xl border p-4 sm:p-5 space-y-4",
-            theme === 'dark' ? "bg-ds-zinc-950/40 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
-          )}
+          className={cn(cardClass(theme), "p-4 sm:p-5 space-y-4")}
         >
           <div className="space-y-1">
-            <h5 className="font-bold text-xs uppercase tracking-wider text-ds-zinc-900 dark:text-ds-zinc-100 flex items-center gap-1.5">
+            <h5 className={cn(sectionTitleClass(theme), "flex items-center gap-1.5")}>
               <Play className="w-3.5 h-3.5 text-ds-indigo-500" />
               Interaktiver Mapping-Simulator
             </h5>
@@ -525,8 +505,8 @@ export const ConfigSettingsTab: React.FC = () => {
 
           <form onSubmit={handleSimulateMapping} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+              <div className="space-y-1.5">
+                <label className={sectionTitleClass(theme)}>
                   IdP Rollen (z. B. doctus-admin, tester)
                 </label>
                 <input
@@ -534,17 +514,12 @@ export const ConfigSettingsTab: React.FC = () => {
                   placeholder="Kommagetrennte Rollen..."
                   value={simRoles}
                   onChange={(e) => setSimRoles(e.target.value)}
-                  className={cn(
-                    "w-full h-8 px-3 rounded-lg border text-xs font-mono transition-colors outline-none",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-indigo-500"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-indigo-500"
-                  )}
+                  className={cn(inputClass(theme), "font-mono")}
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">
+              <div className="space-y-1.5">
+                <label className={sectionTitleClass(theme)}>
                   IdP Gruppen (z. B. /dev, security)
                 </label>
                 <input
@@ -552,12 +527,7 @@ export const ConfigSettingsTab: React.FC = () => {
                   placeholder="Kommagetrennte Gruppen..."
                   value={simGroups}
                   onChange={(e) => setSimGroups(e.target.value)}
-                  className={cn(
-                    "w-full h-8 px-3 rounded-lg border text-xs font-mono transition-colors outline-none",
-                    theme === 'dark'
-                      ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-indigo-500"
-                      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 focus:border-ds-indigo-500"
-                  )}
+                  className={cn(inputClass(theme), "font-mono")}
                 />
               </div>
             </div>
@@ -566,7 +536,7 @@ export const ConfigSettingsTab: React.FC = () => {
               type="submit"
               size="sm"
               disabled={isSimulating || (!simRoles && !simGroups)}
-              className="h-8 text-xs font-semibold gap-1.5"
+              className={cn(primaryButtonClass, "h-8")}
             >
               {isSimulating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               Mapping simulieren
@@ -624,57 +594,45 @@ export const ConfigSettingsTab: React.FC = () => {
 
       {/* ── Section 3: System- & Laufzeit-Konfiguration ───────────────── */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 border-b pb-2 border-ds-zinc-200 dark:border-ds-zinc-800">
-          <Server className="w-4 h-4 text-ds-indigo-500" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-ds-zinc-900 dark:text-ds-zinc-100">
+        <div className="flex items-center gap-1.5">
+          <Server className="w-3.5 h-3.5 text-ds-indigo-500" />
+          <h4 className={sectionTitleClass(theme)}>
             System- & Laufzeit-Konfiguration
           </h4>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div
-            className={cn(
-              "rounded-xl border p-3.5 space-y-1",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">Version</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Version</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.version || "latest"}
             </div>
           </div>
 
           <div
-            className={cn(
-              "rounded-xl border p-3.5 space-y-1",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">Log-Level</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Log-Level</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.log_level || "INFO"}
             </div>
           </div>
 
           <div
-            className={cn(
-              "rounded-xl border p-3.5 space-y-1",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">KI Modell</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">KI Modell</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate">
               {sys?.llm_model || "disabled"}
             </div>
           </div>
 
           <div
-            className={cn(
-              "rounded-xl border p-3.5 space-y-1",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-            )}
+            className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500">Kontextfenster</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Kontextfenster</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.context_window || 8192} Tokens
             </div>
@@ -683,12 +641,9 @@ export const ConfigSettingsTab: React.FC = () => {
 
         {/* Secrets & Security Status */}
         <div
-          className={cn(
-            "rounded-xl border p-4 space-y-2.5",
-            theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-          )}
+          className={cn(cardClass(theme), "p-4 space-y-2.5")}
         >
-          <span className="text-xs font-bold uppercase tracking-wider text-ds-zinc-500">
+          <span className={sectionTitleClass(theme)}>
             Sicherheit & Verschlüsselung
           </span>
 

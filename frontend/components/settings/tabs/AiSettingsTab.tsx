@@ -2,17 +2,17 @@
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { activeCardClass, badgeClass, cardClass, dangerIconButtonClass, ghostIconButtonClass, helpTextClass, inputClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass, settingsRoot, strongTextClass } from '@/components/settings/settingsStyles';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DEFAULT_EMBEDDING_MODEL, DEFAULT_LLM_MODEL, embeddingProfileFromApi, profileFromApi, type EmbeddingProfile, type LlmProfile } from '@/hooks/useAiSettings';
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Check, Edit, Plus, PlugZap, Trash2 } from 'lucide-react';
+import { Check, ChevronRight, Edit, Plus, PlugZap, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
 type ProfileKind = 'local' | 'remote' | 'cloud';
-const inputClass = 'w-full h-9 border rounded-lg px-3 text-xs bg-transparent';
 
 export const AiSettingsTab: React.FC = () => {
   const { t } = useLanguage();
@@ -127,37 +127,90 @@ export const AiSettingsTab: React.FC = () => {
     catch (error) { showToast(t('settings.toast.aiParamsSaveFailed'), 'error', error); }
   };
 
-  return <div className="space-y-5">
-    <div className="flex items-start justify-between gap-4">
-      <div><h4 className="text-sm font-semibold">{t('settings.profilesTab.title')}</h4><p className="text-xs text-ds-zinc-500 mt-1">{t('settings.profilesTab.description')}</p></div>
-      {!showForm && <Button size="sm" onClick={startAdd}><Plus className="w-4 h-4 mr-1" />{t('settings.profilesTab.addProfile')}</Button>}
-    </div>
-    {!showForm ? <div className="space-y-2">{llmProfiles.map(profile =>
-      <div key={profile.id} className={cn('rounded-xl border p-4 flex items-center gap-2', profile.id === activeProfileId ? 'border-ds-indigo-500 bg-ds-indigo-500/5' : theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
-        <div className="flex-1 min-w-0"><div className="flex gap-2 items-center"><span className="font-semibold text-sm truncate">{profile.name}</span><span className="text-[10px] uppercase text-ds-zinc-500">{profile.kind}</span>{profile.provider === 'vllm' && <span className="text-[10px] uppercase text-ds-indigo-500">vLLM</span>}{profile.id === activeProfileId && <Check className="w-4 h-4 text-ds-indigo-500" />}</div><div className="text-xs text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div></div>
-        <Button variant="ghost" size="sm" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')}><PlugZap className="w-4 h-4" /></Button>
-        {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)}>{t('settings.profilesTab.activate')}</Button>}
-        <Button variant="ghost" size="sm" onClick={() => startEdit(profile)}><Edit className="w-4 h-4" /></Button>
-        <Button variant="ghost" size="sm" disabled={profile.isSystem || profile.id === activeProfileId} onClick={() => remove(profile)}><Trash2 className="w-4 h-4" /></Button>
-      </div>)}</div> :
-      <div className={cn('rounded-xl border p-4 space-y-4', theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
-        <div className="grid sm:grid-cols-2 gap-3"><Field label={t('settings.profilesTab.profileNameLabel')} value={name} set={setName} /><label className="text-xs">{t('settings.profilesTab.profileType')}<Select value={kind} onValueChange={value => applyKind(value as ProfileKind)} disabled={Boolean(editing?.isSystem)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="local">{t('settings.profilesTab.local')}</SelectItem><SelectItem value="remote">{t('settings.profilesTab.remote')}</SelectItem>{features.llm.allowCloudProviders && <SelectItem value="cloud">{t('settings.profilesTab.cloud')}</SelectItem>}</SelectContent></Select></label></div>
-        {kind === 'remote' && <label className="text-xs">{t('settings.profilesTab.protocol')}<Select value={provider === 'vllm' ? 'vllm' : protocol} onValueChange={value => { if (value === 'vllm') { setProvider('vllm'); setProtocol('openai_chat'); setBaseUrl(current => current.trim() || 'http://vllm:8000/v1'); setLlmPath('/chat/completions'); } else { const next = value as LlmProfile['protocol']; setProtocol(next); setProvider(next === 'ollama' ? 'ollama' : 'openai'); setLlmPath(next === 'ollama' ? '/api/chat' : '/chat/completions'); } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ollama">Ollama API</SelectItem><SelectItem value="openai_chat">OpenAI-kompatibel</SelectItem><SelectItem value="vllm">vLLM (OpenAI API)</SelectItem></SelectContent></Select></label>}
-        {kind === 'remote' && provider === 'vllm' && <p className="text-xs text-ds-zinc-500 sm:col-span-2">{t('settings.profilesTab.vllmHint')}</p>}
-        {kind === 'cloud' && <label className="text-xs">{t('settings.profilesTab.providerLabel')}<Select value={provider} onValueChange={applyCloudProvider}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem><SelectItem value="gemini">Gemini</SelectItem></SelectContent></Select></label>}
-        <div className="grid sm:grid-cols-2 gap-3"><Field label={t('settings.profilesTab.modelNameLabel')} value={model} set={setModel} />{kind !== 'local' && <Field label={t('settings.profilesTab.apiKeyLabel')} value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />}</div>
-        {kind === 'remote' && <Field label={t('settings.profilesTab.baseUrlLabel')} value={baseUrl} set={setBaseUrl} placeholder="https://host:11434/subpath" />}
-        <details className="text-xs"><summary className="cursor-pointer font-medium">{t('settings.profilesTab.advanced')}</summary><div className="grid sm:grid-cols-2 gap-3 mt-3"><Field label="Chat path" value={llmPath} set={setLlmPath} /><Field label="Embedding model" value={embeddingModel} set={setEmbeddingModel} />{kind === 'remote' && <><Field label="Embedding URL" value={embeddingBaseUrl} set={setEmbeddingBaseUrl} /><Field label="Embedding path" value={embeddingPath} set={setEmbeddingPath} /><Field label="Embedding API key" value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} /></>}<NumberField label="Embedding dimension" value={dimension} set={setDimension} /><NumberField label="Embedding context" value={embeddingContext} set={setEmbeddingContext} /><NumberField label="LLM context" value={llmContext} set={setLlmContext} /></div></details>
-        <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setShowForm(false)}>{t('common.cancel')}</Button><Button onClick={save}>{t('settings.profilesTab.saveProfile')}</Button></div>
-      </div>}
-      <EmbeddingProfilesPanel
-        theme={theme}
-        showToast={showToast}
-        profiles={embeddingProfiles}
-        setProfiles={setEmbeddingProfiles}
-        activeProfileId={activeEmbeddingProfileId}
-        setActiveProfileId={setActiveEmbeddingProfileId}
-      />
+  return <div className={settingsRoot}>
+    <section className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
+          <h4 className={sectionTitleClass(theme)}>{t('settings.profilesTab.title')}</h4>
+          <p className={helpTextClass}>{t('settings.profilesTab.description')}</p>
+        </div>
+        {!showForm && <Button size="sm" onClick={startAdd} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />{t('settings.profilesTab.addProfile')}</Button>}
+      </div>
+      {!showForm ? <div className="space-y-2">{llmProfiles.map(profile =>
+        <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
+          <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center">
+              <span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>
+              <span className={badgeClass('neutral')}>{profile.kind}</span>
+              {profile.provider === 'vllm' && <span className={badgeClass('accent')}>vLLM</span>}
+              {profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}
+            </div>
+            <div className="font-mono text-[11px] text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
+          {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>{t('settings.profilesTab.activate')}</Button>}
+          <Button variant="ghost" size="icon" onClick={() => startEdit(profile)} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="icon" disabled={profile.isSystem || profile.id === activeProfileId} onClick={() => remove(profile)} className={dangerIconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
+        </div>)}</div> :
+        <div className={cn(cardClass(theme), 'p-4 space-y-4')}>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label={t('settings.profilesTab.profileNameLabel')} value={name} set={setName} />
+            <SelectField label={t('settings.profilesTab.profileType')}>
+              <Select value={kind} onValueChange={value => applyKind(value as ProfileKind)} disabled={Boolean(editing?.isSystem)}>
+                <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="local">{t('settings.profilesTab.local')}</SelectItem><SelectItem value="remote">{t('settings.profilesTab.remote')}</SelectItem>{features.llm.allowCloudProviders && <SelectItem value="cloud">{t('settings.profilesTab.cloud')}</SelectItem>}</SelectContent>
+              </Select>
+            </SelectField>
+          </div>
+          {kind === 'remote' && <SelectField label={t('settings.profilesTab.protocol')}>
+            <Select value={provider === 'vllm' ? 'vllm' : protocol} onValueChange={value => { if (value === 'vllm') { setProvider('vllm'); setProtocol('openai_chat'); setBaseUrl(current => current.trim() || 'http://vllm:8000/v1'); setLlmPath('/chat/completions'); } else { const next = value as LlmProfile['protocol']; setProtocol(next); setProvider(next === 'ollama' ? 'ollama' : 'openai'); setLlmPath(next === 'ollama' ? '/api/chat' : '/chat/completions'); } }}>
+              <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="ollama">Ollama API</SelectItem><SelectItem value="openai_chat">OpenAI-kompatibel</SelectItem><SelectItem value="vllm">vLLM (OpenAI API)</SelectItem></SelectContent>
+            </Select>
+          </SelectField>}
+          {kind === 'remote' && provider === 'vllm' && <p className={helpTextClass}>{t('settings.profilesTab.vllmHint')}</p>}
+          {kind === 'cloud' && <SelectField label={t('settings.profilesTab.providerLabel')}>
+            <Select value={provider} onValueChange={applyCloudProvider}>
+              <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem><SelectItem value="gemini">Gemini</SelectItem></SelectContent>
+            </Select>
+          </SelectField>}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label={t('settings.profilesTab.modelNameLabel')} value={model} set={setModel} />
+            {kind !== 'local' && <Field label={t('settings.profilesTab.apiKeyLabel')} value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />}
+          </div>
+          {kind === 'remote' && <Field label={t('settings.profilesTab.baseUrlLabel')} value={baseUrl} set={setBaseUrl} placeholder="https://host:11434/subpath" />}
+          <details className="group">
+            <summary className={cn(sectionTitleClass(theme), 'cursor-pointer list-none flex items-center gap-1.5 [&::-webkit-details-marker]:hidden')}>
+              <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />{t('settings.profilesTab.advanced')}
+            </summary>
+            <div className="grid sm:grid-cols-2 gap-3 mt-3">
+              <Field label="Chat path" value={llmPath} set={setLlmPath} />
+              <Field label="Embedding model" value={embeddingModel} set={setEmbeddingModel} />
+              {kind === 'remote' && <>
+                <Field label="Embedding URL" value={embeddingBaseUrl} set={setEmbeddingBaseUrl} />
+                <Field label="Embedding path" value={embeddingPath} set={setEmbeddingPath} />
+                <Field label="Embedding API key" value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} />
+              </>}
+              <NumberField label="Embedding dimension" value={dimension} set={setDimension} />
+              <NumberField label="Embedding context" value={embeddingContext} set={setEmbeddingContext} />
+              <NumberField label="LLM context" value={llmContext} set={setLlmContext} />
+            </div>
+          </details>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowForm(false)} className={cn(secondaryButtonClass(theme), 'h-9 text-xs')}>{t('common.cancel')}</Button>
+            <Button onClick={save} className={primaryButtonClass}>{t('settings.profilesTab.saveProfile')}</Button>
+          </div>
+        </div>}
+    </section>
+    <EmbeddingProfilesPanel
+      theme={theme}
+      showToast={showToast}
+      profiles={embeddingProfiles}
+      setProfiles={setEmbeddingProfiles}
+      activeProfileId={activeEmbeddingProfileId}
+      setActiveProfileId={setActiveEmbeddingProfileId}
+    />
   </div>;
 };
 
@@ -216,27 +269,54 @@ function EmbeddingProfilesPanel({
     catch (error) { showToast('Embedding-Endpunkt nicht erreichbar oder Dimension falsch', 'error', error); }
   };
 
-  return <section className={cn('rounded-xl border p-4 space-y-4', theme === 'dark' ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+  return <section className="space-y-4">
     <div className="flex items-start justify-between gap-4">
-      <div><h4 className="text-sm font-semibold">Embedding-Profile</h4><p className="text-xs text-ds-zinc-500 mt-1">Unabhängig vom LLM. Das aktive Profil wird für Import und semantische Suche verwendet.</p></div>
-      {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" />Embedding-Profil hinzufügen</Button>}
+      <div className="min-w-0 space-y-1">
+        <h4 className={sectionTitleClass(theme)}>Embedding-Profile</h4>
+        <p className={helpTextClass}>Unabhängig vom LLM. Das aktive Profil wird für Import und semantische Suche verwendet.</p>
+      </div>
+      {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />Embedding-Profil hinzufügen</Button>}
     </div>
-    {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn('rounded-lg border p-3 flex items-center gap-2', profile.id === activeProfileId && 'border-ds-indigo-500 bg-ds-indigo-500/5')}>
-      <div className="flex-1 min-w-0"><div className="flex gap-2 items-center"><span className="font-semibold text-sm truncate">{profile.name}</span>{profile.id === activeProfileId && <Check className="w-4 h-4 text-ds-indigo-500" />}</div><div className="text-xs text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div></div>
-      <Button variant="ghost" size="sm" onClick={() => test(profile)}><PlugZap className="w-4 h-4" /></Button>
-      {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)}>Aktivieren</Button>}
-      <Button variant="ghost" size="sm" onClick={() => edit(profile)}><Edit className="w-4 h-4" /></Button>
-      <Button variant="ghost" size="sm" disabled={profile.isSystem || profile.id === activeProfileId} onClick={async () => { await api.deleteEmbeddingProfile(Number(profile.id)); setProfiles(profiles.filter(item => item.id !== profile.id)); }}> <Trash2 className="w-4 h-4" /></Button>
-    </div>)}</div> : <div className="grid sm:grid-cols-2 gap-3">
+    {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
+      <div className="flex-1 min-w-0">
+        <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}</div>
+        <div className="font-mono text-[11px] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
+      </div>
+      <Button variant="ghost" size="icon" onClick={() => test(profile)} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
+      {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>Aktivieren</Button>}
+      <Button variant="ghost" size="icon" onClick={() => edit(profile)} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
+      <Button variant="ghost" size="icon" disabled={profile.isSystem || profile.id === activeProfileId} onClick={async () => { await api.deleteEmbeddingProfile(Number(profile.id)); setProfiles(profiles.filter(item => item.id !== profile.id)); }} className={dangerIconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
+    </div>)}</div> : <div className={cn(cardClass(theme), 'p-4 grid sm:grid-cols-2 gap-3')}>
       <Field label="Name" value={name} set={setName} />
-      <label className="text-xs">Provider<Select value={provider} onValueChange={value => { const next = value as 'ollama' | 'openai'; setProvider(next); setPath(next === 'openai' ? '/embeddings' : '/api/embed'); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="openai">OpenAI-kompatibel</SelectItem><SelectItem value="ollama">Ollama API</SelectItem></SelectContent></Select></label>
+      <SelectField label="Provider">
+        <Select value={provider} onValueChange={value => { const next = value as 'ollama' | 'openai'; setProvider(next); setPath(next === 'openai' ? '/embeddings' : '/api/embed'); }}>
+          <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="openai">OpenAI-kompatibel</SelectItem><SelectItem value="ollama">Ollama API</SelectItem></SelectContent>
+        </Select>
+      </SelectField>
       <Field label="Modell" value={model} set={setModel} /><Field label="Base-URL" value={baseUrl} set={setBaseUrl} placeholder="https://host.example/v1" />
       <Field label="Embedding-Pfad" value={path} set={setPath} /><Field label="API-Key" value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />
       <NumberField label="Dimension" value={dimension} set={setDimension} /><NumberField label="Context-Länge" value={contextLength} set={setContextLength} />
-      <div className="sm:col-span-2 flex justify-end gap-2"><Button variant="ghost" onClick={() => { setShowForm(false); reset(); }}>Abbrechen</Button><Button onClick={save}>Speichern</Button></div>
+      <div className="sm:col-span-2 flex justify-end gap-2">
+        <Button variant="outline" onClick={() => { setShowForm(false); reset(); }} className={cn(secondaryButtonClass(theme), 'h-9 text-xs')}>Abbrechen</Button>
+        <Button onClick={save} className={primaryButtonClass}>Speichern</Button>
+      </div>
     </div>}
   </section>;
 }
 
-const Field = ({ label, value, set, secret = false, placeholder = '' }: { label: string; value: string; set: (value: string) => void; secret?: boolean; placeholder?: string }) => <label className="text-xs">{label}<input type={secret ? 'password' : 'text'} className={inputClass} value={value} placeholder={placeholder} onChange={event => set(event.target.value)} /></label>;
-const NumberField = ({ label, value, set }: { label: string; value: number; set: (value: number) => void }) => <label className="text-xs">{label}<input type="number" min="1" className={inputClass} value={value} onChange={event => set(Number(event.target.value))} /></label>;
+const selectTriggerClass = 'h-9 text-xs font-semibold';
+
+const FieldLabel = ({ label, children }: { label: string; children: React.ReactNode }) => {
+  const { theme } = useSettings();
+  return <label className="block space-y-1.5"><span className={sectionTitleClass(theme)}>{label}</span>{children}</label>;
+};
+const SelectField = FieldLabel;
+const Field = ({ label, value, set, secret = false, placeholder = '' }: { label: string; value: string; set: (value: string) => void; secret?: boolean; placeholder?: string }) => {
+  const { theme } = useSettings();
+  return <FieldLabel label={label}><input type={secret ? 'password' : 'text'} className={inputClass(theme)} value={value} placeholder={placeholder} onChange={event => set(event.target.value)} /></FieldLabel>;
+};
+const NumberField = ({ label, value, set }: { label: string; value: number; set: (value: number) => void }) => {
+  const { theme } = useSettings();
+  return <FieldLabel label={label}><input type="number" min="1" className={inputClass(theme)} value={value} onChange={event => set(Number(event.target.value))} /></FieldLabel>;
+};
