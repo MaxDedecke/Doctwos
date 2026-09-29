@@ -963,8 +963,67 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                 continue
             meta = edge.meta or {}
             if edge.type in {"READS", "WRITES"}:
-                # Cross-file field access needs receiver type information that
-                # the syntax-only MVP does not claim to infer.
+                field_name = meta.get("field_name") or edge.dst_name.rsplit(".", 1)[-1]
+                if "." in edge.dst_name and not edge.dst_name.startswith(("this.", "super.")):
+                    receiver = edge.dst_name.rsplit(".", 1)[0]
+                    synthetic = ParsedEdge(
+                        type="CALLS",
+                        src_name=edge.src_name,
+                        dst_name=receiver,
+                        resolution="unresolved",
+                        src_start_line=edge.src_start_line,
+                        src_end_line=edge.src_end_line,
+                        meta={**meta, "receiver": receiver},
+                    )
+                    receiver_types, receiver_reason = _receiver_type_candidates(
+                        synthetic,
+                        result=result,
+                        types_by_qname=types_by_qname,
+                        types_by_name=types_by_name,
+                        fields_by_owner_and_name=fields_by_owner_and_name,
+                        variables_by_parent_and_name=variables_by_parent_and_name,
+                        hierarchy=hierarchy,
+                        result_by_type=result_by_type,
+                        methods_by_qname=methods_by_qname,
+                    )
+                    if len(receiver_types) != 1:
+                        if len(receiver_types) > 1:
+                            meta["resolution_reason"] = "ambiguous_receiver_type"
+                        continue
+                    owner = receiver_types[0].qualified_name
+                    field_candidates = _fields_for_owner(
+                        owner, field_name, fields_by_owner_and_name, hierarchy=hierarchy
+                    )
+                    if len(field_candidates) == 1:
+                        mark_global(
+                            edge, field_candidates[0],
+                            reason="receiver_field_in_repository",
+                        )
+                        meta["receiver_type_qualified_name"] = owner
+                        meta["receiver_resolution"] = receiver_reason or "declared_type"
+                    elif len(field_candidates) > 1:
+                        meta["resolution_reason"] = "ambiguous_receiver_field"
+                    else:
+                        meta.setdefault("resolution_reason", "receiver_field_not_in_repository")
+                    continue
+
+                # Unqualified and this/super accesses resolve only against the
+                # lexical owner and its declared parent chain.
+                source_owner = _source_owner(edge)
+                owners = [source_owner] if source_owner else []
+                if edge.dst_name.startswith("super."):
+                    owners = hierarchy.get(source_owner or "", [])
+                field_candidates = []
+                for owner in owners:
+                    field_candidates = _fields_for_owner(
+                        owner, field_name, fields_by_owner_and_name, hierarchy=hierarchy
+                    )
+                    if field_candidates:
+                        break
+                if len(field_candidates) == 1:
+                    mark_global(edge, field_candidates[0], reason="field_in_repository")
+                elif len(field_candidates) > 1:
+                    meta["resolution_reason"] = "ambiguous_field"
                 continue
             if edge.type in {"EXTENDS", "IMPLEMENTS", "USES_TYPE", "INSTANTIATES"}:
                 candidates, reason = _global_type_candidates(
