@@ -28,6 +28,94 @@ from .model import CobolProgram, DataItem, ParsedEdge
 from .names import canonical_identifier
 
 _QUALIFIERS = ("OF", "IN")
+_ASSIGNMENT_VERBS = {
+    "ACCEPT", "ADD", "COMPUTE", "DIVIDE", "INITIALIZE", "MOVE",
+    "MULTIPLY", "READ", "SET", "SUBTRACT", "WRITE", "REWRITE",
+}
+_STATEMENT_VERBS = _ASSIGNMENT_VERBS | {
+    "ACCEPT", "ALTER", "CALL", "CANCEL", "CLOSE", "CONTINUE", "DELETE",
+    "DISPLAY", "ELSE", "END-ADD", "END-CALL", "END-COMPUTE", "END-DELETE",
+    "END-DIVIDE", "END-EVALUATE", "END-IF", "END-MULTIPLY", "END-READ",
+    "END-REWRITE", "END-SEARCH", "END-START", "END-SUBTRACT", "END-WRITE",
+    "EVALUATE", "EXEC", "EXIT", "GO", "GOBACK", "GOTO", "IF", "INITIALIZE",
+    "INSPECT", "MERGE", "OPEN", "PERFORM", "RELEASE", "RETURN", "SEARCH",
+    "SORT", "START", "STOP", "THEN", "UNTIL", "WHEN",
+}
+_READ_CONTEXT_VERBS = {"DISPLAY", "EVALUATE", "IF", "UNTIL", "WHEN"}
+
+
+def _reference_access(proc_tokens: list[Token], idx: int) -> tuple[str, str, str] | None:
+    """Classify operand direction for common COBOL data operations."""
+    start = idx
+    while start >= 0:
+        token = proc_tokens[start]
+        word = canonical_identifier(token.value) if token.kind == "WORD" else ""
+        if token.kind == "PERIOD" or word in _STATEMENT_VERBS:
+            break
+        start -= 1
+    verb_token = proc_tokens[start] if start >= 0 else None
+    verb = canonical_identifier(verb_token.value) if verb_token and verb_token.kind == "WORD" else ""
+    if verb not in _ASSIGNMENT_VERBS | _READ_CONTEXT_VERBS:
+        return None
+    end = idx + 1
+    while end < len(proc_tokens):
+        token = proc_tokens[end]
+        word = canonical_identifier(token.value) if token.kind == "WORD" else ""
+        if token.kind == "PERIOD" or word in _STATEMENT_VERBS:
+            break
+        end += 1
+    statement = proc_tokens[start:end]
+    relative = idx - start
+    words = [canonical_identifier(token.value) if token.kind == "WORD" else token.value for token in statement]
+    markers = {word: [i for i, item in enumerate(words) if item == word] for word in (
+        "TO", "FROM", "GIVING", "INTO", "BY", "UP", "DOWN", "TRUE", "FALSE",
+    )}
+    mode = None
+    role = "operand"
+    if verb == "MOVE":
+        marker = next(iter(markers["TO"]), None)
+        if marker is not None:
+            mode, role = ("READS", "source") if relative < marker else ("WRITES", "target")
+    elif verb in {"ADD", "SUBTRACT", "MULTIPLY", "DIVIDE"}:
+        marker_word = {"ADD": "TO", "SUBTRACT": "FROM", "MULTIPLY": "BY", "DIVIDE": "INTO"}[verb]
+        marker = next(iter(markers[marker_word]), None)
+        giving = next(iter(markers["GIVING"]), None)
+        if marker is not None:
+            if relative < marker:
+                mode, role = "READS", "source"
+            elif giving is not None and relative > giving:
+                mode, role = "WRITES", "result"
+            elif giving is not None and relative > marker:
+                mode, role = "READS", "source"
+            else:
+                mode, role = "READS_WRITES", "target"
+    elif verb == "COMPUTE":
+        equal = next((i for i, item in enumerate(words) if item == "="), None)
+        if equal is not None:
+            mode, role = ("WRITES", "result") if relative < equal else ("READS", "source")
+    elif verb in {"ACCEPT", "INITIALIZE"}:
+        mode, role = "WRITES", "target"
+    elif verb == "READ":
+        marker = next(iter(markers["INTO"]), None)
+        if marker is not None and relative > marker:
+            mode, role = "WRITES", "target"
+    elif verb in {"WRITE", "REWRITE"}:
+        marker = next(iter(markers["FROM"]), None)
+        if marker is not None:
+            mode, role = ("WRITES", "record") if relative < marker else ("READS", "source")
+        else:
+            mode, role = "WRITES", "record"
+    elif verb == "SET":
+        if markers["UP"] or markers["DOWN"]:
+            by = next(iter(markers["BY"]), None)
+            mode, role = ("READS_WRITES", "target") if by is None or relative < by else ("READS", "source")
+        else:
+            mode, role = "WRITES", "target"
+    elif verb in _READ_CONTEXT_VERBS:
+        mode, role = "READS", "condition" if verb != "DISPLAY" else "output"
+    if mode == "READS_WRITES":
+        return "READS_WRITES", role, verb
+    return (mode, role, verb) if mode else None
 
 
 def build_index(items: list[DataItem]) -> dict[str, list[DataItem]]:
@@ -69,8 +157,34 @@ def scan(
         if procedure_division.start_line <= t.phys_line <= procedure_division.end_line
     ]
     n = len(proc_tokens)
+    control_stack: list[dict[str, str]] = []
 
     for i, tok in enumerate(proc_tokens):
+        if tok.kind == "PERIOD":
+            control_stack.clear()
+            continue
+        word = canonical_identifier(tok.value) if tok.kind == "WORD" else ""
+        if control_stack and word in _STATEMENT_VERBS:
+            top = control_stack[-1]
+            if top["type"] == "IF" and top["branch"] == "CONDITION" and word not in {"IF", "ELSE", "END-IF"}:
+                top["branch"] = "THEN"
+            elif top["type"] == "EVALUATE" and top["branch"] == "CONDITION" and word not in {"WHEN", "END-EVALUATE"}:
+                top["branch"] = "BODY"
+        if word in {"END-IF", "END-EVALUATE"}:
+            expected = "IF" if word == "END-IF" else "EVALUATE"
+            if control_stack and control_stack[-1]["type"] == expected:
+                control_stack.pop()
+        elif word == "ELSE":
+            if control_stack and control_stack[-1]["type"] == "IF":
+                control_stack[-1]["branch"] = "ELSE"
+        elif word == "WHEN":
+            if control_stack and control_stack[-1]["type"] == "EVALUATE":
+                control_stack[-1]["branch"] = "CONDITION"
+        elif word == "IF":
+            control_stack.append({"type": "IF", "branch": "CONDITION"})
+        elif word == "EVALUATE":
+            control_stack.append({"type": "EVALUATE", "branch": "SELECT"})
+
         if tok.kind != "WORD":
             continue
         key = canonical_identifier(tok.value)
@@ -81,6 +195,14 @@ def scan(
         target, resolution = _resolve(candidates, proc_tokens, i, n)
 
         meta: dict = {"program": program.name}
+        if control_stack:
+            meta["control_context"] = [dict(item) for item in control_stack]
+        access = _reference_access(proc_tokens, i)
+        edge_type = "USES"
+        if access is not None:
+            edge_type, operand_role, operation = access
+            meta["operand_role"] = operand_role
+            meta["operation"] = operation
         if target is not None:
             if isinstance(target, dict):
                 meta["copybook_path"] = target["path"]
@@ -88,25 +210,23 @@ def scan(
             elif target.parent:
                 meta["parent"] = target.parent
 
-        edges.append(
-            ParsedEdge(
-                type="USES",
-                src_name=_enclosing_paragraph(program, tok.phys_line),
-                dst_name=(target["name"] if isinstance(target, dict) else target.name)
-                if target is not None
-                else tok.value,
-                resolution=resolution,
-                src_start_line=tok.phys_line,
-                src_end_line=tok.phys_line,
-                scope=program.name,
-                # target.parent überträgt die zur Parse-Zeit getroffene Disambiguierung
-                # (z.B. per OF/IN) an die Persistenz weiter - ohne das könnte persist.py
-                # bei mehreren gleichnamigen Datenfeldern im selben Programm nicht mehr
-                # rekonstruieren, welches der xref-Resolver tatsächlich gemeint hat
-                # (siehe 06_data_qualified.cbl).
-                meta=meta,
+        edge_types = ["READS", "WRITES"] if edge_type == "READS_WRITES" else [edge_type]
+        for resolved_type in edge_types:
+            edges.append(
+                ParsedEdge(
+                    type=resolved_type,
+                    src_name=_enclosing_paragraph(program, tok.phys_line),
+                    dst_name=(target["name"] if isinstance(target, dict) else target.name)
+                    if target is not None
+                    else tok.value,
+                    resolution=resolution,
+                    src_start_line=tok.phys_line,
+                    src_end_line=tok.phys_line,
+                    scope=program.name,
+                    # Preserve the same target disambiguation for each direction.
+                    meta=dict(meta),
+                )
             )
-        )
 
     return edges, errors
 

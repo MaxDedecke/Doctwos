@@ -632,6 +632,8 @@ def trace_data_access(ctx: Context, project_id: int, entity_id: int, limit: int 
                 "access": edge.type,
                 "resolution": edge.resolution,
                 "operation": meta.get("operation"),
+                "operand_role": meta.get("operand_role"),
+                "control_context": meta.get("control_context"),
                 "line": line,
                 "end_line": edge.src_end_line,
                 "routine": {
