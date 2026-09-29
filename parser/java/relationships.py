@@ -346,6 +346,13 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         return len(expression_list.expression()) if expression_list is not None else 0
 
     @staticmethod
+    def _argument_expressions(context: ParserRuleContext) -> list[str]:
+        expression_list = context.expressionList()
+        if expression_list is None:
+            return []
+        return [expression.getText()[:500] for expression in expression_list.expression()[:16]]
+
+    @staticmethod
     def _argument_types(context: ParserRuleContext) -> list[str | None]:
         expression_list = context.expressionList()
         if expression_list is None:
@@ -401,6 +408,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "receiver": receiver,
                 "argument_count": self._argument_count(context.arguments()),
                 "argument_types": self._argument_types(context.arguments()),
+                "argument_expressions": self._argument_expressions(context.arguments()),
                 "invocation_kind": invocation_kind,
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
             },
@@ -464,6 +472,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "receiver": receiver,
                 "argument_count": self._argument_count(arguments),
                 "argument_types": self._argument_types(arguments),
+                "argument_expressions": self._argument_expressions(arguments),
                 "invocation_kind": "virtual" if receiver not in {"super", "this"} else "special",
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
                 "generic": True,

@@ -109,6 +109,15 @@ def _entity(db: Session, user: User, project_id: int, entity_id: int) -> CodeEnt
     return entity
 
 
+def _entity_analysis(entity: CodeEntity) -> dict:
+    meta = entity.meta_json or {}
+    keys = (
+        "signature", "parameter_types", "return_type", "return_expressions",
+        "annotations", "annotation_details", "modifiers", "visibility",
+    )
+    return {key: meta[key] for key in keys if key in meta}
+
+
 def _source_visible(db: Session, user: User, source_id: int | None) -> bool:
     if source_id is None:
         return True
@@ -316,6 +325,7 @@ def search_code(
                 "file_path": entity.file_path,
                 "start_line": entity.start_line,
                 "end_line": entity.end_line,
+                "analysis": _entity_analysis(entity),
             }
             # Give the best few symbol matches enough original source to cite
             # without making every result a full-file response.
@@ -393,6 +403,7 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                 "qualified_name": entity.qualified_name, "type": entity.type,
                 "file_path": entity.file_path, "start_line": entity.start_line,
                 "end_line": entity.end_line,
+                "analysis": _entity_analysis(entity),
             }
 
         candidates = [serialize(entity) for entity in by_id.values()]
@@ -513,6 +524,7 @@ def get_code_entity(
             "file_path": entity.file_path,
             "start_line": entity.start_line,
             "end_line": entity.end_line,
+            "analysis": _entity_analysis(entity),
             "definition": {
                 "sections": sections,
                 "truncated": has_more,
@@ -655,6 +667,9 @@ def get_call_flow(
                         "receiver_symbol_qualified_name",
                         "receiver_type_qualified_name",
                         "receiver_method_qualified_name",
+                        "argument_count",
+                        "argument_types",
+                        "argument_expressions",
                         "dispatch_scope",
                     )
                     if key in (edge.get("meta") or {})

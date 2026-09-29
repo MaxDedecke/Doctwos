@@ -110,8 +110,8 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             current = current.parentCtx
         return context
 
-    def _annotation_details(self, context: ParserRuleContext) -> list[tuple[str, str]]:
-        details: list[tuple[str, str]] = []
+    def _annotation_nodes(self, context: ParserRuleContext) -> list[ParserRuleContext]:
+        annotations_found: list[ParserRuleContext] = []
         current = context
         while current is not None:
             annotations = []
@@ -140,12 +140,62 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                         annotations.extend(
                             annotation if isinstance(annotation, list) else [annotation]
                         )
-            for annotation in annotations:
-                details.append((annotation.qualifiedName().getText(), annotation.getText()))
+            annotations_found.extend(annotations)
             if JavaParser.ruleNames[current.getRuleIndex()] in _DECLARATION_BOUNDARIES:
                 break
             current = current.parentCtx
-        return details
+        return annotations_found
+
+    def _annotation_details(self, context: ParserRuleContext) -> list[tuple[str, str]]:
+        return [
+            (annotation.qualifiedName().getText(), annotation.getText())
+            for annotation in self._annotation_nodes(context)
+        ]
+
+    def _annotation_metadata(self, context: ParserRuleContext) -> list[dict]:
+        result = []
+        for annotation in self._annotation_nodes(context):
+            field_values = annotation.annotationFieldValues()
+            values = {}
+            if field_values is not None:
+                for item in field_values.annotationFieldValue():
+                    identifier = item.identifier()
+                    key = identifier.getText() if identifier is not None else "value"
+                    value = item.annotationValue()
+                    values[key] = value.getText()[:500] if value is not None else ""
+            result.append({
+                "name": annotation.qualifiedName().getText(),
+                "values": values,
+                "source": annotation.getText()[:1000],
+            })
+        return result
+
+    def _return_expressions(self, context: ParserRuleContext) -> list[dict]:
+        returns = []
+
+        def walk(node: ParserRuleContext, *, root: bool = False) -> None:
+            rule = JavaParser.ruleNames[node.getRuleIndex()]
+            if not root and rule in {
+                "methodDeclaration", "constructorDeclaration", "lambdaExpression",
+                "classDeclaration", "interfaceDeclaration", "enumDeclaration",
+                "recordDeclaration", "annotationTypeDeclaration",
+            }:
+                return
+            if rule == "returnStatement":
+                expression = node.expression()
+                if expression is not None:
+                    returns.append({
+                        "expression": expression.getText()[:500],
+                        "start_line": node.start.line if node.start else None,
+                        "end_line": node.stop.line if node.stop else None,
+                    })
+                return
+            for child in getattr(node, "children", ()) or ():
+                if isinstance(child, ParserRuleContext):
+                    walk(child)
+
+        walk(context, root=True)
+        return returns[:32]
 
     def _annotation_names(self, context: ParserRuleContext) -> list[str]:
         return [name for name, _ in self._annotation_details(context)]
@@ -305,6 +355,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             meta={
                 **self._modifier_meta(context),
                 "annotations": self._annotation_names(entity_context),
+                "annotation_details": self._annotation_metadata(entity_context),
             },
         )
         if entity_type == "record":
@@ -391,6 +442,8 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "parameter_types": parameter_types,
                 **self._modifier_meta(context),
                 "annotations": self._annotation_names(context),
+                "annotation_details": self._annotation_metadata(context),
+                "return_expressions": self._return_expressions(context),
                 **({} if constructor else {"return_type": return_type}),
             },
         )
@@ -703,6 +756,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "field_type": field_type,
                 **self._modifier_meta(context),
                 "annotations": annotations or self._annotation_names(field_context),
+                "annotation_details": self._annotation_metadata(field_context),
                 **extra_meta,
             },
         )
