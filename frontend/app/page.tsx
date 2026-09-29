@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginView } from "@/components/LoginView";
 import { PanelContentRenderer } from "@/components/PanelContentRenderer";
+import { ProjectEdgeBar } from "@/components/ProjectEdgeBar";
 import { PanelRenderer } from "@/components/PanelRenderer";
 import { SettingsModal } from "@/components/SettingsModal";
 import { Sidebar } from "@/components/Sidebar";
@@ -1115,7 +1116,8 @@ function AppContent() {
       theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-zinc-50 text-ds-zinc-900"
     )}>
 
-      <div className="absolute left-0 top-0 bottom-0 w-1 doctus-brand-gradient pointer-events-none z-50" />
+      {/* Randmarke links neben der Sidebar: Markenverlauf, bzw. die Farbe des gewählten Projekts. */}
+      <ProjectEdgeBar color={selectedProject?.color} />
 
       {/* Custom Toast Notifications */}
       <AnimatePresence>
@@ -1195,16 +1197,6 @@ function AppContent() {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative min-w-0 z-10">
-
-        {/* Project identity is a precise edge marker, not an ambient glow. */}
-        {selectedProject?.color && (
-          <div
-            className="absolute left-0 right-0 top-0 h-[2px] pointer-events-none z-20 transition-colors duration-300"
-            style={{
-              background: `radial-gradient(circle at 50% 50%, ${selectedProject.color} 0%, transparent 65%)`
-            }}
-          />
-        )}
 
         <WorkspaceShell
           theme={theme}

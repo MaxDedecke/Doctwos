@@ -222,6 +222,37 @@ describe('app/page.tsx — Orchestrierung', () => {
     expect(await screen.findByTestId('login-view')).toBeTruthy();
   });
 
+  describe('Projektfarbe an der linken Randmarke', () => {
+    it('zeigt ohne Projekt den Markenverlauf und färbt die Marke nach der Projektwahl in der Projektfarbe ein', async () => {
+      mockedApi.getProjects.mockResolvedValue(axiosResponse([
+        project({ id: 1, name: 'Kontoführung', color: '#2f9e6b' }),
+        project({ id: 2, name: 'Zinsberechnung' }),
+      ]));
+      renderApp();
+      await screen.findByTestId('sidebar');
+
+      expect(screen.getByTestId('project-edge-bar').className).toContain('doctus-brand-gradient');
+
+      fireEvent.click(screen.getByText('select-project-1'));
+      await waitFor(() => expect(screen.getByTestId('project-edge-bar').style.backgroundColor).toBe('rgb(47, 158, 107)'));
+      expect(screen.getByTestId('project-edge-bar').className).not.toContain('doctus-brand-gradient');
+
+      // Ein Projekt ohne Farbe fällt auf den Markenverlauf zurück.
+      fireEvent.click(screen.getByText('select-project-2'));
+      await waitFor(() => expect(screen.getByTestId('project-edge-bar').className).toContain('doctus-brand-gradient'));
+    });
+
+    it('rendert keine waagerechte Projektfarbleiste mehr über den Ansichten', async () => {
+      mockedApi.getProjects.mockResolvedValue(axiosResponse([project({ id: 1, name: 'Kontoführung', color: '#2f9e6b' })]));
+      const { container } = renderApp();
+      await screen.findByTestId('sidebar');
+      fireEvent.click(screen.getByText('select-project-1'));
+      await waitFor(() => expect(screen.getByTestId('project-edge-bar').style.backgroundColor).not.toBe(''));
+
+      expect(container.querySelector('main [style*="radial-gradient"]')).toBeNull();
+    });
+  });
+
   describe('Projekt-/Sitzungswechsel', () => {
     async function loginWithActiveSession(session: ChatSession, projects: Project[] = [projectA, projectB]) {
       mockedApi.getProjects.mockResolvedValue(axiosResponse(projects));
