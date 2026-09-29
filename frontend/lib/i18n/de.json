@@ -772,7 +772,50 @@
     },
     "normalSuggestions": {
       "explainConcept": { "label": "Etwas erklären", "desc": "Ein Thema verständlich machen", "prompt": "Erkläre mir bitte einfach, wie " },
-      "draftText": { "label": "Text entwerfen", "desc": "Eine Nachricht oder Zusammenfassung formulieren", "prompt": "Hilf mir, einen kurzen Text zu schreiben über " }
+      "draftText": { "label": "Text entwerfen", "desc": "Eine Nachricht oder Zusammenfassung formulieren", "prompt": "Hilf mir, einen kurzen Text zu schreiben über " },
+      "summarizeText": { "label": "Text zusammenfassen", "desc": "Lange Inhalte auf das Wesentliche kürzen", "prompt": "Fasse mir bitte folgenden Text kurz zusammen: " },
+      "brainstorm": { "label": "Ideen sammeln", "desc": "Ansätze und Alternativen durchdenken", "prompt": "Sammle mit mir Ideen für " }
+    },
+    "empty": {
+      "kicker": {
+        "normal": "Normaler Modus · freie Antworten",
+        "evidence": "Evidenz-Modus · jede Antwort mit Quelle"
+      },
+      "shuffleTitle": "Andere Frage",
+      "counts": {
+        "program": "Programme",
+        "copybook": "Copybooks",
+        "sql_table": "Tabellen",
+        "jcl_job": "Jobs"
+      },
+      "previewLabel": "Wird eingetragen",
+      "tags": {
+        "explainProgram": "Programm",
+        "traceCall": "Aufrufkette",
+        "summarizeDocs": "Onboarding",
+        "findField": "Datenfeld",
+        "explainConcept": "Konzept",
+        "draftText": "Text",
+        "summarizeText": "Kürzen",
+        "brainstorm": "Ideen"
+      },
+      "questions": {
+        "evidence": {
+          "explainProgram": "Was macht das Programm {{name}}?",
+          "callees": "Welche Programme ruft {{name}} auf?",
+          "callers": "Wer ruft {{name}} auf?",
+          "copybook": "Wo wird das Copybook {{name}} verwendet?",
+          "table": "Welche Programme greifen auf die Tabelle {{name}} zu?",
+          "job": "Welche Programme startet der Job {{name}}?"
+        },
+        "normal": {
+          "call": "Wie funktioniert ein CALL zwischen COBOL-Programmen?",
+          "paragraph": "Was unterscheidet eine Section von einem Paragraph?",
+          "copybook": "Wozu braucht man Copybooks?",
+          "sql": "Wie greift COBOL per EXEC SQL auf DB2 zu?",
+          "jcl": "Wofür steht ein JCL-Step in einem Batch-Job?"
+        }
+      }
     },
     "projectLabel": "Projekt: {{name}}",
     "greeting": "Hallo.",

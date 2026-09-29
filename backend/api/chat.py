@@ -53,6 +53,7 @@ from models.database import (
     ChatLinkFeedbackSignal,
     ChatMessage,
     ChatSession,
+    CodeEntity,
     DocumentChunk,
     EntityDocLink,
     KnowledgeLink,
@@ -2173,3 +2174,49 @@ async def get_typing_statement():
 
     # Fallback if Ollama fails or returns invalid count
     return {"statement": random.choice(fallback_statements)}
+
+
+PULSE_ENTITY_TYPES = ("program", "copybook", "sql_table", "jcl_job")
+PULSE_SAMPLES_PER_TYPE = 3
+
+
+@router.get("/chat/project-pulse")
+def get_project_pulse(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Zähler und Zufallsstichprobe echter Objektnamen für den leeren Chat.
+
+    Die Startansicht formuliert daraus Beispielfragen, die zum Projekt passen.
+    Kein LLM-Aufruf; bewusst nur Zähler und wenige Namen pro Typ, damit der
+    Endpunkt auch bei sehr großen Beständen billig bleibt (Offset statt
+    ORDER BY random()).
+    """
+    import random
+
+    assert_project_visible(project_id, user, db)
+
+    counts: dict[str, int] = {}
+    samples: dict[str, list[str]] = {}
+    for entity_type in PULSE_ENTITY_TYPES:
+        base = db.query(CodeEntity).filter(
+            CodeEntity.project_id == project_id,
+            CodeEntity.type == entity_type,
+            CodeEntity.name.isnot(None),
+        )
+        total = base.count()
+        counts[entity_type] = total
+        picked: list[str] = []
+        for _ in range(min(PULSE_SAMPLES_PER_TYPE, total)):
+            row = (
+                base.with_entities(CodeEntity.name)
+                .order_by(CodeEntity.id)
+                .offset(random.randrange(total))
+                .limit(1)
+                .first()
+            )
+            if row and row[0] not in picked:
+                picked.append(row[0])
+        samples[entity_type] = picked
+    return {"project_id": project_id, "counts": counts, "samples": samples}

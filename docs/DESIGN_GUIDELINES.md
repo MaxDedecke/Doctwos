@@ -40,6 +40,12 @@ Informationsdichte und wenige, bewusst gesetzte Signalfarben.
 - Space Grotesk für Display/Überschriften, Archivo für UI, IBM Plex Mono für Code.
 - Überschriften dürfen eng und groß sein; Utility-Labels sind uppercase mit Tracking.
 - Übergänge 120–180 ms. Bewegung erklärt Zustandswechsel, sie dekoriert nicht.
+- Leerer Chat: Bewegung bleibt dezent und bedeutungstragend — getippte
+  Beispielfrage mit Schreibcursor, Quellenspur und Statuspunkt nur im
+  Evidenz-Modus, gestaffelter Karteneintritt beim Moduswechsel, Signalmarke und
+  Eingabevorschau beim Hover. Beispielfragen im Evidenz-Modus nennen ausschließlich
+  echte Objektnamen des gewählten Projekts (`/chat/project-pulse`). Alle
+  Animationen respektieren `prefers-reduced-motion`.
 
 ### Standarddarstellung und Dichte
 

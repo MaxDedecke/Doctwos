@@ -2,6 +2,7 @@ import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, C
 import axios from 'axios';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
+import type { ProjectPulse } from '@/lib/chatStarters';
 
 declare global {
     interface Window {
@@ -80,6 +81,8 @@ export const api = {
     getLinkRecommendations: (projectId: number) =>
         axios.get<{ counts: { pending: number; approved: number; rejected: number } }>(`${API_URL}/projects/${projectId}/link-recommendations`),
     getTypingStatement: () => axios.get(`${API_URL}/chat/typing-statement`),
+    getProjectPulse: (projectId: number) =>
+        axios.get<ProjectPulse>(`${API_URL}/chat/project-pulse`, { params: { project_id: projectId } }),
     completeProject: (id: number, data: { promote_source_ids: number[] }) => axios.post(`${API_URL}/projects/${id}/complete`, data),
     attachRepository: (projectId: number, data: { name: string; url: string; branch?: string; username?: string; token?: string }) => axios.post(`${API_URL}/projects/${projectId}/repository`, data),
     detachRepository: (projectId: number) => axios.delete(`${API_URL}/projects/${projectId}/repository`),

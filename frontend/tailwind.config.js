@@ -110,12 +110,28 @@ module.exports = {
           "0%, 100%": { opacity: "0", transform: "translate(-50%, -50%) translateX(3px)" },
           "50%": { opacity: "1", transform: "translate(-50%, -50%) translateX(-3px)" },
         },
+        // Leerer Chat: Schreibcursor, Statuspunkt im Evidenz-Modus, Quellenspur.
+        "ds-caret": {
+          "0%, 49%": { opacity: "1" },
+          "50%, 100%": { opacity: "0" },
+        },
+        "ds-dot-pulse": {
+          "0%": { transform: "scale(1)", opacity: "0.55" },
+          "100%": { transform: "scale(2.6)", opacity: "0" },
+        },
+        "ds-trace": {
+          from: { transform: "scaleX(0)" },
+          to: { transform: "scaleX(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "ds-arrow-pulse": "ds-arrow-pulse 1.6s ease-in-out infinite",
         "ds-arrow-pulse-fast": "ds-arrow-pulse 0.75s ease-in-out infinite",
+        "ds-caret": "ds-caret 1.1s step-end infinite",
+        "ds-dot-pulse": "ds-dot-pulse 2.2s ease-out infinite",
+        "ds-trace": "ds-trace 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },
   },

@@ -772,7 +772,50 @@
     },
     "normalSuggestions": {
       "explainConcept": { "label": "Explain something", "desc": "Make a topic easy to understand", "prompt": "Please explain simply how " },
-      "draftText": { "label": "Draft text", "desc": "Write a message or summary", "prompt": "Help me write a short text about " }
+      "draftText": { "label": "Draft text", "desc": "Write a message or summary", "prompt": "Help me write a short text about " },
+      "summarizeText": { "label": "Summarize text", "desc": "Condense long content to the essentials", "prompt": "Please summarize the following text briefly: " },
+      "brainstorm": { "label": "Brainstorm", "desc": "Think through approaches and alternatives", "prompt": "Brainstorm ideas with me for " }
+    },
+    "empty": {
+      "kicker": {
+        "normal": "Normal mode · free-form answers",
+        "evidence": "Evidence mode · every answer cited"
+      },
+      "shuffleTitle": "Another question",
+      "counts": {
+        "program": "Programs",
+        "copybook": "Copybooks",
+        "sql_table": "Tables",
+        "jcl_job": "Jobs"
+      },
+      "previewLabel": "Will be entered",
+      "tags": {
+        "explainProgram": "Program",
+        "traceCall": "Call chain",
+        "summarizeDocs": "Onboarding",
+        "findField": "Data field",
+        "explainConcept": "Concept",
+        "draftText": "Text",
+        "summarizeText": "Condense",
+        "brainstorm": "Ideas"
+      },
+      "questions": {
+        "evidence": {
+          "explainProgram": "What does the program {{name}} do?",
+          "callees": "Which programs does {{name}} call?",
+          "callers": "Who calls {{name}}?",
+          "copybook": "Where is the copybook {{name}} used?",
+          "table": "Which programs access the table {{name}}?",
+          "job": "Which programs does the job {{name}} start?"
+        },
+        "normal": {
+          "call": "How does a CALL between COBOL programs work?",
+          "paragraph": "What separates a section from a paragraph?",
+          "copybook": "What are copybooks for?",
+          "sql": "How does COBOL reach DB2 via EXEC SQL?",
+          "jcl": "What is a JCL step in a batch job?"
+        }
+      }
     },
     "projectLabel": "Project: {{name}}",
     "greeting": "Hello.",

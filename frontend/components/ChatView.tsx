@@ -57,6 +57,7 @@ import {
 import Image from 'next/image';
 import React from 'react';
 import { AgentSteps } from "./AgentSteps";
+import { ChatEmptyState } from "./ChatEmptyState";
 
 interface ChatViewProps {
   theme: string;
@@ -207,66 +208,6 @@ export function ChatView({
 
   const [detectedLph, setDetectedLph] = React.useState<number | null>(null);
   const [recommendedChecklists, setRecommendedChecklists] = React.useState<string[]>([]);
-  const [typingText, setTypingText] = React.useState("");
-  const [isTyping, setIsTyping] = React.useState(false);
-
-  React.useEffect(() => {
-    if (chatMessages.length > 0) return;
-
-    let typingInterval: NodeJS.Timeout | null = null;
-    let minuteInterval: NodeJS.Timeout | null = null;
-
-    const startTyping = (text: string) => {
-      if (typingInterval) clearInterval(typingInterval);
-      let index = 0;
-      setTypingText("");
-      setIsTyping(true);
-      typingInterval = setInterval(() => {
-        if (index < text.length) {
-          // text.charAt(index) must be captured now, not inside the updater: React can
-          // defer invoking the updater until after later ticks have already bumped
-          // `index`, which drops/duplicates characters (index no longer matches when
-          // the closure reads it).
-          const nextChar = text.charAt(index);
-          setTypingText((prev) => prev + nextChar);
-          index++;
-        } else {
-          setIsTyping(false);
-          if (typingInterval) clearInterval(typingInterval);
-        }
-      }, 70); // 70ms per character
-    };
-
-    const fetchNextStatement = async () => {
-      try {
-        const res = await api.getTypingStatement();
-        if (res.data?.statement) {
-          startTyping(res.data.statement);
-        }
-      } catch (err) {
-        console.error("Failed to fetch typing statement", err);
-        const fallbacks = [
-          t('chatView.typingFallbacks.makeCobolKnowledgeVisible'),
-          t('chatView.typingFallbacks.navigateMainframeCode'),
-          t('chatView.typingFallbacks.unlockLegacySystems'),
-          t('chatView.typingFallbacks.programsCopybooksRelations')
-        ];
-        const randomPhrase = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-        startTyping(randomPhrase);
-      }
-    };
-
-    fetchNextStatement();
-
-    minuteInterval = setInterval(() => {
-      fetchNextStatement();
-    }, 60000);
-
-    return () => {
-      if (typingInterval) clearInterval(typingInterval);
-      if (minuteInterval) clearInterval(minuteInterval);
-    };
-  }, [chatMessages.length, t]);
   const [isDetectingLph, setIsDetectingLph] = React.useState(false);
 
   React.useEffect(() => {
@@ -409,117 +350,15 @@ export function ChatView({
 
           {/* Zero State / Welcomer */}
           {chatMessages.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-start text-center space-y-8 pt-8 pb-16 relative">
-
-              {/* Glowing circular element behind greeting */}
-              <div className={cn(
-                "absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[100px] pointer-events-none z-0",
-                theme === 'dark' ? "bg-ds-indigo-600/5" : "bg-ds-indigo-500/5"
-              )} />
-
-              <div className="space-y-2 relative z-10 max-w-xl">
-                <h1 className={cn("text-3xl @md/chat:text-4xl font-heading font-extrabold tracking-tight leading-tight transition-colors duration-250 text-center min-h-[40px]", theme === 'dark' ? "text-ds-white" : "text-ds-zinc-900")}>
-                  <span className="inline-flex items-center justify-center gap-2.5 flex-wrap">
-                    <span>{typingText}</span>
-                    {!isTyping && typingText && (
-                      <button
-                        type="button"
-                        onClick={() => handleSendChat(typingText)}
-                        className={cn(
-                          "group inline-flex items-center justify-center p-1.5 rounded-lg border transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95 shrink-0 align-middle",
-                          theme === 'dark'
-                            ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-indigo-400 hover:text-ds-indigo-350 hover:bg-ds-zinc-850 hover:border-ds-zinc-700"
-                            : "bg-ds-white border-ds-zinc-200 text-ds-indigo-650 hover:text-ds-indigo-700 hover:bg-ds-zinc-50 hover:border-ds-zinc-300"
-                        )}
-                        title={t('chatView.askDirectlyTitle')}
-                      >
-                        <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-                      </button>
-                    )}
-                  </span>
-                </h1>
-              </div>
-
-              {/* Pre-canned Suggestions grids */}
-              <div className="grid grid-cols-1 @lg/chat:grid-cols-2 gap-4 w-full max-w-2xl relative z-10">
-                {(chatMode === 'normal' ? [
-                  { id: 'explainConcept', label: t('chatView.normalSuggestions.explainConcept.label'), icon: <BookOpen className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.normalSuggestions.explainConcept.desc'), prompt: t('chatView.normalSuggestions.explainConcept.prompt') },
-                  { id: 'draftText', label: t('chatView.normalSuggestions.draftText.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.normalSuggestions.draftText.desc'), prompt: t('chatView.normalSuggestions.draftText.prompt') },
-                ] : [
-                  { id: 'explainProgram', label: t('chatView.suggestions.explainProgram.label'), icon: <Code className="w-4.5 h-4.5 text-ds-blue-500" />, desc: t('chatView.suggestions.explainProgram.desc'), clarify: t('chatView.suggestions.explainProgram.clarify'), template: t('chatView.suggestions.explainProgram.template') },
-                  { id: 'traceCall', label: t('chatView.suggestions.traceCall.label'), icon: <Database className="w-4.5 h-4.5 text-ds-indigo-500" />, desc: t('chatView.suggestions.traceCall.desc'), clarify: t('chatView.suggestions.traceCall.clarify'), template: t('chatView.suggestions.traceCall.template') },
-                  { id: 'summarizeDocs', label: t('chatView.suggestions.summarizeDocs.label'), icon: <History className="w-4.5 h-4.5 text-ds-emerald-500" />, desc: t('chatView.suggestions.summarizeDocs.desc') },
-                  { id: 'findField', label: t('chatView.suggestions.findField.label'), icon: <Sparkles className="w-4.5 h-4.5 text-ds-amber-500" />, desc: t('chatView.suggestions.findField.desc'), clarify: t('chatView.suggestions.findField.clarify'), template: t('chatView.suggestions.findField.template') }
-                ]).map((hint, idx) => {
-                  const isOnboarding = hint.id === 'summarizeDocs';
-                  const isDisabled = isOnboarding && !selectedProject;
-                  return (
-                  <button
-                    type="button"
-                    key={idx}
-                    id={`chat-hint-button-${idx}`}
-                    disabled={isDisabled}
-                    title={isDisabled ? t('chatView.suggestions.summarizeDocs.noProjectTooltip') : undefined}
-                    onClick={() => {
-                      if ('prompt' in hint && hint.prompt) {
-                        setCurrentMessage(hint.prompt);
-                        requestAnimationFrame(() => document.getElementById('chat-textarea')?.focus());
-                        return;
-                      }
-                      if (isOnboarding) {
-                        if (!selectedProject) {
-                          showToast(t('chatView.suggestions.summarizeDocs.noProjectToast'), "error");
-                          return;
-                        }
-                        handleSendChat(t('chatView.suggestions.summarizeDocs.triggerMessage'), { intent: "onboarding" });
-                        return;
-                      }
-                      // These cards name a topic but leave out the one detail
-                      // the LLM would need (which program/objects/field) — so
-                      // instead of pasting the bare label, we show the
-                      // clarifying question the LLM would ask and prefill the
-                      // textarea with a self-contained sentence stub for it.
-                      if ('clarify' in hint && hint.clarify) {
-                        addAssistantHint(hint.clarify);
-                        setCurrentMessage(hint.template || "");
-                      } else {
-                        setCurrentMessage(hint.label);
-                      }
-                      // Deferred a tick: the textarea's value is controlled by
-                      // currentMessage, which hasn't re-rendered into the DOM
-                      // yet at this point in the click handler.
-                      requestAnimationFrame(() => {
-                        const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
-                        if (textarea) {
-                          textarea.focus();
-                          const len = textarea.value.length;
-                          textarea.setSelectionRange(len, len);
-                        }
-                      });
-                    }}
-                    className={cn(
-                      "group p-4 border rounded-lg transition-all text-left flex items-start gap-4 shadow-sm",
-                      isDisabled && "opacity-50 cursor-not-allowed",
-                      theme === 'dark'
-                        ? "bg-ds-zinc-900/40 border-ds-zinc-800/80 hover:bg-ds-zinc-800/50 hover:border-ds-zinc-700/80 text-ds-zinc-200 hover:shadow-[0_0_20px_rgba(99,102,241,0.08)]"
-                        : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-50 hover:border-ds-zinc-300 text-ds-zinc-800 hover:shadow-md hover:-translate-y-0.5"
-                    )}
-                  >
-                    <div className={cn(
-                      "p-2.5 rounded-lg border transition-colors shadow-inner",
-                      theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800/80 group-hover:bg-ds-zinc-900" : "bg-ds-zinc-50 border-ds-zinc-200 group-hover:bg-ds-zinc-100"
-                    )}>
-                      {hint.icon}
-                    </div>
-                    <div className="space-y-0.5">
-                      <span className="block text-xs font-bold">{hint.label}</span>
-                      <span className="block text-[10px] text-ds-zinc-500 font-medium">{hint.desc}</span>
-                    </div>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
+            <ChatEmptyState
+              theme={theme}
+              chatMode={chatMode}
+              selectedProject={selectedProject}
+              onSend={handleSendChat}
+              onFillMessage={setCurrentMessage}
+              addAssistantHint={addAssistantHint}
+              showToast={showToast}
+            />
           ) : (
             // Message Stream
             <div className="space-y-6 pb-6">
