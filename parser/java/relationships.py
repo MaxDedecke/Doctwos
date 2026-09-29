@@ -98,6 +98,38 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             if context.stop is not None and context.stop.line == start and context.stop.text
             else None
         )
+        edge_meta = {
+            "language": "java",
+            "source_qualified_name": source.qualified_name,
+            "src_start_column": start_column,
+            "src_end_column": end_column,
+            **(meta or {}),
+        }
+        if edge_type == "CALLS":
+            current = context.parentCtx
+            while current is not None:
+                rule = JavaParser.ruleNames[current.getRuleIndex()]
+                if rule == "catchClause":
+                    catch_type = current.catchType().getText()
+                    edge_meta.update({
+                        "control_role": "exception_handler",
+                        "control_context": f"catch({catch_type})",
+                        "exception_types": [part for part in catch_type.split("|") if part],
+                    })
+                    break
+                if rule == "finallyBlock":
+                    edge_meta.update({
+                        "control_role": "cleanup",
+                        "control_context": "finally",
+                    })
+                    break
+                if rule == "tryStatement":
+                    edge_meta.update({
+                        "control_role": "try_body",
+                        "control_context": "try",
+                    })
+                    break
+                current = current.parentCtx
         self.edges.append(
             ParsedEdge(
                 type=edge_type,
@@ -106,13 +138,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 resolution="unresolved",
                 src_start_line=start,
                 src_end_line=end,
-                meta={
-                    "language": "java",
-                    "source_qualified_name": source.qualified_name,
-                    "src_start_column": start_column,
-                    "src_end_column": end_column,
-                    **(meta or {}),
-                },
+                meta=edge_meta,
             )
         )
 

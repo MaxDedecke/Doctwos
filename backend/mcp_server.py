@@ -113,7 +113,7 @@ def _entity_analysis(entity: CodeEntity) -> dict:
     meta = entity.meta_json or {}
     keys = (
         "signature", "parameter_types", "return_type", "return_expressions",
-        "annotations", "annotation_details", "modifiers", "visibility",
+        "throws_types", "annotations", "annotation_details", "modifiers", "visibility",
     )
     return {key: meta[key] for key in keys if key in meta}
 
@@ -670,6 +670,9 @@ def get_call_flow(
                         "argument_count",
                         "argument_types",
                         "argument_expressions",
+                        "control_role",
+                        "control_context",
+                        "exception_types",
                         "dispatch_scope",
                     )
                     if key in (edge.get("meta") or {})

@@ -226,6 +226,19 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         walk(context, root=True)
         return returns[:32]
 
+    @staticmethod
+    def _throws_types(context: ParserRuleContext) -> list[str]:
+        getter = getattr(context, "qualifiedNameList", None)
+        names = getter() if getter is not None else None
+        if names is None:
+            return []
+        values = names.qualifiedName()
+        if values is None:
+            return []
+        if not isinstance(values, list):
+            values = [values]
+        return [item.getText() for item in values]
+
     def _annotation_names(self, context: ParserRuleContext) -> list[str]:
         return [name for name, _ in self._annotation_details(context)]
 
@@ -473,6 +486,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "annotations": self._annotation_names(context),
                 "annotation_details": self._annotation_metadata(context),
                 "return_expressions": self._return_expressions(context),
+                "throws_types": self._throws_types(context),
                 **({} if constructor else {"return_type": return_type}),
             },
         )

@@ -105,6 +105,8 @@ def _certainty(edge: CodeEdge, source: CodeEntity) -> str:
         return "possible"
     if edge.resolution != "resolved":
         return "unresolved"
+    if (edge.meta_json or {}).get("control_role") in {"exception_handler", "cleanup"}:
+        return "possible"
     if (edge.meta_json or {}).get("access_certainty") == "possible":
         return "possible"
     # Java's resolver can identify the statically declared method, but a
@@ -310,7 +312,7 @@ def _projection(
                     else None,
                     condition=(edge.meta_json or {}).get("condition")
                     if isinstance((edge.meta_json or {}).get("condition"), str)
-                    else None,
+                    else (edge.meta_json or {}).get("control_context"),
                     meta={
                         key: value
                         for key, value in (edge.meta_json or {}).items()
@@ -318,6 +320,7 @@ def _projection(
                             "thru", "thru_resolution", "thru_target_qualified_name",
                             "statement_type", "cursor_name",
                             "invocation_kind", "dispatch_scope", "resolution_reason",
+                            "control_role", "control_context", "exception_types",
                         }
                     },
                 )
