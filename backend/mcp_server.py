@@ -1,6 +1,9 @@
 """Read-only inbound MCP transport and tools for IDE clients."""
 
 import logging
+import base64
+import binascii
+import json
 import re
 import time
 from contextlib import contextmanager
@@ -28,7 +31,11 @@ from core.projects import (
 )
 from core.teams import get_visible_team_ids
 from models.database import CodeEdge, CodeEntity, DocumentChunk, EmbeddingProfile, KnowledgeSource, Project, User
-from services.call_flow import trace_call_flow
+from services.call_flow import (
+    CALL_FLOW_MAX_EDGES,
+    CALL_FLOW_MAX_NODES,
+    trace_call_flow,
+)
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
@@ -665,78 +672,139 @@ def get_call_flow(
     hops: int = 2,
     direction: Literal["outgoing", "incoming", "both"] = "outgoing",
     scope: Literal["execution", "dependencies", "all"] = "execution",
+    page_size: int = 30,
+    cursor: str | None = None,
 ) -> dict:
     """Trace executable calls or resource/data dependencies in a project.
 
     ``scope`` selects ``execution`` (CALL/PERFORM/etc.), ``dependencies``
     (COPY/import/resource/data edges), or ``all``. ``direction`` is outgoing,
-    incoming, or both.
+    incoming, or both. Continue a large result with the returned ``next_cursor``
+    and the same root, hops, direction, and scope.
     """
     hops = max(0, min(hops, 3))
-    with _tool_context(ctx, "get_call_flow", project_id, {"entity_id": entity_id, "hops": hops, "scope": scope}) as (db, user):
+    page_size = max(1, min(page_size, 40))
+    with _tool_context(ctx, "get_call_flow", project_id, {
+        "entity_id": entity_id, "hops": hops, "scope": scope,
+        "direction": direction, "page_size": page_size, "cursor": cursor,
+    }) as (db, user):
         if direction not in {"outgoing", "incoming", "both"}:
             raise ValueError("invalid direction")
         if scope not in {"execution", "dependencies", "all"}:
             raise ValueError("invalid scope")
-        _entity(db, user, project_id, entity_id)
-        result = trace_call_flow(db, project_id=project_id, entity_id=entity_id, hops=hops, direction=direction, scope=scope)
-        root_id = (result.get("root") or {}).get("id")
-        candidate_nodes = sorted(
-            result.get("nodes", []), key=lambda node: (node.get("id") != root_id, node.get("id", 0))
-        )[:80]
+        requested_root = _entity(db, user, project_id, entity_id)
+        offset = 0
+        expansion = 0
+        if cursor is not None:
+            try:
+                padding = "=" * (-len(cursor) % 4)
+                cursor_data = json.loads(base64.urlsafe_b64decode(cursor + padding))
+            except (ValueError, TypeError, binascii.Error):
+                raise ValueError("invalid cursor")
+            if not isinstance(cursor_data, dict):
+                raise ValueError("invalid cursor")
+            expected = {
+                "project_id": project_id, "entity_id": entity_id, "hops": hops,
+                "direction": direction, "scope": scope,
+            }
+            if any(cursor_data.get(key) != value for key, value in expected.items()):
+                raise ValueError("cursor does not match this call-flow query")
+            offset = cursor_data.get("offset")
+            if not isinstance(offset, int) or isinstance(offset, bool) or not 0 <= offset <= 10_000:
+                raise ValueError("invalid cursor")
+            expansion = cursor_data.get("expansion", 0)
+            if not isinstance(expansion, int) or isinstance(expansion, bool) or not 0 <= expansion <= 100:
+                raise ValueError("invalid cursor")
+
+        node_limit = min(1_000, max(
+            CALL_FLOW_MAX_NODES, offset + page_size * 2 + 1 + expansion * page_size * 2
+        ))
+        edge_limit = min(3_000, max(
+            CALL_FLOW_MAX_EDGES, offset + page_size + 1 + expansion * page_size
+        ))
+        result = trace_call_flow(
+            db, project_id=project_id, entity_id=entity_id, hops=hops,
+            direction=direction, scope=scope, node_limit=node_limit, edge_limit=edge_limit,
+        )
+        raw_nodes = result.get("nodes", [])
         source_access = {}
-        nodes = []
-        for node in candidate_nodes:
+        visible_nodes_by_id = {}
+        for node in raw_nodes:
             source_id = node.get("source_id")
             if source_id not in source_access:
                 source_access[source_id] = _source_visible(db, user, source_id)
             if source_access[source_id]:
-                nodes.append(node)
-        allowed = {node["id"] for node in nodes}
-        edges = [
-            {
-                **{
-                    key: edge.get(key)
-                    for key in ("id", "source", "target", "target_name", "type", "resolution", "start_line", "end_line")
-                },
+                visible_nodes_by_id[node.get("id")] = node
+        raw_edges = result.get("edges", [])
+        visible_edges = [
+            edge for edge in raw_edges
+            if edge.get("source") in visible_nodes_by_id
+            and (edge.get("target") is None or edge.get("target") in visible_nodes_by_id)
+        ]
+        page_edges = visible_edges[offset:offset + page_size]
+        page_node_ids = []
+        root_id = (result.get("root") or {}).get("id")
+        for node_id in [root_id, *[
+            node_id
+            for edge in page_edges
+            for node_id in (edge.get("source"), edge.get("target"))
+            if node_id is not None
+        ]]:
+            if node_id in visible_nodes_by_id and node_id not in page_node_ids:
+                page_node_ids.append(node_id)
+        nodes = [visible_nodes_by_id[node_id] for node_id in page_node_ids]
+        allowed = set(page_node_ids)
+        edges = []
+        for edge in page_edges:
+            if edge.get("source") not in allowed or (edge.get("target") is not None and edge.get("target") not in allowed):
+                continue
+            meta = edge.get("meta") or {}
+            edges.append({
+                **{key: edge.get(key) for key in (
+                    "id", "source", "target", "target_name", "type", "resolution", "start_line", "end_line"
+                )},
                 "resolution_evidence": {
-                    key: (edge.get("meta") or {})[key]
+                    key: meta[key]
                     for key in (
-                        "target_qualified_name",
-                        "target_file_path",
-                        "resolution_reason",
-                        "resolution_scope",
-                        "receiver",
-                        "receiver_resolution",
-                        "receiver_symbol_qualified_name",
-                        "receiver_type_qualified_name",
-                        "receiver_method_qualified_name",
-                        "argument_count",
-                        "argument_types",
-                        "argument_expressions",
-                        "control_role",
-                        "control_context",
-                        "exception_types",
-                        "dispatch_scope",
-                    )
-                    if key in (edge.get("meta") or {})
+                        "target_qualified_name", "target_file_path", "resolution_reason",
+                        "resolution_scope", "receiver", "receiver_resolution",
+                        "receiver_symbol_qualified_name", "receiver_type_qualified_name",
+                        "receiver_method_qualified_name", "argument_count", "argument_types",
+                        "argument_expressions", "control_role", "control_context",
+                        "exception_types", "dispatch_scope",
+                    ) if key in meta
                 },
+            })
+
+        next_offset = offset + len(page_edges)
+        page_has_more = next_offset < len(visible_edges)
+        service_truncated = bool(result.get("truncated"))
+        can_expand = node_limit < 1_000 or edge_limit < 3_000
+        has_more = page_has_more or (service_truncated and can_expand)
+        next_cursor = None
+        if has_more:
+            next_data = {
+                "project_id": project_id, "entity_id": entity_id, "hops": hops,
+                "direction": direction, "scope": scope, "offset": next_offset,
+                "expansion": expansion + int(service_truncated and not page_has_more),
             }
-            for edge in result.get("edges", [])
-            if edge.get("source") in allowed and (edge.get("target") is None or edge.get("target") in allowed)
-        ][:120]
-        truncated = bool(
-            result.get("truncated")
-            or len(result.get("nodes", [])) > 80
-            or len(result.get("edges", [])) > 120
-            or len(result.get("entry_candidates", [])) > 20
-            or len(nodes) < len(candidate_nodes)
-        )
+            next_cursor = base64.urlsafe_b64encode(
+                json.dumps(next_data, sort_keys=True, separators=(",", ":")).encode()
+            ).decode().rstrip("=")
+        truncated = has_more or len(visible_nodes_by_id) > len(nodes) or len(visible_edges) > len(edges)
+        root = result.get("root")
+        if not root or root.get("id") not in visible_nodes_by_id:
+            root = {
+                "id": requested_root.id, "name": requested_root.name,
+                "qualified_name": requested_root.qualified_name, "type": requested_root.type,
+                "file_path": requested_root.file_path, "source_id": requested_root.source_id,
+                "start_line": requested_root.start_line, "end_line": requested_root.end_line,
+            }
         return {
             "project_id": project_id,
             "status": result.get("status"),
             "notice": result.get("notice"),
-            "root": result.get("root"),
+            "root": root,
             "entry_resolution": result.get("entry_resolution"),
             "hops_applied": hops,
             "scope": scope,
@@ -744,21 +812,36 @@ def get_call_flow(
             "nodes": nodes,
             "edges": edges,
             "truncated": truncated,
+            "has_more": has_more,
+            "next_cursor": next_cursor,
+            "limit_applied": page_size,
             "truncation": {
-                "reason": "node_or_edge_limit_or_source_visibility" if truncated else None,
+                "reason": "page_has_more" if page_has_more else (
+                    "service_limit" if service_truncated else (
+                        "source_visibility" if len(visible_edges) < len(raw_edges) else None
+                    )
+                ),
                 "nodes_returned": len(nodes),
-                "nodes_available": len(result.get("nodes", [])),
-                "nodes_omitted": max(0, len(result.get("nodes", [])) - len(nodes)),
+                "nodes_available": len(visible_nodes_by_id),
+                "nodes_omitted": max(0, len(visible_nodes_by_id) - len(nodes)),
                 "edges_returned": len(edges),
-                "edges_available": len(result.get("edges", [])),
-                "edges_omitted": max(0, len(result.get("edges", [])) - len(edges)),
-                "next_cursor": None,
+                "edges_available": len(visible_edges),
+                "edges_omitted": max(0, len(visible_edges) - len(edges)),
+                "next_cursor": next_cursor,
+                "source_visibility_filtered": len(visible_edges) < len(raw_edges)
+                    or len(visible_nodes_by_id) < len(raw_nodes),
+                "service_truncated": service_truncated,
+                "continuation_limit_reached": service_truncated and not can_expand,
             },
-            "follow_up_hint": (
-                "Erneut am ausgegebenen root.id abfragen und scope (execution/dependencies/all), "
-                "direction oder hops eingrenzen; dieser Call-Flow hat keinen Seiten-Cursor."
-                if truncated else None
-            ),
+            "follow_up_actions": [{
+                "tool": "get_call_flow",
+                "arguments": {
+                    "project_id": project_id, "entity_id": entity_id, "hops": hops,
+                    "direction": direction, "scope": scope, "page_size": page_size,
+                    "cursor": next_cursor,
+                },
+                "reason": "Continue the ordered visible call-flow page.",
+            }] if next_cursor else [],
         }
 
 

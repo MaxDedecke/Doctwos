@@ -112,6 +112,8 @@ def trace_call_flow(
     hops: int = CALL_FLOW_MAX_HOPS,
     direction: CallFlowDirection = "outgoing",
     scope: CallFlowScope = "all",
+    node_limit: int = CALL_FLOW_MAX_NODES,
+    edge_limit: int = CALL_FLOW_MAX_EDGES,
 ) -> dict:
     """Return a directional call flow rooted at one indexed code entity.
 
@@ -127,6 +129,8 @@ def trace_call_flow(
     if not isinstance(hops, int) or isinstance(hops, bool):
         return {"error": "hops must be an integer"}
     hops = max(0, min(hops, CALL_FLOW_MAX_HOPS))
+    node_limit = max(1, min(int(node_limit), 1_000))
+    edge_limit = max(1, min(int(edge_limit), 3_000))
 
     root = (
         db.query(CodeEntity)
@@ -153,10 +157,10 @@ def trace_call_flow(
                 CodeEntity.type.in_(["paragraph", "section"]),
             )
             .order_by(CodeEntity.start_line, CodeEntity.id)
-            .limit(CALL_FLOW_MAX_NODES + 1)
+            .limit(node_limit + 1)
             .all()
         )
-        candidates_truncated = len(paragraphs) > CALL_FLOW_MAX_NODES
+        candidates_truncated = len(paragraphs) > node_limit
         named_entries = [
             item for item in paragraphs
             if item.name.casefold() in {"main-para", "main", "procedure-division"}
@@ -174,7 +178,7 @@ def trace_call_flow(
                 "root": _node_json(root),
                 "requested_root": _node_json(requested_root),
                 "entry_resolution": "ambiguous_cobol_entry",
-                "entry_candidates": [_node_json(item) for item in paragraphs[:CALL_FLOW_MAX_NODES]],
+                "entry_candidates": [_node_json(item) for item in paragraphs[:node_limit]],
                 "truncated": candidates_truncated,
                 "nodes": [_node_json(root)],
                 "edges": [],
@@ -205,10 +209,10 @@ def trace_call_flow(
                 CodeEntity.type == "method",
             )
             .order_by(CodeEntity.start_line, CodeEntity.id)
-            .limit(CALL_FLOW_MAX_NODES + 1)
+            .limit(node_limit + 1)
             .all()
         )
-        candidates_truncated = len(methods) > CALL_FLOW_MAX_NODES
+        candidates_truncated = len(methods) > node_limit
         mains = [method for method in methods if _is_java_main(method)]
         if not candidates_truncated and len(mains) == 1:
             root = mains[0]
@@ -222,7 +226,7 @@ def trace_call_flow(
                 "root": _node_json(root),
                 "requested_root": _node_json(root),
                 "entry_candidates": [
-                    _node_json(method) for method in methods[:CALL_FLOW_MAX_NODES]
+                    _node_json(method) for method in methods[:node_limit]
                 ],
                 "truncated": candidates_truncated,
                 "nodes": [_node_json(root)],
@@ -245,7 +249,7 @@ def trace_call_flow(
             predicates.append(CodeEdge.src_entity_id.in_(frontier))
         if direction in {"incoming", "both"}:
             predicates.append(CodeEdge.dst_entity_id.in_(frontier))
-        remaining_edges = CALL_FLOW_MAX_EDGES - len(edge_rows)
+        remaining_edges = edge_limit - len(edge_rows)
         if scope == "execution":
             edge_filter = or_(
                 CodeEdge.type.in_(CALL_EXECUTION_EDGE_TYPES),
@@ -291,7 +295,7 @@ def trace_call_flow(
             for candidate in (edge.src_entity_id, edge.dst_entity_id):
                 if candidate is None or candidate in seen:
                     continue
-                if len(seen) >= CALL_FLOW_MAX_NODES:
+                if len(seen) >= node_limit:
                     truncated = True
                     continue
                 seen.add(candidate)
