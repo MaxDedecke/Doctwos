@@ -333,7 +333,10 @@ export function ChatView({
             <button key={mode} type="button" aria-pressed={chatMode === mode} disabled={isLoading}
               onClick={() => setChatMode?.(mode)} title={t(`chatView.mode.${mode}Description`)}
               className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60', chatMode === mode
-                ? 'bg-ds-indigo-600 text-white' : 'text-ds-zinc-500 hover:text-ds-zinc-200')}>
+                // `text-white` existiert im Tailwind-Theme nicht (colors ersetzt die Defaults),
+                // die Beschriftung erbte daher im Light-Mode die dunkle Textfarbe.
+                ? cn('bg-ds-indigo-600', theme === 'dark' ? 'text-white' : 'text-ds-white')
+                : 'text-ds-zinc-500 hover:text-ds-zinc-200')}>
               {t(`chatView.mode.${mode}`)}
             </button>
           ))}

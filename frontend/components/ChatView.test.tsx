@@ -71,6 +71,26 @@ describe('ChatView', () => {
     vi.restoreAllMocks();
   });
 
+  describe('Modus-Umschalter (Normal/Evidenz)', () => {
+    // `text-white` gibt es im Tailwind-Theme nicht; die aktive Beschriftung muss im
+    // Light-Mode über `text-ds-white` gesetzt werden, im Dark-Mode bleibt alles wie zuvor.
+    it('zeigt die aktive Beschriftung im Light-Mode weiß', () => {
+      renderChat({ theme: 'light', chatMode: 'evidence', setChatMode: vi.fn() });
+      const active = screen.getByRole('button', { name: /Evidenz/ });
+      expect(active.getAttribute('aria-pressed')).toBe('true');
+      expect(active.className).toContain('text-ds-white');
+      expect(active.className).not.toMatch(/(^|\s)text-white(\s|$)/);
+      expect(screen.getByRole('button', { name: /Normal/ }).className).not.toContain('text-ds-white');
+    });
+
+    it('lässt die Klassen im Dark-Mode unverändert', () => {
+      renderChat({ theme: 'dark', chatMode: 'normal', setChatMode: vi.fn() });
+      const active = screen.getByRole('button', { name: /Normal/ });
+      expect(active.className).toMatch(/(^|\s)text-white(\s|$)/);
+      expect(active.className).not.toContain('text-ds-white');
+    });
+  });
+
   describe('leerer Zustand', () => {
     it('zeigt die Vorschlagskarten, solange kein Chatverlauf existiert', async () => {
       vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'Testansage' }));
