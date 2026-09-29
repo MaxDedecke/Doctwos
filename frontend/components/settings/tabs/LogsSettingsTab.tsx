@@ -3,6 +3,7 @@ import type { DiagnosticsRun, KnowledgeSource } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { SyncLogViewer } from '@/components/settings/SyncLogViewer';
 import { Button } from "@/components/ui/button";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
@@ -358,11 +359,7 @@ export const LogsSettingsTab: React.FC = () => {
             </div>
           )}
 
-          <div className="p-4 rounded-lg border font-mono text-[10px] leading-relaxed overflow-hidden whitespace-pre-wrap bg-ds-zinc-950 text-ds-zinc-300 border-ds-zinc-800">
-            {activeLogSource.sync_log
-              ? activeLogSource.sync_log.split('\n').filter(Boolean).slice(-28).join('\n')
-              : t('settings.logsTab.noLogsPlaceholder')}
-          </div>
+          <SyncLogViewer key={activeLogSource.id} log={activeLogSource.sync_log} />
         </div>
       )}
     </div>

@@ -605,6 +605,8 @@
       "logCopiedToast": "Log in die Zwischenablage kopiert",
       "lastErrorLabel": "Letzter Fehler:",
       "noLogsPlaceholder": "Keine Logs vorhanden. Starte eine Synchronisierung, um Logs aufzuzeichnen.",
+      "logRange": "Zeilen {{from}}–{{to}} von {{total}}",
+      "loadOlder": "Ältere Zeilen laden ({{count}} weitere)",
       "diagnosticsTitle": "Diagnose-Bundle",
       "diagnosticsDescription": "Sammelt redaktierte DB-Metadaten und Service-Logs in einem herunterladbaren Archiv für den Support — nur für Administratoren.",
       "diagnosticsGenerate": "Bundle erzeugen",

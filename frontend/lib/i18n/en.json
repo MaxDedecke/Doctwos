@@ -605,6 +605,8 @@
       "logCopiedToast": "Log copied to clipboard",
       "lastErrorLabel": "Last error:",
       "noLogsPlaceholder": "No logs available. Start a sync to record logs.",
+      "logRange": "Lines {{from}}–{{to}} of {{total}}",
+      "loadOlder": "Load older lines ({{count}} more)",
       "diagnosticsTitle": "Diagnostics bundle",
       "diagnosticsDescription": "Collects redacted DB metadata and service logs into a downloadable archive for support — admin only.",
       "diagnosticsGenerate": "Generate bundle",
