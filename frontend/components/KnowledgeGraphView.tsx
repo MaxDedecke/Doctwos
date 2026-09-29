@@ -55,6 +55,24 @@ function nodeTypeKey(node: GraphNode): string {
   return getNodeType(node);
 }
 
+/**
+ * Beim Zurückkehren aus einer Nachbarschaft bleibt der Startknoten ("Anker") ausgewählt, damit man
+ * ihn in der Übersicht nicht verliert. Fehlt er dort (z. B. weil die Übersicht gekappt wurde), wird er
+ * samt seiner Kanten zu Knoten der Übersicht ergänzt.
+ */
+export function withKeptAnchor(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  keep: { node: GraphNode; edges: GraphEdge[] } | null | undefined,
+) {
+  if (!keep || nodes.some(n => n.id === keep.node.id)) return { nodes, edges };
+  const present = new Set([...nodes.map(n => n.id), keep.node.id]);
+  const endpoint = (end: GraphEdge['source']) => (typeof end === 'object' ? end.id : end);
+  const known = new Set(edges.map(e => e.id));
+  const extraEdges = keep.edges.filter(e => !known.has(e.id) && present.has(endpoint(e.source)) && present.has(endpoint(e.target)));
+  return { nodes: [...nodes, keep.node], edges: [...edges, ...extraEdges] };
+}
+
 // Shared by the canvas drawing and the collision force below so the physics
 // always matches what's actually painted — a mismatch would leave nodes
 // either overlapping (radius too small) or spaced needlessly far apart
@@ -311,14 +329,15 @@ export function KnowledgeGraphView({
     return () => ro.disconnect();
   }, []);
 
-  const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean) => {
+  const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean, keepAnchor?: { node: GraphNode; edges: GraphEdge[] } | null) => {
     /** Loads all approved links of the repository from the backend. */
     const projectId = selectedProject?.id ?? null;
     const includeIsolated = includeIsolatedOverride ?? !onlyLinked;
     const cachedOverview = overviewCacheRef.current;
     if (!force && cachedOverview?.projectId === projectId && cachedOverview?.includeIsolated === includeIsolated) {
-      setRawNodes(cachedOverview.nodes);
-      setRawEdges(cachedOverview.edges);
+      const restored = withKeptAnchor(cachedOverview.nodes, cachedOverview.edges, keepAnchor);
+      setRawNodes(restored.nodes);
+      setRawEdges(restored.edges);
       setOverviewTruncation(cachedOverview.truncation);
       setViewMode('overview');
       setNeighborhoodFocusNode(null);
@@ -329,7 +348,9 @@ export function KnowledgeGraphView({
       setSelectedEdgeId(null);
       setLinkFilterResetToken(previous => previous + 1);
 
-      if (selectedDoc) {
+      if (keepAnchor) {
+        setSelectedNodeId(keepAnchor.node.id);
+      } else if (selectedDoc) {
         const docNode = cachedOverview.nodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
         setSelectedNodeId(docNode?.id ?? null);
       } else {
@@ -352,8 +373,9 @@ export function KnowledgeGraphView({
         ? { shown: nodes.length, total: data.total_nodes ?? nodes.length, edgesSampled: Boolean(data.edges_sampled) }
         : null;
       overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation };
-      setRawNodes(nodes);
-      setRawEdges(edges);
+      const restored = withKeptAnchor(nodes, edges, keepAnchor);
+      setRawNodes(restored.nodes);
+      setRawEdges(restored.edges);
       setViewMode('overview');
       setNeighborhoodFocusNode(null);
       setNeighborhoodCursor(null);
@@ -366,7 +388,9 @@ export function KnowledgeGraphView({
       setOverviewTruncation(truncation);
 
       // Auto-select document node if active
-      if (selectedDoc) {
+      if (keepAnchor) {
+        setSelectedNodeId(keepAnchor.node.id);
+      } else if (selectedDoc) {
         const docNode = nodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
         if (docNode) setSelectedNodeId(docNode.id);
         else setSelectedNodeId(null);
@@ -457,6 +481,19 @@ export function KnowledgeGraphView({
       setIsLoadingNeighborhood(false);
     }
   }, [neighborhoodProjectId, t, traversalDirection, traversalHops]);
+
+  const handleBackToOverview = () => {
+    const anchor = neighborhoodFocusNode;
+    if (!anchor) {
+      void loadOverview();
+      return;
+    }
+    const touchesAnchor = (end: GraphEdge['source']) => (typeof end === 'object' ? end.id : end) === anchor.id;
+    void loadOverview(false, undefined, {
+      node: anchor,
+      edges: rawEdges.filter(e => touchesAnchor(e.source) || touchesAnchor(e.target)),
+    });
+  };
 
   const loadMoreConnections = useCallback(async () => {
     if (!neighborhoodFocusNode || !neighborhoodCursor || isLoadingMore) return;
@@ -1762,7 +1799,7 @@ export function KnowledgeGraphView({
           )}
           {viewMode === 'neighborhood' && (
             <>
-              <button onClick={() => loadOverview()} title={t('knowledgeGraphView.backToOverview')}
+              <button onClick={handleBackToOverview} title={t('knowledgeGraphView.backToOverview')}
                 className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
                 <LayoutGrid className="w-3 h-3" />
                 {t('knowledgeGraphView.backToOverview')}

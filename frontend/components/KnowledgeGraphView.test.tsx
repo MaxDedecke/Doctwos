@@ -18,7 +18,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { KnowledgeGraphView } from './KnowledgeGraphView';
+import { KnowledgeGraphView, withKeptAnchor } from './KnowledgeGraphView';
 
 const centerAt = vi.fn();
 
@@ -397,6 +397,46 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText('Zurück zur Übersicht')).toBeNull());
+  });
+
+  it('keeps the start node selected when returning from the neighborhood to the overview', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:init', type: 'document', label: 'InitDoc' },
+      ],
+      edges: [{ id: 'link:0', source: 'entity:1', target: 'doc:init', link_type: 'semantic', score: 0.9, context: null }],
+      truncated: false,
+      total_nodes: 2,
+      total_edges: 1,
+    };
+    const focusResponse = {
+      focus_id: 'entity:1',
+      nodes: [
+        { id: 'entity:1', type: 'entity', label: 'PROG1', project_id: 1 },
+        { id: 'doc:Runbook', type: 'document', label: 'Runbook' },
+      ],
+      edges: [{ id: 'edl:1', source: 'entity:1', target: 'doc:Runbook', link_type: 'semantic', score: 0.9, context: null }],
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
+      .mockResolvedValueOnce({ ok: true, json: async () => focusResponse });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+    await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('node-entity:1'));
+    fireEvent.click(await screen.findByText('Nur Nachbarschaft laden'));
+    await waitFor(() => expect(screen.getByTestId('node-doc:Runbook')).toBeTruthy());
+
+    // Wählt man in der Nachbarschaft einen anderen Knoten, gilt beim Zurückgehen trotzdem der Startknoten.
+    fireEvent.click(screen.getByTestId('node-doc:Runbook'));
+    fireEvent.click(await screen.findByText('Zurück zur Übersicht'));
+
+    await waitFor(() => expect(screen.getByTestId('node-doc:init')).toBeTruthy());
+    // Der Startknoten ist in der Übersicht weiter ausgewählt: Die Detailkarte bietet wieder "Nur Nachbarschaft laden".
+    expect(await screen.findByText('Nur Nachbarschaft laden')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('loads neighborhood with cursor pagination and expands more connections (O-298)', async () => {
@@ -824,5 +864,32 @@ describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
       expect(screen.queryByTestId('node-entity:1')).toBeNull();
       expect(screen.queryByTestId('node-entity:2')).toBeNull();
     });
+  });
+});
+
+describe('withKeptAnchor', () => {
+  const anchor: GraphNode = { id: 'file:a', type: 'code_file', label: 'A.cbl' };
+  const other: GraphNode = { id: 'file:b', type: 'code_file', label: 'B.cbl' };
+  const edge = (id: string, source: string, target: string): GraphEdge => ({
+    id, source, target, link_type: 'code_dependency', direction: 'directed', score: null, context: null,
+  });
+
+  it('leaves the overview untouched when it already contains the start node or nothing is kept', () => {
+    const nodes = [anchor, other];
+    const edges = [edge('e1', 'file:a', 'file:b')];
+    expect(withKeptAnchor(nodes, edges, { node: anchor, edges: [] })).toEqual({ nodes, edges });
+    expect(withKeptAnchor(nodes, edges, null)).toEqual({ nodes, edges });
+  });
+
+  it('adds a start node that a capped overview lacks, together with its edges to nodes that are present', () => {
+    const third: GraphNode = { id: 'file:c', type: 'code_file', label: 'C.cbl' };
+    const kept = [edge('k1', 'file:a', 'file:b'), edge('k2', 'file:c', 'file:a'), edge('k3', 'file:a', 'file:b')];
+
+    const result = withKeptAnchor([other], [edge('k3', 'file:a', 'file:b')], { node: anchor, edges: kept });
+
+    expect(result.nodes.map(n => n.id)).toEqual(['file:b', 'file:a']);
+    // k1 verbindet mit vorhandenem Knoten, k2 mit einem, der nicht in der Übersicht ist, k3 gibt es schon.
+    expect(result.edges.map(e => e.id)).toEqual(['k3', 'k1']);
+    expect(third.id).toBe('file:c');
   });
 });
