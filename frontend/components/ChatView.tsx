@@ -261,8 +261,7 @@ export function ChatView({
 
       {/* Upper Spacer to offset Sidebar Menu button */}
       <div className={cn(
-        "h-16 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4 @sm/chat:px-6 backdrop-blur-sm bg-opacity-20 transition-colors duration-250",
-        theme === 'dark' ? "bg-ds-zinc-950/20" : "bg-ds-zinc-100/20"
+        "h-16 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4 @sm/chat:px-6"
       )}>
         <div aria-hidden="true" />
         <div role="group" aria-label={t('chatView.modeLabel')} className={cn(

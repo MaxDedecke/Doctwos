@@ -322,8 +322,9 @@ export function GlobalSearch({
     <div
       ref={containerRef}
       className={cn(
-        "h-14 shrink-0 w-full flex items-center gap-3 px-4 border-b relative z-40 transition-colors duration-150",
-        theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-700" : "bg-ds-zinc-100 border-ds-zinc-300"
+        // Transparent und ohne Kante: die Header-Bar geht optisch im Canvas
+        // dahinter (doctus-canvas) auf, in Dark- wie Light-Mode.
+        "h-14 shrink-0 w-full flex items-center gap-3 px-4 relative z-40 bg-transparent"
       )}
     >
       <Button
