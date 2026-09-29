@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
+import { getAvailablePanelViewTypes } from '@/lib/panelViewTypes';
 import { cn } from '@/lib/utils';
 import type { FocusObject, Project } from '@/types/domain';
 import {
@@ -97,15 +98,9 @@ export function PanelRenderer({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className={theme === 'dark' ? 'bg-ds-zinc-950 border-ds-zinc-900 text-ds-zinc-100' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-900'}>
-            <SelectItem value="chat" className="text-xs">{t('page.viewTypes.chat')}</SelectItem>
-            <SelectItem value="code" className="text-xs">{t('page.viewTypes.code')}</SelectItem>
-            <SelectItem value="doc" className="text-xs">{t('page.viewTypes.doc')}</SelectItem>
-            <SelectItem value="graph" className="text-xs">{t('page.viewTypes.graph')}</SelectItem>
-            <SelectItem value="search" className="text-xs">{t('page.viewTypes.search')}</SelectItem>
-            <SelectItem value="callgraph" className="text-xs">{t('page.viewTypes.callgraph')}</SelectItem>
-            <SelectItem value="webview" className="text-xs">{t('page.viewTypes.webview')}</SelectItem>
-            {linkManagerEnabled && <SelectItem value="linkmanager" className="text-xs">{t('page.viewTypes.linkmanager')}</SelectItem>}
-            <SelectItem value="insights" className="text-xs">{t('page.viewTypes.insights')}</SelectItem>
+            {getAvailablePanelViewTypes({ linkManagerEnabled }).map((type) => (
+              <SelectItem key={type} value={type} className="text-xs">{t(`page.viewTypes.${type}`)}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <div className="flex items-center gap-1.5">

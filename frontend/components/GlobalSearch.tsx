@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getAvailablePanelViewTypes } from '@/lib/panelViewTypes';
 import { cn } from "@/lib/utils";
 import { ChevronDown, Database, FileCode, FileText, Filter, Folder, Loader2, Menu, Moon, Network, Plus, Save, Search, Settings, Share2, Sun, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
@@ -44,8 +45,6 @@ interface GlobalSearchProps {
   onUpdateSessionSnapshot: () => void | Promise<void>;
   currentUser?: { is_admin?: boolean } | null;
 }
-
-const ADD_VIEW_TYPES = ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager'] as const;
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
 const GROUP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -507,10 +506,9 @@ export function GlobalSearch({
                     state (see page.tsx's renderPanel — chatMessages/activeSessionId
                     are global, not indexed by panel), so a second one would just
                     mirror the first and can never be closed. Hide it once one exists. */}
-                {ADD_VIEW_TYPES.filter(type =>
-                  (type !== 'chat' || !panelConfigs.includes('chat')) &&
-                  (type !== 'linkmanager' || (features.views.linkManager && currentUser?.is_admin === true))
-                ).map((type) => (
+                {getAvailablePanelViewTypes({
+                  linkManagerEnabled: features.views.linkManager && currentUser?.is_admin === true,
+                }).filter(type => type !== 'chat' || !panelConfigs.includes('chat')).map((type) => (
                   <button
                     key={type}
                     onClick={() => { onAddPanel(type); setIsAddViewOpen(false); }}
