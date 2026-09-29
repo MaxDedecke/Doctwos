@@ -16,6 +16,7 @@ import { ProvenanceDisclosure } from './ProvenanceDisclosure';
 import { AlertTriangle, Compass, FileCode, LayoutGrid, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { ProcessFlow } from './ProcessFlow';
 
 export type CallNode = {
   id: string;
@@ -111,7 +112,7 @@ function traceProcessNodeShape(ctx: CanvasRenderingContext2D, node: CallNode, ra
   }
 }
 
-export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere, onOpenDoc }: Props) {
+export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere, onOpenDoc }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1008,6 +1009,44 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/**
+ * Prozess-Ansicht mit zwei Sichten: „Ablauf" (Bahnen, zeitlich geordnet, lazy
+ * aufklappbar) und „Netz" (der frühere Graph). Ein vom Chat übergebener
+ * Flow/Impact ist ein eigener Graph und bleibt ohne Umschalter im Netz.
+ */
+export function ProcessView(props: React.ComponentProps<typeof ProcessNetworkView>) {
+  const { t } = useLanguage();
+  const [mode, setMode] = useState<'flow' | 'network'>('flow');
+  if (props.customFlow) return <ProcessNetworkView {...props} />;
+  const isDark = props.theme === 'dark';
+  return (
+    <div className="h-full flex flex-col">
+      <div role="tablist" aria-label={t('callGraphView.processTitle')} className={cn('flex shrink-0 items-center gap-1 border-b px-3 pt-1.5', isDark ? 'border-ds-zinc-800 bg-ds-zinc-950' : 'border-ds-zinc-200 bg-ds-white')}>
+        {(['flow', 'network'] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={mode === tab}
+            onClick={() => setMode(tab)}
+            className={cn(
+              'rounded-t-md border-b-2 px-3 py-1 text-[0.6875rem] font-semibold transition-colors',
+              mode === tab ? 'border-ds-indigo-500 text-ds-indigo-400' : 'border-transparent text-ds-zinc-500 hover:text-ds-zinc-300',
+            )}
+          >
+            {t(`processFlow.tabs.${tab}`)}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1">
+        {mode === 'flow'
+          ? <ProcessFlow theme={props.theme} focusedEntity={props.focusedEntity} projectId={props.projectId} onFileSelect={props.onFileSelect} />
+          : <ProcessNetworkView {...props} />}
+      </div>
     </div>
   );
 }

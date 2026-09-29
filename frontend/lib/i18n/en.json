@@ -1471,6 +1471,36 @@
     "reportSentToast": "Error report sent, thank you",
     "reportFailedToast": "Failed to send error report"
   },
+  "processFlow": {
+    "subtitle": "Flow top to bottom · order of call sites in the source",
+    "line": "Line",
+    "laneControl": "Flow",
+    "laneData": "Data",
+    "laneExternal": "External / open",
+    "collapseAll": "Collapse all",
+    "expand": "Expand {{name}}",
+    "collapse": "Collapse {{name}}",
+    "openSource": "Open in source",
+    "empty": "No calls or data accesses start here.",
+    "truncated": "Incomplete: projection limit reached",
+    "capped": "View capped at 800 rows – collapse steps",
+    "loadError": "Could not load the flow",
+    "recursion": "Recursion",
+    "cycle": "Cycle",
+    "multiTarget": "multiple targets",
+    "possible": "possible",
+    "unresolved": "open",
+    "condition": "Condition",
+    "verbs": {
+      "read": "reads",
+      "write": "writes",
+      "use": "uses"
+    },
+    "tabs": {
+      "flow": "Flow",
+      "network": "Network"
+    }
+  },
   "callGraphView": {
     "processTitle": "Process View",
     "focusFirst": "Please focus a code object first.",

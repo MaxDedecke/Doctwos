@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { ProcessView, type CallEdge, type CallNode } from './CallGraphView';
+import { ProcessNetworkView as ProcessView, type CallEdge, type CallNode } from './CallGraphView';
 
 type GraphProps = {
   graphData: { nodes: CallNode[]; links: CallEdge[] };

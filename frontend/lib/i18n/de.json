@@ -1471,6 +1471,36 @@
     "reportSentToast": "Fehlerbericht gesendet, danke",
     "reportFailedToast": "Fehlerbericht konnte nicht gesendet werden"
   },
+  "processFlow": {
+    "subtitle": "Ablauf von oben nach unten · Reihenfolge der Aufrufstellen im Quellcode",
+    "line": "Zeile",
+    "laneControl": "Ablauf",
+    "laneData": "Daten",
+    "laneExternal": "Extern / offen",
+    "collapseAll": "Alles einklappen",
+    "expand": "{{name}} aufklappen",
+    "collapse": "{{name}} einklappen",
+    "openSource": "Im Quellcode öffnen",
+    "empty": "Von hier gehen keine Aufrufe oder Datenzugriffe aus.",
+    "truncated": "Unvollständig: Grenze der Projektion erreicht",
+    "capped": "Ansicht auf 800 Zeilen begrenzt – Schritte einklappen",
+    "loadError": "Ablauf konnte nicht geladen werden",
+    "recursion": "Rekursion",
+    "cycle": "Zyklus",
+    "multiTarget": "mehrere Ziele",
+    "possible": "möglich",
+    "unresolved": "offen",
+    "condition": "Bedingung",
+    "verbs": {
+      "read": "liest",
+      "write": "schreibt",
+      "use": "verwendet"
+    },
+    "tabs": {
+      "flow": "Ablauf",
+      "network": "Netz"
+    }
+  },
   "callGraphView": {
     "processTitle": "Process View",
     "focusFirst": "Bitte zuerst ein Code-Objekt fokussieren.",
