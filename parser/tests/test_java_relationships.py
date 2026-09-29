@@ -440,6 +440,57 @@ class Client {
     assert all(edge.meta["resolution_reason"] == "receiver_local_variable" for edge in calls)
 
 
+def test_o366_for_catch_and_lambda_receivers_use_visible_declarations() -> None:
+    result = parse_java_file(
+        """package demo;
+class Service { void work() {} }
+class Problem extends RuntimeException { void recover() {} }
+class Client {
+    void run(java.util.List<Service> services) {
+        for (Service item : services) item.work();
+        try { throw new Problem(); }
+        catch (Problem error) { error.recover(); }
+        Service captured = new Service();
+        Runnable action = () -> captured.work();
+    }
+}
+""",
+        "demo/Client.java",
+    )
+
+    resolve_global_edges([result])
+    calls = [edge for edge in result.edges if edge.type == "CALLS"]
+    assert {edge.meta["method_name"] for edge in calls} == {"work", "recover"}
+    assert all(edge.resolution == "resolved" for edge in calls)
+    assert {edge.meta["target_qualified_name"] for edge in calls} == {
+        "demo.Service#work()",
+        "demo.Problem#recover()",
+    }
+    assert {edge.meta["resolution_reason"] for edge in calls} == {
+        "receiver_local_variable",
+        "receiver_parameter",
+    }
+
+
+def test_o366_use_before_local_declaration_does_not_resolve_forward() -> None:
+    result = parse_java_file(
+        """package demo;
+class Service { void work() {} }
+class Client {
+    void run() {
+        service.work();
+        Service service = new Service();
+    }
+}
+""",
+        "demo/Client.java",
+    )
+
+    resolve_global_edges([result])
+    call = next(edge for edge in result.edges if edge.type == "CALLS")
+    assert call.resolution == "unresolved"
+
+
 def test_o367_method_references_resolve_only_unique_repository_targets() -> None:
     result = parse_java_file(
         """package demo;
