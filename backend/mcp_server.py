@@ -166,6 +166,62 @@ def _capture_mcp_result(ctx: Context, db: Session, project_id: int | None, resul
         logger.debug("Unable to capture MCP result metrics", exc_info=True)
 
 
+def _flow_edge_excerpt(
+    db: Session,
+    project_id: int,
+    source_node: dict,
+    edge: dict,
+    char_budget: int,
+) -> dict | None:
+    focus_line = edge.get("start_line")
+    if not isinstance(focus_line, int) or focus_line < 1:
+        return None
+    query = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == project_id,
+        DocumentChunk.source_id == source_node.get("source_id"),
+        DocumentChunk.file_path == source_node.get("file_path"),
+        DocumentChunk.start_line <= focus_line,
+        DocumentChunk.end_line >= focus_line,
+    )
+    chunk = query.order_by(DocumentChunk.start_line, DocumentChunk.id).first()
+    if chunk is None:
+        return None
+    lines = chunk.content.splitlines(keepends=True)
+    if not lines:
+        return None
+    focus_index = max(0, min(len(lines) - 1, focus_line - chunk.start_line))
+    first_index = max(0, focus_index - 5)
+    last_index = min(len(lines), focus_index + 9)
+    prefix_chars = sum(len(value) for value in lines[:first_index])
+    excerpt = "".join(lines[first_index:last_index])
+    content = excerpt[:char_budget]
+    delivered_start = chunk.start_line + first_index
+    delivered_lines = content.count("\n") + int(bool(content) and not content.endswith("\n"))
+    delivered_end = min(chunk.end_line, delivered_start + max(0, delivered_lines - 1))
+    truncated = len(content) < len(excerpt)
+    return {
+        "chunk_id": chunk.id,
+        "focus_line": focus_line,
+        "start_line": chunk.start_line,
+        "end_line": chunk.end_line,
+        "delivered_start_line": delivered_start,
+        "delivered_end_line": delivered_end,
+        "content": content,
+        "truncated": truncated,
+        "follow_up_action": {
+            "tool": "get_code_entity",
+            "arguments": {
+                "project_id": project_id,
+                "entity_id": edge.get("source"),
+                "chunk_id": chunk.id,
+                "char_offset": prefix_chars + len(content) if truncated else 0,
+                "max_chars": 5000,
+            },
+            "reason": "Read the original indexed chunk around this call site.",
+        },
+    }
+
+
 def _source_visible(db: Session, user: User, source_id: int | None) -> bool:
     if source_id is None:
         return True
@@ -726,8 +782,9 @@ def get_call_flow(
     hops: int = 2,
     direction: Literal["outgoing", "incoming", "both"] = "outgoing",
     scope: Literal["execution", "dependencies", "all"] = "execution",
-    page_size: int = 30,
+    page_size: int = 10,
     cursor: str | None = None,
+    include_source: bool = True,
 ) -> dict:
     """Trace executable calls or resource/data dependencies in a project.
 
@@ -737,10 +794,11 @@ def get_call_flow(
     and the same root, hops, direction, and scope.
     """
     hops = max(0, min(hops, 3))
-    page_size = max(1, min(page_size, 40))
+    page_size = max(1, min(page_size, 15))
     with _tool_context(ctx, "get_call_flow", project_id, {
         "entity_id": entity_id, "hops": hops, "scope": scope,
         "direction": direction, "page_size": page_size, "cursor": cursor,
+        "include_source": include_source,
     }) as (db, user):
         if direction not in {"outgoing", "incoming", "both"}:
             raise ValueError("invalid direction")
@@ -759,7 +817,7 @@ def get_call_flow(
                 raise ValueError("invalid cursor")
             expected = {
                 "project_id": project_id, "entity_id": entity_id, "hops": hops,
-                "direction": direction, "scope": scope,
+                "direction": direction, "scope": scope, "include_source": include_source,
             }
             if any(cursor_data.get(key) != value for key, value in expected.items()):
                 raise ValueError("cursor does not match this call-flow query")
@@ -809,11 +867,12 @@ def get_call_flow(
         nodes = [visible_nodes_by_id[node_id] for node_id in page_node_ids]
         allowed = set(page_node_ids)
         edges = []
+        source_budget_per_edge = max(120, min(500, 4_000 // max(1, len(page_edges))))
         for edge in page_edges:
             if edge.get("source") not in allowed or (edge.get("target") is not None and edge.get("target") not in allowed):
                 continue
             meta = edge.get("meta") or {}
-            edges.append({
+            response_edge = {
                 **{key: edge.get(key) for key in (
                     "id", "source", "target", "target_name", "type", "resolution", "start_line", "end_line"
                 )},
@@ -828,7 +887,13 @@ def get_call_flow(
                         "exception_types", "dispatch_scope",
                     ) if key in meta
                 },
-            })
+            }
+            if include_source:
+                response_edge["source_excerpt"] = _flow_edge_excerpt(
+                    db, project_id, visible_nodes_by_id[edge["source"]],
+                    edge, source_budget_per_edge,
+                )
+            edges.append(response_edge)
 
         next_offset = offset + len(page_edges)
         page_has_more = next_offset < len(visible_edges)
@@ -839,7 +904,8 @@ def get_call_flow(
         if has_more:
             next_data = {
                 "project_id": project_id, "entity_id": entity_id, "hops": hops,
-                "direction": direction, "scope": scope, "offset": next_offset,
+                "direction": direction, "scope": scope, "include_source": include_source,
+                "offset": next_offset,
                 "expansion": expansion + int(service_truncated and not page_has_more),
             }
             next_cursor = base64.urlsafe_b64encode(
@@ -892,7 +958,7 @@ def get_call_flow(
                 "arguments": {
                     "project_id": project_id, "entity_id": entity_id, "hops": hops,
                     "direction": direction, "scope": scope, "page_size": page_size,
-                    "cursor": next_cursor,
+                    "cursor": next_cursor, "include_source": include_source,
                 },
                 "reason": "Continue the ordered visible call-flow page.",
             }] if next_cursor else [],
