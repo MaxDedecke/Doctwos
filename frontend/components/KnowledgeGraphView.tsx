@@ -19,6 +19,20 @@ import { resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
+import {
+  ARROW_LENGTH,
+  ARROW_LENGTH_SELECTED,
+  BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO,
+  CHARGE_DISTANCE_MAX,
+  GRAPH_ALPHA_DECAY,
+  GRAPH_COOLDOWN_MS,
+  NEIGHBORHOOD_LAYER_GAP,
+  NEIGHBORHOOD_ROW_GAP,
+  chargeStrength,
+  collisionRadius,
+  linkDistance,
+  radialRadius,
+} from '@/lib/graphLayout';
 import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
@@ -824,21 +838,15 @@ export function KnowledgeGraphView({
 
     graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => {
       const degree = nodeDegrees.get(n.id) ?? 0;
-      return nodeRadius(n, degree) + 24 + Math.sqrt(degree) * 4;
+      return collisionRadius(nodeRadius(n, degree), degree);
     }).iterations(4));
 
-    const chargeStrength = -Math.min(1000, 120 + nodeCount * 1.8);
     graphRef.current.d3Force('charge', forceManyBody()
-      .strength((n: unknown) => {
-        const degree = nodeDegrees.get((n as GraphNode).id) ?? 0;
-        return chargeStrength - Math.min(500, degree * 18);
-      })
-      .distanceMax(1800));
+      .strength((n: unknown) => chargeStrength(nodeCount, nodeDegrees.get((n as GraphNode).id) ?? 0))
+      .distanceMax(CHARGE_DISTANCE_MAX));
 
-    const radialForce = forceRadial((n: GraphNode) => {
-      const degree = nodeDegrees.get(n.id) ?? 0;
-      return 130 + Math.min(770, Math.sqrt(degree) * 75);
-    }).strength(viewMode === 'overview' ? 0.12 : 0);
+    const radialForce = forceRadial((n: GraphNode) => radialRadius(nodeDegrees.get(n.id) ?? 0))
+      .strength(viewMode === 'overview' ? 0.12 : 0);
     graphRef.current.d3Force('radial', radialForce);
 
     const linkForce = graphRef.current.d3Force('link');
@@ -846,8 +854,7 @@ export function KnowledgeGraphView({
       linkForce.distance((edge: GraphEdge) => {
         const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
         const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
-        const endpointDegrees = Math.sqrt(nodeDegrees.get(sourceId) ?? 0) + Math.sqrt(nodeDegrees.get(targetId) ?? 0);
-        return 100 + Math.min(260, endpointDegrees * 24);
+        return linkDistance(nodeDegrees.get(sourceId) ?? 0, nodeDegrees.get(targetId) ?? 0);
       }).strength(0.12);
     }
 
@@ -888,8 +895,8 @@ export function KnowledgeGraphView({
         const layer = layers.get(node.id) ?? 0;
         const index = perLayer.get(layer) ?? 0;
         perLayer.set(layer, index + 1);
-        const x = traversalDirection === 'incoming' ? -layer * 130 : layer * 130;
-        positions.set(node.id, { x, y: index * 70 });
+        const x = traversalDirection === 'incoming' ? -layer * NEIGHBORHOOD_LAYER_GAP : layer * NEIGHBORHOOD_LAYER_GAP;
+        positions.set(node.id, { x, y: index * NEIGHBORHOOD_ROW_GAP });
       }
       for (const node of filteredData.nodes) {
         const position = positions.get(node.id);
@@ -988,7 +995,7 @@ export function KnowledgeGraphView({
 
   const getLinkArrowLength = useCallback((l: GraphEdge) => {
     if (!isEdgeDirected(l)) return 0;
-    return l.id === selectedEdgeId ? 6.5 : 4;
+    return l.id === selectedEdgeId ? ARROW_LENGTH_SELECTED : ARROW_LENGTH;
   }, [selectedEdgeId]);
 
   const getLinkArrowRelPos = useCallback((l: GraphEdge) => {
@@ -1026,8 +1033,8 @@ export function KnowledgeGraphView({
     const tipDistance = nodeRadius(source, nodeDegrees.get(source.id) ?? 0) + 1;
     const tipX = source.x + ux * tipDistance;
     const tipY = source.y + uy * tipDistance;
-    const arrowLength = 5;
-    const halfWidth = 2;
+    const arrowLength = edge.id === selectedEdgeId ? ARROW_LENGTH_SELECTED : ARROW_LENGTH;
+    const halfWidth = arrowLength * BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO;
     const baseX = tipX - ux * arrowLength;
     const baseY = tipY - uy * arrowLength;
 
@@ -1941,9 +1948,9 @@ export function KnowledgeGraphView({
                 setSelectedNodeId(null);
               }}
               onBackgroundClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
-              d3AlphaDecay={0.02}
+              d3AlphaDecay={GRAPH_ALPHA_DECAY}
               d3VelocityDecay={0.3}
-              cooldownTime={3000}
+              cooldownTime={GRAPH_COOLDOWN_MS}
               enableNodeDrag
               enablePanInteraction
               enableZoomInteraction

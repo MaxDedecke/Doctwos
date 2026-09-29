@@ -611,7 +611,8 @@ describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
     const dirLinkEl = await screen.findByTestId('link-code:101');
     const undirLinkEl = await screen.findByTestId('link-kl:202');
 
-    expect(Number(dirLinkEl.getAttribute('data-arrow-length'))).toBeGreaterThan(0);
+    // Pfeilspitzen sind deutlich erkennbar (früher 4 px), nicht gerichtete Kanten haben keine.
+    expect(Number(dirLinkEl.getAttribute('data-arrow-length'))).toBeGreaterThanOrEqual(10);
     expect(Number(undirLinkEl.getAttribute('data-arrow-length'))).toBe(0);
   });
 
@@ -672,10 +673,10 @@ describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
     renderGraph();
 
     const linkEl = await screen.findByTestId('link-code:1');
-    // Distance = 100px. Target radius for entity = 8px. Offset = 9px.
-    // Relative position = 1 - 9/100 = 0.91
+    // Distance = 100px. Der Zielknoten hat Grad 1: Radius = 8 + sqrt(1) * 1.8 = 9.8px,
+    // Abstand zur Umrandung 10.8px. Relative Position = 1 - 10.8/100 = 0.892
     const relPos = Number(linkEl.getAttribute('data-arrow-rel-pos'));
-    expect(relPos).toBeCloseTo(0.91, 2);
+    expect(relPos).toBeCloseTo(0.892, 2);
   });
 });
 
