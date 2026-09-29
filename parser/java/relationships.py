@@ -26,6 +26,13 @@ _TYPE_ENTITY_TYPES = {
     "local_class",
     "anonymous_class",
 }
+_MAX_CONDITION_CHARS = 120
+# Ab hier gehört ein Aufruf zu einem anderen Ablauf (eigene Methode/Lambda/Klasse).
+_CONTROL_PATH_STOP_RULES = {
+    "methodDeclaration", "constructorDeclaration", "interfaceMethodDeclaration",
+    "lambdaExpression", "classBody", "compactConstructorDeclaration",
+}
+
 _ASSIGNMENT_OPERATORS = {
     "=",
     "+=",
@@ -78,6 +85,54 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         if value is None:
             return []
         return value if isinstance(value, list) else [value]
+
+    @staticmethod
+    def _source_text(context: ParserRuleContext | None) -> str:
+        """Originaltext eines Teilbaums (mit Leerzeichen), gekürzt und einzeilig."""
+        if context is None or context.start is None or context.stop is None:
+            return ""
+        text = context.start.getInputStream().getText(context.start.start, context.stop.stop)
+        text = " ".join(text.split())
+        return text if len(text) <= _MAX_CONDITION_CHARS else text[: _MAX_CONDITION_CHARS - 1] + "…"
+
+    def _control_path(self, context: ParserRuleContext) -> list[dict[str, str]]:
+        """Bedingungen und Schleifen, unter denen ein Aufruf steht (außen → innen).
+
+        Gleiche Form wie `control_path` der COBOL-Kanten, damit die Ablaufansicht
+        beide Sprachen einheitlich darstellt.
+        """
+        path: list[dict[str, str]] = []
+        child = context
+        current = context.parentCtx
+        while current is not None:
+            rule = JavaParser.ruleNames[current.getRuleIndex()]
+            if rule in _CONTROL_PATH_STOP_RULES:
+                break
+            if rule == "statement" and current.start is not None:
+                keyword = current.start.text.casefold()
+                statements = self._as_list(current.statement())
+                expressions = self._as_list(current.expression())
+                body = child in statements
+                if keyword == "if" and body and expressions:
+                    branch = "ELSE" if len(statements) > 1 and child is statements[1] else "THEN"
+                    path.append({"type": "IF", "branch": branch, "condition": self._source_text(expressions[0])})
+                elif keyword == "while" and body and expressions:
+                    path.append({"type": "LOOP", "kind": "WHILE", "text": self._source_text(expressions[0])})
+                elif keyword == "do" and body and expressions:
+                    path.append({"type": "LOOP", "kind": "DO_WHILE", "text": self._source_text(expressions[0])})
+                elif keyword == "for" and body:
+                    control = current.forControl()
+                    is_each = control is not None and control.enhancedForControl() is not None
+                    path.append({"type": "LOOP", "kind": "FOR_EACH" if is_each else "FOR", "text": self._source_text(control)})
+                elif keyword == "switch" and expressions:
+                    labels = ""
+                    if JavaParser.ruleNames[child.getRuleIndex()] == "switchBlockStatementGroup":
+                        labels = ", ".join(self._source_text(label) for label in self._as_list(child.switchLabel()))
+                    path.append({"type": "SWITCH", "branch": "CASE", "subject": self._source_text(expressions[0]), "when": labels})
+            child = current
+            current = current.parentCtx
+        path.reverse()
+        return path
 
     def _edge(
         self,
@@ -134,6 +189,10 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     })
                     break
                 current = current.parentCtx
+        if edge_type == "CALLS":
+            control_path = self._control_path(context)
+            if control_path:
+                edge_meta["control_path"] = control_path
         self.edges.append(
             ParsedEdge(
                 type=edge_type,

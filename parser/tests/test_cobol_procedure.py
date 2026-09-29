@@ -11,7 +11,7 @@ def _edges(text: str, fmt: str = "fixed"):
     tokens = lexer.tokenize(masked)
     programs, div_errors, _ = divisions.scan(masked)
     program = programs[0]
-    edges, proc_errors = procedure.scan(program, tokens)
+    edges, proc_errors = procedure.scan(program, tokens, masked)
     return program, edges, div_errors + proc_errors
 
 
@@ -175,3 +175,77 @@ def test_goto_depending_on_captures_all_targets():
     gotos = [e for e in edges if e.type == "GOTO"]
     assert [g.dst_name for g in gotos] == ["PARA-1", "PARA-2", "PARA-3"]
     assert all(g.resolution == "resolved" for g in gotos)
+
+
+_FLOW_PROGRAM = (
+    "       IDENTIFICATION DIVISION.\n"
+    "       PROGRAM-ID. FLOWDEMO.\n"
+    "       PROCEDURE DIVISION.\n"
+    "       MAIN-PARA.\n"
+    "           IF WS-A = 'Y'\n"
+    "               PERFORM ONE-PARA\n"
+    "           ELSE\n"
+    "               PERFORM TWO-PARA\n"
+    "           END-IF\n"
+    "           PERFORM THREE-PARA UNTIL WS-A = 'N'\n"
+    "           PERFORM THREE-PARA 3 TIMES\n"
+    "           PERFORM VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 5\n"
+    "               PERFORM ONE-PARA\n"
+    "           END-PERFORM\n"
+    "           PERFORM ONE-PARA\n"
+    "           EVALUATE WS-A\n"
+    "               WHEN 'A'\n"
+    "                   PERFORM ONE-PARA\n"
+    "               WHEN OTHER\n"
+    "                   GO TO TWO-PARA\n"
+    "           END-EVALUATE\n"
+    "           STOP RUN.\n"
+    "       ONE-PARA.\n"
+    "           EXIT.\n"
+    "       TWO-PARA.\n"
+    "           EXIT.\n"
+    "       THREE-PARA.\n"
+    "           EXIT.\n"
+)
+
+
+def _flow_edges():
+    _, edges, errors = _edges(_FLOW_PROGRAM)
+    assert errors == []
+    return {(e.type, e.dst_name, e.src_start_line): e for e in edges}
+
+
+def test_control_path_records_condition_text_and_branch():
+    edges = _flow_edges()
+    assert edges[("PERFORM", "ONE-PARA", 6)].meta["control_path"] == [
+        {"type": "IF", "branch": "THEN", "condition": "WS-A = 'Y'"}
+    ]
+    assert edges[("PERFORM", "TWO-PARA", 8)].meta["control_path"] == [
+        {"type": "IF", "branch": "ELSE", "condition": "WS-A = 'Y'"}
+    ]
+    # stabiler Vertrag: control_context bleibt unverändert
+    assert edges[("PERFORM", "ONE-PARA", 6)].meta["control_context"] == [{"type": "IF", "branch": "THEN"}]
+
+
+def test_control_path_records_evaluate_when_and_scope_end():
+    edges = _flow_edges()
+    assert edges[("PERFORM", "ONE-PARA", 18)].meta["control_path"] == [
+        {"type": "EVALUATE", "branch": "WHEN", "subject": "WS-A", "when": "'A'"}
+    ]
+    assert edges[("GOTO", "TWO-PARA", 20)].meta["control_path"][0]["when"] == "OTHER"
+
+
+def test_out_of_line_perform_carries_loop_head():
+    edges = _flow_edges()
+    assert edges[("PERFORM", "THREE-PARA", 10)].meta["loop"] == {"kind": "UNTIL", "text": "WS-A = 'N'"}
+    assert edges[("PERFORM", "THREE-PARA", 11)].meta["loop"] == {"kind": "TIMES", "text": "3"}
+    assert "loop" not in edges[("PERFORM", "ONE-PARA", 15)].meta
+
+
+def test_inline_perform_loop_scopes_only_its_body():
+    edges = _flow_edges()
+    assert edges[("PERFORM", "ONE-PARA", 13)].meta["control_path"] == [
+        {"type": "LOOP", "kind": "VARYING", "text": "WS-I FROM 1 BY 1 UNTIL WS-I > 5"}
+    ]
+    # nach END-PERFORM / END-IF / END-EVALUATE: kein Kontext mehr
+    assert "control_path" not in edges[("PERFORM", "ONE-PARA", 15)].meta

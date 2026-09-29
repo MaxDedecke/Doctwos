@@ -170,7 +170,7 @@ def parse_program(
         errors.extend(dd_errors)
         dd_diagnostics_all.extend(dd_diagnostics)
 
-        proc_edges, proc_errors = procedure_mod.scan(program, tokens)
+        proc_edges, proc_errors = procedure_mod.scan(program, tokens, masked_lines)
         errors.extend(proc_errors)
 
         copy_edges, copy_errors = copybook_mod.scan(program, tokens, copybook_index, own_range)
@@ -898,7 +898,7 @@ def parse_copybook(
             synthetic.paragraphs = visitor.programs[0].paragraphs
             synthetic.sections = visitor.programs[0].sections
 
-        proc_edges, proc_errors = procedure_mod.scan(synthetic, tokens)
+        proc_edges, proc_errors = procedure_mod.scan(synthetic, tokens, masked_lines)
         errors.extend(proc_errors)
         sql_blocks, sql_edges, sql_errors = sql_mod.scan(synthetic, embedded_blocks, items=[])
         errors.extend(sql_errors)

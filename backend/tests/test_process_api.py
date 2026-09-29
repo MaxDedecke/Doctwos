@@ -477,3 +477,82 @@ def test_process_focus_exposes_branches_cycles_and_only_observed_order(
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_process_focus_passes_control_path_and_loop_and_survives_list_context(
+    client, db_session, test_project, test_team
+):
+    source = KnowledgeSource(
+        name="process-control-path", type="Git", project_id=test_project, team_id=test_team
+    )
+    db_session.add(source)
+    db_session.flush()
+    entities = [
+        CodeEntity(
+            project_id=test_project, source_id=source.id, file_path="FLOW.CBL", name=name,
+            qualified_name=f"FLOW.{name}", type="paragraph", start_line=line, end_line=line + 4,
+            meta_json={"language": "cobol"},
+        )
+        for name, line in (("MAIN", 10), ("ONE", 30), ("LOOPED", 40))
+    ]
+    db_session.add_all(entities)
+    db_session.flush()
+    root, one, looped = entities
+    path = [{"type": "IF", "branch": "THEN", "condition": "WS-A = 'Y'"}]
+    db_session.add_all(
+        [
+            CodeEdge(
+                project_id=test_project, source_id=source.id, src_entity_id=root.id,
+                dst_entity_id=one.id, dst_name=one.name, type="PERFORM", resolution="resolved",
+                src_start_line=12, src_end_line=12,
+                # COBOL liefert control_context als Liste; das darf die Projektion nicht kippen.
+                meta_json={"control_context": [{"type": "IF", "branch": "THEN"}], "control_path": path},
+            ),
+            CodeEdge(
+                project_id=test_project, source_id=source.id, src_entity_id=root.id,
+                dst_entity_id=looped.id, dst_name=looped.name, type="PERFORM", resolution="resolved",
+                src_start_line=14, src_end_line=14,
+                meta_json={"loop": {"kind": "UNTIL", "text": "WS-A = 'N'"}},
+            ),
+        ]
+    )
+    db_session.commit()
+    try:
+        response = client.get(
+            "/process/focus", params={"entity_id": root.id, "project_id": test_project, "hops": 1}
+        )
+        assert response.status_code == 200
+        by_target = {item["target"]: item for item in response.json()["transitions"]}
+        conditional = by_target[f"entity:{one.id}"]
+        assert conditional["kind"] == "call"
+        assert conditional["condition"] is None
+        assert conditional["meta"]["control_path"] == path
+        loop = by_target[f"entity:{looped.id}"]
+        assert loop["kind"] == "iteration"
+        assert loop["meta"]["loop"] == {"kind": "UNTIL", "text": "WS-A = 'N'"}
+
+        only_calls = client.get(
+            "/process/focus",
+            params={"entity_id": root.id, "project_id": test_project, "hops": 1, "kinds": "iteration"},
+        )
+        assert only_calls.status_code == 200
+        assert [item["kind"] for item in only_calls.json()["transitions"]] == ["iteration"]
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+
+def test_process_helpers_map_loops_to_iteration_and_never_return_list_conditions():
+    """DB-frei: die Ableitung, die der Endpunkt-Test oben über die API prüft."""
+    from api.process import _condition_text, _transition_kind
+
+    perform = CodeEdge(type="PERFORM", resolution="resolved", meta_json={"loop": {"kind": "UNTIL", "text": "X"}})
+    assert _transition_kind(perform) == "iteration"
+    assert _transition_kind(CodeEdge(type="PERFORM", resolution="resolved", meta_json={})) == "call"
+    assert _transition_kind(CodeEdge(type="PERFORM", resolution="unresolved", meta_json={"loop": {"kind": "TIMES"}})) == "external_call"
+    assert _transition_kind(CodeEdge(type="GOTO", resolution="resolved", meta_json={})) == "jump"
+
+    assert _condition_text({"condition": "UNTIL EOF"}) == "UNTIL EOF"
+    assert _condition_text({"control_context": "catch(IOException)"}) == "catch(IOException)"
+    assert _condition_text({"control_context": [{"type": "IF", "branch": "THEN"}]}) is None
+    assert _condition_text({}) is None

@@ -45,7 +45,7 @@ EDGE_KIND = {
     "USES_RESOURCE": "data_access",
     "TRANSFORMS_WITH": "data_access",
 }
-KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call"})
+KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call", "iteration"})
 
 
 def _language(entity: CodeEntity) -> str:
@@ -86,6 +86,23 @@ def _edge_kind(edge: CodeEdge) -> str | None:
         if edge.type in {"CALL", "CALLS", "PERFORM"}:
             return "external_call"
     return EDGE_KIND.get(edge.type)
+
+
+def _transition_kind(edge: CodeEdge) -> str | None:
+    """Ein PERFORM mit eigener Schleife (UNTIL/VARYING/TIMES) ist eine Iteration, kein einfacher Aufruf."""
+    kind = _edge_kind(edge)
+    if kind == "call" and isinstance((edge.meta_json or {}).get("loop"), dict):
+        return "iteration"
+    return kind
+
+
+def _condition_text(meta: dict) -> str | None:
+    """Lesbare Bedingung einer Kante; nie eine Liste (COBOL-`control_context`), das Schema erwartet Text."""
+    condition = meta.get("condition")
+    if isinstance(condition, str):
+        return condition
+    context = meta.get("control_context")
+    return context if isinstance(context, str) else None
 
 
 def _node_kind(entity: CodeEntity, root: CodeEntity) -> str:
@@ -243,8 +260,9 @@ def _projection(
         for edge in rows:
             if edge.id in seen_edge_ids:
                 continue
-            kind = _edge_kind(edge)
-            if kind not in requested_kinds:
+            base_kind = _edge_kind(edge)
+            kind = _transition_kind(edge)
+            if base_kind not in requested_kinds and kind not in requested_kinds:
                 continue
             source = entities.get(edge.src_entity_id)
             if source is None:
@@ -310,9 +328,7 @@ def _projection(
                     sequence=(edge.meta_json or {}).get("sequence")
                     if isinstance((edge.meta_json or {}).get("sequence"), int)
                     else None,
-                    condition=(edge.meta_json or {}).get("condition")
-                    if isinstance((edge.meta_json or {}).get("condition"), str)
-                    else (edge.meta_json or {}).get("control_context"),
+                    condition=_condition_text(edge.meta_json or {}),
                     meta={
                         key: value
                         for key, value in (edge.meta_json or {}).items()
@@ -321,6 +337,7 @@ def _projection(
                             "statement_type", "cursor_name",
                             "invocation_kind", "dispatch_scope", "resolution_reason",
                             "control_role", "control_context", "exception_types",
+                            "control_path", "loop",
                         }
                     },
                 )

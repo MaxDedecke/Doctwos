@@ -586,3 +586,37 @@ class Client {
     assert by_name["recover"].meta["exception_types"] == ["IllegalStateException"]
     assert by_name["close"].meta["control_role"] == "cleanup"
     assert by_name["close"].meta["control_context"] == "finally"
+
+
+def test_call_edges_carry_control_path_for_conditions_loops_and_switch() -> None:
+    result = parse_java_file(
+        """package demo;
+class Flow {
+    void a() {} void b() {} void c() {} void d() {} void e() {} void f() {} void g() {}
+    void run(boolean ok, int mode, java.util.List<String> items) {
+        if (ok) { a(); } else { b(); }
+        for (String item : items) { c(); }
+        while (mode > 0) { if (mode == 2) { d(); } }
+        switch (mode) { case 1: e(); break; default: f(); }
+        g();
+        Runnable r = () -> { if (ok) { a(); } };
+    }
+}
+""",
+        "demo/Flow.java",
+    )
+    calls = [edge for edge in result.edges if edge.type == "CALLS" and edge.src_name.startswith("demo.Flow#run(")]
+    by_name = {edge.meta["method_name"]: edge for edge in calls if edge.meta["method_name"] != "a"}
+    path = lambda name: by_name[name].meta.get("control_path")  # noqa: E731
+
+    first_a = next(edge for edge in calls if edge.meta["method_name"] == "a")
+    assert first_a.meta["control_path"] == [{"type": "IF", "branch": "THEN", "condition": "ok"}]
+    assert path("b") == [{"type": "IF", "branch": "ELSE", "condition": "ok"}]
+    assert path("c") == [{"type": "LOOP", "kind": "FOR_EACH", "text": "String item : items"}]
+    assert path("d") == [
+        {"type": "LOOP", "kind": "WHILE", "text": "mode > 0"},
+        {"type": "IF", "branch": "THEN", "condition": "mode == 2"},
+    ]
+    assert path("e") == [{"type": "SWITCH", "branch": "CASE", "subject": "mode", "when": "case 1"}]
+    assert path("f") == [{"type": "SWITCH", "branch": "CASE", "subject": "mode", "when": "default"}]
+    assert path("g") is None
