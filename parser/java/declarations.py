@@ -69,6 +69,35 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         stop = context.stop.line if context.stop is not None else start
         return start, max(start, stop)
 
+    def _lexical_scope(self, context: ParserRuleContext) -> dict:
+        scope_rules = {
+            "block", "forStatement", "enhancedForStatement", "catchClause",
+            "lambdaExpression", "tryStatement",
+        }
+        current = context
+        if JavaParser.ruleNames[current.getRuleIndex()] not in scope_rules:
+            current = current.parentCtx
+        while current is not None:
+            if JavaParser.ruleNames[current.getRuleIndex()] in scope_rules:
+                start = current.start
+                stop = current.stop
+                return {
+                    "scope_start_line": start.line if start else 1,
+                    "scope_start_column": start.column if start else 0,
+                    "scope_end_line": stop.line if stop else (start.line if start else 1),
+                    "scope_end_column": (
+                        stop.column + len(stop.text)
+                        if stop and stop.text else 1_000_000
+                    ),
+                }
+            current = current.parentCtx
+        return {
+            "scope_start_line": 1,
+            "scope_start_column": 0,
+            "scope_end_line": 1_000_000,
+            "scope_end_column": 1_000_000,
+        }
+
     def _modifier_meta(self, context: ParserRuleContext) -> dict:
         current = context
         while current is not None:
@@ -565,6 +594,12 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     meta=self._java_meta({
                         "parameter_type": parameter_type,
                         "index": index,
+                        "scope_start_line": owner.start_line or 1,
+                        "scope_start_column": 0,
+                        "scope_end_line": owner.end_line or 1_000_000,
+                        "scope_end_column": 1_000_000,
+                        "declaration_line": identifier.start.line,
+                        "declaration_column": identifier.stop.column + len(identifier.stop.text),
                         **({"lambda": True} if lambda_parameter else {}),
                     }),
                 )
@@ -633,10 +668,64 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                         parent_qualified_name=self.parent.qualified_name,
                         meta=self._java_meta({
                             "variable_type": variable_type,
+                            **self._lexical_scope(context),
+                            "declaration_line": identifier.start.line,
+                            "declaration_column": identifier.stop.column + len(identifier.stop.text),
                             **({"inferred_type": inferred_type} if inferred_type else {}),
                         }),
                     )
                 )
+        return self.visitChildren(context)
+
+    def visitCatchClause(self, context):
+        identifier = context.identifier()
+        if identifier is not None and self.parent.type in {
+            "method", "constructor", "lambda", "initializer", "local_class", "anonymous_class",
+        }:
+            start_line, end_line = self._span(context)
+            name = identifier.getText()
+            self.entities.append(Entity(
+                type="parameter",
+                name=name,
+                start_line=start_line,
+                end_line=end_line,
+                parent_name=self.parent.name,
+                qualified_name=f"{self.parent.qualified_name}@catch:{name}:{start_line}:{identifier.start.column}",
+                parent_qualified_name=self.parent.qualified_name,
+                meta=self._java_meta({
+                    "parameter_type": context.catchType().getText(),
+                    "catch_parameter": True,
+                    **self._lexical_scope(context),
+                    "declaration_line": identifier.start.line,
+                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
+                }),
+            ))
+        return self.visitChildren(context)
+
+    def visitEnhancedForControl(self, context):
+        variable = context.variableDeclaratorId()
+        identifier = variable.identifier() if variable is not None else None
+        if identifier is not None and self.parent.type in {
+            "method", "constructor", "lambda", "initializer", "local_class", "anonymous_class",
+        }:
+            start_line, end_line = self._span(variable)
+            name = identifier.getText()
+            variable_type = context.typeType().getText() if context.typeType() is not None else "var"
+            self.entities.append(Entity(
+                type="local_variable",
+                name=name,
+                start_line=start_line,
+                end_line=end_line,
+                parent_name=self.parent.name,
+                qualified_name=f"{self.parent.qualified_name}@foreach:{name}:{start_line}:{identifier.start.column}",
+                parent_qualified_name=self.parent.qualified_name,
+                meta=self._java_meta({
+                    "variable_type": variable_type,
+                    **self._lexical_scope(context),
+                    "declaration_line": identifier.start.line,
+                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
+                }),
+            ))
         return self.visitChildren(context)
 
     def visitCreator(self, context):
@@ -689,7 +778,17 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                             qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
                             parent_qualified_name=entity.qualified_name,
                             meta=self._java_meta(
-                                {"parameter_type": "unknown", "index": index, "lambda": True}
+                                {
+                                    "parameter_type": "unknown",
+                                    "index": index,
+                                    "lambda": True,
+                                    "scope_start_line": entity.start_line or 1,
+                                    "scope_start_column": 0,
+                                    "scope_end_line": entity.end_line or 1_000_000,
+                                    "scope_end_column": 1_000_000,
+                                    "declaration_line": identifier.start.line,
+                                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
+                                }
                             ),
                         )
                     )
@@ -711,6 +810,12 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                                     "parameter_type": "var",
                                     "index": index,
                                     "lambda": True,
+                                    "scope_start_line": entity.start_line or 1,
+                                    "scope_start_column": 0,
+                                    "scope_end_line": entity.end_line or 1_000_000,
+                                    "scope_end_column": 1_000_000,
+                                    "declaration_line": identifier.start.line,
+                                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
                                 }),
                             )
                         )

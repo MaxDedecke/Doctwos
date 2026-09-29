@@ -177,12 +177,51 @@ def _receiver_declaration(
         return [], None
 
     if source_method and not receiver.startswith(("this.", "super.")):
-        variables = variables_by_parent_and_name.get((source_method, field_name), [])
+        method_scopes = [source_method]
+        if "@lambda:" in source_method:
+            method_scopes.append(source_method.split("@lambda:", 1)[0])
+        variables = [
+            variable
+            for method_scope in method_scopes
+            for variable in variables_by_parent_and_name.get((method_scope, field_name), [])
+        ]
         if variables:
-            kind = variables[0].type
-            return variables if len(variables) == 1 else [], (
-                "receiver_parameter" if kind == "parameter" else "receiver_local_variable"
-            )
+            use_line = edge.src_start_line or 0
+            use_column = (edge.meta or {}).get("src_start_column", 0)
+
+            def coordinates(item: Entity) -> tuple[int, int]:
+                meta = item.meta or {}
+                return (
+                    int(meta.get("declaration_line", item.start_line or 0)),
+                    int(meta.get("declaration_column", 0)),
+                )
+
+            visible = []
+            for item in variables:
+                meta = item.meta or {}
+                declaration_line, declaration_column = coordinates(item)
+                scope_start = (int(meta.get("scope_start_line", item.start_line or 1)),
+                               int(meta.get("scope_start_column", 0)))
+                scope_end = (int(meta.get("scope_end_line", item.end_line or 1_000_000)),
+                             int(meta.get("scope_end_column", 1_000_000)))
+                use_position = (use_line, use_column)
+                if (
+                    (declaration_line, declaration_column) <= use_position
+                    and scope_start <= use_position <= scope_end
+                ):
+                    extent = (scope_end[0] - scope_start[0], scope_end[1] - scope_start[1])
+                    visible.append((extent, (declaration_line, declaration_column), item))
+            if visible:
+                narrowest = min(item[0] for item in visible)
+                in_nearest_scope = [item for item in visible if item[0] == narrowest]
+                latest_declaration = max(item[1] for item in in_nearest_scope)
+                selected = [item[2] for item in in_nearest_scope if item[1] == latest_declaration]
+                if len(selected) == 1:
+                    kind = selected[0].type
+                    return selected, (
+                        "receiver_parameter" if kind == "parameter" else "receiver_local_variable"
+                    )
+                return [], "ambiguous_receiver_variable"
 
     owners = [source_owner]
     if receiver.startswith("super."):
