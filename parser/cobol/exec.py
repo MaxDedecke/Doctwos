@@ -25,6 +25,26 @@ _RESOURCE_RE = re.compile(
     r"(?:'([^']*)'|\"([^\"]*)\"|([A-Za-z][A-Za-z0-9-]*))\s*\)",
     re.IGNORECASE,
 )
+_DATA_OPERAND_RE = re.compile(
+    r"\b(?P<parameter>INTO|FROM|RESP2?|SET)\s*\(\s*"
+    r"(?P<name>[A-Za-z][A-Za-z0-9-]*)\s*\)",
+    re.IGNORECASE,
+)
+_CICS_DATA_ROLES = {
+    "READ": {"INTO": "WRITES", "SET": "WRITES"},
+    "WRITE": {"FROM": "READS"},
+    "REWRITE": {"FROM": "READS"},
+    "RECEIVE": {"INTO": "WRITES", "SET": "WRITES"},
+    "SEND": {"FROM": "READS"},
+}
+_DLI_DATA_ROLES = {
+    "ISRT": {"FROM": "READS"},
+    "REPL": {"FROM": "READS"},
+    "GU": {"INTO": "WRITES"},
+    "GN": {"INTO": "WRITES"},
+    "GHU": {"INTO": "WRITES"},
+    "GHN": {"INTO": "WRITES"},
+}
 
 
 def scan(
@@ -92,6 +112,44 @@ def scan(
                         **common,
                         "resource_kind": resource.kind,
                         "target_qualified_name": resource_qname,
+                    },
+                )
+            )
+
+        # Keep only explicit identifier operands with well-known direction.
+        # Literal and dynamic resource arguments are handled separately above;
+        # unknown CICS/IMS parameters remain visible only in the source text.
+        role_map = (
+            _CICS_DATA_ROLES if dialect == "CICS"
+            else _DLI_DATA_ROLES if dialect == "DLI"
+            else {}
+        )
+        for match in _DATA_OPERAND_RE.finditer(body):
+            parameter = match.group("parameter").upper()
+            name_value = match.group("name")
+            edge_type = (
+                "WRITES" if parameter in {"RESP", "RESP2"}
+                else role_map.get(operation, {}).get(parameter)
+            )
+            if edge_type is None:
+                continue
+            edges.append(
+                ParsedEdge(
+                    type=edge_type,
+                    src_name=block_qname,
+                    dst_name=name_value,
+                    resolution="unresolved",
+                    src_start_line=block.start_line,
+                    src_end_line=block.end_line,
+                    scope=program.name,
+                    meta={
+                        **common,
+                        "operation": operation,
+                        "parameter": parameter,
+                        "operand_role": {
+                            "READS": "input_buffer",
+                            "WRITES": "output_buffer",
+                        }[edge_type],
                     },
                 )
             )
