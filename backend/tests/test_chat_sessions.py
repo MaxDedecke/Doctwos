@@ -355,6 +355,81 @@ def test_chat_feedback_review_anonymizes_the_session(client, make_session, db_se
     assert own_entry["session_label"] != other_entry["session_label"]
 
 
+def _seed_downvotes(db_session, session_id, count, prefix):
+    """Legt `count` (Frage, Downvote)-Paare an; gibt die Downvote-IDs neueste zuerst zurück."""
+    downvote_ids = []
+    for index in range(count):
+        db_session.add(ChatMessage(session_id=session_id, role="user", content=f"{prefix} Frage {index}"))
+        answer = ChatMessage(
+            session_id=session_id, role="assistant", content=f"{prefix} Antwort {index}", feedback="down"
+        )
+        db_session.add(answer)
+        db_session.flush()
+        downvote_ids.append(answer.id)
+    db_session.commit()
+    return list(reversed(downvote_ids))
+
+
+def test_chat_feedback_review_is_paged_with_total_and_consistent_labels(
+    client, make_session, db_session, other_user
+):
+    """Große Datenmengen: seitenweise Auslieferung, `total` = alle Treffer, und das
+    anonyme Label bleibt über Seiten hinweg pro Sitzung gleich."""
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    first = make_session(user.id)
+    second = make_session(other_user.id)
+    first_ids = _seed_downvotes(db_session, first.id, 3, "pagingprobe-a")
+    second_ids = _seed_downvotes(db_session, second.id, 3, "pagingprobe-b")
+    seeded = set(first_ids) | set(second_ids)
+
+    page_one = client.get("/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 0}).json()
+    page_two = client.get("/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 4}).json()
+
+    assert page_one["total"] == page_two["total"] == 6
+    assert len(page_one["entries"]) == 4
+    assert len(page_two["entries"]) == 2
+    ids = [entry["message_id"] for entry in page_one["entries"] + page_two["entries"]]
+    assert set(ids) == seeded
+    assert ids == sorted(ids, reverse=True)
+
+    labels_by_prefix = {}
+    for entry in page_one["entries"] + page_two["entries"]:
+        prefix = entry["answer"].split()[0]
+        labels_by_prefix.setdefault(prefix, set()).add(entry["session_label"])
+    assert all(len(labels) == 1 for labels in labels_by_prefix.values())
+    assert labels_by_prefix["pagingprobe-a"] != labels_by_prefix["pagingprobe-b"]
+    assert "session_id" not in page_one["entries"][0]
+
+
+def test_chat_feedback_review_search_matches_answer_question_and_label(client, make_session, db_session):
+    user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
+    session = make_session(user.id)
+    db_session.add(ChatMessage(session_id=session.id, role="user", content="Wie funktioniert der Zebrafinken-Import?"))
+    answer = ChatMessage(session_id=session.id, role="assistant", content="Antwort ohne Stichwort.", feedback="down")
+    db_session.add(answer)
+    db_session.commit()
+
+    by_question = client.get("/admin/chat-feedback", params={"q": "zebrafinken"}).json()
+    assert [entry["message_id"] for entry in by_question["entries"]] == [answer.id]
+    assert by_question["entries"][0]["question"] == "Wie funktioniert der Zebrafinken-Import?"
+
+    by_answer = client.get("/admin/chat-feedback", params={"q": "ohne stichwort"}).json()
+    assert answer.id in [entry["message_id"] for entry in by_answer["entries"]]
+
+    label = by_question["entries"][0]["session_label"]
+    by_label = client.get("/admin/chat-feedback", params={"q": str(label)}).json()
+    assert answer.id in [entry["message_id"] for entry in by_label["entries"]]
+
+    assert client.get("/admin/chat-feedback", params={"q": "zebra%finken"}).json()["total"] == 0
+    assert client.get("/admin/chat-feedback", params={"q": "gibtesnicht-xyz"}).json()["total"] == 0
+
+
+def test_chat_feedback_review_rejects_invalid_paging(client):
+    assert client.get("/admin/chat-feedback", params={"limit": 0}).status_code == 422
+    assert client.get("/admin/chat-feedback", params={"limit": 101}).status_code == 422
+    assert client.get("/admin/chat-feedback", params={"offset": -1}).status_code == 422
+
+
 def test_continuing_someone_elses_private_session_via_chat_is_forbidden(
     client, make_session, other_user
 ):

@@ -2,40 +2,74 @@
 
 import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview } from '@/types/domain';
 import { API_URL, api } from '@/app/services/api';
+import { ListPager } from '@/components/settings/ListPager';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Loader2, MessageSquareWarning, RefreshCw } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
+// Die Liste kann sehr groß werden: Es wird immer nur eine Seite geladen und gerendert,
+// Blättern und Suche laufen serverseitig.
+export const FEEDBACK_PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export const EvaluationSettingsTab: React.FC = () => {
   const { language, t } = useLanguage();
   const { theme, currentUser, showToast } = useSettings();
   const [entries, setEntries] = useState<ChatFeedbackReview[]>([]);
   const [total, setTotal] = useState(0);
-  const [limit, setLimit] = useState(100);
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
+  const requestCounter = useRef(0);
+  // Toast/Übersetzung nur beim Fehler nötig; über ein Ref, damit ihre (ggf. pro Render
+  // neue) Identität das Nachladen der Liste nicht auslöst.
+  const notifyRef = useRef({ showToast, t });
+  useEffect(() => {
+    notifyRef.current = { showToast, t };
+  });
   const [diagnosticSettings, setDiagnosticSettings] = useState<ChatFeedbackDiagnosticSettings | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const isDark = theme === 'dark';
 
-  const refresh = async () => {
-    if (!currentUser?.is_admin) return;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQuery(queryInput.trim());
+      setPage(0);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [queryInput]);
+
+  const isAdmin = Boolean(currentUser?.is_admin);
+  const refresh = useCallback(async () => {
+    if (!isAdmin) return;
+    const requestId = ++requestCounter.current;
     setLoading(true);
     try {
-      const res = await api.getNegativeChatFeedback();
+      const res = await api.getNegativeChatFeedback({
+        limit: FEEDBACK_PAGE_SIZE,
+        offset: page * FEEDBACK_PAGE_SIZE,
+        ...(query ? { q: query } : {}),
+      });
+      if (requestId !== requestCounter.current) return; // veraltete Antwort
+      const nextTotal = res.data.total ?? res.data.entries?.length ?? 0;
       setEntries(res.data.entries || []);
-      setTotal(res.data.total ?? res.data.entries?.length ?? 0);
-      setLimit(res.data.limit ?? 100);
+      setTotal(nextTotal);
+      setSearchTruncated(Boolean(res.data.search_truncated));
+      const lastPage = Math.max(0, Math.ceil(nextTotal / FEEDBACK_PAGE_SIZE) - 1);
+      if (page > lastPage) setPage(lastPage);
     } catch (err) {
+      if (requestId !== requestCounter.current) return;
       console.error('Failed to load negative chat feedback', err);
-      showToast(t('settings.evaluationTab.feedbackLoadFailed'), 'error', err);
+      notifyRef.current.showToast(notifyRef.current.t('settings.evaluationTab.feedbackLoadFailed'), 'error', err);
     } finally {
-      setLoading(false);
+      if (requestId === requestCounter.current) setLoading(false);
     }
-  };
+  }, [isAdmin, page, query]);
 
   const refreshDiagnosticSettings = async () => {
     if (!currentUser?.is_admin) return;
@@ -47,13 +81,21 @@ export const EvaluationSettingsTab: React.FC = () => {
     }
   };
 
+  // Load sensitive review data only while an administrator has this tab open.
   useEffect(() => {
-    if (!currentUser?.is_admin) return;
-    void refresh();
-    void refreshDiagnosticSettings();
-    // Load sensitive review data only while an administrator has this tab open.
+    if (!isAdmin) return;
+    (async () => {
+      await refresh();
+    })();
+  }, [isAdmin, refresh]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    (async () => {
+      await refreshDiagnosticSettings();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.is_admin]);
+  }, [isAdmin]);
 
   const saveDiagnosticSettings = async (next: Omit<ChatFeedbackDiagnosticSettings, 'updated_at'>) => {
     setSettingsSaving(true);
@@ -79,13 +121,6 @@ export const EvaluationSettingsTab: React.FC = () => {
     }
   };
 
-  const filteredEntries = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase(language === 'de' ? 'de-DE' : 'en-US');
-    if (!needle) return entries;
-    return entries.filter(entry => [entry.question, entry.answer, String(entry.session_label)]
-      .some(value => value?.toLocaleLowerCase(language === 'de' ? 'de-DE' : 'en-US').includes(needle)));
-  }, [entries, language, query]);
-
   const muted = isDark ? 'text-ds-zinc-400' : 'text-ds-zinc-600';
   const border = isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200';
   const surface = isDark ? 'bg-ds-zinc-950/30' : 'bg-ds-zinc-50';
@@ -109,8 +144,8 @@ export const EvaluationSettingsTab: React.FC = () => {
         </div>
 
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className={cn('text-[10px]', muted)}>{t('settings.evaluationTab.feedbackCount', { shown: filteredEntries.length, total, limit })}</p>
-          <input type="search" value={query} onChange={event => setQuery(event.target.value)}
+          <p className={cn('text-[10px]', muted)}>{t('settings.evaluationTab.feedbackTotal', { total })}</p>
+          <input type="search" value={queryInput} onChange={event => setQueryInput(event.target.value)}
             placeholder={t('settings.evaluationTab.feedbackSearch')}
             aria-label={t('settings.evaluationTab.feedbackSearch')}
             className={cn('h-8 w-full rounded-md border px-2 text-xs outline-none focus:border-ds-indigo-500 sm:w-64', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-white text-ds-zinc-900 placeholder:text-ds-zinc-400')} />
@@ -119,12 +154,10 @@ export const EvaluationSettingsTab: React.FC = () => {
         {loading && entries.length === 0 ? (
           <p className={cn('py-6 text-center text-xs', muted)}>{t('settings.evaluationTab.feedbackLoading')}</p>
         ) : entries.length === 0 ? (
-          <div className={cn('rounded-lg border p-4 text-center text-xs', border, muted)}>{t('settings.evaluationTab.feedbackEmpty')}</div>
-        ) : filteredEntries.length === 0 ? (
-          <div className={cn('rounded-lg border p-4 text-center text-xs', border, muted)}>{t('settings.evaluationTab.feedbackNoMatches')}</div>
+          <div className={cn('rounded-lg border p-4 text-center text-xs', border, muted)}>{t(query ? 'settings.evaluationTab.feedbackNoMatches' : 'settings.evaluationTab.feedbackEmpty')}</div>
         ) : (
           <div className={cn('max-h-[52vh] space-y-2 overflow-y-auto overscroll-contain rounded-md border p-2', border)}>
-            {filteredEntries.map(entry => (
+            {entries.map(entry => (
               <details key={entry.message_id} className={cn('group rounded-md border p-3', border, surface)}>
                 <summary className="flex cursor-pointer list-none items-start gap-2 outline-none [&::-webkit-details-marker]:hidden">
                   <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
@@ -154,6 +187,11 @@ export const EvaluationSettingsTab: React.FC = () => {
             ))}
           </div>
         )}
+
+        {searchTruncated && query && <p className={cn('mt-2 text-[10px]', muted)}>{t('settings.evaluationTab.feedbackSearchTruncated')}</p>}
+        <div className="mt-2">
+          <ListPager page={page} pageSize={FEEDBACK_PAGE_SIZE} shown={entries.length} total={total} loading={loading} theme={theme} onPageChange={setPage} />
+        </div>
       </section>
 
       {diagnosticSettings && <section className={cn('space-y-3 rounded-lg border p-3 sm:p-4', border, surface)}>

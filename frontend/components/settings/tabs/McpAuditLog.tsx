@@ -2,11 +2,12 @@
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { ListPager } from '@/components/settings/ListPager';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import type { McpAuditEntry } from '@/types/domain';
-import { ChevronDown, ChevronLeft, ChevronRight, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ChevronDown, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 // Der Audit-Trail kann sehr groß werden. Es wird deshalb immer nur eine Seite
@@ -80,9 +81,6 @@ export const McpAuditLog: React.FC = () => {
 
   if (!isAdmin) return null;
 
-  const pageCount = Math.max(1, Math.ceil(total / MCP_AUDIT_PAGE_SIZE));
-  const from = total === 0 ? 0 : page * MCP_AUDIT_PAGE_SIZE + 1;
-  const to = page * MCP_AUDIT_PAGE_SIZE + entries.length;
   const filtered = statusFilter !== 'all' || toolFilter !== '';
   const muted = dark ? 'text-ds-zinc-500' : 'text-ds-zinc-500';
   const panel = dark ? 'bg-ds-zinc-950/20 border-ds-zinc-800' : 'bg-ds-zinc-50 border-ds-zinc-200';
@@ -214,22 +212,15 @@ export const McpAuditLog: React.FC = () => {
         </div>
       )}
 
-      {total > 0 && (
-        <div className="flex items-center justify-between gap-3 text-[10px]">
-          <span className={muted} data-testid="mcp-audit-range">{t('settings.mcpAudit.range', { from, to, total })}</span>
-          <div className="flex items-center gap-1.5">
-            <Button type="button" size="sm" variant="outline" disabled={page === 0 || loading} onClick={() => { setPage(page - 1); setExpandedId(null); }}
-              aria-label={t('settings.mcpAudit.previousPage')} className={cn('h-7 w-7 p-0 focus:ring-0', control)}>
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </Button>
-            <span className={cn('tabular-nums', muted)}>{t('settings.mcpAudit.pageOf', { page: page + 1, pages: pageCount })}</span>
-            <Button type="button" size="sm" variant="outline" disabled={page + 1 >= pageCount || loading} onClick={() => { setPage(page + 1); setExpandedId(null); }}
-              aria-label={t('settings.mcpAudit.nextPage')} className={cn('h-7 w-7 p-0 focus:ring-0', control)}>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <ListPager
+        page={page}
+        pageSize={MCP_AUDIT_PAGE_SIZE}
+        shown={entries.length}
+        total={total}
+        loading={loading}
+        theme={theme}
+        onPageChange={(next) => { setPage(next); setExpandedId(null); }}
+      />
     </div>
   );
 };

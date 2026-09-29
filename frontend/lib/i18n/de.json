@@ -621,7 +621,8 @@
       "feedbackLoading": "Bewertungen werden geladen…",
       "feedbackEmpty": "Bisher wurden keine Chat-Antworten negativ bewertet.",
       "feedbackNoMatches": "Keine Bewertungen passen zur Suche.",
-      "feedbackCount": "{{shown}} von {{total}} Einträgen angezeigt (maximal {{limit}} pro Abruf)",
+      "feedbackTotal": "Gesamt: {{total}} negativ bewertete Antworten",
+      "feedbackSearchTruncated": "Die Suche berücksichtigt nur die neuesten 5.000 Bewertungen.",
       "feedbackSearch": "Frage, Antwort oder Sitzung durchsuchen",
       "feedbackLoadFailed": "Bewertungen konnten nicht geladen werden",
       "feedbackSession": "Chat-Sitzung #{{id}}",
@@ -728,7 +729,9 @@
         "success": "Erfolgreich",
         "error": "Fehler"
       },
-      "toolFilterPlaceholder": "Werkzeug suchen…",
+      "toolFilterPlaceholder": "Werkzeug suchen…"
+    },
+    "pager": {
       "range": "Einträge {{from}}–{{to}} von {{total}}",
       "pageOf": "Seite {{page}} / {{pages}}",
       "previousPage": "Vorherige Seite",

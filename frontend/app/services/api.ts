@@ -163,8 +163,8 @@ export const api = {
             `${API_URL}/chat/messages/${messageId}/view-actions/${encodeURIComponent(actionId)}`,
             { status },
         ),
-    getNegativeChatFeedback: () =>
-        axios.get<{ entries: ChatFeedbackReview[]; total: number; limit: number }>(`${API_URL}/admin/chat-feedback`),
+    getNegativeChatFeedback: (params: { limit?: number; offset?: number; q?: string } = {}) =>
+        axios.get<{ entries: ChatFeedbackReview[]; total: number; offset?: number; limit: number; search_truncated?: boolean }>(`${API_URL}/admin/chat-feedback`, { params }),
     getFeedbackDiagnosticSettings: () => axios.get<ChatFeedbackDiagnosticSettings>(`${API_URL}/feedback-diagnostics/settings`),
     updateFeedbackDiagnosticSettings: (data: Omit<ChatFeedbackDiagnosticSettings, 'updated_at'>) =>
         axios.patch<ChatFeedbackDiagnosticSettings>(`${API_URL}/feedback-diagnostics/settings`, data),

@@ -31,9 +31,10 @@ from time import monotonic
 from typing import Callable, List, Optional
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, aliased
 
 import core.config as cfg
 from api.schemas import (
@@ -1850,8 +1851,16 @@ def update_chat_message_view_action(
     return {"id": msg.id, "action_id": action_id, "status": body.status}
 
 
+# Obergrenze der neuesten Downvotes, die eine Textsuche durchsieht (Inhalte sind
+# verschlüsselt und werden dafür in Python entschlüsselt).
+FEEDBACK_SEARCH_SCAN_LIMIT = 5000
+
+
 @router.get("/admin/chat-feedback")
 def get_negative_chat_feedback(
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    q: str | None = Query(default=None, max_length=200),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -1862,51 +1871,118 @@ def get_negative_chat_feedback(
     Antwort wird die unmittelbar vorhergehende Nutzerfrage derselben Sitzung
     geliefert, ohne Chatverläufe oder Daten an einen externen Dienst zu senden.
 
+    Die Liste wird seitenweise (`limit`/`offset`) ausgeliefert und lässt sich
+    serverseitig per `q` (Antwort, Frage oder Sitzungslabel) filtern; `total`
+    ist die Trefferzahl des Filters, nicht die Seitengröße. Die Textsuche sieht
+    höchstens die neuesten FEEDBACK_SEARCH_SCAN_LIMIT Downvotes durch und meldet
+    das mit `search_truncated`.
+
     Wer die Sitzung geführt hat, wird bewusst NICHT ausgegeben (Erweiterung
     11.09.2026): ein Admin, der `session_id` sähe, könnte sie gegen
     `ChatSession.owner_id` nachschlagen und den Sitzungsinhaber ermitteln.
     Downvotes sollen ohne Angst vor Bloßstellung genutzt werden — deshalb
-    trägt jede Zeile nur ein pro Aufruf neu vergebenes, fortlaufendes
-    `session_label`, das lediglich innerhalb dieser Auswertung erkennen lässt,
-    ob zwei Einträge zum selben Gespräch gehören, aber keinen Rückschluss auf
-    die echte Sitzung oder ihren Inhaber erlaubt.
+    trägt jede Zeile nur ein `session_label`, das lediglich innerhalb dieser
+    Auswertung erkennen lässt, ob zwei Einträge zum selben Gespräch gehören,
+    aber keinen Rückschluss auf die echte Sitzung oder ihren Inhaber erlaubt.
+    Das Label ist der Rang der Sitzung nach ihrem jüngsten Downvote und wird
+    über ALLE Downvotes berechnet, damit es über Seiten hinweg konsistent bleibt.
     """
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
 
-    messages = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.role == "assistant", ChatMessage.feedback == "down")
-        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
-        .limit(100)
+    downvoted = (ChatMessage.role == "assistant", ChatMessage.feedback == "down")
+
+    session_rows = (
+        db.query(ChatMessage.session_id)
+        .filter(*downvoted)
+        .group_by(ChatMessage.session_id)
+        .order_by(func.max(ChatMessage.created_at).desc(), func.max(ChatMessage.id).desc())
         .all()
     )
-    entries = []
-    session_labels: dict[int, int] = {}
-    for message in messages:
-        question = (
-            db.query(ChatMessage)
-            .filter(
-                ChatMessage.session_id == message.session_id,
-                ChatMessage.role == "user",
-                ChatMessage.id < message.id,
-            )
-            .order_by(ChatMessage.id.desc())
-            .first()
+    session_labels = {row[0]: index + 1 for index, row in enumerate(session_rows)}
+
+    earlier_user_message = aliased(ChatMessage)
+    question_sql = (
+        db.query(earlier_user_message.content)
+        .filter(
+            earlier_user_message.session_id == ChatMessage.session_id,
+            earlier_user_message.role == "user",
+            earlier_user_message.id < ChatMessage.id,
         )
-        session_label = session_labels.setdefault(message.session_id, len(session_labels) + 1)
-        entries.append(
-            {
-                "message_id": message.id,
-                "session_label": session_label,
-                "question": question.content if question else None,
-                "answer": message.content,
-                "sources_json": message.sources_json or [],
-                "metadata_json": message.metadata_json or {},
-                "created_at": message.created_at.isoformat() if message.created_at else None,
-            }
+        .order_by(earlier_user_message.id.desc())
+        .limit(1)
+        .correlate(ChatMessage)
+        .scalar_subquery()
+    )
+
+    ordering = (ChatMessage.created_at.desc(), ChatMessage.id.desc())
+    needle = (q or "").strip().casefold()
+    search_truncated = False
+    if needle:
+        # Nachrichteninhalte sind at-rest verschlüsselt (siehe models.database) und
+        # lassen sich deshalb nicht per SQL-LIKE durchsuchen. Die Suche läuft daher
+        # gestreamt auf den entschlüsselten Werten und hält nur die Treffer-IDs im
+        # Speicher; nur die angeforderte Seite wird danach vollständig geladen.
+        matching_sessions = {sid for sid, label in session_labels.items() if str(label) == needle}
+        scan = (
+            db.query(ChatMessage, question_sql.label("question"))
+            .filter(*downvoted)
+            .order_by(*ordering)
+            .limit(FEEDBACK_SEARCH_SCAN_LIMIT + 1)
+            .yield_per(200)
         )
-    return {"entries": entries, "total": len(entries), "limit": 100}
+        matching_ids: list[int] = []
+        scanned = 0
+        for message, question in scan:
+            scanned += 1
+            if scanned > FEEDBACK_SEARCH_SCAN_LIMIT:
+                search_truncated = True
+                break
+            if (
+                message.session_id in matching_sessions
+                or needle in (message.content or "").casefold()
+                or needle in (question or "").casefold()
+            ):
+                matching_ids.append(message.id)
+        total = len(matching_ids)
+        page_ids = matching_ids[offset : offset + limit]
+        rows = (
+            db.query(ChatMessage, question_sql.label("question"))
+            .filter(ChatMessage.id.in_(page_ids))
+            .order_by(*ordering)
+            .all()
+            if page_ids
+            else []
+        )
+    else:
+        total = db.query(func.count(ChatMessage.id)).filter(*downvoted).scalar() or 0
+        rows = (
+            db.query(ChatMessage, question_sql.label("question"))
+            .filter(*downvoted)
+            .order_by(*ordering)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+    entries = [
+        {
+            "message_id": message.id,
+            "session_label": session_labels.get(message.session_id, len(session_labels) + 1),
+            "question": question,
+            "answer": message.content,
+            "sources_json": message.sources_json or [],
+            "metadata_json": message.metadata_json or {},
+            "created_at": message.created_at.isoformat() if message.created_at else None,
+        }
+        for message, question in rows
+    ]
+    return {
+        "entries": entries,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "search_truncated": search_truncated,
+    }
 
 
 @router.delete("/chat/sessions/{session_id}")

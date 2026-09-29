@@ -621,7 +621,8 @@
       "feedbackLoading": "Loading ratings…",
       "feedbackEmpty": "No chat answers have been rated negatively.",
       "feedbackNoMatches": "No ratings match this search.",
-      "feedbackCount": "Showing {{shown}} of {{total}} entries (up to {{limit}} per request)",
+      "feedbackTotal": "Total: {{total}} downvoted answers",
+      "feedbackSearchTruncated": "Search only covers the newest 5,000 ratings.",
       "feedbackSearch": "Search question, answer, or session",
       "feedbackLoadFailed": "Could not load ratings",
       "feedbackSession": "Chat session #{{id}}",
@@ -728,7 +729,9 @@
         "success": "Successful",
         "error": "Error"
       },
-      "toolFilterPlaceholder": "Search tool…",
+      "toolFilterPlaceholder": "Search tool…"
+    },
+    "pager": {
       "range": "Entries {{from}}–{{to}} of {{total}}",
       "pageOf": "Page {{page}} / {{pages}}",
       "previousPage": "Previous page",

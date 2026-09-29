@@ -43,7 +43,7 @@ describe('McpAuditLog', () => {
 
     expect(await screen.findAllByTestId('mcp-audit-row')).toHaveLength(20);
     expect(apiMocks.getMcpToolAuditLogs).toHaveBeenCalledWith({ limit: 20, offset: 0 });
-    expect(screen.getByTestId('mcp-audit-range').textContent).toBe('settings.mcpAudit.range:1/20/500');
+    expect(screen.getByTestId('list-pager-range').textContent).toBe('settings.pager.range:1/20/500');
   });
 
   it('pages forward and back with server-side offsets and never keeps more than one page', async () => {
@@ -54,23 +54,23 @@ describe('McpAuditLog', () => {
     render(<McpAuditLog />);
     await screen.findAllByTestId('mcp-audit-row');
 
-    fireEvent.click(screen.getByLabelText('settings.mcpAudit.nextPage'));
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
     await waitFor(() => expect(apiMocks.getMcpToolAuditLogs).toHaveBeenLastCalledWith({ limit: 20, offset: 20 }));
     expect(await screen.findByText('tool_25')).toBeTruthy();
     expect(screen.queryByText('tool_45')).toBeNull();
     expect(screen.getAllByTestId('mcp-audit-row')).toHaveLength(20);
 
-    fireEvent.click(screen.getByLabelText('settings.mcpAudit.nextPage'));
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
     await waitFor(() => expect(apiMocks.getMcpToolAuditLogs).toHaveBeenLastCalledWith({ limit: 20, offset: 40 }));
     await waitFor(() => expect(screen.getAllByTestId('mcp-audit-row')).toHaveLength(5));
-    expect((screen.getByLabelText('settings.mcpAudit.nextPage') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText('settings.pager.nextPage') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('disables the previous button on the first page', async () => {
     apiMocks.getMcpToolAuditLogs.mockResolvedValue(page(range(30, 20), 30));
     render(<McpAuditLog />);
     await screen.findAllByTestId('mcp-audit-row');
-    expect((screen.getByLabelText('settings.mcpAudit.previousPage') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText('settings.pager.previousPage') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('expands a row on click to show arguments, trace id and error, collapsed by default', async () => {
@@ -116,7 +116,7 @@ describe('McpAuditLog', () => {
     apiMocks.getMcpToolAuditLogs.mockResolvedValue({ data: { entries: [], total: 0, offset: 0, limit: 20, retention_days: 30 } });
     render(<McpAuditLog />);
     expect(await screen.findByText('settings.mcpAudit.empty')).toBeTruthy();
-    expect(screen.queryByTestId('mcp-audit-range')).toBeNull();
+    expect(screen.queryByTestId('list-pager-range')).toBeNull();
   });
 
   it('jumps back when retention pruning removed the current last page', async () => {
@@ -128,9 +128,9 @@ describe('McpAuditLog', () => {
       .mockResolvedValue(page(range(10, 10), 30, 20));
     render(<McpAuditLog />);
     await screen.findAllByTestId('mcp-audit-row');
-    fireEvent.click(screen.getByLabelText('settings.mcpAudit.nextPage'));
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
     await screen.findByText('tool_25');
-    fireEvent.click(screen.getByLabelText('settings.mcpAudit.nextPage'));
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
     await waitFor(() => expect(screen.getAllByTestId('mcp-audit-row')).toHaveLength(5));
 
     fireEvent.click(screen.getByText('settings.mcpAudit.refresh'));
