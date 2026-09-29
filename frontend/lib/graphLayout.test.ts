@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ARROW_LENGTH,
+  ARROW_MAX_EDGE_FRACTION,
+  ARROW_MIN_SCREEN_PX,
+  arrowLength,
+  edgeLineWidth,
   ARROW_LENGTH_SELECTED,
   CHARGE_DISTANCE_MAX,
   GRAPH_COOLDOWN_MS,
@@ -53,5 +57,46 @@ describe('graph layout parameters', () => {
   it('spaces the fixed neighborhood layers and rows wider than before (130 / 70)', () => {
     expect(NEIGHBORHOOD_LAYER_GAP).toBeGreaterThan(130);
     expect(NEIGHBORHOOD_ROW_GAP).toBeGreaterThan(70);
+  });
+});
+
+describe('arrow length', () => {
+  const at = (zoom: number, options: { selected?: boolean; score?: number | null; exposedLength?: number | null } = {}) => {
+    const selected = options.selected ?? false;
+    return arrowLength({ selected, lineWidth: edgeLineWidth(selected, options.score ?? null), zoom, exposedLength: options.exposedLength ?? null });
+  };
+
+  it('stands in a fair ratio to the edge: thicker (higher scored) edges get larger arrowheads', () => {
+    expect(at(1, { score: 0.5 })).toBe(ARROW_MIN_SCREEN_PX); // Linienbreite 1,5 -> 9 < Mindestmaß auf dem Bildschirm (14)
+    expect(at(1, { score: 0.5 })).toBeGreaterThanOrEqual(ARROW_LENGTH);
+    expect(at(1, { score: 1 })).toBeGreaterThan(at(1, { score: 0.5 }));
+    expect(at(1, { score: 1 })).toBe(edgeLineWidth(false, 1) * 6);
+    expect(at(1, { selected: true })).toBe(edgeLineWidth(true, null) * 6); // 4,5 * 6 = 27
+  });
+
+  it('keeps the arrow at least ARROW_MIN_SCREEN_PX long on screen when zoomed far out', () => {
+    for (const zoom of [0.5, 0.3, 0.2, 0.1, 0.05]) {
+      expect(at(zoom) * zoom).toBeGreaterThanOrEqual(ARROW_MIN_SCREEN_PX - 1e-9);
+    }
+  });
+
+  it('grows monotonically while zooming out and stays finite at extreme zoom levels', () => {
+    const lengths = [1, 0.6, 0.3, 0.15, 0.08].map((zoom) => at(zoom));
+    expect([...lengths].sort((a, b) => a - b)).toEqual(lengths);
+    expect(Number.isFinite(at(0))).toBe(true);
+    expect(at(0)).toBeLessThanOrEqual(ARROW_MIN_SCREEN_PX / 0.02);
+  });
+
+  it('makes the selected edge arrow larger than an ordinary one at every zoom', () => {
+    for (const zoom of [1, 0.3, 0.1]) {
+      expect(at(zoom, { selected: true })).toBeGreaterThan(at(zoom));
+    }
+  });
+
+  it('never lets an arrow cover more than its share of a short visible edge', () => {
+    expect(at(0.1, { exposedLength: 100 })).toBeCloseTo(100 * ARROW_MAX_EDGE_FRACTION, 6);
+    expect(at(1, { exposedLength: 30 })).toBeLessThanOrEqual(30 * ARROW_MAX_EDGE_FRACTION);
+    // Unbekannte Länge: kein Deckel
+    expect(at(0.1, { exposedLength: null })).toBeGreaterThan(100);
   });
 });

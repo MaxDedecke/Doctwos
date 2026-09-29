@@ -20,16 +20,16 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
 import {
-  ARROW_LENGTH,
-  ARROW_LENGTH_SELECTED,
   BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO,
   CHARGE_DISTANCE_MAX,
   GRAPH_ALPHA_DECAY,
   GRAPH_COOLDOWN_MS,
   NEIGHBORHOOD_LAYER_GAP,
   NEIGHBORHOOD_ROW_GAP,
+  arrowLength,
   chargeStrength,
   collisionRadius,
+  edgeLineWidth,
   linkDistance,
   radialRadius,
 } from '@/lib/graphLayout';
@@ -993,10 +993,27 @@ export function KnowledgeGraphView({
     return offset || 0.05;
   }, [edgePairMap]);
 
+  // Aktueller Zoomfaktor des Graphen; die Pfeillänge wird pro Zeichenvorgang daraus abgeleitet,
+  // damit die Richtung auch weit herausgezoomt sichtbar bleibt (siehe lib/graphLayout.ts).
+  const zoomRef = useRef(1);
+
+  const getEdgeArrowLength = useCallback((l: GraphEdge) => {
+    const selected = l.id === selectedEdgeId;
+    const source = typeof l.source === 'object' && l.source !== null ? (l.source as GraphNode) : null;
+    const target = typeof l.target === 'object' && l.target !== null ? (l.target as GraphNode) : null;
+    let exposedLength: number | null = null;
+    if (source && target && source.x != null && source.y != null && target.x != null && target.y != null) {
+      exposedLength = Math.hypot(target.x - source.x, target.y - source.y)
+        - nodeRadius(source, nodeDegrees.get(source.id) ?? 0)
+        - nodeRadius(target, nodeDegrees.get(target.id) ?? 0);
+    }
+    return arrowLength({ selected, lineWidth: edgeLineWidth(selected, l.score), zoom: zoomRef.current, exposedLength });
+  }, [selectedEdgeId, nodeDegrees]);
+
   const getLinkArrowLength = useCallback((l: GraphEdge) => {
     if (!isEdgeDirected(l)) return 0;
-    return l.id === selectedEdgeId ? ARROW_LENGTH_SELECTED : ARROW_LENGTH;
-  }, [selectedEdgeId]);
+    return getEdgeArrowLength(l);
+  }, [getEdgeArrowLength]);
 
   const getLinkArrowRelPos = useCallback((l: GraphEdge) => {
     if (!isEdgeDirected(l)) return 0.5;
@@ -1033,10 +1050,10 @@ export function KnowledgeGraphView({
     const tipDistance = nodeRadius(source, nodeDegrees.get(source.id) ?? 0) + 1;
     const tipX = source.x + ux * tipDistance;
     const tipY = source.y + uy * tipDistance;
-    const arrowLength = edge.id === selectedEdgeId ? ARROW_LENGTH_SELECTED : ARROW_LENGTH;
-    const halfWidth = arrowLength * BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO;
-    const baseX = tipX - ux * arrowLength;
-    const baseY = tipY - uy * arrowLength;
+    const arrowSize = getEdgeArrowLength(edge);
+    const halfWidth = arrowSize * BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO;
+    const baseX = tipX - ux * arrowSize;
+    const baseY = tipY - uy * arrowSize;
 
     ctx.save();
     ctx.fillStyle = edge.id === selectedEdgeId
@@ -1049,7 +1066,7 @@ export function KnowledgeGraphView({
     ctx.closePath();
     ctx.fill();
     ctx.restore();
-  }, [isDark, selectedEdgeId, rawNodes, nodeDegrees]);
+  }, [isDark, selectedEdgeId, rawNodes, nodeDegrees, getEdgeArrowLength]);
 
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
@@ -1869,7 +1886,8 @@ export function KnowledgeGraphView({
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
               }}
-              linkWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 4.5 : Math.max(1.2, (l.score ?? 0.5) * 3)}
+              linkWidth={(l: GraphEdge) => edgeLineWidth(l.id === selectedEdgeId, l.score)}
+              onZoom={(transform: { k: number }) => { zoomRef.current = transform.k; }}
               linkDirectionalArrowLength={getLinkArrowLength}
               linkDirectionalArrowRelPos={getLinkArrowRelPos}
               linkCanvasObject={drawBidirectionalSourceArrow}
