@@ -786,7 +786,11 @@
         "program": "Programs",
         "copybook": "Copybooks",
         "sql_table": "Tables",
-        "jcl_job": "Jobs"
+        "jcl_job": "Jobs",
+        "class": "Classes",
+        "interface": "Interfaces",
+        "method": "Methods",
+        "maven_module": "Modules"
       },
       "previewLabel": "Will be entered",
       "tags": {
@@ -797,7 +801,10 @@
         "explainConcept": "Concept",
         "draftText": "Text",
         "summarizeText": "Condense",
-        "brainstorm": "Ideas"
+        "brainstorm": "Ideas",
+        "explainClass": "Class",
+        "traceMethod": "Call chain",
+        "findProperty": "Field / config"
       },
       "questions": {
         "evidence": {
@@ -806,14 +813,20 @@
           "callers": "Who calls {{name}}?",
           "copybook": "Where is the copybook {{name}} used?",
           "table": "Which programs access the table {{name}}?",
-          "job": "Which programs does the job {{name}} start?"
+          "job": "Which programs does the job {{name}} start?",
+          "classExplain": "What does the class {{name}} do?",
+          "classUsers": "Where is the class {{name}} used?",
+          "interfaceImpls": "Which classes implement {{name}}?"
         },
         "normal": {
           "call": "How does a CALL between COBOL programs work?",
           "paragraph": "What separates a section from a paragraph?",
           "copybook": "What are copybooks for?",
           "sql": "How does COBOL reach DB2 via EXEC SQL?",
-          "jcl": "What is a JCL step in a batch job?"
+          "jcl": "What is a JCL step in a batch job?",
+          "javaInterface": "What is the difference between an abstract class and an interface?",
+          "javaDi": "How does dependency injection work in Spring?",
+          "javaMaven": "How do Maven modules and dependencies fit together?"
         }
       }
     },
@@ -844,6 +857,24 @@
         "desc": "Where is a field (copybook, VSAM record, DB2 table) defined and where is it used?",
         "clarify": "Which data field would you like to find?",
         "template": "Find the data field "
+      },
+      "explainClass": {
+        "label": "Explain class",
+        "desc": "Purpose, interfaces, dependencies and key methods of a Java class",
+        "clarify": "Which class should I explain?",
+        "template": "Explain the class "
+      },
+      "traceMethod": {
+        "label": "Trace call chain",
+        "desc": "Who calls this method (service, REST endpoint, job), and what does it call?",
+        "clarify": "For which method would you like to trace the call chain?",
+        "template": "Trace the call chain of the method "
+      },
+      "findProperty": {
+        "label": "Find field or config",
+        "desc": "Where is a field, property or database column defined and where is it used?",
+        "clarify": "Which field or property would you like to find?",
+        "template": "Find the usages of "
       }
     },
     "generatingResponse": "Generating response...",

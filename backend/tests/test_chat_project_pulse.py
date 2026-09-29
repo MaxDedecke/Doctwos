@@ -30,10 +30,28 @@ def test_project_pulse_returns_counts_and_real_names(client, pulse_project):
     resp = client.get("/chat/project-pulse", params={"project_id": pulse_project.id})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["counts"] == {"program": 1, "copybook": 1, "sql_table": 0, "jcl_job": 0}
+    assert body["counts"] == {
+        "program": 1, "copybook": 1, "sql_table": 0, "jcl_job": 0,
+        "class": 0, "interface": 0, "method": 0, "maven_module": 0,
+    }
     assert body["samples"]["program"] == ["PAYROLL"]
     assert body["samples"]["copybook"] == ["ACCTREC"]
     assert body["samples"]["sql_table"] == []
+
+
+def test_project_pulse_counts_java_but_samples_only_types_worth_asking_about(client, pulse_project, db_session):
+    db_session.add_all(
+        [
+            CodeEntity(project_id=pulse_project.id, name="UserLogic", type="class", file_path="U.java", qualified_name="a.UserLogic"),
+            CodeEntity(project_id=pulse_project.id, name="getName", type="method", file_path="U.java", qualified_name="a.UserLogic#getName()"),
+        ]
+    )
+    db_session.commit()
+    body = client.get("/chat/project-pulse", params={"project_id": pulse_project.id}).json()
+    assert body["counts"]["class"] == 1
+    assert body["counts"]["method"] == 1
+    assert body["samples"]["class"] == ["UserLogic"]
+    assert body["samples"]["method"] == []
 
 
 def test_project_pulse_requires_login(unauthenticated_client, pulse_project):

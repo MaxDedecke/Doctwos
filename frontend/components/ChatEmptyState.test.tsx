@@ -47,11 +47,28 @@ describe('ChatEmptyState', () => {
     expect(screen.queryByText('COBOL-Programm erklären')).toBeNull();
   });
 
+  it('schneidet Karten und Zähler bei einem Java-Projekt auf Java zu und schimmert statt zu blinken', async () => {
+    vi.mocked(api.getProjectPulse).mockResolvedValue(axiosResponse({
+      project_id: 7,
+      counts: { program: 0, copybook: 0, sql_table: 0, jcl_job: 0, class: 12, interface: 3, method: 90, maven_module: 0 },
+      samples: { program: [], copybook: [], sql_table: [], jcl_job: [], class: ['UserLogic'], interface: ['UserService'], method: [], maven_module: [] },
+    }));
+    renderEmpty({ selectedProject: project as never });
+
+    await waitFor(() => expect(screen.getByText('Klasse erklären')).toBeTruthy());
+    expect(screen.getByText('Feld oder Konfiguration finden')).toBeTruthy();
+    expect(screen.queryByText('COBOL-Programm erklären')).toBeNull();
+    expect(screen.getByText('Klassen')).toBeTruthy();
+    expect(screen.queryByText('Programme')).toBeNull();
+    expect(document.querySelectorAll('.ds-card-shimmer')).toHaveLength(4);
+    expect(document.querySelector('#chat-hint-button-0 .animate-ds-caret')).toBeNull();
+  });
+
   it('tippt im Evidenz-Modus eine Frage mit einem echten Programmnamen aus dem Projekt', async () => {
     vi.mocked(api.getProjectPulse).mockResolvedValue(axiosResponse({
       project_id: 7,
-      counts: { program: 1, copybook: 0, sql_table: 0, jcl_job: 0 },
-      samples: { program: ['PAYROLL'], copybook: [], sql_table: [], jcl_job: [] },
+      counts: { program: 1, copybook: 0, sql_table: 0, jcl_job: 0, class: 0, interface: 0, method: 0, maven_module: 0 },
+      samples: { program: ['PAYROLL'], copybook: [], sql_table: [], jcl_job: [], class: [], interface: [], method: [], maven_module: [] },
     }));
     renderEmpty({ selectedProject: project as never });
 

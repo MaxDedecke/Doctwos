@@ -786,7 +786,11 @@
         "program": "Programme",
         "copybook": "Copybooks",
         "sql_table": "Tabellen",
-        "jcl_job": "Jobs"
+        "jcl_job": "Jobs",
+        "class": "Klassen",
+        "interface": "Interfaces",
+        "method": "Methoden",
+        "maven_module": "Module"
       },
       "previewLabel": "Wird eingetragen",
       "tags": {
@@ -797,7 +801,10 @@
         "explainConcept": "Konzept",
         "draftText": "Text",
         "summarizeText": "Kürzen",
-        "brainstorm": "Ideen"
+        "brainstorm": "Ideen",
+        "explainClass": "Klasse",
+        "traceMethod": "Aufrufkette",
+        "findProperty": "Feld / Config"
       },
       "questions": {
         "evidence": {
@@ -806,14 +813,20 @@
           "callers": "Wer ruft {{name}} auf?",
           "copybook": "Wo wird das Copybook {{name}} verwendet?",
           "table": "Welche Programme greifen auf die Tabelle {{name}} zu?",
-          "job": "Welche Programme startet der Job {{name}}?"
+          "job": "Welche Programme startet der Job {{name}}?",
+          "classExplain": "Was macht die Klasse {{name}}?",
+          "classUsers": "Wo wird die Klasse {{name}} verwendet?",
+          "interfaceImpls": "Welche Klassen implementieren {{name}}?"
         },
         "normal": {
           "call": "Wie funktioniert ein CALL zwischen COBOL-Programmen?",
           "paragraph": "Was unterscheidet eine Section von einem Paragraph?",
           "copybook": "Wozu braucht man Copybooks?",
           "sql": "Wie greift COBOL per EXEC SQL auf DB2 zu?",
-          "jcl": "Wofür steht ein JCL-Step in einem Batch-Job?"
+          "jcl": "Wofür steht ein JCL-Step in einem Batch-Job?",
+          "javaInterface": "Was ist der Unterschied zwischen einer abstrakten Klasse und einem Interface?",
+          "javaDi": "Wie funktioniert Dependency Injection in Spring?",
+          "javaMaven": "Wie hängen Maven-Module und Abhängigkeiten zusammen?"
         }
       }
     },
@@ -844,6 +857,24 @@
         "desc": "Wo wird ein Feld (Copybook, VSAM-Record, DB2-Tabelle) definiert und wo verwendet?",
         "clarify": "Welches Datenfeld möchten Sie finden?",
         "template": "Finde das Datenfeld "
+      },
+      "explainClass": {
+        "label": "Klasse erklären",
+        "desc": "Aufgabe, Schnittstellen, Abhängigkeiten und wichtige Methoden einer Java-Klasse",
+        "clarify": "Welche Klasse soll ich Ihnen erklären?",
+        "template": "Erkläre mir die Klasse "
+      },
+      "traceMethod": {
+        "label": "Aufrufkette verfolgen",
+        "desc": "Wer ruft diese Methode auf (Service, REST-Endpoint, Job), was ruft sie selbst auf?",
+        "clarify": "Für welche Methode möchten Sie die Aufrufkette verfolgen?",
+        "template": "Verfolge die Aufrufkette der Methode "
+      },
+      "findProperty": {
+        "label": "Feld oder Konfiguration finden",
+        "desc": "Wo wird ein Feld, eine Property oder Datenbankspalte definiert und wo verwendet?",
+        "clarify": "Welches Feld oder welche Property möchten Sie finden?",
+        "template": "Finde die Verwendung von "
       }
     },
     "generatingResponse": "Antwort wird generiert...",

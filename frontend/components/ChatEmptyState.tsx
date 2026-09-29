@@ -6,8 +6,9 @@ import { api } from '@/app/services/api';
 import {
   buildEvidenceQuestions,
   buildNormalQuestions,
+  detectStacks,
   hasPulseContent,
-  PULSE_ENTITY_TYPES,
+  pulseTypesToShow,
   shuffle,
   type ProjectPulse,
 } from '@/lib/chatStarters';
@@ -56,6 +57,8 @@ interface Scenario {
 const TYPING_MS_PER_CHAR = 45;
 const QUESTION_ROTATION_MS = 9000;
 const STATEMENT_POLL_MS = 60000;
+const SHIMMER_START_MS = 2500;
+const SHIMMER_STEP_MS = 450;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined'
@@ -226,6 +229,9 @@ export function ChatEmptyState({
   }, [isEvidence, pulse, t]);
   const { text, isTyping, next } = useTypedHeadline(questions, t, settled);
 
+  // Karten folgen dem stärksten Stack des Projekts (COBOL bleibt Standard).
+  const isJava = detectStacks(pulse)[0] === 'java';
+
   const fill = (message: string) => {
     onFillMessage(message);
     focusTextarea();
@@ -263,8 +269,12 @@ export function ChatEmptyState({
 
   const scenarios: Scenario[] = isEvidence
     ? [
-        clarifyScenario('explainProgram', <Code className="w-4 h-4" />, 'explainProgram'),
-        clarifyScenario('traceCall', <GitBranch className="w-4 h-4" />, 'traceCall'),
+        isJava
+          ? clarifyScenario('explainClass', <Code className="w-4 h-4" />, 'explainClass')
+          : clarifyScenario('explainProgram', <Code className="w-4 h-4" />, 'explainProgram'),
+        isJava
+          ? clarifyScenario('traceMethod', <GitBranch className="w-4 h-4" />, 'traceMethod')
+          : clarifyScenario('traceCall', <GitBranch className="w-4 h-4" />, 'traceCall'),
         {
           id: 'summarizeDocs',
           tag: t('chatView.empty.tags.summarizeDocs'),
@@ -282,7 +292,9 @@ export function ChatEmptyState({
             onSend(t('chatView.suggestions.summarizeDocs.triggerMessage'), { intent: 'onboarding' });
           },
         },
-        clarifyScenario('findField', <Search className="w-4 h-4" />, 'findField'),
+        isJava
+          ? clarifyScenario('findProperty', <Search className="w-4 h-4" />, 'findProperty')
+          : clarifyScenario('findField', <Search className="w-4 h-4" />, 'findField'),
       ]
     : [
         promptScenario('explainConcept', <BookOpen className="w-4 h-4" />),
@@ -388,7 +400,7 @@ export function ChatEmptyState({
             className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.14em] text-ds-zinc-500 animate-in fade-in duration-300 motion-reduce:animate-none"
             aria-label={selectedProject?.name}
           >
-            {PULSE_ENTITY_TYPES.filter(type => stats.counts[type] > 0).map(type => (
+            {pulseTypesToShow(stats).map(type => (
               <PulseStat key={type} value={stats.counts[type]} label={t(`chatView.empty.counts.${type}`)} theme={theme} />
             ))}
           </div>
@@ -418,6 +430,15 @@ export function ChatEmptyState({
                 interactive && (isDark ? 'hover:bg-ds-zinc-900 hover:border-ds-zinc-700' : 'hover:bg-ds-zinc-50 hover:border-ds-zinc-300')
               )}
             >
+              {/* Periodischer Schimmer: läuft nacheinander über alle Karten, dann lange Ruhe. */}
+              <span
+                aria-hidden="true"
+                className="ds-card-shimmer pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-lg motion-reduce:hidden"
+                style={{ '--ds-shimmer-delay': `${SHIMMER_START_MS + idx * SHIMMER_STEP_MS}ms` } as React.CSSProperties}
+              >
+                <span className="ds-card-shimmer-ring absolute inset-0 rounded-lg border border-ds-indigo-500/70" />
+                <span className="ds-card-shimmer-sweep absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-ds-indigo-500/15 to-transparent" />
+              </span>
               {/* Signalmarke links, wie in der Navigation */}
               {interactive && (
                 <span
@@ -425,7 +446,7 @@ export function ChatEmptyState({
                   className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-ds-indigo-500 transition-transform duration-150 group-hover:scale-y-100 group-focus-visible:scale-y-100 motion-reduce:transition-none"
                 />
               )}
-              <div className="flex flex-col gap-2.5 p-4">
+              <div className="relative z-10 flex flex-col gap-2.5 p-4">
                 <div className="flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-zinc-500">
                   <span>{String(idx + 1).padStart(2, '0')} · {scenario.tag}</span>
                   {interactive && (
@@ -456,9 +477,6 @@ export function ChatEmptyState({
                 >
                   <span className="text-ds-indigo-500">›</span>
                   <span className="truncate whitespace-pre">{scenario.preview}</span>
-                  {interactive && (
-                    <span className="h-3 w-1.5 shrink-0 bg-ds-indigo-500 opacity-0 group-hover:opacity-100 group-hover:animate-ds-caret group-focus-visible:opacity-100 group-focus-visible:animate-ds-caret motion-reduce:animate-none" />
-                  )}
                 </div>
               </div>
             </button>

@@ -2176,7 +2176,15 @@ async def get_typing_statement():
     return {"statement": random.choice(fallback_statements)}
 
 
-PULSE_ENTITY_TYPES = ("program", "copybook", "sql_table", "jcl_job")
+# COBOL- und Java-Typen; die Startansicht leitet daraus ab, zu welchem
+# Technologie-Stack des Projekts sie Karten und Beispielfragen zeigt.
+PULSE_ENTITY_TYPES = (
+    "program", "copybook", "sql_table", "jcl_job",
+    "class", "interface", "method", "maven_module",
+)
+# Für diese Typen gibt es Namensstichproben; Methoden (Getter, Setter, ...)
+# und Maven-Module taugen nicht als Beispielfrage und werden nur gezählt.
+PULSE_SAMPLED_TYPES = frozenset({"program", "copybook", "sql_table", "jcl_job", "class", "interface"})
 PULSE_SAMPLES_PER_TYPE = 3
 
 
@@ -2208,7 +2216,8 @@ def get_project_pulse(
         total = base.count()
         counts[entity_type] = total
         picked: list[str] = []
-        for _ in range(min(PULSE_SAMPLES_PER_TYPE, total)):
+        sample_count = min(PULSE_SAMPLES_PER_TYPE, total) if entity_type in PULSE_SAMPLED_TYPES else 0
+        for _ in range(sample_count):
             row = (
                 base.with_entities(CodeEntity.name)
                 .order_by(CodeEntity.id)

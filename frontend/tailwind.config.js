@@ -119,6 +119,19 @@ module.exports = {
           "0%": { transform: "scale(1)", opacity: "0.55" },
           "100%": { transform: "scale(2.6)", opacity: "0" },
         },
+        // Kartenschimmer: kurzer Durchlauf pro Zyklus, Rest ist Ruhe.
+        "ds-shimmer-ring": {
+          "0%": { opacity: "0" },
+          "3%": { opacity: "1" },
+          "8%": { opacity: "0" },
+          "100%": { opacity: "0" },
+        },
+        "ds-shimmer-sweep": {
+          "0%": { transform: "translateX(-120%)", opacity: "0" },
+          "1%": { opacity: "1" },
+          "8%": { transform: "translateX(220%)", opacity: "1" },
+          "9%, 100%": { transform: "translateX(220%)", opacity: "0" },
+        },
         "ds-trace": {
           from: { transform: "scaleX(0)" },
           to: { transform: "scaleX(1)" },
@@ -131,6 +144,8 @@ module.exports = {
         "ds-arrow-pulse-fast": "ds-arrow-pulse 0.75s ease-in-out infinite",
         "ds-caret": "ds-caret 1.1s step-end infinite",
         "ds-dot-pulse": "ds-dot-pulse 2.2s ease-out infinite",
+        "ds-shimmer-ring": "ds-shimmer-ring 14s ease-in-out infinite",
+        "ds-shimmer-sweep": "ds-shimmer-sweep 14s ease-in-out infinite",
         "ds-trace": "ds-trace 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },

@@ -281,3 +281,15 @@ html {
     font-size: 16px !important;
   }
 }
+
+/* Leerer Chat: Schimmer der Szenario-Karten (Keyframes in tailwind.config.js). */
+.ds-card-shimmer-ring {
+  opacity: 0;
+  animation: ds-shimmer-ring 14s ease-in-out infinite;
+  animation-delay: var(--ds-shimmer-delay, 0ms);
+}
+.ds-card-shimmer-sweep {
+  opacity: 0;
+  animation: ds-shimmer-sweep 14s ease-in-out infinite;
+  animation-delay: var(--ds-shimmer-delay, 0ms);
+}
