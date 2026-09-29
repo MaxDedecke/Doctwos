@@ -93,7 +93,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                     </span>
                     {!isOpen && (
                         <span className={cn(
-                            "px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-wide opacity-80",
+                            "px-1.5 py-0.5 rounded-sm text-[0.5625rem] font-bold tracking-wide opacity-80",
                             theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-400" : "bg-ds-zinc-200/80 text-ds-zinc-600"
                         )}>
                             {t('agentSteps.toolsStepsCount', { tools: toolCallCount, steps: steps.length })}
@@ -102,7 +102,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                     {truncatedCount > 0 && (
                         <span
                             title={t('agentSteps.contextTrimmedTooltip')}
-                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[9px] font-bold tracking-wide border border-ds-amber-500/30 bg-ds-amber-500/10 text-ds-amber-500"
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[0.5625rem] font-bold tracking-wide border border-ds-amber-500/30 bg-ds-amber-500/10 text-ds-amber-500"
                         >
                             <AlertTriangle className="w-3 h-3 shrink-0" />
                             {t('agentSteps.contextTrimmed', { count: truncatedCount })}
@@ -164,10 +164,10 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                 "font-semibold",
                                                 theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"
                                             )}>
-                                                {t('agentSteps.toolCalled')} <span className="font-mono text-[11px] text-ds-blue-500">{step.name}</span>
+                                                {t('agentSteps.toolCalled')} <span className="font-mono text-[0.6875rem] text-ds-blue-500">{step.name}</span>
                                             </span>
                                             <pre className={cn(
-                                                "p-2 rounded-lg border font-mono text-[10px] overflow-x-auto",
+                                                "p-2 rounded-lg border font-mono text-[0.625rem] overflow-x-auto",
                                                 theme === 'dark'
                                                     ? "bg-ds-zinc-900/60 border-ds-zinc-800/80 text-ds-zinc-300"
                                                     : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700"
@@ -184,13 +184,13 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                     "font-medium",
                                                     theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                                                 )}>
-                                                    {t('agentSteps.resultFrom')} <span className="font-mono text-[11px]">{step.name}</span>
+                                                    {t('agentSteps.resultFrom')} <span className="font-mono text-[0.6875rem]">{step.name}</span>
                                                 </span>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleResult(idx)}
                                                     className={cn(
-                                                        "flex items-center gap-1 text-[10px] font-bold transition-colors cursor-pointer",
+                                                        "flex items-center gap-1 text-[0.625rem] font-bold transition-colors cursor-pointer",
                                                         theme === 'dark' ? "text-ds-indigo-400 hover:text-ds-indigo-300" : "text-ds-indigo-600 hover:text-ds-indigo-500"
                                                     )}
                                                 >
@@ -210,7 +210,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
 
                                             {expandedResults[idx] ? (
                                                 <pre className={cn(
-                                                    "p-2.5 rounded-lg border font-mono text-[10px] overflow-x-auto max-h-60 overflow-y-auto leading-normal",
+                                                    "p-2.5 rounded-lg border font-mono text-[0.625rem] overflow-x-auto max-h-60 overflow-y-auto leading-normal",
                                                     theme === 'dark'
                                                         ? "bg-ds-zinc-950 border-ds-zinc-800/80 text-ds-zinc-300"
                                                         : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700"
@@ -219,7 +219,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                 </pre>
                                             ) : (
                                                 <div className={cn(
-                                                    "p-1 px-2.5 rounded border text-[10px] font-mono inline-block",
+                                                    "p-1 px-2.5 rounded border text-[0.625rem] font-mono inline-block",
                                                     theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800/60 text-ds-zinc-500" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-500"
                                                 )}>
                                                     {step.result ? t('agentSteps.charsReturned', { count: step.result.length }) : t('agentSteps.emptyResult')}

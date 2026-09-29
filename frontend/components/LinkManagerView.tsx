@@ -836,7 +836,7 @@ export function LinkManagerView({
           className={cn('w-3.5 h-3.5 shrink-0', selected.source_type && ['confluence', 'jira', 'web', 'webdav'].includes(selected.source_type.toLowerCase()) ? 'text-ds-emerald-400' : 'text-ds-zinc-500')}
         />
         {selected.source_type && (
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
+          <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded border shrink-0',
             sourceColors[selected.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
             {selected.source_type}
           </span>
@@ -863,7 +863,7 @@ export function LinkManagerView({
                   className="w-3.5 h-3.5 shrink-0 text-ds-emerald-400"
                 />
                 {doc.source_type && (
-                  <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
+                  <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded border shrink-0',
                     sourceColors[doc.source_type] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
                     {doc.source_type}
                   </span>
@@ -885,7 +885,7 @@ export function LinkManagerView({
           className={cn('w-3.5 h-3.5 shrink-0', side.icon === 'code' ? 'text-ds-indigo-400' : 'text-ds-emerald-400')}
         />
         {side.sourceType && (
-          <span className={cn('text-[10px] px-1.5 py-0.5 rounded border shrink-0',
+          <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded border shrink-0',
             sourceColors[side.sourceType] ?? (isDark ? 'bg-ds-zinc-700 text-ds-zinc-400 border-ds-zinc-600' : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-300'))}>
             {side.sourceType}
           </span>
@@ -915,7 +915,7 @@ export function LinkManagerView({
           </button>
         )}
       </div>
-      {side.caption && <p className={cn('text-[11px] truncate', side.icon === 'code' ? 'pl-5' : '', cardMuted)}>{side.caption}</p>}
+      {side.caption && <p className={cn('text-[0.6875rem] truncate', side.icon === 'code' ? 'pl-5' : '', cardMuted)}>{side.caption}</p>}
     </div>
   );
 
@@ -938,7 +938,7 @@ export function LinkManagerView({
                 project switcher in the sidebar instead. */}
             <span
               className={cn(
-                'flex items-center gap-1.5 h-7 min-w-0 max-w-full @sm/linkmgr:max-w-[180px] text-[11px] @sm/linkmgr:text-xs border rounded-md font-medium px-2',
+                'flex items-center gap-1.5 h-7 min-w-0 max-w-full @sm/linkmgr:max-w-[180px] text-[0.6875rem] @sm/linkmgr:text-xs border rounded-md font-medium px-2',
                 isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700'
               )}
               title={t('linkManagerView.projectContextTooltip')}
@@ -962,7 +962,7 @@ export function LinkManagerView({
                 }}
               >
                 <SelectTrigger className={cn(
-                  'h-7 w-full @sm/linkmgr:w-auto min-w-0 max-w-[150px] text-[11px] @sm/linkmgr:text-xs border focus:ring-0 rounded-md font-medium px-2 gap-1',
+                  'h-7 w-full @sm/linkmgr:w-auto min-w-0 max-w-[150px] text-[0.6875rem] @sm/linkmgr:text-xs border focus:ring-0 rounded-md font-medium px-2 gap-1',
                   isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
                 )}>
                   <Cpu className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
@@ -980,7 +980,7 @@ export function LinkManagerView({
             <div className={cn('flex rounded-md border p-0.5 gap-0.5', isDark ? 'border-ds-zinc-700 bg-ds-zinc-800/50' : 'border-ds-zinc-200 bg-ds-zinc-100')}>
               <button
                 onClick={() => setSegment('links')}
-                className={cn('flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded transition-colors', segment === 'links' ? segmentActive : segmentInact)}
+                className={cn('flex items-center gap-1.5 text-[0.6875rem] px-2.5 py-1 rounded transition-colors', segment === 'links' ? segmentActive : segmentInact)}
               >
                 <Link2 className="w-3 h-3" />
                 {t('linkManagerView.segments.links')}
@@ -988,7 +988,7 @@ export function LinkManagerView({
               {isAdmin && (
                 <button
                   onClick={() => setSegment('topics')}
-                  className={cn('flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded transition-colors', segment === 'topics' ? segmentActive : segmentInact)}
+                  className={cn('flex items-center gap-1.5 text-[0.6875rem] px-2.5 py-1 rounded transition-colors', segment === 'topics' ? segmentActive : segmentInact)}
                 >
                   <Tag className="w-3 h-3" />
                   {t('linkManagerView.segments.topics')}
@@ -1000,7 +1000,7 @@ export function LinkManagerView({
             {segment === 'links' && (
               <>
                 <div
-                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
+                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[0.625rem] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
                   title={t('linkManagerView.minConfidenceTooltip')}
                 >
                   <Percent className="w-3 h-3 shrink-0 opacity-70" />
@@ -1014,7 +1014,7 @@ export function LinkManagerView({
                   />
                   <span className="hidden @md/linkmgr:inline">%</span>
                 </div>
-                <label className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[10px] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')} title={t('linkManagerView.budget.hint')}>
+                <label className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[0.625rem] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')} title={t('linkManagerView.budget.hint')}>
                   <span>{t('linkManagerView.budget.label')}</span>
                   <input type="number" min={1} max={5000} step={1} value={maxItems} disabled={isComputing}
                     onChange={event => setMaxItems(Math.max(1, Math.min(5000, Number(event.target.value) || 1)))}
@@ -1022,16 +1022,16 @@ export function LinkManagerView({
                     className={cn('w-12 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')} />
                 </label>
                 <button onClick={triggerAutoLink} disabled={isComputing}
-                  className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
+                  className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
                   <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
                 {isAdmin && <details className="relative">
-                  <summary className={cn('cursor-pointer list-none text-[10px] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
+                  <summary className={cn('cursor-pointer list-none text-[0.625rem] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
                     {t('linkManagerView.scopeLabel', { count: selectedScopeSourceIds.length })}
                   </summary>
                   <div className={cn('absolute right-0 top-full z-30 mt-1 w-64 rounded-md border p-3 shadow-lg', dropdownBg)}>
-                    <p className={cn('mb-2 text-[10px] leading-relaxed', subText)}>{t('linkManagerView.scopeHint')}</p>
+                    <p className={cn('mb-2 text-[0.625rem] leading-relaxed', subText)}>{t('linkManagerView.scopeHint')}</p>
                     {projectSources.length === 0 ? (
                       <p className={cn('text-xs', cardMuted)}>{t('linkManagerView.scopeNoSources')}</p>
                     ) : projectSources.map(source => {
@@ -1052,7 +1052,7 @@ export function LinkManagerView({
                   </div>
                 </details>}
                 <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
-                  className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
+                  className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden @md/linkmgr:inline">{t('linkManagerView.manualLabel')}</span>
                 </button>
@@ -1086,9 +1086,9 @@ export function LinkManagerView({
                   <div className="flex gap-1 overflow-x-auto w-full @xl/linkmgr:w-auto no-scrollbar pb-1 @xl/linkmgr:pb-0">
                     {(['pending', 'approved', 'rejected'] as const).map(tabOption => (
                       <button key={tabOption} onClick={() => setTab(tabOption)}
-                        className={cn('px-3 py-1.5 rounded-md text-[11px] @sm/linkmgr:text-xs font-medium transition-colors shrink-0', tab === tabOption ? tabActive : tabInact)}>
+                        className={cn('px-3 py-1.5 rounded-md text-[0.6875rem] @sm/linkmgr:text-xs font-medium transition-colors shrink-0', tab === tabOption ? tabActive : tabInact)}>
                         {t(`linkManagerView.tabLabels.${tabOption}`)}
-                        <span className={cn('ml-1.5 px-1.5 py-0.5 rounded text-[9px] @sm/linkmgr:text-[10px]', tab === tabOption ? tabBadgeA : tabBadgeI)}>
+                        <span className={cn('ml-1.5 px-1.5 py-0.5 rounded text-[0.5625rem] @sm/linkmgr:text-[0.625rem]', tab === tabOption ? tabBadgeA : tabBadgeI)}>
                           {counts[tabOption]}
                         </span>
                       </button>
@@ -1104,11 +1104,11 @@ export function LinkManagerView({
                     <div className="relative flex-1 @xl/linkmgr:flex-initial">
                       <Search className={cn('absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3', subText)} />
                       <input type="text" placeholder={t('linkManagerView.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
-                        className={cn('text-[11px] @sm/linkmgr:text-xs rounded-md pl-7 pr-3 py-1.5 w-full @sm/linkmgr:w-32 @md/linkmgr:w-40 border focus:outline-none', inputCls)} />
+                        className={cn('text-[0.6875rem] @sm/linkmgr:text-xs rounded-md pl-7 pr-3 py-1.5 w-full @sm/linkmgr:w-32 @md/linkmgr:w-40 border focus:outline-none', inputCls)} />
                     </div>
                     {tab === 'pending' && (
                       <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                        className={cn('text-[11px] @sm/linkmgr:text-xs rounded-md px-1.5 py-1.5 border focus:outline-none', selectCls)}>
+                        className={cn('text-[0.6875rem] @sm/linkmgr:text-xs rounded-md px-1.5 py-1.5 border focus:outline-none', selectCls)}>
                         <option value={0}>{t('linkManagerView.scoreFilter.all')}</option>
                         <option value={60}>{t('linkManagerView.scoreFilter.min60')}</option>
                         <option value={80}>{t('linkManagerView.scoreFilter.min80')}</option>
@@ -1117,10 +1117,10 @@ export function LinkManagerView({
                     {tab === 'pending' && perfectPendingLinks.length > 0 && (
                       <button onClick={acceptAllPerfectMatches} disabled={isAcceptingAll}
                         title={t('linkManagerView.acceptAllTooltip')}
-                        className={cn('text-[10px] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
+                        className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
                         {isAcceptingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                         <span className="hidden @sm/linkmgr:inline">{t('linkManagerView.acceptAllLabel')}</span>
-                        <span className={cn('px-1 rounded text-[9px] @sm/linkmgr:text-[10px]', tabBadgeA)}>{perfectPendingLinks.length}</span>
+                        <span className={cn('px-1 rounded text-[0.5625rem] @sm/linkmgr:text-[0.625rem]', tabBadgeA)}>{perfectPendingLinks.length}</span>
                       </button>
                     )}
                   </div>
@@ -1128,7 +1128,7 @@ export function LinkManagerView({
                 <div className="flex gap-1.5">
                   {(['all', 'entity', 'knowledge'] as const).map(kind => (
                     <button key={kind} onClick={() => setKindFilter(kind)}
-                      className={cn('px-2.5 py-1 rounded-sm text-[10px] @sm/linkmgr:text-[11px] font-medium border transition-colors', kindFilter === kind ? kindChipActive : kindChipInact)}>
+                      className={cn('px-2.5 py-1 rounded-sm text-[0.625rem] @sm/linkmgr:text-[0.6875rem] font-medium border transition-colors', kindFilter === kind ? kindChipActive : kindChipInact)}>
                       {t(`linkManagerView.kindFilter.${kind}`)}
                     </button>
                   ))}
@@ -1154,7 +1154,7 @@ export function LinkManagerView({
 
                       {!manualKind ? (
                         <>
-                          <p className={cn('text-[11px] mb-3', manualDesc)}>{t('linkManagerView.manualForm.kindQuestion')}</p>
+                          <p className={cn('text-[0.6875rem] mb-3', manualDesc)}>{t('linkManagerView.manualForm.kindQuestion')}</p>
                           <div className="flex gap-2">
                             <button onClick={() => setManualKind('entity')} disabled={!projectId}
                               className={cn('flex-1 text-xs px-3 py-2.5 rounded-md border transition-colors disabled:opacity-40 flex items-center gap-2 justify-center', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600 text-ds-zinc-200 hover:border-ds-indigo-600' : 'bg-ds-white border-ds-zinc-300 text-ds-zinc-800 hover:border-ds-indigo-400')}>
@@ -1168,17 +1168,17 @@ export function LinkManagerView({
                         </>
                       ) : manualKind === 'entity' ? (
                         <>
-                          <p className={cn('text-[11px] mb-4', manualDesc)}>{t('linkManagerView.manualForm.description')}</p>
+                          <p className={cn('text-[0.6875rem] mb-4', manualDesc)}>{t('linkManagerView.manualForm.description')}</p>
                           <div className="flex flex-col @sm/linkmgr:flex-row items-stretch @sm/linkmgr:items-start gap-3 @sm/linkmgr:gap-4">
                             {/* Entity picker */}
                             <div className="flex-1 min-w-0">
-                              <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step1Label')}</label>
+                              <label className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step1Label')}</label>
                               {selectedEntityObj ? (
                                 <div className={cn('flex items-center gap-2 px-3 py-2 rounded-md border', isDark ? 'bg-ds-zinc-800 border-ds-zinc-600' : 'bg-ds-white border-ds-zinc-300')}>
                                   <FileCode className={cn('w-3.5 h-3.5 shrink-0', subText)} />
                                   <div className="flex-1 min-w-0">
                                     <p className={cn('text-xs font-medium truncate', cardLabel)}>{selectedEntityObj.name}</p>
-                                    <p className={cn('text-[10px] truncate', subText)}>{selectedEntityObj.file_path}</p>
+                                    <p className={cn('text-[0.625rem] truncate', subText)}>{selectedEntityObj.file_path}</p>
                                   </div>
                                   <button onClick={() => { setSelectedEntityId(null); setSelectedEntityObj(null); setEntitySearchInput(''); }}
                                     className={cn('shrink-0 p-0.5', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
@@ -1196,9 +1196,9 @@ export function LinkManagerView({
                                         <button key={ent.id}
                                           onClick={() => { setSelectedEntityId(parseEntityId(ent.id)); setSelectedEntityObj(ent); setEntitySearchInput(''); }}
                                           className={cn('w-full text-left px-3 py-2 text-xs flex items-center gap-2 border-b last:border-0', dropItem, divider)}>
-                                          <span className={cn('text-[10px] px-1 py-0.5 rounded shrink-0', typeTag)}>{ent.type}</span>
+                                          <span className={cn('text-[0.625rem] px-1 py-0.5 rounded shrink-0', typeTag)}>{ent.type}</span>
                                           <span className="font-medium truncate">{ent.name}</span>
-                                          <span className={cn('text-[10px] truncate ml-auto', subText)}>{ent.file_path}</span>
+                                          <span className={cn('text-[0.625rem] truncate ml-auto', subText)}>{ent.file_path}</span>
                                         </button>
                                       ))}
                                     </div>
@@ -1209,22 +1209,22 @@ export function LinkManagerView({
                             <div className={cn('self-center @sm/linkmgr:self-start shrink-0 mt-0 @sm/linkmgr:mt-7 text-sm font-light select-none', arrowColor)}>→</div>
                             {/* Doc picker */}
                             <div className="flex-1 min-w-0">
-                              <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step2Label')}</label>
+                              <label className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.step2Label')}</label>
                               {renderDocPicker(docSearchQuery, setDocSearchQuery, docResults, selectedDoc, setSelectedDoc)}
                             </div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <p className={cn('text-[11px] mb-4', manualDesc)}>{t('linkManagerView.manualForm.descriptionKnowledge')}</p>
+                          <p className={cn('text-[0.6875rem] mb-4', manualDesc)}>{t('linkManagerView.manualForm.descriptionKnowledge')}</p>
                           <div className="flex flex-col @sm/linkmgr:flex-row items-stretch @sm/linkmgr:items-start gap-3 @sm/linkmgr:gap-4">
                             <div className="flex-1 min-w-0">
-                              <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepALabel')}</label>
+                              <label className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepALabel')}</label>
                               {renderDocPicker(docAQuery, setDocAQuery, docAResults, selectedDocA, setSelectedDocA)}
                             </div>
                             <div className={cn('self-center @sm/linkmgr:self-start shrink-0 mt-0 @sm/linkmgr:mt-7 text-sm font-light select-none', arrowColor)}>↔</div>
                             <div className="flex-1 min-w-0">
-                              <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepBLabel')}</label>
+                              <label className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.stepBLabel')}</label>
                               {renderDocPicker(docBQuery, setDocBQuery, docBResults, selectedDocB, setSelectedDocB)}
                             </div>
                           </div>
@@ -1233,7 +1233,7 @@ export function LinkManagerView({
 
                       {manualKind === 'knowledge' && (
                         <div className="mt-4">
-                          <label htmlFor="link-manager-manual-direction" className={cn('text-[11px] font-medium block mb-1.5', subText)}>
+                          <label htmlFor="link-manager-manual-direction" className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>
                             {t('linkManagerView.manualForm.directionLabel')}
                           </label>
                           <select
@@ -1250,7 +1250,7 @@ export function LinkManagerView({
 
                       {manualKind && (
                         <div className="mt-4">
-                          <label className={cn('text-[11px] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.descriptionLabel')}</label>
+                          <label className={cn('text-[0.6875rem] font-medium block mb-1.5', subText)}>{t('linkManagerView.manualForm.descriptionLabel')}</label>
                           <textarea rows={2} value={manualDescription} onChange={e => setManualDescription(e.target.value)}
                             placeholder={t('linkManagerView.manualForm.descriptionPlaceholder')}
                             className={cn('w-full text-xs rounded-md px-2.5 py-1.5 border focus:outline-none resize-none', inputCls)} />
@@ -1313,7 +1313,7 @@ export function LinkManagerView({
                           {renderSide(link.right)}
                           <div className="flex items-center gap-2 mt-1">
                             <ScoreBadge score={link.score} isDark={isDark} />
-                            {link.linkType !== 'semantic' && <span className={cn('text-[10px] px-1 rounded', cardMuted)}>{link.linkType}</span>}
+                            {link.linkType !== 'semantic' && <span className={cn('text-[0.625rem] px-1 rounded', cardMuted)}>{link.linkType}</span>}
                           </div>
                         </div>
                         <div className="flex items-center justify-self-end gap-1 shrink-0 pt-0.5">
@@ -1343,7 +1343,7 @@ export function LinkManagerView({
                           )}
                         </div>
                         <div className="min-w-0 border-t border-ds-zinc-700/20 pt-2 @sm/linkcard:col-span-4">
-                          <p className={cn('mb-1 text-[10px] font-semibold', cardMuted)}>{t('linkManagerView.budget.reasonLabel')}</p>
+                          <p className={cn('mb-1 text-[0.625rem] font-semibold', cardMuted)}>{t('linkManagerView.budget.reasonLabel')}</p>
                           {editingContextId === link.id ? (
                             <textarea autoFocus rows={4} value={contextDraft} onChange={e => setContextDraft(e.target.value)}
                               onBlur={() => commitLinkContext(link, contextDraft.trim())}
@@ -1352,17 +1352,17 @@ export function LinkManagerView({
                                 if (e.key === 'Escape') { setEditingContextId(null); }
                               }}
                               placeholder={t('linkManagerView.contextPlaceholder')}
-                              className={cn('w-full text-[11px] leading-relaxed px-2 py-1.5 rounded border resize-y focus:outline-none', inputCls)} />
+                              className={cn('w-full text-[0.6875rem] leading-relaxed px-2 py-1.5 rounded border resize-y focus:outline-none', inputCls)} />
                           ) : (
                             <div>
-                              <p className={cn('whitespace-pre-wrap break-words text-[11px] leading-relaxed', link.context && !/^Similarity score:/i.test(link.context) ? cardMuted : emptyText)}>
+                              <p className={cn('whitespace-pre-wrap break-words text-[0.6875rem] leading-relaxed', link.context && !/^Similarity score:/i.test(link.context) ? cardMuted : emptyText)}>
                                 {link.context && !/^Similarity score:/i.test(link.context)
                                   ? link.context
                                   : link.createdBy === 'auto' ? t('linkManagerView.budget.missingReason') : t('linkManagerView.addDescriptionLabel')}
                               </p>
                               <button onClick={() => { setEditingContextId(link.id); setContextDraft(link.context || ''); }}
                                 title={t('linkManagerView.addDescriptionTitle')}
-                                className={cn('mt-1 text-[10px] underline', cardMuted)}>{t('linkManagerView.budget.editReason')}</button>
+                                className={cn('mt-1 text-[0.625rem] underline', cardMuted)}>{t('linkManagerView.budget.editReason')}</button>
                             </div>
                           )}
                         </div>

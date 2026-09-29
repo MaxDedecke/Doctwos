@@ -111,7 +111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}>
               <div className="space-y-0 md:space-y-5 flex flex-col md:block w-full">
                 <div className="px-3 hidden md:block">
-                  <h3 className="text-[10px] font-bold text-ds-zinc-500 uppercase tracking-widest">
+                  <h3 className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase tracking-widest">
                     {t('settings.nav.config')}
                   </h3>
                 </div>
@@ -152,7 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </nav>
               </div>
 
-              <div className="hidden md:block px-3 py-2 border-t border-ds-zinc-800/50 text-[9px] text-ds-zinc-500 font-medium">
+              <div className="hidden md:block px-3 py-2 border-t border-ds-zinc-800/50 text-[0.5625rem] text-ds-zinc-500 font-medium">
                 IP Context: 82.165.216.180
               </div>
             </div>

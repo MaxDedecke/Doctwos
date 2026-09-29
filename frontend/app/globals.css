@@ -104,13 +104,19 @@
  * keeps the normal 16px baseline so narrow layouts do not lose usable width;
  * the existing 16px input rule remains in place for iOS focus behavior.
  */
+/*
+ * Fluid statt fest: 110 % bis 1440 px Breite, danach wachsend mit dem Viewport
+ * (125 % bei 1920 px) bis maximal 22 px (Basis 137,5 %). Auf großen Monitoren
+ * wirkte die Oberfläche sonst winzig. Alle rem-Größen — auch die Mikro-Labels
+ * (text-[0.625rem] statt text-[10px]) — wachsen gemeinsam mit.
+ */
 html {
-  font-size: calc(16px * var(--ds-ui-scale));
+  font-size: clamp(calc(16px * var(--ds-ui-scale)), calc(10.4px + 0.5vw), 22px);
 }
 
 @media (max-width: 767px) {
-  :root {
-    --ds-ui-scale: 1;
+  html {
+    font-size: 16px;
   }
 }
 

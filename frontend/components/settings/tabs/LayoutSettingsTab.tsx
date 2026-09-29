@@ -97,7 +97,7 @@ export const LayoutSettingsTab: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.layoutTab.lightModeLabel')}</span>
-              <span className="block text-[10px] text-ds-zinc-500">{t('settings.layoutTab.lightModeDesc')}</span>
+              <span className="block text-[0.625rem] text-ds-zinc-500">{t('settings.layoutTab.lightModeDesc')}</span>
             </div>
             <button
               type="button"
@@ -127,10 +127,10 @@ export const LayoutSettingsTab: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.layoutTab.languageTitle')}</span>
-              <span className="block text-[10px] text-ds-zinc-500">{t('settings.layoutTab.languageDesc')}</span>
+              <span className="block text-[0.625rem] text-ds-zinc-500">{t('settings.layoutTab.languageDesc')}</span>
             </div>
             <div className={cn(
-              "flex items-center rounded-lg border p-0.5 text-[10px] font-semibold",
+              "flex items-center rounded-lg border p-0.5 text-[0.625rem] font-semibold",
               theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
             )}>
               <button
@@ -184,8 +184,8 @@ export const LayoutSettingsTab: React.FC = () => {
                   : (theme === 'dark' ? "border-ds-zinc-800/85 bg-ds-zinc-950/20 hover:border-ds-zinc-700/80" : "border-ds-zinc-200 bg-ds-zinc-50 hover:border-ds-zinc-300")
               )}
             >
-              <span className={cn("block text-[11px] font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{layout.label}</span>
-              <span className="block text-[9px] text-ds-zinc-500 leading-normal">{layout.desc}</span>
+              <span className={cn("block text-[0.6875rem] font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{layout.label}</span>
+              <span className="block text-[0.5625rem] text-ds-zinc-500 leading-normal">{layout.desc}</span>
             </button>
           ))}
         </div>
@@ -200,7 +200,7 @@ export const LayoutSettingsTab: React.FC = () => {
         )}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontSizeLabel')}</label>
+              <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontSizeLabel')}</label>
               <Select
                 value={editorFontSize.toString()}
                 onValueChange={val => setEditorFontSize(parseInt(val))}
@@ -220,7 +220,7 @@ export const LayoutSettingsTab: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontFamilyLabel')}</label>
+              <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.editorTab.fontFamilyLabel')}</label>
               <Select value={editorFontFamily} onValueChange={setEditorFontFamily}>
                 <SelectTrigger className={cn(
                   "w-full h-8 text-xs focus:ring-0",
@@ -240,7 +240,7 @@ export const LayoutSettingsTab: React.FC = () => {
           <div className="flex items-center justify-between p-1 pt-2 border-t border-ds-zinc-800/40">
             <div className="space-y-0.5">
               <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>{t('settings.editorTab.minimapLabel')}</span>
-              <span className="block text-[10px] text-ds-zinc-500">{t('settings.editorTab.minimapDesc')}</span>
+              <span className="block text-[0.625rem] text-ds-zinc-500">{t('settings.editorTab.minimapDesc')}</span>
             </div>
             <button
               type="button"
@@ -273,7 +273,7 @@ export const LayoutSettingsTab: React.FC = () => {
               <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>
                 {t('settings.layoutTab.graphExportLabel')}
               </span>
-              <span className="block text-[10px] text-ds-zinc-500 leading-normal">
+              <span className="block text-[0.625rem] text-ds-zinc-500 leading-normal">
                 {t('settings.layoutTab.graphExportDesc')}
               </span>
             </div>

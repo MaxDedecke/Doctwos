@@ -103,7 +103,7 @@ export const McpAuditLog: React.FC = () => {
             <ShieldCheck className="w-3.5 h-3.5 text-ds-indigo-500" />
             {t('settings.mcpAudit.title')}
           </h4>
-          <p className={cn('text-[10px] mt-1', muted)}>
+          <p className={cn('text-[0.625rem] mt-1', muted)}>
             {t('settings.mcpAudit.description', { days: retentionDays ?? '—' })}
           </p>
         </div>
@@ -113,7 +113,7 @@ export const McpAuditLog: React.FC = () => {
           variant="outline"
           onClick={() => { void load(false); }}
           disabled={loading}
-          className={cn('h-7 text-[10px] px-2.5 flex items-center gap-1.5 shrink-0 focus:ring-0', control)}
+          className={cn('h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 shrink-0 focus:ring-0', control)}
         >
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           {t('settings.mcpAudit.refresh')}
@@ -121,7 +121,7 @@ export const McpAuditLog: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label={t('settings.mcpAudit.statusFilter')} className="flex overflow-hidden rounded-md border text-[10px] font-medium">
+        <div role="group" aria-label={t('settings.mcpAudit.statusFilter')} className="flex overflow-hidden rounded-md border text-[0.625rem] font-medium">
           {(['all', 'success', 'error'] as const).map((option) => (
             <button
               key={option}
@@ -148,7 +148,7 @@ export const McpAuditLog: React.FC = () => {
           aria-label={t('settings.mcpAudit.toolFilterPlaceholder')}
           maxLength={200}
           className={cn(
-            'h-7 min-w-0 flex-1 rounded-md border px-2.5 text-[11px] outline-none focus:ring-1 focus:ring-ds-indigo-500 sm:max-w-xs',
+            'h-7 min-w-0 flex-1 rounded-md border px-2.5 text-[0.6875rem] outline-none focus:ring-1 focus:ring-ds-indigo-500 sm:max-w-xs',
             dark ? 'border-ds-zinc-800 bg-ds-zinc-900 text-ds-zinc-200 placeholder:text-ds-zinc-600' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-800 placeholder:text-ds-zinc-400',
           )}
         />
@@ -175,7 +175,7 @@ export const McpAuditLog: React.FC = () => {
                   type="button"
                   aria-expanded={expanded}
                   onClick={() => setExpandedId(expanded ? null : entry.id)}
-                  className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] transition-colors', dark ? 'hover:bg-ds-zinc-900/60' : 'hover:bg-ds-zinc-100/70')}
+                  className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-[0.625rem] transition-colors', dark ? 'hover:bg-ds-zinc-900/60' : 'hover:bg-ds-zinc-100/70')}
                 >
                   <ChevronDown className={cn('w-3 h-3 shrink-0 text-ds-zinc-500 transition-transform', !expanded && '-rotate-90')} />
                   <span className={cn(
@@ -190,7 +190,7 @@ export const McpAuditLog: React.FC = () => {
                 </button>
                 {expanded && (
                   <div className="space-y-2 px-3 pb-3 pl-8">
-                    <div className={cn('flex flex-wrap gap-x-3 gap-y-1 text-[10px]', muted)}>
+                    <div className={cn('flex flex-wrap gap-x-3 gap-y-1 text-[0.625rem]', muted)}>
                       <span>{t('settings.mcpAudit.server', { server: entry.server_name })}</span>
                       <span>{t('settings.mcpAudit.user', { user: entry.user_name || '—' })}</span>
                       <span>{t('settings.mcpAudit.duration', { duration: entry.duration_ms ?? 0 })}</span>
@@ -198,12 +198,12 @@ export const McpAuditLog: React.FC = () => {
                       {entry.trace_id && <span className="font-mono">trace: {entry.trace_id}</span>}
                     </div>
                     <pre className={cn(
-                      'max-h-40 overflow-auto rounded border p-2 text-[10px] leading-relaxed whitespace-pre-wrap break-all',
+                      'max-h-40 overflow-auto rounded border p-2 text-[0.625rem] leading-relaxed whitespace-pre-wrap break-all',
                       dark ? 'bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-400' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-600',
                     )}>
                       {JSON.stringify(entry.arguments ?? {}, null, 2)}
                     </pre>
-                    {entry.error_message && <p className="text-[10px] text-ds-rose-500 break-all">{entry.error_message}</p>}
+                    {entry.error_message && <p className="text-[0.625rem] text-ds-rose-500 break-all">{entry.error_message}</p>}
                   </div>
                 )}
               </div>

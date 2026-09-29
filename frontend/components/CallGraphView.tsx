@@ -442,12 +442,12 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           <div className="text-xs font-bold truncate flex items-center gap-1.5">
             <span>{currentRoot.name}</span>
             {customFlow && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-ds-indigo-500/15 text-ds-indigo-400 border border-ds-indigo-500/30">
+              <span className="px-1.5 py-0.5 rounded text-[0.5625rem] font-semibold bg-ds-indigo-500/15 text-ds-indigo-400 border border-ds-indigo-500/30">
                 {isImpactMode ? t('callGraphView.impactTitle') : t('callGraphView.flowTitle')}
               </span>
             )}
           </div>
-          <div className="text-[9px] uppercase tracking-wider text-ds-zinc-500">
+          <div className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500">
             {customFlow ? (
               <>
                 {customFlow.direction === 'outgoing'
@@ -468,7 +468,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
             type="button"
             onClick={handleInvestigateFromHere}
             data-testid="investigate-from-here"
-            className="h-7 px-2.5 rounded border border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400 hover:bg-ds-indigo-500/25 text-[10px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="h-7 px-2.5 rounded border border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400 hover:bg-ds-indigo-500/25 text-[0.625rem] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             title={t('callGraphView.investigateFromHereTitle')}
           >
             <Compass className="w-3.5 h-3.5" />
@@ -501,13 +501,13 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
               setSelectedNodeId(null);
               onClearCustomFlow();
             }}
-            className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[10px] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors cursor-pointer"
+            className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors cursor-pointer"
             title={t('callGraphView.switchToFocusView')}
           >
             {t('callGraphView.switchToFocusView')}
           </button>
         )}
-        {!customFlow && [1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[10px] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
+        {!customFlow && [1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[0.625rem] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
         <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomIn className="w-3.5 h-3.5" /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomOut className="w-3.5 h-3.5" /></button>
@@ -516,13 +516,13 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         {availableTypes.map(type => {
           const color = PROCESS_COLORS[type] ?? '#64748b';
-          return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[9px] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{t(`callGraphView.processKinds.${type}`)}</button>;
+          return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[0.5625rem] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{t(`callGraphView.processKinds.${type}`)}</button>;
         })}
       </div>
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
         {loading && <div className="absolute inset-0 z-10 flex items-center justify-center bg-ds-black/10"><Loader2 className="w-6 h-6 animate-spin text-ds-indigo-500" /></div>}
         {error && <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-3 py-2 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-xs text-ds-red-400">{error}</div>}
-        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400"><AlertTriangle className="w-3 h-3" />{t('callGraphView.truncatedNotice')}</div>}
+        {truncated && <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[0.625rem] text-ds-amber-400"><AlertTriangle className="w-3 h-3" />{t('callGraphView.truncatedNotice')}</div>}
         {!loading && filtered.nodes.length <= 1 && <div className="absolute inset-0 flex items-center justify-center text-xs text-ds-zinc-500">{t('callGraphView.noConnections')}</div>}
         {ForceGraph && dimensions.width > 0 && filtered.nodes.length > 0 && <ForceGraph
           ref={graphRef}
@@ -776,15 +776,15 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         >
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] font-semibold">
                 <span>{selectedEdgeSource?.name ?? (typeof selectedEdge.source === 'string' ? selectedEdge.source : selectedEdge.source.name)}</span>
                 <span className="text-ds-zinc-500" aria-hidden="true">→</span>
                 <span>{selectedEdgeTarget?.name ?? (typeof selectedEdge.target === 'string' ? selectedEdge.target : selectedEdge.target.name)}</span>
-                <span className="rounded border px-1.5 py-0.5 text-[9px]" style={{ borderColor: PROCESS_COLORS[selectedEdge.type] ?? '#64748b', color: PROCESS_COLORS[selectedEdge.type] ?? '#64748b' }}>
+                <span className="rounded border px-1.5 py-0.5 text-[0.5625rem]" style={{ borderColor: PROCESS_COLORS[selectedEdge.type] ?? '#64748b', color: PROCESS_COLORS[selectedEdge.type] ?? '#64748b' }}>
                   {t(`callGraphView.processKinds.${selectedEdge.type}`)}
                 </span>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px] sm:grid-cols-3">
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[0.625rem] sm:grid-cols-3">
                 <div>
                   <span className="text-ds-zinc-500">{t('callGraphView.transitionDetails.certainty')}: </span>
                   <span>{selectedEdge.certainty ? t(`callGraphView.certainty.${selectedEdge.certainty}`) : t('callGraphView.transitionDetails.notProvided')}</span>
@@ -836,7 +836,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
                     const path = selectedEdge.file_path || selectedEdgeSource?.file_path;
                     if (path) onFileSelect(path, selectedEdge.start_line ?? selectedEdgeSource?.start_line, selectedEdge.source_id ?? selectedEdgeSource?.source_id);
                   }}
-                  className="inline-flex h-7 items-center gap-1.5 rounded border border-ds-indigo-500/50 px-2 text-[10px] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10"
+                  className="inline-flex h-7 items-center gap-1.5 rounded border border-ds-indigo-500/50 px-2 text-[0.625rem] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10"
                 >
                   <FileCode className="h-3 w-3" />
                   {t('callGraphView.transitionDetails.openSource')}

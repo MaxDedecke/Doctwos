@@ -323,7 +323,7 @@ export function ChatEmptyState({
       <div className="relative z-10 w-full max-w-3xl space-y-3">
         <div
           key={chatMode}
-          className="inline-flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ds-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
+          className="inline-flex items-center gap-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-ds-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
         >
           <span className="relative flex h-1.5 w-1.5">
             {isEvidence && (
@@ -397,7 +397,7 @@ export function ChatEmptyState({
 
         {stats && (
           <div
-            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-[0.14em] text-ds-zinc-500 animate-in fade-in duration-300 motion-reduce:animate-none"
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ds-zinc-500 animate-in fade-in duration-300 motion-reduce:animate-none"
             aria-label={selectedProject?.name}
           >
             {pulseTypesToShow(stats).map(type => (
@@ -447,7 +447,7 @@ export function ChatEmptyState({
                 />
               )}
               <div className="relative z-10 flex flex-col gap-2.5 p-4">
-                <div className="flex items-center justify-between font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ds-zinc-500">
+                <div className="flex items-center justify-between font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-ds-zinc-500">
                   <span>{String(idx + 1).padStart(2, '0')} · {scenario.tag}</span>
                   {interactive && (
                     <ArrowUpRight className="w-3.5 h-3.5 -translate-x-1 translate-y-1 opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:translate-y-0 group-focus-visible:opacity-100 motion-reduce:transition-none" />
@@ -470,7 +470,7 @@ export function ChatEmptyState({
                 <div
                   aria-hidden="true"
                   className={cn(
-                    'flex items-center gap-1.5 rounded border px-2.5 py-1.5 font-mono text-[11px] opacity-60 transition-opacity duration-150 motion-reduce:transition-none',
+                    'flex items-center gap-1.5 rounded border px-2.5 py-1.5 font-mono text-[0.6875rem] opacity-60 transition-opacity duration-150 motion-reduce:transition-none',
                     interactive && 'group-hover:opacity-100 group-focus-visible:opacity-100',
                     isDark ? 'border-ds-zinc-800 bg-ds-zinc-950 text-ds-zinc-400' : 'border-ds-zinc-200 bg-ds-zinc-50 text-ds-zinc-600'
                   )}

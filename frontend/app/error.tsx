@@ -49,7 +49,7 @@ export default function ErrorBoundary({
         <h1 className="text-lg font-bold text-ds-zinc-100">{t('errorBoundary.title')}</h1>
         <p className="text-sm text-ds-zinc-400">{t('errorBoundary.description')}</p>
         {traceId && (
-          <p className="select-all font-mono text-[11px] text-ds-zinc-500">
+          <p className="select-all font-mono text-[0.6875rem] text-ds-zinc-500">
             {t('page.toast.traceIdHint', { id: traceId })}
           </p>
         )}

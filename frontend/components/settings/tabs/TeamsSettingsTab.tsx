@@ -276,7 +276,7 @@ export const TeamsSettingsTab: React.FC = () => {
                   )}>
                     <div className="space-y-1.5">
                       {members.length === 0 ? (
-                        <div className={cn("text-[11px] italic py-1.5", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                        <div className={cn("text-[0.6875rem] italic py-1.5", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                           {t('settings.teams.noMembers')}
                         </div>
                       ) : (

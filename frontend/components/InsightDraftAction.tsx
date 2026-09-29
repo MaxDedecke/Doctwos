@@ -71,9 +71,9 @@ export function InsightDraftAction({ projectId, origin, evidence, defaultTitle, 
                 <X className="h-4 w-4" />
               </button>
             </header>
-            <label className="block text-[11px] font-semibold text-ds-zinc-500">{t('insightDraft.title')}</label>
+            <label className="block text-[0.6875rem] font-semibold text-ds-zinc-500">{t('insightDraft.title')}</label>
             <input autoFocus value={title} onChange={event => setTitle(event.target.value)} maxLength={240} className="mt-1 w-full rounded-md border border-ds-zinc-600 bg-transparent px-3 py-2 text-sm focus:border-ds-amber-500 focus:outline-none" />
-            <label className="mt-4 block text-[11px] font-semibold text-ds-zinc-500">{t('insightDraft.content')}</label>
+            <label className="mt-4 block text-[0.6875rem] font-semibold text-ds-zinc-500">{t('insightDraft.content')}</label>
             <textarea value={content} onChange={event => setContent(event.target.value)} rows={5} className="mt-1 w-full resize-y rounded-md border border-ds-zinc-600 bg-transparent px-3 py-2 text-sm focus:border-ds-amber-500 focus:outline-none" placeholder={t('insightDraft.contentHint')} />
             {error && <p className="mt-2 text-xs text-ds-red-500">{error}</p>}
             <div className="mt-4 flex justify-end gap-2">

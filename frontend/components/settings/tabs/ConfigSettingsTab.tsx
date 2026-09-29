@@ -159,7 +159,7 @@ export const ConfigSettingsTab: React.FC = () => {
               </h4>
               <span
                 className={cn(
-                  "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                  "px-2 py-0.5 rounded text-[0.625rem] font-bold uppercase tracking-wider",
                   sso?.enabled
                     ? "bg-ds-emerald-500/20 text-ds-emerald-700 dark:text-ds-emerald-300"
                     : "bg-ds-zinc-500/20 text-ds-zinc-600 dark:text-ds-zinc-400"
@@ -203,7 +203,7 @@ export const ConfigSettingsTab: React.FC = () => {
             className={cn(cardClass(theme), "p-4 space-y-3")}
           >
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+              <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
                 OIDC Issuer (IdP-URL)
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
@@ -212,7 +212,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+              <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
                 Client ID
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
@@ -221,7 +221,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+              <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
                 Client Secret Status
               </span>
               <div className="text-xs font-semibold flex items-center gap-1.5 mt-0.5">
@@ -266,13 +266,13 @@ export const ConfigSettingsTab: React.FC = () => {
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+                <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
                   Erforderliche Redirect-URI
                 </span>
-                <span className="text-[10px] text-ds-indigo-500 font-semibold">Für IdP-Client</span>
+                <span className="text-[0.625rem] text-ds-indigo-500 font-semibold">Für IdP-Client</span>
               </div>
 
-              <p className="text-[11px] text-ds-zinc-500 dark:text-ds-zinc-400">
+              <p className="text-[0.6875rem] text-ds-zinc-500 dark:text-ds-zinc-400">
                 Trage diese exakte URL im Kunden-IdP (Keycloak, Microsoft Entra ID, Okta) als erlaubte Callback-URI ein:
               </p>
 
@@ -296,7 +296,7 @@ export const ConfigSettingsTab: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-[11px] text-ds-zinc-500">
+            <div className="text-[0.6875rem] text-ds-zinc-500">
               Wichtig: Muss im Browser und vom IdP exakt so erreichbar sein.
             </div>
           </div>
@@ -331,7 +331,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             {connectionResult.success ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px] pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[0.6875rem] pt-1">
                 <div>
                   <span className="opacity-70">Auth Endpoint:</span> {connectionResult.authorization_endpoint || "—"}
                 </div>
@@ -346,7 +346,7 @@ export const ConfigSettingsTab: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="font-mono text-[11px] break-all">{connectionResult.error}</div>
+              <div className="font-mono text-[0.6875rem] break-all">{connectionResult.error}</div>
             )}
           </div>
         )}
@@ -366,7 +366,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
               Automatisches Standard-Team
             </span>
             <div className="flex items-center gap-2">
@@ -385,7 +385,7 @@ export const ConfigSettingsTab: React.FC = () => {
                 )
               )}
             </div>
-            <p className="text-[11px] text-ds-zinc-500">
+            <p className="text-[0.6875rem] text-ds-zinc-500">
               Jeder neue SSO-Nutzer tritt diesem Team automatisch bei.
             </p>
           </div>
@@ -394,7 +394,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
               Superuser-Rollen (Admin)
             </span>
             <div className="flex flex-wrap gap-1">
@@ -402,7 +402,7 @@ export const ConfigSettingsTab: React.FC = () => {
                 sso.admin_roles.map((r) => (
                   <span
                     key={r}
-                    className="px-2 py-0.5 rounded font-mono text-[11px] font-semibold bg-ds-indigo-500/10 text-ds-indigo-600 dark:text-ds-indigo-400 border border-ds-indigo-500/20"
+                    className="px-2 py-0.5 rounded font-mono text-[0.6875rem] font-semibold bg-ds-indigo-500/10 text-ds-indigo-600 dark:text-ds-indigo-400 border border-ds-indigo-500/20"
                   >
                     {r}
                   </span>
@@ -411,7 +411,7 @@ export const ConfigSettingsTab: React.FC = () => {
                 <span className="text-xs text-ds-zinc-500">Keine Rollen gemappt (nur manuelle Admin-Vergabe)</span>
               )}
             </div>
-            <p className="text-[11px] text-ds-zinc-500">
+            <p className="text-[0.6875rem] text-ds-zinc-500">
               Nutzer mit diesen IdP-Rollen erhalten automatisch Superuser-Rechte.
             </p>
           </div>
@@ -420,14 +420,14 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
               Geprüfte IdP-Claims
             </span>
             <div className="text-xs font-mono space-y-0.5">
               <div><span className="text-ds-zinc-500">Rollen:</span> {sso?.roles_claim || "roles"} (inkl. realm_access.roles)</div>
               <div><span className="text-ds-zinc-500">Gruppen:</span> {sso?.groups_claim || "groups"}</div>
             </div>
-            <p className="text-[11px] text-ds-zinc-500">
+            <p className="text-[0.6875rem] text-ds-zinc-500">
               Keycloak, Azure Entra ID und Okta Standardpfade werden automatisch durchsucht.
             </p>
           </div>
@@ -441,7 +441,7 @@ export const ConfigSettingsTab: React.FC = () => {
             <span className={sectionTitleClass(theme)}>
               Konfiguriertes Team-Mapping (OIDC_TEAM_MAPPING)
             </span>
-            <span className="text-[11px] text-ds-zinc-500">
+            <span className="text-[0.6875rem] text-ds-zinc-500">
               {Object.keys(sso?.team_mapping || {}).length} Mappings konfiguriert
             </span>
           </div>
@@ -498,7 +498,7 @@ export const ConfigSettingsTab: React.FC = () => {
               <Play className="w-3.5 h-3.5 text-ds-indigo-500" />
               Interaktiver Mapping-Simulator
             </h5>
-            <p className="text-[11px] text-ds-zinc-500">
+            <p className="text-[0.6875rem] text-ds-zinc-500">
               Prüfe vorab, welche Rolle und Teams ein Nutzer bei der Anmeldung erhält:
             </p>
           </div>
@@ -554,7 +554,7 @@ export const ConfigSettingsTab: React.FC = () => {
                 <span className="font-semibold text-ds-zinc-500">Berechnete Doctus-Rolle:</span>
                 <span
                   className={cn(
-                    "px-2 py-0.5 rounded font-bold uppercase text-[10px]",
+                    "px-2 py-0.5 rounded font-bold uppercase text-[0.625rem]",
                     simulationResult.computed_role === 'superuser'
                       ? "bg-ds-indigo-500/20 text-ds-indigo-400 border border-ds-indigo-500/30"
                       : "bg-ds-zinc-500/20 text-ds-zinc-400 border border-ds-zinc-500/30"
@@ -572,14 +572,14 @@ export const ConfigSettingsTab: React.FC = () => {
                       <span
                         key={t.name}
                         className={cn(
-                          "px-2 py-0.5 rounded font-mono text-[11px] font-semibold border flex items-center gap-1",
+                          "px-2 py-0.5 rounded font-mono text-[0.6875rem] font-semibold border flex items-center gap-1",
                           t.exists
                             ? "bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border-ds-emerald-500/20"
                             : "bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border-ds-amber-500/20"
                         )}
                       >
                         {t.name}
-                        {!t.exists && <span className="text-[9px] opacity-70">(fehlt in DB)</span>}
+                        {!t.exists && <span className="text-[0.5625rem] opacity-70">(fehlt in DB)</span>}
                       </span>
                     ))}
                   </div>
@@ -605,7 +605,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Version</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Version</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.version || "latest"}
             </div>
@@ -614,7 +614,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Log-Level</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Log-Level</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.log_level || "INFO"}
             </div>
@@ -623,7 +623,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">KI Modell</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">KI Modell</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate">
               {sys?.llm_model || "disabled"}
             </div>
@@ -632,7 +632,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[10px] font-bold uppercase tracking-wide text-ds-zinc-500">Kontextfenster</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Kontextfenster</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.context_window || 8192} Tokens
             </div>

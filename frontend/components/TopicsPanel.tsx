@@ -334,7 +334,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
               <Loader2 className={cn('w-4 h-4 animate-spin', subText)} />
             </div>
           ) : filteredTopics.length === 0 ? (
-            <p className={cn('text-[11px] text-center py-8 px-4', emptyText)}>
+            <p className={cn('text-[0.6875rem] text-center py-8 px-4', emptyText)}>
               {topicSearch ? t('topicsPanel.noTopicFound') : t('topicsPanel.noTopicsYet')}
             </p>
           ) : (
@@ -355,7 +355,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     <span className={cn('text-xs flex-1 truncate', isActive ? titleText : subText)}>
                       {t.name}
                     </span>
-                    <span className={cn('text-[10px] shrink-0', emptyText)}>{t.node_count}</span>
+                    <span className={cn('text-[0.625rem] shrink-0', emptyText)}>{t.node_count}</span>
                     {isActive && <ChevronRight className={cn('w-3 h-3 shrink-0', subText)} />}
                   </button>
                 );
@@ -406,7 +406,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     ))}
                   </div>
                   {createError && (
-                    <p className="text-[10px] text-ds-red-500 flex items-center gap-1">
+                    <p className="text-[0.625rem] text-ds-red-500 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />{createError}
                     </p>
                   )}
@@ -414,14 +414,14 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     <button
                       onClick={createTopic}
                       disabled={isCreating}
-                      className="flex-1 text-[11px] flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
+                      className="flex-1 text-[0.6875rem] flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
                     >
                       {isCreating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       {t('topicsPanel.createButton')}
                     </button>
                     <button
                       onClick={() => { setShowCreate(false); setCreateError(''); setNewName(''); setNewDesc(''); }}
-                      className={cn('px-2 py-1.5 rounded-md text-[11px]', ghostBtn)}
+                      className={cn('px-2 py-1.5 rounded-md text-[0.6875rem]', ghostBtn)}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -431,7 +431,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
             ) : (
               <button
                 onClick={() => setShowCreate(true)}
-                className={cn('w-full flex items-center gap-1.5 text-[11px] px-2 py-1.5 rounded-md', ghostBtn)}
+                className={cn('w-full flex items-center gap-1.5 text-[0.6875rem] px-2 py-1.5 rounded-md', ghostBtn)}
               >
                 <Plus className="w-3 h-3" />
                 {t('topicsPanel.newTopicButton')}
@@ -480,12 +480,12 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     <button
                       onClick={saveEdit}
                       disabled={isSavingEdit}
-                      className="text-[11px] flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
+                      className="text-[0.6875rem] flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 transition-colors disabled:opacity-50"
                     >
                       {isSavingEdit ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                       {t('topicsPanel.saveButton')}
                     </button>
-                    <button onClick={() => setIsEditing(false)} className={cn('text-[11px] px-2 py-1.5 rounded-md', ghostBtn)}>
+                    <button onClick={() => setIsEditing(false)} className={cn('text-[0.6875rem] px-2 py-1.5 rounded-md', ghostBtn)}>
                       {t('topicsPanel.cancelButton')}
                     </button>
                   </div>
@@ -545,7 +545,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
               <div className="p-5 space-y-5">
                 {nodesByType.filter(nt => nt.nodes.length > 0).map(({ key, labelKey, Icon, iconCls, nodes: typeNodes }) => (
                   <div key={key}>
-                    <p className={cn('text-[10px] uppercase font-semibold tracking-wider mb-2', sectionLabel)}>
+                    <p className={cn('text-[0.625rem] uppercase font-semibold tracking-wider mb-2', sectionLabel)}>
                       {t(labelKey)} <span className="normal-case font-normal">({typeNodes.length})</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -564,12 +564,12 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                           )}
                           <span className={cn('max-w-[180px] truncate', titleText)}>{node.node_label}</span>
                           {typeof node.node_meta?.type === 'string' && node.node_meta.type !== '' && (
-                            <span className={cn('text-[10px] px-1 rounded shrink-0', subText)}>
+                            <span className={cn('text-[0.625rem] px-1 rounded shrink-0', subText)}>
                               {node.node_meta.type}
                             </span>
                           )}
                           {typeof node.node_meta?.file_path === 'string' && node.node_meta.file_path !== '' && !node.node_meta?.type && (
-                            <span className={cn('text-[10px] max-w-[100px] truncate', subText)}>
+                            <span className={cn('text-[0.625rem] max-w-[100px] truncate', subText)}>
                               {node.node_meta.file_path.split('/').pop()}
                             </span>
                           )}
@@ -609,7 +609,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                           key={key}
                           onClick={() => setAddNodeType(key)}
                           className={cn(
-                            'flex items-center gap-1 text-[11px] px-2 py-1 rounded-md border transition-colors',
+                            'flex items-center gap-1 text-[0.6875rem] px-2 py-1 rounded-md border transition-colors',
                             addNodeType === key
                               ? isDark ? 'bg-ds-zinc-700 border-ds-zinc-500 text-ds-zinc-100' : 'bg-ds-zinc-200 border-ds-zinc-400 text-ds-zinc-900'
                               : isDark ? 'border-ds-zinc-700 text-ds-zinc-500 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 text-ds-zinc-500 hover:bg-ds-zinc-100',
@@ -666,10 +666,10 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                                 )}
                                 <span className="truncate flex-1">{r.node_label}</span>
                                 {typeof r.node_meta?.type === 'string' && r.node_meta.type !== '' && (
-                                  <span className={cn('text-[10px] shrink-0', subText)}>{r.node_meta.type}</span>
+                                  <span className={cn('text-[0.625rem] shrink-0', subText)}>{r.node_meta.type}</span>
                                 )}
                                 {typeof r.node_meta?.file_path === 'string' && r.node_meta.file_path !== '' && !r.node_meta?.type && (
-                                  <span className={cn('text-[10px] shrink-0 truncate max-w-[120px]', subText)}>
+                                  <span className={cn('text-[0.625rem] shrink-0 truncate max-w-[120px]', subText)}>
                                     {r.node_meta.file_path.split('/').pop()}
                                   </span>
                                 )}
@@ -681,7 +681,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
                     </div>
 
                     {addNodeError && (
-                      <p className="text-[10px] text-ds-red-500 flex items-center gap-1">
+                      <p className="text-[0.625rem] text-ds-red-500 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />{addNodeError}
                       </p>
                     )}

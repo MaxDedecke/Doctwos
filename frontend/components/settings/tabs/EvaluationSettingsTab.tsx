@@ -135,16 +135,16 @@ export const EvaluationSettingsTab: React.FC = () => {
             <h4 className={cn('flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide', muted)}>
               <MessageSquareWarning className="h-3.5 w-3.5" />{t('settings.evaluationTab.feedbackTitle')}
             </h4>
-            <p className={cn('mt-1 max-w-3xl text-[10px]', muted)}>{t('settings.evaluationTab.feedbackDescription')}</p>
+            <p className={cn('mt-1 max-w-3xl text-[0.625rem]', muted)}>{t('settings.evaluationTab.feedbackDescription')}</p>
           </div>
           <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void refresh()}
-            className={cn('h-7 shrink-0 gap-1.5 px-2.5 text-[10px] focus:ring-0', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 bg-white text-ds-zinc-700 hover:bg-ds-zinc-100')}>
+            className={cn('h-7 shrink-0 gap-1.5 px-2.5 text-[0.625rem] focus:ring-0', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 bg-white text-ds-zinc-700 hover:bg-ds-zinc-100')}>
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}{t('settings.evaluationTab.feedbackRefresh')}
           </Button>
         </div>
 
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className={cn('text-[10px]', muted)}>{t('settings.evaluationTab.feedbackTotal', { total })}</p>
+          <p className={cn('text-[0.625rem]', muted)}>{t('settings.evaluationTab.feedbackTotal', { total })}</p>
           <input type="search" value={queryInput} onChange={event => setQueryInput(event.target.value)}
             placeholder={t('settings.evaluationTab.feedbackSearch')}
             aria-label={t('settings.evaluationTab.feedbackSearch')}
@@ -162,7 +162,7 @@ export const EvaluationSettingsTab: React.FC = () => {
                 <summary className="flex cursor-pointer list-none items-start gap-2 outline-none [&::-webkit-details-marker]:hidden">
                   <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
                   <span className="min-w-0 flex-1">
-                    <span className={cn('flex flex-wrap justify-between gap-x-3 gap-y-1 text-[9px]', muted)}>
+                    <span className={cn('flex flex-wrap justify-between gap-x-3 gap-y-1 text-[0.5625rem]', muted)}>
                       <span>{t('settings.evaluationTab.feedbackSession', { id: entry.session_label })}</span>
                       <time>{entry.created_at ? new Date(entry.created_at).toLocaleString(language === 'de' ? 'de-DE' : 'en-US') : ''}</time>
                     </span>
@@ -171,16 +171,16 @@ export const EvaluationSettingsTab: React.FC = () => {
                 </summary>
                 <div className="mt-3 space-y-3 border-t border-ds-zinc-700/40 pt-3">
                   <div>
-                    <p className="text-[9px] font-bold uppercase text-ds-zinc-500">{t('settings.evaluationTab.feedbackQuestion')}</p>
+                    <p className="text-[0.5625rem] font-bold uppercase text-ds-zinc-500">{t('settings.evaluationTab.feedbackQuestion')}</p>
                     <p className={cn('whitespace-pre-wrap break-words text-xs', muted)}>{entry.question || t('settings.evaluationTab.feedbackQuestionMissing')}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold uppercase text-ds-zinc-500">{t('settings.evaluationTab.feedbackAnswer')}</p>
+                    <p className="text-[0.5625rem] font-bold uppercase text-ds-zinc-500">{t('settings.evaluationTab.feedbackAnswer')}</p>
                     <p className={cn('max-h-72 overflow-y-auto whitespace-pre-wrap break-words rounded border p-2 text-xs', border, isDark ? 'text-ds-zinc-300' : 'text-ds-zinc-700')}>{entry.answer}</p>
                   </div>
-                  <details className={cn('rounded border px-2.5 py-2 text-[10px]', border)}>
+                  <details className={cn('rounded border px-2.5 py-2 text-[0.625rem]', border)}>
                     <summary className="cursor-pointer font-medium text-ds-zinc-500">{t('settings.evaluationTab.feedbackEvidence')}</summary>
-                    <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[10px]">{JSON.stringify({ sources: entry.sources_json, metadata: entry.metadata_json }, null, 2)}</pre>
+                    <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-[0.625rem]">{JSON.stringify({ sources: entry.sources_json, metadata: entry.metadata_json }, null, 2)}</pre>
                   </details>
                 </div>
               </details>
@@ -188,7 +188,7 @@ export const EvaluationSettingsTab: React.FC = () => {
           </div>
         )}
 
-        {searchTruncated && query && <p className={cn('mt-2 text-[10px]', muted)}>{t('settings.evaluationTab.feedbackSearchTruncated')}</p>}
+        {searchTruncated && query && <p className={cn('mt-2 text-[0.625rem]', muted)}>{t('settings.evaluationTab.feedbackSearchTruncated')}</p>}
         <div className="mt-2">
           <ListPager page={page} pageSize={FEEDBACK_PAGE_SIZE} shown={entries.length} total={total} loading={loading} theme={theme} onPageChange={setPage} />
         </div>
@@ -197,27 +197,27 @@ export const EvaluationSettingsTab: React.FC = () => {
       {diagnosticSettings && <section className={cn('space-y-3 rounded-lg border p-3 sm:p-4', border, surface)}>
         <div>
           <h4 className={cn('text-xs font-bold uppercase tracking-wide', muted)}>{t('settings.evaluationTab.diagnosticsTitle')}</h4>
-          <p className="mt-0.5 text-[10px] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsDescription')}</p>
+          <p className="mt-0.5 text-[0.625rem] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsDescription')}</p>
         </div>
         <label className="flex cursor-pointer items-start gap-2 text-xs">
           <input type="checkbox" checked={diagnosticSettings.collection_enabled} disabled={settingsSaving}
             onChange={event => void saveDiagnosticSettings({ collection_enabled: event.target.checked, support_export_enabled: event.target.checked && diagnosticSettings.support_export_enabled, retention_days: diagnosticSettings.retention_days })} />
-          <span><span className="font-medium">{t('settings.evaluationTab.diagnosticsCollect')}</span><span className="block text-[10px] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsCollectDescription')}</span></span>
+          <span><span className="font-medium">{t('settings.evaluationTab.diagnosticsCollect')}</span><span className="block text-[0.625rem] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsCollectDescription')}</span></span>
         </label>
         <label className="flex cursor-pointer items-start gap-2 text-xs">
           <input type="checkbox" checked={diagnosticSettings.support_export_enabled} disabled={!diagnosticSettings.collection_enabled || settingsSaving}
             onChange={event => void saveDiagnosticSettings({ collection_enabled: diagnosticSettings.collection_enabled, support_export_enabled: event.target.checked, retention_days: diagnosticSettings.retention_days })} />
-          <span><span className="font-medium">{t('settings.evaluationTab.diagnosticsExport')}</span><span className="block text-[10px] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsExportDescription')}</span></span>
+          <span><span className="font-medium">{t('settings.evaluationTab.diagnosticsExport')}</span><span className="block text-[0.625rem] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsExportDescription')}</span></span>
         </label>
-        <label className="block text-[10px] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsRetention')}
+        <label className="block text-[0.625rem] text-ds-zinc-500">{t('settings.evaluationTab.diagnosticsRetention')}
           <input type="number" min={1} max={365} value={diagnosticSettings.retention_days} disabled={settingsSaving}
             onChange={event => setDiagnosticSettings({ ...diagnosticSettings, retention_days: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })}
             onBlur={() => void saveDiagnosticSettings({ collection_enabled: diagnosticSettings.collection_enabled, support_export_enabled: diagnosticSettings.support_export_enabled, retention_days: diagnosticSettings.retention_days })}
             className={cn('ml-2 h-7 w-16 rounded border px-2 text-xs', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-300 bg-white')} />
         </label>
         <div className="flex flex-wrap gap-3">
-          {diagnosticSettings.collection_enabled && diagnosticSettings.support_export_enabled && <a href={`${API_URL}/feedback-diagnostics/export`} download className="text-[10px] text-ds-indigo-500 hover:underline">{t('settings.evaluationTab.diagnosticsDownload')}</a>}
-          <button type="button" onClick={() => void deleteDiagnosticCases()} className="text-[10px] text-ds-red-500 hover:underline">{t('settings.evaluationTab.diagnosticsDelete')}</button>
+          {diagnosticSettings.collection_enabled && diagnosticSettings.support_export_enabled && <a href={`${API_URL}/feedback-diagnostics/export`} download className="text-[0.625rem] text-ds-indigo-500 hover:underline">{t('settings.evaluationTab.diagnosticsDownload')}</a>}
+          <button type="button" onClick={() => void deleteDiagnosticCases()} className="text-[0.625rem] text-ds-red-500 hover:underline">{t('settings.evaluationTab.diagnosticsDelete')}</button>
         </div>
       </section>}
     </div>

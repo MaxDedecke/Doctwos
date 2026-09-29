@@ -196,7 +196,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
             <h4 className={cn("text-sm font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-850")}>
               {t('settings.sourcesTab.title')}
             </h4>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-sm bg-ds-indigo-500/10 text-ds-indigo-400 border border-ds-indigo-500/20">
+            <span className="text-[0.625rem] font-bold px-2 py-0.5 rounded-sm bg-ds-indigo-500/10 text-ds-indigo-400 border border-ds-indigo-500/20">
               {connectedSources.length} {connectedSources.length === 1 ? t('settings.sourcesTab.sourceBadgeSingular') : t('settings.sourcesTab.sourceBadgePlural')}
             </span>
           </div>
@@ -207,7 +207,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
         {/* Project Selector */}
         <div className="p-2.5 rounded-lg flex items-center gap-3 transition-all duration-300">
-          <span className={cn("text-[10px] font-bold uppercase tracking-wider shrink-0", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
+          <span className={cn("text-[0.625rem] font-bold uppercase tracking-wider shrink-0", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
             Filter:
           </span>
           <Select
@@ -315,7 +315,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <span className={cn("text-sm font-bold truncate max-w-[220px] leading-tight", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")} title={inst.name}>
                             {inst.name}
                           </span>
-                          <span className={cn("inline-self-start text-[11px] uppercase tracking-widest font-extrabold px-1.5 py-1 rounded border mt-1 w-max", meta.badgeColor)}>
+                          <span className={cn("inline-self-start text-[0.6875rem] uppercase tracking-widest font-extrabold px-1.5 py-1 rounded border mt-1 w-max", meta.badgeColor)}>
                             {inst.type}
                           </span>
                         </div>
@@ -345,7 +345,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                     {/* Metadata lines */}
                     <div className={cn(
-                      "text-[11px] space-y-2 p-3 rounded-lg border font-medium",
+                      "text-[0.6875rem] space-y-2 p-3 rounded-lg border font-medium",
                       theme === 'dark' ? "bg-ds-zinc-950/30 border-ds-zinc-850/60 text-ds-zinc-400" : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-650"
                     )}>
                       {project && (
@@ -415,7 +415,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                     {/* Kontext-Notiz: Fachwissen/Kunden-Jargon zu dieser Quelle, fließt in den System-Prompt ein */}
                     <div className="mt-2.5" onClick={(e) => e.stopPropagation()}>
-                      <label className="text-[11px] uppercase tracking-wider font-extrabold opacity-45 block mb-1">
+                      <label className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-45 block mb-1">
                         {t('settings.sourcesTab.contextNoteLabel')}
                       </label>
                       <textarea
@@ -442,7 +442,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     <div>
                       {inst.type?.toLowerCase() !== 'local' ? (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.intervalLabelColon')}</span>
+                          <span className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.intervalLabelColon')}</span>
                           <select
                             value={inst.sync_interval_minutes ?? 0}
                             onClick={(e) => e.stopPropagation()}
@@ -462,7 +462,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           </select>
                         </div>
                       ) : (
-                        <div className="text-[11px] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.manualDocumentLabel')}</div>
+                        <div className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-45">{t('settings.sourcesTab.manualDocumentLabel')}</div>
                       )}
                     </div>
 
@@ -615,7 +615,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     <span className={cn("text-xs font-bold tracking-wide", theme === 'dark' ? "text-ds-zinc-250" : "text-ds-zinc-800")}>
                       {src.name}
                     </span>
-                    <p className={cn("text-[9px] leading-relaxed line-clamp-2 font-medium opacity-80", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
+                    <p className={cn("text-[0.5625rem] leading-relaxed line-clamp-2 font-medium opacity-80", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
                       {src.desc}
                     </p>
                   </div>

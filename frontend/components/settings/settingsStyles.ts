@@ -18,7 +18,7 @@ export const sectionTitleClass = (theme: Theme) =>
   cn('text-xs font-bold uppercase tracking-wide', isDark(theme) ? 'text-ds-zinc-400' : 'text-ds-zinc-500');
 
 /** Erläuternder Fließtext unter Überschriften. */
-export const helpTextClass = 'text-[11px] leading-relaxed text-ds-zinc-500';
+export const helpTextClass = 'text-[0.6875rem] leading-relaxed text-ds-zinc-500';
 
 /** Hervorgehobener Wert im Fließtext / Kartentitel. */
 export const strongTextClass = (theme: Theme) =>
@@ -48,7 +48,7 @@ export const primaryButtonClass =
 /** Sekundäraktion (Outline). */
 export const secondaryButtonClass = (theme: Theme) =>
   cn(
-    'h-8 text-[10px] px-2.5 rounded-lg flex items-center gap-1.5 shrink-0 focus:ring-0',
+    'h-8 text-[0.625rem] px-2.5 rounded-lg flex items-center gap-1.5 shrink-0 focus:ring-0',
     isDark(theme)
       ? 'bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300'
       : 'bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700',
@@ -71,7 +71,7 @@ export const dividerClass = (theme: Theme) => cn('border-t', isDark(theme) ? 'bo
 /** Kleines Statusabzeichen (nur für Status, siehe Design Guidelines). */
 export const badgeClass = (tone: 'neutral' | 'success' | 'warning' | 'accent') =>
   cn(
-    'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border leading-none',
+    'px-1.5 py-0.5 rounded text-[0.5625rem] font-bold uppercase tracking-wider border leading-none',
     tone === 'success' && 'bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border-ds-emerald-500/20',
     tone === 'warning' && 'bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border-ds-amber-500/20',
     tone === 'accent' && 'bg-ds-indigo-500/10 text-ds-indigo-600 dark:text-ds-indigo-400 border-ds-indigo-500/20',

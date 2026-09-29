@@ -194,7 +194,7 @@ export function Sidebar({
                 className="w-full justify-start gap-2.5 h-11 rounded-md doctus-brand-gradient hover:brightness-105 text-ds-white border-0 transition-all duration-150"
               >
                 <Plus className="w-4 h-4" />
-                  <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.14em]">{t('sidebar.newChat')}</span>
+                  <span className="text-[0.625rem] font-mono font-semibold uppercase tracking-[0.14em]">{t('sidebar.newChat')}</span>
               </Button>
             </div>
 
@@ -207,7 +207,7 @@ export function Sidebar({
                 <div
                   onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
                   className={cn(
-                    "flex items-center justify-between px-4 py-2 select-none cursor-pointer transition-colors shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
+                    "flex items-center justify-between px-4 py-2 select-none cursor-pointer transition-colors shrink-0 font-bold text-[0.625rem] uppercase tracking-[0.12em]",
                     theme === 'dark'
                       ? "text-ds-zinc-400 hover:text-ds-zinc-200"
                       : "text-ds-zinc-500 hover:text-ds-zinc-800"
@@ -218,7 +218,7 @@ export function Sidebar({
                     <span>{t('sidebar.history')}</span>
                   </span>
                   <span className={cn(
-                    "text-[9px] font-mono px-1.5 py-0.5 rounded-sm",
+                    "text-[0.5625rem] font-mono px-1.5 py-0.5 rounded-sm",
                     theme === 'dark' ? "bg-ds-zinc-800/80 text-ds-zinc-400" : "bg-ds-zinc-200/70 text-ds-zinc-600"
                   )}>
                     {hasMoreSessions ? `${contextSessions.length}+` : contextSessions.length}
@@ -268,12 +268,12 @@ export function Sidebar({
                     )}
                   >
                     <div className={cn(
-                      "flex items-center justify-between px-4 py-2 select-none shrink-0 font-bold text-[10px] uppercase tracking-[0.12em]",
+                      "flex items-center justify-between px-4 py-2 select-none shrink-0 font-bold text-[0.625rem] uppercase tracking-[0.12em]",
                       theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                     )}>
                       <span>{t('sidebar.knowledgeSources')}</span>
                       <span className={cn(
-                        "text-[9px] font-mono px-1.5 py-0.5 rounded-sm",
+                        "text-[0.5625rem] font-mono px-1.5 py-0.5 rounded-sm",
                         theme === 'dark' ? "bg-ds-zinc-850 text-ds-zinc-450" : "bg-ds-zinc-200 text-ds-zinc-500"
                       )}>
                         {pinnedSources.length}
@@ -283,7 +283,7 @@ export function Sidebar({
                     <ScrollArea className="flex-1 px-3 py-2">
                       <div className="space-y-1.5">
                         {pinnedSources.length === 0 ? (
-                          <div className="text-[10px] text-ds-zinc-500 italic py-3 text-center">
+                          <div className="text-[0.625rem] text-ds-zinc-500 italic py-3 text-center">
                             {t('sidebar.noPinnedSources')}
                           </div>
                         ) : (
@@ -325,7 +325,7 @@ export function Sidebar({
                                       </span>
                                       {selectedProject && !source.project_id && (
                                         <span className={cn(
-                                          "shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
+                                          "shrink-0 text-[0.5rem] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
                                           theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-600"
                                         )}>
                                           {t('sidebar.globalSourceBadge') || 'Global'}
@@ -371,7 +371,7 @@ export function Sidebar({
                                     </span>
                                     {selectedProject && !source.project_id && (
                                       <span className={cn(
-                                        "shrink-0 text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
+                                        "shrink-0 text-[0.5rem] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-sm",
                                         theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-600"
                                       )}>
                                         {t('sidebar.globalSourceBadge') || 'Global'}
@@ -390,12 +390,12 @@ export function Sidebar({
                                 {isExpanded && (
                                   <div className="px-2 pb-2 pt-0.5 space-y-1">
                                     {isLoadingFiles ? (
-                                      <div className="flex items-center gap-1.5 px-2 py-3 text-[10px] text-ds-zinc-500 font-medium">
+                                      <div className="flex items-center gap-1.5 px-2 py-3 text-[0.625rem] text-ds-zinc-500 font-medium">
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                         <span>{t('sidebar.loadingFiles')}</span>
                                       </div>
                                     ) : filesList.length === 0 ? (
-                                      <div className="text-[10px] text-ds-zinc-500 italic px-2 py-3 text-center">
+                                      <div className="text-[0.625rem] text-ds-zinc-500 italic px-2 py-3 text-center">
                                         {t('sidebar.noFiles')}
                                       </div>
                                     ) : (
@@ -450,7 +450,7 @@ export function Sidebar({
                     <p className={cn("text-xs font-semibold truncate leading-none mb-1", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                       {currentUser?.name || currentUser?.username || t('sidebar.defaultUser')}
                     </p>
-                    <p className="text-[9px] font-medium text-ds-zinc-500 leading-none truncate">
+                    <p className="text-[0.5625rem] font-medium text-ds-zinc-500 leading-none truncate">
                       {currentUser?.email || t('sidebar.localSession')}
                     </p>
                   </div>

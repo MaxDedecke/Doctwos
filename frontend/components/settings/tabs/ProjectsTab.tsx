@@ -330,7 +330,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                     </div>
                                     <div className="space-y-3">
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-450">
+                                        <label className="text-[0.625rem] font-bold uppercase tracking-wider text-ds-zinc-450">
                                           Name
                                         </label>
                                         <input
@@ -344,7 +344,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-450">
+                                        <label className="text-[0.625rem] font-bold uppercase tracking-wider text-ds-zinc-450">
                                           Beschreibung
                                         </label>
                                         <Textarea
@@ -357,7 +357,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[10px] font-bold uppercase tracking-wider text-ds-zinc-455">
+                                        <label className="text-[0.625rem] font-bold uppercase tracking-wider text-ds-zinc-455">
                                           Projekt-Farbe
                                         </label>
                                         <div className="flex items-center gap-3">
@@ -381,7 +381,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           <span className={cn("block text-xs font-semibold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
                                             In Allgemein-Suche &amp; -Graph-Ansicht sichtbar
                                           </span>
-                                          <span className="block text-[10px] font-medium text-ds-zinc-450">
+                                          <span className="block text-[0.625rem] font-medium text-ds-zinc-450">
                                             Standardmäßig aus: Code-Analyse-Objekte dieses Projekts (Entities, Call-Graph)
                                             bleiben außerhalb des Projekts unsichtbar, bis dies hier aktiviert wird.
                                           </span>
@@ -451,12 +451,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         />
                                         <span className={cn("font-semibold text-xs truncate max-w-[150px] sm:max-w-none", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{project.name}</span>
                                         {isActive && (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-ds-emerald-500/10 text-ds-emerald-500 border border-ds-emerald-500/20">
+                                          <span className="text-[0.5625rem] font-bold px-1.5 py-0.5 rounded bg-ds-emerald-500/10 text-ds-emerald-500 border border-ds-emerald-500/20">
                                             {t('settings.projects.activeFocus')}
                                           </span>
                                         )}
                                         {project.is_archived && (
-                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-ds-zinc-500/10 text-ds-zinc-500 border border-ds-zinc-500/20">
+                                          <span className="text-[0.5625rem] font-bold px-1.5 py-0.5 rounded bg-ds-zinc-500/10 text-ds-zinc-500 border border-ds-zinc-500/20">
                                             {t('settings.projects.completedBadge')}
                                           </span>
                                         )}
@@ -569,14 +569,14 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                       "pt-3 border-t space-y-2.5",
                                       theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
                                     )}>
-                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
+                                      <div className={cn("text-[0.5625rem] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                         {t('settings.projects.complete.title')}
                                       </div>
-                                      <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                                      <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                         {t('settings.projects.complete.description')}
                                       </p>
                                       {connectedSources.filter(src => src.project_id === project.id).length === 0 ? (
-                                        <p className={cn("text-[11px] italic", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                                        <p className={cn("text-[0.6875rem] italic", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                           {t('settings.projects.complete.noSources')}
                                         </p>
                                       ) : (
@@ -585,7 +585,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             <label
                                               key={src.id}
                                               className={cn(
-                                                "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px] cursor-pointer transition-colors",
+                                                "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[0.6875rem] cursor-pointer transition-colors",
                                                 theme === 'dark' ? "border-ds-zinc-800 hover:bg-ds-zinc-900" : "border-ds-zinc-200 hover:bg-ds-zinc-50"
                                               )}
                                             >
@@ -607,7 +607,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           size="sm"
                                           disabled={isCompletingProject}
                                           onClick={() => handleConfirmCompleteProject(project)}
-                                          className="h-7 text-[11px] font-bold px-3 rounded-lg bg-ds-emerald-600 hover:bg-ds-emerald-700 text-ds-white"
+                                          className="h-7 text-[0.6875rem] font-bold px-3 rounded-lg bg-ds-emerald-600 hover:bg-ds-emerald-700 text-ds-white"
                                         >
                                           {isCompletingProject ? (
                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -621,7 +621,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           variant="ghost"
                                           disabled={isCompletingProject}
                                           onClick={() => setCompletingProjectId(null)}
-                                          className="h-7 text-[11px] font-semibold px-3 rounded-lg text-ds-zinc-500"
+                                          className="h-7 text-[0.6875rem] font-semibold px-3 rounded-lg text-ds-zinc-500"
                                         >
                                           {t('settings.projects.complete.cancel')}
                                         </Button>
@@ -637,7 +637,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                     )}>
                                       <div className="space-y-1.5">
                                         {(projectMembers[project.id] || []).length === 0 ? (
-                                          <div className={cn("text-[11px] italic py-1", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                                          <div className={cn("text-[0.6875rem] italic py-1", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                                             {t('settings.projects.members.empty')}
                                           </div>
                                         ) : (
@@ -654,7 +654,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               </span>
                                               <div className="flex items-center gap-1.5 shrink-0">
                                                 {member.role === 'admin' ? (
-                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
+                                                  <span className={cn("text-[0.5625rem] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
                                                     {t('settings.projects.members.roleAdmin')}
                                                   </span>
                                                 ) : isProjectAdmin(project) && project.creator_id !== member.user_id ? (
@@ -662,7 +662,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                     value={member.role}
                                                     onValueChange={(value) => handleUpdateProjectMemberRole(project.id, member.user_id, value as 'admin' | 'member')}
                                                   >
-                                                    <SelectTrigger className="h-6 text-[9px] font-bold uppercase px-1.5 w-auto gap-1">
+                                                    <SelectTrigger className="h-6 text-[0.5625rem] font-bold uppercase px-1.5 w-auto gap-1">
                                                       <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -671,7 +671,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                     </SelectContent>
                                                   </Select>
                                                 ) : (
-                                                  <span className={cn("text-[9px] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
+                                                  <span className={cn("text-[0.5625rem] font-bold uppercase", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
                                                     {t('settings.projects.members.roleMember')}
                                                   </span>
                                                 )}
@@ -732,7 +732,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
                                       {isProjectAdmin(project) && (projectAccessRequests[project.id] || []).length > 0 && (
                                         <div className="space-y-1.5">
-                                          <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
+                                          <div className={cn("text-[0.5625rem] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                             {t('settings.projects.members.pendingRequests')}
                                           </div>
                                           {(projectAccessRequests[project.id] || []).map((req) => (
@@ -778,10 +778,10 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   {/* Mapped Knowledge Sources */}
                                   {connectedSources.filter(src => src.project_id === project.id).length > 0 && (
                                     <div className={cn(
-                                      "pt-3 border-t text-[11px] space-y-2",
+                                      "pt-3 border-t text-[0.6875rem] space-y-2",
                                       theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
                                     )}>
-                                      <div className={cn("text-[9px] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
+                                      <div className={cn("text-[0.5625rem] font-bold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-550")}>
                                         {t('settings.projects.linkedSources')}
                                       </div>
                                       <div className="flex flex-wrap gap-1.5">
@@ -795,7 +795,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             <span
                                               key={src.id}
                                               className={cn(
-                                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border shadow-sm",
+                                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[0.625rem] font-medium border shadow-sm",
                                                 theme === 'dark' ? "bg-ds-indigo-500/10 border-ds-indigo-500/20 text-ds-indigo-400" : "bg-ds-indigo-50 border-ds-indigo-200 text-ds-indigo-700"
                                               )}
                                               title={`${t('settings.projects.linkedWithBranch', { name: src.name })}${spacesText ? t('settings.projects.areasSuffix', { spaces: spacesText }) : ''}`}
@@ -837,7 +837,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                   <div className="min-w-0 flex-1">
                                     <div className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{project.name}</div>
                                     {project.description && (
-                                      <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>{project.description}</div>
+                                      <div className={cn("text-[0.6875rem] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>{project.description}</div>
                                     )}
                                   </div>
                                   <Button

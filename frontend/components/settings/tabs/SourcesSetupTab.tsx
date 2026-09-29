@@ -228,13 +228,13 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
           <div className="space-y-5 animate-in fade-in duration-250">
             <div className="space-y-1.5">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.sourcesSetup.folderWatchTitle')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
                 {t('settings.sourcesSetup.folderWatchDesc')}
               </p>
             </div>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderNameLabel')}</label>
+                <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderNameLabel')}</label>
                 <input
                   type="text"
                   placeholder={t('settings.sourcesSetup.folderNamePlaceholder')}
@@ -249,7 +249,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderPathLabel')}</label>
+                <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.folderPathLabel')}</label>
                 <input
                   type="text"
                   placeholder={t('settings.sourcesSetup.folderPathPlaceholder')}
@@ -288,7 +288,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
           <div className="space-y-5 animate-in fade-in duration-250">
             <div className="space-y-1.5">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{t('settings.sourcesSetup.selectFileTitle')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-555")}>
                 {t('settings.sourcesSetup.selectFileDesc', { project: selectedSourceRepoId === 'all' ? t('settings.sourcesTab.global') : (projects.find((p) => p.id.toString() === selectedSourceRepoId)?.name || '') })}
               </p>
             </div>
@@ -312,7 +312,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 <p className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                   {selectedUploadFile ? selectedUploadFile.name : t('settings.sourcesSetup.dropzoneText')}
                 </p>
-                <p className="text-[10px] text-ds-zinc-500">{t('settings.sourcesSetup.dropzoneHint')}</p>
+                <p className="text-[0.625rem] text-ds-zinc-500">{t('settings.sourcesSetup.dropzoneHint')}</p>
               </div>
 
               <input
@@ -368,7 +368,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
               </p>
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.integrationNameLabel')}</label>
+                  <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.integrationNameLabel')}</label>
                   <input
                     type="text"
                     placeholder={t('settings.sourcesSetup.integrationNamePlaceholder', { type: activeSourceType })}
@@ -386,7 +386,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 {(
                   <>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.serverUrlLabel')}</label>
+                      <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.serverUrlLabel')}</label>
                       <input
                         type="text"
                         placeholder={activeSourceType === "Jira Software" ? "https://jira.company.com" : "https://company.atlassian.net"}
@@ -401,7 +401,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.emailUsernameLabel')}</label>
+                      <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.emailUsernameLabel')}</label>
                       <input
                         type="text"
                         placeholder="user@company.com"
@@ -419,7 +419,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">
+                  <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {t('settings.sourcesSetup.apiTokenPasswordLabel')}
                   </label>
                   <input
@@ -437,7 +437,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-ds-zinc-500 uppercase px-0.5">
+                  <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {t('settings.sourcesSetup.spacesProjectKeysLabel')}
                   </label>
                   <input
@@ -506,7 +506,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                   </Button>
                 </div>
                 {sourceConnStatus === 'error' && sourceConnError && (
-                  <div className="text-[10px] text-ds-red-500 text-right w-full mt-1 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div className="text-[0.625rem] text-ds-red-500 text-right w-full mt-1 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
                     {sourceConnError}
                   </div>
                 )}

@@ -357,7 +357,7 @@ export function GlobalSearch({
           }}
         >
           <SelectTrigger id="project-selector" aria-label={t('page.projectSelectorLabel') || "Projekt auswählen"} className={cn(
-            "h-9 text-[11px] border rounded-md w-auto min-w-[155px] max-w-[220px] font-mono font-semibold uppercase tracking-wide px-2.5 gap-2",
+            "h-9 text-[0.6875rem] border rounded-md w-auto min-w-[155px] max-w-[220px] font-mono font-semibold uppercase tracking-wide px-2.5 gap-2",
             theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"
           )}>
             <SelectValue placeholder={t('page.generalContext') || "Allgemein"} />
@@ -447,7 +447,7 @@ export function GlobalSearch({
                     <SelectItem value="all" className="text-xs">{t('globalSearch.allScope')}</SelectItem>
                     {filteredSources.length > 0 && (
                       <>
-                        <div className="text-[9px] font-bold px-2 py-1 uppercase tracking-wider text-ds-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
+                        <div className="text-[0.5625rem] font-bold px-2 py-1 uppercase tracking-wider text-ds-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
                         {filteredSources.map(s => (
                           <SelectItem key={`source-${s.id}`} value={`source:${s.id}`} className="text-xs">{s.name}</SelectItem>
                         ))}
@@ -473,7 +473,7 @@ export function GlobalSearch({
                   return (
                     <div key={group.type} className="py-1">
                       <div className={cn(
-                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider",
+                        "px-3 py-1 text-[0.5625rem] font-bold uppercase tracking-wider",
                         theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
                       )}>
                         {t(`globalSearch.groups.${group.type}`)}
@@ -509,7 +509,7 @@ export function GlobalSearch({
                             <span className="flex flex-col min-w-0 flex-1">
                               <span className="truncate">{item.node_label}</span>
                               {item.node_type === 'entity' && item.node_meta?.file_path && (
-                                <span className="text-[10px] text-ds-zinc-500 truncate">{item.node_meta.file_path}</span>
+                                <span className="text-[0.625rem] text-ds-zinc-500 truncate">{item.node_meta.file_path}</span>
                               )}
                             </span>
                           </button>
@@ -522,7 +522,7 @@ export function GlobalSearch({
                           disabled={loadingType !== null}
                           onClick={() => loadMoreForType(group.type)}
                           className={cn(
-                            "w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-left transition-colors disabled:opacity-60",
+                            "w-full flex items-center gap-1.5 px-3 py-1.5 text-[0.6875rem] font-medium text-left transition-colors disabled:opacity-60",
                             theme === 'dark' ? "text-ds-indigo-300 hover:bg-ds-zinc-800/60" : "text-ds-indigo-700 hover:bg-ds-zinc-50"
                           )}
                         >
@@ -548,7 +548,7 @@ export function GlobalSearch({
             onClick={() => setIsAddViewOpen(o => !o)}
             title={panelConfigs.length >= 4 ? t('page.workspace.maxViewsReached') : t('page.workspace.addView')}
             className={cn(
-              "text-[10px] h-9 px-3 rounded-lg font-bold gap-1.5 transition-all cursor-pointer border",
+              "text-[0.625rem] h-9 px-3 rounded-lg font-bold gap-1.5 transition-all cursor-pointer border",
               panelConfigs.length >= 4
                 ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-600" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-400")
                 : (theme === 'dark'
@@ -569,7 +569,7 @@ export function GlobalSearch({
                 theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-800 shadow-ds-black/60" : "bg-ds-white border-ds-zinc-200 shadow-ds-zinc-200"
               )}>
                 <div className={cn(
-                  "px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider",
+                  "px-3 py-1.5 text-[0.5625rem] font-bold uppercase tracking-wider",
                   theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
                 )}>
                   {t('page.workspace.addViewMenuTitle')}

@@ -282,12 +282,12 @@ export function ChatView({
         </div>
         <div className="flex min-w-0 flex-col items-end gap-1.5 overflow-hidden py-2">
             {isDetectingLph ? (
-              <div className="flex items-center gap-1.5 text-[10px] text-ds-zinc-500">
+              <div className="flex items-center gap-1.5 text-[0.625rem] text-ds-zinc-500">
                 <Loader2 className="w-3 h-3 animate-spin" /> HOAI Copilot analysiert...
               </div>
             ) : detectedLph ? (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-ds-emerald-100 text-ds-emerald-700 px-2 py-0.5 rounded-md dark:bg-ds-emerald-900/50 dark:text-ds-emerald-400">
+                <span className="text-[0.625rem] font-bold uppercase tracking-wider bg-ds-emerald-100 text-ds-emerald-700 px-2 py-0.5 rounded-md dark:bg-ds-emerald-900/50 dark:text-ds-emerald-400">
                   LPH {detectedLph} erkannt
                 </span>
                 {recommendedChecklists.map((chk, idx) => (
@@ -299,7 +299,7 @@ export function ChatView({
                       if (textarea) textarea.focus();
                     }}
                     className={cn(
-                      "text-[9px] font-mono border rounded px-1.5 py-0.5 hover:bg-ds-zinc-200 transition-colors shadow-sm",
+                      "text-[0.5625rem] font-mono border rounded px-1.5 py-0.5 hover:bg-ds-zinc-200 transition-colors shadow-sm",
                       theme === 'dark' ? "border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800" : "border-ds-zinc-300 text-ds-zinc-600"
                     )}
                   >
@@ -364,7 +364,7 @@ export function ChatView({
                           {m.metadata && Boolean(m.metadata.project || m.metadata.pinned || m.metadata.refs?.length) && (
                             <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-ds-zinc-200/50 dark:border-ds-zinc-800/50">
                               {m.metadata.project && (
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-indigo-500/10 border border-ds-indigo-500/20 text-[10px] text-ds-indigo-400 font-bold uppercase tracking-tight">
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-indigo-500/10 border border-ds-indigo-500/20 text-[0.625rem] text-ds-indigo-400 font-bold uppercase tracking-tight">
                                   <Database className="w-3 h-3" />
                                   {m.metadata.project.name}
                                 </div>
@@ -395,7 +395,7 @@ export function ChatView({
                                     ref.source_id ? String(ref.source_id) : undefined
                                   )}
                                   key={`${ref.file}:${ref.line}:${refIndex}`}
-                                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-[10px] text-ds-emerald-400 hover:bg-ds-emerald-500/20 hover:border-ds-emerald-500/40 font-bold uppercase tracking-tight transition-colors cursor-pointer"
+                                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-[0.625rem] text-ds-emerald-400 hover:bg-ds-emerald-500/20 hover:border-ds-emerald-500/40 font-bold uppercase tracking-tight transition-colors cursor-pointer"
                                   title={label
                                     ? `${label} · ${t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}`
                                     : t('chatView.openPinnedLineTitle', { path: ref.file, line: ref.line })}
@@ -441,7 +441,7 @@ export function ChatView({
                           {isLoading && i === chatMessages.length - 1 && (m.content || (m.metadata?.agent_steps && m.metadata.agent_steps.length > 0)) && (
                             <div className="flex items-center gap-2 text-ds-zinc-500/70 mt-3 py-1 font-medium select-none animate-pulse">
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-ds-indigo-500 shrink-0" />
-                              <span className="text-[11px] italic">{t('chatView.agentWorking')}</span>
+                              <span className="text-[0.6875rem] italic">{t('chatView.agentWorking')}</span>
                             </div>
                           )}
 
@@ -462,7 +462,7 @@ export function ChatView({
 
                             if (actionUnavailable) {
                               return (
-                                <div className="mt-3 px-3 py-2 rounded-lg border border-ds-amber-500/30 bg-ds-amber-500/5 text-[11px] text-ds-amber-500">
+                                <div className="mt-3 px-3 py-2 rounded-lg border border-ds-amber-500/30 bg-ds-amber-500/5 text-[0.6875rem] text-ds-amber-500">
                                   {t('chatView.agentViewUnavailable')}
                                 </div>
                               );
@@ -474,7 +474,7 @@ export function ChatView({
                                   <button
                                     type="button"
                                     onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
                                     title={t('chatView.callGraphReopen')}
                                   >
                                     <GitBranch className="w-3.5 h-3.5 text-ds-indigo-500" />
@@ -499,7 +499,7 @@ export function ChatView({
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
-                                    className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
+                                    className="h-6 px-2 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
                                   >
                                     {t('chatView.callGraphReopen')}
                                   </Button>
@@ -528,11 +528,11 @@ export function ChatView({
                                     <p className="text-xs font-semibold tracking-tight">
                                       {t('chatView.callGraphPrompt')}
                                     </p>
-                                    <p className="text-[10px] text-ds-zinc-500 truncate">
+                                    <p className="text-[0.625rem] text-ds-zinc-500 truncate">
                                       {callFlow.root.name} · {callFlow.hops} {callFlow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')} ({callFlow.nodes.length} Knoten)
                                     </p>
                                     {viewAction?.type === 'view_action' && viewAction.status === 'no_space' && (
-                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>
+                                      <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>
                                     )}
                                   </div>
                                 </div>
@@ -592,25 +592,25 @@ export function ChatView({
                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                   <div className="min-w-0">
                                     <p className="text-xs font-semibold">{t('chatView.changeImpactTitle')}</p>
-                                    <p className="text-[11px] text-ds-zinc-500 truncate" title={impact.targetLabel}>
+                                    <p className="text-[0.6875rem] text-ds-zinc-500 truncate" title={impact.targetLabel}>
                                       {impact.targetLabel} · {t('chatView.changeImpactNodeCount', { count: impact.flow.nodes.length })} · {impact.flow.hops} {impact.flow.hops !== 1 ? t('callGraphView.hopUnitPlural') : t('callGraphView.hopUnit')}
                                     </p>
-                                    <p className="text-[11px] text-ds-zinc-500 mt-1">
+                                    <p className="text-[0.6875rem] text-ds-zinc-500 mt-1">
                                       {t('chatView.changeImpactCounts', {
                                         resolved: impact.summary.statically_resolved_edges,
                                         heuristic: impact.summary.heuristic_links,
                                         unknown: impact.summary.unknown_dynamic_edges,
                                       })}
                                     </p>
-                                    <p className="text-[10px] text-ds-zinc-500 mt-1">{t('chatView.changeImpactLimits')}</p>
+                                    <p className="text-[0.625rem] text-ds-zinc-500 mt-1">{t('chatView.changeImpactLimits')}</p>
                                     {impact.summary.truncated && (
-                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.changeImpactTruncated')}</p>
+                                      <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.changeImpactTruncated')}</p>
                                     )}
                                     {actionUnavailable && (
-                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>
+                                      <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>
                                     )}
                                     {viewAction.status === 'no_space' && (
-                                      <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.changeImpactNoSpace')}</p>
+                                      <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.changeImpactNoSpace')}</p>
                                     )}
                                   </div>
                                   {!actionUnavailable && (
@@ -642,7 +642,7 @@ export function ChatView({
                                   )}
                                 </div>
                                 {decision === 'open' && (
-                                  <p className="text-[10px] text-ds-emerald-500">{t('chatView.changeImpactOpened')}</p>
+                                  <p className="text-[0.625rem] text-ds-emerald-500">{t('chatView.changeImpactOpened')}</p>
                                 )}
                               </div>
                             );
@@ -674,7 +674,7 @@ export function ChatView({
                                   <p className="text-xs font-semibold tracking-tight">
                                     {isOpen ? t('chatView.graphNeighborhoodOpened') : t('chatView.graphNeighborhoodPrompt')}
                                   </p>
-                                  <p className="text-[10px] text-ds-zinc-500 truncate" title={action.target.focus_label}>
+                                  <p className="text-[0.625rem] text-ds-zinc-500 truncate" title={action.target.focus_label}>
                                     {action.target.focus_label} · {direction} · {action.target.relationships
                                       .map(type => {
                                         const labelKey = getGraphEdgeLabelKey(type);
@@ -682,8 +682,8 @@ export function ChatView({
                                       })
                                       .join(', ')}
                                   </p>
-                                  {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
-                                  {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                  {action.status === 'no_space' && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
+                                  {isUnavailable && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
                                 </div>
                                 {!isUnavailable && (
                                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
@@ -741,11 +741,11 @@ export function ChatView({
                                   <p className="text-xs font-semibold tracking-tight">
                                     {isOpen ? t('chatView.searchResultsOpened') : t('chatView.searchResultsPrompt')}
                                   </p>
-                                  <p className="text-[10px] text-ds-zinc-500 truncate" title={action.target.query}>
+                                  <p className="text-[0.625rem] text-ds-zinc-500 truncate" title={action.target.query}>
                                     {action.target.query} · {scopeLabel} · {action.target.types.map(type => t(`agentSearchView.types.${type}`)).join(', ')}
                                   </p>
-                                  {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
-                                  {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                  {action.status === 'no_space' && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}
+                                  {isUnavailable && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
                                 </div>
                                 {!isUnavailable && (
                                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
@@ -808,9 +808,9 @@ export function ChatView({
                                     <p className="text-xs font-semibold tracking-tight">
                                       {isOpen ? t('chatView.codeLocationOpened') : t('chatView.codeLocationPrompt')}
                                     </p>
-                                    <p className="text-[10px] text-ds-zinc-500 truncate font-mono">{location}</p>
-                                    {action.status === 'no_space' && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.codeLocationNoSpace')}</p>}
-                                    {isUnavailable && <p className="text-[10px] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
+                                    <p className="text-[0.625rem] text-ds-zinc-500 truncate font-mono">{location}</p>
+                                    {action.status === 'no_space' && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.codeLocationNoSpace')}</p>}
+                                    {isUnavailable && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.agentViewUnavailable')}</p>}
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
@@ -818,7 +818,7 @@ export function ChatView({
                                     <button
                                       type="button"
                                       onClick={() => handleOpenCodeLocation(action)}
-                                      className="inline-flex items-center gap-1.5 text-[11px] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 text-[0.6875rem] font-medium text-ds-zinc-500 hover:text-ds-indigo-500 transition-colors cursor-pointer"
                                     >
                                       <Code className="w-3.5 h-3.5 text-ds-indigo-500" />
                                       <span>{t('chatView.codeLocationReopen')}</span>
@@ -829,7 +829,7 @@ export function ChatView({
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleOpenCodeLocation(action)}
-                                      className="h-6 px-2 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
+                                      className="h-6 px-2 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 cursor-pointer"
                                     >
                                       {t('chatView.codeLocationReopen')}
                                     </Button>
@@ -890,7 +890,7 @@ export function ChatView({
                                         'text-xs font-semibold truncate',
                                         theme === 'dark' ? 'text-ds-zinc-200' : 'text-ds-zinc-800',
                                       )}>{action.target.title}</p>
-                                      <p className="text-[10px] text-ds-zinc-500">
+                                      <p className="text-[0.625rem] text-ds-zinc-500">
                                         {t('chatView.walkthroughSummary', { count: action.target.steps.length })}
                                       </p>
                                     </div>
@@ -909,7 +909,7 @@ export function ChatView({
                                 </div>
 
                                 {isUnavailable && (
-                                  <p className="px-3.5 pb-3 text-[10px] text-ds-amber-500">{t('chatView.agentViewUnavailable')}</p>
+                                  <p className="px-3.5 pb-3 text-[0.625rem] text-ds-amber-500">{t('chatView.agentViewUnavailable')}</p>
                                 )}
 
                                 {activeStep && (
@@ -918,10 +918,10 @@ export function ChatView({
                                     theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-zinc-950/25' : 'border-ds-indigo-200 bg-white/60',
                                   )}>
                                     <div className="flex items-center justify-between gap-3 mb-2">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                                      <span className="text-[0.625rem] font-bold uppercase tracking-wider text-ds-indigo-400">
                                         {t('chatView.walkthroughStep', { current: activeStepIndex + 1, count: action.target.steps.length })}
                                       </span>
-                                      <span className="font-mono text-[10px] text-ds-zinc-500 truncate">
+                                      <span className="font-mono text-[0.625rem] text-ds-zinc-500 truncate">
                                         {activeStep.kind === 'callgraph'
                                           ? `${activeStep.source_name} → ${activeStep.target_name}${activeStep.file_path ? ` · ${activeStep.file_path}${activeStep.start_line ? `:L${activeStep.start_line}` : ''}` : ''}`
                                           : `${activeStep.file_path}${activeStep.kind === 'document'
@@ -935,7 +935,7 @@ export function ChatView({
                                     )}>{activeStep.explanation}</p>
                                     {activeStep.kind === 'document' && activeStep.excerpt && (
                                       <blockquote className={cn(
-                                        'mt-2 border-l-2 border-ds-indigo-500/50 pl-3 text-[11px] leading-relaxed line-clamp-4',
+                                        'mt-2 border-l-2 border-ds-indigo-500/50 pl-3 text-[0.6875rem] leading-relaxed line-clamp-4',
                                         theme === 'dark' ? 'text-ds-zinc-400' : 'text-ds-zinc-600',
                                       )}>
                                         {activeStep.excerpt}
@@ -986,7 +986,7 @@ export function ChatView({
                               "mt-4 pt-3 border-t flex flex-wrap gap-2 items-center transition-colors",
                               theme === 'dark' ? "border-ds-zinc-800/50" : "border-ds-zinc-200"
                             )}>
-                              <span className="text-[10px] text-ds-zinc-500 font-bold uppercase tracking-wider">{t('chatView.referencedSources')}</span>
+                              <span className="text-[0.625rem] text-ds-zinc-500 font-bold uppercase tracking-wider">{t('chatView.referencedSources')}</span>
                               {m.sources.map((src, sIdx) => {
                                 const filename = src.file.split('/').pop();
                                 return (
@@ -1004,8 +1004,8 @@ export function ChatView({
                                       title={t('chatView.sourceFileTitle', { file: src.file, lines: formatLineRange(src.lines) })}
                                     >
                                       <Folder className="w-3 h-3 text-ds-indigo-400 shrink-0" />
-                                      <span className="font-mono text-[11px] font-semibold truncate min-w-0">{filename}</span>
-                                      <span className="text-[9px] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
+                                      <span className="font-mono text-[0.6875rem] font-semibold truncate min-w-0">{filename}</span>
+                                      <span className="text-[0.5625rem] text-ds-zinc-500 font-mono shrink-0">L{formatLineRange(src.lines)}</span>
                                     </button>
                                     {m.metadata?.chat_mode === 'evidence' && (
                                       <ProvenanceDisclosure
@@ -1104,8 +1104,8 @@ export function ChatView({
                                   theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
                                 )}>
                                   <Cpu className="w-3 h-3" />
-                                  <span className="text-[10px] font-bold uppercase tracking-widest">{m.metadata.model}</span>
-                                  {m.metadata.chat_mode && <span className="text-[10px] font-semibold">· {t(`chatView.mode.${m.metadata.chat_mode}`)}</span>}
+                                  <span className="text-[0.625rem] font-bold uppercase tracking-widest">{m.metadata.model}</span>
+                                  {m.metadata.chat_mode && <span className="text-[0.625rem] font-semibold">· {t(`chatView.mode.${m.metadata.chat_mode}`)}</span>}
                                 </div>
                               )}
                             </div>
@@ -1164,7 +1164,7 @@ export function ChatView({
                 theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
               )}>
                 {selectedSource && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-blue-500/10 border border-ds-blue-500/20 text-ds-blue-500 text-[10px] font-semibold tracking-wide shadow-sm max-w-full">
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-blue-500/10 border border-ds-blue-500/20 text-ds-blue-500 text-[0.625rem] font-semibold tracking-wide shadow-sm max-w-full">
                     <BookOpen className="w-3 h-3 text-ds-blue-400 shrink-0" />
                     <span className="truncate max-w-[140px] @sm/chat:max-w-[220px]">{t('chatView.sourceLabel', { name: selectedSource.name })}</span>
                     <button
@@ -1180,7 +1180,7 @@ export function ChatView({
                 )}
 
                 {pinnedCode && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-ds-emerald-500 text-[10px] font-semibold tracking-wide shadow-sm max-w-full">
+                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-emerald-500/10 border border-ds-emerald-500/20 text-ds-emerald-500 text-[0.625rem] font-semibold tracking-wide shadow-sm max-w-full">
                     <Code className="w-3 h-3 text-ds-emerald-400 shrink-0" />
                     <span className="truncate max-w-[140px] @sm/chat:max-w-[220px]" title={pinnedCode.context || `${pinnedCode.filepath}:${pinnedCode.line}`}>
                       {t('chatView.pinLabel', { path: pinnedCode.breadcrumb || pinnedCode.label || `${pinnedCode.filepath.split('/').pop()}:${pinnedCode.line}` })}
@@ -1203,7 +1203,7 @@ export function ChatView({
               rows={1}
               id="chat-textarea"
               className={cn(
-                "min-h-[36px] max-h-20 w-full bg-transparent border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none px-3 pt-2 pb-1.5 resize-none text-[13px] outline-none overflow-y-auto",
+                "min-h-[36px] max-h-20 w-full bg-transparent border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none px-3 pt-2 pb-1.5 resize-none text-[0.8125rem] outline-none overflow-y-auto",
                 theme === 'dark' ? "text-ds-zinc-100 placeholder:text-ds-zinc-650" : "text-ds-zinc-900 placeholder:text-ds-zinc-400"
               )}
               placeholder={t('chatView.inputPlaceholder')}
@@ -1250,7 +1250,7 @@ export function ChatView({
                       align="start"
                       className={cn("w-64", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800")}
                     >
-                      <DropdownMenuLabel className="text-[9px] font-bold uppercase tracking-wider text-ds-zinc-500">
+                      <DropdownMenuLabel className="text-[0.5625rem] font-bold uppercase tracking-wider text-ds-zinc-500">
                         {selectedProject ? t('chatView.sourcesForProject', { name: selectedProject.name }) : t('chatView.globalSources')}
                       </DropdownMenuLabel>
                       <DropdownMenuItem className="text-xs gap-2" onClick={() => handleSourceFocusChange(null)}>
@@ -1329,7 +1329,7 @@ export function ChatView({
             </div>
           </div>
           {/* AI Warning Disclaimer */}
-          <div className="mt-1 text-[10px] leading-snug text-ds-zinc-500 text-center px-3">
+          <div className="mt-1 text-[0.625rem] leading-snug text-ds-zinc-500 text-center px-3">
             {t(chatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
           </div>
         </div>

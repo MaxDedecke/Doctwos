@@ -177,7 +177,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
     const filePath = text(path);
     if (!filePath || !onOpenCode) return null;
     return (
-      <button type="button" onClick={() => openCode(filePath, line, sourceId)} className="inline-flex items-center gap-1 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 underline underline-offset-2">
+      <button type="button" onClick={() => openCode(filePath, line, sourceId)} className="inline-flex items-center gap-1 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 underline underline-offset-2">
         <FileCode2 className="h-3 w-3 shrink-0" />{label || `${filePath}${lineLabel(line)}`}
       </button>
     );
@@ -188,11 +188,11 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
     const url = text(item.url);
     if (!hasInternalTarget && !url) return null;
     return hasInternalTarget ? (
-      <button type="button" onClick={() => openDocument(item)} className="inline-flex items-center gap-1 text-[11px] text-ds-emerald-400 hover:text-ds-emerald-300 underline underline-offset-2">
+      <button type="button" onClick={() => openDocument(item)} className="inline-flex items-center gap-1 text-[0.6875rem] text-ds-emerald-400 hover:text-ds-emerald-300 underline underline-offset-2">
         <BookOpen className="h-3 w-3 shrink-0" />{t('changePackage.openEvidence')}
       </button>
     ) : (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-ds-emerald-400 hover:text-ds-emerald-300 underline underline-offset-2">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[0.6875rem] text-ds-emerald-400 hover:text-ds-emerald-300 underline underline-offset-2">
         <ExternalLink className="h-3 w-3 shrink-0" />{t('changePackage.openEvidence')}
       </a>
     );
@@ -210,7 +210,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
           locator: { file_path: edgePath, start_line: edge.start_line, end_line: edge.end_line },
         }
       : null;
-    return <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[11px] ${border}`}>
+    return <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[0.6875rem] ${border}`}>
       <span>{text(sourceNode?.qualified_name, text(sourceNode?.name, String(edge.source)))} — <strong>{text(edge.type)}</strong> ({text(edge.resolution)}) → {text(targetNode?.qualified_name, text(targetNode?.name, text(edge.target_name)))}</span>
       <ProvenanceDisclosure provenance={relationshipProvenance} theme={theme} />
       <OpenCode path={edgePath} line={edge.start_line} sourceId={sourceNode?.source_id} label={t('changePackage.openRelationshipEvidence', { location: `${edgePath}${lineLabel(edge.start_line, edge.end_line)}` })} />
@@ -262,21 +262,21 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                 <label className="flex items-center gap-1.5"><input type="radio" name="change-package-mode" checked={inputMode === 'diff'} onChange={() => setInputMode('diff')} />{t('changePackage.diffMode')}</label>
               </div>
               {inputMode === 'diff' && <div className="mt-2 flex flex-wrap gap-2">
-                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-base">{t('changePackage.baseRevision')}
+                <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-base">{t('changePackage.baseRevision')}
                   <input id="change-package-base" value={baseRef} onChange={event => setBaseRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
                 </label>
-                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-head">{t('changePackage.headRevision')}
+                <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-head">{t('changePackage.headRevision')}
                   <input id="change-package-head" value={headRef} onChange={event => setHeadRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
                 </label>
-                <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-source">{t('changePackage.sourceId')}
+                <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-source">{t('changePackage.sourceId')}
                   <input id="change-package-source" type="number" min="1" step="1" value={diffSourceId || String(target.sourceId ?? '')} onChange={event => setDiffSourceId(event.target.value)} className={`h-8 w-24 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
                 </label>
-                <p className={`self-end pb-1 text-[10px] ${muted}`}>{t('changePackage.diffHint')}</p>
+                <p className={`self-end pb-1 text-[0.625rem] ${muted}`}>{t('changePackage.diffHint')}</p>
               </div>}
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className={`max-w-2xl text-[10px] ${muted}`}>{t('changePackage.descriptionHint')}</p>
+                <p className={`max-w-2xl text-[0.625rem] ${muted}`}>{t('changePackage.descriptionHint')}</p>
                 <div className="flex flex-wrap items-end gap-2">
-                  <label className={`flex flex-col gap-1 text-[10px] ${muted}`} htmlFor="change-package-direction">
+                  <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-direction">
                     {t('changePackage.directionLabel')}
                     <select
                       id="change-package-direction"
@@ -303,7 +303,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
               {packageData && (
                 <>
                   {truncated && <p className="flex items-center gap-2 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 p-2.5 text-xs text-ds-amber-400"><AlertTriangle className="h-4 w-4 shrink-0" />{t('changePackage.truncated')}</p>}
-                  <p className={`text-[10px] ${muted}`}>{t('changePackage.scopeSummary', {
+                  <p className={`text-[0.625rem] ${muted}`}>{t('changePackage.scopeSummary', {
                     direction: analyzedDirection,
                     hops: number(scope.hops) ?? 2,
                     nodes: nodes.length,
@@ -311,13 +311,13 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                   })}</p>
                   {impactTarget.kind === 'diff' && <section className={sectionClass}>
                     <h3 className="mb-1 text-xs font-semibold">{t('changePackage.diffSummary')}</h3>
-                    <p className={`break-all text-[10px] ${muted}`}>{text(impactTarget.base_commit)} → {text(impactTarget.head_commit)}</p>
-                    <p className={`mt-1 text-[10px] ${muted}`}>{t('changePackage.diffFiles', { count: Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.length : 0 })}</p>
+                    <p className={`break-all text-[0.625rem] ${muted}`}>{text(impactTarget.base_commit)} → {text(impactTarget.head_commit)}</p>
+                    <p className={`mt-1 text-[0.625rem] ${muted}`}>{t('changePackage.diffFiles', { count: Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.length : 0 })}</p>
                     <p className="mt-1 break-words text-xs">{Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.join(', ') : ''}</p>
-                    {Array.isArray(impactTarget.unindexed_files) && impactTarget.unindexed_files.length > 0 && <p className={`mt-1 text-[10px] ${muted}`}>{t('changePackage.unindexedFiles')}: {impactTarget.unindexed_files.join(', ')}</p>}
+                    {Array.isArray(impactTarget.unindexed_files) && impactTarget.unindexed_files.length > 0 && <p className={`mt-1 text-[0.625rem] ${muted}`}>{t('changePackage.unindexedFiles')}: {impactTarget.unindexed_files.join(', ')}</p>}
                   </section>}
                   <section className="rounded-lg border border-ds-indigo-500/30 bg-ds-indigo-500/5 p-3">
-                    <h3 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ds-indigo-400">{t('changePackage.requestedChange')}</h3>
+                    <h3 className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-ds-indigo-400">{t('changePackage.requestedChange')}</h3>
                     <p className="whitespace-pre-wrap text-xs">{description.trim()}</p>
                   </section>
                   <section className={sectionClass}>
@@ -334,14 +334,14 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                           <article key={`${String(itemId)}-${index}`} className={`rounded-md border p-2.5 ${border}`}>
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="truncate text-xs font-medium">{text(item.qualified_name, text(item.name, t('changePackage.unknownName')))}{isChangeTarget && <span className="ml-2 rounded bg-ds-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-ds-indigo-400">{t('changePackage.changeTarget')}</span>}</p>
-                                <p className={`truncate text-[10px] ${muted}`}>{path}{lineLabel(item.start_line, item.end_line)}</p>
+                                <p className="truncate text-xs font-medium">{text(item.qualified_name, text(item.name, t('changePackage.unknownName')))}{isChangeTarget && <span className="ml-2 rounded bg-ds-indigo-500/15 px-1.5 py-0.5 text-[0.5625rem] font-semibold text-ds-indigo-400">{t('changePackage.changeTarget')}</span>}</p>
+                                <p className={`truncate text-[0.625rem] ${muted}`}>{path}{lineLabel(item.start_line, item.end_line)}</p>
                                 <ProvenanceDisclosure provenance={item.provenance ?? record(item.evidence).provenance} theme={theme} />
                               </div>
                               <OpenCode path={path} line={item.start_line} sourceId={item.source_id} />
                             </div>
                             {pathEdges.length > 0 && (
-                              <ol className={`mt-2 space-y-1 border-l pl-3 text-[10px] ${border} ${muted}`}>
+                              <ol className={`mt-2 space-y-1 border-l pl-3 text-[0.625rem] ${border} ${muted}`}>
                                 {pathEdges.map((edge, edgeIndex) => {
                                   const edgePath = text(edge.evidence_file);
                                   const sourceEntity = nodes.find(node => node.file_path === edgePath);
@@ -362,7 +362,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
 
                   <section className={sectionClass}>
                     <h3 className="mb-1 text-xs font-semibold">{t('changePackage.affectedProcesses')} · {processEdges.length}</h3>
-                    <p className={`mb-2 text-[10px] ${muted}`}>{t('changePackage.processEdgeHint')}</p>
+                    <p className={`mb-2 text-[0.625rem] ${muted}`}>{t('changePackage.processEdgeHint')}</p>
                     {processEdges.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noRelationships')}</p>}
                     <div className="space-y-1.5">{relationshipRows(processEdges)}</div>
                   </section>
@@ -381,11 +381,11 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
 
                   <section className={sectionClass}>
                     <h3 className="mb-1 text-xs font-semibold">{t('changePackage.domainRules')} · {possibleRules.length}</h3>
-                    <p className={`mb-2 text-[10px] ${muted}`}>{t('changePackage.rulesUnverified')}</p>
+                    <p className={`mb-2 text-[0.625rem] ${muted}`}>{t('changePackage.rulesUnverified')}</p>
                     {possibleRules.map((item, index) => <article key={`${String(item.entity_id)}-${index}`} className={`mb-2 rounded border p-2.5 last:mb-0 ${border}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{text(item.title)}</p><OpenDoc item={item} /></div>
-                      <p className={`mt-1 text-[10px] ${muted}`}>{text(record(item.evidence).excerpt, text(record(item.evidence).context))}</p>
-                      <p className="mt-1 text-[10px] text-ds-amber-400">{text(item.classification_basis)} · {text(item.classification_keyword)}</p>
+                      <p className={`mt-1 text-[0.625rem] ${muted}`}>{text(record(item.evidence).excerpt, text(record(item.evidence).context))}</p>
+                      <p className="mt-1 text-[0.625rem] text-ds-amber-400">{text(item.classification_basis)} · {text(item.classification_keyword)}</p>
                       <ProvenanceDisclosure provenance={record(item.evidence).provenance} theme={theme} />
                     </article>)}
                     {possibleRules.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noRules')}</p>}
@@ -395,8 +395,8 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.documents')} · {documents.length}</h3>
                     {documents.map((item, index) => <article key={`${String(item.entity_id)}-${index}`} className={`mb-2 rounded border p-2.5 last:mb-0 ${border}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{text(item.title)}</p><OpenDoc item={item} /></div>
-                      <p className={`mt-1 text-[10px] ${muted}`}>{text(record(item.evidence).context, text(record(item.evidence).excerpt))}</p>
-                      <p className={`mt-1 text-[10px] ${muted}`}>{text(item.source_type)} · {text(record(item.evidence).status)} · {t('changePackage.linkedRecordOnly')}</p>
+                      <p className={`mt-1 text-[0.625rem] ${muted}`}>{text(record(item.evidence).context, text(record(item.evidence).excerpt))}</p>
+                      <p className={`mt-1 text-[0.625rem] ${muted}`}>{text(item.source_type)} · {text(record(item.evidence).status)} · {t('changePackage.linkedRecordOnly')}</p>
                       <ProvenanceDisclosure provenance={record(item.evidence).provenance} theme={theme} />
                     </article>)}
                     {documents.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noDocuments')}</p>}
@@ -406,7 +406,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.history')} · {issues.length}</h3>
                     {issues.map((item, index) => <article key={`${String(item.issue_key)}-${index}`} className={`mb-2 rounded border p-2.5 last:mb-0 ${border}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium">{text(item.issue_key, text(item.title))}</p><OpenDoc item={item} /></div>
-                      <p className={`mt-1 text-[10px] ${muted}`}>{item.bug_candidate ? t('changePackage.bugCandidate') : t('changePackage.issueTypeUnknown')} · {text(item.classification_basis)}</p>
+                      <p className={`mt-1 text-[0.625rem] ${muted}`}>{item.bug_candidate ? t('changePackage.bugCandidate') : t('changePackage.issueTypeUnknown')} · {text(item.classification_basis)}</p>
                     </article>)}
                     {issues.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noHistory')}</p>}
                   </section>
@@ -422,27 +422,27 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       </div>;
                     })}
                     {testItems.length === 0 && <p className={`text-xs ${muted}`}>{text(tests.note, t('changePackage.testsUnknown'))}</p>}
-                    <p className={`mt-2 text-[10px] ${muted}`}>{t('changePackage.noCoverageClaim')}</p>
+                    <p className={`mt-2 text-[0.625rem] ${muted}`}>{t('changePackage.noCoverageClaim')}</p>
                   </section>
 
                   <section className={sectionClass}>
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.unknownAreas')}</h3>
                     {unknownEdges.length > 0 && <div className="mb-2 space-y-1.5">
-                      {unknownEdges.slice(0, 30).map((edge, index) => <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[11px] ${border}`}>
+                      {unknownEdges.slice(0, 30).map((edge, index) => <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[0.6875rem] ${border}`}>
                         <span>{text(edge.source_name)} — {text(edge.type)} → {text(edge.target_name)} ({text(edge.resolution)})</span>
                         <OpenCode path={edge.file_path} line={edge.start_line} sourceId={sourceForEntity(edge.source_entity_id)} />
                       </div>)}
                     </div>}
-                    {evidenceGaps.map((gap, index) => <p key={`gap-${index}`} className={`mb-1 text-[11px] ${muted}`}>• {gap}</p>)}
-                    {limitations.map((limitation, index) => <p key={`limitation-${index}`} className={`mb-1 text-[11px] ${muted}`}>• {limitation}</p>)}
+                    {evidenceGaps.map((gap, index) => <p key={`gap-${index}`} className={`mb-1 text-[0.6875rem] ${muted}`}>• {gap}</p>)}
+                    {limitations.map((limitation, index) => <p key={`limitation-${index}`} className={`mb-1 text-[0.6875rem] ${muted}`}>• {limitation}</p>)}
                     {responsibilityItems.length > 0 && <div className="mt-2">
-                      <p className="mb-1 text-[10px] font-semibold">{t('changePackage.responsibility')}</p>
-                      {responsibilityItems.map((item, index) => <p key={`owner-${index}`} className={`text-[10px] ${muted}`}>
+                      <p className="mb-1 text-[0.625rem] font-semibold">{t('changePackage.responsibility')}</p>
+                      {responsibilityItems.map((item, index) => <p key={`owner-${index}`} className={`text-[0.625rem] ${muted}`}>
                         <span>{Array.isArray(item.owners) ? item.owners.join(', ') : t('changePackage.unknownOwner')} · {Array.isArray(item.files) ? item.files.join(', ') : ''} · CODEOWNERS</span>
                         <span className="ml-2"><OpenCode path={record(item.source).file_path} sourceId={item.source_id} /></span>
                       </p>)}
                     </div>}
-                    {list(responsibility.unknown_files).length > 0 && <p className={`mt-1 text-[10px] ${muted}`}>{t('changePackage.unknownOwnerFiles', { count: list(responsibility.unknown_files).length })}</p>}
+                    {list(responsibility.unknown_files).length > 0 && <p className={`mt-1 text-[0.625rem] ${muted}`}>{t('changePackage.unknownOwnerFiles', { count: list(responsibility.unknown_files).length })}</p>}
                   </section>
                 </>
               )}

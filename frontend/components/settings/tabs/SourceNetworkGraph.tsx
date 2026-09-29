@@ -97,7 +97,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
           </h5>
         </div>
         <span className={cn(
-          "text-[11px] font-bold px-2 py-1 rounded-sm border shrink-0",
+          "text-[0.6875rem] font-bold px-2 py-1 rounded-sm border shrink-0",
           theme === 'dark' ? "bg-ds-zinc-950/60 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-550"
         )}>
           {scopeLabel}
@@ -185,7 +185,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
             )}>
               <DoctusIcon className="w-full h-full" />
             </div>
-            <span className={cn("text-[10px] font-extrabold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
+            <span className={cn("text-[0.625rem] font-extrabold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
               Doctus
             </span>
           </div>
@@ -214,7 +214,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
                       <AlertCircle className="w-2.5 h-2.5 text-ds-red-400 absolute -bottom-1 -right-1" />
                     )}
                   </div>
-                  <span className={cn("text-[10px] font-bold truncate", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
+                  <span className={cn("text-[0.625rem] font-bold truncate", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
                     {node.name}
                   </span>
                 </div>

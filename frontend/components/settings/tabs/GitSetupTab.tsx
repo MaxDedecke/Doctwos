@@ -351,7 +351,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     )}
                   </div>
                   <span className={cn(
-                    "text-[10px] font-semibold mt-1.5 transition-colors duration-300",
+                    "text-[0.625rem] font-semibold mt-1.5 transition-colors duration-300",
                     isActive
                       ? "text-ds-indigo-500 font-bold"
                       : (theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400")
@@ -369,7 +369,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step1.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step1.description')}
               </p>
             </div>
@@ -405,7 +405,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     )} />
                     <div className="space-y-0.5">
                       <p className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{provider.name}</p>
-                      <p className="text-[9px] text-ds-zinc-500">{provider.desc}</p>
+                      <p className="text-[0.5625rem] text-ds-zinc-500">{provider.desc}</p>
                     </div>
                   </button>
                 );
@@ -432,7 +432,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>
                 {repoType === 'public' ? t('settings.gitSetup.step2.titleCloneUrl') : t('settings.gitSetup.step2.titleConnectTo', { provider: repoType === 'github' ? 'GitHub' : repoType === 'gitlab' ? 'GitLab' : 'Bitbucket' })}
               </h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {repoType === 'public'
                   ? t('settings.gitSetup.step2.descPublic')
                   : t('settings.gitSetup.step2.descPrivate')}
@@ -441,7 +441,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
             {repoType === 'public' ? (
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.cloneUrlLabel')}</label>
+                <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.cloneUrlLabel')}</label>
                 <input
                   type="text"
                   placeholder="https://github.com/facebook/react.git"
@@ -463,7 +463,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 {repoType === 'bitbucket' && (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.serverUrlLabel')} <span className="normal-case font-normal">{t('settings.gitSetup.step2.serverUrlHint')}</span></label>
+                      <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.serverUrlLabel')} <span className="normal-case font-normal">{t('settings.gitSetup.step2.serverUrlHint')}</span></label>
                       <input
                         type="text"
                         placeholder="https://bitbucket.example.com"
@@ -478,7 +478,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
+                      <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">
                         {bitbucketServerUrl ? t('settings.gitSetup.step2.usernameLabelPatOnly') : t('settings.gitSetup.step2.usernameLabelBitbucket')}
                       </label>
                       <input
@@ -499,7 +499,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
 
                 {repoType === 'github' && (
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.usernameOrgLabel')}</label>
+                    <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.usernameOrgLabel')}</label>
                     <input
                       type="text"
                       placeholder={t('settings.gitSetup.step2.usernamePlaceholderGithub')}
@@ -519,7 +519,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">
+                  <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">
                     {repoType === 'github'
                       ? t('settings.gitSetup.step2.tokenLabelPat')
                       : repoType === 'gitlab'
@@ -560,7 +560,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 <X className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-bold">{t('settings.gitSetup.step2.connectionErrorTitle')}</p>
-                  <p className="text-[10px] font-mono leading-tight">{connectionError}</p>
+                  <p className="text-[0.625rem] font-mono leading-tight">{connectionError}</p>
                 </div>
               </div>
             )}
@@ -616,7 +616,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step3.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step3.description')}
               </p>
             </div>
@@ -670,7 +670,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                         >
                           <div className="min-w-0 flex-1 pr-2">
                             <p className={theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"}>{r.name}</p>
-                            <p className="text-[10px] text-ds-zinc-500 font-mono truncate">{r.full_name}</p>
+                            <p className="text-[0.625rem] text-ds-zinc-500 font-mono truncate">{r.full_name}</p>
                           </div>
                           {isSelected && <Check className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0 stroke-[3px]" />}
                         </button>
@@ -708,7 +708,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="space-y-1 text-center">
               <h5 className={cn("text-sm font-bold", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-850")}>{t('settings.gitSetup.step4.title')}</h5>
-              <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
+              <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-450" : "text-ds-zinc-500")}>
                 {t('settings.gitSetup.step4.description')}
               </p>
             </div>
@@ -723,7 +723,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.targetBranchLabel')}</label>
+                <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.targetBranchLabel')}</label>
 
                 {isLoadingBranches ? (
                   <div className="h-10 flex items-center gap-2 text-xs text-ds-zinc-500 pl-2">
@@ -758,7 +758,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                           : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                       )}
                     />
-                    <p className="text-[9px] text-ds-zinc-500 pl-0.5">
+                    <p className="text-[0.5625rem] text-ds-zinc-500 pl-0.5">
                       {t('settings.gitSetup.step4.manualBranchHint')}
                     </p>
                   </div>
@@ -771,14 +771,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 <X className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="font-bold">{t('settings.gitSetup.step4.noTeamTitle')}</p>
-                  <p className="text-[10px] leading-tight">{t('settings.gitSetup.step4.noTeamDesc')}</p>
+                  <p className="text-[0.625rem] leading-tight">{t('settings.gitSetup.step4.noTeamDesc')}</p>
                 </div>
               </div>
             )}
 
             {needsTeamPicker && (
               <div className="space-y-1.5">
-                <label className="text-[9px] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.teamLabel')}</label>
+                <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step4.teamLabel')}</label>
                 <Select value={selectedTeamId?.toString() ?? ""} onValueChange={v => setSelectedTeamId(parseInt(v))}>
                   <SelectTrigger className={cn(
                     "w-full h-8 text-xs focus:ring-0",
@@ -844,25 +844,25 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200 shadow-sm"
             )}>
               <div className="flex items-center justify-between border-b pb-2 border-ds-zinc-800/20">
-                <span className="text-ds-zinc-500 font-bold uppercase text-[9px]">{t('settings.gitSetup.step5.statusLabel')}</span>
-                <span className="bg-ds-emerald-500/15 text-ds-emerald-505 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                <span className="text-ds-zinc-500 font-bold uppercase text-[0.5625rem]">{t('settings.gitSetup.step5.statusLabel')}</span>
+                <span className="bg-ds-emerald-500/15 text-ds-emerald-505 text-[0.5625rem] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
                   {t('settings.gitSetup.step5.parsingStarted')}
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-1 pt-1">
-                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.repositoryLabel')}</span>
+                <span className="text-ds-zinc-500 font-semibold text-[0.625rem]">{t('settings.gitSetup.step5.repositoryLabel')}</span>
                 <span className={cn("col-span-2 font-semibold truncate", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
                   {newRepoName}
                 </span>
 
-                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.gitSourceLabel')}</span>
+                <span className="text-ds-zinc-500 font-semibold text-[0.625rem]">{t('settings.gitSetup.step5.gitSourceLabel')}</span>
                 <span className={cn("col-span-2 capitalize font-semibold", theme === 'dark' ? "text-ds-zinc-355" : "text-ds-zinc-700")}>
                   {repoType === 'public' ? t('settings.gitSetup.step5.public') : repoType}
                 </span>
 
-                <span className="text-ds-zinc-500 font-semibold text-[10px]">{t('settings.gitSetup.step5.targetBranchLabel')}</span>
-                <span className="col-span-2 font-mono text-[10px] text-ds-indigo-500 bg-ds-indigo-500/5 border border-ds-indigo-500/10 px-1 rounded w-fit">
+                <span className="text-ds-zinc-500 font-semibold text-[0.625rem]">{t('settings.gitSetup.step5.targetBranchLabel')}</span>
+                <span className="col-span-2 font-mono text-[0.625rem] text-ds-indigo-500 bg-ds-indigo-500/5 border border-ds-indigo-500/10 px-1 rounded w-fit">
                   {selectedBranchName}
                 </span>
               </div>

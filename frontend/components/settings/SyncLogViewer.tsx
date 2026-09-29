@@ -59,7 +59,7 @@ export const SyncLogViewer: React.FC<SyncLogViewerProps> = ({ log }) => {
 
   if (lines.length === 0) {
     return (
-      <div className="p-4 rounded-lg border font-mono text-[10px] leading-relaxed whitespace-pre-wrap bg-ds-zinc-950 text-ds-zinc-300 border-ds-zinc-800">
+      <div className="p-4 rounded-lg border font-mono text-[0.625rem] leading-relaxed whitespace-pre-wrap bg-ds-zinc-950 text-ds-zinc-300 border-ds-zinc-800">
         {t('settings.logsTab.noLogsPlaceholder')}
       </div>
     );
@@ -67,16 +67,16 @@ export const SyncLogViewer: React.FC<SyncLogViewerProps> = ({ log }) => {
 
   return (
     <div className="rounded-lg border bg-ds-zinc-950 border-ds-zinc-800 overflow-hidden" data-testid="sync-log-viewer">
-      <div className="flex items-center justify-between gap-2 border-b border-ds-zinc-800 px-3 py-1.5 text-[10px] text-ds-zinc-500">
+      <div className="flex items-center justify-between gap-2 border-b border-ds-zinc-800 px-3 py-1.5 text-[0.625rem] text-ds-zinc-500">
         <span data-testid="sync-log-range">{t('settings.logsTab.logRange', { from: firstShown + 1, to: lines.length, total: lines.length })}</span>
         {hiddenCount > 0 && (
           <Button type="button" size="sm" variant="outline" onClick={loadOlder}
-            className="h-6 px-2 text-[10px] bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800 focus:ring-0">
+            className="h-6 px-2 text-[0.625rem] bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800 focus:ring-0">
             {t('settings.logsTab.loadOlder', { count: Math.min(hiddenCount, SYNC_LOG_PAGE_LINES) })}
           </Button>
         )}
       </div>
-      <div ref={scrollRef} onScroll={handleScroll} className="max-h-72 overflow-y-auto overscroll-contain p-4 font-mono text-[10px] leading-relaxed text-ds-zinc-300" data-testid="sync-log-scroll">
+      <div ref={scrollRef} onScroll={handleScroll} className="max-h-72 overflow-y-auto overscroll-contain p-4 font-mono text-[0.625rem] leading-relaxed text-ds-zinc-300" data-testid="sync-log-scroll">
         <pre className="whitespace-pre-wrap break-words font-mono">{text}</pre>
       </div>
     </div>

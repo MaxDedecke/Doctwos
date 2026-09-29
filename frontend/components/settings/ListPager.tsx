@@ -36,7 +36,7 @@ export const ListPager: React.FC<ListPagerProps> = ({ page, pageSize, shown, tot
     : 'bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700';
 
   return (
-    <div className="flex items-center justify-between gap-3 text-[10px]">
+    <div className="flex items-center justify-between gap-3 text-[0.625rem]">
       <span className="text-ds-zinc-500" data-testid="list-pager-range">{t('settings.pager.range', { from, to, total })}</span>
       <div className="flex items-center gap-1.5">
         <Button type="button" size="sm" variant="outline" disabled={page === 0 || loading} onClick={() => onPageChange(page - 1)}

@@ -114,7 +114,7 @@ export function VirtualizedSessionList({
         })}
       </div>
       {isLoadingMore && (
-        <div className="flex items-center justify-center gap-1.5 py-2 text-[10px] text-ds-zinc-500" role="status">
+        <div className="flex items-center justify-center gap-1.5 py-2 text-[0.625rem] text-ds-zinc-500" role="status">
           <Loader2 className="w-3 h-3 animate-spin" />
         </div>
       )}

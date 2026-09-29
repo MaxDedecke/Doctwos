@@ -66,7 +66,7 @@ export function HoverExpandButton({ icon, label, tone, onClick, disabled, title,
       )}
     >
       <span className={cn('ml-[7px] flex h-3.5 w-3.5 shrink-0 items-center justify-center transition-colors', style.text)}>{icon}</span>
-      <span className={cn('ml-2 whitespace-nowrap text-[10px] font-semibold opacity-0 transition-opacity duration-150 group-hover/expand:opacity-100 group-focus-visible/expand:opacity-100', style.text)}>
+      <span className={cn('ml-2 whitespace-nowrap text-[0.625rem] font-semibold opacity-0 transition-opacity duration-150 group-hover/expand:opacity-100 group-focus-visible/expand:opacity-100', style.text)}>
         {label}
       </span>
     </button>

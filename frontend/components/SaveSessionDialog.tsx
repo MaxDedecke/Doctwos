@@ -76,7 +76,7 @@ export function SaveSessionDialog({ isOpen, theme, onClose, onSave }: SaveSessio
                 <Save className="w-4 h-4 text-ds-indigo-500" />
                 {t('saveSessionDialog.title')}
               </h3>
-              <p className="text-[11px] text-ds-zinc-500 leading-normal">
+              <p className="text-[0.6875rem] text-ds-zinc-500 leading-normal">
                 {t('saveSessionDialog.description')}
               </p>
             </div>

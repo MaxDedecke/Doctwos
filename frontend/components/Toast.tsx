@@ -52,7 +52,7 @@ export function Toast({ toast, theme }: { toast: ToastState; theme: string }) {
         {toast.traceId && (
           // select-all: ein Klick markiert die komplette ID, damit sie ohne
           // Abtippen in eine Support-Anfrage wandern kann.
-          <span className="select-all font-mono text-[10px] font-normal opacity-80">
+          <span className="select-all font-mono text-[0.625rem] font-normal opacity-80">
             {t('page.toast.traceIdHint', { id: toast.traceId })}
           </span>
         )}

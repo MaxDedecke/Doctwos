@@ -1024,7 +1024,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   <button
                     onClick={onNavigateBack}
                     className={cn(
-                      "flex items-center gap-0.5 h-6 px-1.5 rounded-md border text-[10px] font-semibold shrink-0 transition-colors",
+                      "flex items-center gap-0.5 h-6 px-1.5 rounded-md border text-[0.625rem] font-semibold shrink-0 transition-colors",
                       theme === 'dark'
                         ? "border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
                         : "border-ds-zinc-300 text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
@@ -1131,7 +1131,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       <span
                         data-testid="references-count"
                         className={cn(
-                          "px-1 py-0.5 text-[9px] font-bold rounded-sm leading-none",
+                          "px-1 py-0.5 text-[0.5625rem] font-bold rounded-sm leading-none",
                           theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
                         )}
                       >
@@ -1169,7 +1169,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     )}>
                     {/* Header */}
                     <div className={cn(
-                      "px-4 py-3 border-b text-[10px] font-bold uppercase tracking-wider shrink-0 flex items-center justify-between",
+                      "px-4 py-3 border-b text-[0.625rem] font-bold uppercase tracking-wider shrink-0 flex items-center justify-between",
                       theme === 'dark' ? "border-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-200 text-ds-zinc-550"
                     )}>
                       <div className="flex items-center gap-1.5">
@@ -1228,7 +1228,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               <section key={group} aria-labelledby={`neighbor-group-${group}`}>
                                 <h3
                                   id={`neighbor-group-${group}`}
-                                  className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-ds-zinc-500"
+                                  className="px-4 pt-3 pb-1 text-[0.625rem] font-bold uppercase tracking-wider text-ds-zinc-500"
                                 >
                                   {neighborGroupLabels[group] || group.replace(':', ' · ')}
                                 </h3>
@@ -1303,27 +1303,27 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         <span className="block truncate text-xs font-semibold font-mono">
                                           {entity?.name || document?.title || neighbor.dst_name}
                                         </span>
-                                        <span className="block truncate text-[10px] text-ds-zinc-500 font-mono">
+                                        <span className="block truncate text-[0.625rem] text-ds-zinc-500 font-mono">
                                           {entity?.file_path || document?.file_path || document?.url || document?.source_type || t('splitPane.unresolvedLabel')}
                                         </span>
                                       </span>
                                       {document?.section && (
-                                        <span className="max-w-28 truncate text-[9px] text-ds-zinc-500 font-mono" title={document.section}>
+                                        <span className="max-w-28 truncate text-[0.5625rem] text-ds-zinc-500 font-mono" title={document.section}>
                                           {document.section}
                                         </span>
                                       )}
                                       {document?.page != null && (
-                                        <span className="text-[9px] text-ds-zinc-500 font-mono">S.{document.page}</span>
+                                        <span className="text-[0.5625rem] text-ds-zinc-500 font-mono">S.{document.page}</span>
                                       )}
                                       {entity?.start_line && (
-                                        <span className="text-[9px] text-ds-zinc-500 font-mono">L{entity.start_line}</span>
+                                        <span className="text-[0.5625rem] text-ds-zinc-500 font-mono">L{entity.start_line}</span>
                                       )}
                                       </button>
                                       {reference?.file_path && reference.start_line != null && (
                                         <button
                                           type="button"
                                           className={cn(
-                                            "shrink-0 px-2 text-[9px] font-mono transition-colors",
+                                            "shrink-0 px-2 text-[0.5625rem] font-mono transition-colors",
                                             theme === 'dark'
                                               ? "text-ds-zinc-500 hover:bg-ds-zinc-900/80 hover:text-ds-indigo-300"
                                               : "text-ds-zinc-500 hover:bg-ds-zinc-100 hover:text-ds-indigo-600"
@@ -1410,14 +1410,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         {ref.name || ref.title}
                                       </span>
                                       {folderPath && (
-                                        <span className="text-[10px] text-ds-zinc-500 font-mono truncate">
+                                        <span className="text-[0.625rem] text-ds-zinc-500 font-mono truncate">
                                           {folderPath}/
                                         </span>
                                       )}
                                     </div>
                                   </div>
                                   <span className={cn(
-                                    "px-2 py-0.5 text-[9px] font-bold rounded font-mono shrink-0 border uppercase tracking-wider",
+                                    "px-2 py-0.5 text-[0.5625rem] font-bold rounded font-mono shrink-0 border uppercase tracking-wider",
                                     ref.line
                                       ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-605")
                                       : (theme === 'dark' ? "bg-ds-emerald-500/10 border-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700")
@@ -1428,7 +1428,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
                                 {ref.preview && (
                                   <div className={cn(
-                                    "p-2 rounded-lg font-mono text-[10px] border-l-2 transition-colors overflow-x-auto w-full",
+                                    "p-2 rounded-lg font-mono text-[0.625rem] border-l-2 transition-colors overflow-x-auto w-full",
                                     theme === 'dark'
                                       ? "bg-ds-zinc-900/80 border-ds-indigo-500 text-ds-zinc-350"
                                       : "bg-ds-zinc-50 border-ds-indigo-600 text-ds-zinc-600"
@@ -1530,7 +1530,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                               {ref.name || ref.title}
                                             </span>
                                             {ref.file_path && (
-                                              <span className="text-[10px] text-ds-zinc-500 font-mono truncate">
+                                              <span className="text-[0.625rem] text-ds-zinc-500 font-mono truncate">
                                                 {ref.file_path}
                                               </span>
                                             )}
@@ -1540,14 +1540,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                         <div className="flex items-center gap-1.5 shrink-0">
                                           {ref.line ? (
                                             <span className={cn(
-                                              "px-2 py-0.5 text-[9px] font-bold rounded font-mono border uppercase tracking-wider",
+                                              "px-2 py-0.5 text-[0.5625rem] font-bold rounded font-mono border uppercase tracking-wider",
                                               theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-600"
                                             )}>
                                               {t('splitPane.lineLabel', { line: ref.line })}
                                             </span>
                                           ) : (
                                             <span className={cn(
-                                              "px-2 py-0.5 text-[9px] font-bold rounded border uppercase tracking-wider",
+                                              "px-2 py-0.5 text-[0.5625rem] font-bold rounded border uppercase tracking-wider",
                                               theme === 'dark' ? "bg-ds-emerald-500/10 border-ds-emerald-500/20 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-700"
                                             )}>
                                               {ref.source || t('splitPane.localSourceBadge')}
@@ -1558,7 +1558,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
                                       {ref.preview && (
                                         <div className={cn(
-                                          "p-3 rounded-lg font-mono text-[10px] border-l-2 overflow-x-auto w-full",
+                                          "p-3 rounded-lg font-mono text-[0.625rem] border-l-2 overflow-x-auto w-full",
                                           theme === 'dark'
                                             ? "bg-ds-zinc-950/80 border-ds-indigo-500 text-ds-zinc-350"
                                             : "bg-ds-white border-ds-indigo-650 text-ds-zinc-600"
@@ -1636,7 +1636,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     'shrink-0 border-b px-4 py-3',
                     theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-indigo-950/25' : 'border-ds-indigo-200 bg-ds-indigo-50',
                   )}>
-                    <div className="flex items-center gap-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                    <div className="flex items-center gap-2 mb-1 text-[0.625rem] font-bold uppercase tracking-wider text-ds-indigo-400">
                       <BookOpen className="w-3.5 h-3.5" />
                       <span>{selectedDoc.section || (selectedDoc.page ? t('chatView.walkthroughPage', { page: selectedDoc.page }) : t('splitPane.documentViewerLabel'))}</span>
                     </div>
@@ -1662,7 +1662,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     'shrink-0 border-b px-4 py-3',
                     theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-indigo-950/25' : 'border-ds-indigo-200 bg-ds-indigo-50',
                   )}>
-                    <div className="flex items-center gap-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-ds-indigo-400">
+                    <div className="flex items-center gap-2 mb-1 text-[0.625rem] font-bold uppercase tracking-wider text-ds-indigo-400">
                       <BookOpen className="w-3.5 h-3.5" />
                       <span>{selectedDoc.section || (selectedDoc.page ? t('chatView.walkthroughPage', { page: selectedDoc.page }) : t('splitPane.documentViewerLabel'))}</span>
                     </div>
@@ -1741,7 +1741,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   <div
                     style={{ width: `${editorContentLeft}px` }}
                     className={cn(
-                      "shrink-0 text-right pr-2 text-ds-indigo-500 font-bold border-r mr-2 text-[10px] select-none flex items-center justify-end font-mono",
+                      "shrink-0 text-right pr-2 text-ds-indigo-500 font-bold border-r mr-2 text-[0.625rem] select-none flex items-center justify-end font-mono",
                       theme === 'dark' ? "border-ds-zinc-800 text-ds-indigo-400" : "border-ds-zinc-300 text-ds-indigo-650"
                     )}
                   >
@@ -1820,7 +1820,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
                   )}>
                     <span className={cn(
-                      "text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
+                      "text-[0.5625rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
                       detectLanguage(selectedFile) === 'cobol'
                         ? (
                             cursorColumn >= 1 && cursorColumn <= 6 ? (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-zinc-700 text-ds-white") :
@@ -1992,7 +1992,7 @@ function LoadMoreButton({ theme, loading, disabled, remaining, onClick, testId }
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-1.5 px-4 py-2 text-left text-[11px] font-medium transition-colors disabled:opacity-60",
+        "flex w-full items-center gap-1.5 px-4 py-2 text-left text-[0.6875rem] font-medium transition-colors disabled:opacity-60",
         theme === 'dark' ? "text-ds-indigo-300 hover:bg-ds-zinc-900/60" : "text-ds-indigo-700 hover:bg-ds-zinc-50"
       )}
     >

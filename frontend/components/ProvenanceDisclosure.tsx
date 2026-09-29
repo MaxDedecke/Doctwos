@@ -84,14 +84,14 @@ export function ProvenanceDisclosure({ provenance, theme, className = '' }: Prop
 
   return (
     <details className={`group min-w-0 max-w-full ${className}`}>
-      <summary className={`inline-flex max-w-full cursor-pointer list-none items-center gap-1 rounded px-1.5 py-1 text-[10px] ${summaryText} [&::-webkit-details-marker]:hidden`}>
+      <summary className={`inline-flex max-w-full cursor-pointer list-none items-center gap-1 rounded px-1.5 py-1 text-[0.625rem] ${summaryText} [&::-webkit-details-marker]:hidden`}>
         <Info className="h-3 w-3 shrink-0" />
         <span className="truncate">{valueFor('kind')}</span>
         <span className="truncate">· {valueFor('status')}</span>
         <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-180" />
       </summary>
       <div className={`mt-1 w-[min(22rem,calc(100vw-2rem))] max-w-full rounded-md border p-2.5 shadow-xl ${panel}`}>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[10px]">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[0.625rem]">
           <dt className={subtle}>{t('provenance.kindLabel')}</dt><dd>{valueFor('kind')}</dd>
           <dt className={subtle}>{t('provenance.statusLabel')}</dt><dd>{valueFor('status')}</dd>
           <dt className={subtle}>{t('provenance.sourceLabel')}</dt><dd>{[sourceName, sourceType].filter(Boolean).join(' · ') || t('provenance.notAvailable')}</dd>
@@ -108,8 +108,8 @@ export function ProvenanceDisclosure({ provenance, theme, className = '' }: Prop
           {analysisStatus && <><dt className={subtle}>{t('provenance.analysisStatusLabel')}</dt><dd>{analysisStatus}</dd></>}
           <dt className={subtle}>{t('provenance.locatorLabel')}</dt><dd className="min-w-0 break-words">{locator ?? t('provenance.notAvailable')}</dd>
         </dl>
-        {analysisReasons.length > 0 && <ul className={`mt-2 list-disc space-y-0.5 pl-4 text-[10px] ${subtle}`}>{analysisReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
-        {detail && <p className={`mt-2 border-t pt-2 text-[10px] ${subtle} ${isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200'}`}>{detail}</p>}
+        {analysisReasons.length > 0 && <ul className={`mt-2 list-disc space-y-0.5 pl-4 text-[0.625rem] ${subtle}`}>{analysisReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
+        {detail && <p className={`mt-2 border-t pt-2 text-[0.625rem] ${subtle} ${isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200'}`}>{detail}</p>}
       </div>
     </details>
   );

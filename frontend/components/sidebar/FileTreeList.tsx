@@ -72,7 +72,7 @@ export function FileTreeList({
           type="button"
           onClick={() => toggleFolder(node.path)}
           className={cn(
-            "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold transition-all text-left",
+            "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[0.6875rem] font-semibold transition-all text-left",
             theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-200" : "text-ds-zinc-650 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-850"
           )}
           style={{ paddingLeft: `${Math.max(8, depth * 12)}px` }}
@@ -98,7 +98,7 @@ export function FileTreeList({
         type="button"
         onClick={() => onFileSelect(node.path, sourceId)}
         className={cn(
-          "w-full flex items-center gap-2 py-1 rounded text-[11px] transition-all text-left",
+          "w-full flex items-center gap-2 py-1 rounded text-[0.6875rem] transition-all text-left",
           isFileSelected
             ? (theme === 'dark' ? "bg-ds-indigo-500/10 text-ds-indigo-400 font-semibold" : "bg-ds-indigo-55 text-ds-indigo-750 font-semibold")
             : (theme === 'dark' ? "text-ds-zinc-500 hover:bg-ds-zinc-800/40 hover:text-ds-zinc-300" : "text-ds-zinc-550 hover:bg-ds-zinc-200/55 hover:text-ds-zinc-800")

@@ -122,16 +122,16 @@ export const LogsSettingsTab: React.FC = () => {
               "p-3 border rounded-lg space-y-1 transition-colors",
               theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
             )}>
-              <div className="flex items-center justify-between text-[9px]">
+              <div className="flex items-center justify-between text-[0.5625rem]">
                 <span className="text-ds-zinc-500 font-bold uppercase">{item.label}</span>
                 <span className={cn(
-                  "font-bold uppercase tracking-wider text-[8px] px-1 rounded-sm",
+                  "font-bold uppercase tracking-wider text-[0.5rem] px-1 rounded-sm",
                   item.status === t('settings.logsTab.statusOnline') || item.status === t('settings.logsTab.statusReady') || item.status === t('settings.logsTab.statusConnected')
                     ? "bg-ds-emerald-500/10 text-ds-emerald-505"
                     : "bg-ds-amber-500/10 text-ds-amber-505"
                 )}>{item.status}</span>
               </div>
-              <p className={cn("font-mono text-[10px] truncate", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{item.value}</p>
+              <p className={cn("font-mono text-[0.625rem] truncate", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{item.value}</p>
             </div>
           ))}
         </div>
@@ -147,19 +147,19 @@ export const LogsSettingsTab: React.FC = () => {
             <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
               {t('settings.logsTab.diagnosticsTitle')}
             </h4>
-            <p className={cn("text-[10px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+            <p className={cn("text-[0.625rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
               {t('settings.logsTab.diagnosticsDescription')}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             {diagnosticsRun?.status === 'completed' && (
               <a href={`${API_URL}/diagnostics/runs/${diagnosticsRun.id}/download`} download
-                className={cn("h-7 text-[10px] px-2.5 flex items-center gap-1.5 rounded-md border font-medium", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
+                className={cn("h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 rounded-md border font-medium", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
                 <Download className="w-3 h-3" />{t('settings.logsTab.diagnosticsDownload')}
               </a>
             )}
             <Button type="button" size="sm" variant="outline" disabled={diagnosticsGenerating} onClick={handleGenerateDiagnostics}
-              className={cn("h-7 text-[10px] px-2.5 flex items-center gap-1.5 focus:ring-0", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
+              className={cn("h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 focus:ring-0", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
               {diagnosticsGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
               {diagnosticsGenerating ? t('settings.logsTab.diagnosticsGenerating') : t('settings.logsTab.diagnosticsGenerate')}
             </Button>
@@ -172,7 +172,7 @@ export const LogsSettingsTab: React.FC = () => {
         <div className="flex items-center justify-between">
           <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.indexingLogsTitle')}</h4>
           {refreshingLogs && (
-            <span className="text-[10px] text-ds-zinc-500 flex items-center gap-1">
+            <span className="text-[0.625rem] text-ds-zinc-500 flex items-center gap-1">
               <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> {t('settings.logsTab.refreshing')}
             </span>
           )}
@@ -200,7 +200,7 @@ export const LogsSettingsTab: React.FC = () => {
                 statusIcon = (
                   <div className="flex items-center gap-1.5">
                     <Loader2 className="w-3 h-3 animate-spin shrink-0 text-ds-blue-500" />
-                    {(src.progress ?? 0) > 0 && <span className="font-bold text-[9px]">{src.progress}%</span>}
+                    {(src.progress ?? 0) > 0 && <span className="font-bold text-[0.5625rem]">{src.progress}%</span>}
                   </div>
                 );
               } else if (status === 'completed') {
@@ -229,19 +229,19 @@ export const LogsSettingsTab: React.FC = () => {
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className={cn("font-bold text-xs", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{src.name}</span>
-                      <span className={cn("text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
+                      <span className={cn("text-[0.5625rem] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
                         theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-150 border-ds-zinc-200 text-ds-zinc-500"
                       )}>
                         {src.type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-ds-zinc-500">
+                    <div className="flex items-center gap-1.5 text-[0.625rem] text-ds-zinc-500">
                       <span>{t('settings.logsTab.lastSyncLabel', { time: formattedTime })}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                    <div className={cn("flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-sm border", statusColorClass)}>
+                    <div className={cn("flex items-center gap-1 text-[0.625rem] font-bold px-2.5 py-0.5 rounded-sm border", statusColorClass)}>
                       {statusIcon}
                       <span>{statusLabel}</span>
                     </div>
@@ -252,7 +252,7 @@ export const LogsSettingsTab: React.FC = () => {
                       variant="outline"
                       onClick={() => setActiveLogSource(activeLogSource?.id === src.id ? null : src)}
                       className={cn(
-                        "h-7 text-[10px] px-2.5 flex items-center gap-1.5 focus:ring-0",
+                        "h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 focus:ring-0",
                         theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
                       )}
                     >
@@ -314,7 +314,7 @@ export const LogsSettingsTab: React.FC = () => {
                   showToast(t(ok ? 'settings.logsTab.logCopiedToast' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
                 }}
                 className={cn(
-                  "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
+                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
                   theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
@@ -327,7 +327,7 @@ export const LogsSettingsTab: React.FC = () => {
                 onClick={refreshKnowledgeSources}
                 disabled={refreshingLogs}
                 className={cn(
-                  "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
+                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
                   theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
@@ -340,7 +340,7 @@ export const LogsSettingsTab: React.FC = () => {
                 variant="outline"
                 onClick={() => setActiveLogSource(null)}
                 className={cn(
-                  "h-7 text-[10px] px-2 flex items-center gap-1 focus:ring-0",
+                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
                   theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
                 )}
               >
@@ -353,8 +353,8 @@ export const LogsSettingsTab: React.FC = () => {
             <div className="p-3.5 bg-ds-rose-500/10 border border-ds-rose-500/20 text-ds-rose-500 rounded-lg text-xs flex gap-2.5">
               <AlertTriangle className="w-4 h-4 shrink-0 text-ds-rose-500 mt-0.5" />
               <div className="min-w-0">
-                <p className="font-bold uppercase tracking-wide text-[9px] text-ds-rose-455">{t('settings.logsTab.lastErrorLabel')}</p>
-                <p className="font-mono text-[10px] mt-0.5 leading-relaxed break-all">{activeLogSource.last_error}</p>
+                <p className="font-bold uppercase tracking-wide text-[0.5625rem] text-ds-rose-455">{t('settings.logsTab.lastErrorLabel')}</p>
+                <p className="font-mono text-[0.625rem] mt-0.5 leading-relaxed break-all">{activeLogSource.last_error}</p>
               </div>
             </div>
           )}

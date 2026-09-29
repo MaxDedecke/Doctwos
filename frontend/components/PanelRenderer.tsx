@@ -92,7 +92,7 @@ export function PanelRenderer({
       )}>
         <Select value={contentType} onValueChange={(type) => onContentTypeChange(index, type)}>
           <SelectTrigger aria-label={t('page.panelTypeSelectorLabel')} className={cn(
-            'h-6 text-[10px] bg-transparent border-0 font-bold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 px-1 py-0 gap-1.5 w-auto transition-colors duration-200',
+            'h-6 text-[0.625rem] bg-transparent border-0 font-bold uppercase tracking-wider focus:ring-0 focus:ring-offset-0 px-1 py-0 gap-1.5 w-auto transition-colors duration-200',
             panelFrozen ? 'text-ds-amber-500 hover:text-ds-amber-400' : 'text-ds-indigo-400 hover:text-ds-indigo-350'
           )}>
             <SelectValue />
@@ -113,25 +113,25 @@ export function PanelRenderer({
           <button
             onClick={() => onToggleFreeze(index)}
             className={cn(
-              'p-1 rounded border transition-all duration-150 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider cursor-pointer',
+              'p-1 rounded border transition-all duration-150 flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider cursor-pointer',
               panelFrozen
                 ? 'bg-ds-amber-500/10 border-ds-amber-500/30 text-ds-amber-500 hover:bg-ds-amber-500/20'
                 : (theme === 'dark' ? 'bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-300 hover:border-ds-zinc-700' : 'bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300')
             )}
             title={panelFrozen ? t('page.workspace.freezePausedTitle') : t('page.workspace.freezeActiveTitle')}
           >
-            {panelFrozen ? <><Lock className="w-3 h-3 text-ds-amber-500" /><span className="text-[9px] text-ds-amber-500 hidden sm:inline">{t('page.workspace.frozenBadge')}</span></> : <><RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" /><span className="text-[9px] text-ds-zinc-500 hidden sm:inline">{t('page.workspace.liveBadge')}</span></>}
+            {panelFrozen ? <><Lock className="w-3 h-3 text-ds-amber-500" /><span className="text-[0.5625rem] text-ds-amber-500 hidden sm:inline">{t('page.workspace.frozenBadge')}</span></> : <><RefreshCw className="w-3 h-3 text-ds-emerald-500 animate-[spin_8s_linear_infinite]" /><span className="text-[0.5625rem] text-ds-zinc-500 hidden sm:inline">{t('page.workspace.liveBadge')}</span></>}
           </button>
           {panelCount > 1 && <button onClick={() => onClose(index)} className={cn('p-1 rounded border transition-all duration-150 flex items-center justify-center cursor-pointer', theme === 'dark' ? 'bg-transparent border-ds-zinc-800 text-ds-zinc-550 hover:text-ds-red-400 hover:border-ds-red-900/40 hover:bg-ds-red-950/20' : 'bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-red-500 hover:border-ds-red-200 hover:bg-ds-red-50')} title={t('page.workspace.closeView')}><X className="w-3 h-3" /></button>}
         </div>
       </div>
 
       {focusInfo && contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && contentType !== 'insights' && (
-        <div className={cn('px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0', theme === 'dark' ? 'border-ds-zinc-900 bg-ds-zinc-950/40' : 'border-ds-zinc-200 bg-ds-zinc-50/40')}>
+        <div className={cn('px-3 py-1 border-b flex items-center gap-1.5 text-[0.6875rem] shrink-0 z-10 min-w-0', theme === 'dark' ? 'border-ds-zinc-900 bg-ds-zinc-950/40' : 'border-ds-zinc-200 bg-ds-zinc-50/40')}>
           <focusInfo.Icon className={cn('w-3 h-3 shrink-0', focusInfo.colorClass)} />
           <span className={cn('truncate font-medium', theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700')} title={focusInfo.label}>{focusInfo.label}</span>
           <span className="text-ds-zinc-600 shrink-0">·</span>
-          <span className="text-ds-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
+          <span className="text-ds-zinc-500 uppercase tracking-wide text-[0.5625rem] shrink-0">{focusInfo.kind}</span>
         </div>
       )}
 

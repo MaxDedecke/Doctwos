@@ -145,7 +145,7 @@ export const AiSettingsTab: React.FC = () => {
               {profile.provider === 'vllm' && <span className={badgeClass('accent')}>vLLM</span>}
               {profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}
             </div>
-            <div className="font-mono text-[11px] text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div>
+            <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div>
           </div>
           <Button variant="ghost" size="icon" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
           {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>{t('settings.profilesTab.activate')}</Button>}
@@ -280,7 +280,7 @@ function EmbeddingProfilesPanel({
     {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
       <div className="flex-1 min-w-0">
         <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}</div>
-        <div className="font-mono text-[11px] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
+        <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
       </div>
       <Button variant="ghost" size="icon" onClick={() => test(profile)} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
       {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>Aktivieren</Button>}

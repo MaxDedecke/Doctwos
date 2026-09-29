@@ -39,7 +39,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) =
       theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-950/80" : "border-ds-zinc-200 bg-ds-zinc-50/90"
     )}>
       <div className={cn(
-        "flex items-center justify-between px-4 py-2 border-b text-[11px] font-mono transition-colors duration-200",
+        "flex items-center justify-between px-4 py-2 border-b text-[0.6875rem] font-mono transition-colors duration-200",
         theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/40 text-ds-zinc-400" : "border-ds-zinc-200 bg-ds-zinc-200/50 text-ds-zinc-650"
       )}>
         <span className="capitalize font-semibold">{language || 'code'}</span>
@@ -311,9 +311,9 @@ const HEADING_SIZE_CLASSES: Record<number, string> = {
   1: "text-xl font-bold mt-2",
   2: "text-lg font-bold mt-2",
   3: "text-base font-semibold mt-1",
-  4: "text-[15px] font-semibold",
-  5: "text-[15px] font-semibold",
-  6: "text-[15px] font-semibold",
+  4: "text-[0.9375rem] font-semibold",
+  5: "text-[0.9375rem] font-semibold",
+  6: "text-[0.9375rem] font-semibold",
 };
 
 /**
@@ -458,7 +458,7 @@ const renderTextBlock = (
         key={`${blockKey}-p-${idx}`}
         data-document-line-start={paragraphStartLine}
         data-document-line-end={paragraphEndLine}
-        className="leading-relaxed whitespace-pre-wrap text-[15px] scroll-mt-4"
+        className="leading-relaxed whitespace-pre-wrap text-[0.9375rem] scroll-mt-4"
       >
         {parseText(text, onFileClick, theme, t, knownSources)}
       </p>
@@ -520,7 +520,7 @@ const renderTextBlock = (
           data-document-line-start={baseLine + i}
           data-document-line-end={baseLine + k - 1}
           className={cn(
-            "border-l-4 pl-3 py-1 my-3 rounded-r leading-relaxed whitespace-pre-wrap text-[15px] scroll-mt-4",
+            "border-l-4 pl-3 py-1 my-3 rounded-r leading-relaxed whitespace-pre-wrap text-[0.9375rem] scroll-mt-4",
             theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900/30 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-100/60 text-ds-zinc-600"
           )}
         >

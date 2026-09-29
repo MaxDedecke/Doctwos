@@ -1341,23 +1341,23 @@ export function KnowledgeGraphView({
           <div className="space-y-2">
             {selectedNode.entity_type && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.typeLabel')}</span>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.typeLabel')}</span>
+                <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
                   {getEntityTypeLabel(selectedNode.entity_type, language)}
                 </span>
               </div>
             )}
             {selectedNode.language && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.languageLabel')}</span>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>{selectedNode.language}</span>
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.languageLabel')}</span>
+                <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>{selectedNode.language}</span>
               </div>
             )}
             {selectedNode.analysis_status && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('provenance.analysisStatusLabel')}</span>
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('provenance.analysisStatusLabel')}</span>
                 <span
-                  className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}
+                  className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}
                   title={selectedNode.analysis_reasons?.join('; ')}
                 >
                   {t(`analysisStatus.${selectedNode.analysis_status}`)}
@@ -1367,9 +1367,9 @@ export function KnowledgeGraphView({
             {selectedNode.file_path && (selectedNode.type === 'entity' || selectedNode.type === 'code_file') && (
               selectedNode.type === 'code_file' ? (
                 <div className="flex min-w-0 items-baseline gap-2">
-                  <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
+                  <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
                   <span
-                    className={cn('min-w-0 flex-1 truncate text-[10px] font-mono leading-snug', textMain)}
+                    className={cn('min-w-0 flex-1 truncate text-[0.625rem] font-mono leading-snug', textMain)}
                     title={selectedNode.file_path}
                   >
                     {selectedNode.file_path}
@@ -1377,8 +1377,8 @@ export function KnowledgeGraphView({
                 </div>
               ) : (
                 <div className="flex items-baseline gap-2">
-                  <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
-                  <span className={cn('text-[10px] font-mono break-all leading-snug', textMain)}>
+                  <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.fileLabel')}</span>
+                  <span className={cn('text-[0.625rem] font-mono break-all leading-snug', textMain)}>
                     {selectedNode.file_path}{selectedNode.start_line ? `:${selectedNode.start_line}` : ''}
                   </span>
                 </div>
@@ -1386,24 +1386,24 @@ export function KnowledgeGraphView({
             )}
             {selectedNode.source_type && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.sourceLabel')}</span>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.sourceLabel')}</span>
+                <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
                   {selectedNode.source_type}
                 </span>
               </div>
             )}
             {selectedNode.resource_type && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.resourceLabel')}</span>
-                <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.resourceLabel')}</span>
+                <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
                   {t(`knowledgeGraphView.resourceTypes.${selectedNode.resource_type}`)}
                 </span>
               </div>
             )}
             {selectedNode.type === 'external' && (
               <div className="flex items-baseline gap-2">
-                <span className={cn('text-[10px] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.statusLabel')}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-ds-zinc-500/15 text-ds-zinc-400 border border-ds-zinc-500/25">
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.statusLabel')}</span>
+                <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-ds-zinc-500/15 text-ds-zinc-400 border border-ds-zinc-500/25">
                   {t('knowledgeGraphView.notFoundInProject')}
                 </span>
               </div>
@@ -1412,7 +1412,7 @@ export function KnowledgeGraphView({
 
           {/* Connected nodes */}
           <div className={cn('pt-3 border-t', border)}>
-            <p className={cn('text-[10px] font-medium mb-2', textMuted)}>{t('knowledgeGraphView.connectionsLabel')}</p>
+            <p className={cn('text-[0.625rem] font-medium mb-2', textMuted)}>{t('knowledgeGraphView.connectionsLabel')}</p>
             <div className="space-y-0.5">
               {filteredData.links
                 .filter((l: GraphEdge) => {
@@ -1429,7 +1429,7 @@ export function KnowledgeGraphView({
                   return (
                     <button key={i}
                       onClick={() => { setSelectedNodeId(other.id); setSelectedEdgeId(null); }}
-                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors', connRow)}>
+                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors', connRow)}>
                       <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(l)), display: 'inline-block', borderRadius: 1 }} />
                       <span className={cn('truncate', textMain)}>{other.label}</span>
                     </button>
@@ -1452,7 +1452,7 @@ export function KnowledgeGraphView({
                     start_line: selectedNode.start_line ?? 1,
                   });
                 }}
-                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openInView')}
               </button>
@@ -1471,7 +1471,7 @@ export function KnowledgeGraphView({
                   // and code alike, so the single call covers all three.
                   onFileSelect(pathVal, null, sourceIdVal);
                 }}
-                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openInView')}
               </button>
@@ -1480,7 +1480,7 @@ export function KnowledgeGraphView({
             {selectedNode.id !== focusNodeId && (
               <button
                 onClick={() => setFocusNodeId(selectedNode.id)}
-                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <Workflow className="w-3 h-3" />
                 {t('knowledgeGraphView.focusOnNode')}
               </button>
@@ -1494,7 +1494,7 @@ export function KnowledgeGraphView({
                       value={traversalDirection}
                       onChange={event => setTraversalDirection(event.target.value as 'incoming' | 'outgoing' | 'both')}
                       aria-label={t('knowledgeGraphView.traversalDirectionLabel')}
-                      className={cn('rounded border px-1 py-0.5 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
+                      className={cn('rounded border px-1 py-0.5 text-[0.625rem]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
                       <option value="incoming">{t('knowledgeGraphView.traversalIncoming')}</option>
                       <option value="outgoing">{t('knowledgeGraphView.traversalOutgoing')}</option>
                       <option value="both">{t('knowledgeGraphView.traversalBoth')}</option>
@@ -1503,7 +1503,7 @@ export function KnowledgeGraphView({
                       value={traversalHops}
                       onChange={event => setTraversalHops(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)}
                       aria-label={t('knowledgeGraphView.traversalHopsLabel')}
-                      className={cn('rounded border px-1 py-0.5 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
+                      className={cn('rounded border px-1 py-0.5 text-[0.625rem]', chipBase, isDark ? 'bg-ds-zinc-900' : 'bg-ds-white')}>
                       {[1, 2, 3, 4, 5].map(hop => <option key={hop} value={hop}>{t('knowledgeGraphView.traversalHops', { count: hop })}</option>)}
                     </select>
                   </>
@@ -1512,7 +1512,7 @@ export function KnowledgeGraphView({
                   onClick={() => loadNeighborhood(selectedNode)}
                   disabled={isLoadingNeighborhood}
                   title={t('knowledgeGraphView.loadNeighborhoodTitle')}
-                  className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                  className={cn('flex items-center gap-1.5 text-[0.6875rem] transition-colors',
                     isLoadingNeighborhood ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
                   {isLoadingNeighborhood ? <Loader2 className="w-3 h-3 animate-spin" /> : <Crosshair className="w-3 h-3" />}
                   {t('knowledgeGraphView.loadNeighborhood')}
@@ -1525,7 +1525,7 @@ export function KnowledgeGraphView({
                 onClick={loadMoreConnections}
                 disabled={isLoadingMore}
                 title={t('knowledgeGraphView.loadMoreConnectionsTitle')}
-                className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+                className={cn('flex items-center gap-1.5 text-[0.6875rem] transition-colors',
                   isLoadingMore ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
                 {isLoadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                 {t('knowledgeGraphView.loadMoreConnections')}
@@ -1535,7 +1535,7 @@ export function KnowledgeGraphView({
             <button
               disabled={selectedNode.type === 'code_file' && !selectedNode.entity_ids?.length}
               onClick={() => { setIsLinkPickerOpen(o => !o); setLinkCreateError(null); }}
-              className={cn('flex items-center gap-1.5 text-[11px] transition-colors',
+              className={cn('flex items-center gap-1.5 text-[0.6875rem] transition-colors',
                 selectedNode.type === 'code_file' && !selectedNode.entity_ids?.length
                   ? 'opacity-40 cursor-not-allowed text-ds-zinc-500'
                   : 'text-ds-indigo-400 hover:text-ds-indigo-300')}>
@@ -1552,14 +1552,14 @@ export function KnowledgeGraphView({
                     value={linkPickerQuery}
                     onChange={e => { setLinkPickerQuery(e.target.value); setLinkPickerTargetId(null); }}
                     placeholder={t('knowledgeGraphView.createLinkTargetPlaceholder')}
-                    className={cn('w-full bg-transparent text-[11px] outline-none', textMain)}
+                    className={cn('w-full bg-transparent text-[0.6875rem] outline-none', textMain)}
                   />
                 </div>
                 <div className="max-h-32 overflow-y-auto space-y-0.5">
                   {linkPickerCandidates.map(n => (
                     <button key={n.id}
                       onClick={() => setLinkPickerTargetId(n.id)}
-                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[10px] transition-colors',
+                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors',
                         linkPickerTargetId === n.id ? (isDark ? 'bg-ds-indigo-500/20' : 'bg-ds-indigo-100') : connRow)}>
                       <KnowledgeNodeIcon node={n} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                       <span className={cn('truncate', textMain)}>{n.label}</span>
@@ -1567,27 +1567,27 @@ export function KnowledgeGraphView({
                     </button>
                   ))}
                   {linkPickerCandidates.length === 0 && (
-                    <p className={cn('text-[10px] px-1.5 py-1', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
+                    <p className={cn('text-[0.625rem] px-1.5 py-1', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <label htmlFor="manual-link-direction" className={cn('text-[10px] shrink-0', textMuted)}>
+                  <label htmlFor="manual-link-direction" className={cn('text-[0.625rem] shrink-0', textMuted)}>
                     {t('knowledgeGraphView.createLinkDirectionLabel')}
                   </label>
                   <select
                     id="manual-link-direction"
                     value={manualLinkDirection}
                     onChange={event => setManualLinkDirection(event.target.value as GraphEdgeDirection)}
-                    className={cn('min-w-0 flex-1 rounded border px-1.5 py-1 text-[10px]', chipBase, isDark ? 'bg-ds-zinc-900 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-700')}>
+                    className={cn('min-w-0 flex-1 rounded border px-1.5 py-1 text-[0.625rem]', chipBase, isDark ? 'bg-ds-zinc-900 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-700')}>
                     <option value="undirected">{t(EDGE_DIRECTION_TAXONOMY.undirected.labelKey)}</option>
                     <option value="directed">{t(EDGE_DIRECTION_TAXONOMY.directed.labelKey)}</option>
                     <option value="bidirectional">{t(EDGE_DIRECTION_TAXONOMY.bidirectional.labelKey)}</option>
                   </select>
                 </div>
-                {linkCreateError && <p className="text-[10px] text-ds-red-400">{linkCreateError}</p>}
+                {linkCreateError && <p className="text-[0.625rem] text-ds-red-400">{linkCreateError}</p>}
                 <div className="flex items-center gap-2 justify-end">
                   <button onClick={() => { setIsLinkPickerOpen(false); setLinkPickerTargetId(null); setLinkCreateError(null); }}
-                    className={cn('text-[10px] px-2 py-1 rounded transition-colors', textMuted, 'hover:text-ds-zinc-200')}>
+                    className={cn('text-[0.625rem] px-2 py-1 rounded transition-colors', textMuted, 'hover:text-ds-zinc-200')}>
                     {t('knowledgeGraphView.createLinkCancel')}
                   </button>
                   <button
@@ -1596,7 +1596,7 @@ export function KnowledgeGraphView({
                       const target = rawNodes.find(n => n.id === linkPickerTargetId);
                       if (target) createManualLink(selectedNode, target);
                     }}
-                    className={cn('text-[10px] px-2 py-1 rounded font-medium transition-colors',
+                    className={cn('text-[0.625rem] px-2 py-1 rounded font-medium transition-colors',
                       !linkPickerTargetId || isCreatingLink ? 'opacity-40 cursor-not-allowed bg-ds-indigo-500/40 text-ds-white' : 'bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-white')}>
                     {isCreatingLink ? t('knowledgeGraphView.createLinkSaving') : t('knowledgeGraphView.createLinkConfirm')}
                   </button>
@@ -1606,7 +1606,7 @@ export function KnowledgeGraphView({
 
             {selectedNode.url && (
               <a href={selectedNode.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+                className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
                 {t('knowledgeGraphView.openOriginal')}
               </a>
@@ -1620,14 +1620,14 @@ export function KnowledgeGraphView({
         <div className="px-3 py-3 space-y-4 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
-            <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+            <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
               {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
             </span>
-            <span className={cn('text-[10px] px-1.5 py-0.5 rounded', badge)}>
+            <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
               {t(EDGE_DIRECTION_TAXONOMY[graphEdgeDirection(selectedEdge)].labelKey)}
             </span>
             {selectedEdge.score !== null && (
-              <span className="text-[10px] font-mono text-ds-emerald-500">
+              <span className="text-[0.625rem] font-mono text-ds-emerald-500">
                 {Math.round((selectedEdge.score ?? 0) * 100)}%
               </span>
             )}
@@ -1635,7 +1635,7 @@ export function KnowledgeGraphView({
 
           {edgeSrc && (
             <div>
-              <p className={cn('text-[10px] mb-1', textMuted)}>{t('knowledgeGraphView.fromLabel')}</p>
+              <p className={cn('text-[0.625rem] mb-1', textMuted)}>{t('knowledgeGraphView.fromLabel')}</p>
               <button onClick={() => { setSelectedNodeId(edgeSrc.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeSrc} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
@@ -1646,7 +1646,7 @@ export function KnowledgeGraphView({
 
           {edgeTgt && (
             <div>
-              <p className={cn('text-[10px] mb-1', textMuted)}>{t('knowledgeGraphView.toLabel')}</p>
+              <p className={cn('text-[0.625rem] mb-1', textMuted)}>{t('knowledgeGraphView.toLabel')}</p>
               <button onClick={() => { setSelectedNodeId(edgeTgt.id); setSelectedEdgeId(null); }}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeTgt} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
@@ -1656,15 +1656,15 @@ export function KnowledgeGraphView({
           )}
 
           {selectedEdge.context && (
-            <div className={cn('box-border min-w-0 w-full max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-2 rounded text-[10px] leading-relaxed', isDark ? 'bg-ds-zinc-800 text-ds-zinc-300' : 'bg-ds-zinc-50 text-ds-zinc-600')}>
+            <div className={cn('box-border min-w-0 w-full max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] p-2 rounded text-[0.625rem] leading-relaxed', isDark ? 'bg-ds-zinc-800 text-ds-zinc-300' : 'bg-ds-zinc-50 text-ds-zinc-600')}>
               {selectedEdge.context}
             </div>
           )}
 
           {selectedEdgeLocation && (
             <div className="space-y-1">
-              <p className={cn('text-[10px]', textMuted)}>{t('knowledgeGraphView.documentLocationLabel')}</p>
-              <p className={cn('text-[10px] font-mono break-words', textMain)}>{selectedEdgeLocation}</p>
+              <p className={cn('text-[0.625rem]', textMuted)}>{t('knowledgeGraphView.documentLocationLabel')}</p>
+              <p className={cn('text-[0.625rem] font-mono break-words', textMain)}>{selectedEdgeLocation}</p>
             </div>
           )}
 
@@ -1675,7 +1675,7 @@ export function KnowledgeGraphView({
                 selectedEdge.code_start_line ?? null,
                 edgeTgt.source_id ?? null,
               )}
-              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+              className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
               <ExternalLink className="w-3 h-3" />
               {t('knowledgeGraphView.openCodeEvidence')}
             </button>
@@ -1690,7 +1690,7 @@ export function KnowledgeGraphView({
                 }
                 onFileSelect(path, selectedEdge.document_start_line ?? null, selectedEdge.document_source_id ?? edgeTgt.source_id ?? null);
               }}
-              className="flex items-center gap-1.5 text-[11px] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+              className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
               <ExternalLink className="w-3 h-3" />
               {t('knowledgeGraphView.openDocumentLocation')}
             </button>
@@ -1712,7 +1712,7 @@ export function KnowledgeGraphView({
         {/* Node type chips */}
         {nodeTypes.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.nodesLabel')}</span>
+            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.nodesLabel')}</span>
             {nodeTypes.map(type => {
               const typeInfo = UNIFIED_NODE_TYPES[type];
               if (!typeInfo) return null;
@@ -1720,7 +1720,7 @@ export function KnowledgeGraphView({
               const hidden = hiddenNodeTypes.has(type);
               return (
                 <button key={type} onClick={() => toggleNodeType(type)}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
+                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
                     hidden ? 'opacity-30' : 'opacity-100')}>
                   <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                   {label}
@@ -1737,13 +1737,13 @@ export function KnowledgeGraphView({
         {/* Link type chips */}
         {linkTypes.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.linksLabel')}</span>
+            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.linksLabel')}</span>
             {linkTypes.map(type => {
               const color = getGraphEdgeColor(type);
               const hidden = hiddenLinkTypes.has(type);
               return (
                 <button key={type} onClick={() => toggleLinkType(type)}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
+                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
                     hidden ? 'opacity-30' : 'opacity-100')}>
                   <span className="w-4 rounded-sm shrink-0" style={{ background: color, height: 2 }} />
                   {getLinkLabel(t, type) ?? type}
@@ -1760,7 +1760,7 @@ export function KnowledgeGraphView({
         {/* Direction filter for the currently focused graph data */}
         {edgeDirections.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[10px] uppercase tracking-wider font-medium', textMuted)}>
+            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>
               {t('knowledgeGraphView.directionFilterLabel')}
             </span>
             {edgeDirections.map(direction => {
@@ -1768,7 +1768,7 @@ export function KnowledgeGraphView({
               return (
                 <button key={direction} onClick={() => toggleEdgeDirection(direction)}
                   aria-pressed={!hidden}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[10px] transition-all', chipBase,
+                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
                     hidden ? 'opacity-30' : 'opacity-100')}>
                   {t(EDGE_DIRECTION_TAXONOMY[direction].labelKey)}
                 </button>
@@ -1781,7 +1781,7 @@ export function KnowledgeGraphView({
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && (
             <span
-              className={cn('max-w-56 truncate rounded-sm border px-2 py-1 text-[10px]', chipBase, textMuted)}
+              className={cn('max-w-56 truncate rounded-sm border px-2 py-1 text-[0.625rem]', chipBase, textMuted)}
               title={t('knowledgeGraphView.agentNeighborhoodScope', {
                 focus: agentGraphFocus.focus_label,
                 direction: agentDirectionLabel,
@@ -1800,7 +1800,7 @@ export function KnowledgeGraphView({
           {viewMode === 'neighborhood' && (
             <>
               <button onClick={handleBackToOverview} title={t('knowledgeGraphView.backToOverview')}
-                className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
+                className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted)}>
                 <LayoutGrid className="w-3 h-3" />
                 {t('knowledgeGraphView.backToOverview')}
               </button>
@@ -1809,7 +1809,7 @@ export function KnowledgeGraphView({
                   onClick={loadMoreConnections}
                   disabled={isLoadingMore}
                   title={t('knowledgeGraphView.loadMoreConnectionsTitle')}
-                  className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted,
+                  className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted,
                     isLoadingMore && 'opacity-50 cursor-not-allowed')}>
                   {isLoadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
                   {t('knowledgeGraphView.loadMoreConnections')}
@@ -1819,13 +1819,13 @@ export function KnowledgeGraphView({
           )}
           {focusNodeId && (
             <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')}
-              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] transition-colors', chipBase, textMuted)}>
+              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted)}>
               <LayoutGrid className="w-3 h-3" />
               {t('knowledgeGraphView.clearFocus')}
             </button>
           )}
           {rawNodes.length > 0 && (
-            <span className={cn('text-[10px] tabular-nums', textMuted)}>
+            <span className={cn('text-[0.625rem] tabular-nums', textMuted)}>
               {filteredData.nodes.length} · {filteredData.links.length}
             </span>
           )}
@@ -1869,7 +1869,7 @@ export function KnowledgeGraphView({
                 <div className="h-1 w-56 overflow-hidden rounded-full bg-ds-indigo-500/15" role="progressbar" aria-label={t('knowledgeGraphView.loadingTitle')} aria-valuetext={t('knowledgeGraphView.loadingProgress')}>
                   <div className="h-full w-2/5 rounded-full bg-gradient-to-r from-ds-indigo-500/30 via-ds-indigo-400 to-ds-blue-400 animate-[loading-slide_1.6s_ease-in-out_infinite]" />
                 </div>
-                <p className={cn('text-[10px]', textMuted)}>{t('knowledgeGraphView.loadingProgress')}</p>
+                <p className={cn('text-[0.625rem]', textMuted)}>{t('knowledgeGraphView.loadingProgress')}</p>
               </div>
             </div>
           )}
@@ -1883,7 +1883,7 @@ export function KnowledgeGraphView({
           )}
 
           {!isLoading && overviewTruncation && (
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400 max-w-[min(90%,28rem)]">
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[0.625rem] text-ds-amber-400 max-w-[min(90%,28rem)]">
               <AlertTriangle className="w-3 h-3 shrink-0" />
               {/* Bei gekürzten Beziehungen kennt die Übersicht nur die gelieferten Knoten, ein "n von n" wäre
                   irreführend: dann wird ausdrücklich eine Auswahl der Beziehungen gemeldet. */}
@@ -1894,14 +1894,14 @@ export function KnowledgeGraphView({
           )}
 
           {neighborhoodError && (
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-[10px] text-ds-red-400">
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-red-500/30 bg-ds-red-500/10 text-[0.625rem] text-ds-red-400">
               <AlertTriangle className="w-3 h-3 shrink-0" />
               {neighborhoodError}
             </div>
           )}
 
           {!isLoading && activeFocusNodeId && focusNeighborIds && focusNeighborIds.size <= 1 && (
-            <div className={cn('absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-[11px]', chipBase, textMuted)}>
+            <div className={cn('absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-sm border text-[0.6875rem]', chipBase, textMuted)}>
               <Info className="w-3 h-3" />
               {t('knowledgeGraphView.noLinkedObjectsFound')}
             </div>
@@ -2037,7 +2037,7 @@ export function KnowledgeGraphView({
                     {t('knowledgeGraphView.legendLabel')}
                   </span>
                 </div>
-                <span className="text-[10px] text-ds-zinc-550 hover:text-ds-zinc-300">
+                <span className="text-[0.625rem] text-ds-zinc-550 hover:text-ds-zinc-300">
                   {isLegendOpen ? '▲' : '▼'}
                 </span>
               </div>
@@ -2046,7 +2046,7 @@ export function KnowledgeGraphView({
                 <div className="mt-2.5 space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                   {/* List visible node types */}
                   <div className="space-y-1.5">
-                    <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
+                    <p className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500 font-semibold">
                       {t('knowledgeGraphView.nodesLabel')}
                     </p>
                     {nodeTypes.map(type => {
@@ -2054,7 +2054,7 @@ export function KnowledgeGraphView({
                       if (!typeInfo) return null;
                       const label = language === 'de' ? typeInfo.labelDe : typeInfo.labelEn;
                       return (
-                        <div key={type} className="flex items-center gap-2 text-[10px]">
+                        <div key={type} className="flex items-center gap-2 text-[0.625rem]">
                           <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                           <span className="truncate">{label}</span>
                         </div>
@@ -2065,14 +2065,14 @@ export function KnowledgeGraphView({
                   {/* List visible link types */}
                   {linkTypes.length > 0 && (
                     <div className={cn("space-y-1.5 pt-2 border-t", isDark ? "border-ds-zinc-800/60" : "border-ds-zinc-200")}>
-                      <p className="text-[9px] uppercase tracking-wider text-ds-zinc-500 font-semibold">
+                      <p className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500 font-semibold">
                         {t('knowledgeGraphView.linksLabel')}
                       </p>
                       {linkTypes.map(type => {
                         const color = getGraphEdgeColor(type);
                         const label = getLinkLabel(t, type) ?? type;
                         return (
-                          <div key={type} className="flex items-center gap-2 text-[10px]">
+                          <div key={type} className="flex items-center gap-2 text-[0.625rem]">
                             <span className="w-4 rounded-sm shrink-0" style={{ background: color, height: 2 }} />
                             <span className="truncate">{label}</span>
                           </div>

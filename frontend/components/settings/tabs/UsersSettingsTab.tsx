@@ -218,7 +218,7 @@ export const UsersSettingsTab: React.FC = () => {
             <span>{t('settings.users.createButton')}</span>
           </Button>
         </div>
-        <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+        <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
           {t('settings.users.createHint')}
         </p>
       </form>
@@ -243,10 +243,10 @@ export const UsersSettingsTab: React.FC = () => {
             </Button>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-[11px]", theme === 'dark' ? "text-ds-amber-400/80" : "text-ds-amber-700/90")}>
+            <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-amber-400/80" : "text-ds-amber-700/90")}>
               {t('settings.users.passwordHint')}
             </p>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setIssuedPassword(null)} className="h-7 text-[11px] font-bold shrink-0">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setIssuedPassword(null)} className="h-7 text-[0.6875rem] font-bold shrink-0">
               {t('common.close')}
             </Button>
           </div>
@@ -280,21 +280,21 @@ export const UsersSettingsTab: React.FC = () => {
                       <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" aria-label={t('settings.users.roleSuperuser')} />
                     )}
                     {user.auth_provider === 'oidc' && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-ds-sky-500/10 text-ds-sky-600 dark:text-ds-sky-400 border border-ds-sky-500/20 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[0.5625rem] font-bold uppercase tracking-wider bg-ds-sky-500/10 text-ds-sky-600 dark:text-ds-sky-400 border border-ds-sky-500/20 shrink-0">
                         SSO
                       </span>
                     )}
                     {user.is_locked && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-ds-red-500 shrink-0">
+                      <span className="flex items-center gap-1 text-[0.625rem] font-bold text-ds-red-500 shrink-0">
                         <Lock className="w-3 h-3" />
                         {t('settings.users.statusLocked')}
                       </span>
                     )}
                     {!user.is_active && (
-                      <span className="text-[10px] font-bold text-ds-zinc-500 shrink-0">{t('settings.users.statusInactive')}</span>
+                      <span className="text-[0.625rem] font-bold text-ds-zinc-500 shrink-0">{t('settings.users.statusInactive')}</span>
                     )}
                   </div>
-                  <div className={cn("text-[11px] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                  <div className={cn("text-[0.6875rem] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
                     {user.name || user.email || '—'}
                     {user.last_login_at
                       ? ` · ${t('settings.users.lastLogin', { date: new Date(user.last_login_at).toLocaleString() })}`
@@ -308,7 +308,7 @@ export const UsersSettingsTab: React.FC = () => {
                     onValueChange={(v) => handleRoleChange(user, v as 'superuser' | 'user')}
                     disabled={isSelf || isBusy}
                   >
-                    <SelectTrigger className="h-8 w-32 text-[11px] font-semibold">
+                    <SelectTrigger className="h-8 w-32 text-[0.6875rem] font-semibold">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

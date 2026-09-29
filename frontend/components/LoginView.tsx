@@ -196,7 +196,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
           {mustChangePassword ? (
             <form className="space-y-3" onSubmit={handleChangePassword}>
               <div className="space-y-1.5">
-                <label htmlFor="new-password" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordLabel')}</label>
+                <label htmlFor="new-password" className={cn("text-[0.6875rem]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordLabel')}</label>
                 <Input
                   id="new-password"
                   type="password"
@@ -207,7 +207,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="new-password-repeat" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordRepeatLabel')}</label>
+                <label htmlFor="new-password-repeat" className={cn("text-[0.6875rem]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.newPasswordRepeatLabel')}</label>
                 <Input
                   id="new-password-repeat"
                   type="password"
@@ -218,7 +218,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 />
               </div>
 
-              {error && <p role="alert" className="text-[11px] text-ds-red-400">{error}</p>}
+              {error && <p role="alert" className="text-[0.6875rem] text-ds-red-400">{error}</p>}
 
               <Button
                 type="submit"
@@ -249,7 +249,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 >
                   <span>{t('loginView.ssoButton')}</span>
                 </Button>
-                <div className={cn("flex items-center gap-3 text-[11px]", isDark ? "text-ds-zinc-500" : "text-ds-zinc-600")}>
+                <div className={cn("flex items-center gap-3 text-[0.6875rem]", isDark ? "text-ds-zinc-500" : "text-ds-zinc-600")}>
                   <div className={cn("h-px flex-1", isDark ? "bg-ds-zinc-800" : "bg-ds-zinc-200")} />
                   <span>{t('loginView.ssoDivider')}</span>
                   <div className={cn("h-px flex-1", isDark ? "bg-ds-zinc-800" : "bg-ds-zinc-200")} />
@@ -258,7 +258,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
             )}
             <form className="space-y-3" onSubmit={handleLogin}>
               <div className="space-y-1.5">
-                <label htmlFor="username" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.usernameLabel')}</label>
+                <label htmlFor="username" className={cn("text-[0.6875rem]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.usernameLabel')}</label>
                 <Input
                   id="username"
                   type="text"
@@ -270,7 +270,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="password" className={cn("text-[11px]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.passwordLabel')}</label>
+                <label htmlFor="password" className={cn("text-[0.6875rem]", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.passwordLabel')}</label>
                 <Input
                   id="password"
                   type="password"
@@ -281,7 +281,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 />
               </div>
 
-              {error && <p role="alert" className="text-[11px] text-ds-red-400">{error}</p>}
+              {error && <p role="alert" className="text-[0.6875rem] text-ds-red-400">{error}</p>}
 
               <Button
                 type="submit"
