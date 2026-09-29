@@ -123,7 +123,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                         "control_context": "finally",
                     })
                     break
-                if rule == "tryStatement":
+                if (
+                    rule == "statement"
+                    and current.start is not None
+                    and current.start.text.casefold() == "try"
+                ):
                     edge_meta.update({
                         "control_role": "try_body",
                         "control_context": "try",

@@ -416,3 +416,122 @@ class A {
     assert this_calls[0].resolution == "resolved"
     assert "@anonymous:" in this_calls[0].meta["target_qualified_name"]
     assert this_calls[0].meta["target_qualified_name"].endswith("#helper()")
+
+
+def test_o366_local_receivers_follow_sibling_block_visibility() -> None:
+    result = parse_java_file(
+        """package demo;
+class Service { void work() {} }
+class Client {
+    void run() {
+        { Service first = new Service(); first.work(); }
+        { Service first = new Service(); first.work(); }
+    }
+}
+""",
+        "demo/Client.java",
+    )
+
+    resolve_global_edges([result])
+    calls = [edge for edge in result.edges if edge.type == "CALLS"]
+    assert len(calls) == 2
+    assert all(edge.resolution == "resolved" for edge in calls)
+    assert all(edge.meta["target_qualified_name"] == "demo.Service#work()" for edge in calls)
+    assert all(edge.meta["resolution_reason"] == "receiver_local_variable" for edge in calls)
+
+
+def test_o367_method_references_resolve_only_unique_repository_targets() -> None:
+    result = parse_java_file(
+        """package demo;
+class Service {
+    Service() {}
+    void run() {}
+    static void start() {}
+}
+class Client {
+    Service service;
+    void test() {
+        Runnable a = this::local;
+        Runnable b = Service::start;
+        Runnable c = service::run;
+        Runnable d = Service::new;
+        Runnable e = this::overloaded;
+        Runnable f = System::gc;
+    }
+    void local() {}
+    void overloaded(int value) {}
+    void overloaded(String value) {}
+}
+""",
+        "demo/Client.java",
+    )
+
+    resolve_global_edges([result])
+    references = [edge for edge in result.edges if edge.type == "REFERENCES_METHOD"]
+    assert len(references) == 6
+    resolved = [edge for edge in references if edge.resolution == "resolved"]
+    unresolved = [edge for edge in references if edge.resolution == "unresolved"]
+    assert len(resolved) == 4
+    assert {edge.meta["target_qualified_name"] for edge in resolved} == {
+        "demo.Client#local()",
+        "demo.Service#start()",
+        "demo.Service#run()",
+        "demo.Service#<init>()",
+    }
+    assert {edge.meta["resolution_reason"] for edge in unresolved} == {
+        "ambiguous_method_reference_target",
+        "method_reference_target_not_in_repository",
+    }
+
+
+def test_o368_external_receiver_fields_resolve_by_declared_type() -> None:
+    result = parse_java_file(
+        """package demo;
+class Box { int value; }
+class Client {
+    void test(Box box) {
+        box.value = 1;
+        int copy = box.value;
+    }
+}
+""",
+        "demo/Client.java",
+    )
+
+    resolve_global_edges([result])
+    accesses = [edge for edge in result.edges if edge.dst_name == "box.value"]
+    assert {edge.type for edge in accesses} == {"READS", "WRITES"}
+    assert len(accesses) == 2
+    assert all(edge.resolution == "resolved" for edge in accesses)
+    assert all(edge.meta["target_qualified_name"] == "demo.Box#value" for edge in accesses)
+    assert all(edge.meta["receiver_type_qualified_name"] == "demo.Box" for edge in accesses)
+
+
+def test_o369_call_edges_preserve_try_catch_and_finally_roles() -> None:
+    result = parse_java_file(
+        """package demo;
+class Client {
+    void risky() throws IllegalStateException {}
+    void recover() {}
+    void close() {}
+    void run() {
+        try { risky(); }
+        catch (IllegalStateException error) { recover(); }
+        finally { close(); }
+    }
+}
+""",
+        "demo/Client.java",
+    )
+
+    method = "demo.Client#run()"
+    calls = [edge for edge in result.edges if edge.type == "CALLS" and edge.src_name == method]
+    by_name = {edge.meta["method_name"]: edge for edge in calls}
+    assert by_name["risky"].meta["control_role"] == "try_body"
+    risky = next(entity for entity in result.entities if entity.qualified_name == "demo.Client#risky()")
+    assert risky.meta["throws_types"] == ["IllegalStateException"]
+    assert by_name["recover"].meta["control_role"] == "exception_handler"
+    assert by_name["recover"].meta["control_context"] == "catch(IllegalStateException)"
+    assert by_name["recover"].meta["exception_types"] == ["IllegalStateException"]
+    assert by_name["close"].meta["control_role"] == "cleanup"
+    assert by_name["close"].meta["control_context"] == "finally"
