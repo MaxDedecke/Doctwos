@@ -281,6 +281,8 @@ def search_code(
 
     Separate alternatives with ``|``. Optional declaration prefixes such as
     ``class`` are ignored (for example, ``class ConnectorLogic|class Other``).
+    Use ``get_code_entity`` to page the original declaration, and
+    ``trace_data_access`` when a returned entity is a data item or routine.
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
@@ -355,7 +357,25 @@ def search_code(
                         "next_char_offset": len(excerpt or "") if clipped else 0,
                     }
             visible.append(item)
-        return {"results": visible[:limit], "truncated": len(hits) > limit or len(visible) < len(hits), "limit_applied": limit}
+        follow_up_actions = []
+        for item in visible[:3]:
+            follow_up_actions.append({
+                "tool": "get_code_entity",
+                "arguments": {"project_id": project_id, "entity_id": item["id"], "max_chars": 5000},
+                "reason": "Read the source ranges and continue with the returned chunk cursor.",
+            })
+            if item["type"] in {"data_item", "sql_table", "file_fd", "record"}:
+                follow_up_actions.append({
+                    "tool": "trace_data_access",
+                    "arguments": {"project_id": project_id, "entity_id": item["id"], "limit": 12},
+                    "reason": "Inspect indexed reads and writes for this data entity.",
+                })
+        return {
+            "results": visible[:limit],
+            "truncated": len(hits) > limit or len(visible) < len(hits),
+            "limit_applied": limit,
+            "follow_up_actions": follow_up_actions[:6],
+        }
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -427,6 +447,17 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                     db, project_id=project_id, entity_id=exact[0]["id"],
                     hops=hops, direction="outgoing", scope="execution",
                 )
+                match["follow_up_actions"] = [{
+                    "tool": "get_code_entity",
+                    "arguments": {"project_id": project_id, "entity_id": exact[0]["id"], "max_chars": 5000},
+                    "reason": "Read the indexed declaration and its original source chunks.",
+                }]
+            elif not exact:
+                match["follow_up_actions"] = [{
+                    "tool": "search_knowledge",
+                    "arguments": {"project_id": project_id, "query": term, "limit": 5},
+                    "reason": "The symbol search found no exact indexed entity; check project knowledge for a domain-level answer.",
+                }]
             matches.append(match)
 
         if len(matches) == 1:
@@ -531,6 +562,17 @@ def get_code_entity(
                 "next_chunk_id": next_chunk_id,
                 "next_char_offset": next_char_offset if has_more else None,
                 "notice": "Jede Quellspanne bezieht sich auf den Originalchunk; weiter mit next_chunk_id/next_char_offset abrufen.",
+                "follow_up_actions": [{
+                    "tool": "get_code_entity",
+                    "arguments": {
+                        "project_id": project_id,
+                        "entity_id": entity.id,
+                        "chunk_id": next_chunk_id,
+                        "char_offset": next_char_offset,
+                        "max_chars": max_chars,
+                    },
+                    "reason": "Continue reading the remaining indexed source segment.",
+                }] if has_more else [],
             } if sections else None,
         }
 
