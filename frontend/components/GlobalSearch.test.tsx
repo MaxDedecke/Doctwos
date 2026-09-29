@@ -108,51 +108,81 @@ describe('GlobalSearch collapsible search bar', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps the search bar hidden behind a search icon until it is clicked', () => {
+  const toggle = () => document.getElementById('global-search-toggle') as HTMLButtonElement;
+  const input = () => document.getElementById('global-search-input') as HTMLInputElement;
+  // Die Leiste bleibt im DOM und animiert ihre Breite; der Zustand steckt in aria-expanded.
+  const isExpanded = () => toggle().getAttribute('aria-expanded') === 'true';
+
+  it('starts collapsed into a search icon and keeps the hidden input out of reach', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch();
 
-    expect(document.getElementById('global-search-input')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+    expect(isExpanded()).toBe(false);
+    expect(toggle().getAttribute('aria-label')).toBe('Suche öffnen');
+    expect(input().getAttribute('aria-hidden')).toBe('true');
+    expect(input().tabIndex).toBe(-1);
+    expect(toggle().parentElement!.className).toContain('w-9');
+  });
 
-    const input = document.getElementById('global-search-input') as HTMLInputElement;
-    expect(input).toBeTruthy();
-    expect(document.activeElement).toBe(input);
-    expect(screen.queryByRole('button', { name: 'Suche öffnen' })).toBeNull();
+  it('expands on click, animating the bar width, and focuses the input', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+
+    fireEvent.click(toggle());
+
+    expect(isExpanded()).toBe(true);
+    expect(toggle().getAttribute('aria-label')).toBe('Suche schließen');
+    expect(toggle().parentElement!.className).toContain('w-[min(28rem,45vw)]');
+    expect(toggle().parentElement!.className).toContain('transition-[width');
+    expect(input().getAttribute('aria-hidden')).toBe('false');
+    expect(document.activeElement).toBe(input());
+  });
+
+  it('shrinks back into the icon when the magnifier inside the bar is clicked again and clears the query', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({ results: [], total: 0, counts: {} }));
+    renderGlobalSearch();
+    fireEvent.click(toggle());
+    fireEvent.change(input(), { target: { value: 'ZAHLUNG' } });
+
+    fireEvent.click(toggle());
+
+    expect(isExpanded()).toBe(false);
+    expect(toggle().parentElement!.className).toContain('w-9');
+    expect(input().value).toBe('');
+    expect(toggle().getAttribute('aria-label')).toBe('Suche öffnen');
   });
 
   it('collapses again on Escape while the query is empty', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch();
-    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+    fireEvent.click(toggle());
 
-    fireEvent.keyDown(document.getElementById('global-search-input')!, { key: 'Escape' });
+    fireEvent.keyDown(input(), { key: 'Escape' });
 
-    expect(document.getElementById('global-search-input')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Suche öffnen' })).toBeTruthy();
+    expect(isExpanded()).toBe(false);
   });
 
   it('stays open on Escape while a query is typed', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({ results: [], total: 0, counts: {} }));
     renderGlobalSearch();
-    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
-    const input = document.getElementById('global-search-input') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'ZAHLUNG' } });
+    fireEvent.click(toggle());
+    fireEvent.change(input(), { target: { value: 'ZAHLUNG' } });
 
-    fireEvent.keyDown(input, { key: 'Escape' });
+    fireEvent.keyDown(input(), { key: 'Escape' });
 
-    expect(document.getElementById('global-search-input')).toBeTruthy();
+    expect(isExpanded()).toBe(true);
   });
 
   it('collapses an empty search bar on an outside click', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch();
-    fireEvent.click(screen.getByRole('button', { name: 'Suche öffnen' }));
+    fireEvent.click(toggle());
 
     fireEvent.mouseDown(document.body);
 
-    expect(document.getElementById('global-search-input')).toBeNull();
+    expect(isExpanded()).toBe(false);
   });
 
   it('opens and focuses the search with Ctrl+K', () => {
@@ -161,9 +191,18 @@ describe('GlobalSearch collapsible search bar', () => {
 
     fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
 
-    const input = document.getElementById('global-search-input');
-    expect(input).toBeTruthy();
-    expect(document.activeElement).toBe(input);
+    expect(isExpanded()).toBe(true);
+    expect(document.activeElement).toBe(input());
+  });
+
+  it('shows the scope filter only while the bar is expanded', () => {
+    vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
+    renderGlobalSearch();
+    expect(screen.queryByTitle(/filterTitle|Suchbereich/)).toBeNull();
+
+    fireEvent.click(toggle());
+
+    expect(screen.getByTitle(/filterTitle|Suchbereich/)).toBeTruthy();
   });
 });
 

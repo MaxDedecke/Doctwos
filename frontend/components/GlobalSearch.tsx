@@ -291,6 +291,18 @@ export function GlobalSearch({
     }
   };
 
+  const toggleSearch = () => {
+    if (isSearchExpanded) {
+      setIsSearchExpanded(false);
+      setIsOpen(false);
+      setQuery('');
+      setResults([]);
+      inputRef.current?.blur();
+    } else {
+      setIsSearchExpanded(true);
+    }
+  };
+
   // Alle Icon-Aktionen der Kopfzeile teilen sich denselben ruhigen Stil (ohne Rahmen,
   // gleiche Höhe wie Projektauswahl und Suche); nur Auswahl-/Primärelemente behalten ihre Kontur.
   const headerIconButton = cn(
@@ -355,156 +367,166 @@ export function GlobalSearch({
           </SelectContent>
         </Select>
       </div>
-      {features.views.globalSearch && isSearchExpanded ? (
-      <>
-      <div className="relative flex-1 max-w-xl">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500" />
-        <input
-          ref={inputRef}
-          id="global-search-input"
-          type="text"
-          value={query}
-          onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
-          onFocus={() => setIsOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('globalSearch.placeholder')}
-          className={cn(
-            "w-full h-9 border rounded-md pl-8 pr-8 text-xs focus:outline-none transition-all font-sans",
-            theme === 'dark'
-              ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200 placeholder-zinc-600 focus:border-ds-indigo-700"
-              : "bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-800 placeholder-zinc-400 focus:border-ds-indigo-300"
-          )}
-        />
-        {isLoading ? (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ds-zinc-500 animate-spin" />
-        ) : query && (
-          <button
-            onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ds-zinc-500 hover:text-ds-zinc-300"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-
-        {isOpen && query.trim() && (
-          <div className={cn(
-            "absolute left-0 right-0 top-full mt-1.5 rounded-lg border shadow-2xl overflow-hidden",
-            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
-          )}>
-            <div
-              className="max-h-96 overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent"
-              onScroll={handleScroll}
-            >
-              {grouped.length === 0 && !isLoading && (
-                <div className="px-3 py-4 text-xs text-ds-zinc-500 text-center">{t('globalSearch.noResultsFor', { query })}</div>
-              )}
-              {grouped.map(group => {
-                const Icon = GROUP_ICONS[group.type];
-                return (
-                  <div key={group.type} className="py-1">
-                    <div className={cn(
-                      "px-3 py-1 text-[9px] font-bold uppercase tracking-wider",
-                      theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
-                    )}>
-                      {t(`globalSearch.groups.${group.type}`)}
-                    </div>
-                    {group.items.map(item => {
-                      const flatIdx = flatForKeyboard.indexOf(item);
-                      const active = flatIdx === activeIndex;
-                      return (
-                        <button
-                          key={`${item.node_type}-${item.node_id}`}
-                          id={`global-search-result-${item.node_type}-${item.node_id}`}
-                          onClick={() => handleSelect(item)}
-                          onMouseEnter={() => setActiveIndex(flatIdx)}
-                          className={cn(
-                            "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
-                            active
-                              ? (theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-50 text-ds-indigo-700")
-                              : (theme === 'dark' ? "text-ds-zinc-300 hover:bg-ds-zinc-800/60" : "text-ds-zinc-700 hover:bg-ds-zinc-50")
-                          )}
-                        >
-                          {item.node_type === 'entity' || item.node_type === 'document' || item.node_type === 'knowledge_source' ? (
-                            <KnowledgeNodeIcon
-                              node={{
-                                node_type: item.node_type,
-                                node_url: item.node_url,
-                                node_meta: item.node_meta,
-                              }}
-                              className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400"
-                            />
-                          ) : (
-                            <Icon className="h-3.5 w-3.5 shrink-0 text-ds-zinc-500" />
-                          )}
-                          <span className="flex flex-col min-w-0 flex-1">
-                            <span className="truncate">{item.node_label}</span>
-                            {item.node_type === 'entity' && item.node_meta?.file_path && (
-                              <span className="text-[10px] text-ds-zinc-500 truncate">{item.node_meta.file_path}</span>
-                            )}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {(counts[group.type] || 0) > group.items.length && (
-                      <div className="px-3 py-1 text-[10px] text-ds-zinc-500">
-                        {t('globalSearch.moreResults', { count: counts[group.type] - group.items.length })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {isLoading && limit > 6 && (
-                <div className="flex justify-center items-center py-2.5 text-ds-zinc-500 gap-1.5 text-[10px] border-t dark:border-ds-zinc-800/60 border-ds-zinc-100">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-ds-zinc-400" />
-                  <span>{t('common.loading')}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <Select value={scope} onValueChange={setScope}>
-        <SelectTrigger className={cn(
-          "h-9 w-9 p-0 flex items-center justify-center border rounded-lg shrink-0 [&>svg:last-child]:hidden",
-          theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700"
-        )} title={t('globalSearch.filterTitle') || 'Suchbereich filtern'}>
-          <Filter className="h-3.5 w-3.5" />
-        </SelectTrigger>
-        <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
-          {selectedProject && (
-            <SelectItem value="current" className="text-xs">{t('globalSearch.currentProjectScope')}</SelectItem>
-          )}
-          <SelectItem value="all" className="text-xs">{t('globalSearch.allScope')}</SelectItem>
-          {filteredSources.length > 0 && (
-            <>
-              <div className="text-[9px] font-bold px-2 py-1 uppercase tracking-wider text-ds-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
-              {filteredSources.map(s => (
-                <SelectItem key={`source-${s.id}`} value={`source:${s.id}`} className="text-xs">{s.name}</SelectItem>
-              ))}
-            </>
-          )}
-        </SelectContent>
-      </Select>
-      </>
-      ) : (
-        <div className="flex-1" />
-      )}
+      <div className="flex-1" />
 
       {/* Global header actions — add view, knowledge graph, link manager, theme & settings */}
       <div className="flex items-center gap-1 shrink-0 ml-auto pl-1">
-        {features.views.globalSearch && !isSearchExpanded && (
-          <Button
-            variant="ghost"
-            size="icon"
-            id="global-search-toggle"
-            aria-label={t('globalSearch.openSearch')}
-            title={`${t('globalSearch.openSearch')} (Strg/Cmd+K)`}
-            onClick={() => setIsSearchExpanded(true)}
-            className={headerIconButton}
-          >
-            <Search className="w-4 h-4" />
-          </Button>
+        {features.views.globalSearch && (
+          <div className="relative shrink-0">
+            {/* Die Suchleiste wächst aus dem Lupen-Icon nach links heraus und schrumpft per Klick auf
+                die Lupe (oder Escape / Klick daneben bei leerer Eingabe) wieder in das Icon zurück. */}
+            <div className={cn(
+              "flex h-9 items-center overflow-hidden rounded-lg border transition-[width,background-color,border-color] duration-200 ease-out motion-reduce:transition-none",
+              isSearchExpanded ? "w-[min(28rem,45vw)]" : "w-9",
+              !isSearchExpanded
+                ? "border-transparent bg-transparent"
+                : (theme === 'dark'
+                    ? "bg-ds-zinc-900 border-ds-zinc-800 focus-within:border-ds-indigo-700"
+                    : "bg-ds-white border-ds-zinc-200 focus-within:border-ds-indigo-300")
+            )}>
+              <Button
+                variant="ghost"
+                size="icon"
+                id="global-search-toggle"
+                aria-label={isSearchExpanded ? t('globalSearch.closeSearch') : t('globalSearch.openSearch')}
+                aria-expanded={isSearchExpanded}
+                title={isSearchExpanded ? t('globalSearch.closeSearch') : `${t('globalSearch.openSearch')} (Strg/Cmd+K)`}
+                onClick={toggleSearch}
+                className={headerIconButton}
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+              <input
+                ref={inputRef}
+                id="global-search-input"
+                type="text"
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setIsOpen(true); }}
+                onFocus={() => setIsOpen(true)}
+                onKeyDown={handleKeyDown}
+                placeholder={t('globalSearch.placeholder')}
+                tabIndex={isSearchExpanded ? 0 : -1}
+                aria-hidden={!isSearchExpanded}
+                className={cn(
+                  "h-full min-w-0 flex-1 bg-transparent pr-1 text-xs font-sans outline-none transition-opacity duration-150 motion-reduce:transition-none",
+                  theme === 'dark' ? "text-ds-zinc-200 placeholder-zinc-600" : "text-ds-zinc-800 placeholder-zinc-400",
+                  isSearchExpanded ? "opacity-100 delay-100" : "pointer-events-none opacity-0"
+                )}
+              />
+              {isSearchExpanded && (isLoading ? (
+                <Loader2 className="mx-1.5 h-3.5 w-3.5 shrink-0 animate-spin text-ds-zinc-500" />
+              ) : query && (
+                <button
+                  type="button"
+                  aria-label={t('globalSearch.clearSearch')}
+                  onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
+                  className="mx-1.5 shrink-0 text-ds-zinc-500 hover:text-ds-zinc-300"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ))}
+              {isSearchExpanded && (
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger className={cn(
+                    "h-9 w-9 shrink-0 rounded-none border-0 border-l bg-transparent p-0 flex items-center justify-center [&>svg:last-child]:hidden",
+                    theme === 'dark' ? "border-ds-zinc-800 text-ds-zinc-300" : "border-ds-zinc-200 text-ds-zinc-700"
+                  )} title={t('globalSearch.filterTitle') || 'Suchbereich filtern'}>
+                    <Filter className="h-3.5 w-3.5" />
+                  </SelectTrigger>
+                  <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>
+                    {selectedProject && (
+                      <SelectItem value="current" className="text-xs">{t('globalSearch.currentProjectScope')}</SelectItem>
+                    )}
+                    <SelectItem value="all" className="text-xs">{t('globalSearch.allScope')}</SelectItem>
+                    {filteredSources.length > 0 && (
+                      <>
+                        <div className="text-[9px] font-bold px-2 py-1 uppercase tracking-wider text-ds-zinc-500 mt-1">{t('globalSearch.groups.knowledge_source')}</div>
+                        {filteredSources.map(s => (
+                          <SelectItem key={`source-${s.id}`} value={`source:${s.id}`} className="text-xs">{s.name}</SelectItem>
+                        ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          {isSearchExpanded && isOpen && query.trim() && (
+            <div className={cn(
+              "absolute left-0 right-0 top-full mt-1.5 rounded-lg border shadow-2xl overflow-hidden",
+              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200"
+            )}>
+              <div
+                className="max-h-96 overflow-y-auto pr-1 select-none scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent"
+                onScroll={handleScroll}
+              >
+                {grouped.length === 0 && !isLoading && (
+                  <div className="px-3 py-4 text-xs text-ds-zinc-500 text-center">{t('globalSearch.noResultsFor', { query })}</div>
+                )}
+                {grouped.map(group => {
+                  const Icon = GROUP_ICONS[group.type];
+                  return (
+                    <div key={group.type} className="py-1">
+                      <div className={cn(
+                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider",
+                        theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
+                      )}>
+                        {t(`globalSearch.groups.${group.type}`)}
+                      </div>
+                      {group.items.map(item => {
+                        const flatIdx = flatForKeyboard.indexOf(item);
+                        const active = flatIdx === activeIndex;
+                        return (
+                          <button
+                            key={`${item.node_type}-${item.node_id}`}
+                            id={`global-search-result-${item.node_type}-${item.node_id}`}
+                            onClick={() => handleSelect(item)}
+                            onMouseEnter={() => setActiveIndex(flatIdx)}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
+                              active
+                                ? (theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-50 text-ds-indigo-700")
+                                : (theme === 'dark' ? "text-ds-zinc-300 hover:bg-ds-zinc-800/60" : "text-ds-zinc-700 hover:bg-ds-zinc-50")
+                            )}
+                          >
+                            {item.node_type === 'entity' || item.node_type === 'document' || item.node_type === 'knowledge_source' ? (
+                              <KnowledgeNodeIcon
+                                node={{
+                                  node_type: item.node_type,
+                                  node_url: item.node_url,
+                                  node_meta: item.node_meta,
+                                }}
+                                className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400"
+                              />
+                            ) : (
+                              <Icon className="h-3.5 w-3.5 shrink-0 text-ds-zinc-500" />
+                            )}
+                            <span className="flex flex-col min-w-0 flex-1">
+                              <span className="truncate">{item.node_label}</span>
+                              {item.node_type === 'entity' && item.node_meta?.file_path && (
+                                <span className="text-[10px] text-ds-zinc-500 truncate">{item.node_meta.file_path}</span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {(counts[group.type] || 0) > group.items.length && (
+                        <div className="px-3 py-1 text-[10px] text-ds-zinc-500">
+                          {t('globalSearch.moreResults', { count: counts[group.type] - group.items.length })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {isLoading && limit > 6 && (
+                  <div className="flex justify-center items-center py-2.5 text-ds-zinc-500 gap-1.5 text-[10px] border-t dark:border-ds-zinc-800/60 border-ds-zinc-100">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-ds-zinc-400" />
+                    <span>{t('common.loading')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          </div>
         )}
 
         {/* Add view dropdown — pick which view to open */}
