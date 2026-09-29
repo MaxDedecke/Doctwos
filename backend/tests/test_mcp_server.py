@@ -198,6 +198,102 @@ def test_get_call_flow_accepts_documented_directions(
     assert result["status"] == "ok"
 
 
+def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    root = CodeEntity(
+        project_id=project_id,
+        name="root",
+        type="method",
+        file_path="src/Flow.java",
+        qualified_name="demo.Flow#root()",
+        start_line=1,
+        end_line=12,
+    )
+    target = CodeEntity(
+        project_id=project_id,
+        name="callee",
+        type="method",
+        file_path="src/Flow.java",
+        qualified_name="demo.Flow#callee()",
+        start_line=20,
+        end_line=22,
+    )
+    db_session.add_all([root, target])
+    db_session.flush()
+    db_session.add(DocumentChunk(
+        project_id=project_id,
+        source_id=None,
+        file_path="src/Flow.java",
+        content="".join(f"line {line}\n" for line in range(1, 13)),
+        start_line=1,
+        end_line=12,
+        metadata_json={},
+    ))
+    db_session.commit()
+
+    root_node = {
+        "id": root.id,
+        "name": root.name,
+        "qualified_name": root.qualified_name,
+        "type": root.type,
+        "file_path": root.file_path,
+        "source_id": None,
+        "start_line": root.start_line,
+        "end_line": root.end_line,
+    }
+    target_node = {
+        "id": target.id,
+        "name": target.name,
+        "qualified_name": target.qualified_name,
+        "type": target.type,
+        "file_path": target.file_path,
+        "source_id": None,
+        "start_line": target.start_line,
+        "end_line": target.end_line,
+    }
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_args, **_kwargs: {
+            "status": "ok",
+            "root": root_node,
+            "nodes": [root_node, target_node],
+            "edges": [
+                {
+                    "id": 1, "source": root.id, "target": target.id,
+                    "target_name": "callee", "type": "CALL",
+                    "resolution": "resolved", "start_line": 6, "end_line": 6,
+                },
+                {
+                    "id": 2, "source": root.id, "target": target.id,
+                    "target_name": "callee", "type": "CALL",
+                    "resolution": "resolved", "start_line": 9, "end_line": 9,
+                },
+            ],
+            "entry_candidates": [],
+        },
+    )
+
+    first = mcp_server.get_call_flow(
+        _context(user.id), project_id=project_id, entity_id=root.id, page_size=1
+    )
+    excerpt = first["edges"][0]["source_excerpt"]
+    assert excerpt["focus_line"] == 6
+    assert excerpt["delivered_start_line"] <= 6 <= excerpt["delivered_end_line"]
+    assert "line 6" in excerpt["content"]
+    assert excerpt["chunk_id"] is not None
+    assert first["next_cursor"]
+
+    with pytest.raises(ValueError, match="cursor does not match"):
+        mcp_server.get_call_flow(
+            _context(user.id), project_id=project_id, entity_id=root.id,
+            page_size=1, cursor=first["next_cursor"], include_source=False,
+        )
+
+
 @pytest.mark.asyncio
 async def test_search_knowledge_uses_the_active_embedding_profile(
     db_session, mcp_project_context, monkeypatch
