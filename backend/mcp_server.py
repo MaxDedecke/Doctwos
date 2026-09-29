@@ -52,6 +52,38 @@ def _search_code_alternatives(query: str) -> list[str]:
     return alternatives
 
 
+def _research_terms(query: str) -> list[str]:
+    """Split explicit symbol lists while keeping ordinary prose intact."""
+    explicit = _search_code_alternatives(query)
+    if len(explicit) > 1:
+        return explicit[:8]
+    term = explicit[0] if explicit else ""
+    pieces = [part for part in re.split(r"\s+", term) if part]
+    if (
+        len(pieces) > 1
+        and any(any(mark in part for mark in ".#/:()") for part in pieces)
+        and all(re.fullmatch(r"[\w$./:#<>(),-]+", part) for part in pieces)
+    ):
+        return pieces[:8]
+    return [term] if term else []
+
+
+def _symbol_key(value: str | None) -> str:
+    value = (value or "").replace("\\", "/").casefold()
+    value = value.split("(", 1)[0].replace("#", ".")
+    return re.sub(r"\s+", "", value).strip(".")
+
+
+def _symbol_matches(entity: CodeEntity, term: str) -> bool:
+    needle = _symbol_key(term)
+    name = _symbol_key(entity.name)
+    qualified = _symbol_key(entity.qualified_name)
+    path = _symbol_key(entity.file_path)
+    if needle in {name, qualified, path}:
+        return True
+    return bool(needle and (qualified.endswith("." + needle) or path.endswith("/" + needle)))
+
+
 def _bounded(value: str | None, limit: int = 1200) -> tuple[str | None, bool]:
     if value is None:
         return None, False
@@ -314,60 +346,81 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
-        hits, _ = search_nodes(
-            db, q=query, types="entity", project_id=project_id, limit=limit + 1,
-            visible_team_ids=get_visible_team_ids(user, db),
-            visible_project_ids=get_visible_project_ids(user, db), count_total=False,
-        )
-        needle = query.replace("\\", "/").casefold()
-        if "/" in needle or "." in needle:
-            exact_file_entities = (
-                db.query(CodeEntity)
-                .filter(CodeEntity.project_id == project_id, func.lower(CodeEntity.file_path) == needle)
-                .order_by(CodeEntity.start_line, CodeEntity.id)
-                .limit(limit + 1)
-                .all()
+        terms = _research_terms(query)
+        by_id: dict[int, CodeEntity] = {}
+        visible_teams = get_visible_team_ids(user, db)
+        visible_projects = get_visible_project_ids(user, db)
+        for term in terms:
+            hits, _ = search_nodes(
+                db, q=term, types="entity", project_id=project_id, limit=limit + 1,
+                visible_team_ids=visible_teams, visible_project_ids=visible_projects,
+                count_total=False,
             )
-            known = {hit["node_id"] for hit in hits}
-            hits = [
-                {"node_id": entity.id}
-                for entity in exact_file_entities
-                if entity.id not in known
-            ] + hits
-        candidates = []
-        for hit in hits:
-            try:
-                entity = _entity(db, user, project_id, hit["node_id"])
-            except HTTPException:
-                continue
-            candidates.append({
+            needle = term.replace("\\", "/").casefold()
+            if "/" in needle:
+                exact_files = db.query(CodeEntity).filter(
+                    CodeEntity.project_id == project_id,
+                    func.lower(CodeEntity.file_path) == needle,
+                ).order_by(CodeEntity.start_line, CodeEntity.id).limit(limit + 1).all()
+                for entity in exact_files:
+                    try:
+                        by_id[entity.id] = _entity(db, user, project_id, entity.id)
+                    except HTTPException:
+                        continue
+            for hit in hits:
+                try:
+                    entity = _entity(db, user, project_id, hit["node_id"])
+                except HTTPException:
+                    continue
+                by_id[entity.id] = entity
+
+        def serialize(entity: CodeEntity) -> dict:
+            return {
                 "id": entity.id, "project_id": entity.project_id, "source_id": entity.source_id,
                 "variant_key": entity.variant_key, "name": entity.name,
                 "qualified_name": entity.qualified_name, "type": entity.type,
                 "file_path": entity.file_path, "start_line": entity.start_line,
                 "end_line": entity.end_line,
-            })
-        exact = [item for item in candidates if
-                 item["name"].casefold() == needle or
-                 (item["qualified_name"] or "").casefold() == needle or
-                 (item["file_path"] or "").replace("\\", "/").casefold() == needle]
-        if "/" in needle:
-            file_programs = [item for item in exact if item["type"] in {"program", "cobol_program", "compilation_unit"}]
-            if file_programs:
-                exact = file_programs
-        result = {"project_id": project_id, "query": query, "candidates": candidates[:limit],
-                  "candidate_count": len(candidates), "candidates_truncated": len(candidates) > limit,
-                  "resolution": "no_exact_match"}
-        if len(exact) > 1:
-            result["resolution"] = "ambiguous"
-            return result
-        if len(exact) == 1:
-            entity_id = exact[0]["id"]
-            flow = trace_call_flow(db, project_id=project_id, entity_id=entity_id,
-                                   hops=hops, direction="outgoing", scope="execution")
-            result["resolution"] = "unique_exact_match"
-            result["call_flow"] = flow
-        return result
+            }
+
+        candidates = [serialize(entity) for entity in by_id.values()]
+        matches = []
+        for term in terms:
+            exact = [serialize(entity) for entity in by_id.values() if _symbol_matches(entity, term)]
+            if "/" in term:
+                file_programs = [item for item in exact if item["type"] in {"program", "cobol_program", "compilation_unit"}]
+                if file_programs:
+                    exact = file_programs
+            match = {
+                "query": term,
+                "resolution": "unique_exact_match" if len(exact) == 1 else (
+                    "ambiguous" if len(exact) > 1 else "no_exact_match"
+                ),
+                "candidates": exact[:limit],
+                "candidate_count": len(exact),
+            }
+            if len(exact) == 1:
+                match["call_flow"] = trace_call_flow(
+                    db, project_id=project_id, entity_id=exact[0]["id"],
+                    hops=hops, direction="outgoing", scope="execution",
+                )
+            matches.append(match)
+
+        if len(matches) == 1:
+            match = matches[0]
+            return {
+                "project_id": project_id, "query": query,
+                "candidates": candidates[:limit], "candidate_count": len(candidates),
+                "candidates_truncated": len(candidates) > limit,
+                **match,
+            }
+        return {
+            "project_id": project_id, "query": query,
+            "resolution": "multiple_queries", "matches": matches,
+            "candidates": candidates[:limit], "candidate_count": len(candidates),
+            "candidates_truncated": len(candidates) > limit,
+            "notice": "Jedes explizite Symbol wurde getrennt aufgelöst; Mehrdeutigkeit bleibt pro Symbol sichtbar.",
+        }
 
 
 @mcp.tool(annotations=READ_ONLY)
