@@ -1481,6 +1481,7 @@
     "zoomInTitle": "Vergrößern",
     "zoomOutTitle": "Verkleinern",
     "fitAllTitle": "Alles einpassen",
+    "resetLayoutTitle": "Zonen-Layout zurücksetzen",
     "truncatedNotice": "Auf 500 Knoten begrenzt",
     "noConnections": "Keine Prozessübergänge für diesen Fokus.",
     "loadError": "Process View konnte nicht geladen werden",

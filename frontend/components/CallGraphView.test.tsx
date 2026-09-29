@@ -11,8 +11,10 @@ type GraphProps = {
   linkLabel: (edge: CallEdge) => string;
   linkDirectionalParticles?: (edge: CallEdge) => number;
 };
-const ForceGraph = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphProps>((props, ref) => {
-  React.useImperativeHandle(ref, () => ({ zoom: () => 1, zoomToFit: () => {} }));
+let latestGraphData: GraphProps['graphData'] | null = null;
+const ForceGraph = React.forwardRef<{ zoom: () => number; zoomToFit: () => void; screen2GraphCoords: (x: number, y: number) => { x: number; y: number } }, GraphProps>((props, ref) => {
+  latestGraphData = props.graphData;
+  React.useImperativeHandle(ref, () => ({ zoom: () => 1, zoomToFit: () => {}, screen2GraphCoords: (x, y) => ({ x, y }) }));
   return <div data-testid="process-graph">{props.graphData.nodes.map(node => (
     <button
       key={node.id}
@@ -78,6 +80,38 @@ describe('ProcessView', () => {
     );
     expect(screen.getByRole('button', { name: 'Aufruf' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Extern / offen' })).toBeTruthy();
+  });
+
+  it('zieht eine Zone per Drag & Drop samt aller Knoten mit, ohne andere Zonen zu bewegen', async () => {
+    renderView();
+    const graph = await screen.findByTestId('process-graph');
+    const container = graph.parentElement as HTMLElement;
+    const at = (id: string) => {
+      const node = latestGraphData!.nodes.find(n => n.id === id)!;
+      return { x: node.x!, y: node.y! };
+    };
+    const step = at('entity:43');
+    const entry = at('entity:42');
+    const external = at('external:edge:8');
+
+    // Auf einem Knoten startet kein Zonen-Drag.
+    fireEvent.mouseDown(container, { clientX: step.x, clientY: step.y, button: 0 });
+    fireEvent.mouseMove(window, { clientX: step.x + 40, clientY: step.y + 40 });
+    fireEvent.mouseUp(window);
+    expect(at('entity:43')).toEqual(step);
+
+    // Auf leerer Zonenfläche schon; nur die Knoten dieser Zone wandern mit.
+    fireEvent.mouseDown(container, { clientX: step.x + 30, clientY: step.y, button: 0 });
+    fireEvent.mouseMove(window, { clientX: step.x + 80, clientY: step.y + 20 });
+    fireEvent.mouseUp(window);
+    expect(at('entity:43')).toEqual({ x: step.x + 50, y: step.y + 20 });
+    expect(latestGraphData!.nodes.find(n => n.id === 'entity:43')!.fx).toBe(step.x + 50);
+    expect(at('entity:42')).toEqual(entry);
+    expect(at('external:edge:8')).toEqual(external);
+
+    // Zurücksetzen stellt das automatische Layout wieder her.
+    fireEvent.click(screen.getByRole('button', { name: 'Zonen-Layout zurücksetzen' }));
+    await waitFor(() => expect(at('entity:43')).toEqual(step));
   });
 
   it('opens original transition and node locations but not unresolved targets', async () => {

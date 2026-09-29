@@ -7,13 +7,13 @@ import type { CallFlowData, CallFlowEdge } from '@/lib/callFlow';
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
 import { resolveDsColor } from '@/lib/designTokens';
-import { layoutZones } from '@/lib/processZones';
+import { layoutZones, type Zone } from '@/lib/processZones';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
 import { InsightDraftAction } from './InsightDraftAction';
 import { ProvenanceDisclosure } from './ProvenanceDisclosure';
-import { AlertTriangle, Compass, FileCode, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Compass, FileCode, LayoutGrid, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -375,6 +375,19 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
     queueMicrotask(() => { loadGraph(); });
   }, [loadGraph]);
 
+  // Vom Nutzer verschobene Zonen: Versatz je Knotentyp. Als Ref, damit das Ziehen
+  // Positionen direkt fortschreibt, ohne bei jeder Mausbewegung neu zu layouten.
+  const zoneOffsetsRef = useRef(new Map<string, { dx: number; dy: number }>());
+  const zonesRef = useRef<Zone[]>([]);
+  const nodesRef = useRef<CallNode[]>([]);
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  const offsetOwnerRef = useRef<number | null | undefined>(undefined);
+  const layoutOwner = currentRoot?.id ?? null;
+  if (offsetOwnerRef.current !== layoutOwner) {
+    offsetOwnerRef.current = layoutOwner;
+    zoneOffsetsRef.current = new Map();
+  }
+
   const aspect = dimensions.height > 0 ? Math.round((dimensions.width / dimensions.height) * 4) / 4 : 1.5;
   const { filtered, zones } = useMemo(() => {
     const links = graph.edges.filter(edge => enabledTypes.has(edge.type));
@@ -394,24 +407,104 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
       links.map(edge => ({ source: endpointId(edge.source), target: endpointId(edge.target), sequence: edge.sequence })),
       aspect,
     );
+    const offsetOf = (type: string) => zoneOffsetsRef.current.get(type) ?? { dx: 0, dy: 0 };
     nodes.forEach(node => {
       const position = layout.positions.get(node.id);
       if (!position) return;
-      node.x = position.x;
-      node.y = position.y;
-      node.fx = position.x;
-      node.fy = position.y;
+      const { dx, dy } = offsetOf(node.type);
+      node.x = position.x + dx;
+      node.y = position.y + dy;
+      node.fx = position.x + dx;
+      node.fy = position.y + dy;
       node.seq = layout.order.get(node.id);
     });
+    layout.zones.forEach(zone => {
+      const { dx, dy } = offsetOf(zone.type);
+      zone.x += dx;
+      zone.y += dy;
+    });
     return { filtered: { nodes, links }, zones: layout.zones };
-  }, [graph, enabledTypes, currentRoot?.id, aspect]);
+    // layoutVersion: "Layout zurücksetzen" leert die Offsets und erzwingt Neuberechnung.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graph, enabledTypes, currentRoot?.id, aspect, layoutVersion]);
+
+  useEffect(() => {
+    zonesRef.current = zones;
+    nodesRef.current = filtered.nodes;
+  }, [zones, filtered.nodes]);
+
+  // Zonen per Drag & Drop verschieben: Der Griff auf leerer Zonenfläche zieht die
+  // Zone samt aller Knoten mit; auf einem Knoten oder außerhalb bleibt das
+  // normale Verhalten (Knoten ziehen bzw. Ansicht verschieben) unberührt.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let drag: { zone: Zone; lastX: number; lastY: number } | null = null;
+
+    const graphPoint = (event: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      return graphRef.current?.screen2GraphCoords(event.clientX - rect.left, event.clientY - rect.top) ?? null;
+    };
+
+    const onDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      const point = graphPoint(event);
+      if (!point) return;
+      const nodeHitRadius = 14;
+      if (nodesRef.current.some(node => Math.hypot((node.x ?? 0) - point.x, (node.y ?? 0) - point.y) <= nodeHitRadius)) return;
+      const zone = [...zonesRef.current].reverse().find(z => point.x >= z.x && point.x <= z.x + z.w && point.y >= z.y && point.y <= z.y + z.h);
+      if (!zone) return;
+      drag = { zone, lastX: event.clientX, lastY: event.clientY };
+      document.body.style.cursor = 'grabbing';
+      // Capture-Phase: die Zoom-/Pan-Behandlung des Canvas soll den Griff nicht sehen.
+      event.stopPropagation();
+      event.preventDefault();
+    };
+
+    const onMove = (event: MouseEvent) => {
+      if (!drag) return;
+      const scale = graphRef.current?.zoom() || 1;
+      const dx = (event.clientX - drag.lastX) / scale;
+      const dy = (event.clientY - drag.lastY) / scale;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      const { zone } = drag;
+      zone.x += dx;
+      zone.y += dy;
+      nodesRef.current.forEach(node => {
+        if (node.type !== zone.type) return;
+        node.x = (node.x ?? 0) + dx;
+        node.y = (node.y ?? 0) + dy;
+        node.fx = node.x;
+        node.fy = node.y;
+      });
+      const previous = zoneOffsetsRef.current.get(zone.type) ?? { dx: 0, dy: 0 };
+      zoneOffsetsRef.current.set(zone.type, { dx: previous.dx + dx, dy: previous.dy + dy });
+    };
+
+    const onUp = () => {
+      if (!drag) return;
+      drag = null;
+      document.body.style.cursor = '';
+    };
+
+    container.addEventListener('mousedown', onDown, true);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      container.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+    };
+  }, [currentRoot?.id]);
 
   const zoneSignature = zones.map(zone => `${zone.type}:${zone.count}`).join('|');
   useEffect(() => {
     if (!zoneSignature) return;
     const timer = setTimeout(() => graphRef.current?.zoomToFit(350, 50), 150);
     return () => clearTimeout(timer);
-  }, [zoneSignature, aspect, ForceGraph]);
+  }, [zoneSignature, aspect, ForceGraph, layoutVersion]);
 
   const highlightedEdgeId = customFlow?.highlighted_edge_id;
   const animatedOriginId = selectedNodeId ?? (
@@ -542,6 +635,7 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
         <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomIn className="w-3.5 h-3.5" /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomOut className="w-3.5 h-3.5" /></button>
+        <button onClick={() => { zoneOffsetsRef.current = new Map(); setLayoutVersion(version => version + 1); }} title={t('callGraphView.resetLayoutTitle')} aria-label={t('callGraphView.resetLayoutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><LayoutGrid className="w-3.5 h-3.5" /></button>
         <button onClick={() => graphRef.current?.zoomToFit(350, 50)} title={t('callGraphView.fitAllTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><Maximize2 className="w-3.5 h-3.5" /></button>
       </div>
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
