@@ -68,4 +68,31 @@ describe('buildFlowRows', () => {
     expect(dataVerb(['USES'])).toBe('use');
     expect(buildFlowRows('entity:404', new Map(), new Set()).rows).toEqual([]);
   });
+
+  it('setzt Wächterzeilen für Bedingungen und Schleifen und rückt darunterliegende Schritte ein', () => {
+    const ifThen = { type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" };
+    const ifElse = { ...ifThen, branch: 'ELSE' };
+    const loop = { type: 'LOOP', kind: 'UNTIL', text: 'X > 5' };
+    const inline = { type: 'LOOP', kind: 'INLINE', text: '' };
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'A'), node('entity:3', 'B'), node('entity:4', 'C'), node('entity:5', 'D'), node('entity:6', 'E')],
+      transitions: [
+        tr('a', 'entity:1', 'entity:2', 'call', 10, ['PERFORM'], { meta: { control_path: [ifThen] } }),
+        tr('b', 'entity:1', 'entity:3', 'call', 11, ['PERFORM'], { meta: { control_path: [ifThen] } }),
+        tr('c', 'entity:1', 'entity:4', 'call', 12, ['PERFORM'], { meta: { control_path: [ifElse] } }),
+        tr('d', 'entity:1', 'entity:5', 'call', 13, ['PERFORM'], { meta: { control_path: [loop, inline] } }),
+        tr('e', 'entity:1', 'entity:6', 'iteration', 14, ['PERFORM'], { meta: { loop: { kind: 'TIMES', text: '3' } } }),
+      ],
+    };
+    const { rows } = buildFlowRows('entity:1', new Map([['entity:1', flow]]), new Set());
+    expect(rows.map(r => (r.guard ? `guard:${r.guard.branch ?? r.guard.kind}` : r.label))).toEqual([
+      'MAIN', 'guard:THEN', 'A', 'B', 'guard:ELSE', 'C', 'guard:UNTIL', 'D', 'E',
+    ]);
+    const byLabel = (label: string) => rows.find(r => r.label === label)!;
+    expect(byLabel('MAIN').indent).toBe(0);
+    expect(byLabel('A').indent).toBe(2);
+    expect(rows[1].indent).toBe(1);
+    expect(byLabel('D').indent).toBe(2);
+    expect(byLabel('E')).toMatchObject({ indent: 1, loop: { kind: 'TIMES', text: '3' } });
+  });
 });

@@ -1491,6 +1491,20 @@
     "possible": "möglich",
     "unresolved": "offen",
     "condition": "Bedingung",
+    "guard": {
+      "ifThen": "wenn {{text}}",
+      "ifElse": "sonst (nicht: {{text}})",
+      "when": "bei {{subject}} = {{when}}",
+      "other": "sonst (bei {{subject}})",
+      "loopUntil": "wiederhole bis {{text}}",
+      "loopVarying": "für {{text}}",
+      "loopTimes": "{{text}}× wiederholen",
+      "loopForever": "endlos wiederholen",
+      "loopWhile": "solange {{text}}",
+      "loopDoWhile": "wiederhole solange {{text}}",
+      "loopFor": "für {{text}}",
+      "loopForEach": "je {{text}}"
+    },
     "verbs": {
       "read": "liest",
       "write": "schreibt",

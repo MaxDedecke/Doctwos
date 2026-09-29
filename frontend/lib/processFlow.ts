@@ -22,8 +22,18 @@ export interface FlowTransition {
   certainty: 'certain' | 'possible' | 'unresolved';
   code_edge_types: string[];
   condition?: string | null;
-  meta?: Record<string, unknown>;
+  meta?: { control_path?: PathEntry[]; loop?: { kind: string; text?: string }; multiple_targets?: boolean } & Record<string, unknown>;
   locator: { file_path: string; start_line: number; source_id?: number | null };
+}
+/** Eintrag der Kontrollpfade, die Parser (COBOL und Java) an Kanten schreiben. */
+export interface PathEntry {
+  type: 'IF' | 'EVALUATE' | 'SWITCH' | 'LOOP' | string;
+  branch?: string;
+  condition?: string;
+  subject?: string;
+  when?: string;
+  kind?: string;
+  text?: string;
 }
 export interface FlowProjection {
   nodes: FlowNode[];
@@ -46,6 +56,12 @@ export interface DataAccess {
 export interface FlowRow {
   key: string;
   depth: number;
+  /** Einrückungsstufe inkl. der Bedingungs-/Schleifen-Wächter davor. */
+  indent: number;
+  /** Nur bei Wächterzeilen: die Bedingung bzw. Schleife, unter der die folgenden Schritte stehen. */
+  guard?: PathEntry;
+  /** Eigene Schleife des Schritts (PERFORM ... UNTIL/VARYING/TIMES). */
+  loop?: { kind: string; text?: string };
   lane: FlowLane;
   /** Knoten-ID des Schritts (nicht bei Datenzeilen). */
   nodeId?: string;
@@ -81,6 +97,17 @@ export function dataVerb(types: string[]): DataVerb {
 
 const MAX_ROWS = 800;
 
+/** Ein reines PERFORM ... END-PERFORM ohne Kopf sagt nichts über den Ablauf. */
+function visiblePath(transition: FlowTransition): PathEntry[] {
+  const path = transition.meta?.control_path;
+  if (!Array.isArray(path)) return [];
+  return path.filter(entry => !(entry.type === 'LOOP' && entry.kind === 'INLINE'));
+}
+
+function samePathEntry(a: PathEntry | undefined, b: PathEntry | undefined): boolean {
+  return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function buildFlowRows(
   rootId: string,
   projections: ReadonlyMap<string, FlowProjection>,
@@ -98,7 +125,7 @@ export function buildFlowRows(
     rows.push(row);
   };
 
-  const walk = (nodeId: string, depth: number, path: ReadonlySet<string>, prefix: string) => {
+  const walk = (nodeId: string, depth: number, indent: number, path: ReadonlySet<string>, prefix: string) => {
     const projection = projections.get(nodeId);
     if (!projection) return;
     const outgoing = projection.transitions
@@ -106,8 +133,11 @@ export function buildFlowRows(
       .sort((a, b) => a.locator.start_line - b.locator.start_line || a.id.localeCompare(b.id));
 
     let run: FlowTransition[] = [];
+    let previousPath: PathEntry[] = [];
     const flushRun = () => {
       if (run.length === 0) return;
+      // Datenzugriffe tragen keinen Kontrollpfad: ein Wächter davor endet hier.
+      previousPath = [];
       const accesses: DataAccess[] = run.map(transition => ({
         id: transition.id,
         verb: dataVerb(transition.code_edge_types),
@@ -121,7 +151,7 @@ export function buildFlowRows(
       accesses.forEach(access => { counts[access.verb] += 1; });
       const key = `${prefix}/data@${accesses[0].line}`;
       push({
-        key, depth, lane: 'data',
+        key, depth, indent, lane: 'data',
         label: '', line: accesses[0].line, filePath: accesses[0].filePath, sourceId: accesses[0].sourceId,
         certainty: accesses.every(a => a.certainty === 'certain') ? 'certain' : 'possible',
         expandable: true, expanded: expanded.has(key), needsLoad: false,
@@ -137,14 +167,32 @@ export function buildFlowRows(
       const target = nodeIndex.get(transition.target);
       if (!target) continue;
       const key = `${prefix}/${transition.id}`;
+
+      // Wächterzeilen für Bedingungen/Schleifen, die sich gegenüber dem
+      // vorherigen Schritt geändert haben.
+      const transitionPath = visiblePath(transition);
+      let common = 0;
+      while (common < transitionPath.length && samePathEntry(transitionPath[common], previousPath[common])) common += 1;
+      transitionPath.slice(common).forEach((entry, offset) => {
+        push({
+          key: `${key}/guard${common + offset}`, depth, indent: indent + common + offset,
+          lane: 'control', label: '', line: transition.locator.start_line,
+          filePath: transition.locator.file_path, sourceId: transition.locator.source_id,
+          certainty: 'certain', guard: entry, expandable: false, expanded: false, needsLoad: false,
+        });
+      });
+      previousPath = transitionPath;
+      const stepIndent = indent + transitionPath.length;
+
       const external = transition.kind === 'external_call' || target.kind === 'external_call';
       const recursive = transition.source === transition.target;
       const looped = recursive || path.has(target.id);
       const cycle: FlowRow['cycle'] = recursive ? 'recursion' : looped ? 'cycle' : undefined;
       const expandable = !external && !looped && target.entity_id != null;
       const isExpanded = expandable && expanded.has(key);
+      const loop = transition.meta?.loop;
       push({
-        key, depth, lane: external ? 'external' : 'control',
+        key, depth, indent: stepIndent, lane: external ? 'external' : 'control', loop,
         nodeId: target.id, entityId: target.entity_id,
         label: target.label, line: transition.locator.start_line,
         filePath: transition.locator.file_path, sourceId: transition.locator.source_id,
@@ -153,17 +201,17 @@ export function buildFlowRows(
         expandable, expanded: isExpanded, needsLoad: isExpanded && !projections.has(target.id),
         unresolved: external,
       });
-      if (isExpanded) walk(target.id, depth + 1, new Set([...path, target.id]), key);
+      if (isExpanded) walk(target.id, depth + 1, stepIndent + 1, new Set([...path, target.id]), key);
     }
     flushRun();
   };
 
   push({
-    key: 'root', depth: 0, lane: 'control', nodeId: root.id, entityId: root.entity_id,
+    key: 'root', depth: 0, indent: 0, lane: 'control', nodeId: root.id, entityId: root.entity_id,
     label: root.label, line: root.locator.start_line, filePath: root.locator.file_path,
     sourceId: root.locator.source_id, certainty: 'certain',
     expandable: false, expanded: true, needsLoad: !projections.has(root.id),
   });
-  walk(root.id, 1, new Set([root.id]), 'root');
+  walk(root.id, 1, 1, new Set([root.id]), 'root');
   return { rows, capped };
 }

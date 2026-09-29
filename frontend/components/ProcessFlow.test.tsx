@@ -86,4 +86,27 @@ describe('ProcessView – Ablauf', () => {
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Netz' }).getAttribute('aria-selected')).toBe('true'));
     expect(screen.queryByRole('table')).toBeNull();
   });
+
+  it('zeigt Bedingungen und Schleifen als Wächterzeilen und Badges', async () => {
+    const path = [{ type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" }];
+    const guarded = {
+      ...ROOT,
+      transitions: [
+        { ...T('c1', 'entity:1', 'entity:2', 'call', 20, ['PERFORM']), meta: { control_path: path } },
+        { ...T('c2', 'entity:1', 'entity:3', 'call', 21, ['PERFORM']), meta: { control_path: [{ ...path[0], branch: 'ELSE' }] } },
+        { ...T('c3', 'entity:1', 'entity:2', 'iteration', 30, ['PERFORM']), meta: { loop: { kind: 'UNTIL', text: "WS-A = 'N'" } } },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => guarded })));
+    render(<LanguageProvider><ProcessView theme="dark" focusedEntity={{ id: 1, name: 'MAIN' }} onFileSelect={vi.fn()} projectId={3} /></LanguageProvider>);
+
+    await screen.findByText("wenn WS-A = 'Y'");
+    expect(screen.getByText("sonst (nicht: WS-A = 'Y')")).toBeTruthy();
+    expect(screen.getByText("wiederhole bis WS-A = 'N'")).toBeTruthy();
+    const rows = screen.getAllByRole('row').map(row => row.textContent ?? '');
+    const at = (text: string) => rows.findIndex(row => row.includes(text));
+    expect(at("wenn WS-A = 'Y'")).toBeLessThan(at('INIT'));
+    expect(at('INIT')).toBeLessThan(at("sonst (nicht: WS-A = 'Y')"));
+    expect(at("sonst (nicht: WS-A = 'Y')")).toBeLessThan(at('WRITE-OUT'));
+  });
 });

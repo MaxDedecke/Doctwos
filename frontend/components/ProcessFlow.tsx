@@ -3,9 +3,9 @@ import type { CodeEntity } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { buildFlowRows, type DataVerb, type FlowProjection, type FlowRow } from '@/lib/processFlow';
+import { buildFlowRows, type DataVerb, type FlowProjection, type FlowRow, type PathEntry } from '@/lib/processFlow';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ChevronRight, Database, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Workflow } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Database, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Split, Workflow } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -185,7 +185,8 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
               )}
             </div>
             <div className={cn('border-l px-2 py-1', cellBorder)}>
-              {row.lane === 'control' && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
+              {row.lane === 'control' && row.guard && <GuardPill entry={row.guard} isDark={isDark} indent={row.indent} t={t} />}
+              {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
             </div>
             <div className={cn('border-l px-2 py-1', cellBorder)}>
               {row.lane === 'data' && <DataCard row={row} isDark={isDark} isOpen={openData.has(row.key)} onToggle={() => toggleData(row.key)} onOpen={open} t={t} />}
@@ -211,7 +212,7 @@ function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
   const external = row.lane === 'external';
   const dashed = row.certainty !== 'certain' || external;
   return (
-    <div className="flex min-w-0 items-start gap-1" style={{ paddingLeft: row.lane === 'control' ? `${Math.max(0, row.depth - 1) * 1.1}rem` : undefined }}>
+    <div className="flex min-w-0 items-start gap-1" style={{ paddingLeft: row.lane === 'control' ? `${Math.max(0, row.indent - 1) * 1.1}rem` : undefined }}>
       {row.expandable ? (
         <button
           type="button"
@@ -243,6 +244,9 @@ function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
         <div className="mt-0.5 flex flex-wrap items-center gap-1 empty:hidden">
           {row.cycle && (
             <Badge tone="amber"><Repeat className="h-2.5 w-2.5" />{t(row.cycle === 'recursion' ? 'processFlow.recursion' : 'processFlow.cycle')}</Badge>
+          )}
+          {row.loop && (
+            <Badge tone="indigo"><Repeat className="h-2.5 w-2.5" />{guardLabel({ type: 'LOOP', kind: row.loop.kind, text: row.loop.text }, t)}</Badge>
           )}
           {row.transitionKind === 'jump' && <Badge tone="slate">GOTO</Badge>}
           {row.transitionKind === 'branch' && <Badge tone="amber"><GitBranch className="h-2.5 w-2.5" />{t('processFlow.multiTarget')}</Badge>}
@@ -290,13 +294,61 @@ function DataCard({ row, isDark, isOpen, onToggle, onOpen, t }: {
   );
 }
 
-function Badge({ tone, children }: { tone: 'amber' | 'slate'; children: React.ReactNode }) {
+function Badge({ tone, children }: { tone: 'amber' | 'slate' | 'indigo'; children: React.ReactNode }) {
   return (
     <span className={cn(
       'inline-flex items-center gap-0.5 rounded border px-1 py-px text-[0.5625rem] font-semibold',
-      tone === 'amber' ? 'border-ds-amber-500/40 bg-ds-amber-500/10 text-ds-amber-500' : 'border-ds-zinc-500/40 bg-ds-zinc-500/10 text-ds-zinc-500',
+      tone === 'amber' ? 'border-ds-amber-500/40 bg-ds-amber-500/10 text-ds-amber-500'
+        : tone === 'indigo' ? 'border-ds-indigo-500/40 bg-ds-indigo-500/10 text-ds-indigo-400'
+        : 'border-ds-zinc-500/40 bg-ds-zinc-500/10 text-ds-zinc-500',
     )}>
       {children}
     </span>
+  );
+}
+
+/** Lesbarer Satz zu einem Bedingungs-/Schleifenpfad-Eintrag (COBOL und Java gleich). */
+export function guardLabel(entry: PathEntry, t: Translate): string {
+  const text = entry.text || entry.condition || '…';
+  if (entry.type === 'IF') {
+    return entry.branch === 'ELSE'
+      ? t('processFlow.guard.ifElse', { text: entry.condition || '…' })
+      : t('processFlow.guard.ifThen', { text: entry.condition || '…' });
+  }
+  if (entry.type === 'EVALUATE' || entry.type === 'SWITCH') {
+    const when = entry.when || '…';
+    return when.toUpperCase() === 'OTHER' || when.toLowerCase() === 'default'
+      ? t('processFlow.guard.other', { subject: entry.subject || '…' })
+      : t('processFlow.guard.when', { subject: entry.subject || '…', when });
+  }
+  if (entry.type === 'LOOP') {
+    switch (entry.kind) {
+      case 'UNTIL': return t('processFlow.guard.loopUntil', { text });
+      case 'VARYING': return t('processFlow.guard.loopVarying', { text });
+      case 'TIMES': return t('processFlow.guard.loopTimes', { text });
+      case 'FOREVER': return t('processFlow.guard.loopForever');
+      case 'WHILE': return t('processFlow.guard.loopWhile', { text });
+      case 'DO_WHILE': return t('processFlow.guard.loopDoWhile', { text });
+      case 'FOR': return t('processFlow.guard.loopFor', { text });
+      case 'FOR_EACH': return t('processFlow.guard.loopForEach', { text });
+      default: return text;
+    }
+  }
+  return text;
+}
+
+function GuardPill({ entry, isDark, indent, t }: { entry: PathEntry; isDark: boolean; indent: number; t: Translate }) {
+  const isLoop = entry.type === 'LOOP';
+  const label = guardLabel(entry, t);
+  return (
+    <div className="flex min-w-0 items-center gap-1.5" style={{ paddingLeft: `${Math.max(0, indent - 1) * 1.1 + 1.25}rem` }}>
+      {isLoop ? <Repeat className="h-3 w-3 shrink-0 text-ds-indigo-400" /> : <Split className="h-3 w-3 shrink-0 text-ds-amber-500" />}
+      <span
+        title={label}
+        className={cn('truncate font-mono text-[0.625rem] italic', isDark ? 'text-ds-zinc-400' : 'text-ds-zinc-600')}
+      >
+        {label}
+      </span>
+    </div>
   );
 }
