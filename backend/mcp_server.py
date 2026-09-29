@@ -329,8 +329,20 @@ def search_code(
                     item["source_excerpt"] = {
                         "start_line": definition["start_line"],
                         "end_line": definition["end_line"],
+                        "source_ranges": definition.get("source_ranges", []),
+                        "delivered_start_line": definition["start_line"],
+                        "delivered_end_line": min(
+                            definition["end_line"],
+                            definition["start_line"] + max(
+                                0,
+                                len((excerpt or "").splitlines()) - 1,
+                            ),
+                        ),
                         "content": excerpt,
                         "truncated": clipped,
+                        "next_start_line": definition.get("next_start_line"),
+                        "next_chunk_id": definition["chunk_id"] if clipped else definition.get("next_chunk_id"),
+                        "next_char_offset": len(excerpt or "") if clipped else 0,
                     }
             visible.append(item)
         return {"results": visible[:limit], "truncated": len(hits) > limit or len(visible) < len(hits), "limit_applied": limit}
@@ -424,24 +436,90 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
 
 
 @mcp.tool(annotations=READ_ONLY)
-def get_code_entity(ctx: Context, project_id: int, entity_id: int) -> dict:
-    """Read one indexed code entity and a short original source excerpt."""
-    with _tool_context(ctx, "get_code_entity", project_id, {"entity_id": entity_id}) as (db, user):
-        _entity(db, user, project_id, entity_id)
-        result = entity_api.get_entity(entity_id=entity_id, project_id=project_id, db=db, user=user)
-        definition = result.get("definition")
-        excerpt, clipped = _bounded(definition.get("content"), 1600) if definition else (None, False)
-        return {
-            key: result.get(key)
-            for key in ("id", "project_id", "source_id", "variant_key", "parent_id", "name", "qualified_name", "type", "file_path", "start_line", "end_line")
-        } | {
-            "definition": {
-                "chunk_id": definition["chunk_id"],
-                "start_line": definition["start_line"],
-                "end_line": definition["end_line"],
-                "content": excerpt,
+def get_code_entity(
+    ctx: Context,
+    project_id: int,
+    entity_id: int,
+    start_line: int | None = None,
+    end_line: int | None = None,
+    max_chars: int = 5000,
+    chunk_id: int | None = None,
+    char_offset: int = 0,
+) -> dict:
+    """Read an indexed entity with paged, line-attributed original source."""
+    max_chars = max(500, min(max_chars, 5000))
+    if start_line is not None and start_line < 1:
+        raise ValueError("invalid start_line")
+    if end_line is not None and (end_line < 1 or (start_line is not None and end_line < start_line)):
+        raise ValueError("invalid end_line")
+    if char_offset < 0 or char_offset > 1_000_000:
+        raise ValueError("invalid char_offset")
+    with _tool_context(ctx, "get_code_entity", project_id, {
+        "entity_id": entity_id, "start_line": start_line, "end_line": end_line,
+        "max_chars": max_chars, "chunk_id": chunk_id, "char_offset": char_offset,
+    }) as (db, user):
+        entity = _entity(db, user, project_id, entity_id)
+        if chunk_id is None:
+            source_chunks = entity_api._definition_chunks(
+                entity, db, start_line=start_line, end_line=end_line
+            )
+        else:
+            source_chunks = db.query(DocumentChunk).filter(
+                DocumentChunk.id == chunk_id,
+                DocumentChunk.project_id == entity.project_id,
+                DocumentChunk.source_id == entity.source_id,
+                DocumentChunk.file_path == entity.file_path,
+            ).all()
+        sections = []
+        remaining = max_chars
+        next_chunk_id = None
+        next_char_offset = 0
+        for index, chunk in enumerate(source_chunks):
+            offset = char_offset if index == 0 and chunk_id is not None else 0
+            content = chunk.content[offset:offset + remaining]
+            clipped = offset + len(content) < len(chunk.content)
+            delivered_start = chunk.start_line + chunk.content[:offset].count("\n")
+            delivered_line_count = content.count("\n") + int(bool(content) and not content.endswith("\n"))
+            delivered_end = min(chunk.end_line, delivered_start + max(0, delivered_line_count - 1))
+            sections.append({
+                "chunk_id": chunk.id,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "delivered_start_line": delivered_start,
+                "delivered_end_line": delivered_end,
+                "content": content,
                 "truncated": clipped,
-            } if definition else None,
+            })
+            remaining -= len(content)
+            if clipped:
+                next_chunk_id = chunk.id
+                next_char_offset = offset + len(content)
+                break
+            if remaining <= 0 and index + 1 < len(source_chunks):
+                next_chunk_id = source_chunks[index + 1].id
+                next_char_offset = 0
+                break
+
+        has_more = next_chunk_id is not None
+        return {
+            "id": entity.id,
+            "project_id": entity.project_id,
+            "source_id": entity.source_id,
+            "variant_key": entity.variant_key,
+            "parent_id": entity.parent_id,
+            "name": entity.name,
+            "qualified_name": entity.qualified_name,
+            "type": entity.type,
+            "file_path": entity.file_path,
+            "start_line": entity.start_line,
+            "end_line": entity.end_line,
+            "definition": {
+                "sections": sections,
+                "truncated": has_more,
+                "next_chunk_id": next_chunk_id,
+                "next_char_offset": next_char_offset if has_more else None,
+                "notice": "Jede Quellspanne bezieht sich auf den Originalchunk; weiter mit next_chunk_id/next_char_offset abrufen.",
+            } if sections else None,
         }
 
 

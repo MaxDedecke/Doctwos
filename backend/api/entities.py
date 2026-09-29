@@ -97,7 +97,13 @@ def _edge_reference_json(edge: CodeEdge, source: CodeEntity | None) -> dict:
     }
 
 
-def _definition(entity: CodeEntity, db: Session) -> dict | None:
+def _definition_chunks(
+    entity: CodeEntity,
+    db: Session,
+    *,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> list[DocumentChunk]:
     query = db.query(DocumentChunk).filter(
         DocumentChunk.project_id == entity.project_id,
         DocumentChunk.source_id == entity.source_id,
@@ -108,14 +114,30 @@ def _definition(entity: CodeEntity, db: Session) -> dict | None:
             DocumentChunk.start_line <= entity.end_line,
             DocumentChunk.end_line >= entity.start_line,
         )
-    chunk = query.order_by(DocumentChunk.start_line, DocumentChunk.id).first()
-    if not chunk:
+    if start_line is not None:
+        query = query.filter(DocumentChunk.end_line >= start_line)
+    if end_line is not None:
+        query = query.filter(DocumentChunk.start_line <= end_line)
+    return query.order_by(DocumentChunk.start_line, DocumentChunk.id).all()
+
+
+def _definition(entity: CodeEntity, db: Session) -> dict | None:
+    chunks = _definition_chunks(entity, db)
+    if not chunks:
         return None
+    chunk = chunks[0]
     return {
         "chunk_id": chunk.id,
         "content": chunk.content,
         "start_line": chunk.start_line,
         "end_line": chunk.end_line,
+        "source_ranges": [{
+            "chunk_id": chunk.id,
+            "start_line": chunk.start_line,
+            "end_line": chunk.end_line,
+        }],
+        "next_start_line": chunks[1].start_line if len(chunks) > 1 else None,
+        "next_chunk_id": chunks[1].id if len(chunks) > 1 else None,
     }
 
 
