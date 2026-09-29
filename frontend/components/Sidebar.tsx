@@ -147,12 +147,16 @@ export function Sidebar({
       animate={{ width: isSidebarOpen ? sidebarWidth : 0 }}
       transition={isResizingSidebar ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-          "h-full border-r flex flex-col transition-all duration-150 overflow-hidden",
+          // Transparente Hülle: gibt der Card-Sidebar rundum Abstand zum Rand.
+          "h-full box-border flex flex-col transition-all duration-150 overflow-hidden",
           "fixed md:relative top-0 left-0 md:top-auto md:left-auto z-50 md:z-30",
-          theme === 'dark' ? "bg-ds-zinc-950 border-ds-zinc-700" : "bg-ds-zinc-100 border-ds-zinc-300",
-          !isSidebarOpen ? "pointer-events-none border-none" : "pointer-events-auto"
+          isSidebarOpen ? "pointer-events-auto p-2 pr-1" : "pointer-events-none"
       )}
     >
+      <div className={cn(
+        "h-full min-h-0 overflow-hidden rounded-lg border shadow-sm",
+        theme === 'dark' ? "bg-ds-zinc-900/60 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200",
+      )}>
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
@@ -160,7 +164,7 @@ export function Sidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="flex flex-col h-full overflow-hidden"
-            style={{ width: `${sidebarWidth}px` }}
+            style={{ width: `calc(${sidebarWidth}px - 1.5rem)` }}
           >
             {/* Sidebar Header */}
             <div className="px-4 pt-4 pb-2 flex md:hidden items-center justify-end shrink-0">
@@ -475,6 +479,7 @@ export function Sidebar({
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
       {isSidebarOpen && (
         <div

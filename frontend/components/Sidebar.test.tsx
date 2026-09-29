@@ -384,7 +384,9 @@ describe('Sidebar', () => {
 
   describe('Resize', () => {
     function panelWidth(container: HTMLElement): string {
-      return (container.querySelector('aside')!.firstElementChild as HTMLElement).style.width;
+      // Inhaltsbreite ist `calc(<Breite>px - 1.5rem)` (Card-Rand und Hülle); verglichen wird die Sidebar-Breite.
+      const width = (container.querySelector('aside')!.firstElementChild!.firstElementChild as HTMLElement).style.width;
+      return `${/calc\((\d+)px/.exec(width)?.[1]}px`;
     }
 
     function resizeHandle(container: HTMLElement): HTMLElement {
