@@ -1,6 +1,6 @@
 # Doctus – priorisierte TODO-Liste
 
-Stand: 28.09.2026
+Stand: 29.09.2026
 
 Diese Datei ist die kanonische Liste der noch offenen Arbeit. Die Reihenfolge
 innerhalb einer Priorität ist zugleich die empfohlene Ausführungsreihenfolge.
@@ -132,6 +132,30 @@ zweiten Implementierungstickets für dieselbe Lücke anlegen:
   vor Übernahme jeder Bewertung; Rohantwort und Reparaturprotokoll erhalten.
   Pro abgeschlossenem Sitzungspaar Zeiten ohne/mit MCP, Differenz und Status
   ausgeben; Datenvollständigkeit vor dem nächsten Fall prüfen.
+
+### MCP-Folgearbeiten aus Kapitel 3 des Codex-Benchmarks (29.09.2026)
+
+Review des letzten vollständigen Laufs `official_luna_benchmark_chapter3`
+(60 Sitzungen, 30 Paare, bestehender Index ohne Reindex). Rohbewertung:
+127/235 Punkte ohne und 157/235 mit MCP (54,0 % / 66,8 %), medianer gepaarter
+Mehraufwand mit MCP 6,1 s; 14/30 Paare schneller. Die Einzelbewertung ist nicht
+verblindet und enthält belegte Zitier-/Bewertungsprobleme; daraus keinen
+kausalen Qualitätsgewinn oder Rückschritt gegenüber Kapitel 2 ableiten.
+Details, Fallbelege und Grenzen: [Kapitel-3-Review](MCP_BENCHMARK_CHAPTER3_REVIEW_2026-09-29.md).
+Die folgenden Zeilen konkretisieren bestehende Tickets; nur O-370 ist neu.
+Die Rangfolge gilt innerhalb dieses Review-Pakets.
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 1 | O-355 | Java-Symbolnormalisierung bereits bei der Kandidatensuche anwenden und echte Signaturen erhalten. | **Offen, konkreter Codebefund:** `research_project` übergibt `Class.method` unverändert an `search_nodes`; der Parser speichert `Class#method(...)`. Die spätere Normalisierung in `_symbol_matches` kann fehlende Kandidaten nicht reparieren und verwirft zudem Parameterlisten. UPDATE, CREATE und PULL zeigen leere Methodensuchen. Begrenzte owner-/method-/signaturbezogene Suche vor dem Kandidatenlimit ergänzen; Komma außerhalb von Signaturen als Listentrenner behandeln. Abnahme: `UserServiceImpl.update(UserTO)` / `update(UserPatch)` unterscheiden, `UserLogic.create` und `PullJobDelegate.doExecuteProvisioning` finden; ohne Signatur Mehrdeutigkeit bewahren, ACL/Quelle/Variante beachten. |
+| 2 | O-342, O-355 | Fachliche Fragen zuverlässig von expliziten Symbollisten unterscheiden. | **Offen:** Vier Incident-Aufrufe liefern keine exakten Treffer; Freitext mit `approval/decline` wird sogar in acht Einzelwörter zerlegt. Symbol- und Inhaltssuche explizit unterscheidbar machen, Prosa nicht allein wegen `/` oder `.` tokenisieren. Freitext begrenzt in Code-/Wissensretrieval überführen; unbekanntes Symbol nicht als fehlenden Code ausgeben. Die vier archivierten Incident-Anfragen plus unabhängige Prosa-/Pfad-/Symbollistenfälle prüfen. |
+| 3 | O-370 | MCP-Eingabegrenzen und korrigierbare Cursorfehler im öffentlichen Werkzeugvertrag ausdrücken. | **Neu, P1.** 24 Flow-Anfragen überschreiten `page_size=15`, 17 MCP-Anfragen `hops=3`; derzeit stille Begrenzung. Grenzen im Schema und in Beschreibungen ausweisen. Zwei Agenten veränderten den gelieferten Cursor (`include_source` wurde `nclude_source`); der Server meldete irreführend `MCP request failed or access denied`, da sein Validierungsfehler nicht freigegeben ist. Sicheren Eingabefehler samt Wiederholungsanweisung ausgeben; Cursor unverändert aus der Folgeaktion übernehmen lassen. Abnahme über echten `_tool_context`: unveränderter Cursor erfolgreich, veränderter/abfragefremder Cursor verständlich abgewiesen; Auth-/ACL-Fehler bleiben ohne Datenleak. Keine Lockerung der Cursorbindung. Ergänzt O-344/O-350. |
+| 4 | O-350, O-351, O-356 | Vollständige Quellen- und Flow-Fortsetzung in der tatsächlichen Agentennutzung abnehmen. | **Offen:** 25/41 erfolgreiche Flow-Antworten sind gekürzt, 20 bieten weitere Seiten; nur fünf erfolgreiche Cursoranfragen. Kein einziger `get_code_entity`- oder `trace_data_access`-Aufruf bei 119 MCP-Aufrufen. `research_project` verwendet direkt `trace_call_flow` und umgeht die Beleg-/Pagination-Projektion von `get_call_flow`. Beide Einstiegspfade auf denselben begrenzten Antwortvertrag bringen; fehlende Bedingungs-, Rückgabe- und Fehlerbelege gezielt nachladen. Zusätzlich Quellpagination über mindestens drei Chunks prüfen: Bei gesetzter `chunk_id` liest `get_code_entity` derzeit nur diesen einen Chunk und kann nach dessen Rest spätere Chunks verlieren. Akzeptanz: vollständige, duplikatfreie Fortsetzung oder explizite Abdeckungsgrenze, ACL und Gesamtbudget erhalten. |
+| 5 | O-251, O-345, O-356 | Embedding-Ausfall vor semantischen Folgeaktionen erkennen und nutzbaren Ersatzweg liefern. | **Erneut bestätigt:** `CARD-INCIDENT-02_r3_with_mcp` erhält bei `search_knowledge` HTTP 404. Sichtbare MCP-Tools beweisen keine Retrieval-Bereitschaft. Projektgebundenes Embedding-Profil einschließlich Pfad prüfen; bei Ausfall Zustand und begrenzte Code-/Quellensuche anbieten, nicht dieselbe unbrauchbare Folgeaktion wiederholen. Abnahme mit funktionierendem und gezielt nicht verfügbarem Profil; keine erfundenen Treffer, keine fremden Projektinhalte. |
+| 6 | O-353 | Incident-Belege für Betragsherkunft, Datumsrekonstruktion und Batch-Nachwirkungen vervollständigen. | **Bestandsabnahme offen:** Alle fünf MCP-Antworten verfehlen Rubrikkriterien 6 und 8 (Summary-Betrag / vollständige Ablaufdatumsregel); vier verfehlen Kriterium 1. In r1 wird der Summary-Zuwachs unbelegt mit 150,00 angesetzt. Zuweisung von `PA-TRANSACTION-AMT`, Verwendung, XREF-Bedingung, Datumsdefault sowie Batch-Abzüge und fehlendes Summary-REPL anhand vollständiger Originalbereiche prüfen. READS/WRITES-Verfügbarkeit und tatsächlich konsumierte Belege getrennt messen; neuer Parsercode ist durch den bestehenden Index nicht automatisch abgenommen. |
+| 7 | O-357 | Java-Argumente, Rücklesen, Rückgaben und Transaktionsannotation am CREATE-/UPDATE-Bestand abnehmen. | **Offen:** Alle fünf CREATE-MCP-Antworten verfehlen die Kriterien zu `provisioningManager.create`-Argumenten und Rücklesen/`afterCreate`; alle fünf UPDATE-Antworten lassen `REQUIRES_NEW` aus. Quellenpaket muss passenden Overload, Annotation oberhalb der Methode, vollständige Argumente und Rückgabebildung enthalten. Deklaration und tatsächliche Spring-/Laufzeitwirkung weiterhin trennen. Mit O-355/O-351 und passendem Indexstand prüfen; Zitierfehler separat unter O-354 bewerten. |
+| 8 | O-354 | UPDATE-Nullbewertungen anhand der Originalantworten unabhängig prüfen und fachliche Richtigkeit von Zitierabdeckung trennen. | **Konkreter Review-Fund:** 8/10 UPDATE-Antworten erhalten 0/7; r2 mit MCP beschreibt trotzdem REST-Diff, beide Overloads, Fehlerreport und Taskversuch. Bei r1 mit MCP wird die `UserPatch`-Delegation als unbelegt abgewertet, obwohl Antwort und Zeilen 81–83 sie ausdrücklich nennen. Originalscores unverändert archivieren; separate Zweitbewertung mit kriteriumsweisem Antwort-/Quellbeleg, Inhaltswert und Zitierwert erstellen. Rubrikmängel vor neuer Messung einfrieren; die vorhandene Kapitel-2-Nachbewertung validiert Kapitel-3-Antworten nicht. |
+| 9 | O-358 | Zusätzliche Recherchekosten an CREATE und erfolglosen Methodensuchen messen. | **Offen:** CREATE hat im letzten Lauf median gepaart 90,8 s Mehrzeit mit MCP; UPDATE 18,6 s. Diese Sitzungszeiten sind keine MCP-Serverlatenzen. Lokale Ersatzlesevorgänge, leere Suchen, doppelte Flows, Tool-/Modellzeit und Belegabrufe getrennt auswerten. Nach O-355/O-350/O-356 mit identischen eingefrorenen Aufgaben und zusätzlichen unbekannten Fällen neu messen; Nutzen der Änderungen nicht aus dem Vorher-Nachher-Kapitelvergleich behaupten. |
 
 ### Parser-/Indexabdeckung für den MCP-Benchmark (28.09.2026)
 
