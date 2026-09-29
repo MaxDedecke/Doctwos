@@ -143,6 +143,7 @@ def test_graph_overview_is_not_truncated_below_the_cap(client, db_session, test_
         body = response.json()
 
         assert body["truncated"] is False
+        assert body["edges_sampled"] is False
         assert body["total_nodes"] == len(body["nodes"])
         assert body["total_edges"] == len(body["edges"])
         assert any(n["id"] == f"entity:{entity.id}" for n in body["nodes"])
@@ -264,3 +265,28 @@ def test_graph_overview_keeps_one_file_node_per_source_when_capped():
     body_default = _capped_overview(nodes, [])
     assert len(body_default["nodes"]) == 0
 
+
+def test_code_edge_budget_is_a_generous_multiple_of_the_node_cap():
+    """Viele Entity-Beziehungen fallen auf wenige Dateikanten zusammen: 2x reichte für CardDemo nur bis
+    103 von 329 Dateien, daher ein deutlich größeres Budget je zugelassenem Knoten."""
+    from api.graph import CODE_EDGES_PER_NODE_BUDGET, _code_edge_budget
+
+    assert CODE_EDGES_PER_NODE_BUDGET >= 10
+    assert _code_edge_budget(100) == 100 * CODE_EDGES_PER_NODE_BUDGET
+    with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000):
+        assert _code_edge_budget(None) == 2000 * CODE_EDGES_PER_NODE_BUDGET
+
+
+def test_graph_overview_flags_edge_sampling_separately_from_the_node_cap(client, test_project):
+    """Ist nur das Beziehungsbudget erschöpft, sind alle gelieferten Knoten die einzigen bekannten:
+    das Frontend darf das nicht als 'n von n Knoten zu groß' melden, sondern als Beziehungsauswahl."""
+    with patch("api.graph._sample_representative_code_edges", return_value=([], True)):
+        sampled = client.get(f"/graph?project_id={test_project}").json()
+    with patch("api.graph._sample_representative_code_edges", return_value=([], False)):
+        complete = client.get(f"/graph?project_id={test_project}").json()
+
+    assert sampled["edges_sampled"] is True
+    assert sampled["truncated"] is True
+    assert sampled["has_more"] is True
+    assert complete["edges_sampled"] is False
+    assert complete["truncated"] is False

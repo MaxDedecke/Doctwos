@@ -175,6 +175,48 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(screen.getByText(/5000/)).toBeTruthy());
   });
 
+  it('reports a sampled selection of relationships instead of a misleading "n of n nodes" notice', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [
+          { id: 'entity:1', type: 'entity', label: 'PROG1' },
+          { id: 'entity:2', type: 'entity', label: 'PROG2' },
+        ],
+        edges: [],
+        truncated: true,
+        edges_sampled: true,
+        total_nodes: 2,
+        total_edges: 0,
+      }),
+    }));
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByText(/Auswahl der Beziehungen/)).toBeTruthy());
+    expect(screen.getByText(/2 Knoten/)).toBeTruthy();
+    expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
+  });
+
+  it('keeps the node-cap notice with true totals when nodes were capped and relationships sampled', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [{ id: 'entity:1', type: 'entity', label: 'PROG1' }],
+        edges: [],
+        truncated: true,
+        edges_sampled: true,
+        total_nodes: 5000,
+        total_edges: 3000,
+      }),
+    }));
+
+    renderGraph();
+
+    await waitFor(() => expect(screen.getByText(/1 von 5000 Knoten/)).toBeTruthy());
+    expect(screen.queryByText(/Auswahl der Beziehungen/)).toBeNull();
+  });
+
   it('shows no truncation notice when the overview fits under the cap', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,

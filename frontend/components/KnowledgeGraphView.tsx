@@ -234,7 +234,7 @@ export function KnowledgeGraphView({
   // O-053: whether the currently loaded overview was capped server-side, and
   // hard-focus state for "load this node's real neighborhood from the DB"
   // (as opposed to the soft focus above, which only dims the already-loaded data).
-  const [overviewTruncation, setOverviewTruncation] = useState<{ shown: number; total: number } | null>(null);
+  const [overviewTruncation, setOverviewTruncation] = useState<{ shown: number; total: number; edgesSampled: boolean } | null>(null);
   const [viewMode, setViewMode] = useState<'overview' | 'neighborhood'>('overview');
   const [neighborhoodError, setNeighborhoodError] = useState<string | null>(null);
   const [isLoadingNeighborhood, setIsLoadingNeighborhood] = useState(false);
@@ -259,7 +259,7 @@ export function KnowledgeGraphView({
     includeIsolated: boolean;
     nodes: GraphNode[];
     edges: GraphEdge[];
-    truncation: { shown: number; total: number } | null;
+    truncation: { shown: number; total: number; edgesSampled: boolean } | null;
   } | null>(null);
 
   // Manual link creation (connect the selected node to any other loaded node)
@@ -345,10 +345,12 @@ export function KnowledgeGraphView({
       if (projectId) params.set('project_id', String(projectId));
       if (includeIsolated) params.set('include_isolated', 'true');
       const res = await api.fetch(`${API_URL}/graph?${params}`);
-      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
+      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; edges_sampled?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       const nodes = data.nodes ?? [];
       const edges = data.edges ?? [];
-      const truncation = data.truncated ? { shown: nodes.length, total: data.total_nodes ?? nodes.length } : null;
+      const truncation = data.truncated
+        ? { shown: nodes.length, total: data.total_nodes ?? nodes.length, edgesSampled: Boolean(data.edges_sampled) }
+        : null;
       overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation };
       setRawNodes(nodes);
       setRawEdges(edges);
@@ -1846,7 +1848,11 @@ export function KnowledgeGraphView({
           {!isLoading && overviewTruncation && (
             <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 text-[10px] text-ds-amber-400 max-w-[min(90%,28rem)]">
               <AlertTriangle className="w-3 h-3 shrink-0" />
-              <span>{t('knowledgeGraphView.truncatedOverviewNotice', { shown: overviewTruncation.shown, total: overviewTruncation.total })}</span>
+              {/* Bei gekürzten Beziehungen kennt die Übersicht nur die gelieferten Knoten, ein "n von n" wäre
+                  irreführend: dann wird ausdrücklich eine Auswahl der Beziehungen gemeldet. */}
+              <span>{overviewTruncation.edgesSampled && overviewTruncation.shown >= overviewTruncation.total
+                ? t('knowledgeGraphView.truncatedEdgesNotice', { shown: overviewTruncation.shown })
+                : t('knowledgeGraphView.truncatedOverviewNotice', { shown: overviewTruncation.shown, total: overviewTruncation.total })}</span>
             </div>
           )}
 

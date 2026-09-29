@@ -554,6 +554,18 @@ def _sample_representative_code_edges(
     return selected_edges, has_more
 
 
+# Die Übersicht projiziert Beziehungen zwischen Code-Elementen auf Dateien: Viele Beziehungen
+# (z. B. jede Feldverwendung in COBOL) fallen auf wenige Dateikanten zusammen. Das Budget an
+# Beziehungen je zugelassenem Knoten muss deshalb weit über 2 liegen, sonst deckt es nur die ersten
+# Dateien eines Projekts ab (CardDemo: 4000 Beziehungen erreichten 103 von 329 Dateien).
+CODE_EDGES_PER_NODE_BUDGET = 20
+
+
+def _code_edge_budget(limit: Optional[int]) -> int:
+    """Wie viele Code-Beziehungen die Übersicht höchstens einliest (ein Vielfaches des Knotendeckels)."""
+    return (limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES) * CODE_EDGES_PER_NODE_BUDGET
+
+
 @router.get("")
 def get_graph(
     project_id: Optional[int] = None,
@@ -730,7 +742,7 @@ def get_graph(
         )
 
     # ── Code dependencies (representative sampling across files & components) ─
-    code_edge_limit = (limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES) * 2
+    code_edge_limit = _code_edge_budget(limit)
     sampled_code_edges, code_edges_truncated = _sample_representative_code_edges(
         db=db,
         project_id=project_id,
@@ -753,6 +765,11 @@ def get_graph(
     result = _capped_overview(
         nodes, edges, include_isolated=include_isolated, preserved_node_ids=preserved_node_ids, limit=limit
     )
+    # `edges_sampled` trennt die Kürzung der Code-Beziehungen von der Knotenkappung: Die Knoten
+    # der Übersicht sind Dateien, die sich erst aus den ausgewählten Beziehungen ergeben. Ist nur
+    # das Beziehungsbudget erschöpft, stimmt "total_nodes" nicht mit dem echten Umfang des Projekts
+    # überein und die Übersicht zeigt eine Auswahl -- das darf nicht als "n von n Knoten" wirken.
+    result["edges_sampled"] = bool(code_edges_truncated)
     if code_edges_truncated:
         result["truncated"] = True
     result["graph_revision"] = f"proj:{project_id or 'global'}:overview"

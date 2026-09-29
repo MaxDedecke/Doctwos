@@ -1098,6 +1098,7 @@
     "showFlowchart": "Ablaufdiagramm anzeigen",
     "focusOnNode": "Auf diesen Knoten fokussieren",
     "truncatedOverviewNotice": "Zu groß für die Übersicht: {{shown}} von {{total}} Knoten angezeigt (am dichtesten verknüpfte zuerst)",
+    "truncatedEdgesNotice": "Es wird nur eine Auswahl der Beziehungen angezeigt ({{shown}} Knoten). Einen Knoten anwählen, um seine vollständige Nachbarschaft zu laden.",
     "loadingTitle": "Wissensgraph wird aufgebaut",
     "loadingDescription": "Der Bestand wird geladen und für die interaktive Darstellung vorbereitet. Bei großen Projekten kann das einen Moment dauern.",
     "loadingProgress": "Knoten und Verbindungen werden angeordnet …",

@@ -1098,6 +1098,7 @@
     "showFlowchart": "Show flowchart",
     "focusOnNode": "Focus on this node",
     "truncatedOverviewNotice": "Too large for the overview: showing {{shown}} of {{total}} nodes (most connected first)",
+    "truncatedEdgesNotice": "Only a selection of the relationships is shown ({{shown}} nodes). Select a node to load its full neighborhood.",
     "loadingTitle": "Building knowledge graph",
     "loadingDescription": "The project is loading and being prepared for interactive exploration. Large projects may take a moment.",
     "loadingProgress": "Arranging nodes and connections …",
