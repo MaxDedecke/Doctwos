@@ -7,6 +7,7 @@ import type { CallFlowData, CallFlowEdge } from '@/lib/callFlow';
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
 import { resolveDsColor } from '@/lib/designTokens';
+import { layoutZones } from '@/lib/processZones';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
@@ -34,6 +35,8 @@ export type CallNode = {
   // Herkunfts-/Unsicherheitsvertrag, nicht Teil dieses Punkts.
   analysis_status?: AnalysisStatus;
   analysis_reasons?: string[];
+  /** Ablaufnummer (kleinste `sequence` der eingehenden Übergänge), sofern bekannt. */
+  seq?: number;
   x?: number;
   y?: number;
   vx?: number;
@@ -372,15 +375,43 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
     queueMicrotask(() => { loadGraph(); });
   }, [loadGraph]);
 
-  const filtered = useMemo(() => {
+  const aspect = dimensions.height > 0 ? Math.round((dimensions.width / dimensions.height) * 4) / 4 : 1.5;
+  const { filtered, zones } = useMemo(() => {
     const links = graph.edges.filter(edge => enabledTypes.has(edge.type));
     const usedIds = new Set<string>([`entity:${currentRoot?.id}`]);
+    const endpointId = (end: string | CallNode) => (typeof end === 'string' ? end : end.id);
     links.forEach(edge => {
-      usedIds.add(typeof edge.source === 'string' ? edge.source : edge.source.id);
-      usedIds.add(typeof edge.target === 'string' ? edge.target : edge.target.id);
+      usedIds.add(endpointId(edge.source));
+      usedIds.add(endpointId(edge.target));
     });
-    return { nodes: graph.nodes.filter(node => usedIds.has(node.id)), links };
-  }, [graph, enabledTypes, currentRoot?.id]);
+    const nodes = graph.nodes.filter(node => usedIds.has(node.id));
+
+    // Knoten gleichen Typs stehen gemeinsam in einer Zone. Die Positionen werden
+    // bewusst direkt auf den Knotenobjekten fixiert (fx/fy): react-force-graph
+    // hält Referenzen auf sie in den Kanten, Kopien würden diese Kanten trennen.
+    const layout = layoutZones(
+      nodes.map(node => ({ id: node.id, type: node.type })),
+      links.map(edge => ({ source: endpointId(edge.source), target: endpointId(edge.target), sequence: edge.sequence })),
+      aspect,
+    );
+    nodes.forEach(node => {
+      const position = layout.positions.get(node.id);
+      if (!position) return;
+      node.x = position.x;
+      node.y = position.y;
+      node.fx = position.x;
+      node.fy = position.y;
+      node.seq = layout.order.get(node.id);
+    });
+    return { filtered: { nodes, links }, zones: layout.zones };
+  }, [graph, enabledTypes, currentRoot?.id, aspect]);
+
+  const zoneSignature = zones.map(zone => `${zone.type}:${zone.count}`).join('|');
+  useEffect(() => {
+    if (!zoneSignature) return;
+    const timer = setTimeout(() => graphRef.current?.zoomToFit(350, 50), 150);
+    return () => clearTimeout(timer);
+  }, [zoneSignature, aspect, ForceGraph]);
 
   const highlightedEdgeId = customFlow?.highlighted_edge_id;
   const animatedOriginId = selectedNodeId ?? (
@@ -530,6 +561,27 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
           width={dimensions.width}
           height={dimensions.height}
           backgroundColor={resolveDsColor(isDark ? 'rgb(var(--ds-neutral-950))' : 'rgb(var(--ds-white))')}
+          onRenderFramePre={(ctx: CanvasRenderingContext2D, globalScale: number) => {
+            zones.forEach(zone => {
+              const color = PROCESS_COLORS[zone.type] ?? '#64748b';
+              ctx.save();
+              ctx.beginPath();
+              ctx.roundRect(zone.x, zone.y, zone.w, zone.h, 10);
+              ctx.fillStyle = `${color}${isDark ? '1a' : '12'}`;
+              ctx.fill();
+              ctx.lineWidth = 1.25 / globalScale;
+              ctx.strokeStyle = `${color}${isDark ? '80' : '99'}`;
+              ctx.stroke();
+              const key = `callGraphView.processKinds.${zone.type}`;
+              const translated = t(key);
+              ctx.font = `600 ${11 / Math.min(globalScale, 1.6)}px Inter, system-ui, sans-serif`;
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillStyle = color;
+              ctx.fillText(`${(translated === key ? zone.type : translated).toUpperCase()} · ${zone.count}`, zone.x + 14, zone.y + 17);
+              ctx.restore();
+            });
+          }}
           nodeLabel={(node: CallNode) => {
             const base = `${node.name} (${node.type})`;
             return node.analysis_status
@@ -702,6 +754,14 @@ export function ProcessView({ theme, focusedEntity, onFileSelect, projectId, cus
                 ? (isDark ? '#f8fafc' : '#0f172a')
                 : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
               ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 3 / globalScale);
+            }
+
+            if (node.seq != null && globalScale > 0.45) {
+              ctx.font = `700 ${8 / Math.min(globalScale, 1.6)}px Inter, system-ui, sans-serif`;
+              ctx.textAlign = 'right';
+              ctx.textBaseline = 'bottom';
+              ctx.fillStyle = isDark ? 'rgba(226,232,240,0.85)' : 'rgba(30,41,59,0.85)';
+              ctx.fillText(`#${node.seq}`, (node.x ?? 0) - radius - 2 / globalScale, (node.y ?? 0) - radius * 0.4);
             }
 
             ctx.restore();
