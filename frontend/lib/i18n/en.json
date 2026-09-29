@@ -612,17 +612,7 @@
       "diagnosticsDownload": "Download bundle",
       "diagnosticsStartedToast": "Diagnostics bundle generation started",
       "diagnosticsFailedToast": "Diagnostics bundle generation failed",
-      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation",
-      "mcpAuditTitle": "MCP tool-call audit",
-      "mcpAuditDescription": "Redacted tool calls are retained for {{days}} days and visible to administrators only.",
-      "mcpAuditRefresh": "Refresh",
-      "mcpAuditLoading": "Loading audit entries...",
-      "mcpAuditEmpty": "No MCP tool calls have been recorded yet.",
-      "mcpAuditSuccess": "Successful",
-      "mcpAuditError": "Error",
-      "mcpAuditUser": "User: {{user}}",
-      "mcpAuditDuration": "{{duration}} ms",
-      "mcpAuditProject": "Project: {{project}}"
+      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation"
     },
     "evaluationTab": {
       "feedbackTitle": "Negatively rated chat answers",
@@ -718,6 +708,31 @@
       "unlockTitle": "Unlock account",
       "deactivateTitle": "Deactivate user",
       "activateTitle": "Activate user"
+    },
+    "mcpAudit": {
+      "title": "MCP tool-call audit",
+      "description": "Redacted tool calls are retained for {{days}} days and visible to administrators only.",
+      "refresh": "Refresh",
+      "loading": "Loading audit entries...",
+      "empty": "No MCP tool calls have been recorded yet.",
+      "emptyFiltered": "No calls match this filter.",
+      "success": "Successful",
+      "error": "Error",
+      "server": "Server: {{server}}",
+      "user": "User: {{user}}",
+      "duration": "{{duration}} ms",
+      "project": "Project: {{project}}",
+      "statusFilter": "Filter by status",
+      "filter": {
+        "all": "All",
+        "success": "Successful",
+        "error": "Error"
+      },
+      "toolFilterPlaceholder": "Search tool…",
+      "range": "Entries {{from}}–{{to}} of {{total}}",
+      "pageOf": "Page {{page}} / {{pages}}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page"
     }
   },
   "sidebar": {

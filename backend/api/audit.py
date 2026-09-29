@@ -41,17 +41,34 @@ def _serialize(entry: MCPToolAuditLog) -> dict:
 @router.get("/mcp-tool-calls")
 def list_mcp_tool_audit_logs(
     limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    status: str | None = Query(default=None, pattern="^(success|error)$"),
+    tool: str | None = Query(default=None, max_length=200),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
-    """Return recent MCP calls; access is restricted to administrators."""
+    """Return one page of MCP calls, newest first; access is restricted to administrators.
+
+    ``total`` counts all entries matching the filters, so clients can page through
+    large audit trails without loading them at once.
+    """
+    query = db.query(MCPToolAuditLog)
+    if status:
+        query = query.filter(MCPToolAuditLog.status == status)
+    if tool and tool.strip():
+        escaped = tool.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.filter(MCPToolAuditLog.tool_name.ilike(f"%{escaped}%", escape="\\"))
+    total = query.count()
     entries = (
-        db.query(MCPToolAuditLog)
-        .order_by(MCPToolAuditLog.created_at.desc(), MCPToolAuditLog.id.desc())
+        query.order_by(MCPToolAuditLog.created_at.desc(), MCPToolAuditLog.id.desc())
+        .offset(offset)
         .limit(limit)
         .all()
     )
     return {
         "retention_days": cfg.MCP_AUDIT_RETENTION_DAYS,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
         "entries": [_serialize(entry) for entry in entries],
     }

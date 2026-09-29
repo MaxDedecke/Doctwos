@@ -403,6 +403,8 @@ export interface DiscoverableProject extends Project { team_name?: string; membe
 export interface DiagnosticsRun { id: number; status: string; error?: string | null }
 export interface McpAuditEntry { id: number; status: string; created_at?: string; tool_name: string; server_name: string; user_name?: string; duration_ms?: number; project_name?: string; trace_id?: string; arguments?: unknown; error_message?: string }
 
+export interface McpAuditPage { entries: McpAuditEntry[]; total: number; offset: number; limit: number; retention_days: number }
+
 export interface SystemConfigResponse {
   sso: {
     enabled: boolean;

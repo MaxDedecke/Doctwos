@@ -1,4 +1,4 @@
-import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
@@ -224,7 +224,7 @@ export const api = {
         axios.delete(`${API_URL}/projects/${projectId}/members/${userId}`),
     generateDiagnosticsBundle: () => axios.post(`${API_URL}/diagnostics/generate`),
     getDiagnosticsRuns: () => axios.get(`${API_URL}/diagnostics/runs`),
-    getMcpToolAuditLogs: (limit = 100) => axios.get(`${API_URL}/audit/mcp-tool-calls`, { params: { limit } }),
+    getMcpToolAuditLogs: (params: { limit?: number; offset?: number; status?: 'success' | 'error'; tool?: string } = {}) => axios.get<McpAuditPage>(`${API_URL}/audit/mcp-tool-calls`, { params }),
     getJobs: (projectId?: number | null) => axios.get(`${API_URL}/jobs`, { params: { project_id: projectId ?? undefined } }),
     resumeJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/resume`),
     startJob: (kind: string, id: number) => axios.post(`${API_URL}/jobs/${kind}/${id}/start`),

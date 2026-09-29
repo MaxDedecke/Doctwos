@@ -18,7 +18,6 @@ const { apiMocks, showToastMock, settingsState, defaultCurrentUser } = vi.hoiste
   };
   return { showToastMock, defaultCurrentUser, settingsState, apiMocks: {
     getKnowledgeSources: vi.fn().mockResolvedValue({ data: [] }),
-    getMcpToolAuditLogs: vi.fn().mockResolvedValue({ data: { entries: [], retention_days: 90 } }),
     getNegativeChatFeedback: vi.fn().mockResolvedValue({ data: { entries: [] } }),
     getFeedbackDiagnosticSettings: vi.fn().mockResolvedValue({ data: null }),
     updateFeedbackDiagnosticSettings: vi.fn(),
@@ -150,39 +149,12 @@ describe('LogsSettingsTab diagnostics bundle (O-100)', () => {
   });
 });
 
-describe('LogsSettingsTab MCP audit trail (O-100, touches O-073)', () => {
-  it('renders success/error entries including the trace id and lets an admin refresh them', async () => {
-    apiMocks.getMcpToolAuditLogs
-      .mockResolvedValueOnce({
-        data: {
-          entries: [
-            { id: 1, tool_name: 'read_file', server_name: 'fs', status: 'success', user_name: 'max', duration_ms: 42, project_name: 'Doctus', trace_id: 'trace-abc', arguments: { path: 'x.cbl' }, created_at: null },
-            { id: 2, tool_name: 'run_query', server_name: 'db', status: 'error', user_name: 'max', duration_ms: 10, trace_id: undefined, arguments: {}, error_message: 'timeout', created_at: null },
-          ],
-          retention_days: 30,
-        },
-      })
-      .mockResolvedValueOnce({ data: { entries: [], retention_days: 30 } });
-
+describe('LogsSettingsTab MCP audit relocation', () => {
+  it('no longer renders or requests the MCP audit trail (moved to the IDE / MCP tab)', async () => {
     render(<LogsSettingsTab />);
-
-    expect(await screen.findByText('read_file')).toBeTruthy();
-    expect(screen.getByText('settings.logsTab.mcpAuditSuccess')).toBeTruthy();
-    expect(screen.getByText('settings.logsTab.mcpAuditError')).toBeTruthy();
-    // O-073: die Trace-ID muss im Audit-Eintrag sichtbar sein, damit Support
-    // damit gezielt in den Logs suchen kann — nur beim Eintrag, der eine hat.
-    expect(screen.getByText('trace: trace-abc')).toBeTruthy();
-    expect(screen.getByText('timeout')).toBeTruthy();
-
-    fireEvent.click(screen.getByText('settings.logsTab.mcpAuditRefresh'));
-    await waitFor(() => expect(apiMocks.getMcpToolAuditLogs).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('settings.logsTab.mcpAuditEmpty')).toBeTruthy();
-  });
-
-  it('shows an empty-state placeholder when nothing has been audited yet', async () => {
-    apiMocks.getMcpToolAuditLogs.mockResolvedValue({ data: { entries: [], retention_days: 30 } });
-    render(<LogsSettingsTab />);
-    expect(await screen.findByText('settings.logsTab.mcpAuditEmpty')).toBeTruthy();
+    expect(await screen.findByText('settings.logsTab.diagnosticsTitle')).toBeTruthy();
+    expect(screen.queryByTestId('mcp-audit-log')).toBeNull();
+    expect(screen.queryByText('settings.mcpAudit.title')).toBeNull();
   });
 });
 
@@ -199,11 +171,9 @@ describe('LogsSettingsTab admin gating (O-100)', () => {
     expect(await screen.findByText('Mainframe SCM')).toBeTruthy();
 
     expect(screen.queryByText('settings.logsTab.diagnosticsTitle')).toBeNull();
-    expect(screen.queryByText('settings.logsTab.mcpAuditTitle')).toBeNull();
     expect(screen.queryByText('settings.logsTab.feedbackTitle')).toBeNull();
     expect(screen.queryByText('settings.logsTab.feedbackDiagnosticsTitle')).toBeNull();
 
-    expect(apiMocks.getMcpToolAuditLogs).not.toHaveBeenCalled();
     expect(apiMocks.getNegativeChatFeedback).not.toHaveBeenCalled();
     expect(apiMocks.getFeedbackDiagnosticSettings).not.toHaveBeenCalled();
     expect(apiMocks.generateDiagnosticsBundle).not.toHaveBeenCalled();

@@ -7,6 +7,8 @@ import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { copyToClipboard } from '@/lib/utils';
 
+import { McpAuditLog } from './McpAuditLog';
+
 type TokenRow = {
   id: number;
   name: string;
@@ -118,6 +120,8 @@ export const McpSettingsTab: React.FC = () => {
         <p>In VS Code, Continue oder Cursor einen Streamable-HTTP-MCP-Server mit der Adresse oben einrichten. Als HTTP-Header <code>Authorization: Bearer &lt;Token&gt;</code> verwenden und das Token nur in der persönlichen IDE-Konfiguration speichern.</p>
         <p>Diese Anmeldung verwendet ein persönliches Bearer-Token. Ein automatischer MCP-OAuth-Login ist derzeit nicht eingerichtet.</p>
       </div>
+
+      <McpAuditLog />
     </div>
   );
 };
