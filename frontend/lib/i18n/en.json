@@ -111,7 +111,6 @@
       "insights": "💡 Insights"
     },
     "focusBar": {
-      "none": "No object focused",
       "entity": "Code object",
       "document": "Document",
       "webOrigin": "Web page",

@@ -126,14 +126,12 @@ export function PanelRenderer({
         </div>
       </div>
 
-      {contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && contentType !== 'insights' && (
+      {focusInfo && contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && contentType !== 'insights' && (
         <div className={cn('px-3 py-1 border-b flex items-center gap-1.5 text-[11px] shrink-0 z-10 min-w-0', theme === 'dark' ? 'border-ds-zinc-900 bg-ds-zinc-950/40' : 'border-ds-zinc-200 bg-ds-zinc-50/40')}>
-          {focusInfo ? <>
-            <focusInfo.Icon className={cn('w-3 h-3 shrink-0', focusInfo.colorClass)} />
-            <span className={cn('truncate font-medium', theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700')} title={focusInfo.label}>{focusInfo.label}</span>
-            <span className="text-ds-zinc-600 shrink-0">·</span>
-            <span className="text-ds-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
-          </> : <span className="text-ds-zinc-600 italic">{t('page.focusBar.none')}</span>}
+          <focusInfo.Icon className={cn('w-3 h-3 shrink-0', focusInfo.colorClass)} />
+          <span className={cn('truncate font-medium', theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700')} title={focusInfo.label}>{focusInfo.label}</span>
+          <span className="text-ds-zinc-600 shrink-0">·</span>
+          <span className="text-ds-zinc-500 uppercase tracking-wide text-[9px] shrink-0">{focusInfo.kind}</span>
         </div>
       )}
 

@@ -67,3 +67,24 @@ describe('PanelRenderer', () => {
     expect(screen.getByTitle('page.workspace.closeView')).toBeTruthy();
   });
 });
+
+describe('PanelRenderer focus bar', () => {
+  it('renders no focus bar at all while nothing is focused', () => {
+    const { container } = renderChatPanel({ contentType: 'code' });
+
+    expect(screen.queryByText('page.focusBar.none')).toBeNull();
+    // Nur Kopfzeile und Inhalt: kein zusätzlicher Balken zwischen beiden.
+    expect(container.firstElementChild?.children.length).toBe(2);
+  });
+
+  it('shows the focus bar with the focused object once something is focused', () => {
+    const { container } = renderChatPanel({
+      contentType: 'code',
+      selection: { ...EMPTY_SELECTION, selectedFile: 'app/ZAHLUNG.CBL' },
+    });
+
+    expect(screen.getByText('app/ZAHLUNG.CBL')).toBeTruthy();
+    expect(screen.getByText('page.focusBar.file')).toBeTruthy();
+    expect(container.firstElementChild?.children.length).toBe(3);
+  });
+});
