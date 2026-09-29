@@ -10,9 +10,9 @@ import shutil
 import logging
 import random
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy import and_, or_
 
 from core.db_setup import get_db
 from core.auth_dependency import get_current_user
@@ -550,19 +550,11 @@ def get_project_knowledge_sources(
     return [serialize_source(s) for s in q.all()]
 
 
-@router.get("/{id}/references")
-def get_project_references(
-    id: int,
-    file_path: str,
-    entity_name: Optional[str] = None,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    proj = db.query(Project).filter(Project.id == id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_project_visible(id, user, db)
-
+def _collect_project_references(
+    db: Session, id: int, file_path: str, entity_name: Optional[str]
+) -> list[dict]:
+    """Alle Referenzen einer Datei (Doku-Verknüpfungen und Wissensverknüpfungen), dedupliziert und in
+    stabiler Reihenfolge; Grundlage für den vollständigen und den seitenweisen Endpunkt."""
     base_name = os.path.splitext(os.path.basename(file_path))[0]
 
     references = []
@@ -577,6 +569,7 @@ def get_project_references(
             EntityDocLink.status == "approved",
             DocumentChunk.file_path == file_path,
         )
+        .order_by(EntityDocLink.id)
         .all()
     )
 
@@ -592,6 +585,7 @@ def get_project_references(
                 EntityDocLink.doc_title.ilike(f"%{file_path}%"),
             ),
         )
+        .order_by(EntityDocLink.id)
         .all()
     )
 
@@ -631,7 +625,7 @@ def get_project_references(
     )
     if entity_name:
         ed_sources_q = ed_sources_q.filter(CodeEntity.name == entity_name)
-    ed_sources = ed_sources_q.all()
+    ed_sources = ed_sources_q.order_by(EntityDocLink.id).all()
 
     for lnk in ed_sources:
         target_path = lnk.chunk.file_path if lnk.chunk else file_path
@@ -654,7 +648,36 @@ def get_project_references(
             )
 
     # 3. KnowledgeLink matching the file_path
-    k_links = db.query(KnowledgeLink).filter(KnowledgeLink.status == "approved").all()
+    # Nur Verknüpfungen laden, die eine Seite dieser Datei berühren (in der Datenbank vorgefiltert):
+    # früher wurden ALLE freigegebenen Wissensverknüpfungen geladen und in Python durchsucht.
+    chunk_a, chunk_b = aliased(DocumentChunk), aliased(DocumentChunk)
+    entity_a, entity_b = aliased(CodeEntity), aliased(CodeEntity)
+
+    def _touches_file(kind_column, chunk, entity):
+        entity_conditions = [kind_column == "entity", entity.project_id == id, entity.file_path == file_path]
+        if entity_name:
+            entity_conditions.append(entity.name == entity_name)
+        return or_(
+            and_(kind_column == "document", chunk.project_id == id, chunk.file_path == file_path),
+            and_(*entity_conditions),
+        )
+
+    k_links = (
+        db.query(KnowledgeLink)
+        .outerjoin(chunk_a, KnowledgeLink.source_a_chunk_id == chunk_a.id)
+        .outerjoin(chunk_b, KnowledgeLink.source_b_chunk_id == chunk_b.id)
+        .outerjoin(entity_a, KnowledgeLink.source_a_entity_id == entity_a.id)
+        .outerjoin(entity_b, KnowledgeLink.source_b_entity_id == entity_b.id)
+        .filter(
+            KnowledgeLink.status == "approved",
+            or_(
+                _touches_file(KnowledgeLink.source_a_type, chunk_a, entity_a),
+                _touches_file(KnowledgeLink.source_b_type, chunk_b, entity_b),
+            ),
+        )
+        .order_by(KnowledgeLink.id)
+        .all()
+    )
 
     for kl in k_links:
         match_a = False
@@ -751,6 +774,49 @@ def get_project_references(
                     )
 
     return references
+
+
+def _assert_project_for_references(db: Session, id: int, user: User) -> None:
+    proj = db.query(Project).filter(Project.id == id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_project_visible(id, user, db)
+
+
+@router.get("/{id}/references")
+def get_project_references(
+    id: int,
+    file_path: str,
+    entity_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    _assert_project_for_references(db, id, user)
+    return _collect_project_references(db, id, file_path, entity_name)
+
+
+@router.get("/{id}/references/page")
+def get_project_references_page(
+    id: int,
+    file_path: str,
+    entity_name: Optional[str] = None,
+    limit: int = Query(default=15, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Referenzen einer Datei seitenweise (für das Referenzen-Menü): ``total`` ist die Gesamtzahl,
+    ``has_more`` sagt, ob nach dieser Seite weitere folgen."""
+    _assert_project_for_references(db, id, user)
+    references = _collect_project_references(db, id, file_path, entity_name)
+    page = references[offset : offset + limit]
+    return {
+        "references": page,
+        "total": len(references),
+        "has_more": offset + len(page) < len(references),
+        "offset": offset,
+        "limit": limit,
+    }
 
 
 # ── Zugriffsrechte & Anfragen ───────────────────────────────────────────────

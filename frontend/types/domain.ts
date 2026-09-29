@@ -339,6 +339,20 @@ export interface FileReference {
   url?: string | null;
   preview?: string;
 }
+/** Seiteninfo einer Nachbargruppe: Gesamtzahl (null = unbekannt), ob weitere folgen, Cursor für die nächste Seite. */
+export interface NeighborGroupPage {
+  total: number | null;
+  has_more: boolean;
+  next_after: number | null;
+}
+/** Eine Seite der Referenzen einer Datei (Offset-Paging). */
+export interface ProjectReferencesPage {
+  references: FileReference[];
+  total: number;
+  has_more: boolean;
+  offset: number;
+  limit: number;
+}
 export interface EntityNeighbor {
   edge_id: number | string;
   type: string;

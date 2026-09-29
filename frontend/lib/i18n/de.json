@@ -962,6 +962,8 @@
     "documentViewerLabel": "Dokumenten-Viewer",
     "editorLoading": "Editor wird geladen...",
     "referencesPanelTitle": "Referenzen & Verknüpfte Dokumente",
+    "loadMore": "Weitere laden …",
+    "loadMoreCount": "{{count}} weitere laden … ({{remaining}} übrig)",
     "noParsedFocusObject": "Für diese Datei ist kein geparstes Fokusobjekt verfügbar.",
     "loadingReferences": "Lade Referenzen …",
     "noDirectReferencesFor": "Keine direkten Referenzen für {{name}}.",

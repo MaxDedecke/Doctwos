@@ -1,4 +1,4 @@
-import type { AgentGraphViewAction, CodeEntity, EntityNeighbor, FileReference, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentGraphViewAction, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, Project, WorkspaceDocument } from '@/types/domain';
 import Editor, { loader } from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 import type { editor as MonacoEditor } from 'monaco-editor';
@@ -30,6 +30,7 @@ import { ChangePackageAction } from './ChangePackageAction';
 import { InsightDraftAction } from './InsightDraftAction';
 
 import { api, API_URL } from '@/app/services/api';
+import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedReferenceList';
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -251,9 +252,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [editorContentLeft, setEditorContentLeft] = useState<number>(53);
   const [isReferencesModalMode, setIsReferencesModalMode] = useState<boolean>(false);
   const [focusedRefNode, setFocusedRefNode] = useState<FileReference | null>(null);
-  const [focusedRefReferences, setFocusedRefReferences] = useState<FileReference[]>([]);
-  const [isLoadingFocusedRefRefs, setIsLoadingFocusedRefRefs] = useState<boolean>(false);
+  // Referenzen des angeklickten Eintrags (Dialog) und der Datei (Dokument-Tab): seitenweise, nie automatisch nachgeladen.
+  const focusRefs = usePagedReferenceList();
+  const docRefs = usePagedReferenceList();
+  const focusedRefReferences = focusRefs.items;
+  const isLoadingFocusedRefRefs = focusRefs.isLoading;
   const [entityNeighborGroups, setEntityNeighborGroups] = useState<Record<string, EntityNeighbor[]>>({});
+  // Seiteninfo je Nachbargruppe (Gesamtzahl, weitere vorhanden, Cursor) und die Gruppe, die gerade nachlädt.
+  const [entityNeighborPage, setEntityNeighborPage] = useState<Record<string, NeighborGroupPage>>({});
+  const [loadingNeighborGroup, setLoadingNeighborGroup] = useState<string | null>(null);
+  const neighborRequestRef = useRef(0);
   const [isLoadingEntityNeighbors, setIsLoadingEntityNeighbors] = useState(false);
 
   // Bumped from handleEditorDidMountLocal so the effects below also re-run once
@@ -265,8 +273,6 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
-  const [localFileReferences, setLocalFileReferences] = useState<FileReference[]>([]);
-  const [localIsLoadingReferences, setLocalIsLoadingReferences] = useState<boolean>(false);
   const documentContentRef = useRef<HTMLDivElement | null>(null);
 
   const contentToUse = fileContent !== undefined ? fileContent : localFileContent;
@@ -276,40 +282,89 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     () => addWebAnchorScroll(sanitizeHtml(contentToUse), selectedDoc?.urlAnchor),
     [contentToUse, selectedDoc?.urlAnchor],
   );
-  const referencesToUse = fileReferences !== undefined ? fileReferences : localFileReferences;
-  const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : localIsLoadingReferences;
+  const referencesToUse = fileReferences !== undefined ? fileReferences : docRefs.items;
+  const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : docRefs.isLoading;
+  // Nur die selbst geladene Liste ist seitenweise; eine vom Elternbauteil gelieferte Liste ist vollständig.
+  const docRefsHaveMore = fileReferences === undefined && docRefs.hasMore;
+  const docRefsTotal = fileReferences !== undefined ? fileReferences.length : docRefs.total;
   // Die Dropdown-Liste zeigt im Code-Tab entityNeighborGroups (pro Fokusobjekt),
   // nicht referencesToUse (das ist nur der Inhalt des Doc-Tabs) — das Badge muss
   // dieselbe Quelle zählen, sonst bleibt die Ziffer beim Wechsel des im Code
   // angeklickten Objekts auf dem Dateistand stehen.
-  const referenceBadgeCount = activeRightTab === 'code'
-    ? Object.values(entityNeighborGroups).reduce((sum, group) => sum + group.length, 0)
-    : referencesToUse.length;
+  // Bei seitenweise geladenen Listen zählt die Gesamtzahl vom Server; ist sie unbekannt (Dokument-Gruppe)
+  // und es folgen weitere Einträge, wird die geladene Zahl mit "+" gekennzeichnet.
+  const neighborBadge = Object.entries(entityNeighborGroups).reduce(
+    (acc, [group, items]) => {
+      const info = entityNeighborPage[group];
+      return {
+        count: acc.count + Math.max(items.length, info?.total ?? 0),
+        approximate: acc.approximate || Boolean(info?.has_more && info.total === null),
+      };
+    },
+    { count: 0, approximate: false },
+  );
+  const referenceBadgeCount = activeRightTab === 'code' ? neighborBadge.count : Math.max(referencesToUse.length, docRefsTotal);
+  const referenceBadgeApproximate = activeRightTab === 'code' && neighborBadge.approximate;
+  const referenceBadgeText = `${referenceBadgeCount}${referenceBadgeApproximate ? '+' : ''}`;
 
   useEffect(() => {
     if (!selectedEntity?.id || activeRightTab !== 'code') {
       // queueMicrotask: a direct setState call here reads as synchronous
       // setState-in-effect to the compiler's analysis.
-      queueMicrotask(() => { setEntityNeighborGroups({}); });
+      queueMicrotask(() => { setEntityNeighborGroups({}); setEntityNeighborPage({}); });
       return;
     }
     let cancelled = false;
+    neighborRequestRef.current += 1;
     // queueMicrotask: a direct setState call here reads as synchronous
     // setState-in-effect to the compiler's analysis.
-    queueMicrotask(() => { setIsLoadingEntityNeighbors(true); });
-    api.getEntityNeighbors(selectedEntity.id, { projectId: selectedProject?.id })
+    queueMicrotask(() => { setIsLoadingEntityNeighbors(true); setLoadingNeighborGroup(null); });
+    api.getEntityNeighbors(selectedEntity.id, { projectId: selectedProject?.id, limit: REFERENCE_PAGE_SIZE })
       .then((response) => {
-        if (!cancelled) setEntityNeighborGroups(response.data?.groups || {});
+        if (cancelled) return;
+        setEntityNeighborGroups(response.data?.groups || {});
+        setEntityNeighborPage(response.data?.page || {});
       })
       .catch((error) => {
         console.error('Failed to load entity neighbors:', error);
-        if (!cancelled) setEntityNeighborGroups({});
+        if (!cancelled) { setEntityNeighborGroups({}); setEntityNeighborPage({}); }
       })
       .finally(() => {
         if (!cancelled) setIsLoadingEntityNeighbors(false);
       });
     return () => { cancelled = true; };
   }, [selectedEntity?.id, activeRightTab, selectedProject?.id]);
+
+  /** Lädt die nächste Seite genau einer Nachbargruppe nach; Antworten für ein inzwischen anderes Objekt werden verworfen. */
+  const loadMoreNeighbors = async (group: string) => {
+    const info = entityNeighborPage[group];
+    if (!selectedEntity?.id || !info?.has_more || loadingNeighborGroup !== null) return;
+    const request = neighborRequestRef.current;
+    setLoadingNeighborGroup(group);
+    try {
+      const response = await api.getEntityNeighbors(selectedEntity.id, {
+        projectId: selectedProject?.id,
+        limit: REFERENCE_PAGE_SIZE,
+        group,
+        after: info.next_after,
+      });
+      if (request !== neighborRequestRef.current) return;
+      const more = response.data?.groups?.[group] ?? [];
+      setEntityNeighborGroups((previous) => {
+        const known = new Set((previous[group] ?? []).map((item) => item.edge_id));
+        return { ...previous, [group]: [...(previous[group] ?? []), ...more.filter((item) => !known.has(item.edge_id))] };
+      });
+      const nextInfo = response.data?.page?.[group];
+      setEntityNeighborPage((previous) => ({ ...previous, [group]: nextInfo ?? { ...info, has_more: false } }));
+    } catch (error) {
+      console.error('Failed to load more neighbors:', error);
+      if (request === neighborRequestRef.current) {
+        setEntityNeighborPage((previous) => ({ ...previous, [group]: { ...info, has_more: false } }));
+      }
+    } finally {
+      if (request === neighborRequestRef.current) setLoadingNeighborGroup(null);
+    }
+  };
 
   const neighborGroupLabels: Record<string, string> = {
     'CALL:in': t('splitPane.neighborGroupLabels.callIn'),
@@ -435,25 +490,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
   // Local references loading effect — the "Referenzen" dropdown that consumes this
   // only exists on code/doc panels, so don't fetch it for graph/webview panels.
+  // Es wird nur die erste Seite geladen; weitere Seiten kommen per "Weitere laden".
+  const { load: loadDocRefs, reset: resetDocRefs } = docRefs;
   useEffect(() => {
     const wantsReferences = activeRightTab === 'code' || activeRightTab === 'doc';
-    const loadRefs = async () => {
-      if (!wantsReferences || !selectedFile || !selectedProject) {
-        setLocalFileReferences([]);
-        return;
-      }
-      setLocalIsLoadingReferences(true);
-      try {
-        const res = await api.getProjectReferences(selectedProject.id, selectedFile);
-        setLocalFileReferences(res.data || []);
-      } catch (err) {
-        console.error("Failed to load file references inside panel:", err);
-      } finally {
-        setLocalIsLoadingReferences(false);
-      }
-    };
-    loadRefs();
-  }, [selectedFile, selectedProject, activeRightTab]);
+    if (!wantsReferences || !selectedFile || !selectedProject) {
+      resetDocRefs();
+      return;
+    }
+    const projectId = selectedProject.id;
+    void loadDocRefs(async (offset, limit) => (await api.getProjectReferencesPage(projectId, selectedFile, { offset, limit })).data);
+  }, [selectedFile, selectedProject, activeRightTab, loadDocRefs, resetDocRefs]);
 
   const selectedLineDecorationsRef = useRef<string[]>([]);
   const selectedLineClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -520,17 +567,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
   const handleReferenceItemClick = async (refItem: FileReference) => {
     setFocusedRefNode(refItem);
-    setIsLoadingFocusedRefRefs(true);
-    try {
-      if (!selectedProject) return;
-      const res = await api.getProjectReferences(selectedProject.id, refItem.file_path);
-      setFocusedRefReferences(res.data || []);
-    } catch (err) {
-      console.error("Failed to load references for focused node:", err);
-      setFocusedRefReferences([]);
-    } finally {
-      setIsLoadingFocusedRefRefs(false);
-    }
+    if (!selectedProject) return;
+    const projectId = selectedProject.id;
+    await focusRefs.load(async (offset, limit) => (await api.getProjectReferencesPage(projectId, refItem.file_path, { offset, limit })).data);
   };
 
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -1084,7 +1123,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                             : "bg-transparent border-ds-zinc-200 text-ds-zinc-405 hover:text-ds-zinc-700 hover:border-ds-zinc-300")
                     )}
                     title={t('splitPane.referencesPanelTitle')}
-                    aria-label={referenceBadgeCount > 0 ? `${t('splitPane.references')} (${referenceBadgeCount})` : t('splitPane.references')}
+                    aria-label={referenceBadgeCount > 0 ? `${t('splitPane.references')} (${referenceBadgeText})` : t('splitPane.references')}
                     aria-expanded={isReferencesDropdownOpen}
                   >
                     <Link2 className="h-3.5 w-3.5 text-ds-indigo-400" />
@@ -1096,7 +1135,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                           theme === 'dark' ? "bg-ds-indigo-500/20 text-ds-indigo-300" : "bg-ds-indigo-100 text-ds-indigo-700"
                         )}
                       >
-                        {referenceBadgeCount}
+                        {referenceBadgeText}
                       </span>
                     )}
                   </button>
@@ -1313,6 +1352,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                     </div>
                                   );
                                 })}
+                                {entityNeighborPage[group]?.has_more && (
+                                  <LoadMoreButton
+                                    testId={`neighbors-more-${group}`}
+                                    theme={theme}
+                                    loading={loadingNeighborGroup === group}
+                                    disabled={loadingNeighborGroup !== null}
+                                    remaining={entityNeighborPage[group].total === null ? null : Math.max(0, (entityNeighborPage[group].total as number) - neighbors.length)}
+                                    onClick={() => { void loadMoreNeighbors(group); }}
+                                  />
+                                )}
                               </section>
                             ))}
                           </div>
@@ -1392,6 +1441,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               </button>
                             );
                           })}
+                          {docRefsHaveMore && (
+                            <LoadMoreButton
+                              testId="references-more"
+                              theme={theme}
+                              loading={docRefs.isLoadingMore}
+                              disabled={docRefs.isLoadingMore}
+                              remaining={Math.max(0, docRefs.total - referencesToUse.length)}
+                              onClick={() => { void docRefs.loadMore(); }}
+                            />
+                          )}
                         </div>
                       )}
                     </div>
@@ -1510,6 +1569,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                     </div>
                                   );
                                 })}
+                                {focusRefs.hasMore && (
+                                  <LoadMoreButton
+                                    testId="focused-references-more"
+                                    theme={theme}
+                                    loading={focusRefs.isLoadingMore}
+                                    disabled={focusRefs.isLoadingMore}
+                                    remaining={Math.max(0, focusRefs.total - focusedRefReferences.length)}
+                                    onClick={() => { void focusRefs.loadMore(); }}
+                                  />
+                                )}
                               </div>
                             )}
                           </div>
@@ -1904,3 +1973,33 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     </>
   );
 };
+
+/** Schaltfläche "Weitere laden": Nachladen geschieht nur auf Klick, nie automatisch beim Scrollen. */
+function LoadMoreButton({ theme, loading, disabled, remaining, onClick, testId }: {
+  theme: string;
+  loading: boolean;
+  disabled: boolean;
+  /** Anzahl noch nicht geladener Einträge; null = unbekannt. */
+  remaining: number | null;
+  onClick: () => void;
+  testId: string;
+}) {
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-1.5 px-4 py-2 text-left text-[11px] font-medium transition-colors disabled:opacity-60",
+        theme === 'dark' ? "text-ds-indigo-300 hover:bg-ds-zinc-900/60" : "text-ds-indigo-700 hover:bg-ds-zinc-50"
+      )}
+    >
+      {loading && <Loader2 className="h-3 w-3 animate-spin" />}
+      {remaining === null
+        ? t('splitPane.loadMore')
+        : t('splitPane.loadMoreCount', { count: Math.min(REFERENCE_PAGE_SIZE, remaining), remaining })}
+    </button>
+  );
+}

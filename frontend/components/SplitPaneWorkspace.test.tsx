@@ -88,6 +88,7 @@ vi.mock('@/app/services/api', () => ({
   api: {
     getEntityNeighbors: vi.fn().mockResolvedValue({ data: { groups: {} } }),
     getProjectReferences: vi.fn().mockResolvedValue({ data: [] }),
+    getProjectReferencesPage: vi.fn().mockResolvedValue({ data: { references: [], total: 0, has_more: false, offset: 0, limit: 15 } }),
     getKnowledgeSourceContent: vi.fn().mockResolvedValue({ data: { content: '', format: 'text' } }),
     resolveWebOrigin: vi.fn().mockResolvedValue({ data: { content: '' } }),
   },
@@ -206,6 +207,139 @@ describe('SplitPaneWorkspace', () => {
       fireEvent.click(button);
 
       expect(setIsReferencesDropdownOpen).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('Referenzen-Menü lädt seitenweise nach', () => {
+    const ref = (id: number) => ({ id, node_type: 'entity', name: `Ref${id}`, title: `Ref${id}`, file_path: `src/f${id}.cbl`, line: id, source_id: 5, source: 'Git' });
+    const refPage = (from: number, count: number, total: number) =>
+      axiosResponse({ references: Array.from({ length: count }, (_, i) => ref(from + i)), total, has_more: from + count < total, offset: from, limit: 15 });
+    const docTabProps = {
+      activeRightTab: 'doc' as const,
+      selectedFile: 'src/main.cbl',
+      selectedDoc: { id: 5, name: 'src/main.cbl' },
+      fileReferences: undefined,
+      isReferencesDropdownOpen: true,
+    };
+
+    it('zeigt im Dokument-Tab zunächst 15 Referenzen, den Gesamtstand im Badge und lädt erst auf Klick weitere', async () => {
+      vi.mocked(api.getProjectReferencesPage)
+        .mockResolvedValueOnce(refPage(0, 15, 40))
+        .mockResolvedValueOnce(refPage(15, 15, 40));
+      renderWorkspace(docTabProps);
+
+      expect(await screen.findByRole('button', { name: /Ref14/ })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Ref15/ })).toBeNull();
+      expect(screen.getByTestId('references-count').textContent).toBe('40');
+      expect(screen.getByTestId('references-more').textContent).toContain('25');
+      expect(api.getProjectReferencesPage).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByTestId('references-more'));
+
+      expect(await screen.findByRole('button', { name: /Ref29/ })).toBeTruthy();
+      expect(api.getProjectReferencesPage).toHaveBeenLastCalledWith(3, 'src/main.cbl', { offset: 15, limit: 15 });
+      expect(screen.getByTestId('references-more').textContent).toContain('10');
+    });
+
+    it('bietet keinen Nachlade-Button, wenn alle Referenzen der Datei geladen sind', async () => {
+      vi.mocked(api.getProjectReferencesPage).mockResolvedValueOnce(refPage(0, 3, 3));
+      renderWorkspace(docTabProps);
+
+      expect(await screen.findByRole('button', { name: /Ref2/ })).toBeTruthy();
+      expect(screen.queryByTestId('references-more')).toBeNull();
+    });
+
+    it('lädt im Referenzen-Dialog erst die erste Seite und weitere nur auf Klick', async () => {
+      vi.mocked(api.getProjectReferencesPage)
+        .mockResolvedValueOnce(refPage(0, 1, 1)) // Liste des Menüs
+        .mockResolvedValueOnce(axiosResponse({ references: Array.from({ length: 15 }, (_, i) => ref(100 + i)), total: 33, has_more: true, offset: 0, limit: 15 })) // Dialog: erste Seite
+        .mockResolvedValueOnce(axiosResponse({ references: Array.from({ length: 15 }, (_, i) => ref(115 + i)), total: 33, has_more: true, offset: 15, limit: 15 })); // Dialog: zweite Seite
+      renderWorkspace(docTabProps);
+
+      fireEvent.click(await screen.findByRole('button', { name: /Ref0/ }));
+      await waitFor(() => expect(api.getProjectReferencesPage).toHaveBeenLastCalledWith(3, 'src/f0.cbl', { offset: 0, limit: 15 }));
+
+      const more = await screen.findByTestId('focused-references-more');
+      expect(more.textContent).toContain('18');
+      expect(screen.queryByText('Ref115')).toBeNull();
+      fireEvent.click(more);
+
+      expect(await screen.findByText('Ref129')).toBeTruthy();
+      expect(api.getProjectReferencesPage).toHaveBeenLastCalledWith(3, 'src/f0.cbl', { offset: 15, limit: 15 });
+    });
+
+    const neighbor = (id: number) => ({
+      edge_id: id, type: 'CALLS', direction: 'out', resolution: 'resolved', dst_name: `callee${id}`,
+      entity: { id: 1000 + id, name: `callee${id}`, type: 'method', file_path: 'src/A.java', start_line: id, source_id: 5 },
+      reference: null, start_line: id, end_line: id,
+    });
+    const codeTabProps = {
+      activeRightTab: 'code' as const,
+      selectedFile: 'src/A.java',
+      fileContent: 'class A {}',
+      selectedEntity: { id: 101, name: 'A', type: 'class', file_path: 'src/A.java', start_line: 1, source_id: 5 },
+      isReferencesDropdownOpen: true,
+    };
+
+    it('lädt Nachbargruppen mit 15 Einträgen, zeigt Gesamtzahl im Badge und lädt eine Gruppe erst auf Klick nach', async () => {
+      vi.mocked(api.getEntityNeighbors)
+        .mockResolvedValueOnce(axiosResponse({
+          entity: codeTabProps.selectedEntity,
+          groups: { 'CALLS:out': Array.from({ length: 15 }, (_, i) => neighbor(i + 1)), 'COPY:out': [neighbor(900)] },
+          page: {
+            'CALLS:out': { total: 40, has_more: true, next_after: 15 },
+            'COPY:out': { total: 1, has_more: false, next_after: 900 },
+          },
+        }))
+        .mockResolvedValueOnce(axiosResponse({
+          entity: codeTabProps.selectedEntity,
+          groups: { 'CALLS:out': Array.from({ length: 15 }, (_, i) => neighbor(i + 16)) },
+          page: { 'CALLS:out': { total: 40, has_more: true, next_after: 30 } },
+        }));
+      renderWorkspace(codeTabProps);
+
+      expect(await screen.findByRole('button', { name: /callee15/ })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /callee16/ })).toBeNull();
+      expect(screen.getByTestId('references-count').textContent).toBe('41');
+      expect(screen.queryByTestId('neighbors-more-COPY:out')).toBeNull();
+      expect(screen.getByTestId('neighbors-more-CALLS:out').textContent).toContain('25');
+
+      fireEvent.click(screen.getByTestId('neighbors-more-CALLS:out'));
+
+      expect(await screen.findByRole('button', { name: /callee30/ })).toBeTruthy();
+      expect(api.getEntityNeighbors).toHaveBeenLastCalledWith(101, { projectId: 3, limit: 15, group: 'CALLS:out', after: 15 });
+      // die andere Gruppe bleibt unverändert
+      expect(screen.getByRole('button', { name: /callee900/ })).toBeTruthy();
+      expect(screen.getByTestId('neighbors-more-CALLS:out').textContent).toContain('10');
+    });
+
+    it('kennzeichnet die Anzahl mit "+", wenn eine Gruppe ohne bekannte Gesamtzahl weitere Einträge hat', async () => {
+      vi.mocked(api.getEntityNeighbors).mockResolvedValueOnce(axiosResponse({
+        entity: codeTabProps.selectedEntity,
+        groups: { 'DOC:out': Array.from({ length: 15 }, (_, i) => neighbor(i + 1)) },
+        page: { 'DOC:out': { total: null, has_more: true, next_after: 15 } },
+      }));
+      renderWorkspace(codeTabProps);
+
+      await screen.findByTestId('neighbors-more-DOC:out');
+      expect(screen.getAllByText(/^callee\d+$/)).toHaveLength(15);
+      expect(screen.getByTestId('references-count').textContent).toBe('15+');
+      expect(screen.getByTestId('neighbors-more-DOC:out').textContent).toBe('Weitere laden …');
+    });
+
+    it('beendet das Nachladen einer Gruppe, wenn die Anfrage fehlschlägt', async () => {
+      vi.mocked(api.getEntityNeighbors)
+        .mockResolvedValueOnce(axiosResponse({
+          entity: codeTabProps.selectedEntity,
+          groups: { 'CALLS:out': Array.from({ length: 15 }, (_, i) => neighbor(i + 1)) },
+          page: { 'CALLS:out': { total: 40, has_more: true, next_after: 15 } },
+        }))
+        .mockRejectedValueOnce(new Error('down'));
+      renderWorkspace(codeTabProps);
+      fireEvent.click(await screen.findByTestId('neighbors-more-CALLS:out'));
+
+      await waitFor(() => expect(screen.queryByTestId('neighbors-more-CALLS:out')).toBeNull());
+      expect(screen.getByRole('button', { name: /callee15/ })).toBeTruthy();
     });
   });
 
@@ -399,20 +533,20 @@ describe('SplitPaneWorkspace', () => {
 
       await waitFor(() => expect(screen.getByTestId('knowledge-graph')).toBeTruthy());
       expect(api.getKnowledgeSourceContent).not.toHaveBeenCalled();
-      expect(api.getProjectReferences).not.toHaveBeenCalled();
+      expect(api.getProjectReferencesPage).not.toHaveBeenCalled();
     });
 
     it('lädt die Referenzen einer Datei nur für Code- und Dokument-Panels', async () => {
       const { api } = await import('@/app/services/api');
 
       const { unmount } = renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/ZAHLUNG.cbl', fileReferences: undefined });
-      await waitFor(() => expect(api.getProjectReferences).toHaveBeenCalledWith(3, 'src/ZAHLUNG.cbl'));
+      await waitFor(() => expect(api.getProjectReferencesPage).toHaveBeenCalledWith(3, 'src/ZAHLUNG.cbl', { offset: 0, limit: 15 }));
       unmount();
 
-      vi.mocked(api.getProjectReferences).mockClear();
+      vi.mocked(api.getProjectReferencesPage).mockClear();
       renderWorkspace({ activeRightTab: 'weborigin', selectedFile: 'src/ZAHLUNG.cbl', fileReferences: undefined });
       await waitFor(() => expect(screen.getByTestId('monaco-editor')).toBeTruthy());
-      expect(api.getProjectReferences).not.toHaveBeenCalled();
+      expect(api.getProjectReferencesPage).not.toHaveBeenCalled();
     });
 
     it('lädt Java-Entity-Nachbarschaften und öffnet das Ziel mit Zeile und Quelle', async () => {
@@ -467,7 +601,7 @@ describe('SplitPaneWorkspace', () => {
       });
 
       const target = await screen.findByRole('button', { name: /calculate/ });
-      expect(api.getEntityNeighbors).toHaveBeenCalledWith(101, { projectId: 3 });
+      expect(api.getEntityNeighbors).toHaveBeenCalledWith(101, { projectId: 3, limit: 15 });
 
       target.click();
 
@@ -488,7 +622,7 @@ describe('SplitPaneWorkspace', () => {
         source: 'Git',
       };
       const handleFileSelect = vi.fn();
-      vi.mocked(api.getProjectReferences).mockResolvedValue(axiosResponse([javaReference]));
+      vi.mocked(api.getProjectReferencesPage).mockResolvedValue(axiosResponse({ references: [javaReference], total: 1, has_more: false, offset: 0, limit: 15 }));
 
       renderWorkspace({
         activeRightTab: 'doc',
@@ -500,7 +634,7 @@ describe('SplitPaneWorkspace', () => {
       });
 
       fireEvent.click(await screen.findByRole('button', { name: /PaymentRepository/ }));
-      await waitFor(() => expect(api.getProjectReferences).toHaveBeenCalledWith(3, javaReference.file_path));
+      await waitFor(() => expect(api.getProjectReferencesPage).toHaveBeenCalledWith(3, javaReference.file_path, { offset: 0, limit: 15 }));
 
       const drilldownTarget = (await screen.findByText(javaReference.file_path, { exact: true })).closest('[class*="cursor-pointer"]');
       expect(drilldownTarget).not.toBeNull();

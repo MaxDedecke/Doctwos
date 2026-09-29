@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
@@ -209,6 +209,91 @@ def get_entity(
     return {**entity_json(entity), "definition": _definition(entity, db)}
 
 
+def _doc_link_item(
+    lnk: EntityDocLink,
+    chunk: DocumentChunk | None,
+    source: KnowledgeSource | None,
+    user: User,
+    db: Session,
+) -> dict | None:
+    """Ein DOC-Nachbar (Dokument-Verknüpfung) oder None, wenn Projekt oder Quelle nicht sichtbar sind."""
+    try:
+        if lnk.project_id is not None:
+            assert_project_visible(lnk.project_id, user, db, "Entity nicht gefunden")
+        if source:
+            assert_knowledge_source_visible(source, user, db, "Entity nicht gefunden")
+    except HTTPException:
+        # A single inaccessible linked source must not leak its metadata or
+        # suppress otherwise visible neighbors for this entity.
+        return None
+    metadata = chunk.metadata_json if chunk and isinstance(chunk.metadata_json, dict) else {}
+    document_url = lnk.doc_url or metadata.get("url")
+    url_anchor = (
+        metadata.get("url_anchor")
+        or metadata.get("anchor")
+        or _url_fragment(document_url if isinstance(document_url, str) else None)
+        or _url_fragment(chunk.file_path if chunk else None)
+        or None
+    )
+    source_spaces = source.spaces if source and isinstance(source.spaces, dict) else {}
+    sync_cursor = source.sync_cursor if source and isinstance(source.sync_cursor, dict) else {}
+    source_revision = (
+        metadata.get("source_revision")
+        or sync_cursor.get("last_commit")
+        or source_spaces.get("last_commit_hash")
+        or metadata.get("content_hash")
+    )
+    page = metadata.get("page")
+    section = metadata.get("section")
+    if url_anchor:
+        locator_precision = "url_anchor"
+    elif page is not None:
+        locator_precision = "page"
+    elif section:
+        locator_precision = "section"
+    elif chunk and (chunk.start_line is not None or chunk.end_line is not None):
+        locator_precision = "line_range"
+    elif chunk:
+        locator_precision = "chunk"
+    elif document_url:
+        locator_precision = "url"
+    else:
+        locator_precision = "title"
+    return {
+        "edge_id": f"edl:{lnk.id}",
+        "type": "DOC",
+        "direction": "out",
+        "resolution": None,
+        "dst_name": lnk.doc_title,
+        "entity": None,
+        "document": {
+            "title": lnk.doc_title,
+            # Keep the stored path byte-for-byte. Some sources carry a
+            # fragment in the path itself, and splitting on '#' here
+            # silently discarded that locator before the viewer saw it.
+            "file_path": chunk.file_path if chunk and chunk.file_path else None,
+            # source_id der Wissensquelle des Chunks -- das Frontend braucht sie, um das
+            # Dokument über ein Doku-Panel zu öffnen (siehe onDocFocus in SplitPaneWorkspace).
+            "source_id": chunk.source_id if chunk else None,
+            "chunk_id": chunk.id if chunk else lnk.chunk_id,
+            "start_line": chunk.start_line if chunk else None,
+            "end_line": chunk.end_line if chunk else None,
+            "page": page,
+            "section": section,
+            "url": document_url,
+            "url_anchor": url_anchor,
+            "source_revision": source_revision,
+            "locator_precision": locator_precision,
+            "excerpt": chunk.content[:1200] if chunk and chunk.content else None,
+            "source_type": lnk.source_type or (source.type if source else None),
+            "score": lnk.score,
+            "link_type": lnk.link_type,
+        },
+        "start_line": None,
+        "end_line": None,
+    }
+
+
 @router.get("/{entity_id}/neighbors")
 def get_neighbors(
     entity_id: int,
@@ -218,6 +303,22 @@ def get_neighbors(
         default=None,
         description="Aktueller Projekt-Kontext des Aufrufers (z.B. Code-Editor); None im Allgemein-Modus",
     ),
+    limit: int | None = Query(
+        default=None,
+        ge=1,
+        le=200,
+        description="Höchstens so viele Nachbarn je Gruppe; ohne Angabe werden alle geliefert (bisheriges Verhalten)",
+    ),
+    group: str | None = Query(
+        default=None,
+        pattern="^[A-Z_]+:(in|out)$",
+        description="Nur diese Gruppe liefern (z.B. CALLS:out), zum Nachladen weiterer Seiten",
+    ),
+    after: int | None = Query(
+        default=None,
+        ge=0,
+        description="Cursor: nur Einträge der Gruppe nach dieser Kanten-/Verknüpfungs-ID",
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -226,41 +327,80 @@ def get_neighbors(
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(entity, user, db, project_id)
     requested = {item.upper() for value in (types or []) for item in value.split(",") if item}
+    paged = limit is not None
+    groups: dict[str, list[dict]] = {}
+    # Nur bei `limit`: je Gruppe Gesamtgröße (falls bekannt), ob weitere Einträge folgen und der
+    # Cursor (`after`) für die nächste Seite, damit das Frontend gezielt nachladen kann.
+    page: dict[str, dict] = {}
+
+    def wants(key: str) -> bool:
+        return group is None or group == key
+
     clauses = []
     if direction in {"out", "both"}:
         clauses.append(CodeEdge.src_entity_id == entity_id)
     if direction in {"in", "both"}:
         clauses.append(CodeEdge.dst_entity_id == entity_id)
-    query = db.query(CodeEdge).filter(or_(*clauses))
-    if requested:
-        query = query.filter(CodeEdge.type.in_(requested))
-    groups: dict[str, list[dict]] = {}
-    for edge in query.order_by(CodeEdge.type, CodeEdge.id).all():
-        edge_direction = "out" if edge.src_entity_id == entity_id else "in"
-        other_id = edge.dst_entity_id if edge_direction == "out" else edge.src_entity_id
-        other = db.query(CodeEntity).filter(CodeEntity.id == other_id).first() if other_id else None
-        source = db.query(CodeEntity).filter(CodeEntity.id == edge.src_entity_id).first()
-        key = f"{edge.type}:{edge_direction}"
-        groups.setdefault(key, []).append(
-            {
-                "edge_id": edge.id,
-                "type": edge.type,
-                "direction": edge_direction,
-                "resolution": edge.resolution,
-                "variant_key": edge.variant_key,
-                "meta": edge.meta_json or {},
-                "dst_name": edge.dst_name,
-                "entity": entity_json(other) if other else None,
-                "reference": _edge_reference_json(edge, source),
-                "start_line": edge.src_start_line,
-                "end_line": edge.src_end_line,
-            }
+    edge_filter = or_(*clauses)
+    type_filter = CodeEdge.type.in_(requested) if requested else None
+
+    # Code<->Code-Beziehungen: Größe je Gruppe (Typ, Richtung) in einer Abfrage, die Einträge selbst
+    # je Gruppe seitenweise per Kanten-ID-Cursor (kein Offset: neue Kanten verschieben nichts).
+    edge_direction = case((CodeEdge.src_entity_id == entity_id, "out"), else_="in")
+    size_query = db.query(CodeEdge.type, edge_direction.label("d"), func.count(CodeEdge.id)).filter(edge_filter)
+    if type_filter is not None:
+        size_query = size_query.filter(type_filter)
+    group_sizes = size_query.group_by(CodeEdge.type, edge_direction).order_by(CodeEdge.type, edge_direction).all()
+    for edge_type, edge_dir, size in group_sizes:
+        key = f"{edge_type}:{edge_dir}"
+        if not wants(key):
+            continue
+        edge_query = db.query(CodeEdge).filter(edge_filter, CodeEdge.type == edge_type)
+        if edge_dir == "out":
+            edge_query = edge_query.filter(CodeEdge.src_entity_id == entity_id)
+        else:
+            edge_query = edge_query.filter(CodeEdge.src_entity_id != entity_id)
+        if after is not None:
+            edge_query = edge_query.filter(CodeEdge.id > after)
+        edge_query = edge_query.order_by(CodeEdge.id)
+        rows = edge_query.limit(limit + 1).all() if paged else edge_query.all()
+        has_more = paged and len(rows) > limit
+        if paged:
+            rows = rows[:limit]
+        related_ids = {i for edge in rows for i in (edge.src_entity_id, edge.dst_entity_id) if i}
+        related = (
+            {item.id: item for item in db.query(CodeEntity).filter(CodeEntity.id.in_(related_ids)).all()}
+            if related_ids
+            else {}
         )
+        items = []
+        for edge in rows:
+            other_id = edge.dst_entity_id if edge_dir == "out" else edge.src_entity_id
+            other = related.get(other_id) if other_id else None
+            source = related.get(edge.src_entity_id)
+            items.append(
+                {
+                    "edge_id": edge.id,
+                    "type": edge.type,
+                    "direction": edge_dir,
+                    "resolution": edge.resolution,
+                    "variant_key": edge.variant_key,
+                    "meta": edge.meta_json or {},
+                    "dst_name": edge.dst_name,
+                    "entity": entity_json(other) if other else None,
+                    "reference": _edge_reference_json(edge, source),
+                    "start_line": edge.src_start_line,
+                    "end_line": edge.src_end_line,
+                }
+            )
+        groups[key] = items
+        if paged:
+            page[key] = {"total": size, "has_more": has_more, "next_after": rows[-1].id if rows else None}
 
     # CONTAINS is derived from the bounded parent chain rather than persisted
     # as a second edge row.  We expose ancestors only: selecting a broad
     # program must not expand into every paragraph/data item in the project.
-    if direction in {"in", "both"} and (not requested or "CONTAINS" in requested):
+    if direction in {"in", "both"} and (not requested or "CONTAINS" in requested) and wants("CONTAINS:in") and after is None:
         parent_id = entity.parent_id
         contains_count = 0
         while parent_id is not None and contains_count < 32:
@@ -288,6 +428,8 @@ def get_neighbors(
             )
             contains_count += 1
             parent_id = parent.parent_id
+        if paged and "CONTAINS:in" in groups:
+            page["CONTAINS:in"] = {"total": len(groups["CONTAINS:in"]), "has_more": False, "next_after": None}
 
     # Dokument-Verknüpfungen dieser Entity (EntityDocLink) als eigene Gruppe --
     # CodeEdge bildet nur Code<->Code-Beziehungen ab, die Graph-View (api/graph.py)
@@ -295,111 +437,59 @@ def get_neighbors(
     # (z.B. README.md). Ohne diese Gruppe zeigte dieser Endpunkt -- und damit der
     # "Referenzen"-Dropdown im Code-Editor -- genau diese Dokument-Kanten nicht an,
     # obwohl die Graph-View sie darstellt (siehe docs/ENTSCHEIDUNGEN.md).
-    doc_links = []
-    if direction in {"out", "both"} and (not requested or "DOC" in requested):
+    if direction in {"out", "both"} and (not requested or "DOC" in requested) and wants("DOC:out"):
         doc_link_query = db.query(EntityDocLink).filter(
             EntityDocLink.entity_id == entity_id,
             EntityDocLink.status == "approved",
         )
         if entity.project_id is not None:
             doc_link_query = doc_link_query.filter(EntityDocLink.project_id == entity.project_id)
-        doc_links = doc_link_query.all()
-    chunk_ids = {lnk.chunk_id for lnk in doc_links if lnk.chunk_id is not None}
-    chunks = (
-        {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
-        if chunk_ids
-        else {}
-    )
-    source_ids = {chunk.source_id for chunk in chunks.values() if chunk.source_id is not None}
-    sources = (
-        {
-            source.id: source
-            for source in db.query(KnowledgeSource)
-            .filter(KnowledgeSource.id.in_(source_ids))
-            .all()
-        }
-        if source_ids
-        else {}
-    )
-    for lnk in doc_links:
-        chunk = chunks.get(lnk.chunk_id)
-        source = sources.get(chunk.source_id) if chunk else None
-        try:
-            if lnk.project_id is not None:
-                assert_project_visible(lnk.project_id, user, db, "Entity nicht gefunden")
-            if source:
-                assert_knowledge_source_visible(source, user, db, "Entity nicht gefunden")
-        except HTTPException:
-            # A single inaccessible linked source must not leak its metadata or
-            # suppress otherwise visible neighbors for this entity.
-            continue
-        metadata = chunk.metadata_json if chunk and isinstance(chunk.metadata_json, dict) else {}
-        document_url = lnk.doc_url or metadata.get("url")
-        url_anchor = (
-            metadata.get("url_anchor")
-            or metadata.get("anchor")
-            or _url_fragment(document_url if isinstance(document_url, str) else None)
-            or _url_fragment(chunk.file_path if chunk else None)
-            or None
-        )
-        source_spaces = source.spaces if source and isinstance(source.spaces, dict) else {}
-        sync_cursor = source.sync_cursor if source and isinstance(source.sync_cursor, dict) else {}
-        source_revision = (
-            metadata.get("source_revision")
-            or sync_cursor.get("last_commit")
-            or source_spaces.get("last_commit_hash")
-            or metadata.get("content_hash")
-        )
-        page = metadata.get("page")
-        section = metadata.get("section")
-        if url_anchor:
-            locator_precision = "url_anchor"
-        elif page is not None:
-            locator_precision = "page"
-        elif section:
-            locator_precision = "section"
-        elif chunk and (chunk.start_line is not None or chunk.end_line is not None):
-            locator_precision = "line_range"
-        elif chunk:
-            locator_precision = "chunk"
-        elif document_url:
-            locator_precision = "url"
-        else:
-            locator_precision = "title"
-        groups.setdefault("DOC:out", []).append(
-            {
-                "edge_id": f"edl:{lnk.id}",
-                "type": "DOC",
-                "direction": "out",
-                "resolution": None,
-                "dst_name": lnk.doc_title,
-                "entity": None,
-                "document": {
-                    "title": lnk.doc_title,
-                    # Keep the stored path byte-for-byte. Some sources carry a
-                    # fragment in the path itself, and splitting on '#' here
-                    # silently discarded that locator before the viewer saw it.
-                    "file_path": chunk.file_path if chunk and chunk.file_path else None,
-                    # source_id der Wissensquelle des Chunks -- das Frontend braucht sie, um das
-                    # Dokument über ein Doku-Panel zu öffnen (siehe onDocFocus in SplitPaneWorkspace).
-                    "source_id": chunk.source_id if chunk else None,
-                    "chunk_id": chunk.id if chunk else lnk.chunk_id,
-                    "start_line": chunk.start_line if chunk else None,
-                    "end_line": chunk.end_line if chunk else None,
-                    "page": page,
-                    "section": section,
-                    "url": document_url,
-                    "url_anchor": url_anchor,
-                    "source_revision": source_revision,
-                    "locator_precision": locator_precision,
-                    "excerpt": chunk.content[:1200] if chunk and chunk.content else None,
-                    "source_type": lnk.source_type or (source.type if source else None),
-                    "score": lnk.score,
-                    "link_type": lnk.link_type,
-                },
-                "start_line": None,
-                "end_line": None,
-            }
-        )
+        # Unsichtbare Verknüpfungen werden übersprungen; deshalb wird in Stapeln gelesen, bis genug
+        # sichtbare Einträge (Limit + 1 zur Erkennung weiterer Seiten) beisammen sind. Eine exakte
+        # Gesamtzahl gibt es hier daher nicht (total=None).
+        cursor_id = after
+        items = []
+        item_link_ids: list[int] = []
+        batch_size = max(50, (limit or 0) * 2)
+        while True:
+            ordered = doc_link_query.order_by(EntityDocLink.id)
+            if cursor_id is not None:
+                ordered = ordered.filter(EntityDocLink.id > cursor_id)
+            links = ordered.limit(batch_size).all() if paged else ordered.all()
+            if not links:
+                break
+            chunk_ids = {lnk.chunk_id for lnk in links if lnk.chunk_id is not None}
+            chunks = (
+                {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+                if chunk_ids
+                else {}
+            )
+            source_ids = {chunk.source_id for chunk in chunks.values() if chunk.source_id is not None}
+            sources = (
+                {src.id: src for src in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()}
+                if source_ids
+                else {}
+            )
+            for lnk in links:
+                cursor_id = lnk.id
+                chunk = chunks.get(lnk.chunk_id)
+                source = sources.get(chunk.source_id) if chunk else None
+                item = _doc_link_item(lnk, chunk, source, user, db)
+                if item is not None:
+                    items.append(item)
+                    item_link_ids.append(lnk.id)
+            if not paged or len(items) > limit or len(links) < batch_size:
+                break
+        has_more = paged and len(items) > limit
+        if paged:
+            items = items[:limit]
+            item_link_ids = item_link_ids[:limit]
+        if items:
+            groups["DOC:out"] = items
+        if paged and (items or after is not None):
+            page["DOC:out"] = {"total": None, "has_more": has_more, "next_after": item_link_ids[-1] if item_link_ids else None}
 
-    return {"entity": entity_json(entity), "groups": groups}
+    response: dict = {"entity": entity_json(entity), "groups": groups}
+    if paged:
+        response["page"] = page
+    return response

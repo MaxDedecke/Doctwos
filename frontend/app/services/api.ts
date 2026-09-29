@@ -1,4 +1,4 @@
-import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
@@ -127,17 +127,30 @@ export const api = {
         axios.get<CodeEntity & { id: number }>(`${API_URL}/entities/resolve`, { params: { source_id: sourceId, path, project_id: projectId ?? undefined } }),
     getEntity: (id: number, projectId?: number | null) =>
         axios.get<CodeEntity & { id: number }>(`${API_URL}/entities/${id}`, { params: { project_id: projectId ?? undefined } }),
-    getEntityNeighbors: (id: number, options?: { types?: string[]; direction?: 'in' | 'out' | 'both'; projectId?: number | null }) =>
-        axios.get<{ entity: CodeEntity; groups: Record<string, EntityNeighbor[]> }>(`${API_URL}/entities/${id}/neighbors`, {
+    /**
+     * Nachbarn eines Objekts. Mit `limit` je Gruppe seitenweise: `page` nennt je Gruppe Gesamtzahl (null =
+     * unbekannt), ob weitere folgen und den Cursor `next_after`; `group` + `after` laden die nächste Seite
+     * genau einer Gruppe nach.
+     */
+    getEntityNeighbors: (id: number, options?: { types?: string[]; direction?: 'in' | 'out' | 'both'; projectId?: number | null; limit?: number; group?: string; after?: number | null }) =>
+        axios.get<{ entity: CodeEntity; groups: Record<string, EntityNeighbor[]>; page?: Record<string, NeighborGroupPage> }>(`${API_URL}/entities/${id}/neighbors`, {
             params: {
                 types: options?.types?.join(','),
                 direction: options?.direction || 'both',
                 project_id: options?.projectId ?? undefined,
+                limit: options?.limit,
+                group: options?.group,
+                after: options?.after ?? undefined,
             },
         }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),
     syncKnowledgeSource: (id: number | string) => axios.post(`${API_URL}/knowledge-sources/${id}/sync`),
     reindexKnowledgeSource: (id: number, embedding_model?: string) => axios.post(`${API_URL}/knowledge-sources/${id}/reindex`, embedding_model ? { embedding_model } : undefined),
+    /** Referenzen einer Datei seitenweise (Offset), mit Gesamtzahl. */
+    getProjectReferencesPage: (projectId: number, filePath: string, options: { entityName?: string; offset?: number; limit?: number } = {}) =>
+        axios.get<ProjectReferencesPage>(`${API_URL}/projects/${projectId}/references/page`, {
+            params: { file_path: filePath, entity_name: options.entityName, offset: options.offset, limit: options.limit },
+        }),
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get<FileReference[]>(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get<ChatSession[]>(`${API_URL}/chat/sessions`),
     /** Seitenweise (Cursor `before_id`), neueste zuerst; `general` = nur Sessions ohne Projekt. */
