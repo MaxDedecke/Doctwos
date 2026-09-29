@@ -830,7 +830,6 @@
         }
       }
     },
-    "projectLabel": "Project: {{name}}",
     "greeting": "Hello.",
     "suggestions": {
       "explainProgram": {
@@ -881,9 +880,6 @@
     "agentWorking": "Agent working...",
     "referencedSources": "Referenced sources:",
     "sourceFileTitle": "{{file}} (Lines {{lines}})",
-    "focusLabel": "Focus: {{name}}",
-    "clearContextTitle": "Clear context",
-    "generalContextLabel": "General",
     "sourceLabel": "Source: {{name}}",
     "clearSourceFocusTitle": "Clear source focus",
     "pinLabel": "Pin: {{path}}",

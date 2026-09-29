@@ -41,7 +41,6 @@ import {
   Database,
   Folder,
   GitBranch,
-  Globe2,
   History,
   Loader2,
   Plus,
@@ -283,36 +282,6 @@ export function ChatView({
           ))}
         </div>
         <div className="flex min-w-0 flex-col items-end gap-1.5 overflow-hidden py-2">
-          <div className={cn(
-            "flex items-center gap-2 border px-2 @sm/chat:px-3 py-1 rounded-sm text-xs font-semibold tracking-wide shadow-sm",
-            selectedProject
-              ? "bg-ds-indigo-500/10 border-ds-indigo-500/20 text-ds-indigo-650"
-              : theme === 'dark'
-                ? "bg-ds-zinc-800/50 border-ds-zinc-700/60 text-ds-zinc-400"
-                : "bg-ds-zinc-100/70 border-ds-zinc-200 text-ds-zinc-500"
-          )}>
-            {selectedProject ? (
-              <>
-                <Database className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
-                <span className="hidden @xs/chat:inline">{t('chatView.projectLabel', { name: selectedProject.name })}</span>
-                <button
-                  type="button"
-                  onClick={() => onProjectSelect(null)}
-                  id="clear-chat-project-focus-btn"
-                  className="hover:text-ds-indigo-850 transition-colors ml-0.5 p-0.5 rounded"
-                  title={t('chatView.clearContextTitle')}
-                  aria-label={t('chatView.clearContextTitle')}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </>
-            ) : (
-              <>
-                <Globe2 className="w-3.5 h-3.5 shrink-0" />
-                <span>{t('chatView.generalContextLabel')}</span>
-              </>
-            )}
-          </div>
             {isDetectingLph ? (
               <div className="flex items-center gap-1.5 text-[10px] text-ds-zinc-500">
                 <Loader2 className="w-3 h-3 animate-spin" /> HOAI Copilot analysiert...
@@ -1190,29 +1159,11 @@ export function ChatView({
               : "bg-ds-white border-ds-zinc-200"
           )}>
             {/* Active project contextual focus helper and Pinned Code location helper */}
-            {(selectedProject || selectedSource || pinnedCode) && (
+            {(selectedSource || pinnedCode) && (
               <div className={cn(
                 "flex flex-wrap items-center gap-1.5 px-3 pt-1.5 pb-1.5 border-b transition-colors",
                 theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
               )}>
-                {selectedProject && (
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-indigo-500/10 border border-ds-indigo-500/20 text-ds-indigo-500 text-[10px] font-semibold tracking-wide shadow-sm max-w-full">
-                    <GitBranch className="w-3.5 h-3.5 text-ds-indigo-405 shrink-0" />
-                    <span className="truncate max-w-[140px] @sm/chat:max-w-[220px]">{t('chatView.focusLabel', { name: selectedProject.name })}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onProjectSelect(null);
-                      }}
-                      id="clear-chat-repo-focus-btn"
-                      className="hover:text-ds-indigo-850 transition-colors ml-1 p-0.5 rounded"
-                      title={t('chatView.clearContextTitle')}
-                    >
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                )}
-
                 {selectedSource && (
                   <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-blue-500/10 border border-ds-blue-500/20 text-ds-blue-500 text-[10px] font-semibold tracking-wide shadow-sm max-w-full">
                     <BookOpen className="w-3 h-3 text-ds-blue-400 shrink-0" />

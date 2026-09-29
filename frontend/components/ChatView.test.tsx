@@ -416,19 +416,13 @@ describe('ChatView', () => {
     });
   });
 
-  describe('Kontext-Chips (Projekt/Quelle/Pin)', () => {
-    it('zeigt einen Projekt-Chip und hebt den Fokus über onProjectSelect(null) wieder auf', () => {
-      const onProjectSelect = vi.fn();
+  describe('Kontext-Chips (Quelle/Pin)', () => {
+    it('zeigt keinen Projekt-Chip mehr: Projektwahl liegt allein in der Header-Bar', () => {
+      renderChat({ selectedProject: { id: 1, name: 'DRV-Bestand' } });
 
-      renderChat({ selectedProject: { id: 1, name: 'DRV-Bestand' }, onProjectSelect });
-
-      expect(screen.getByText('Projekt: DRV-Bestand')).toBeTruthy();
-      // Der Projekt-Chip erscheint sowohl im Header als auch (identisch
-      // betitelt) in der Kontextleiste über dem Eingabefeld -- beide rufen
-      // denselben Handler auf, hier reicht der erste.
-      fireEvent.click(screen.getAllByTitle('Kontext aufheben')[0]);
-
-      expect(onProjectSelect).toHaveBeenCalledWith(null);
+      expect(screen.queryByText('Projekt: DRV-Bestand')).toBeNull();
+      expect(screen.queryByText('Fokus: DRV-Bestand')).toBeNull();
+      expect(screen.queryByTitle('Kontext aufheben')).toBeNull();
     });
 
     it('zeigt einen Pin-Chip und hebt ihn über setPinnedCode(null) wieder auf', () => {
