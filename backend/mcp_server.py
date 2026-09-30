@@ -605,6 +605,10 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                 }]
             elif not exact:
                 match["follow_up_actions"] = [{
+                    "tool": "search_code",
+                    "arguments": {"project_id": project_id, "query": term, "limit": 8},
+                    "reason": "No exact indexed symbol matched; search code content for the wording or business term.",
+                }, {
                     "tool": "search_knowledge",
                     "arguments": {"project_id": project_id, "query": term, "limit": 5},
                     "reason": "The symbol search found no exact indexed entity; check project knowledge for a domain-level answer.",

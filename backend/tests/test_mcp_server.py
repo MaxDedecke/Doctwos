@@ -615,3 +615,15 @@ def test_research_terms_keep_prose_but_split_symbol_lists():
     ]
     assert terms("CARD-INCIDENT PA-TRANSACTION-AMT") == ["CARD-INCIDENT", "PA-TRANSACTION-AMT"]
     assert terms("src/Foo.java src/Bar.java") == ["src/Foo.java", "src/Bar.java"]
+
+
+def test_research_project_prose_without_symbol_offers_code_and_knowledge_search(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    result = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="how does approval/decline work"
+    )
+    assert result["resolution"] == "no_exact_match"
+    assert [a["tool"] for a in result["follow_up_actions"]] == ["search_code", "search_knowledge"]
