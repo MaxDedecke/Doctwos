@@ -69,11 +69,18 @@ def _research_terms(query: str) -> list[str]:
         return explicit[:8]
     term = explicit[0] if explicit else ""
     pieces = [part for part in re.split(r"\s+", term) if part]
-    if (
-        len(pieces) > 1
-        and any(any(mark in part for mark in ".#/:()") for part in pieces)
-        and all(re.fullmatch(r"[\w$./:#<>(),-]+", part) for part in pieces)
-    ):
+
+    def symbol_like(part: str) -> bool:
+        # Prose such as "approval/decline" or "how" must not be split into symbols.
+        if not re.fullmatch(r"[\w$./:#<>(),-]+", part):
+            return False
+        return bool(
+            any(mark in part for mark in ".#:()_$")
+            or re.search(r"[a-z][A-Z]", part)
+            or re.fullmatch(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", part)
+        )
+
+    if len(pieces) > 1 and all(symbol_like(part) for part in pieces):
         return pieces[:8]
     return [term] if term else []
 

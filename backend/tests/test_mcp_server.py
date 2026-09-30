@@ -605,3 +605,13 @@ def test_research_project_uses_paged_call_flow_contract(
     assert flow["has_more"] and flow["next_cursor"]
     assert flow["edges"][0]["source_excerpt"]["chunk_id"] is not None
     assert flow["follow_up_actions"][0]["tool"] == "get_call_flow"
+
+
+def test_research_terms_keep_prose_but_split_symbol_lists():
+    terms = mcp_server._research_terms
+    assert terms("how does approval/decline work") == ["how does approval/decline work"]
+    assert terms("UserLogic#create(User) UserLogic#update(UserPatch)") == [
+        "UserLogic#create(User)", "UserLogic#update(UserPatch)"
+    ]
+    assert terms("CARD-INCIDENT PA-TRANSACTION-AMT") == ["CARD-INCIDENT", "PA-TRANSACTION-AMT"]
+    assert terms("src/Foo.java src/Bar.java") == ["src/Foo.java", "src/Bar.java"]
