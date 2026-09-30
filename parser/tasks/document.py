@@ -7,9 +7,15 @@ from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
 from insight_review import mark_source_insights_outdated
 from code_parser import CodeParser
+from doc_structure import boundary_lines, markdown_outline, section_path
 from ollama_client import get_embedding, ensure_model_pulled
 
 logger = logging.getLogger(__name__)
+
+# Hochgeladene Dokumente werden feiner geteilt als Code (1000): Ein Chunk soll etwa einen
+# Absatz bis kleinen Abschnitt umfassen, damit ein Code-Doku-Link auf eine konkrete Stelle zeigt.
+UPLOAD_CHUNK_SIZE = 600
+UPLOAD_CHUNK_OVERLAP = 100
 
 
 async def process_local_document_async(source_id: int, file_path: str):
@@ -119,8 +125,16 @@ async def process_local_document_async(source_id: int, file_path: str):
         parser = CodeParser(lang)
         chunks = []
         for page_no, text in pages:
-            for chunk in parser.chunk_file(text):
+            # Markdown: Überschriften sind Chunk-Grenzen und liefern den Abschnittspfad.
+            outline = markdown_outline(text) if ext == ".md" else []
+            for chunk in parser.chunk_file(
+                text,
+                chunk_size=UPLOAD_CHUNK_SIZE,
+                overlap_size=UPLOAD_CHUNK_OVERLAP,
+                boundary_lines=boundary_lines(outline) or None,
+            ):
                 chunk["page"] = page_no
+                chunk["section"] = section_path(outline, chunk["start_line"])
                 chunks.append(chunk)
         log_event(f"Datei in {len(chunks)} Chunks aufgeteilt. Starte Einbettung...")
 
@@ -136,7 +150,10 @@ async def process_local_document_async(source_id: int, file_path: str):
                 embedding_model=embedding_model,
                 metadata_json={
                     "language": lang,
+                    "title": source.name,
+                    "source_type": "Local",
                     "page": chunk.get("page"),
+                    "section": chunk.get("section"),
                     "embedding_model": embedding_model,
                 },
             )
@@ -145,7 +162,14 @@ async def process_local_document_async(source_id: int, file_path: str):
             return await get_embedding(content, model=embedding_model)
 
         def on_embed_error(chunk, e):
-            log_event(f"Fehler beim Erzeugen des Vektors für Chunk: {e}")
+            # Kein stilles Überspringen: Sonst endete eine Quelle mit 0 oder zu wenigen Chunks als
+            # "completed" (z.B. bei nicht erreichbarem Embedding-Dienst). Die Ausnahme bricht den
+            # Austausch ab, bevor die bisherigen Chunks gelöscht werden; der äußere Handler
+            # setzt den Fehlerstatus.
+            raise RuntimeError(
+                f"Embedding fehlgeschlagen ({type(e).__name__}: {e}); "
+                f"die Datei wurde nicht indiziert."
+            ) from e
 
         embedded_chunks_count = await reindex_chunks_preserving_links(
             db,
@@ -157,6 +181,10 @@ async def process_local_document_async(source_id: int, file_path: str):
             on_embed_error=on_embed_error,
         )
 
+        if not chunks or embedded_chunks_count != len(chunks):
+            raise RuntimeError(
+                f"Nur {embedded_chunks_count} von {len(chunks)} Chunks wurden indiziert."
+            )
         db.commit()
         had_previous_sync = source.last_synced_at is not None
         source.sync_status = "completed"
@@ -169,6 +197,8 @@ async def process_local_document_async(source_id: int, file_path: str):
         )
 
     except Exception as e:
+        # Halb geschriebene Chunks verwerfen, bevor der Fehlerstatus committet wird.
+        db.rollback()
         error_msg = str(e)
         log_event(f"Kritischer Fehler bei Dateiverarbeitung: {error_msg}")
         source.sync_status = "error"

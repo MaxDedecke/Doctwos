@@ -298,6 +298,18 @@ def _build_entity_context(
     return "\n".join(parts)[:ENTITY_CONTEXT_MAX_CHARS]
 
 
+def _candidate_key(chunk: DocumentChunk, meta: dict) -> str:
+    """Schlüssel, unter dem Kandidaten zusammengeführt werden.
+
+    Confluence/Notion/Git: eine Seite bzw. Datei = ein Kandidat (bester Chunk gewinnt).
+    Hochgeladene Dokumente (source_type "Local"): jeder Chunk ist ein eigener Kandidat, damit
+    verschiedene Stellen desselben Dokuments (Abschnitt, PDF-Seite) getrennt mit verschiedenen
+    Code-Elementen verknüpft werden können und der Link auf einen Zeilenbereich zeigt.
+    """
+    title = meta.get("title") or chunk.file_path
+    return f"{title}#{chunk.id}" if meta.get("source_type") == "Local" else title
+
+
 async def _pass_semantic(
     entity: CodeEntity,
     project_id: int,
@@ -333,7 +345,7 @@ async def _pass_semantic(
         if score < MIN_SCORE_SEMANTIC:
             continue
         meta = chunk.metadata_json or {}
-        title = meta.get("title") or chunk.file_path
+        title = _candidate_key(chunk, meta)
         if title not in result or score > result[title][1]:
             result[title] = (chunk, score)
     return result
@@ -381,7 +393,7 @@ def _pass_keyword(
         if score < MIN_SCORE_KEYWORD:
             continue
         meta = chunk.metadata_json or {}
-        title = meta.get("title") or chunk.file_path
+        title = _candidate_key(chunk, meta)
         if title not in result or score > result[title][1]:
             result[title] = (chunk, score)
     return result
@@ -418,7 +430,14 @@ async def _llm_review(
     for idx, (chunk, score, link_type) in enumerate(top_pages):
         meta = chunk.metadata_json or {}
         title = meta.get("title") or chunk.file_path
-        prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'\nInhalt: {(chunk.content or '')[:900]}\n\n"
+        place = ", ".join(
+            part for part in (
+                f"Abschnitt {meta['section']}" if meta.get("section") else None,
+                f"Seite {meta['page']}" if meta.get("page") else None,
+                f"Zeilen {chunk.start_line}-{chunk.end_line}" if chunk.start_line else None,
+            ) if part
+        )
+        prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'{f' ({place})' if place else ''}\nInhalt: {(chunk.content or '')[:900]}\n\n"
 
     prompt += (
         "Gib deine Bewertung als valides JSON-Array von Objekten zurück (eines pro Kandidat, in derselben Reihenfolge):\n"
