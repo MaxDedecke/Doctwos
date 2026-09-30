@@ -647,17 +647,16 @@ def get_code_entity(
         "max_chars": max_chars, "chunk_id": chunk_id, "char_offset": char_offset,
     }) as (db, user):
         entity = _entity(db, user, project_id, entity_id)
-        if chunk_id is None:
-            source_chunks = entity_api._definition_chunks(
-                entity, db, start_line=start_line, end_line=end_line
-            )
-        else:
-            source_chunks = db.query(DocumentChunk).filter(
-                DocumentChunk.id == chunk_id,
-                DocumentChunk.project_id == entity.project_id,
-                DocumentChunk.source_id == entity.source_id,
-                DocumentChunk.file_path == entity.file_path,
-            ).all()
+        source_chunks = entity_api._definition_chunks(
+            entity, db, start_line=start_line, end_line=end_line
+        )
+        if chunk_id is not None:
+            # Resume inside the entity's ordered chunk list so later chunks are
+            # not lost after the continued one.
+            ids = [chunk.id for chunk in source_chunks]
+            if chunk_id not in ids:
+                raise ValueError("invalid cursor")
+            source_chunks = source_chunks[ids.index(chunk_id):]
         sections = []
         remaining = max_chars
         next_chunk_id = None
@@ -713,6 +712,8 @@ def get_code_entity(
                     "arguments": {
                         "project_id": project_id,
                         "entity_id": entity.id,
+                        "start_line": start_line,
+                        "end_line": end_line,
                         "chunk_id": next_chunk_id,
                         "char_offset": next_char_offset,
                         "max_chars": max_chars,

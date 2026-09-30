@@ -523,3 +523,43 @@ def test_mcp_token_revocation_takes_effect_immediately(db_session, mcp_project_c
     db_session.commit()
     assert find_token_user(db_session, secret) is None
     assert token.revoked_at is not None
+
+
+def test_get_code_entity_continuation_keeps_later_chunks(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    entity = CodeEntity(
+        project_id=project_id, name="big", type="method", file_path="src/Big.java",
+        qualified_name="demo.Big#big()", start_line=1, end_line=12,
+    )
+    db_session.add(entity)
+    db_session.flush()
+    for index in range(4):
+        db_session.add(DocumentChunk(
+            project_id=project_id, source_id=None, file_path="src/Big.java",
+            content=f"{index}" * 600, start_line=index * 3 + 1, end_line=index * 3 + 3,
+            metadata_json={},
+        ))
+    db_session.commit()
+
+    seen = []
+    chunk_id, char_offset = None, 0
+    for _ in range(10):
+        result = mcp_server.get_code_entity(
+            _context(user.id), project_id=project_id, entity_id=entity.id,
+            max_chars=500, chunk_id=chunk_id, char_offset=char_offset,
+        )
+        seen += [(s["chunk_id"], len(s["content"])) for s in result["definition"]["sections"]]
+        definition = result["definition"]
+        if not definition["truncated"]:
+            break
+        chunk_id, char_offset = definition["next_chunk_id"], definition["next_char_offset"]
+    assert sum(length for _cid, length in seen) == 2400
+    assert len({cid for cid, _length in seen}) == 4
+
+    with pytest.raises(ValueError, match="invalid cursor"):
+        mcp_server.get_code_entity(
+            _context(user.id), project_id=project_id, entity_id=entity.id, chunk_id=-5,
+        )
