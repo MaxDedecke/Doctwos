@@ -59,7 +59,7 @@ def search_nodes(
             )
 
     # 2. Search Code Entities (paragraphs, sections, variables)
-    if "entity" in wanted and not source_id:
+    if "entity" in wanted:
         query = db.query(CodeEntity).filter(
             or_(
                 CodeEntity.name.ilike(f"%{q}%"),
@@ -67,6 +67,8 @@ def search_nodes(
                 CodeEntity.qualified_name.ilike(f"%{q}%"),
             )
         )
+        if source_id:
+            query = query.filter(CodeEntity.source_id == source_id)
         if project_id:
             query = query.filter(CodeEntity.project_id == project_id)
         else:
