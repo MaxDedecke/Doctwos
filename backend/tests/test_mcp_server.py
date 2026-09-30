@@ -563,3 +563,45 @@ def test_get_code_entity_continuation_keeps_later_chunks(
         mcp_server.get_code_entity(
             _context(user.id), project_id=project_id, entity_id=entity.id, chunk_id=-5,
         )
+
+
+def test_research_project_uses_paged_call_flow_contract(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    root = CodeEntity(
+        project_id=project_id, name="resolveWidget", type="method", file_path="src/W.java",
+        qualified_name="demo.W#resolveWidget()", start_line=1, end_line=5,
+    )
+    db_session.add(root)
+    db_session.flush()
+    db_session.add(DocumentChunk(
+        project_id=project_id, source_id=None, file_path="src/W.java",
+        content="".join(f"line {n}\n" for n in range(1, 6)), start_line=1, end_line=5,
+        metadata_json={},
+    ))
+    db_session.commit()
+    root_node = {
+        "id": root.id, "name": root.name, "qualified_name": root.qualified_name,
+        "type": root.type, "file_path": root.file_path, "source_id": None,
+        "start_line": 1, "end_line": 5,
+    }
+    edges = [
+        {"id": n, "source": root.id, "target": None, "target_name": f"x{n}", "type": "CALL",
+         "resolution": "unresolved", "start_line": 2, "end_line": 2}
+        for n in range(1, 31)
+    ]
+    monkeypatch.setattr(
+        mcp_server, "trace_call_flow",
+        lambda *_a, **_k: {"status": "ok", "root": root_node, "nodes": [root_node],
+                           "edges": edges, "entry_candidates": []},
+    )
+
+    result = mcp_server.research_project(_context(user.id), project_id=project_id, query="resolveWidget")
+    flow = result["call_flow"]
+    assert result["resolution"] == "unique_exact_match"
+    assert len(flow["edges"]) == 10
+    assert flow["has_more"] and flow["next_cursor"]
+    assert flow["edges"][0]["source_excerpt"]["chunk_id"] is not None
+    assert flow["follow_up_actions"][0]["tool"] == "get_call_flow"
