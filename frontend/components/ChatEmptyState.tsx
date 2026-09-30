@@ -384,16 +384,8 @@ export function ChatEmptyState({
           </span>
         </h1>
 
-        {/* Nur im Evidenz-Modus: die Spur zieht sich unter der Frage auf, wie eine Quellenmarke. */}
-        {isEvidence && (
-          <div aria-hidden="true" className="mx-auto flex w-40 items-center" key={`trace-${chatMode}`}>
-            <span className="h-px flex-1 origin-left bg-ds-indigo-500/60 animate-ds-trace motion-reduce:animate-none" />
-            <span
-              className="h-1.5 w-1.5 bg-ds-indigo-500 animate-in fade-in duration-300 motion-reduce:animate-none"
-              style={{ animationDelay: '500ms', animationFillMode: 'backwards' }}
-            />
-          </div>
-        )}
+        {/* Nur im Evidenz-Modus: leere Lücke statt der früheren Linie mit Quadrat, damit der Abstand zu den Karten gleich bleibt. */}
+        {isEvidence && <div aria-hidden="true" className="mx-auto h-1.5" key={`gap-${chatMode}`} />}
 
         {stats && (
           <div

@@ -112,6 +112,20 @@ describe('ChatEmptyState', () => {
     expect(Array.from(cards).some(card => !card.hasAttribute('disabled'))).toBe(true);
   });
 
+  it('zeigt keine Trennlinie mit Quadrat mehr unter der Frage, hält aber die Lücke', () => {
+    vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
+    const { container } = render(
+      <LanguageProvider>
+        <ChatEmptyState theme="dark" chatMode="evidence" selectedProject={null} onSend={vi.fn()} onFillMessage={vi.fn()} addAssistantHint={vi.fn()} showToast={vi.fn()} />
+      </LanguageProvider>
+    );
+    expect(container.querySelector('.animate-ds-trace')).toBeNull();
+    expect(container.querySelector('.bg-ds-indigo-500\\/60')).toBeNull();
+    const gap = container.querySelector('div[aria-hidden="true"].h-1\\.5.mx-auto');
+    expect(gap).not.toBeNull();
+    expect(gap?.children.length).toBe(0);
+  });
+
   it('Normal-Karten tragen ihren Satzanfang in die Eingabe ein', () => {
     vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
     const props = renderEmpty({ chatMode: 'normal' });

@@ -132,10 +132,6 @@ module.exports = {
           "8%": { transform: "translateX(220%)", opacity: "1" },
           "9%, 100%": { transform: "translateX(220%)", opacity: "0" },
         },
-        "ds-trace": {
-          from: { transform: "scaleX(0)" },
-          to: { transform: "scaleX(1)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -146,7 +142,6 @@ module.exports = {
         "ds-dot-pulse": "ds-dot-pulse 2.2s ease-out infinite",
         "ds-shimmer-ring": "ds-shimmer-ring 14s ease-in-out infinite",
         "ds-shimmer-sweep": "ds-shimmer-sweep 14s ease-in-out infinite",
-        "ds-trace": "ds-trace 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
     },
   },
