@@ -355,7 +355,7 @@ export function ChatEmptyState({
                   type="button"
                   onClick={next}
                   className={cn(
-                    'group inline-flex items-center justify-center p-1.5 rounded-lg border transition-colors duration-150',
+                    'group/btn inline-flex items-center justify-center p-1.5 rounded-lg border transition-colors duration-150',
                     isDark
                       ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:text-ds-zinc-200 hover:border-ds-zinc-700'
                       : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-500 hover:text-ds-zinc-800 hover:border-ds-zinc-300'
@@ -363,13 +363,13 @@ export function ChatEmptyState({
                   title={t('chatView.empty.shuffleTitle')}
                   aria-label={t('chatView.empty.shuffleTitle')}
                 >
-                  <RefreshCw className="w-4 h-4 transition-transform duration-300 group-hover:rotate-180 motion-reduce:transition-none" />
+                  <RefreshCw className="w-4 h-4 transition-transform duration-300 group-hover/btn:rotate-180 motion-reduce:transition-none" />
                 </button>
                 <button
                   type="button"
                   onClick={() => onSend(text)}
                   className={cn(
-                    'group inline-flex items-center justify-center p-1.5 rounded-lg border transition-colors duration-150',
+                    'group/btn inline-flex items-center justify-center p-1.5 rounded-lg border transition-colors duration-150',
                     isDark
                       ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-indigo-400 hover:text-ds-indigo-350 hover:border-ds-zinc-700'
                       : 'bg-ds-white border-ds-zinc-200 text-ds-indigo-650 hover:text-ds-indigo-700 hover:border-ds-zinc-300'
@@ -377,7 +377,7 @@ export function ChatEmptyState({
                   title={t('chatView.askDirectlyTitle')}
                   aria-label={t('chatView.askDirectlyTitle')}
                 >
-                  <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+                  <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover/btn:translate-x-0.5 motion-reduce:transition-none" />
                 </button>
               </span>
             )}
@@ -421,7 +421,7 @@ export function ChatEmptyState({
               onClick={scenario.onSelect}
               style={{ animationDelay: `${idx * 70}ms`, animationFillMode: 'backwards' }}
               className={cn(
-                'group relative overflow-hidden rounded-lg border text-left transition-colors duration-150 animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none',
+                'group/card relative overflow-hidden rounded-lg border text-left transition-colors duration-150 animate-in fade-in slide-in-from-bottom-2 duration-300 motion-reduce:animate-none',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ds-indigo-500',
                 scenario.disabled && 'opacity-50 cursor-not-allowed',
                 isDark
@@ -443,21 +443,21 @@ export function ChatEmptyState({
               {interactive && (
                 <span
                   aria-hidden="true"
-                  className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-ds-indigo-500 transition-transform duration-150 group-hover:scale-y-100 group-focus-visible:scale-y-100 motion-reduce:transition-none"
+                  className="absolute inset-y-0 left-0 w-0.5 origin-top scale-y-0 bg-ds-indigo-500 transition-transform duration-150 group-hover/card:scale-y-100 group-focus-visible/card:scale-y-100 motion-reduce:transition-none"
                 />
               )}
               <div className="relative z-10 flex flex-col gap-2.5 p-4">
                 <div className="flex items-center justify-between font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] text-ds-zinc-500">
                   <span>{String(idx + 1).padStart(2, '0')} · {scenario.tag}</span>
                   {interactive && (
-                    <ArrowUpRight className="w-3.5 h-3.5 -translate-x-1 translate-y-1 opacity-0 transition duration-150 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:translate-y-0 group-focus-visible:opacity-100 motion-reduce:transition-none" />
+                    <ArrowUpRight className="w-3.5 h-3.5 -translate-x-1 translate-y-1 opacity-0 transition duration-150 group-hover/card:translate-x-0 group-hover/card:translate-y-0 group-hover/card:opacity-100 group-focus-visible/card:translate-x-0 group-focus-visible/card:translate-y-0 group-focus-visible/card:opacity-100 motion-reduce:transition-none" />
                   )}
                 </div>
                 <div className="flex items-start gap-3">
                   <div className={cn(
                     'mt-0.5 shrink-0 rounded-md border p-2 transition-colors duration-150',
                     isDark ? 'bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-400' : 'bg-ds-zinc-50 border-ds-zinc-200 text-ds-zinc-500',
-                    interactive && 'group-hover:text-ds-indigo-500 group-focus-visible:text-ds-indigo-500'
+                    interactive && 'group-hover/card:text-ds-indigo-500 group-focus-visible/card:text-ds-indigo-500'
                   )}>
                     {scenario.icon}
                   </div>
@@ -471,7 +471,7 @@ export function ChatEmptyState({
                   aria-hidden="true"
                   className={cn(
                     'flex items-center gap-1.5 rounded border px-2.5 py-1.5 font-mono text-[0.6875rem] opacity-60 transition-opacity duration-150 motion-reduce:transition-none',
-                    interactive && 'group-hover:opacity-100 group-focus-visible:opacity-100',
+                    interactive && 'group-hover/card:opacity-100 group-focus-visible/card:opacity-100',
                     isDark ? 'border-ds-zinc-800 bg-ds-zinc-950 text-ds-zinc-400' : 'border-ds-zinc-200 bg-ds-zinc-50 text-ds-zinc-600'
                   )}
                 >

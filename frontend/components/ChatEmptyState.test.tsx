@@ -93,6 +93,25 @@ describe('ChatEmptyState', () => {
     expect(props.onSend).toHaveBeenCalledWith('Hi');
   });
 
+  it('Karten-Hover hängt an der Karte selbst und nicht an einer umgebenden group (Panel)', () => {
+    vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
+    const { container } = render(
+      <LanguageProvider>
+        <ChatEmptyState theme="dark" chatMode="evidence" selectedProject={null} onSend={vi.fn()} onFillMessage={vi.fn()} addAssistantHint={vi.fn()} showToast={vi.fn()} />
+      </LanguageProvider>
+    );
+    const cards = container.querySelectorAll('button[id^="chat-hint-button-"]');
+    expect(cards.length).toBe(4);
+    cards.forEach(card => {
+      expect(card.className).toContain('group/card');
+      expect(card.className.split(/\s+/)).not.toContain('group');
+      // Ein unbenanntes group-hover würde auch durch das umgebende Panel (PanelRenderer: group) ausgelöst.
+      expect(card.innerHTML).not.toMatch(/group-(hover|focus-visible):/);
+      if (!card.hasAttribute('disabled')) expect(card.innerHTML).toContain('group-hover/card:');
+    });
+    expect(Array.from(cards).some(card => !card.hasAttribute('disabled'))).toBe(true);
+  });
+
   it('Normal-Karten tragen ihren Satzanfang in die Eingabe ein', () => {
     vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'x' }));
     const props = renderEmpty({ chatMode: 'normal' });
