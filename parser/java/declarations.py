@@ -199,6 +199,15 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             })
         return result
 
+    @staticmethod
+    def _source_text(context: ParserRuleContext) -> str:
+        """Expression text with original token spacing (getText() drops whitespace)."""
+        start, stop = context.start, context.stop
+        stream = start.getInputStream() if start is not None else None
+        if stream is None or stop is None:
+            return context.getText()
+        return " ".join(stream.getText(start.start, stop.stop).split())
+
     def _return_expressions(self, context: ParserRuleContext) -> list[dict]:
         returns = []
 
@@ -210,11 +219,15 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "recordDeclaration", "annotationTypeDeclaration",
             }:
                 return
-            if rule == "returnStatement":
+            # The grammar has no returnStatement rule: `return x;` is a `statement`
+            # whose first token is RETURN.
+            first = node.getChild(0) if rule == "statement" and node.getChildCount() else None
+            if first is not None and getattr(first, "symbol", None) is not None and first.getText() == "return":
                 expression = node.expression()
+                expression = expression[0] if isinstance(expression, list) else expression
                 if expression is not None:
                     returns.append({
-                        "expression": expression.getText()[:500],
+                        "expression": self._source_text(expression)[:500],
                         "start_line": node.start.line if node.start else None,
                         "end_line": node.stop.line if node.stop else None,
                     })

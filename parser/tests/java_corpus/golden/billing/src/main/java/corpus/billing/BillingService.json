@@ -106,7 +106,13 @@
         "parameter_types": [
           "int"
         ],
-        "return_expressions": [],
+        "return_expressions": [
+          {
+            "end_line": 5,
+            "expression": "amount",
+            "start_line": 5
+          }
+        ],
         "return_type": "int",
         "signature": "calculate(int)",
         "source_kind": "source",

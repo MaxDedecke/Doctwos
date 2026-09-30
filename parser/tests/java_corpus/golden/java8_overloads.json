@@ -283,7 +283,13 @@
         "parameter_types": [
           "int"
         ],
-        "return_expressions": [],
+        "return_expressions": [
+          {
+            "end_line": 15,
+            "expression": "values.get(index)",
+            "start_line": 15
+          }
+        ],
         "return_type": "T",
         "signature": "find(int)",
         "throws_types": [],
@@ -326,7 +332,13 @@
         "parameter_types": [
           "String"
         ],
-        "return_expressions": [],
+        "return_expressions": [
+          {
+            "end_line": 19,
+            "expression": "values.get(key.length())",
+            "start_line": 19
+          }
+        ],
         "return_type": "T",
         "signature": "find(String)",
         "throws_types": [],

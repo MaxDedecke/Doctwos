@@ -182,7 +182,13 @@
         "parameter_types": [
           "Shape"
         ],
-        "return_expressions": [],
+        "return_expressions": [
+          {
+            "end_line": 12,
+            "expression": "switch (shape) { case Circle circle when circle.radius() > 0 -> Math.PI * circle.radius() * circle.radius(); case Rectangle(double width, double height) -> width * height; }",
+            "start_line": 9
+          }
+        ],
         "return_type": "double",
         "signature": "calculate(Shape)",
         "throws_types": [],

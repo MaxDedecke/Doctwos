@@ -467,7 +467,13 @@
           "public"
         ],
         "parameter_types": [],
-        "return_expressions": [],
+        "return_expressions": [
+          {
+            "end_line": 18,
+            "expression": "isEnabled",
+            "start_line": 18
+          }
+        ],
         "return_type": "boolean",
         "signature": "isEnabled()",
         "throws_types": [],
