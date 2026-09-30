@@ -208,6 +208,67 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             return context.getText()
         return " ".join(stream.getText(start.start, stop.stop).split())
 
+    def _exception_flow(self, context: ParserRuleContext) -> list[dict]:
+        """Throw sites, catch/finally blocks and try-with-resources of one method body.
+
+        Purely syntactic evidence: a `throw new X(..)` names the constructed type,
+        any other thrown expression (rethrow of a variable, factory call) is kept
+        as source text with `exception_type` None. Implicit `close()` of a
+        resource is a language rule, not an observed call.
+        """
+        items: list[dict] = []
+        stop_rules = {
+            "methodDeclaration", "constructorDeclaration", "lambdaExpression",
+            "classDeclaration", "interfaceDeclaration", "enumDeclaration",
+            "recordDeclaration", "annotationTypeDeclaration",
+        }
+
+        def lines(node: ParserRuleContext) -> dict:
+            return {
+                "start_line": node.start.line if node.start else None,
+                "end_line": node.stop.line if node.stop else None,
+            }
+
+        def walk(node: ParserRuleContext, region: str | None, *, root: bool = False) -> None:
+            rule = JavaParser.ruleNames[node.getRuleIndex()]
+            if not root and rule in stop_rules:
+                return
+            if rule == "catchClause":
+                types = [part for part in node.catchType().getText().split("|") if part]
+                items.append({"kind": "catch", "exception_types": types, **lines(node)})
+                region = f"catch({'|'.join(types)})"
+            elif rule == "finallyBlock":
+                items.append({"kind": "finally", **lines(node)})
+                region = "finally"
+            elif rule == "resource":
+                items.append({
+                    "kind": "try_resource", "resource": self._source_text(node)[:200],
+                    "implicit_close": True, **lines(node),
+                })
+            elif rule == "statement" and node.getChildCount():
+                first = node.getChild(0)
+                keyword = first.getText() if getattr(first, "symbol", None) is not None else ""
+                if keyword == "throw":
+                    expression = node.expression()
+                    expression = expression[0] if isinstance(expression, list) else expression
+                    text = self._source_text(expression)[:300] if expression is not None else ""
+                    created = re.match(r"new\s+([\w.$]+)", text)
+                    items.append({
+                        "kind": "throw", "expression": text,
+                        "exception_type": created.group(1) if created else None,
+                        "control_context": region, **lines(node),
+                    })
+                elif keyword == "try":
+                    region = "try"
+            for child in getattr(node, "children", ()) or ():
+                if isinstance(child, ParserRuleContext):
+                    # catch/finally are siblings of the try body, not part of it
+                    child_rule = JavaParser.ruleNames[child.getRuleIndex()]
+                    walk(child, region if child_rule not in {"catchClause", "finallyBlock"} or rule != "statement" else None)
+
+        walk(context, None, root=True)
+        return items[:48]
+
     def _return_expressions(self, context: ParserRuleContext) -> list[dict]:
         returns = []
 
@@ -499,6 +560,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 "annotations": self._annotation_names(context),
                 "annotation_details": self._annotation_metadata(context),
                 "return_expressions": self._return_expressions(context),
+                "exception_flow": self._exception_flow(context),
                 "throws_types": self._throws_types(context),
                 **({} if constructor else {"return_type": return_type}),
             },

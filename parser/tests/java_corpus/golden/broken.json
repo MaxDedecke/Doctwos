@@ -96,6 +96,7 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "exception_flow": [],
         "language": "java",
         "modifiers": [],
         "parameter_types": [],

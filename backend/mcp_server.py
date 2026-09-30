@@ -130,7 +130,7 @@ def _entity_analysis(entity: CodeEntity) -> dict:
     meta = entity.meta_json or {}
     keys = (
         "signature", "parameter_types", "return_type", "return_expressions",
-        "throws_types", "annotations", "annotation_details", "modifiers", "visibility",
+        "throws_types", "exception_flow", "annotations", "annotation_details", "modifiers", "visibility",
     )
     return {key: meta[key] for key in keys if key in meta}
 

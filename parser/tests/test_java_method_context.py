@@ -51,3 +51,39 @@ def test_call_arguments_are_kept_and_overloads_stay_distinct():
         if e.type == "CALLS" and e.meta and e.meta.get("argument_count") == 3
     ]
     assert args == [["user", "flag", "null"]]
+
+
+EXC_SOURCE = '''package demo;
+public class Pay {
+    public void run(Path p) throws IOException {
+        try (InputStream in = open(p); Reader r = wrap(in)) {
+            if (bad()) {
+                throw new IllegalStateException("bad");
+            }
+            use(r);
+        } catch (IOException | RuntimeException e) {
+            log(e);
+            throw wrap(e);
+        } finally {
+            cleanup();
+        }
+    }
+}
+'''
+
+
+def test_exception_flow_records_throws_catches_finally_and_resources():
+    result = parse_java_file(EXC_SOURCE, "src/Pay.java")
+    method = next(e for e in result.entities if e.type == "method")
+    flow = method.meta["exception_flow"]
+    kinds = [item["kind"] for item in flow]
+    assert kinds.count("try_resource") == 2 and all(i["implicit_close"] for i in flow if i["kind"] == "try_resource")
+    throws = [i for i in flow if i["kind"] == "throw"]
+    assert [(t["exception_type"], t["control_context"]) for t in throws] == [
+        ("IllegalStateException", "try"), (None, "catch(IOException|RuntimeException)"),
+    ]
+    assert throws[1]["expression"] == "wrap(e)"
+    catch = next(i for i in flow if i["kind"] == "catch")
+    assert catch["exception_types"] == ["IOException", "RuntimeException"]
+    assert any(i["kind"] == "finally" for i in flow)
+    assert method.meta["throws_types"] == ["IOException"]
