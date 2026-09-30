@@ -216,6 +216,7 @@ async def test_standard_rag_stream_normalizes_openai_events(monkeypatch):
         captured.update(method=method, url=url, payload=kwargs["json"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield "data: " + json.dumps({"choices": [{"delta": {"content": "Hallo"}}]})
@@ -261,6 +262,7 @@ async def test_responses_stream_does_not_send_temperature(monkeypatch):
         captured.update(url=url, payload=kwargs["json"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield "event: response.output_text.delta"
@@ -301,6 +303,7 @@ async def test_ollama_stream_sets_explicit_num_ctx(monkeypatch):
         captured.update(payload=kwargs["json"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield json.dumps({"message": {"content": "Hi"}, "done": False})

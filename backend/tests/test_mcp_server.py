@@ -183,7 +183,11 @@ def test_get_call_flow_accepts_documented_directions(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     calls = {}
-    monkeypatch.setattr(mcp_server, "_entity", lambda *_args: None)
+    requested_root = SimpleNamespace(
+        id=1, name="root", qualified_name="root", type="program", file_path="root.cbl",
+        source_id=None, start_line=1, end_line=2,
+    )
+    monkeypatch.setattr(mcp_server, "_entity", lambda *_args: requested_root)
 
     def fake_trace(_db, **kwargs):
         calls.update(kwargs)
@@ -470,7 +474,9 @@ def test_call_flow_bounds_edges_before_returning_them(
     _use_test_session(monkeypatch, db_session)
     _owner, _outsider, project_id, _foreign_project_id = mcp_project_context
     root = CodeEntity(
-        project_id=project_id, name="BusyRoot", type="program", file_path="busy.cbl"
+        # Paragraph statt program: ein COBOL-program ohne Einstiegs-Paragraph liefert
+        # bewusst entry_point_not_found (O-343) -- hier geht es nur um die Kantengrenze.
+        project_id=project_id, name="BusyRoot", type="paragraph", file_path="busy.cbl"
     )
     db_session.add(root)
     db_session.commit()

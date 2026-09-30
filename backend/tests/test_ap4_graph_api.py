@@ -1,3 +1,4 @@
+from api.graph import _code_file_id
 from models.database import CodeEdge, CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, Project
 from services.graph_retrieval import expand_chunks_with_graph
 
@@ -280,20 +281,26 @@ def test_callgraph_keeps_exact_java_edge_types_and_knowledge_graph_collapses_the
         ]
         assert code_dependencies
         assert all(edge["direction"] == "directed" for edge in code_dependencies)
-        assert {edge["meta"]["edge_types"][0] for edge in code_dependencies} >= {
-            "CALLS", "EXTENDS"
-        }
+        # Der Wissensgraph fasst Entity-Kanten je Dateipaar zusammen; alle Typen
+        # bleiben in meta.edge_types erhalten.
+        collapsed_types = {t for edge in code_dependencies for t in edge["meta"]["edge_types"]}
+        assert collapsed_types >= {"CALLS", "EXTENDS"}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
 
 
-def test_graph_neighborhood_traverses_directed_code_dependencies_with_hop_bound(
+def test_graph_neighborhood_resolves_entity_ids_to_file_nodes_with_direction(
     client, db_session, test_project, test_team
 ):
+    """Der Wissensgraph gibt nie Entity-Knoten aus (a235d08): entity:<id> wird auf die
+    enthaltende Datei umgeleitet, Kanten verbinden Dateiknoten."""
     source, caller, target, copybook, _, _ = _fixture_graph(
         db_session, test_project, test_team
     )
+    caller_file = _code_file_id(test_project, source.id, "CALLER.CBL")
+    target_file = _code_file_id(test_project, source.id, "TARGET.CBL")
+    copybook_file = _code_file_id(test_project, source.id, "FIELDS.CPY")
     try:
         downstream = client.get(
             "/graph/neighborhood",
@@ -301,20 +308,15 @@ def test_graph_neighborhood_traverses_directed_code_dependencies_with_hop_bound(
                 "node_id": f"entity:{caller.id}",
                 "project_id": test_project,
                 "direction": "outgoing",
-                "hops": 2,
                 "relationships": "code_dependency",
             },
         )
         assert downstream.status_code == 200
         payload = downstream.json()
+        assert payload["focus_id"] == caller_file
         assert payload["direction"] == "outgoing"
-        assert payload["hops"] == 2
-        assert {
-            (edge["source"], edge["target"])
-            for edge in payload["edges"]
-        } == {
-            (f"entity:{caller.id}", f"entity:{target.id}"),
-            (f"entity:{target.id}", f"entity:{copybook.id}"),
+        assert {(edge["source"], edge["target"]) for edge in payload["edges"]} == {
+            (caller_file, target_file),
         }
 
         upstream = client.get(
@@ -328,9 +330,21 @@ def test_graph_neighborhood_traverses_directed_code_dependencies_with_hop_bound(
         )
         assert upstream.status_code == 200
         assert {
-            (edge["source"], edge["target"])
-            for edge in upstream.json()["edges"]
-        } == {(f"entity:{caller.id}", f"entity:{target.id}")}
+            (edge["source"], edge["target"]) for edge in upstream.json()["edges"]
+        } == {(caller_file, target_file)}
+
+        both = client.get(
+            "/graph/neighborhood",
+            params={
+                "node_id": target_file,
+                "project_id": test_project,
+                "relationships": "code_dependency",
+            },
+        ).json()
+        assert {(edge["source"], edge["target"]) for edge in both["edges"]} == {
+            (caller_file, target_file),
+            (target_file, copybook_file),
+        }
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
@@ -568,13 +582,14 @@ def test_graph_neighborhood_cursor_pagination_and_document_nodes(
     db_session.add(link)
     db_session.commit()
     try:
+        target_file = _code_file_id(test_project, source.id, "TARGET.CBL")
         # Test 1: GET /graph/neighborhood for entity node with limit=1 to trigger pagination
         res = client.get(
             f"/graph/neighborhood?node_id=entity:{target.id}&project_id={test_project}&limit=1&relationships=code_dependency"
         )
         assert res.status_code == 200
         body = res.json()
-        assert body["focus_id"] == f"entity:{target.id}"
+        assert body["focus_id"] == target_file
         assert body["has_more"] is True
         assert body["next_cursor"] == "1"
         assert len(body["edges"]) == 1
@@ -585,7 +600,7 @@ def test_graph_neighborhood_cursor_pagination_and_document_nodes(
         )
         assert res_page2.status_code == 200
         body_page2 = res_page2.json()
-        assert body_page2["focus_id"] == f"entity:{target.id}"
+        assert body_page2["focus_id"] == target_file
 
         # Test 3: Document node neighborhood
         res_doc = client.get(
@@ -593,10 +608,11 @@ def test_graph_neighborhood_cursor_pagination_and_document_nodes(
         )
         assert res_doc.status_code == 200
         body_doc = res_doc.json()
-        assert body_doc["focus_id"] == "doc:Architecture.md"
+        doc_node_id = f"doc:{source.id}:Architecture.md"
+        assert body_doc["focus_id"] == doc_node_id
         node_ids = {n["id"] for n in body_doc["nodes"]}
-        assert "doc:Architecture.md" in node_ids
-        assert f"entity:{target.id}" in node_ids
+        assert doc_node_id in node_ids
+        assert target_file in node_ids
         doc_edges = [e for e in body_doc["edges"] if e["relation_type"] == "documented"]
         assert len(doc_edges) >= 1
         assert doc_edges[0]["document_file_path"] == "Architecture.md"

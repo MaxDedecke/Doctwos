@@ -176,8 +176,10 @@ def test_resource_flow_preserves_types_evidence_and_open_targets(
         execution = trace_call_flow(
             db_session, project_id=test_project, entity_id=nodes[0].id, scope="execution"
         )
+        # O-349: "dependencies" folgt nur Abhaengigkeitskanten. Vom Shell-Skript fuehrt
+        # nur die Ausfuehrungskante STARTS_JAVA weg, die Ressourcen haengen an Main.java.
         dependencies = trace_call_flow(
-            db_session, project_id=test_project, entity_id=nodes[0].id, scope="dependencies"
+            db_session, project_id=test_project, entity_id=nodes[1].id, scope="dependencies"
         )
         assert {edge["type"] for edge in execution["edges"]} == {"STARTS_JAVA"}
         assert {edge["type"] for edge in dependencies["edges"]} == {"USES_RESOURCE"}

@@ -3,6 +3,8 @@ from services.ai_settings import apply_profile
 
 
 class _ReachableResponse:
+    is_success = True
+
     def __init__(self, payload):
         self.payload = payload
 

@@ -18,6 +18,7 @@ def test_section_number_match_finds_decrypted_chunk(db_session, test_project):
         content="Abschnitt 4.2.1: Brandschutzklasse T90 fuer tragende Waende.",
         start_line=1,
         end_line=1,
+        embedding_dimension=1024,
     )
     decoy = DocumentChunk(
         project_id=test_project,
@@ -25,6 +26,7 @@ def test_section_number_match_finds_decrypted_chunk(db_session, test_project):
         content="Unrelated content without any section reference.",
         start_line=1,
         end_line=1,
+        embedding_dimension=1024,
     )
     db_session.add_all([matching, decoy])
     db_session.commit()

@@ -5,6 +5,7 @@ es dafür nur /graph/export/neo4j (Cypher, an Neo4j gebunden)."""
 import csv
 import io
 
+from api.graph import _code_file_id
 from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
@@ -73,9 +74,10 @@ def test_graph_csv_export_contains_the_approved_link_as_an_edge_row(
         rows = list(csv.reader(io.StringIO(response.text)))
         assert rows[0] == ["source", "target", "link_type", "score", "context", "direction"]
         data_rows = {tuple(row) for row in rows[1:]}
+        # Wissensgraph ist auf Quelldateien projiziert (a235d08): Dokument -> Datei.
         assert (
-            f"entity:{entity.id}",
-            "doc:Runbook",
+            f"doc:{source.id}:Runbook.md",
+            _code_file_id(test_project, source.id, "EXPORT.CBL"),
             "semantic",
             "0.87",
             "passt inhaltlich",
@@ -103,10 +105,12 @@ def test_graph_graphml_export_contains_matching_nodes_and_edge(
 
         body = response.text
         assert "graphml" in body
-        assert f'<node id="entity:{entity.id}">' in body
-        assert '<node id="doc:Runbook">' in body
-        assert f'source="entity:{entity.id}"' in body
-        assert 'target="doc:Runbook"' in body
+        file_id = _code_file_id(test_project, source.id, "EXPORT.CBL")
+        doc_id = f"doc:{source.id}:Runbook.md"
+        assert f'<node id="{file_id}">' in body
+        assert f'<node id="{doc_id}">' in body
+        assert f'source="{doc_id}"' in body
+        assert f'target="{file_id}"' in body
         assert 'directed="true"' in body
         assert '<data key="direction">directed</data>' in body
     finally:

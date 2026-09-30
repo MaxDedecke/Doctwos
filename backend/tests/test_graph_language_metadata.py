@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from api.graph import _attach_graph_analysis_status, _entity_node
+from api.graph import _attach_graph_analysis_status, _entity_file_node
 from models.database import SourceScanFile
 
 
@@ -43,11 +43,13 @@ def test_graph_code_node_carries_language_and_file_analysis_limitation():
         parse_status="partial",
         parse_error="unterminated template; ambiguous match",
     )
-    node = _entity_node(entity)
+    # Der Wissensgraph zeigt Dateien, keine Parser-Entities (a235d08).
+    node = _entity_file_node(entity)
 
     _attach_graph_analysis_status(_ReadOnlySession([scan]), [node])
 
     assert node["language"] == "xslt"
-    assert node["entity_type"] == "xslt_stylesheet"
+    assert node["type"] == "code_file"
+    assert node["entity_ids"] == [42]
     assert node["analysis_status"] == "partial"
     assert node["analysis_reasons"] == ["unterminated template", "ambiguous match"]

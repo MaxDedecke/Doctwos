@@ -88,6 +88,7 @@ async def test_ollama_agent_loop_flags_truncated_mcp_result(monkeypatch):
         calls["n"] += 1
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def first_turn_lines():
             # Ein vollständiger Tool-Call in einem einzelnen Delta-Chunk.
@@ -162,6 +163,7 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
         captured["payloads"].append(kwargs["json"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             # Keine tool_calls im Delta -> Schleife endet nach der ersten Runde.
@@ -222,6 +224,7 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
         captured["payload"] = kwargs["json"]
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield "data: " + json.dumps({"choices": [{"delta": {"content": "Belegt."}}]})
@@ -253,6 +256,7 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
         )
     ]
 
+    events = [event for event in events if event["type"] != "mcp_preflight"]
     assert [event["type"] for event in events[:2]] == ["tool_call", "tool_result"]
     assert events[0]["name"] == "view_repo_file"
     bootstrap_call = captured["payload"]["messages"][2]["tool_calls"][0]
@@ -286,6 +290,7 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
         captured["payload"] = kwargs["json"]
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield "data: " + json.dumps({"choices": [{"delta": {"content": "Keine Kante."}}]})
@@ -322,6 +327,7 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
         )
     ]
 
+    events = [event for event in events if event["type"] != "mcp_preflight"]
     assert events[0]["name"] == "get_repo_entities"
     assert events[0]["arguments"]["entity_names"] == ["UserServiceImpl", "create"]
     assert events[0]["arguments"]["file_paths"] == ["core/UserServiceImpl.java"]
@@ -356,6 +362,7 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
         calls["count"] += 1
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             if calls["count"] == 1:
@@ -408,6 +415,7 @@ async def test_openai_compatible_agent_uses_profile_subpath(monkeypatch):
         captured.update(url=url, headers=kwargs["headers"])
         response = SimpleNamespace()
         response.raise_for_status = lambda: None
+        response.is_success = True
 
         async def lines():
             yield "data: " + json.dumps({"choices": [{"delta": {"content": "Antwort"}}]})

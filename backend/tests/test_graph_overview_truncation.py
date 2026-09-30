@@ -11,7 +11,7 @@ auch unverlinkte Entities -- die sind beim Kappen der uninteressanteste Teil).
 
 from unittest.mock import patch
 
-from api.graph import _capped_overview
+from api.graph import _capped_overview, _code_file_id
 from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
@@ -146,7 +146,7 @@ def test_graph_overview_is_not_truncated_below_the_cap(client, db_session, test_
         assert body["edges_sampled"] is False
         assert body["total_nodes"] == len(body["nodes"])
         assert body["total_edges"] == len(body["edges"])
-        assert any(n["id"] == f"entity:{entity.id}" for n in body["nodes"])
+        assert any(n["id"] == _code_file_id(test_project, source.id, entity.file_path) for n in body["nodes"])
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -175,9 +175,9 @@ def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
         assert body["total_edges"] == 1
 
         node_ids = {n["id"] for n in body["nodes"]}
-        assert f"entity:{linked_entity.id}" in node_ids
-        assert "doc:Runbook1" in node_ids
-        assert f"entity:{isolated_entity.id}" not in node_ids
+        assert _code_file_id(test_project, source.id, linked_entity.file_path) in node_ids
+        assert f"doc:{source.id}:Runbook1.md" in node_ids
+        assert _code_file_id(test_project, source.id, isolated_entity.file_path) not in node_ids
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -200,9 +200,9 @@ def test_graph_overview_filters_isolated_nodes_by_default(
         assert body["total_nodes"] == 2  # linked entity + doc node; isolated entity filtered
         assert len(body["nodes"]) == 2
         node_ids = {n["id"] for n in body["nodes"]}
-        assert f"entity:{linked_entity.id}" in node_ids
-        assert "doc:Runbook2" in node_ids
-        assert f"entity:{isolated_entity.id}" not in node_ids
+        assert _code_file_id(test_project, source.id, linked_entity.file_path) in node_ids
+        assert f"doc:{source.id}:Runbook2.md" in node_ids
+        assert _code_file_id(test_project, source.id, isolated_entity.file_path) not in node_ids
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -219,8 +219,8 @@ def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
     entity, links = _make_double_linked_entity(db_session, test_project, source.id)
     db_session.commit()
     try:
-        # 3 candidate nodes (entity, doc:Runbook3a, doc:Runbook3b), cap = 2.
-        # "doc:Runbook3a" sorts before "doc:Runbook3b" alphabetically, so given
+        # 3 candidate nodes (entity, Dokument 3a, Dokument 3b), cap = 2.
+        # "doc:<source>:Runbook3a.md" sortiert vor "…3b", also gewinnt es bei gleichem Grad (1) den Tie-Break deterministisch.
         # both have the same degree (1), it wins the tie-break deterministically.
         with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
             response = client.get(f"/graph?project_id={test_project}")
@@ -229,13 +229,14 @@ def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
 
         assert body["truncated"] is True
         node_ids = {n["id"] for n in body["nodes"]}
-        assert node_ids == {f"entity:{entity.id}", "doc:Runbook3a"}
+        assert node_ids == {_code_file_id(test_project, source.id, entity.file_path), f"doc:{source.id}:Runbook3a.md"}
 
         assert len(body["edges"]) == 1
         edge = body["edges"][0]
         assert edge["source"] in node_ids
         assert edge["target"] in node_ids
-        assert edge["target"] == "doc:Runbook3a"
+        # Dokumentierte Kanten laufen Dokument -> Datei (a235d08).
+        assert edge["source"] == f"doc:{source.id}:Runbook3a.md"
     finally:
         for link in links:
             db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()

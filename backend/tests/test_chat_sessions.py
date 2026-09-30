@@ -56,9 +56,14 @@ def make_session(db_session):
     db_session.commit()
 
 
-def _first_sse_event(body: str) -> dict:
-    line = next(candidate for candidate in body.splitlines() if candidate.startswith("data: "))
-    return json.loads(line[len("data: ") :])
+def _first_sse_event(body: str, event_type: str = "session") -> dict:
+    """Erstes SSE-Event des Typs (Telemetrie-Events koennen vorangehen, O-323)."""
+    for line in body.splitlines():
+        if line.startswith("data: "):
+            event = json.loads(line[len("data: ") :])
+            if event.get("type") == event_type:
+                return event
+    raise AssertionError(f"kein SSE-Event vom Typ {event_type!r}")
 
 
 def test_new_chat_session_is_owned_by_the_creating_user(client, db_session):
