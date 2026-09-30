@@ -9,7 +9,7 @@ import json
 import re
 import time
 from contextlib import contextmanager
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
 import httpx
@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
+from pydantic import Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.responses import PlainTextResponse
@@ -319,6 +320,11 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         }:
             # Keep validation errors useful to MCP clients without exposing
             # database or authorization details.
+            if "cursor" in safe_message:
+                safe_message += (
+                    ". Retry with the next_cursor string copied unchanged from the previous "
+                    "response, or omit cursor to restart from the first page."
+                )
             raise ValueError(safe_message) from None
         if isinstance(exc, httpx.HTTPStatusError):
             upstream = "embedding endpoint" if name == "search_knowledge" else "upstream service"
@@ -493,7 +499,7 @@ def search_code(
 
 
 @mcp.tool(annotations=READ_ONLY)
-def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: int = 2) -> dict:
+def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: Annotated[int, Field(description="Traversal depth, 0-3; larger values are clamped to 3.")] = 2) -> dict:
     """Search symbols and, for one exact candidate, resolve its bounded call flow."""
     query = query.strip()
     limit = max(1, min(limit, 12))
@@ -783,11 +789,11 @@ def get_call_flow(
     ctx: Context,
     project_id: int,
     entity_id: int,
-    hops: int = 2,
+    hops: Annotated[int, Field(description="Traversal depth, 0-3; larger values are clamped to 3 (see hops_applied).")] = 2,
     direction: Literal["outgoing", "incoming", "both"] = "outgoing",
     scope: Literal["execution", "dependencies", "all"] = "execution",
-    page_size: int = 10,
-    cursor: str | None = None,
+    page_size: Annotated[int, Field(description="Edges per page, 1-15; larger values are clamped to 15 (see limit_applied).")] = 10,
+    cursor: Annotated[str | None, Field(description="Opaque next_cursor from the previous page, passed back byte-for-byte unchanged, together with the same entity_id, hops, direction, scope and include_source.")] = None,
     include_source: bool = True,
 ) -> dict:
     """Trace executable calls or resource/data dependencies in a project.

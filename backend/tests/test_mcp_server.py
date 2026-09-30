@@ -297,6 +297,20 @@ def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options
             page_size=1, cursor=first["next_cursor"], include_source=False,
         )
 
+    with pytest.raises(ValueError, match="Retry with the next_cursor"):
+        mcp_server.get_call_flow(
+            _context(user.id), project_id=project_id, entity_id=root.id,
+            page_size=1, cursor=first["next_cursor"][:-3] + "!!!",
+        )
+
+
+def test_call_flow_schema_documents_bounds():
+    tool = mcp_server.mcp._tool_manager.get_tool("get_call_flow")
+    props = tool.parameters["properties"]
+    assert "clamped to 15" in props["page_size"]["description"]
+    assert "clamped to 3" in props["hops"]["description"]
+    assert "unchanged" in props["cursor"]["description"]
+
 
 @pytest.mark.asyncio
 async def test_search_knowledge_uses_the_active_embedding_profile(
