@@ -313,7 +313,10 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         failure = type(exc).__name__
         logger.warning("MCP tool %s failed (%s)", name, failure)
         safe_message = str(exc) if isinstance(exc, ValueError) else ""
-        if safe_message in {"invalid query", "invalid cursor", "invalid direction", "invalid relationship", "invalid scope"}:
+        if safe_message in {
+            "invalid query", "invalid cursor", "invalid direction", "invalid relationship",
+            "invalid scope", "cursor does not match this call-flow query",
+        }:
             # Keep validation errors useful to MCP clients without exposing
             # database or authorization details.
             raise ValueError(safe_message) from None

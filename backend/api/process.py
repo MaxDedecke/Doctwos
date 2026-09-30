@@ -230,7 +230,10 @@ def _projection(
     reasons: set[str] = set()
     omitted_nodes = 0
     omitted_transitions = 0
-    process_edge_types = [edge_type for edge_type, kind in EDGE_KIND.items() if kind in requested_kinds]
+    # "iteration" ist eine abgeleitete Art (call-Kante mit Schleife, siehe _transition_kind):
+    # die Vorauswahl muss dafuer die call-Kanten laden, der Feinfilter folgt je Zeile.
+    query_kinds = requested_kinds | ({"call"} if "iteration" in requested_kinds else set())
+    process_edge_types = [edge_type for edge_type, kind in EDGE_KIND.items() if kind in query_kinds]
     if "external_call" in requested_kinds:
         process_edge_types.extend(["CALL", "CALLS", "PERFORM"])
 
