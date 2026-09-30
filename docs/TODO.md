@@ -11,7 +11,6 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 **MCP-Sicherheitsprüfung vom 24.09.2026:** Die zwei reproduzierten Befunde zu
 Projektisolation der Wissenssuche und unbeschränkter Call-Flow-Abfrage wurden
 behoben; 27 isolierte Sicherheitsprüfungen sowie 9 MCP-Regressionen bestanden.
-Details: [MCP-Sicherheitsbericht](MCP_SECURITY_REVIEW_2026-09-24.md).
 
 ## P0 – abgeschlossen (Entwicklung abgeschlossen, Abnahmen laufen begleitend)
 
@@ -140,7 +139,6 @@ Review des letzten vollständigen Laufs `official_luna_benchmark_chapter3`
 Mehraufwand mit MCP 6,1 s; 14/30 Paare schneller. Die Einzelbewertung ist nicht
 verblindet und enthält belegte Zitier-/Bewertungsprobleme; daraus keinen
 kausalen Qualitätsgewinn oder Rückschritt gegenüber Kapitel 2 ableiten.
-Details, Fallbelege und Grenzen: [Kapitel-3-Review](MCP_BENCHMARK_CHAPTER3_REVIEW_2026-09-29.md).
 Die folgenden Zeilen konkretisieren bestehende Tickets; nur O-370 ist neu.
 Die Rangfolge gilt innerhalb dieses Review-Pakets.
 
@@ -175,7 +173,7 @@ entschlüsselten Quellchunks und der aktuellen Parser-/MCP-Implementierung.
 Zusätzlich `COPAUA0C.cbl` mit dem aktuellen lokalen Parser ausschließlich im
 Speicher neu geparst, ohne Import oder Indexänderung. Ergebnis: **Die benötigten
 Informationen sind noch nicht vollständig strukturiert oder als Quellchunks
-vorhanden.** Einzelheiten: [Parser-Abdeckungsprüfung](MCP_PARSER_COVERAGE_2026-09-28.md).
+vorhanden.**
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 | 1 | O-359 | Unvollständige COBOL-Struktur- und Chunkabdeckung erkennen und fehlenden Originaltext zugänglich halten. | **Abgeschlossen (28.09.2026).** Fehlerursache in `antlr_bridge.py` behoben (Punkt-Injektion bei maskierten EXEC-Blöcken im IF/PERFORM-Kontext entfernte nachfolgende Paragraphen). `COPAUA0C.cbl` parst nun fehlerfrei alle 43 Paragraphen bis Zeile 1025; Chunks decken Zeile 885 und 913–919 vollständig ab. DECLARATIVES-Visitor in `divisions.py` ergänzt. Fallback-Chunking für unvollständige Grammatik-/Syntaxfehlerbereiche in `parse.py` ergänzt. Regressionstests in `test_cobol_parse.py` hinzugefügt. |
@@ -223,8 +221,7 @@ Weitere Befunde erweitern vorhandene Tickets:
 
 Prüfung der vollständigen Pipeline von Vorverarbeitung über Parserextraktion bis
 zu Persistenz/MCP. Fünf neue Arbeitspakete; vorhandene Tickets weiterverwenden,
-wo dieselbe Lücke bereits beschrieben ist. Nachweise und Grenzen stehen in
-[COBOL-Analyseprüfung](COBOL_ANALYSIS_AUDIT_2026-09-28.md). Kleine In-Memory-Proben
+wo dieselbe Lücke bereits beschrieben ist. Kleine In-Memory-Proben
 reproduzieren die Fehler; CardDemo-Live-Index zusätzlich lesend abgeglichen.
 Die ersten drei vollständigen Programmproben liefern keine Parserdiagnosen,
 obwohl Informationen verloren gehen oder falsche Beziehungen entstehen.
@@ -267,8 +264,7 @@ Lesender Code-/Indexabgleich plus zehn kleine Java-In-Memory-Proben mit
 `parse_java_file`, ohne Import oder Bestandsänderung. Die Proben erzeugten
 keine Syntaxdiagnosen. Einfache lokale Java-Aufrufe und ein einteiliger
 `getB().work()`-Rückgabetyp-Flow funktionieren bereits; die folgenden Fälle
-sind zusätzliche, reproduzierte Lücken. Details und Beispielcode stehen in
-[Java-Analyseprüfung](JAVA_ANALYSIS_AUDIT_2026-09-28.md).
+sind zusätzliche, reproduzierte Lücken.
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 | 1 | O-365 | Ausführbare Beziehungen in Lambdas und anonymen Klassen ihrem tatsächlichen Typ-/Methodenkontext zuordnen. | **Abgeschlossen (28.09.2026).** `JavaRelationshipVisitor` in `relationships.py` um Scopes für `visitLambdaExpression` und `visitCreator` (anonyme Klassen) erweitert. Aufrufe in Lambdas erhalten das Lambda als `src_name`. Aufrufe in anonymen Klassenmethoden erhalten die innere Methode als `src_name`. `this.helper()` in anonymer Klasse bindet an die lokale Hilfsmethode der anonymen Klasse; unqualifizierte Aufrufe fallen bei Bedarf lexikalisch auf die äußere Klasse zurück (`resolution.py`). Unit-Tests in `test_java_relationships.py` erfolgreich. |
@@ -350,7 +346,7 @@ Bestehende Tickets bleiben zuständig für angrenzende Lücken:
 
 | Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
 |---:|---|---|---|
-| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | MCP-Sicherheitsprüfung am 24.09.2026: zwei Befunde zu `search_knowledge`-Projektisolation und Call-Flow-Ressourcenlimits behoben; 27 isolierte Prüfungen und 9 Regressionen bestanden, siehe [Sicherheitsbericht](MCP_SECURITY_REVIEW_2026-09-24.md). Backend, Tokens, sechs lesende Tools, Migration und Rollout sind implementiert; Remote-VS-Code-MCP-Client ist konfiguriert. Direkte fremde Projekt-/Entity-Zugriffe, abgelaufene/widerrufene Tokens und deaktivierte Konten werden korrekt abgewehrt. `search_knowledge` kann wegen des unabhängigen Embedding-HTTP-Fehlers aus O-251 noch funktional fehlschlagen. **O-171 abgeschlossen:** Die strategische Entscheidung für Doctus als schreibgeschütztes Werkzeug-Backend bleibt abgeschlossen. |
+| 50 | O-324 | Headless MCP-Server (Model Context Protocol) zur Anbindung lokaler Offline-IDEs bereitstellen. | MCP-Sicherheitsprüfung am 24.09.2026: zwei Befunde zu `search_knowledge`-Projektisolation und Call-Flow-Ressourcenlimits behoben; 27 isolierte Prüfungen und 9 Regressionen bestanden. Backend, Tokens, sechs lesende Tools, Migration und Rollout sind implementiert; Remote-VS-Code-MCP-Client ist konfiguriert. Direkte fremde Projekt-/Entity-Zugriffe, abgelaufene/widerrufene Tokens und deaktivierte Konten werden korrekt abgewehrt. `search_knowledge` kann wegen des unabhängigen Embedding-HTTP-Fehlers aus O-251 noch funktional fehlschlagen. **O-171 abgeschlossen:** Die strategische Entscheidung für Doctus als schreibgeschütztes Werkzeug-Backend bleibt abgeschlossen. |
 | 51 | O-325 | IDE-Integration & Deep Links (VS Code / JetBrains / Eclipse) für nahtlose Navigation liefern. | VS-Code-Extension und tokengebundene IDE-API für `CALL`/`COPY` sind implementiert; ein stdio-Language-Server bietet Hover, CodeLens und Graph-Deep-Links für LSP-Clients. JetBrains/Eclipse-Abnahme mit realen Clients und Zielbestand offen. Für Eclipse LSP4E ist Hover grundsätzlich passend; CodeLens, `workspace/executeCommand` und externes Öffnen über `window/showDocument` müssen in der konkreten Eclipse-Version geprüft werden. Falls CodeLens/Commands dort nicht nutzbar sind, Eclipse-Plugin mit Secure-Storage-Einstellungen und Browser-Command als native Integration ergänzen. Einrichtung: `ide/README.md`. |
 
 ## P2 – Pilot- und Mainframe-Fähigkeit
