@@ -62,6 +62,49 @@ def _result_language(result: ParseResult) -> str | None:
     }.get(root_type)
 
 
+SHARED_JAVA_CONTAINER_TYPES = ("package", "module")
+
+
+def rehome_shared_java_container(
+    db: Session, container: CodeEntity, *, dying_file_path: str
+) -> bool:
+    """Move a shared Java package/module row to a surviving Java file.
+
+    Shared containers keep the path of the file that created them. Whoever
+    deletes or stops declaring them via that file would CASCADE through
+    `parent_id` into every unchanged file of the package, so the row must first
+    be handed to a file that still uses it. Only a Java entity can inherit it:
+    a COBOL/other-language owner would delete the package the next time that
+    file is reparsed. Returns False when no other Java file uses the container.
+    """
+    base = db.query(CodeEntity).filter(
+        CodeEntity.source_id == container.source_id,
+        CodeEntity.variant_key == container.variant_key,
+        CodeEntity.file_path != dying_file_path,
+        CodeEntity.file_path.isnot(None),
+    )
+    survivor = base.filter(CodeEntity.parent_id == container.id).order_by(CodeEntity.id).first()
+    if survivor is None:
+        survivor = (
+            base.filter(
+                CodeEntity.type.notin_(SHARED_JAVA_CONTAINER_TYPES),
+                CodeEntity.meta_json["language"].as_string() == "java",
+            )
+            .order_by(CodeEntity.id)
+            .first()
+        )
+    if survivor is None:
+        return False
+    # SQL-level DML: the self-referential ORM cascade must not treat the
+    # container as an orphan while its former owner file is being removed.
+    db.execute(
+        CodeEntity.__table__.update()
+        .where(CodeEntity.id == container.id)
+        .values(file_path=survivor.file_path)
+    )
+    return True
+
+
 def persist_parse_result(
     db: Session,
     *,
@@ -185,6 +228,15 @@ def persist_parse_result(
             )
 
     stale_qnames = set(existing) - seen_qnames
+    for qname in list(stale_qnames):
+        row = existing[qname]
+        if (
+            row.type in SHARED_JAVA_CONTAINER_TYPES
+            and (row.meta_json or {}).get("language") == "java"
+            and row.file_path == file_path
+            and rehome_shared_java_container(db, row, dying_file_path=file_path)
+        ):
+            stale_qnames.discard(qname)
     if stale_qnames:
         db.query(CodeEntity).filter(
             CodeEntity.source_id == source_id,

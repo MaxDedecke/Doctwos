@@ -47,7 +47,7 @@ from cobol import copybook as copybook_mod
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
-from structure_persist import persist_parse_result
+from structure_persist import persist_parse_result, rehome_shared_java_container
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
 from java.modules import module_from_path
@@ -137,27 +137,7 @@ def _delete_file_entities(db, *, source_id: int, file_path: str) -> None:
     )
 
     for container in shared:
-        survivor = (
-            db.query(CodeEntity)
-            .filter(
-                CodeEntity.source_id == source_id,
-                CodeEntity.variant_key == container.variant_key,
-                CodeEntity.file_path != file_path,
-                CodeEntity.type.notin_(shared_types),
-            )
-            .order_by(CodeEntity.id)
-            .first()
-        )
-        if survivor is not None:
-            # Use SQL-level DML so the self-referential ORM cascade cannot
-            # interpret the shared container as an orphan while its owner file
-            # is removed.
-            db.execute(
-                CodeEntity.__table__.update()
-                .where(CodeEntity.id == container.id)
-                .values(file_path=survivor.file_path)
-            )
-        else:
+        if not rehome_shared_java_container(db, container, dying_file_path=file_path):
             db.execute(CodeEntity.__table__.delete().where(CodeEntity.id == container.id))
     db.execute(
         CodeEntity.__table__.delete().where(
