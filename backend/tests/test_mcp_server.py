@@ -358,19 +358,21 @@ async def test_search_knowledge_uses_the_active_embedding_profile(
 
 
 @pytest.mark.asyncio
-async def test_search_knowledge_reports_upstream_http_status_safely(
+async def test_search_knowledge_falls_back_to_scoped_keywords_when_embedding_fails(
     db_session, mcp_project_context, monkeypatch
 ):
     _use_test_session(monkeypatch, db_session)
-    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    user, _outsider, project_id, foreign_project_id = mcp_project_context
+    db_session.add_all([
+        DocumentChunk(project_id=project_id, file_path="own/a.txt",
+                      content="The zorblax settlement runs nightly.", embedding_dimension=1024),
+        DocumentChunk(project_id=foreign_project_id, file_path="foreign/b.txt",
+                      content="Foreign zorblax secret.", embedding_dimension=1024),
+    ])
+    db_session.commit()
     profile = SimpleNamespace(
-        model="test-embedding",
-        provider="ollama",
-        base_url="https://embedding.test",
-        path="/api/embed",
-        api_key=None,
-        dimension=1024,
-        context_length=4096,
+        model="test-embedding", provider="ollama", base_url="https://embedding.test",
+        path="/api/embed", api_key=None, dimension=1024, context_length=4096,
     )
     monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
 
@@ -381,15 +383,13 @@ async def test_search_knowledge_reports_upstream_http_status_safely(
 
     monkeypatch.setattr(mcp_server, "search_project_chunks", failing_search)
 
-    with pytest.raises(
-        ValueError,
-        match="embedding endpoint returned HTTP 404; check the active embedding profile URL and path",
-    ):
-        await mcp_server.search_knowledge(
-            _context(user.id),
-            project_id=project_id,
-            query="architecture overview",
-        )
+    result = await mcp_server.search_knowledge(
+        _context(user.id), project_id=project_id, query="zorblax settlement"
+    )
+    assert result["retrieval_mode"] == "lexical_fallback"
+    assert "keyword match" in result["notice"]
+    paths = [r["file_path"] for r in result["results"]]
+    assert paths == ["own/a.txt"]
 
 
 @pytest.mark.asyncio

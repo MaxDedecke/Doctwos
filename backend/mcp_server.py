@@ -18,7 +18,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 from starlette.responses import PlainTextResponse
 
@@ -289,6 +289,29 @@ def _embedding_profile_for_project(db: Session, project_id: int):
         if len(profiles) == 1:
             return profiles[0]
     return get_active_embedding_profile(db)
+
+
+def _lexical_project_chunks(db: Session, project_id: int, query: str, limit: int) -> list[DocumentChunk]:
+    """Keyword fallback for search_knowledge when the embedding endpoint is unusable."""
+    terms = list(dict.fromkeys(t.lower() for t in re.findall(r"\w{3,}", query)))[:6]
+    if not terms:
+        return []
+    source_ids = [row.id for row in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id)]
+    scope = DocumentChunk.project_id == project_id
+    if source_ids:
+        scope = or_(scope, and_(DocumentChunk.project_id.is_(None), DocumentChunk.source_id.in_(source_ids)))
+    # Chunk content is stored encrypted, so SQL cannot match it: scan a bounded,
+    # project-scoped window in Python. This is only the degraded fallback path.
+    def hits(chunk: DocumentChunk) -> int:
+        haystack = f"{chunk.file_path or ''}\n{chunk.content or ''}".lower()
+        return sum(t in haystack for t in terms)
+
+    candidates = db.query(DocumentChunk).filter(scope).order_by(DocumentChunk.id).limit(3000).all()
+    scored = sorted(
+        ((hits(c), c) for c in candidates), key=lambda pair: (-pair[0], pair[1].id)
+    )
+    scored = [c for score, c in scored if score]
+    return scored[:limit]
 
 
 @contextmanager
@@ -1098,9 +1121,15 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
         # The embedding request can wait on an external model. Return the DB
         # connection to the pool while it runs, then check current ACLs again.
         db.close()
-        chunks = await search_project_chunks(
-            db, project_id, query, limit=limit + 1, **embedding_config
-        )
+        retrieval_mode = "semantic"
+        try:
+            chunks = await search_project_chunks(
+                db, project_id, query, limit=limit + 1, **embedding_config
+            )
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, OSError) as exc:
+            logger.warning("MCP search_knowledge embedding failed (%s); using lexical fallback", type(exc).__name__)
+            retrieval_mode = "lexical_fallback"
+            chunks = _lexical_project_chunks(db, project_id, query, limit + 1)
         user = db.query(User).filter(User.id == user.id, User.is_active.is_(True)).first()
         if user is None:
             raise HTTPException(status_code=401)
@@ -1120,7 +1149,12 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
                 "content": excerpt,
                 "content_truncated": clipped,
             })
-        response = {"results": results, "truncated": len(chunks) > limit or len(results) < min(len(chunks), limit), "limit_applied": limit, "notice": "Semantic similarity is a retrieval hint, not a verified conclusion."}
+        response = {"results": results, "truncated": len(chunks) > limit or len(results) < min(len(chunks), limit), "limit_applied": limit, "retrieval_mode": retrieval_mode, "notice": (
+            "Semantic similarity is a retrieval hint, not a verified conclusion."
+            if retrieval_mode == "semantic" else
+            "The embedding service is unavailable; results come from a keyword match, "
+            "not semantic similarity. Use search_code or get_code_entity for source-backed evidence."
+        )}
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 
