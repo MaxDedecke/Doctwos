@@ -6,8 +6,8 @@ import type { KnowledgeSource, Project, ProjectStats, User } from '@/types/domai
 import React, { createContext, useContext } from 'react';
 
 // Gebündelter Settings-Zustand, den page.tsx bereitstellt und der SettingsModal-
-// Teilbaum konsumiert — ersetzt das frühere Durchreichen von ~36 Einzel-Props
-// (siehe docs/TECH_DEBT_CLEANUP_PLAN.md §5, Schritt 1). isOpen/onClose bleiben
+// Teilbaum konsumiert — ersetzt das frühere Durchreichen von ~36 Einzel-Props.
+// isOpen/onClose bleiben
 // bewusst normale Props von SettingsModal (Modal-Lebenszyklus gehört dem Parent).
 // Dieser Context ist zugleich die Grundlage für Schritt 2 (Tab-Zerlegung): künftige
 // Tab-Komponenten konsumieren ihn direkt, statt erneut Props durchgereicht zu bekommen.

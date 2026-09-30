@@ -19,8 +19,7 @@ import { cn } from "@/lib/utils";
 import { Check, CheckCircle2, Database, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'projects'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2 — letzter Tab). Der Tab kapselt sein gesamtes lokales Domänen-
+// Aus SettingsModal herausgelöster 'projects'-Tab (Tab-Zerlegung, letzter Tab). Der Tab kapselt sein gesamtes lokales Domänen-
 // Modell: Projekt-Mitglieder/Zugriffsanfragen, Discoverable-Projects, Projekt-
 // Abschluss/Promote, Inline-Edit und projektbezogene User-Kandidaten. projects/
 // selectedProject/connectedSources sind geteilter App-Zustand und kommen via

@@ -29,8 +29,7 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'git-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2). Der 5-schrittige Git-Anbindungs-Wizard kann eine Quelle entweder
+// Aus SettingsModal herausgelöster 'git-setup'-Tab. Der 5-schrittige Git-Anbindungs-Wizard kann eine Quelle entweder
 // an ein konkretes Projekt hängen oder sie mit project_id=null als allgemeine
 // Wissensquelle anlegen. Alle Wizard-States/Handler sind lokal; targetProjectId
 // kommt als Prop, die Navigation zurück über onDone. Der lokale State wird beim

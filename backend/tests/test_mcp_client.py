@@ -1,9 +1,8 @@
 """
 Tests for mcp_client.py's subprocess spawn (real MCP handshake against a fake
 stdio server) and for init_mcp_clients_for_sources' per-source-type env/command
-construction (jira/confluence via mcp-atlassian) — see
-docs/TECH_DEBT_CLEANUP_PLAN.md §2 for why the previous npm package names were
-wrong and non-functional.
+construction (jira/confluence via mcp-atlassian) — the previous npm package
+names were wrong and non-functional.
 
 Cloud vs. Server/Data Center (added for the on-prem-Confluence-pilot
 preparation, see docs/ONPREM_TEST_READINESS.md): Server/DC installs live under the

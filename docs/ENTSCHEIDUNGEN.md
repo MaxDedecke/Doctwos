@@ -458,7 +458,7 @@ Anforderungsnutzen" gilt nicht mehr.
 
 **Abgrenzung zum tree-sitter-Präzedenzfall.** `tree-sitter` lag bereits einmal
 ungenutzt in `parser/requirements.txt` und wurde als Tech-Debt wieder entfernt
-(`docs/TECH_DEBT_CLEANUP_PLAN.md`) — Runtime importiert, aber nie von einem
+— Runtime importiert, aber nie von einem
 Visitor/Consumer genutzt. Dieser Fehler wird hier nicht wiederholt: der
 zugehörige Spike (Phase 1, siehe unten) muss vor einem Go belegen, dass ein
 Visitor die Grammatik-Ausgabe aktiv in `ParseResult` überführt, nicht nur eine

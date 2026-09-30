@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 interface SettingsModalProps {
   // Modal-Lebenszyklus bleibt Prop (gehört dem Parent). Der restliche Settings-
   // Zustand kommt über useSettings() aus dem SettingsContext, den page.tsx
-  // bereitstellt — siehe docs/TECH_DEBT_CLEANUP_PLAN.md §5, Schritt 1.
+  // bereitstellt.
   isOpen: boolean;
   onClose: () => void;
 }

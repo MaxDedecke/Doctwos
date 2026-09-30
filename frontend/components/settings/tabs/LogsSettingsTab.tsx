@@ -20,8 +20,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'logs'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
-// Schritt 2). Logs-lokaler Zustand (activeLogSource, refreshingLogs, diagnostics*),
+// Aus SettingsModal herausgelöster 'logs'-Tab. Logs-lokaler Zustand (activeLogSource, refreshingLogs, diagnostics*),
 // handleGenerateDiagnostics und das 5s-Polling wandern mit hierher. connectedSources
 // ist geteilter App-Zustand und kommt via useSettings() — refreshKnowledgeSources
 // schreibt hier hinein. Der sources-Tab pollt connectedSources weiterhin selbst

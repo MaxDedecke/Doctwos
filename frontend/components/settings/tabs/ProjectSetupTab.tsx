@@ -17,8 +17,7 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, Loader2, Plus } from 'lucide-react';
 import React, { useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'project-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2). Die new-project-Formularzustände und handleCreateProject lagen zuvor
+// Aus SettingsModal herausgelöster 'project-setup'-Tab. Die new-project-Formularzustände und handleCreateProject lagen zuvor
 // auf Modal-Ebene, wurden aber nur von diesem Tab genutzt und sind jetzt hier gekapselt.
 // Die Tab-Navigation gehört dem Modal, daher meldet der Tab per onDone-Callback zurück,
 // dass er fertig ist (statt den settingsTab-Setter durchzureichen).

@@ -62,7 +62,7 @@ class CodeParser:
     markdown). Historically dispatched to per-language AST parsers via
     `languages/`, but that layer never actually extracted anything in
     production (PARSER_REGISTRY was always empty, extract_references() always
-    returned []) — see docs/TECH_DEBT_CLEANUP_PLAN.md §1. Only chunking, which
+    returned []). Only chunking, which
     was always language-agnostic, survives.
     """
 

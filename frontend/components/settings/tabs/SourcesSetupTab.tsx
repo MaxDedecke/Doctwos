@@ -10,8 +10,7 @@ import { Folder, Loader2, Plus, Send } from 'lucide-react';
 import React, { useState } from 'react';
 import { GitSetupTab } from './GitSetupTab';
 
-// Aus SettingsModal herausgelöster 'sources-setup'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2). Der Wissensquellen-Anlege-Wizard wird aus dem sources-Tab heraus
+// Aus SettingsModal herausgelöster 'sources-setup'-Tab. Der Wissensquellen-Anlege-Wizard wird aus dem sources-Tab heraus
 // betreten (der setzt activeSourceType + selectedSourceRepoId und navigiert hierher),
 // daher kommen beide als Props. Alle Wizard-Formularzustände + Connect-Handler sind
 // lokal; onDone kapselt "activeSourceType zurücksetzen + zurück zu sources". Neue

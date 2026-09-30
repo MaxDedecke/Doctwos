@@ -15,8 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// Aus SettingsModal herausgelöster 'layout'-Tab (docs/TECH_DEBT_CLEANUP_PLAN.md §5,
-// Schritt 2). Die zuvor auf Modal-Ebene liegenden Handler handleThemeToggle und
+// Aus SettingsModal herausgelöster 'layout'-Tab. Die zuvor auf Modal-Ebene liegenden Handler handleThemeToggle und
 // exportNeo4j wurden mit hierher gezogen — beide wurden nur von diesem Tab genutzt.
 // Die Monaco-Editor-Optionen (vormals eigener 'editor'-Tab) sind mit hierher
 // gezogen, da sie nur eine einzelne Einstellungsgruppe waren — ein eigener Tab

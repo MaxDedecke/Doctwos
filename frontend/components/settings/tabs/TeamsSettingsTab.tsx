@@ -17,8 +17,7 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronRight, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
-// Aus SettingsModal herausgelöster 'teams'-Tab (Admin-only; docs/TECH_DEBT_CLEANUP_PLAN.md
-// §5, Schritt 2). Vollständig eigenständig: teams-Zustand, refreshTeams (inkl. der
+// Aus SettingsModal herausgelöster 'teams'-Tab (Admin-only). Vollständig eigenständig: teams-Zustand, refreshTeams (inkl. der
 // Users-Liste), Member-Handling und das Laden beim Betreten wandern mit hierher.
 // allUsers ist jetzt tab-lokal — der projects-Tab lädt seine eigene Users-Liste
 // separat (im Modal), statt wie bisher darauf angewiesen zu sein, dass vorher der
