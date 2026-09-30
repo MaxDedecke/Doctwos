@@ -179,6 +179,8 @@
       "meta": {
         "program": "BAREVERBS",
         "thru": "FIRST-EXIT-PARA-ENDE",
+        "thru_resolution": "resolved",
+        "thru_target_qualified_name": "BAREVERBS.FIRST-EXIT-PARA-ENDE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

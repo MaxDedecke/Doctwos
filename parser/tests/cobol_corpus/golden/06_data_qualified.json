@@ -149,10 +149,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -182,10 +186,14 @@
       "meta": {
         "level": 5,
         "picture": "9(6)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -215,10 +223,14 @@
       "meta": {
         "level": 5,
         "picture": "X(30)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -248,10 +260,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -281,10 +297,14 @@
       "meta": {
         "level": 5,
         "picture": "X(2)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -314,10 +334,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -347,10 +371,14 @@
       "meta": {
         "level": 5,
         "picture": "X(4)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -380,10 +408,14 @@
       "meta": {
         "level": 1,
         "picture": "9(3)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": "0",
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -413,10 +445,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -446,10 +482,14 @@
       "meta": {
         "level": 5,
         "picture": "X(10)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": 1,
         "occurs_depending_on": "WS-COUNT",
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -479,10 +519,14 @@
       "meta": {
         "level": 1,
         "picture": "X(500)",
+        "usage": null,
         "redefines": "WS-TABLE",
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -512,10 +556,14 @@
       "meta": {
         "level": 1,
         "picture": "X",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": "N",
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -545,10 +593,16 @@
       "meta": {
         "level": 88,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": "Y",
+        "values": [
+          "Y"
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -601,7 +655,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-CODE",
       "resolution": "resolved",
@@ -610,6 +664,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "target",
+        "operation": "MOVE",
         "parent": "GROUP-A",
         "evidence": {
           "schema_version": 1,
@@ -631,7 +687,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "MAIN-PARA",
       "dst_name": "GROUP-A",
       "resolution": "resolved",
@@ -640,6 +696,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "target",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -660,7 +718,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-CODE",
       "resolution": "resolved",
@@ -669,6 +727,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "source",
+        "operation": "MOVE",
         "parent": "GROUP-B",
         "evidence": {
           "schema_version": 1,
@@ -690,7 +750,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "MAIN-PARA",
       "dst_name": "GROUP-B",
       "resolution": "resolved",
@@ -699,6 +759,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "source",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -719,7 +781,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-CODE",
       "resolution": "resolved",
@@ -728,6 +790,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "target",
+        "operation": "MOVE",
         "parent": "GROUP-A",
         "evidence": {
           "schema_version": 1,
@@ -749,7 +813,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "MAIN-PARA",
       "dst_name": "GROUP-A",
       "resolution": "resolved",
@@ -758,6 +822,8 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "operand_role": "target",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -778,7 +844,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-EOF",
       "resolution": "resolved",
@@ -787,6 +853,14 @@
       "scope": "DATAQUAL",
       "meta": {
         "program": "DATAQUAL",
+        "control_context": [
+          {
+            "type": "IF",
+            "branch": "CONDITION"
+          }
+        ],
+        "operand_role": "condition",
+        "operation": "IF",
         "parent": "WS-EOF-FLAG",
         "evidence": {
           "schema_version": 1,

@@ -187,9 +187,11 @@ async def test_entities_and_edges_persisted_and_globally_resolved(db_session, te
     # PEP 479 als "RuntimeError: coroutine raised StopIteration" aus dem
     # Test-Coroutine herauskommen -- ohne jeden Hinweis darauf, WELCHE Erwartung
     # nicht erfuellt ist (genau die Sackgasse aus O-076).
-    inherited_use = next((e for e in by_type["USES"] if e.dst_name == "SHARED-FIELD"), None)
+    # Datenreferenzen tragen seit der Zugriffsrichtung USES/READS/WRITES.
+    data_refs = [e for kind in ("USES", "READS", "WRITES") for e in by_type.get(kind, [])]
+    inherited_use = next((e for e in data_refs if e.dst_name == "SHARED-FIELD"), None)
     assert inherited_use is not None, (
-        f"Keine USES-Kante auf SHARED-FIELD, nur: {[e.dst_name for e in by_type.get('USES', [])]}"
+        f"Keine Datenreferenz auf SHARED-FIELD, nur: {[e.dst_name for e in data_refs]}"
     )
     assert inherited_use.resolution == "resolved"
     assert inherited_use.dst_entity_id == by_qname["FIELDS.SHARED-RECORD.SHARED-FIELD"].id
@@ -225,10 +227,12 @@ async def test_reparse_preserves_entity_id_and_keeps_external_edges(
         .one()
     )
     assert call_edge_before.dst_entity_id == sub_before.id
+    sub_id_before = sub_before.id
 
-    # SUB.CBL aendert sich (neuer Paragraph), MAIN.CBL/FIELDS.CPY bleiben
-    # unveraendert und werden dank NF-004-Resume-Skip in diesem Sync gar
-    # nicht neu geparst.
+    # SUB.CBL aendert sich (neuer Paragraph). MAIN.CBL bleibt inhaltlich gleich,
+    # wird aber wegen der persistierten CALL-Abhaengigkeit auf SUB mit neu
+    # analysiert (O-122: kein veraltetes Kantenziel stehen lassen) -- die CALL-Kante
+    # wird dabei neu angelegt, ihre ID ist deshalb keine Invariante mehr.
     _commit_file(
         git_remote,
         "SUB.CBL",
@@ -249,7 +253,7 @@ async def test_reparse_preserves_entity_id_and_keeps_external_edges(
     # Regressionstest fuer den beim Implementieren gefundenen Bug: ohne
     # ID-Erhalt beim Reparse waere SUB neu angelegt und die alte Zeile (samt
     # der CALL-Kante aus MAIN, die per CASCADE an ihr haengt) verschwunden.
-    assert sub_after.id == sub_before.id
+    assert sub_after.id == sub_id_before
 
     call_edge_after = (
         db_session.query(CodeEdge)
@@ -259,8 +263,7 @@ async def test_reparse_preserves_entity_id_and_keeps_external_edges(
         )
         .one()
     )
-    assert call_edge_after.id == call_edge_before.id
-    assert call_edge_after.dst_entity_id == sub_before.id
+    assert call_edge_after.dst_entity_id == sub_id_before
     assert call_edge_after.resolution == "resolved"
 
     # Der neue Paragraph in SUB ist jetzt da.

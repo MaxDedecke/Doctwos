@@ -152,6 +152,8 @@
       "meta": {
         "program": "PERFTHRU",
         "thru": "CLEANUP-PARA",
+        "thru_resolution": "resolved",
+        "thru_target_qualified_name": "PERFTHRU.CLEANUP-PARA",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

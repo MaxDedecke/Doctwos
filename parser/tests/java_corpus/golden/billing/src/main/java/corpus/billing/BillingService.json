@@ -76,6 +76,7 @@
     {
       "end_line": 7,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -95,6 +96,7 @@
     {
       "end_line": 6,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -104,10 +106,12 @@
         "parameter_types": [
           "int"
         ],
+        "return_expressions": [],
         "return_type": "int",
         "signature": "calculate(int)",
         "source_kind": "source",
         "source_set": "main",
+        "throws_types": [],
         "visibility": "public"
       },
       "name": "calculate",
@@ -119,10 +123,16 @@
     {
       "end_line": 4,
       "meta": {
+        "declaration_column": 35,
+        "declaration_line": 4,
         "index": 0,
         "language": "java",
         "module": "billing",
         "parameter_type": "int",
+        "scope_end_column": 1000000,
+        "scope_end_line": 6,
+        "scope_start_column": 0,
+        "scope_start_line": 4,
         "source_kind": "source",
         "source_set": "main"
       },

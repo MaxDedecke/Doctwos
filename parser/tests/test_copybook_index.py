@@ -2,6 +2,9 @@ from cobol import prepare
 from cobol.parse import parse_program
 from cobol.profile import BuildProfile
 
+# Datenreferenzen tragen seit der Zugriffsrichtung READS/WRITES statt nur USES.
+_DATA_REFERENCE_TYPES = {"USES", "READS", "WRITES"}
+
 
 def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monkeypatch):
     """Pass 0 muss den vollstaendigen Baum kennen, bevor Programme parsen."""
@@ -30,7 +33,7 @@ def test_sourcewide_index_expands_nested_copybooks_and_replacing(tmp_path, monke
         "    DISPLAY ACCOUNT-ID.\n"
     )
     result = parse_program(program, "MAIN.CBL", index)
-    uses = next(edge for edge in result.edges if edge.type == "USES")
+    uses = next(edge for edge in result.edges if edge.type in _DATA_REFERENCE_TYPES)
 
     assert uses.resolution == "resolved"
     assert uses.meta["copybook_path"] == "copy/BASE.CPY"

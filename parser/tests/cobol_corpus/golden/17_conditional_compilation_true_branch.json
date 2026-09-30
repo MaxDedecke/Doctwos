@@ -95,10 +95,14 @@
       "meta": {
         "level": 1,
         "picture": "X",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",

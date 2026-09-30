@@ -69,3 +69,17 @@ requires_ollama = pytest.mark.skipif(
     not _ollama_reachable(),
     reason="Braucht einen erreichbaren Ollama mit bge-m3 (docker compose up -d).",
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_from_server_ai_profile(monkeypatch):
+    """Tests lesen das aktive Embedding-/LLM-Profil nie aus einer erreichbaren DB.
+
+    ollama_client._load_server_settings() greift sonst auf die DB zu, in der ein
+    Entwickler-Setup meist ein Remote-Profil (z. B. RunPod) hinterlegt hat -- die
+    Ergebnisse haengen dann vom lokalen Zustand ab. Ohne Profil gilt die Worker-Env
+    (OLLAMA_BASE_URL/EMBED_MODEL), wie in der CI.
+    """
+    import ollama_client
+
+    monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: None)

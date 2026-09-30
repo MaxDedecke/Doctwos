@@ -147,6 +147,7 @@
       "parent_name": "KONTOSTATUSPRÜFUNG",
       "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜF-DATEI",
       "meta": {
+        "assign": "pruef.dat",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -176,10 +177,14 @@
       "meta": {
         "level": 1,
         "picture": "X(20)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -209,10 +214,14 @@
       "meta": {
         "level": 1,
         "picture": "9(03)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -242,10 +251,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -275,10 +288,14 @@
       "meta": {
         "level": 5,
         "picture": "X(01)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": 1,
         "occurs_depending_on": "WS-ANZAHL-PRÜFUNGEN",
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -308,10 +325,14 @@
       "meta": {
         "level": 1,
         "picture": "X(01)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -341,10 +362,16 @@
       "meta": {
         "level": 88,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": "J",
+        "values": [
+          "J"
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -397,7 +424,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "200-BUCHUNGSPOSITIONEN-PRÜFEN",
       "dst_name": "WS-STATUS-FLAG",
       "resolution": "resolved",
@@ -406,6 +433,8 @@
       "scope": "KONTOSTATUSPRÜFUNG",
       "meta": {
         "program": "KONTOSTATUSPRÜFUNG",
+        "operand_role": "output",
+        "operation": "DISPLAY",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

@@ -156,6 +156,13 @@
     {
       "end_line": 25,
       "meta": {
+        "annotation_details": [
+          {
+            "name": "Deprecated",
+            "source": "@Deprecated",
+            "values": {}
+          }
+        ],
         "annotations": [
           "Deprecated"
         ],
@@ -174,6 +181,7 @@
     {
       "end_line": 7,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "List<T>",
         "language": "java",
@@ -192,6 +200,7 @@
     {
       "end_line": 8,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "int",
         "language": "java",
@@ -207,6 +216,7 @@
     {
       "end_line": 8,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "int",
         "language": "java",
@@ -222,6 +232,7 @@
     {
       "end_line": 12,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -230,7 +241,9 @@
         "parameter_types": [
           "List<T>"
         ],
+        "return_expressions": [],
         "signature": "Catalog(List<T>)",
+        "throws_types": [],
         "visibility": "public"
       },
       "name": "Catalog",
@@ -242,9 +255,15 @@
     {
       "end_line": 10,
       "meta": {
+        "declaration_column": 33,
+        "declaration_line": 10,
         "index": 0,
         "language": "java",
-        "parameter_type": "List<T>"
+        "parameter_type": "List<T>",
+        "scope_end_column": 1000000,
+        "scope_end_line": 12,
+        "scope_start_column": 0,
+        "scope_start_line": 10
       },
       "name": "values",
       "parent_qualified_name": "corpus.legacy.Catalog#<init>(List<T>)",
@@ -255,6 +274,7 @@
     {
       "end_line": 16,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -263,8 +283,10 @@
         "parameter_types": [
           "int"
         ],
+        "return_expressions": [],
         "return_type": "T",
         "signature": "find(int)",
+        "throws_types": [],
         "visibility": "public"
       },
       "name": "find",
@@ -276,9 +298,15 @@
     {
       "end_line": 14,
       "meta": {
+        "declaration_column": 27,
+        "declaration_line": 14,
         "index": 0,
         "language": "java",
-        "parameter_type": "int"
+        "parameter_type": "int",
+        "scope_end_column": 1000000,
+        "scope_end_line": 16,
+        "scope_start_column": 0,
+        "scope_start_line": 14
       },
       "name": "index",
       "parent_qualified_name": "corpus.legacy.Catalog#find(int)",
@@ -289,6 +317,7 @@
     {
       "end_line": 20,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -297,8 +326,10 @@
         "parameter_types": [
           "String"
         ],
+        "return_expressions": [],
         "return_type": "T",
         "signature": "find(String)",
+        "throws_types": [],
         "visibility": "public"
       },
       "name": "find",
@@ -310,9 +341,15 @@
     {
       "end_line": 18,
       "meta": {
+        "declaration_column": 28,
+        "declaration_line": 18,
         "index": 0,
         "language": "java",
-        "parameter_type": "String"
+        "parameter_type": "String",
+        "scope_end_column": 1000000,
+        "scope_end_line": 20,
+        "scope_start_column": 0,
+        "scope_start_line": 18
       },
       "name": "key",
       "parent_qualified_name": "corpus.legacy.Catalog#find(String)",
@@ -323,6 +360,7 @@
     {
       "end_line": 24,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -340,6 +378,7 @@
     {
       "end_line": 23,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "String",
         "language": "java",

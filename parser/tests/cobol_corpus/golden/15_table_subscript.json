@@ -176,10 +176,14 @@
       "meta": {
         "level": 1,
         "picture": "9(02)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -209,10 +213,14 @@
       "meta": {
         "level": 1,
         "picture": null,
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -242,10 +250,14 @@
       "meta": {
         "level": 5,
         "picture": "9(02)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": 12,
         "occurs_depending_on": null,
         "value": null,
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -297,7 +309,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "100-MONATE-FUELLEN",
       "dst_name": "WS-IDX",
       "resolution": "resolved",
@@ -306,6 +318,8 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "operand_role": "condition",
+        "operation": "UNTIL",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -326,7 +340,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "100-MONATE-FUELLEN",
       "dst_name": "WS-IDX",
       "resolution": "resolved",
@@ -335,6 +349,8 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "operand_role": "source",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -355,7 +371,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "100-MONATE-FUELLEN",
       "dst_name": "WS-MONAT-NR",
       "resolution": "resolved",
@@ -364,6 +380,8 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "operand_role": "target",
+        "operation": "MOVE",
         "parent": "WS-MONATE",
         "evidence": {
           "schema_version": 1,
@@ -385,7 +403,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "100-MONATE-FUELLEN",
       "dst_name": "WS-IDX",
       "resolution": "resolved",
@@ -394,6 +412,8 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "operand_role": "target",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -414,7 +434,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "READS",
       "src_name": "200-MONATE-ANZEIGEN",
       "dst_name": "WS-MONAT-NR",
       "resolution": "resolved",
@@ -423,6 +443,8 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "operand_role": "output",
+        "operation": "DISPLAY",
         "parent": "WS-MONATE",
         "evidence": {
           "schema_version": 1,
@@ -493,6 +515,35 @@
             "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
             "start_line": 19,
             "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "content": "\n       AUSGABE SECTION.",
+      "start_line": 17,
+      "end_line": 18,
+      "meta": {
+        "program": "TABSUB",
+        "format": "fixed",
+        "fallback": true,
+        "partial": true,
+        "unstructured": true,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 17,
+            "end_line": 18
           },
           "variant": {
             "key": "default",

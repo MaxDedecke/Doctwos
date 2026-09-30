@@ -6,6 +6,9 @@ from cobol.copybook import CopybookIndex, inherited_fields
 from cobol.parse import parse_copybook, parse_program
 from cobol.profile import BuildProfile
 
+# Datenreferenzen tragen seit der Zugriffsrichtung READS/WRITES statt nur USES.
+_DATA_REFERENCE_TYPES = {"USES", "READS", "WRITES"}
+
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
 
@@ -148,7 +151,7 @@ def test_xref_inherits_copybook_field_without_expanding_source_lines():
     )
 
     result = parse_program(text, "MAIN.CBL", index)
-    edge = next(e for e in result.edges if e.type == "USES")
+    edge = next(e for e in result.edges if e.type in _DATA_REFERENCE_TYPES)
 
     assert edge.resolution == "resolved"
     assert edge.src_start_line == 8
@@ -156,6 +159,8 @@ def test_xref_inherits_copybook_field_without_expanding_source_lines():
         "program": "COPYXREF",
         "copybook_path": "copy/FIELDS.CPY",
         "target_qualified_name": "FIELDS.SHARED-RECORD.SHARED-FIELD",
+        "operand_role": "output",
+        "operation": "DISPLAY",
     }
 
 
@@ -184,7 +189,7 @@ def test_xref_applies_copy_replacing_to_inherited_field_name():
     )
 
     result = parse_program(text, "MAIN.CBL", index)
-    edge = next(e for e in result.edges if e.type == "USES")
+    edge = next(e for e in result.edges if e.type in _DATA_REFERENCE_TYPES)
     assert edge.dst_name == ":TAG:-ID"
     assert edge.resolution == "resolved"
 
@@ -251,13 +256,15 @@ def test_xref_inherits_transitive_copybook_field_and_composes_replacing():
         fields_by_path={"copy/WRAP.CPY": wrapper_fields},
     )
     result = parse_program(text, "MAIN.CBL", index)
-    edge = next(edge for edge in result.edges if edge.type == "USES")
+    edge = next(edge for edge in result.edges if edge.type in _DATA_REFERENCE_TYPES)
 
     assert edge.resolution == "resolved"
     assert {key: value for key, value in edge.meta.items() if key != "evidence"} == {
         "program": "NESTEDCOPY",
         "copybook_path": "copy/BASE.CPY",
         "target_qualified_name": "BASE.:TAG:-RECORD.:TAG:-ID",
+        "operand_role": "output",
+        "operation": "DISPLAY",
     }
 
 
@@ -399,7 +406,7 @@ def test_edges_combine_call_perform_copy_sql_and_xref():
     result = parse_program(text, "x")
 
     edge_types = {e.type for e in result.edges}
-    assert edge_types == {"USES", "PERFORM", "CALL"}
+    assert edge_types == {"WRITES", "PERFORM", "CALL"}
 
 
 def test_broken_file_never_raises_and_falls_back_to_generic_chunking():
@@ -552,7 +559,7 @@ def test_unicode_identifier_comparison_does_not_collapse_distinct_data_names():
     )
     result = parse_program(text, "unicode.cbl", profile=BuildProfile(source_format="fixed"))
 
-    uses = [edge for edge in result.edges if edge.type == "USES"]
+    uses = [edge for edge in result.edges if edge.type in _DATA_REFERENCE_TYPES]
     assert [(edge.dst_name, edge.resolution) for edge in uses] == [
         ("WS-Ä", "resolved"),
         ("WS-ä", "resolved"),

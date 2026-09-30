@@ -95,10 +95,14 @@
       "meta": {
         "level": 1,
         "picture": "X(8)",
+        "usage": null,
         "redefines": null,
+        "renames": null,
+        "renames_thru": null,
         "occurs": null,
         "occurs_depending_on": null,
         "value": "SUBPROG",
+        "values": null,
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -179,7 +183,7 @@
       }
     },
     {
-      "type": "USES",
+      "type": "WRITES",
       "src_name": "MAIN-PARA",
       "dst_name": "WS-PGM",
       "resolution": "resolved",
@@ -188,6 +192,8 @@
       "scope": "DYNCALL",
       "meta": {
         "program": "DYNCALL",
+        "operand_role": "target",
+        "operation": "MOVE",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

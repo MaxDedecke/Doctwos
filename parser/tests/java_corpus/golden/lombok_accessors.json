@@ -209,6 +209,13 @@
     {
       "end_line": 13,
       "meta": {
+        "annotation_details": [
+          {
+            "name": "Data",
+            "source": "@Data",
+            "values": {}
+          }
+        ],
         "annotations": [
           "Data"
         ],
@@ -227,6 +234,7 @@
     {
       "end_line": 9,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "String",
         "language": "java",
@@ -290,6 +298,7 @@
     {
       "end_line": 10,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "field_type": "int",
         "language": "java",
@@ -330,6 +339,15 @@
     {
       "end_line": 12,
       "meta": {
+        "annotation_details": [
+          {
+            "name": "Getter",
+            "source": "@Getter(AccessLevel.NONE)",
+            "values": {
+              "value": "AccessLevel.NONE"
+            }
+          }
+        ],
         "annotations": [
           "Getter"
         ],
@@ -373,6 +391,7 @@
     {
       "end_line": 19,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [],
@@ -387,6 +406,18 @@
     {
       "end_line": 17,
       "meta": {
+        "annotation_details": [
+          {
+            "name": "Getter",
+            "source": "@Getter",
+            "values": {}
+          },
+          {
+            "name": "Setter",
+            "source": "@Setter",
+            "values": {}
+          }
+        ],
         "annotations": [
           "Getter",
           "Setter"
@@ -429,14 +460,17 @@
     {
       "end_line": 18,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
           "public"
         ],
         "parameter_types": [],
+        "return_expressions": [],
         "return_type": "boolean",
         "signature": "isEnabled()",
+        "throws_types": [],
         "visibility": "public"
       },
       "name": "isEnabled",

@@ -2,6 +2,9 @@ import os
 
 from cobol import data_division, divisions, embedded, lexer, source_format, xref
 
+# Datenreferenzen tragen seit der Zugriffsrichtung READS/WRITES statt nur USES.
+_DATA_REFERENCE_TYPES = {"USES", "READS", "WRITES"}
+
 FIXTURES = os.path.join(os.path.dirname(__file__), "cobol_corpus", "fixtures")
 
 
@@ -38,7 +41,7 @@ def test_group_name_itself_is_also_a_uses_edge():
     assert errors == []
     group_a_uses = [e for e in edges if e.dst_name == "GROUP-A"]
     assert len(group_a_uses) == 2
-    assert all(e.type == "USES" and e.resolution == "resolved" for e in group_a_uses)
+    assert all(e.type in _DATA_REFERENCE_TYPES and e.resolution == "resolved" for e in group_a_uses)
 
 
 def test_condition_name_reference_resolves():
@@ -77,7 +80,7 @@ def test_unambiguous_reference_resolves_without_qualifier():
     # tatsaechlich gelesen wird, um den dynamischen Aufrufziel-Namen zu liefern.
     _, edges, errors = _edges_from_fixture("09_dynamic_call.cbl")
     assert errors == []
-    ws_pgm_uses = [e for e in edges if e.dst_name == "WS-PGM" and e.type == "USES"]
+    ws_pgm_uses = [e for e in edges if e.dst_name == "WS-PGM" and e.type in _DATA_REFERENCE_TYPES]
     assert len(ws_pgm_uses) == 2
     assert all(e.resolution == "resolved" and e.src_name == "MAIN-PARA" for e in ws_pgm_uses)
 

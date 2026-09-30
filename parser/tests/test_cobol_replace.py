@@ -3,6 +3,9 @@
 from cobol import replace, source_format
 from cobol.parse import parse_program
 
+# Datenreferenzen tragen seit der Zugriffsrichtung READS/WRITES statt nur USES.
+_DATA_REFERENCE_TYPES = {"USES", "READS", "WRITES"}
+
 
 def _lines(text: str, fmt: str = "fixed"):
     return source_format.split_logical_lines(text, fmt)
@@ -91,7 +94,7 @@ def test_end_to_end_definitions_and_uses_reflect_the_substitution_original_text_
     assert result.errors == []
     field = next(e for e in result.entities if e.type == "data_item")
     assert field.name == "CUSTOMER-ID"
-    uses = next(e for e in result.edges if e.type == "USES")
+    uses = next(e for e in result.edges if e.type in _DATA_REFERENCE_TYPES)
     assert uses.dst_name == "CUSTOMER-ID"
     assert uses.resolution == "resolved"
     # Der angezeigte Chunk-Text bleibt der Originaltext, keine stille

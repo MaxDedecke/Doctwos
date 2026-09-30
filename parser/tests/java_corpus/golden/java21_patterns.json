@@ -70,6 +70,7 @@
     {
       "end_line": 3,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -86,6 +87,7 @@
     {
       "end_line": 4,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [],
@@ -113,6 +115,7 @@
     {
       "end_line": 5,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [],
@@ -153,6 +156,7 @@
     {
       "end_line": 14,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -169,6 +173,7 @@
     {
       "end_line": 13,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [
@@ -177,8 +182,10 @@
         "parameter_types": [
           "Shape"
         ],
+        "return_expressions": [],
         "return_type": "double",
         "signature": "calculate(Shape)",
+        "throws_types": [],
         "visibility": "package"
       },
       "name": "calculate",
@@ -190,9 +197,15 @@
     {
       "end_line": 8,
       "meta": {
+        "declaration_column": 39,
+        "declaration_line": 8,
         "index": 0,
         "language": "java",
-        "parameter_type": "Shape"
+        "parameter_type": "Shape",
+        "scope_end_column": 1000000,
+        "scope_end_line": 13,
+        "scope_start_column": 0,
+        "scope_start_line": 8
       },
       "name": "shape",
       "parent_qualified_name": "corpus.modern.Area#calculate(Shape)",

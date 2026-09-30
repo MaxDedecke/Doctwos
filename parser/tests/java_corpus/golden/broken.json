@@ -79,6 +79,7 @@
     {
       "end_line": 7,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [],
@@ -93,12 +94,15 @@
     {
       "end_line": 6,
       "meta": {
+        "annotation_details": [],
         "annotations": [],
         "language": "java",
         "modifiers": [],
         "parameter_types": [],
+        "return_expressions": [],
         "return_type": "void",
         "signature": "recover()",
+        "throws_types": [],
         "visibility": "package"
       },
       "name": "recover",
@@ -110,7 +114,13 @@
     {
       "end_line": 5,
       "meta": {
+        "declaration_column": 17,
+        "declaration_line": 5,
         "language": "java",
+        "scope_end_column": 5,
+        "scope_end_line": 6,
+        "scope_start_column": 19,
+        "scope_start_line": 4,
         "variable_type": "int"
       },
       "name": "value",
