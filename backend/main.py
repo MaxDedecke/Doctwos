@@ -92,13 +92,13 @@ from core.auth_dependency import get_current_user
 from core.db_setup import SessionLocal, bootstrap_superuser
 from services.ai_settings import initialize_runtime_settings
 from core.teams import require_admin
-from mcp_server import asgi_app as inbound_mcp_app, mcp as inbound_mcp
+from mcp_server import asgi_app as inbound_mcp_app, run_mcp_session_manager
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     bootstrap_superuser()
     initialize_runtime_settings(SessionLocal)
-    async with inbound_mcp.session_manager.run():
+    async with run_mcp_session_manager():
         yield
 
 

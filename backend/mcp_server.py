@@ -1,5 +1,6 @@
 """Read-only inbound MCP transport and tools for IDE clients."""
 
+from contextlib import asynccontextmanager
 import logging
 import base64
 import binascii
@@ -1156,3 +1157,21 @@ class MCPBearerGate:
 
 
 asgi_app = MCPBearerGate(mcp.streamable_http_app())
+_mcp_manager_used = False
+
+
+@asynccontextmanager
+async def run_mcp_session_manager():
+    """Lifespan-Klammer fuer den MCP-Session-Manager.
+
+    Der SDK-Manager kann nur einmal pro Instanz laufen. Produktiv gibt es genau einen
+    App-Lifespan; Tests und Reloads durchlaufen ihn aber mehrfach im selben Prozess.
+    Ab dem zweiten Lauf bauen wir Manager und ASGI-App frisch auf.
+    """
+    global _mcp_manager_used
+    if _mcp_manager_used:
+        mcp._session_manager = None
+        asgi_app.app = mcp.streamable_http_app()
+    _mcp_manager_used = True
+    async with mcp.session_manager.run():
+        yield
