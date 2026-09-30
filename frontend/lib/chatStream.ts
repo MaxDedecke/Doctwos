@@ -126,10 +126,17 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
       return isAgentViewAction(value) ? value : null;
     case 'turn_completed':
       return typeof value.has_tool_calls === 'boolean' ? { type: 'turn_completed', has_tool_calls: value.has_tool_calls } : null;
-    case 'answer':
-      return typeof value.content === 'string' && (value.agent_steps === undefined ||
-        (Array.isArray(value.agent_steps) && value.agent_steps.every(isAgentStep)))
-        ? { type: 'answer', content: value.content, agent_steps: value.agent_steps } : null;
+    case 'answer': {
+      // 'mcp_preflight' ist ein rein serverseitiger Diagnoseschritt und steckt in
+      // jedem Agent-Lauf in agent_steps. Er gehoert nicht zu AgentStep; wuerde er
+      // die Validierung kippen, ginge die komplette Antwort verloren.
+      const steps = Array.isArray(value.agent_steps)
+        ? value.agent_steps.filter(step => !(isRecord(step) && step.type === 'mcp_preflight'))
+        : value.agent_steps;
+      return typeof value.content === 'string' && (steps === undefined ||
+        (Array.isArray(steps) && steps.every(isAgentStep)))
+        ? { type: 'answer', content: value.content, agent_steps: steps } : null;
+    }
     case 'message_saved':
       return typeof value.message_id === 'number' ? { type: 'message_saved', message_id: value.message_id } : null;
     case 'telemetry':

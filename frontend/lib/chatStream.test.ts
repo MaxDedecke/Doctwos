@@ -45,6 +45,15 @@ describe('chat stream boundary', () => {
     expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
   });
 
+  it('keeps the answer when agent_steps carry the server-side mcp_preflight step', () => {
+    const preflight = { type: 'mcp_preflight', status: 'not_configured', servers: [], tool_count: 0 };
+    const toolCall = { type: 'tool_call', name: 'search', arguments: '{}' };
+    const event = { type: 'answer', content: 'Result', agent_steps: [preflight, toolCall] };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual({
+      type: 'answer', content: 'Result', agent_steps: [toolCall],
+    });
+  });
+
   it('accepts monotonic milestones and the final O-323 eval metrics', () => {
     const milestone = { type: 'telemetry', event: 'first_token', monotonic_ms: 42 } as const;
     const completed = {
