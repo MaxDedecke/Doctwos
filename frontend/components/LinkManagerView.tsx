@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { formatDocLocation, type DocLocation } from '@/lib/docLocation';
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -67,6 +68,8 @@ interface EntityDocLink {
   // O-114: Wissensquelle der Doku-Seite — None bei manuell angelegten Links
   // ohne Chunk-Bezug, dann bleibt "Doku-Seite öffnen" aus.
   doc_source_id?: number | string | null;
+  // Abschnitt/Seite/Zeilen der verknüpften Dokumentstelle (nur bei Verknüpfungen mit Chunk).
+  doc_location?: DocLocation | null;
   source_type: string | null;
   score: number | null;
   link_type: string;
@@ -83,6 +86,7 @@ interface KnowledgeLinkSide {
   source_type: string | null;
   code_ref?: CodeRef | null;
   doc_source_id?: number | string | null;
+  doc_location?: DocLocation | null;
 }
 
 interface KnowledgeLink {
@@ -126,6 +130,7 @@ interface UnifiedSide {
   icon?: 'code';
   codeRef?: CodeRef | null;
   docSourceId?: number | string | null;
+  location?: DocLocation | null;
 }
 
 interface UnifiedLink {
@@ -760,7 +765,7 @@ export function LinkManagerView({
           ? { file_path: l.entity.file_path, line: l.entity.start_line ?? null, source_id: l.entity.source_id ?? null }
           : null,
       },
-      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null },
+      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null, location: l.doc_location ?? null },
       score: l.score,
       linkType: l.link_type,
       direction: l.direction,
@@ -774,11 +779,11 @@ export function LinkManagerView({
       rawId: l.id,
       left: {
         label: l.source_a.title, caption: l.source_a.type, sourceType: l.source_a.source_type, url: l.source_a.url,
-        codeRef: l.source_a.code_ref ?? null, docSourceId: l.source_a.doc_source_id ?? null,
+        codeRef: l.source_a.code_ref ?? null, docSourceId: l.source_a.doc_source_id ?? null, location: l.source_a.doc_location ?? null,
       },
       right: {
         label: l.source_b.title, caption: l.source_b.type, sourceType: l.source_b.source_type, url: l.source_b.url,
-        codeRef: l.source_b.code_ref ?? null, docSourceId: l.source_b.doc_source_id ?? null,
+        codeRef: l.source_b.code_ref ?? null, docSourceId: l.source_b.doc_source_id ?? null, location: l.source_b.doc_location ?? null,
       },
       score: l.score,
       linkType: l.link_type,
@@ -916,6 +921,12 @@ export function LinkManagerView({
         )}
       </div>
       {side.caption && <p className={cn('text-[0.6875rem] truncate', side.icon === 'code' ? 'pl-5' : '', cardMuted)}>{side.caption}</p>}
+      {side.location && formatDocLocation(side.location, t) && (
+        <p data-testid="link-doc-location" title={formatDocLocation(side.location, t)}
+          className={cn('pl-5 font-mono text-[0.625rem] truncate', cardMuted)}>
+          {formatDocLocation(side.location, t)}
+        </p>
+      )}
     </div>
   );
 

@@ -32,6 +32,7 @@ const PROJECT = { id: 3, name: 'Rentenkasse' };
 type EntityLink = {
   id: number; entity_id: number; entity?: CodeEntity; doc_title: string; doc_url: string | null;
   doc_source_id?: number | null;
+  doc_location?: { section: string | null; page: number | null; start_line: number | null; end_line: number | null } | null;
   source_type: string | null; score: number | null; link_type: string; status: string;
   context: string | null; created_by: string;
 };
@@ -153,6 +154,47 @@ describe('LinkManagerView', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  describe('Fundstelle der Dokumentstelle', () => {
+    it('zeigt Abschnitt, Seite und Zeilen an der Dokumentseite eines Code-Links', async () => {
+      stubFetch({
+        entityLinks: [entityLink({
+          doc_title: 'Autorisierung.md',
+          doc_location: { section: 'Autorisierung > Online-Entscheidung', page: null, start_line: 11, end_line: 15 },
+        })],
+        entityCounts: { pending: 1, approved: 0, rejected: 0 },
+      });
+
+      renderView();
+
+      const location = await screen.findByTestId('link-doc-location');
+      expect(location.textContent).toBe('Autorisierung › Online-Entscheidung · Zeilen 11–15');
+    });
+
+    it('zeigt bei PDFs die Seite und bei Wissens-Links die Fundstelle der jeweiligen Seite', async () => {
+      stubFetch({
+        knowledgeLinks: [knowledgeLink({
+          source_a: { type: 'document', title: 'Handbuch.pdf', url: null, source_type: 'Local', doc_source_id: 21,
+            doc_location: { section: null, page: 2, start_line: 5, end_line: 9 } },
+        })],
+        knowledgeCounts: { pending: 1, approved: 0, rejected: 0 },
+      });
+
+      renderView();
+
+      const location = await screen.findByTestId('link-doc-location');
+      expect(location.textContent).toBe('Seite 2 · Zeilen 5–9');
+    });
+
+    it('zeigt nichts, wenn keine Fundstelle bekannt ist (z. B. Confluence-Seiten, manuelle Links)', async () => {
+      stubFetch({ entityLinks: [entityLink()], entityCounts: { pending: 1, approved: 0, rejected: 0 } });
+
+      renderView();
+
+      await screen.findByText('Zahlungslauf-Handbuch');
+      expect(screen.queryByTestId('link-doc-location')).toBeNull();
+    });
   });
 
   describe('Filterleiste', () => {

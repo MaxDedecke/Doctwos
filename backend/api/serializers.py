@@ -7,6 +7,7 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 Änderung am Response-Format: hier anpassen, gilt überall.
 """
 
+from typing import Optional
 from models.database import (
     CodeEntity,
     DocumentChunk,
@@ -107,6 +108,29 @@ def serialize_source(s: KnowledgeSource) -> dict:
     }
 
 
+def doc_location(chunk) -> Optional[dict]:
+    """Fundstelle eines Dokument-Chunks für den Link-Manager: Abschnitt, Seite, Zeilenbereich.
+
+    Akzeptiert ein DocumentChunk oder eine Zeile mit denselben Feldern; None ohne Chunk oder
+    ohne jede Ortsangabe.
+    """
+    if chunk is None:
+        return None
+    meta = getattr(chunk, "metadata_json", None) or {}
+    section = meta.get("section")
+    page = meta.get("page")
+    start_line = getattr(chunk, "start_line", None)
+    end_line = getattr(chunk, "end_line", None)
+    if not (section or page or start_line):
+        return None
+    return {
+        "section": section or None,
+        "page": page if isinstance(page, int) and page > 0 else None,
+        "start_line": start_line,
+        "end_line": end_line if end_line is not None else start_line,
+    }
+
+
 def serialize_link(
     link: EntityDocLink, entity: CodeEntity = None, chunk: DocumentChunk = None
 ) -> dict:
@@ -133,6 +157,7 @@ def serialize_link(
         # O-114: Gegenstück für die Doku-Seite — None bei manuell angelegten Links
         # ohne Chunk-Bezug, dann bleibt die Navigation dorthin aus.
         "doc_source_id": chunk.source_id if chunk else None,
+        "doc_location": doc_location(chunk),
         "source_type": link.source_type,
         "score": link.score,
         "link_type": link.link_type,
@@ -170,7 +195,8 @@ def serialize_topic_node(n: TopicNode) -> dict:
 
 
 def _knowledge_link_side(
-    source_type, entity_id, chunk_id, title, url, source_type_label, entity_nav, doc_source_id
+    source_type, entity_id, chunk_id, title, url, source_type_label, entity_nav, doc_source_id,
+    doc_location_of=None,
 ) -> dict:
     side = {
         "type": source_type,
@@ -189,10 +215,15 @@ def _knowledge_link_side(
     src_id = doc_source_id(chunk_id) if doc_source_id and chunk_id else None
     if src_id:
         side["doc_source_id"] = src_id
+    location = doc_location_of(chunk_id) if doc_location_of and chunk_id else None
+    if location:
+        side["doc_location"] = location
     return side
 
 
-def serialize_knowledge_link(link: KnowledgeLink, entity_nav=None, doc_source_id=None) -> dict:
+def serialize_knowledge_link(
+    link: KnowledgeLink, entity_nav=None, doc_source_id=None, doc_location_of=None
+) -> dict:
     return {
         "id": link.id,
         "source_a": _knowledge_link_side(
@@ -204,6 +235,7 @@ def serialize_knowledge_link(link: KnowledgeLink, entity_nav=None, doc_source_id
             link.source_a_source_type,
             entity_nav,
             doc_source_id,
+            doc_location_of,
         ),
         "source_b": _knowledge_link_side(
             link.source_b_type,
@@ -214,6 +246,7 @@ def serialize_knowledge_link(link: KnowledgeLink, entity_nav=None, doc_source_id
             link.source_b_source_type,
             entity_nav,
             doc_source_id,
+            doc_location_of,
         ),
         "score": link.score,
         "link_type": link.link_type,

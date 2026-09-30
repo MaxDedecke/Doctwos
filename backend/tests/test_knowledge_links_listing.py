@@ -334,3 +334,46 @@ def test_liste_liefert_navigationsdaten_je_seite(client, db_session, test_projec
         db_session.query(CodeEntity).filter(CodeEntity.id == entity.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_liste_liefert_fundstelle_der_dokumentseite(client, db_session, test_project):
+    """Der Link-Manager zeigt je Dokumentseite Abschnitt, Seite und Zeilen an."""
+    chunk = DocumentChunk(
+        project_id=test_project, file_path="handbuch.pdf", content="x", start_line=5, end_line=9,
+        metadata_json={"section": "Betrieb > Batch", "page": 2},
+    )
+    plain = DocumentChunk(project_id=test_project, file_path="alt.md", content="x")
+    db_session.add_all([chunk, plain])
+    db_session.commit()
+    link = KnowledgeLink(
+        source_a_type="document", source_a_chunk_id=chunk.id, source_a_title="handbuch.pdf",
+        source_b_type="document", source_b_chunk_id=plain.id, source_b_title="alt.md",
+        score=0.7, status="pending",
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    try:
+        served = next(i for i in client.get("/knowledge-links?status=pending").json() if i["id"] == link.id)
+        assert served["source_a"]["doc_location"] == {
+            "section": "Betrieb > Batch", "page": 2, "start_line": 5, "end_line": 9,
+        }
+        # Alte Chunks ohne Ortsangabe liefern kein Feld statt eines leeren Objekts.
+        assert "doc_location" not in served["source_b"]
+    finally:
+        db_session.query(KnowledgeLink).filter(KnowledgeLink.id == link.id).delete(synchronize_session=False)
+        db_session.query(DocumentChunk).filter(DocumentChunk.id.in_([chunk.id, plain.id])).delete(synchronize_session=False)
+        db_session.commit()
+
+
+def test_doc_location_helper():
+    from types import SimpleNamespace
+    from api.serializers import doc_location
+
+    assert doc_location(None) is None
+    assert doc_location(SimpleNamespace(metadata_json=None, start_line=None, end_line=None)) is None
+    assert doc_location(SimpleNamespace(metadata_json={"page": 3}, start_line=4, end_line=None)) == {
+        "section": None, "page": 3, "start_line": 4, "end_line": 4,
+    }
+    # Seite 0/ungültig wird nicht als Seite ausgegeben.
+    assert doc_location(SimpleNamespace(metadata_json={"page": 0, "section": "A"}, start_line=1, end_line=2))["page"] is None

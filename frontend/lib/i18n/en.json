@@ -1269,6 +1269,11 @@
     "newChatTitle": "New chat"
   },
   "linkManagerView": {
+    "location": {
+      "page": "Page {{page}}",
+      "lines": "Lines {{from}}–{{to}}",
+      "line": "Line {{line}}"
+    },
     "title": "Link Manager",
     "segments": {
       "links": "Links",

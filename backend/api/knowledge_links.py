@@ -13,7 +13,7 @@ from models.database import (
     User,
 )
 from api.schemas import KnowledgeLinkCreate, KnowledgeLinkUpdate, LlmReviewRequest
-from api.serializers import serialize_knowledge_link
+from api.serializers import doc_location, serialize_knowledge_link
 from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
@@ -153,7 +153,14 @@ class LinkVisibilityIndex:
             row.id: row
             for row in self._lookup(
                 db,
-                (DocumentChunk.id, DocumentChunk.project_id, DocumentChunk.source_id),
+                (
+                    DocumentChunk.id,
+                    DocumentChunk.project_id,
+                    DocumentChunk.source_id,
+                    DocumentChunk.start_line,
+                    DocumentChunk.end_line,
+                    DocumentChunk.metadata_json,
+                ),
                 DocumentChunk.id,
                 chunk_ids,
             )
@@ -250,6 +257,12 @@ class LinkVisibilityIndex:
         row = self._chunks.get(chunk_id)
         return row.source_id if row is not None else None
 
+    def doc_location(self, chunk_id: Optional[int]) -> Optional[dict]:
+        """Abschnitt/Seite/Zeilen der Dokumentstelle (aus denselben Batches wie oben)."""
+        if chunk_id is None:
+            return None
+        return doc_location(self._chunks.get(chunk_id))
+
 
 @router.post("")
 def create_knowledge_link(
@@ -331,7 +344,10 @@ def list_knowledge_links(
     visibility = LinkVisibilityIndex(links, user, db)
     return [
         serialize_knowledge_link(
-            link, entity_nav=visibility.entity_nav, doc_source_id=visibility.doc_source_id
+            link,
+            entity_nav=visibility.entity_nav,
+            doc_source_id=visibility.doc_source_id,
+            doc_location_of=visibility.doc_location,
         )
         for link in links
         if visibility.is_visible(link)
