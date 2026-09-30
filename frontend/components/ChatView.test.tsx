@@ -91,6 +91,31 @@ describe('ChatView', () => {
     });
   });
 
+  describe('Modus nach der ersten Nachricht', () => {
+    const started = (mode: 'normal' | 'evidence') => [
+      { role: 'user' as const, content: 'Frage', metadata: { chat_mode: mode } },
+      { role: 'assistant' as const, content: 'Antwort', metadata: { chat_mode: mode } },
+    ];
+
+    it('zeigt vor der ersten Nachricht den Umschalter und kein Badge', () => {
+      renderChat({ chatMode: 'normal', setChatMode: vi.fn() });
+      expect(screen.getByRole('group', { name: 'Chatmodus' })).toBeTruthy();
+      expect(screen.queryByTestId('chat-mode-badge')).toBeNull();
+    });
+
+    it('blendet den Umschalter nach der ersten Nachricht aus und zeigt den gesetzten Modus als Badge', () => {
+      renderChat({ chatMode: 'evidence', setChatMode: vi.fn(), chatMessages: started('normal') });
+      expect(screen.queryByRole('group', { name: 'Chatmodus' })).toBeNull();
+      const badge = screen.getByTestId('chat-mode-badge');
+      expect(badge.textContent).toContain('Normal');
+    });
+
+    it('zeigt den Modus des Chats, nicht den aktuell ausgewählten', () => {
+      renderChat({ chatMode: 'normal', setChatMode: vi.fn(), chatMessages: started('evidence') });
+      expect(screen.getByTestId('chat-mode-badge').textContent).toContain('Evidenz');
+    });
+  });
+
   describe('leerer Zustand', () => {
     it('zeigt die Vorschlagskarten, solange kein Chatverlauf existiert', async () => {
       vi.mocked(api.getTypingStatement).mockResolvedValue(axiosResponse({ statement: 'Testansage' }));

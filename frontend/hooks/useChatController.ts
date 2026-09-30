@@ -14,6 +14,7 @@ import { parseChatStreamEvent } from '@/lib/chatStream';
 import { extractCallFlowData } from '@/lib/callFlow';
 import type { CallFlowData } from '@/lib/callFlow';
 import { copyToClipboard } from '@/lib/utils';
+import { lockedChatMode } from '@/lib/chatMode';
 import type { AgentStep, AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
@@ -643,6 +644,8 @@ export function useChatController({
 
   const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
     const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');
+    // Ein laufender Chat behält den Modus seiner ersten Nachricht, auch wenn die Auswahl inzwischen anders steht.
+    const sessionMode = lockedChatMode(chatMessages) ?? chatMode;
     const msgToSend = normalizeInitialUserMessage(
       (overrideMsg || currentMessage).trim(),
       isFirstUserMessage
@@ -654,7 +657,7 @@ export function useChatController({
     const newUserMsg: ChatMessage = {
       role: 'user',
       content: userMsgContent,
-      metadata: { ...createChatMetadata(turnFocus, extraMetadata), chat_mode: chatMode },
+      metadata: { ...createChatMetadata(turnFocus, extraMetadata), chat_mode: sessionMode },
     };
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
@@ -665,7 +668,7 @@ export function useChatController({
       metadata: {
         model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
-        chat_mode: chatMode,
+        chat_mode: sessionMode,
         agent_steps: []
       }
     };
@@ -679,7 +682,7 @@ export function useChatController({
 
     await runChatStream({
       message: userMsgContent,
-      mode: chatMode,
+      mode: sessionMode,
       session_id: activeSessionId,
       ...chatFocusRequestFields(turnFocus),
       branch,

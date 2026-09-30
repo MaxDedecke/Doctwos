@@ -145,6 +145,31 @@ describe('useChatController', () => {
     expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-42');
   });
 
+  it('behält in einem laufenden Chat den Modus der ersten Nachricht, auch wenn die Auswahl abweicht', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse([
+      { type: 'answer', content: 'Antwort', agent_steps: [] },
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Der Harness setzt chatMode auf den Standard "evidence"; der Chat wurde aber im Normal-Modus begonnen.
+    const { result } = renderHook(() => useControllerHarness({
+      currentMessage: 'Und weiter?',
+      activeSessionId: 5,
+      chatMessages: [
+        { role: 'user', content: 'Hallo', metadata: { chat_mode: 'normal' } },
+        { role: 'assistant', content: 'Hi', metadata: { chat_mode: 'normal' } },
+      ],
+    }));
+
+    await act(async () => { await result.current.controller.handleSendChat(); });
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request.mode).toBe('normal');
+    expect(request.metadata.chat_mode).toBe('normal');
+    expect(result.current.chatMessages[2].metadata?.chat_mode).toBe('normal');
+    expect(result.current.chatMessages[3].metadata?.chat_mode).toBe('normal');
+  });
+
   it('continues after malformed frames and preserves document sources without line numbers', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
       { type: 'content_chunk', content: { invalid: true } },

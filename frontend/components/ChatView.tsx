@@ -57,6 +57,7 @@ import Image from 'next/image';
 import React from 'react';
 import { AgentSteps } from "./AgentSteps";
 import { ChatEmptyState } from "./ChatEmptyState";
+import { lockedChatMode } from "@/lib/chatMode";
 
 interface ChatViewProps {
   theme: string;
@@ -138,6 +139,8 @@ export function ChatView({
   onAgentViewActionOutcome,
 }: ChatViewProps) {
   const { t } = useLanguage();
+  const sessionChatMode = lockedChatMode(chatMessages);
+  const activeChatMode = sessionChatMode ?? chatMode;
 
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
   const handleOpenFlow = (flow: CallFlowData, key: string | number, action?: AgentViewAction) => {
@@ -264,6 +267,7 @@ export function ChatView({
         "h-16 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4 @sm/chat:px-6"
       )}>
         <div aria-hidden="true" />
+        {sessionChatMode === null ? (
         <div role="group" aria-label={t('chatView.modeLabel')} className={cn(
           "flex items-center rounded-full border p-1 shadow-sm",
           theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-200 bg-ds-white'
@@ -280,6 +284,7 @@ export function ChatView({
             </button>
           ))}
         </div>
+        ) : <div aria-hidden="true" />}
         <div className="flex min-w-0 flex-col items-end gap-1.5 overflow-hidden py-2">
             {isDetectingLph ? (
               <div className="flex items-center gap-1.5 text-[0.625rem] text-ds-zinc-500">
@@ -1276,6 +1281,21 @@ export function ChatView({
                     </DropdownMenuContent>
                   </DropdownMenu>
 
+                  {sessionChatMode && (
+                    <span
+                      data-testid="chat-mode-badge"
+                      title={`${t('chatView.modeLabel')}: ${t(`chatView.mode.${sessionChatMode}Description`)}`}
+                      className={cn(
+                        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg border px-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.16em] shadow-sm",
+                        theme === 'dark' ? "bg-ds-zinc-900/80 border-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700"
+                      )}
+                    >
+                      <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", sessionChatMode === 'evidence' ? "bg-ds-indigo-500" : "bg-ds-zinc-500")} />
+                      <span className="sr-only">{t('chatView.modeLabel')}: </span>
+                      {t(`chatView.mode.${sessionChatMode}`)}
+                    </span>
+                  )}
+
                   <Select
                     value={activeProfileId}
                     onValueChange={(val) => {
@@ -1330,7 +1350,7 @@ export function ChatView({
           </div>
           {/* AI Warning Disclaimer */}
           <div className="mt-1 text-[0.625rem] leading-snug text-ds-zinc-500 text-center px-3">
-            {t(chatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
+            {t(activeChatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
           </div>
         </div>
       </div>
