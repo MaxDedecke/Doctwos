@@ -208,6 +208,7 @@ def parse_program(
 
         fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)
         io_edges = io_mod.scan(program, tokens, file_descriptors, items)
+        xref_edges = _drop_xref_edges_covered_by_io(io_edges, xref_edges)
         edges.extend(
             [
                 *proc_edges,
@@ -695,6 +696,35 @@ def _is_code_line(line: str) -> bool:
     if stripped.startswith("*") or stripped.startswith("/"):
         return False
     return True
+
+
+def _drop_xref_edges_covered_by_io(
+    io_edges: list[ParsedEdge], xref_edges: list[ParsedEdge]
+) -> list[ParsedEdge]:
+    """Jede I/O-Kante ersetzt genau eine gleiche Xref-Kante (Typ, Quelle, Ziel, Zeile).
+
+    Seit der Zugriffsrichtung (READS/WRITES) melden xref.scan() und io.scan() denselben
+    Operanden eines WRITE/READ-Statements beide. Die I/O-Kante ist die genauere und
+    uebernimmt die zusaetzlichen Xref-Metadaten (operand_role, control_context, ...).
+    Mehrfach vorkommende gleiche Referenzen auf einer Zeile bleiben erhalten, weil je
+    I/O-Kante nur ein Xref-Treffer verbraucht wird.
+    """
+    def key(edge: ParsedEdge) -> tuple:
+        return (edge.type, edge.src_name, edge.dst_name, edge.src_start_line)
+
+    pending: dict[tuple, list[ParsedEdge]] = {}
+    for edge in xref_edges:
+        pending.setdefault(key(edge), []).append(edge)
+    consumed: set[int] = set()
+    for io_edge in io_edges:
+        matches = pending.get(key(io_edge))
+        if not matches:
+            continue
+        twin = matches.pop(0)
+        consumed.add(id(twin))
+        for meta_key, value in (twin.meta or {}).items():
+            io_edge.meta.setdefault(meta_key, value)
+    return [edge for edge in xref_edges if id(edge) not in consumed]
 
 
 def _collect_uncovered_chunks(

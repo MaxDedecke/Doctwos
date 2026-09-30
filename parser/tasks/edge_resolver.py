@@ -36,10 +36,13 @@ from models.database import CodeEdge, CodeEntity
 # einen gemeinsamen Namensindex, damit ein Programm und ein gleichnamiges
 # Copybook (unwahrscheinlich, aber möglich) sich nicht gegenseitig verdecken.
 _TARGET_TYPE_BY_EDGE_TYPE = {"CALL": "program", "COPY": "copybook"}
+# Datenreferenzen auf Copybook-Felder: "USES" (ungerichtet) sowie die gerichteten
+# READS/WRITES (Zugriffsrichtung, O-Reihe zur COBOL-Datenzugriffsklassifikation).
+_DATA_REFERENCE_EDGE_TYPES = ("USES", "READS", "WRITES")
 
 
 def _resolve_cobol_edges(db: Session, source_id: int) -> int:
-    """Löst offene CALL/COPY- und Copybook-USES-Kanten dieser Quelle auf. Nur bei GENAU
+    """Löst offene CALL/COPY- und Copybook-Datenreferenzkanten (USES/READS/WRITES) dieser Quelle auf. Nur bei GENAU
     EINEM Treffer (E-1/E-2 „kein Raten“) — ein Namenskonflikt (z.B. zwei
     gleich benannte Programme im selben Repo) bleibt bewusst unresolved statt
     falsch verdrahtet zu werden. Gibt die Anzahl neu aufgelöster Kanten zurück;
@@ -51,7 +54,7 @@ def _resolve_cobol_edges(db: Session, source_id: int) -> int:
             CodeEdge.source_id == source_id,
             CodeEdge.resolution == "unresolved",
             CodeEdge.dst_entity_id.is_(None),
-            CodeEdge.type.in_((*_TARGET_TYPE_BY_EDGE_TYPE.keys(), "USES")),
+            CodeEdge.type.in_((*_TARGET_TYPE_BY_EDGE_TYPE.keys(), *_DATA_REFERENCE_EDGE_TYPES)),
         )
         .all()
     )
@@ -71,7 +74,7 @@ def _resolve_cobol_edges(db: Session, source_id: int) -> int:
 
     resolved = 0
     for edge in candidates:
-        if edge.type == "USES":
+        if edge.type in _DATA_REFERENCE_EDGE_TYPES:
             meta = edge.meta_json or {}
             target_qname = meta.get("target_qualified_name")
             target_path = meta.get("copybook_path")
