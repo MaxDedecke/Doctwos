@@ -695,12 +695,20 @@ def test_search_code_compact_adds_source_only_for_the_best_exact_match(db_sessio
     compact = mcp_server.search_code(_context(user.id), project_id=project_id, query="run")
     with_source = [hit for hit in compact["results"] if "source_excerpt" in hit]
     assert len(with_source) == 1 and "analysis" not in compact["results"][0]
+    assert compact["results"][0]["location"].endswith(".java:1-3")
     assert compact["follow_up_actions"][0]["tool"] == "explain_symbol"
+    assert "detail" not in str(mcp_server.search_code.__doc__)
 
-    full = mcp_server.search_code(_context(user.id), project_id=project_id, query="run", detail="full")
-    assert len([hit for hit in full["results"] if "source_excerpt" in hit]) == 2 and "analysis" in full["results"][0]
-    with pytest.raises(ValueError, match="invalid detail"):
-        mcp_server.search_code(_context(user.id), project_id=project_id, query="run", detail="bogus")
+
+def test_search_code_hides_parameters_unless_they_match_exactly(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    method = _method(project_id, "login", "demo.Auth#login(String)")
+    param = _method(project_id, "login", "demo.Auth#login(String)@param:loginName", kind="parameter")
+    db_session.add_all([method, param])
+    db_session.commit()
+    result = mcp_server.search_code(_context(user.id), project_id=project_id, query="Auth#login", include_source=False)
+    assert [hit["type"] for hit in result["results"]] == ["method"]
 
 
 def test_explain_symbol_returns_numbered_source_callers_callees_and_data_access(

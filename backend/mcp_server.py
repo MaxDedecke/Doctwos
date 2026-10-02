@@ -102,6 +102,7 @@ def _symbol_matches(entity: CodeEntity, term: str) -> bool:
 
 
 _DOTTED = re.compile(r"^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$")
+_NOISE_TYPES = {"parameter", "local_variable", "local", "record_component"}
 _STOPWORDS = {"wie", "was", "der", "die", "das", "und", "oder", "the", "and", "how", "does", "what", "for", "with", "von", "mit"}
 _STRUCTURAL = {"program", "cobol_program", "section", "paragraph", "class", "interface", "enum", "record", "method", "constructor"}
 _TYPE_RANK = {"method": 0, "paragraph": 0, "constructor": 1, "program": 0, "cobol_program": 0, "section": 1, "class": 1,
@@ -557,6 +558,132 @@ mcp = FastMCP(
 
 
 @mcp.tool(annotations=READ_ONLY)
+def explain_symbol(
+    ctx: Context,
+    project_id: int,
+    symbol: str,
+    max_chars: Annotated[int, Field(description="Response budget for source and facts, 1500-12000.")] = 7000,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> dict:
+    """FIRST CHOICE for any named class, method, program or paragraph: everything in ONE call.
+
+    Resolves ``Klasse.methode``, ``Klasse#methode``, ``PROGRAM`` or ``PROGRAM.PARAGRAPH`` and returns the original
+    source with line numbers, callers, callees and indexed data access. For a large program or class it returns an
+    outline instead: every paragraph or method with its line range and facts (calls, performs, CICS commands,
+    datasets). Then call ``explain_symbol`` again with one outline ``symbol``. Use ``start_line``/``end_line``
+    to read a specific range of the same symbol.
+    """
+    max_chars = max(1500, min(max_chars, 12000))
+    symbol = symbol.strip()
+    if start_line is not None and start_line < 1:
+        raise ValueError("invalid start_line")
+    if end_line is not None and (end_line < 1 or (start_line is not None and end_line < start_line)):
+        raise ValueError("invalid end_line")
+    with _tool_context(ctx, "explain_symbol", project_id, {"max_chars": max_chars, "start_line": start_line, "end_line": end_line}) as (db, user):
+        if not symbol or len(symbol) > 200:
+            raise ValueError("invalid symbol")
+        _project(db, user, project_id)
+        found, suggestions, mode = _find_entities(db, user, project_id, symbol, 8)
+        exact = [e for e in found if _symbol_matches(e, symbol)] or found
+        structural = [e for e in exact if e.type in _STRUCTURAL] or exact
+        if not structural:
+            response = {"project_id": project_id, "symbol": symbol, "resolution": "none", "did_you_mean": suggestions,
+                        "hint": "No indexed symbol matched. Try search_code with a shorter name or search_knowledge for wording."}
+            _capture_mcp_result(ctx, db, project_id, response)
+            return response
+        entity, others = _pick_entity(structural)
+        if entity is None:
+            response = {"project_id": project_id, "symbol": symbol, "resolution": "ambiguous",
+                        "candidates": [_compact_entity(e) for e in structural[:8]],
+                        "hint": "Call explain_symbol again with one qualified_name from candidates."}
+            _capture_mcp_result(ctx, db, project_id, response)
+            return response
+        low = start_line if start_line is not None else entity.start_line or 1
+        high = end_line if end_line is not None else entity.end_line or 10**9
+        pieces: list[tuple[int, str]] = []
+        for chunk in entity_api._definition_chunks(entity, db, start_line=start_line, end_line=end_line):
+            first, last = max(low, chunk.start_line), min(high, chunk.end_line)
+            if first > last:
+                continue
+            lines = chunk.content.splitlines()
+            pieces.append((first, "\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1])))
+        source_budget = int(max_chars * 0.65)
+        total_chars = sum(len(text) for _first, text in pieces)
+        outline = None
+        source = None
+        if start_line is None and end_line is None and total_chars > source_budget:
+            outline = _outline(db, entity)
+        if not outline:
+            outline = None
+            parts, used, truncated, next_line, last_delivered = [], 0, False, None, None
+            for first, text in pieces:
+                room = source_budget - used
+                if room <= 0:
+                    truncated, next_line = True, first
+                    break
+                clipped = text[:room]
+                if len(clipped) < len(text):
+                    clipped = clipped[: clipped.rfind("\n")] if "\n" in clipped else clipped
+                    truncated = True
+                parts.append(_numbered(clipped, first))
+                used += len(clipped)
+                last_delivered = first + max(0, len(clipped.splitlines()) - 1)
+                if truncated:
+                    next_line = last_delivered + 1
+                    break
+            source = {
+                "start_line": pieces[0][0] if pieces else entity.start_line,
+                "end_line": last_delivered if last_delivered is not None else entity.end_line,
+                "text": "\n".join(parts), "truncated": truncated, "next_start_line": next_line,
+            }
+        response = {
+            "project_id": project_id, "symbol": symbol,
+            "resolution": "unique_exact_match" if mode == "exact" and not others else ("overloads" if others else "fuzzy"),
+            "entity": _compact_entity(entity),
+        }
+        if source is not None:
+            response["source"] = source
+        else:
+            kept, size = [], 0
+            for item in outline:
+                size += len(json.dumps(item, ensure_ascii=False))
+                if size > max_chars and kept:
+                    break
+                kept.append(item)
+            response["outline"] = kept
+            if len(kept) < len(outline):
+                response["outline_omitted"] = len(outline) - len(kept)
+            response["notice"] = "Source not inlined (larger than the budget). Call explain_symbol with one outline symbol."
+        if source is not None:
+            try:
+                callees = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="outgoing",
+                                                        scope="execution", page_size=12, cursor=None, include_source=False), "outgoing")
+                callers = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="incoming",
+                                                        scope="execution", page_size=8, cursor=None, include_source=False), "incoming", 8)
+            except (ValueError, HTTPException):
+                callees, callers = [], []
+            if callees:
+                response["callees"] = callees
+            if callers:
+                response["callers"] = callers
+            access = _data_access_summary(db, entity)
+            if access:
+                response["data_access"] = access
+        if others:
+            response["other_matches"] = [_compact_entity(e) for e in others[:6]]
+        if source is not None and source["truncated"] and source["next_start_line"]:
+            response["follow_up_actions"] = [{
+                "tool": "explain_symbol",
+                "arguments": {"project_id": project_id, "symbol": entity.qualified_name,
+                              "start_line": source["next_start_line"], "end_line": entity.end_line, "max_chars": max_chars},
+                "reason": "Continue reading the rest of this symbol.",
+            }]
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
+
+
+@mcp.tool(annotations=READ_ONLY)
 def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dict:
     """List projects the current Doctus user may open."""
     limit = max(1, min(limit, 50))
@@ -580,7 +707,6 @@ def search_code(
     query: str,
     limit: int = 10,
     include_source: bool = True,
-    detail: Annotated[str, Field(description="'compact' (default): one line per hit, source only for the best exact match. 'full': three source excerpts and analysis blobs.")] = "compact",
 ) -> dict:
     """Find indexed code entities by symbol, qualified name, or file path in one project.
 
@@ -590,9 +716,7 @@ def search_code(
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
-    if detail not in {"compact", "full"}:
-        raise ValueError("invalid detail")
-    with _tool_context(ctx, "search_code", project_id, {"limit": limit, "include_source": include_source, "detail": detail}) as (db, user):
+    with _tool_context(ctx, "search_code", project_id, {"limit": limit, "include_source": include_source}) as (db, user):
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
@@ -611,29 +735,26 @@ def search_code(
                 if entity.id not in seen_ids:
                     seen_ids.add(entity.id)
                     entities.append(entity)
+        # Parameters and locals only clutter a symbol search; keep them when they are the exact match.
+        entities = [e for e in entities if e.type not in _NOISE_TYPES
+                    or any((e.name or "").casefold() == a.strip().casefold() for a in alternatives)]
         total = len(entities)
         entities = entities[:limit]
-        compact = detail == "compact"
         visible = []
         for entity in entities:
-            if compact:
-                item = _compact_entity(entity)
-                item.update({"project_id": entity.project_id, "source_id": entity.source_id, "variant_key": entity.variant_key, "name": entity.name})
-            else:
-                item = {
-                    "id": entity.id, "project_id": entity.project_id, "source_id": entity.source_id,
-                    "variant_key": entity.variant_key, "name": entity.name, "qualified_name": entity.qualified_name,
-                    "type": entity.type, "file_path": entity.file_path, "start_line": entity.start_line,
-                    "end_line": entity.end_line, "analysis": _entity_analysis(entity),
-                }
+            item = {"id": entity.id, "qualified_name": entity.qualified_name, "type": entity.type,
+                    "location": f"{entity.file_path}:{entity.start_line}-{entity.end_line}"}
+            signature = (entity.meta_json or {}).get("signature")
+            if signature:
+                item["signature"] = signature
             exact = any(_symbol_matches(entity, alternative) for alternative in alternatives)
-            # Source only where it can be cited directly: the best exact match (compact) or the top three (full).
-            wants_source = include_source and (len(visible) < 3 if not compact else (exact and not any("source_excerpt" in v for v in visible)))
+            # Source only where it can be cited directly: the best exact match.
+            wants_source = include_source and exact and not any("source_excerpt" in v for v in visible)
             if wants_source and entity.type in _STRUCTURAL | {"field", "compilation_unit", "data_item"}:
                 result = entity_api.get_entity(entity_id=entity.id, project_id=project_id, db=db, user=user)
                 definition = result.get("definition")
                 if definition:
-                    excerpt, clipped = _bounded(definition.get("content"), 2400 if compact else 1600)
+                    excerpt, clipped = _bounded(definition.get("content"), 2400)
                     item["source_excerpt"] = {
                         "start_line": definition["start_line"],
                         "end_line": definition["end_line"],
@@ -651,7 +772,7 @@ def search_code(
                     }
             visible.append(item)
         follow_up_actions = []
-        for item in visible[: (1 if compact else 3)]:
+        for item in visible[:1]:
             follow_up_actions.append({
                 "tool": "explain_symbol",
                 "arguments": {"project_id": project_id, "symbol": item["qualified_name"]},
@@ -678,7 +799,10 @@ def search_code(
 
 @mcp.tool(annotations=READ_ONLY)
 def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: Annotated[int, Field(description="Traversal depth, 0-3; larger values are clamped to 3.")] = 2) -> dict:
-    """Search symbols and, for one exact candidate, resolve its bounded call flow."""
+    """Locate symbols and, for one exact candidate, return its call-flow GRAPH (structure only, no source code).
+
+    To read the code, callers, callees and data access of a symbol use ``explain_symbol`` instead.
+    """
     query = query.strip()
     limit = max(1, min(limit, 12))
     hops = max(0, min(hops, 3))
@@ -860,132 +984,6 @@ def _data_access_summary(db: Session, entity: CodeEntity, limit: int = 15) -> li
             group["file_io"] = True
     order = {"WRITES": 0, "USES_DATASET": 1, "READS": 2}
     return sorted(groups.values(), key=lambda g: (0 if g.get("file_io") else 1, order.get(g["access"], 3), g["lines"][0] or 0))[:limit]
-
-
-@mcp.tool(annotations=READ_ONLY)
-def explain_symbol(
-    ctx: Context,
-    project_id: int,
-    symbol: str,
-    max_chars: Annotated[int, Field(description="Response budget for source and facts, 1500-12000.")] = 7000,
-    start_line: int | None = None,
-    end_line: int | None = None,
-) -> dict:
-    """FIRST CHOICE for any named class, method, program or paragraph: everything in ONE call.
-
-    Resolves ``Klasse.methode``, ``Klasse#methode``, ``PROGRAM`` or ``PROGRAM.PARAGRAPH`` and returns the original
-    source with line numbers, callers, callees and indexed data access. For a large program or class it returns an
-    outline instead: every paragraph or method with its line range and facts (calls, performs, CICS commands,
-    datasets). Then call ``explain_symbol`` again with one outline ``symbol``. Use ``start_line``/``end_line``
-    to read a specific range of the same symbol.
-    """
-    max_chars = max(1500, min(max_chars, 12000))
-    symbol = symbol.strip()
-    if start_line is not None and start_line < 1:
-        raise ValueError("invalid start_line")
-    if end_line is not None and (end_line < 1 or (start_line is not None and end_line < start_line)):
-        raise ValueError("invalid end_line")
-    with _tool_context(ctx, "explain_symbol", project_id, {"max_chars": max_chars, "start_line": start_line, "end_line": end_line}) as (db, user):
-        if not symbol or len(symbol) > 200:
-            raise ValueError("invalid symbol")
-        _project(db, user, project_id)
-        found, suggestions, mode = _find_entities(db, user, project_id, symbol, 8)
-        exact = [e for e in found if _symbol_matches(e, symbol)] or found
-        structural = [e for e in exact if e.type in _STRUCTURAL] or exact
-        if not structural:
-            response = {"project_id": project_id, "symbol": symbol, "resolution": "none", "did_you_mean": suggestions,
-                        "hint": "No indexed symbol matched. Try search_code with a shorter name or search_knowledge for wording."}
-            _capture_mcp_result(ctx, db, project_id, response)
-            return response
-        entity, others = _pick_entity(structural)
-        if entity is None:
-            response = {"project_id": project_id, "symbol": symbol, "resolution": "ambiguous",
-                        "candidates": [_compact_entity(e) for e in structural[:8]],
-                        "hint": "Call explain_symbol again with one qualified_name from candidates."}
-            _capture_mcp_result(ctx, db, project_id, response)
-            return response
-        low = start_line if start_line is not None else entity.start_line or 1
-        high = end_line if end_line is not None else entity.end_line or 10**9
-        pieces: list[tuple[int, str]] = []
-        for chunk in entity_api._definition_chunks(entity, db, start_line=start_line, end_line=end_line):
-            first, last = max(low, chunk.start_line), min(high, chunk.end_line)
-            if first > last:
-                continue
-            lines = chunk.content.splitlines()
-            pieces.append((first, "\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1])))
-        source_budget = int(max_chars * 0.65)
-        total_chars = sum(len(text) for _first, text in pieces)
-        outline = None
-        source = None
-        if start_line is None and end_line is None and total_chars > source_budget:
-            outline = _outline(db, entity)
-        if not outline:
-            outline = None
-            parts, used, truncated, next_line, last_delivered = [], 0, False, None, None
-            for first, text in pieces:
-                room = source_budget - used
-                if room <= 0:
-                    truncated, next_line = True, first
-                    break
-                clipped = text[:room]
-                if len(clipped) < len(text):
-                    clipped = clipped[: clipped.rfind("\n")] if "\n" in clipped else clipped
-                    truncated = True
-                parts.append(_numbered(clipped, first))
-                used += len(clipped)
-                last_delivered = first + max(0, len(clipped.splitlines()) - 1)
-                if truncated:
-                    next_line = last_delivered + 1
-                    break
-            source = {
-                "start_line": pieces[0][0] if pieces else entity.start_line,
-                "end_line": last_delivered if last_delivered is not None else entity.end_line,
-                "text": "\n".join(parts), "truncated": truncated, "next_start_line": next_line,
-            }
-        response = {
-            "project_id": project_id, "symbol": symbol,
-            "resolution": "unique_exact_match" if mode == "exact" and not others else ("overloads" if others else "fuzzy"),
-            "entity": _compact_entity(entity),
-        }
-        if source is not None:
-            response["source"] = source
-        else:
-            kept, size = [], 0
-            for item in outline:
-                size += len(json.dumps(item, ensure_ascii=False))
-                if size > max_chars and kept:
-                    break
-                kept.append(item)
-            response["outline"] = kept
-            if len(kept) < len(outline):
-                response["outline_omitted"] = len(outline) - len(kept)
-            response["notice"] = "Source not inlined (larger than the budget). Call explain_symbol with one outline symbol."
-        if source is not None:
-            try:
-                callees = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="outgoing",
-                                                        scope="execution", page_size=12, cursor=None, include_source=False), "outgoing")
-                callers = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="incoming",
-                                                        scope="execution", page_size=8, cursor=None, include_source=False), "incoming", 8)
-            except (ValueError, HTTPException):
-                callees, callers = [], []
-            if callees:
-                response["callees"] = callees
-            if callers:
-                response["callers"] = callers
-            access = _data_access_summary(db, entity)
-            if access:
-                response["data_access"] = access
-        if others:
-            response["other_matches"] = [_compact_entity(e) for e in others[:6]]
-        if source is not None and source["truncated"] and source["next_start_line"]:
-            response["follow_up_actions"] = [{
-                "tool": "explain_symbol",
-                "arguments": {"project_id": project_id, "symbol": entity.qualified_name,
-                              "start_line": source["next_start_line"], "end_line": entity.end_line, "max_chars": max_chars},
-                "reason": "Continue reading the rest of this symbol.",
-            }]
-        _capture_mcp_result(ctx, db, project_id, response)
-        return response
 
 
 @mcp.tool(annotations=READ_ONLY)
