@@ -819,3 +819,226 @@ def test_get_code_entity_resolves_a_symbol_without_an_entity_id(db_session, mcp_
     assert result["id"] == entity.id and result["definition"]["sections"]
     with pytest.raises(ValueError, match="entity_id or symbol required"):
         mcp_server.get_code_entity(_context(user.id), project_id=project_id)
+
+
+def test_extract_symbols_finds_code_names_in_german_and_english_questions():
+    extract = mcp_server._extract_symbols
+    assert extract("In AWS CardDemo: Wie berechnet das Batch-Programm CBACT04C die Zinsen?") == ["CardDemo", "CBACT04C"]
+    assert "DefaultNotificationManager.createTasks" in extract("Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?")
+    assert "DefaultNotificationManager" not in extract("Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?")
+    terms = extract("Welche Programme binden das Copybook CVTRA05Y ein? Feld TRAN-RECORD, z.B. TRAN-ID.")
+    assert "CVTRA05Y" in terms and "TRAN-RECORD" in terms and "TRAN-ID" in terms and "z.B" not in terms
+    assert extract("Wie funktioniert das eigentlich?") == []
+
+
+def test_relevant_children_prefers_names_and_facts_that_match_the_question():
+    outline = [
+        {"symbol": "P.WORKING-STORAGE", "type": "section", "lines": "1-9"},
+        {"symbol": "P.1000-READ-INPUT", "type": "paragraph", "lines": "10-20", "facts": "io READ INFILE"},
+        {"symbol": "P.1300-COMPUTE-INTEREST", "type": "paragraph", "lines": "21-30", "facts": "performs 1300-B-WRITE-TX"},
+        {"symbol": "P.9999-ABEND-PROGRAM", "type": "paragraph", "lines": "31-40"},
+    ]
+    top = mcp_server._relevant_children("Wie berechnet P die Zinsen und welche Formel gilt?", outline, 2)
+    assert top[0]["symbol"] == "P.1300-COMPUTE-INTEREST"
+    assert all(item["type"] != "section" for item in top)
+    files = mcp_server._relevant_children("Welche Dateien werden gelesen?", outline, 1)
+    assert files[0]["symbol"] == "P.1000-READ-INPUT"
+
+
+def test_used_by_lists_copy_users_and_overload_callers_once_per_unit(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    book = _method(project_id, "CVBOOK", "CVBOOK", "app/cpy/CVBOOK.cpy", 1, 5, kind="copybook")
+    prog_a = _method(project_id, "PROGA", "PROGA", "app/cbl/PROGA.cbl", 1, 90, kind="program")
+    prog_b = _method(project_id, "PROGB", "PROGB", "app/cbl/PROGB.cbl", 1, 90, kind="program")
+    own = _method(project_id, "CVBOOK2", "CVBOOK.CVBOOK", "app/cpy/CVBOOK.cpy", 2, 3, kind="program")
+    db_session.add_all([book, prog_a, prog_b, own])
+    db_session.flush()
+    db_session.add_all([
+        CodeEdge(project_id=project_id, src_entity_id=prog_a.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=7, src_end_line=7),
+        CodeEdge(project_id=project_id, src_entity_id=prog_a.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=40, src_end_line=40),
+        CodeEdge(project_id=project_id, src_entity_id=prog_b.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=9, src_end_line=9),
+        CodeEdge(project_id=project_id, src_entity_id=own.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=3, src_end_line=3),
+    ])
+    db_session.commit()
+    users = mcp_server._used_by(db_session, db_session.get(User, user.id), book, 10)
+    assert [u["unit"] for u in users] == ["PROGA", "PROGB"]
+    assert users[0]["lines"] == [7, 40] and users[0]["types"] == ["COPY"]
+
+
+def test_answer_context_resolves_named_symbols_and_returns_evidence(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
+    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    result = mcp_server.answer_context(
+        _context(user.id), project_id=project_id,
+        question="Wie läuft Auth.authenticate ab und welche Prüfungen gibt es?")
+    assert [r["symbol"] for r in result["resolved"]] == ["org.demo.Auth#authenticate(String)"]
+    assert result["evidence"][0]["source"]["text"].splitlines()[0] == "1: check(u);"
+
+
+def test_answer_context_expands_the_paragraphs_that_match_a_large_program(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    program = _method(project_id, "BIGPROG", "BIGPROG", "app/BIGPROG.cbl", 1, 300, kind="program")
+    interest = _method(project_id, "1300-COMPUTE-INTEREST", "BIGPROG.1300-COMPUTE-INTEREST", "app/BIGPROG.cbl", 100, 110, kind="paragraph")
+    other = _method(project_id, "9999-ABEND", "BIGPROG.9999-ABEND", "app/BIGPROG.cbl", 200, 210, kind="paragraph")
+    db_session.add_all([program, interest, other,
+                        _chunk(project_id, "app/BIGPROG.cbl", [("L%03d " % n) + "x" * 70 for n in range(1, 301)], 1)])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    result = mcp_server.answer_context(
+        _context(user.id), project_id=project_id,
+        question="Wie berechnet BIGPROG die Zinsen?", max_chars=6000)
+    entry = result["evidence"][0]
+    assert "source" not in entry and entry["outline"]
+    assert entry["expanded"][0]["symbol"] == "BIGPROG.1300-COMPUTE-INTEREST"
+    assert entry["expanded"][0]["source"]["text"].splitlines()[0].startswith("100: L100")
+
+
+def test_answer_context_without_a_symbol_offers_candidates(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    result = mcp_server.answer_context(_context(user.id), project_id=project_id, question="Wie funktioniert die Anmeldung?")
+    assert result["resolved"] == [] and "hint" in result
+
+
+def test_answer_context_denies_a_project_the_mcp_user_cannot_open(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    _owner, outsider, project_id, _foreign = mcp_project_context
+    with pytest.raises(ValueError, match="MCP request failed or access denied"):
+        mcp_server.answer_context(_context(outsider.id), project_id=project_id, question="Was macht CBACT04C?")
+
+
+@pytest.fixture(autouse=True)
+def _no_embedding_calls(monkeypatch):
+    monkeypatch.setattr(mcp_server, "_embedding_scores", lambda *_a, **_k: None)
+
+
+def test_answer_context_accepts_symbols_and_topic_without_a_question(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
+    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    result = mcp_server.answer_context(_context(user.id), project_id=project_id,
+                                       symbols=["Auth.authenticate"], topic="login checks")
+    assert [r["symbol"] for r in result["resolved"]] == ["org.demo.Auth#authenticate(String)"]
+    assert result["unresolved_terms"] == []
+
+
+def test_answer_context_follows_the_call_chain_two_hops(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    a = _method(project_id, "start", "org.demo.Entry#start()", "src/Entry.java", 1, 3)
+    b = _method(project_id, "route", "org.demo.Router#route()", "src/Router.java", 1, 8)
+    c = _method(project_id, "deliver", "org.demo.Sender#deliver()", "src/Sender.java", 1, 3)
+    db_session.add_all([a, b, c, _chunk(project_id, "src/Entry.java", ["route();", "x;", "}"]),
+                        _chunk(project_id, "src/Router.java", ["deliver();", "y;", "z;", "w;", "v;", "u;", "t;", "}"])])
+    db_session.commit()
+
+    def flow(_db, _user, _project, entity_id, **kwargs):
+        if kwargs["direction"] == "incoming":
+            return {"nodes": [], "edges": []}
+        target = {a.id: b, b.id: c}.get(entity_id)
+        if target is None:
+            return {"nodes": [], "edges": []}
+        return {"nodes": [{"id": target.id, "qualified_name": target.qualified_name, "file_path": target.file_path,
+                           "start_line": target.start_line}],
+                "edges": [{"target": target.id, "type": "CALLS", "start_line": 1}]}
+
+    monkeypatch.setattr(mcp_server, "_call_flow_page", flow)
+    result = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["Entry.start"], topic="routing")
+    chain = result["evidence"][0]["callee_chain"]
+    assert chain[0]["symbol"] == "org.demo.Router#route()"
+    assert chain[0]["source"]["text"].startswith("1: deliver();")
+    assert chain[0]["calls"] == ["Sender#deliver (Zeile 1)"]
+
+
+def test_embedding_scores_blend_into_the_ranking(db_session, mcp_project_context, monkeypatch):
+    user, _outsider, project_id, _foreign = mcp_project_context
+    monkeypatch.setattr(mcp_server, "_embedding_scores", lambda _db, _p, _q, texts: [0.1 if "PLAIN" in t else 0.9 for t in texts])
+    rows = [(1.0, {"symbol": "PLAIN-ONE"}), (1.0, {"symbol": "SEMANTIC-TWO"})]
+    ranked = mcp_server._rank_by_embedding(db_session, project_id, "q", rows, lambda i: i["symbol"])
+    assert ranked[0][1]["symbol"] == "SEMANTIC-TWO"
+
+
+def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(db_session, mcp_project_context, monkeypatch):
+    import asyncio
+    import agent
+    from api import chat as chat_api
+
+    user, _outsider, project_id, _foreign = mcp_project_context
+    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
+    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    prompt = "Context...\nQuestion: Wie läuft Auth.authenticate ab?"
+    prefetched = asyncio.run(agent._prefetch_evidence(db_session, user.id, project_id, prompt))
+    name, args, raw = prefetched
+    assert name == "answer_context" and args["symbols"] == ["org.demo.Auth#authenticate(String)"]
+
+    sources: list = []
+    chat_api._extract_tool_sources({"type": "tool_result", "name": name, "result": raw}, sources, 7)
+    assert {"file": "src/Auth.java", "lines": [1, 3], "source_id": 7} in sources
+
+    # Unknown symbols fall back to the regular bootstrap.
+    assert asyncio.run(agent._prefetch_evidence(db_session, user.id, project_id, "Question: Was ist Zebra?")) is None
+
+
+def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_project_context):
+    _user, _outsider, project_id, _foreign = mcp_project_context
+    program = _method(project_id, "AUTHPROG", "AUTHPROG", "app/AUTHPROG.cbl", 1, 12, kind="program")
+    para = _method(project_id, "8000-DECLINE", "AUTHPROG.8000-DECLINE", "app/AUTHPROG.cbl", 3, 8, kind="paragraph")
+    lines = ["       PROCEDURE DIVISION.", "      * comment 'not a message at all'",
+             "       8000-DECLINE.", "           MOVE '51' TO AUTH-RESP-REASON",
+             "           DISPLAY 'INSUFFICIENT FUNDS (LIMIT)'", "           MOVE 'N' TO FLAG", "           EXIT.",
+             "", "", "", "", ""]
+    db_session.add_all([program, para, _chunk(project_id, "app/AUTHPROG.cbl", lines)])
+    db_session.commit()
+    outline = mcp_server._outline(db_session, program)
+    facts = next(item for item in outline if item["symbol"] == "AUTHPROG.8000-DECLINE")["facts"]
+    assert "AUTH-RESP-REASON=51" in facts and '"INSUFFICIENT FUNDS [LIMIT]"' in facts
+    assert "not a message" not in facts
+
+
+def test_evidence_budget_scales_with_the_context_window():
+    from api.chat import _evidence_budget
+    assert _evidence_budget(None) is None
+    assert _evidence_budget(8192) == 5538
+    assert _evidence_budget(2048) == 3000 and _evidence_budget(131072) == 14000
+
+
+def test_relevant_children_follows_perform_one_step_and_skips_housekeeping():
+    outline = [
+        {"symbol": "P.0000-FILE-OPEN", "type": "paragraph", "lines": "1-5", "facts": "io OPEN INFILE"},
+        {"symbol": "P.1300-COMPUTE-INTEREST", "type": "paragraph", "lines": "6-9", "facts": "performs 1300-B-WRITE-TX, 9999-ABEND-PROGRAM"},
+        {"symbol": "P.1300-B-WRITE-TX", "type": "paragraph", "lines": "10-20", "facts": 'io WRITE TRANFILE; msgs "Int. for a/c"'},
+        {"symbol": "P.9999-ABEND-PROGRAM", "type": "paragraph", "lines": "21-30", "facts": "calls CEE3ABD"},
+    ]
+    chosen = [c["symbol"] for c in mcp_server._relevant_children("Wie berechnet P die Zinsen?", outline, 1)]
+    assert chosen == ["P.1300-COMPUTE-INTEREST", "P.1300-B-WRITE-TX"]
+
+
+def test_outline_facts_name_the_fields_a_paragraph_computes(db_session, mcp_project_context):
+    _user, _outsider, project_id, _foreign = mcp_project_context
+    program = _method(project_id, "INTPROG", "INTPROG", "app/INTPROG.cbl", 1, 9, kind="program")
+    para = _method(project_id, "1300-COMPUTE-INTEREST", "INTPROG.1300-COMPUTE-INTEREST", "app/INTPROG.cbl", 2, 6, kind="paragraph")
+    lines = ["       PROCEDURE DIVISION.", "       1300-COMPUTE-INTEREST.", "           COMPUTE WS-MONTHLY-INT",
+             "            = (BAL * RATE) / 1200", "           ADD WS-MONTHLY-INT TO WS-TOTAL-INT", "           EXIT.", "", "", ""]
+    db_session.add_all([program, para, _chunk(project_id, "app/INTPROG.cbl", lines)])
+    db_session.commit()
+    facts = next(i for i in mcp_server._outline(db_session, program) if i["symbol"].endswith("COMPUTE-INTEREST"))["facts"]
+    assert "computes WS-MONTHLY-INT, WS-TOTAL-INT" in facts

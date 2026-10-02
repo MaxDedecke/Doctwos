@@ -4,8 +4,11 @@ from contextlib import asynccontextmanager
 import logging
 import base64
 import binascii
+import asyncio
+import concurrent.futures
 import hashlib
 import json
+import math
 import re
 import time
 from contextlib import contextmanager
@@ -42,7 +45,7 @@ from services.call_flow import (
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
-from services.ollama_client import search_project_chunks
+from services.ollama_client import embed_text, search_project_chunks
 from services.search import search_nodes
 
 
@@ -206,8 +209,18 @@ def _compact_entity(entity: CodeEntity) -> dict:
     return item
 
 
-def _numbered(text: str, start_line: int) -> str:
-    return "\n".join(f"{start_line + i}: {line}" for i, line in enumerate(text.splitlines()))
+_COMMENT_START = ("//", "/*", "*", "#", "--")
+
+
+def _numbered(text: str, start_line: int, compact: bool = False) -> str:
+    """Line-numbered text; compact drops blank, comment-only and COBOL comment lines but keeps the original numbers."""
+    out = []
+    for i, line in enumerate(text.splitlines()):
+        stripped = line.strip()
+        if compact and (not stripped or stripped.startswith(_COMMENT_START) or (len(line) > 6 and line[6] == "*")):
+            continue
+        out.append(f"{start_line + i}: {line}")
+    return "\n".join(out)
 
 
 class ToolInputError(ValueError):
@@ -539,10 +552,10 @@ _origins = sorted({cfg.API_URL, cfg.FRONTEND_URL, *cfg.MCP_ALLOWED_ORIGINS})
 mcp = FastMCP(
     "doctus",
     instructions=(
-        "Doctus indexes source code. For any named class, method, program or paragraph call explain_symbol first: "
-        "it returns the original source with line numbers, callers, callees and data access in one call "
-        "(a large program or class returns an outline; call explain_symbol again with one outline symbol). "
-        "Use search_code only to discover names, search_knowledge for wording or business terms. "
+        "Doctus indexes source code. For a question about code call answer_context first with the question text: "
+        "it resolves the named classes, methods, programs and copybooks and returns source with line numbers, "
+        "callers, callees, data access and users in one call. Use explain_symbol for one named symbol, "
+        "search_code only to discover names, search_knowledge for wording or business terms. "
         "Cite the file:line numbers from the results."
     ),
     stateless_http=True,
@@ -557,23 +570,554 @@ mcp = FastMCP(
 )
 
 
+
+_USED_BY_TYPES = ["CALL", "CALLS", "PERFORM", "GOTO", "COPY", "EXTENDS", "IMPLEMENTS", "INSTANTIATES", "REFERENCES_METHOD"]
+
+
+def _used_by(db: Session, user: User, entity: CodeEntity, limit: int = 12) -> list[dict]:
+    """Source units that reference this entity (callers, COPY users, subclasses); overloads count together."""
+    dst_ids = [entity.id]
+    if entity.type in {"method", "constructor"} and entity.qualified_name and "(" in entity.qualified_name:
+        prefix = entity.qualified_name.split("(", 1)[0] + "("
+        dst_ids += [row.id for row in db.query(CodeEntity.id).filter(
+            CodeEntity.project_id == entity.project_id, CodeEntity.type.in_(["method", "constructor"]),
+            CodeEntity.qualified_name.like(prefix + "%"), ~CodeEntity.qualified_name.like("%@%"),
+            CodeEntity.id != entity.id).limit(20).all()]
+    rows = db.query(CodeEdge, CodeEntity).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
+        CodeEdge.project_id == entity.project_id, CodeEdge.type.in_(_USED_BY_TYPES),
+        or_(CodeEdge.dst_entity_id.in_(dst_ids),
+            and_(CodeEdge.dst_entity_id.is_(None), CodeEdge.dst_name == entity.name)),
+    ).order_by(CodeEntity.file_path, CodeEdge.src_start_line).limit(400).all()
+    visible: dict[int | None, bool] = {}
+    units: dict[str, dict] = {}
+    for edge, src in rows:
+        if src.source_id not in visible:
+            visible[src.source_id] = _source_visible(db, user, src.source_id)
+        if not visible[src.source_id] or src.file_path == entity.file_path:
+            continue
+        unit = units.setdefault(src.file_path, {
+            "unit": (src.file_path or "").rsplit("/", 1)[-1].rsplit(".", 1)[0], "file": src.file_path,
+            "types": [], "lines": [], "resolution": edge.resolution,
+        })
+        if edge.type not in unit["types"]:
+            unit["types"].append(edge.type)
+        if edge.src_start_line and len(unit["lines"]) < 3:
+            unit["lines"].append(edge.src_start_line)
+    items = list(units.values())
+    return items[:limit] if limit else items
+
+
+_SYMBOL_PATTERNS = [
+    re.compile(r"\b[A-Za-z_$][\w$]*(?:[.#][A-Za-z_$][\w$]*)+(?:\(\))?"),
+    re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b"),
+    re.compile(r"\b[A-Z]{2,}[0-9][A-Z0-9]*\b"),
+    re.compile(r"\b[A-Z][A-Z0-9]{4,}\b"),
+    re.compile(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b"),
+    re.compile(r"\b[a-z]+(?:[A-Z][a-z0-9]*)+\b"),
+    re.compile(r"\b[A-Z]{2,}[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)*\b"),
+    re.compile(r"\b[\w./-]+\.(?:cbl|cpy|java|xml)\b", re.I),
+]
+_NOT_SYMBOLS = {"z.b", "d.h", "u.a", "usw", "bzw", "e.g", "i.e", "etc", "cobol", "batch", "vsam", "cics", "json", "sql", "java", "http", "https"}
+
+
+def _extract_symbols(question: str) -> list[str]:
+    """Names that look like code symbols in free text, in order of appearance, longest forms first."""
+    found: list[tuple[int, str]] = []
+    for pattern in _SYMBOL_PATTERNS:
+        for match in pattern.finditer(question):
+            term = match.group(0).rstrip(".,;:").removesuffix("()")
+            if len(term) >= 4 and term.casefold() not in _NOT_SYMBOLS:
+                found.append((match.start(), term))
+    found.sort(key=lambda item: (item[0], -len(item[1])))
+    terms: list[str] = []
+    for _pos, term in found:
+        key = term.casefold()
+        if any(key == t.casefold() or key in t.casefold() for t in terms):
+            continue
+        terms = [t for t in terms if t.casefold() not in key] + [term]
+    return terms[:8]
+
+
+_CHILD_SKIP = {"section", "constructor"}
+_HOUSEKEEPING = re.compile(r"OPEN|CLOSE|ABEND|DISPLAY-IO|IO-STATUS|TIMESTAMP|INIT-|^Z-|ERROR-", re.I)
+_DE_EN = {
+    "ablehn": "reject fail invalid error", "zins": "interest rate", "datei": "dataset", "gelesen": "read",
+    "lies": "read", "geschrieb": "write", "schreib": "write", "berechn": "compute calc", "anmeld": "signon login auth",
+    "benutz": "user", "konto": "acct account", "karte": "card xref", "transakt": "tran transaction", "summe": "total",
+    "bericht": "report rept", "menü": "menu", "menue": "menu", "prüf": "valid check edit lookup", "pruef": "valid check edit lookup",
+    "validier": "valid check lookup", "formel": "compute calc", "buchung": "post write tran tx", "aktualis": "update", "anleg": "add create", "lösch": "delete", "sperr": "suspend lock",
+    "passwort": "password pwd", "fehler": "error fail", "buch": "post", "weiterleit": "xctl link", "aufruf": "call",
+    "authentifiz": "authenticate auth", "ausnahme": "exception", "regel": "rule policy", "richtlinie": "policy",
+    "benachricht": "notification notify", "aufgabe": "task job", "erzeug": "create build", "gruppe": "group",
+}
+
+
+_GENERIC_WORDS = {
+    "nenne", "nennen", "welche", "welcher", "welches", "welchen", "wird", "werden", "wurde", "batch", "programm", "programme", "program",
+    "datei", "dateien", "file", "files", "nach", "ende", "eine", "einer", "einen", "dass", "beschreibe", "erkläre", "erklaere", "gelesenen",
+    "geschrieben", "angepasst", "carddemo", "syncope", "apache", "cobol", "java", "klasse", "methode", "funktion", "ablauf", "läuft", "laeuft",
+    "wenn", "oder", "sowie", "dabei", "dafür", "dafuer", "sich", "nicht", "ihre", "ihrer", "alle", "wann", "womit", "wozu",
+}
+
+
+def _question_stems(question: str) -> set[str]:
+    """First five letters of the question words plus English code words for common German terms."""
+    lowered = question.lower()
+    stems = {t[:5] for t in re.findall(r"[a-zäöüß0-9]{4,}", lowered) if t not in _GENERIC_WORDS}
+    for german, english in _DE_EN.items():
+        if german in lowered:
+            stems |= {t[:5] for t in english.split()}
+    return stems
+
+
+def _relevant_children(question: str, outline: list[dict], count: int = 6, sims=None) -> list[dict]:
+    """Outline entries that cover the question: greedy by word overlap (names count double, already covered words
+    do not count again), orchestration and embedding similarity as extras, then one step along PERFORM."""
+    q_stems = _question_stems(question)
+    entries = []
+    for position, item in enumerate(outline):
+        if item.get("type") in _CHILD_SKIP:
+            continue
+        tail = re.split(r"[.#]", item["symbol"].split("(", 1)[0])[-1]
+        facts = item.get("facts", "")
+        plain_facts = re.sub(r"(?:^|; )(?:calls|performs|cics|datasets|io|computes|sets|msgs) ", " ", facts)
+        name_tokens = {t[:5] for t in re.findall(r"[a-zäöüß0-9]{3,}", tail.lower().replace("-", " "))}
+        fact_tokens = {t[:5] for t in re.findall(r"[a-zäöüß0-9]{3,}", plain_facts.lower().replace("-", " "))}
+        name_hit = q_stems & name_tokens
+        fact_hit = (q_stems & fact_tokens) - name_hit
+        # A paragraph or method that drives many others (PERFORM/CALL fan-out) usually carries the main flow.
+        fan_out = facts.count(",") + (1 if facts else 0)
+        base = min(3, fan_out // 3)
+        if re.search(r"MAIN|PROCESS|EXECUTE|RUN", tail.upper()):
+            base += 1
+        if "xctl" in facts.lower() or "link" in facts.lower():
+            if re.search(r"gestartet|startet|weiterleit|aufruf|weiter|programm|ruft", question.lower()):
+                base += 2
+        if _HOUSEKEEPING.search(tail) and not _HOUSEKEEPING.search(question):
+            base -= 3
+        entries.append({"item": item, "pos": position, "name": name_hit, "fact": fact_hit, "base": base})
+    if sims is not None and entries:
+        preliminary = sorted(entries, key=lambda e: -(2 * len(e["name"]) + len(e["fact"]) + e["base"]))[:12]
+        similarity = sims([e["item"] for e in preliminary]) or {}
+        for entry in preliminary:
+            entry["base"] += 8.0 * max(0.0, similarity.get(entry["item"]["symbol"], 0.0))
+    covered: set[str] = set()
+    chosen: list[dict] = []
+    remaining = list(entries)
+    while remaining and len(chosen) < count:
+        def gain(e: dict) -> float:
+            return 2 * len(e["name"] - covered) + len(e["fact"] - covered) + e["base"]
+        best = max(remaining, key=lambda e: (gain(e), -e["pos"]))
+        if gain(best) <= 0:
+            break
+        chosen.append(best["item"])
+        covered |= best["name"] | best["fact"]
+        remaining.remove(best)
+    if not chosen:
+        chosen = [e["item"] for e in entries[:count]]
+    # One step further along the PERFORM chain: the paragraph a best match hands over to often holds the rest of the
+    # answer (e.g. the posting written by the computation paragraph).
+    by_tail = {re.split(r"[.#]", i["symbol"].split("(", 1)[0])[-1].upper(): i for i in outline if i.get("type") not in _CHILD_SKIP}
+    extras: list[dict] = []
+    for item in chosen[:2]:
+        performed = re.search(r"performs ([^;]*)", item.get("facts", ""))
+        for name in (performed.group(1).split(", ") if performed else []):
+            target = by_tail.get(name.strip().upper())
+            if target and target not in chosen and target not in extras and not _HOUSEKEEPING.search(name):
+                extras.append(target)
+    return (chosen + extras)[: count + 1]
+
+
+def _site_excerpt(db: Session, user: User, entity: CodeEntity, line: int, radius: int = 10) -> dict | None:
+    """Numbered source lines around one call site, read from the indexed chunks of that file."""
+    if not _source_visible(db, user, entity.source_id):
+        return None
+    low, high = max(1, line - radius), line + radius
+    chunks = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == entity.project_id, DocumentChunk.source_id == entity.source_id,
+        DocumentChunk.file_path == entity.file_path, DocumentChunk.start_line <= high, DocumentChunk.end_line >= low,
+    ).order_by(DocumentChunk.start_line).limit(4).all()
+    parts = []
+    for chunk in chunks:
+        first, last = max(low, chunk.start_line), min(high, chunk.end_line)
+        if first <= last:
+            lines = chunk.content.splitlines()
+            parts.append(_numbered("\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1]), first))
+    text = "\n".join(parts)[:2200]
+    return {"file": entity.file_path, "around_line": line, "text": text} if text else None
+
+
+def _explain_entity(
+    db: Session, user: User, project_id: int, entity: CodeEntity, others: list[CodeEntity], mode: str, symbol: str,
+    max_chars: int, start_line: int | None, end_line: int | None, *, with_context: bool = True, used_by_limit: int = 12,
+    compact: bool = False,
+) -> dict:
+    """Source (or outline for large entities), callees, callers, data access and users of one entity."""
+    low = start_line if start_line is not None else entity.start_line or 1
+    high = end_line if end_line is not None else entity.end_line or 10**9
+    pieces: list[tuple[int, str]] = []
+    for chunk in entity_api._definition_chunks(entity, db, start_line=start_line, end_line=end_line):
+        first, last = max(low, chunk.start_line), min(high, chunk.end_line)
+        if first > last:
+            continue
+        lines = chunk.content.splitlines()
+        pieces.append((first, "\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1])))
+    source_budget = int(max_chars * (0.65 if with_context else 0.92))
+    total_chars = sum(len(text) for _first, text in pieces)
+    outline = None
+    source = None
+    if start_line is None and end_line is None and total_chars > source_budget:
+        outline = _outline(db, entity)
+    if not outline:
+        outline = None
+        parts, used, truncated, next_line, last_delivered = [], 0, False, None, None
+        for first, text in pieces:
+            room = source_budget - used
+            if room <= 0:
+                truncated, next_line = True, first
+                break
+            clipped = text[:room]
+            if len(clipped) < len(text):
+                clipped = clipped[: clipped.rfind("\n")] if "\n" in clipped else clipped
+                truncated = True
+            parts.append(_numbered(clipped, first, compact))
+            used += len(clipped)
+            last_delivered = first + max(0, len(clipped.splitlines()) - 1)
+            if truncated:
+                next_line = last_delivered + 1
+                break
+        source = {
+            "start_line": pieces[0][0] if pieces else entity.start_line,
+            "end_line": last_delivered if last_delivered is not None else entity.end_line,
+            "text": "\n".join(parts), "truncated": truncated, "next_start_line": next_line,
+        }
+    response = {
+        "project_id": project_id, "symbol": symbol,
+        "resolution": "unique_exact_match" if mode == "exact" and not others else ("overloads" if others else "fuzzy"),
+        "entity": _compact_entity(entity),
+    }
+    if source is not None:
+        response["source"] = source
+    else:
+        kept, size = [], 0
+        for item in outline:
+            size += len(json.dumps(item, ensure_ascii=False))
+            if size > max_chars and kept:
+                break
+            kept.append(item)
+        response["outline"] = kept
+        if len(kept) < len(outline):
+            response["outline_omitted"] = len(outline) - len(kept)
+        response["notice"] = "Source not inlined (larger than the budget). Call explain_symbol with one outline symbol."
+    if source is not None and with_context:
+        try:
+            callees = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="outgoing",
+                                                    scope="execution", page_size=12, cursor=None, include_source=False), "outgoing")
+            callers = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="incoming",
+                                                    scope="execution", page_size=8, cursor=None, include_source=False), "incoming", 8)
+        except (ValueError, HTTPException):
+            callees, callers = [], []
+        if callees:
+            response["callees"] = callees
+        if callers:
+            response["callers"] = callers
+        access = _data_access_summary(db, entity)
+        if access:
+            response["data_access"] = access
+    if with_context:
+        used_by = _used_by(db, user, entity, used_by_limit)
+        if used_by:
+            response["used_by"] = used_by
+    if others:
+        response["other_matches"] = [_compact_entity(e) for e in others[:6]]
+    if source is not None and source["truncated"] and source["next_start_line"]:
+        response["follow_up_actions"] = [{
+            "tool": "explain_symbol",
+            "arguments": {"project_id": project_id, "symbol": entity.qualified_name,
+                          "start_line": source["next_start_line"], "end_line": entity.end_line, "max_chars": max_chars},
+            "reason": "Continue reading the rest of this symbol.",
+        }]
+    return response
+
+
+def _shrink_largest_source(entry: dict) -> bool:
+    """Cut the last fifth of the longest expanded/helper/chain source (whole lines, at least 4 kept)."""
+    parts = [p for key in ("expanded", "helper_methods", "callee_chain") for p in entry.get(key) or [] if (p.get("source") or {}).get("text")]
+    if not parts:
+        return False
+    target = max(parts, key=lambda p: len(p["source"]["text"]))
+    lines = target["source"]["text"].splitlines()
+    if len(lines) <= 4:
+        return False
+    keep = max(4, int(len(lines) * 0.8))
+    target["source"]["text"] = "\n".join(lines[:keep])
+    target["source"]["truncated"] = True
+    return True
+
+
+def _fit_evidence(evidence: list[dict], limit: int) -> None:
+    """Shrink an evidence pack in steps until it fits: later extras first, then lists, never the primary source."""
+    def size() -> int:
+        return len(json.dumps(evidence, ensure_ascii=False))
+    steps = [
+        lambda e: e.pop("other_matches", None),
+        _shrink_largest_source,
+        lambda e: e.__setitem__("data_access", e["data_access"][:6]) if len(e.get("data_access") or []) > 6 else None,
+        lambda e: e.__setitem__("used_by", e["used_by"][:8]) if len(e.get("used_by") or []) > 8 else None,
+        lambda e: e.__setitem__("callers", e["callers"][:3]) if len(e.get("callers") or []) > 3 else None,
+        lambda e: e.__setitem__("callees", e["callees"][:6]) if len(e.get("callees") or []) > 6 else None,
+        lambda e: e.get("call_sites") and len(e["call_sites"]) > 1 and e["call_sites"].pop(),
+        lambda e: e.pop("data_access", None),
+        lambda e: e.get("expanded") and len(e["expanded"]) > 1 and e["expanded"].pop(),
+        lambda e: e.get("helper_methods") and len(e["helper_methods"]) > 1 and e["helper_methods"].pop(),
+        lambda e: e.pop("callees", None),
+    ]
+    for step in steps:
+        for entry in reversed(evidence):
+            for _ in range(8):
+                if size() <= limit:
+                    return
+                if not step(entry):
+                    break
+
+
+def _embedding_scores(db: Session, project_id: int, query: str, texts: list[str]) -> list[float] | None:
+    """Cosine similarity of the query to each text in the project's embedding space; None if unavailable."""
+    if not query or not texts:
+        return None
+    try:
+        profile = _embedding_profile_for_project(db, project_id)
+        config = {
+            "model": profile.model, "provider": profile.provider, "base_url": profile.base_url, "path": profile.path,
+            "api_key": profile.api_key, "dimension": profile.dimension, "context_length": profile.context_length,
+        }
+
+        async def run() -> list[list[float]]:
+            return list(await asyncio.gather(
+                *(embed_text(t[:600], is_query=(i == 0), **config) for i, t in enumerate([query, *texts]))))
+
+        # FastMCP calls sync tools on the server's event loop, so the embeddings get a loop of their own.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            vectors = pool.submit(asyncio.run, run()).result(timeout=20)
+    except Exception as exc:  # embedding service down, wrong profile, ... -> lexical ranking stays in charge
+        logger.info("answer_context embedding relevance unavailable (%s: %s)", type(exc).__name__, str(exc)[:160])
+        return None
+    head, rest = vectors[0], vectors[1:]
+    norm = math.sqrt(sum(x * x for x in head)) or 1.0
+    return [sum(a * b for a, b in zip(head, v)) / (norm * (math.sqrt(sum(x * x for x in v)) or 1.0)) for v in rest]
+
+
+def _embedding_similarities(db: Session, project_id: int, topic: str, texts: dict[str, str]) -> dict[str, float]:
+    keys = list(texts)
+    scores = _embedding_scores(db, project_id, topic, [texts[k] for k in keys])
+    return dict(zip(keys, scores)) if scores is not None else {}
+
+
+def _rank_by_embedding(db: Session, project_id: int, topic: str, items: list[tuple[float, dict]], key) -> list[tuple[float, dict]]:
+    """Blend the lexical score with embedding similarity for the best lexical candidates (top 16)."""
+    head = sorted(items, key=lambda row: -row[0])[:12]
+    scores = _embedding_scores(db, project_id, topic, [key(item) for _s, item in head])
+    if scores is None:
+        return items
+    blended = [(lex + 8.0 * max(0.0, sim), item) for (lex, item), sim in zip(head, scores)]
+    return sorted(blended, key=lambda row: -row[0]) + [row for row in items if row not in head]
+
+
+def _resolve_chain_target(db: Session, project_id: int, name: str) -> CodeEntity | None:
+    rows = db.query(CodeEntity).filter(CodeEntity.project_id == project_id, CodeEntity.qualified_name == name).limit(4).all()
+    structural = [e for e in rows if e.type in _STRUCTURAL]
+    return (structural or rows or [None])[0]
+
+
+def build_answer_context(
+    db: Session, user: User, project_id: int, *, question: str = "", symbols: list[str] | None = None,
+    topic: str = "", max_chars: int = 8000, use_embeddings: bool = True,
+) -> dict:
+    """Evidence pack for a question: source, callers, callees (two hops), data access and users of the named symbols.
+
+    Shared by the MCP tool and the chat prefetch. `symbols` are names the caller already extracted; without them
+    they are taken from the free text."""
+    text = " ".join(part for part in (question, topic) if part).strip()
+    relevance_query = (topic or question).strip()
+    max_chars = max(3000, min(max_chars, 14000))
+    if not text or len(text) > 1500:
+        raise ToolInputError("invalid query")
+    _project(db, user, project_id)
+    callers_intent = bool(re.search(
+        r"aufrufer|wer ruft|ruft .{0,90}auf|rufen .{0,90}auf|welche (klasse|klassen|programm|programme|methode|methoden|modul|module)|binden .{0,60}ein|einbind|"
+        r"verwendet von|verwenden|nutzen|callers?|called by|included? by|who calls|which (classes|programs)",
+        text.lower()))
+    given = [s.strip() for s in (symbols or []) if isinstance(s, str) and 2 < len(s.strip()) <= 160][:8]
+    terms = given or _extract_symbols(text)
+    resolved: list[tuple[str, CodeEntity, list[CodeEntity], str]] = []
+    seen: set[int] = set()
+    unresolved: list[str] = []
+    for term in terms:
+        found, _suggestions, mode = _find_entities(db, user, project_id, term, 6)
+        exact = [e for e in found if _symbol_matches(e, term)]
+        structural = [e for e in exact if e.type in _STRUCTURAL or e.type == "copybook"] or exact
+        if not structural:
+            unresolved.append(term)
+            continue
+        entity, others = _pick_entity(structural)
+        if entity is None or entity.id in seen:
+            if entity is None:
+                unresolved.append(term)
+            continue
+        seen.add(entity.id)
+        resolved.append((term, entity, others, mode))
+    if not resolved:
+        found, suggestions, _mode = _find_entities(db, user, project_id, text[:200], 6)
+        return {"project_id": project_id, "question": text, "resolved": [],
+                "unresolved_terms": unresolved or terms,
+                "candidates": [_compact_entity(e) for e in found[:6]],
+                "did_you_mean": suggestions,
+                "hint": "No named symbol found. Use search_code with a name from the candidates or search_knowledge for wording."}
+    # Method-level references first, then the rest; at most three entities share the budget.
+    resolved.sort(key=lambda row: (0 if row[1].type in {"method", "paragraph"} else 1))
+    primary = resolved[:3]
+    per_entity = max(2500, max_chars // len(primary))
+    evidence = []
+    for term, entity, others, mode in primary:
+        entry = _explain_entity(db, user, project_id, entity, others, mode, term, per_entity, None, None,
+                                with_context=True, used_by_limit=40 if callers_intent else 12, compact=True)
+        if "outline" in entry:
+            expanded = []
+            child_budget = max(600, min(2200, int(per_entity * 0.62) // 5))
+            for item in _relevant_children(
+                relevance_query or text, entry["outline"], 4,
+                sims=(lambda items: _embedding_similarities(
+                    db, project_id, relevance_query, {i["symbol"]: f"{i['symbol']} {i.get('facts', '')}" for i in items}
+                )) if use_embeddings and relevance_query else None,
+            ):
+                child = db.query(CodeEntity).filter(
+                    CodeEntity.project_id == project_id, CodeEntity.file_path == entity.file_path,
+                    CodeEntity.qualified_name == item["symbol"]).first()
+                if child is None:
+                    continue
+                part = _explain_entity(db, user, project_id, child, [], "exact", item["symbol"], child_budget, None, None, with_context=False, compact=True)
+                if part.get("source"):
+                    expanded.append({"symbol": item["symbol"], "lines": item["lines"], "facts": item.get("facts"),
+                                     "source": part["source"]})
+            shown = {x["symbol"] for x in expanded}
+            entry["outline"] = [dict(i, facts=i["facts"][:70]) if i.get("facts") else i
+                                for i in entry["outline"] if i["symbol"] not in shown and i.get("type") not in _CHILD_SKIP][:6]
+            if expanded:
+                entry["expanded"] = expanded
+            entry["notice"] = "Outline of the whole unit plus the source of the parts that match the question best."
+        elif entry.get("callees"):
+            full_callees = entry["callees"]
+            entry["callees"] = [f"{c['to'].split('(', 1)[0].rsplit('.', 1)[-1]} (Zeile {c.get('line')})" for c in full_callees[:12] if c.get("to")]
+            # Methods often delegate to a helper in the same class: read the most relevant one as well.
+            q_stems = _question_stems(text)
+            same_file = [c for c in full_callees if c.get("location", "").startswith(f"{entity.file_path}:") and c.get("to")]
+            candidates = []
+            for c in same_file[:8]:
+                child = db.query(CodeEntity).filter(
+                    CodeEntity.project_id == project_id, CodeEntity.file_path == entity.file_path,
+                    CodeEntity.qualified_name == c["to"]).first()
+                if child is None or child.id == entity.id:
+                    continue
+                tail = re.split(r"[.#]", c["to"].split("(", 1)[0])[-1].lower()
+                relevance = len(q_stems & {t[:5] for t in re.findall(r"[a-z0-9]{3,}", tail)}) * 2
+                size = (child.end_line or 0) - (child.start_line or 0)
+                candidates.append((relevance + min(4, size // 25), {"child": child, "name": c["to"]}))
+            if use_embeddings and relevance_query and len(candidates) > 1:
+                candidates = _rank_by_embedding(db, project_id, relevance_query, candidates, lambda i: i["name"])
+            helpers = []
+            for _score, item in sorted(candidates, key=lambda row: -row[0])[:2]:
+                child, name = item["child"], item["name"]
+                if any(h["symbol"] == name for h in helpers):
+                    continue
+                part = _explain_entity(db, user, project_id, child, [], "exact", name, 4200, None, None, with_context=False, compact=True)
+                if part.get("source"):
+                    helpers.append({"symbol": name, "lines": f"{child.start_line}-{child.end_line}", "source": part["source"]})
+            if helpers:
+                entry["helper_methods"] = helpers
+            # Second hop: the callees that are not helpers already read, with their own callees.
+            taken = {h["symbol"] for h in helpers} | {entity.qualified_name}
+            chain_candidates, tried = [], set()
+            for c in full_callees:
+                name = c.get("to")
+                if not name or name in taken or name in tried or len(tried) >= 10:
+                    continue
+                tried.add(name)
+                target = _resolve_chain_target(db, project_id, name)
+                size = ((target.end_line or 0) - (target.start_line or 0)) if target is not None else 0
+                if target is None or target.id == entity.id or size < 4:
+                    continue  # unresolved, recursive or a trivial accessor
+                tail = re.split(r"[.#]", name.split("(", 1)[0])[-1].lower()
+                relevance = len(q_stems & {t[:5] for t in re.findall(r"[a-z0-9]{3,}", tail)}) * 2
+                chain_candidates.append((relevance + min(4, size // 25), {"target": target, "name": name, "line": c.get("line")}))
+            if use_embeddings and relevance_query and len(chain_candidates) > 1:
+                chain_candidates = _rank_by_embedding(db, project_id, relevance_query, chain_candidates, lambda i: i["name"])
+            chain = []
+            for _score, item in sorted(chain_candidates, key=lambda row: -row[0])[:2]:
+                target, name = item["target"], item["name"]
+                part = _explain_entity(db, user, project_id, target, [], "exact", name, 2600, None, None, with_context=False, compact=True)
+                if not part.get("source"):
+                    continue
+                try:
+                    onward = _flow_summary(_call_flow_page(db, user, project_id, target.id, hops=1, direction="outgoing",
+                                                           scope="execution", page_size=10, cursor=None, include_source=False), "outgoing", 10)
+                except (ValueError, HTTPException):
+                    onward = []
+                chain.append({"symbol": name, "lines": f"{target.start_line}-{target.end_line}", "file": target.file_path,
+                              "called_at_line": item["line"], "source": part["source"],
+                              "calls": [f"{o['to'].split('(', 1)[0].rsplit('.', 1)[-1]} (Zeile {o.get('line')})" for o in onward if o.get("to")]})
+            if chain:
+                entry["callee_chain"] = chain
+        if callers_intent:
+            sites = []
+            for caller in (entry.get("callers") or [])[:2]:
+                caller_entity = db.query(CodeEntity).filter(
+                    CodeEntity.project_id == project_id, CodeEntity.qualified_name == caller.get("from")).first()
+                if caller_entity is not None and caller.get("line"):
+                    site = _site_excerpt(db, user, caller_entity, int(caller["line"]), 16)
+                    if site:
+                        site["caller"] = caller.get("from")
+                        sites.append(site)
+            if sites:
+                entry["call_sites"] = sites
+        evidence.append(entry)
+    _fit_evidence(evidence, max_chars - 600)
+    return {
+        "project_id": project_id,
+        "resolved": [{"symbol": e.qualified_name, "type": e.type, "location": f"{e.file_path}:{e.start_line}-{e.end_line}"}
+                     for _t, e, _o, _m in primary],
+        "unresolved_terms": unresolved, "evidence": evidence,
+        "notice": "Evidence assembled by the server from the index. Cite the file:line numbers; call explain_symbol for any other symbol.",
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+def answer_context(
+    ctx: Context,
+    project_id: int,
+    symbols: Annotated[list[str] | None, Field(description="Code names from the question (programs, classes, methods, paragraphs).")] = None,
+    topic: Annotated[str | None, Field(description="Few words on what to find out, e.g. 'interest calculation'.")] = None,
+    question: Annotated[str | None, Field(description="Alternative to symbols/topic: the user's question, verbatim.")] = None,
+    max_chars: Annotated[int, Field(description="Evidence budget, 3000-14000.")] = 8000,
+) -> dict:
+    """FIRST CHOICE for any question about code: pass the symbol names and a short topic. Returns, in one call, the source with line numbers, callers, callees (two hops), data access and users of each symbol. Answer from it and cite file:line."""
+    max_chars = max(3000, min(max_chars, 14000))
+    with _tool_context(ctx, "answer_context", project_id, {"max_chars": max_chars}) as (db, user):
+        response = build_answer_context(db, user, project_id, question=(question or "").strip(), symbols=symbols,
+                                        topic=(topic or "").strip(), max_chars=max_chars)
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
+
+
 @mcp.tool(annotations=READ_ONLY)
 def explain_symbol(
     ctx: Context,
     project_id: int,
     symbol: str,
-    max_chars: Annotated[int, Field(description="Response budget for source and facts, 1500-12000.")] = 7000,
+    max_chars: Annotated[int, Field(description="Budget 1500-12000.")] = 7000,
     start_line: int | None = None,
     end_line: int | None = None,
 ) -> dict:
-    """FIRST CHOICE for any named class, method, program or paragraph: everything in ONE call.
-
-    Resolves ``Klasse.methode``, ``Klasse#methode``, ``PROGRAM`` or ``PROGRAM.PARAGRAPH`` and returns the original
-    source with line numbers, callers, callees and indexed data access. For a large program or class it returns an
-    outline instead: every paragraph or method with its line range and facts (calls, performs, CICS commands,
-    datasets). Then call ``explain_symbol`` again with one outline ``symbol``. Use ``start_line``/``end_line``
-    to read a specific range of the same symbol.
-    """
+    """Everything about ONE named class, method, program or paragraph in one call: source with line numbers, callers, callees, data access. Accepts Klasse.methode, Klasse#methode, PROGRAM.PARAGRAPH. A large unit returns an outline; call again with an outline symbol or start_line/end_line."""
     max_chars = max(1500, min(max_chars, 12000))
     symbol = symbol.strip()
     if start_line is not None and start_line < 1:
@@ -599,86 +1143,7 @@ def explain_symbol(
                         "hint": "Call explain_symbol again with one qualified_name from candidates."}
             _capture_mcp_result(ctx, db, project_id, response)
             return response
-        low = start_line if start_line is not None else entity.start_line or 1
-        high = end_line if end_line is not None else entity.end_line or 10**9
-        pieces: list[tuple[int, str]] = []
-        for chunk in entity_api._definition_chunks(entity, db, start_line=start_line, end_line=end_line):
-            first, last = max(low, chunk.start_line), min(high, chunk.end_line)
-            if first > last:
-                continue
-            lines = chunk.content.splitlines()
-            pieces.append((first, "\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1])))
-        source_budget = int(max_chars * 0.65)
-        total_chars = sum(len(text) for _first, text in pieces)
-        outline = None
-        source = None
-        if start_line is None and end_line is None and total_chars > source_budget:
-            outline = _outline(db, entity)
-        if not outline:
-            outline = None
-            parts, used, truncated, next_line, last_delivered = [], 0, False, None, None
-            for first, text in pieces:
-                room = source_budget - used
-                if room <= 0:
-                    truncated, next_line = True, first
-                    break
-                clipped = text[:room]
-                if len(clipped) < len(text):
-                    clipped = clipped[: clipped.rfind("\n")] if "\n" in clipped else clipped
-                    truncated = True
-                parts.append(_numbered(clipped, first))
-                used += len(clipped)
-                last_delivered = first + max(0, len(clipped.splitlines()) - 1)
-                if truncated:
-                    next_line = last_delivered + 1
-                    break
-            source = {
-                "start_line": pieces[0][0] if pieces else entity.start_line,
-                "end_line": last_delivered if last_delivered is not None else entity.end_line,
-                "text": "\n".join(parts), "truncated": truncated, "next_start_line": next_line,
-            }
-        response = {
-            "project_id": project_id, "symbol": symbol,
-            "resolution": "unique_exact_match" if mode == "exact" and not others else ("overloads" if others else "fuzzy"),
-            "entity": _compact_entity(entity),
-        }
-        if source is not None:
-            response["source"] = source
-        else:
-            kept, size = [], 0
-            for item in outline:
-                size += len(json.dumps(item, ensure_ascii=False))
-                if size > max_chars and kept:
-                    break
-                kept.append(item)
-            response["outline"] = kept
-            if len(kept) < len(outline):
-                response["outline_omitted"] = len(outline) - len(kept)
-            response["notice"] = "Source not inlined (larger than the budget). Call explain_symbol with one outline symbol."
-        if source is not None:
-            try:
-                callees = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="outgoing",
-                                                        scope="execution", page_size=12, cursor=None, include_source=False), "outgoing")
-                callers = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="incoming",
-                                                        scope="execution", page_size=8, cursor=None, include_source=False), "incoming", 8)
-            except (ValueError, HTTPException):
-                callees, callers = [], []
-            if callees:
-                response["callees"] = callees
-            if callers:
-                response["callers"] = callers
-            access = _data_access_summary(db, entity)
-            if access:
-                response["data_access"] = access
-        if others:
-            response["other_matches"] = [_compact_entity(e) for e in others[:6]]
-        if source is not None and source["truncated"] and source["next_start_line"]:
-            response["follow_up_actions"] = [{
-                "tool": "explain_symbol",
-                "arguments": {"project_id": project_id, "symbol": entity.qualified_name,
-                              "start_line": source["next_start_line"], "end_line": entity.end_line, "max_chars": max_chars},
-                "reason": "Continue reading the rest of this symbol.",
-            }]
+        response = _explain_entity(db, user, project_id, entity, others, mode, symbol, max_chars, start_line, end_line)
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 
@@ -798,7 +1263,7 @@ def search_code(
 
 
 @mcp.tool(annotations=READ_ONLY)
-def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: Annotated[int, Field(description="Traversal depth, 0-3; larger values are clamped to 3.")] = 2) -> dict:
+def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, hops: Annotated[int, Field(description="Depth 0-3, larger clamped to 3.")] = 2) -> dict:
     """Locate symbols and, for one exact candidate, return its call-flow GRAPH (structure only, no source code).
 
     To read the code, callers, callees and data access of a symbol use ``explain_symbol`` instead.
@@ -918,11 +1383,58 @@ def _flow_summary(flow: dict, direction: str, limit: int = 12) -> list[dict]:
 
 def _fact_line(buckets: dict[str, list[str]]) -> str:
     parts = []
-    for label in ("calls", "performs", "cics", "datasets", "io"):
-        names = [name.split("(", 1)[0][-48:] for name in (buckets.get(label) or [])]
+    for label in ("calls", "performs", "cics", "datasets", "io", "computes", "sets", "msgs"):
+        literal = label in {"sets", "msgs", "computes"}
+        names = [name if literal else name.split("(", 1)[0][-48:] for name in (buckets.get(label) or [])]
         if names:
-            parts.append(f"{label} {', '.join(names[:5])}")
-    return "; ".join(parts)[:200]
+            parts.append(f"{label} {', '.join(names[:3 if literal else 5])}")
+    return "; ".join(parts)[:320]
+
+
+_STRING_LITERAL = re.compile(r"\"([^\"\n]{8,80})\"|'([^'\n]{8,80})'")
+_NOISE_VARIABLE = re.compile(r"RESULT|IO-STATUS|ABCODE|TIMING|TWO-BYTES|^DB2-REST|-BINARY$|-IDX$|-SUB$", re.I)
+_COBOL_ARITHMETIC = re.compile(r"\b(?:COMPUTE\s+([A-Z][A-Z0-9-]*)|(?:ADD|SUBTRACT)\s+[A-Z0-9][A-Z0-9-]*\s+(?:TO|FROM)\s+([A-Z][A-Z0-9-]*))", re.I)
+_COBOL_SET_CODE = re.compile(r"\bMOVE\s+(?:'([A-Za-z0-9]{1,8})'|\"([A-Za-z0-9]{1,8})\"|(\d{1,4}))\s+TO\s+([A-Z0-9][A-Z0-9-]*)", re.I)
+
+
+def _literal_facts(db: Session, entity: CodeEntity, children: list[CodeEntity]) -> dict[int, dict[str, list[str]]]:
+    """Message texts and assigned status codes inside each child, read from the indexed source lines."""
+    if not children:
+        return {}
+    chunks = db.query(DocumentChunk).filter(
+        DocumentChunk.project_id == entity.project_id, DocumentChunk.source_id == entity.source_id,
+        DocumentChunk.file_path == entity.file_path, DocumentChunk.start_line <= entity.end_line,
+        DocumentChunk.end_line >= entity.start_line,
+    ).order_by(DocumentChunk.start_line).limit(120).all()
+    lines: dict[int, str] = {}
+    for chunk in chunks:
+        for offset, text in enumerate(chunk.content.splitlines()):
+            lines.setdefault(chunk.start_line + offset, text)
+    result: dict[int, dict[str, list[str]]] = {}
+    for child in children:
+        found: dict[str, list[str]] = {}
+        for number in range(child.start_line or 0, min(child.end_line or 0, (child.start_line or 0) + 400) + 1):
+            text = lines.get(number)
+            if not text or text.lstrip().startswith(("*", "//", "/*")) or (len(text) > 6 and text[6] == "*"):
+                continue
+            for match in _COBOL_ARITHMETIC.finditer(text):
+                target = (match.group(1) or match.group(2)).upper()
+                if not _NOISE_VARIABLE.search(target) and target not in found.setdefault("computes", []):
+                    found["computes"].append(target)
+            for match in _COBOL_SET_CODE.finditer(text):
+                if _NOISE_VARIABLE.search(match.group(4)):
+                    continue
+                code = match.group(1) or match.group(2) or match.group(3)
+                item = f"{match.group(4)}={code}"
+                if item not in found.setdefault("sets", []):
+                    found["sets"].append(item)
+            for match in _STRING_LITERAL.finditer(text):
+                literal = (match.group(1) or match.group(2)).strip().replace("(", "[").replace(")", "]")
+                if re.search(r"[A-Za-z]{3}", literal) and " " in literal and literal not in found.setdefault("msgs", []):
+                    found["msgs"].append(f'"{literal[:44]}"')
+        if found:
+            result[child.id] = found
+    return result
 
 
 def _outline(db: Session, entity: CodeEntity) -> list[dict]:
@@ -946,8 +1458,9 @@ def _outline(db: Session, entity: CodeEntity) -> list[dict]:
     labels = {"CALL": "calls", "CALLS": "calls", "PERFORM": "performs", "GOTO": "performs", "EXECUTES": "cics", "USES_DATASET": "datasets",
               "READS": "io", "WRITES": "io"}
     outline = []
+    literals = _literal_facts(db, entity, children)
     for child in children:
-        buckets: dict[str, list[str]] = {}
+        buckets: dict[str, list[str]] = dict(literals.get(child.id, {}))
         for edge in edges:
             if child.start_line <= (edge.src_start_line or 0) <= child.end_line and edge.dst_name:
                 names = buckets.setdefault(labels[edge.type], [])
@@ -996,12 +1509,9 @@ def get_code_entity(
     max_chars: int = 5000,
     chunk_id: int | None = None,
     char_offset: int = 0,
-    symbol: Annotated[str | None, Field(description="Qualified name instead of entity_id, e.g. Klasse#methode or PROGRAM.PARAGRAPH.")] = None,
+    symbol: Annotated[str | None, Field(description="Qualified name instead of entity_id.")] = None,
 ) -> dict:
-    """Read an indexed entity with paged, line-attributed original source.
-
-    Pass ``entity_id`` or, without a prior search, a ``symbol`` name. ``explain_symbol`` returns more in one call.
-    """
+    """Read one indexed entity (entity_id or symbol) with line-attributed source, paged."""
     max_chars = max(500, min(max_chars, 5000))
     if start_line is not None and start_line < 1:
         raise ValueError("invalid start_line")
@@ -1357,11 +1867,11 @@ def get_call_flow(
     ctx: Context,
     project_id: int,
     entity_id: int,
-    hops: Annotated[int, Field(description="Traversal depth, 0-3; larger values are clamped to 3 (see hops_applied).")] = 2,
+    hops: Annotated[int, Field(description="Depth 0-3, larger clamped to 3.")] = 2,
     direction: Literal["outgoing", "incoming", "both"] = "outgoing",
     scope: Literal["execution", "dependencies", "all"] = "execution",
-    page_size: Annotated[int, Field(description="Edges per page, 1-15; larger values are clamped to 15 (see limit_applied).")] = 10,
-    cursor: Annotated[str | None, Field(description="Opaque next_cursor from the previous page, passed back byte-for-byte unchanged, together with the same entity_id, hops, direction, scope and include_source.")] = None,
+    page_size: Annotated[int, Field(description="Edges per page 1-15, larger clamped to 15.")] = 10,
+    cursor: Annotated[str | None, Field(description="next_cursor of the previous page, unchanged.")] = None,
     include_source: bool = True,
 ) -> dict:
     """Trace executable calls or resource/data dependencies in a project.
@@ -1543,6 +2053,23 @@ async def search_knowledge(ctx: Context, project_id: int, query: str, limit: int
         )}
         _capture_mcp_result(ctx, db, project_id, response)
         return response
+
+
+def _slim_schema(node) -> None:
+    """Drop pydantic's per-property titles: they only add tokens to every tool listing."""
+    if isinstance(node, dict):
+        if isinstance(node.get("title"), str):
+            node.pop("title")
+        for value in node.values():
+            _slim_schema(value)
+    elif isinstance(node, list):
+        for value in node:
+            _slim_schema(value)
+
+
+
+for _tool in mcp._tool_manager.list_tools():
+    _slim_schema(_tool.parameters)
 
 
 class MCPBearerGate:

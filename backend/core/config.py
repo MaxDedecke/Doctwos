@@ -32,6 +32,10 @@ def _positive_int_env(name: str, default: int) -> int:
 # MCP audit entries are retained for a bounded period so the audit table cannot
 # grow without limit. Deployments can choose a stricter customer policy via env.
 MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90)
+# Chat runs the evidence pack (symbols named in the question: source, callers, callees, data access) itself
+# as the first tool step instead of waiting for the model to ask for it.
+CHAT_EVIDENCE_PREFETCH: bool = os.getenv("CHAT_EVIDENCE_PREFETCH", "true").strip().lower() in {"1", "true", "yes", "on"}
+CHAT_EVIDENCE_CHARS: int = _positive_int_env("CHAT_EVIDENCE_CHARS", 6000)
 MCP_ALLOWED_HOSTS: list[str] = [
     item.strip() for item in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if item.strip()
 ]

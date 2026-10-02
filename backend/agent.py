@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import json
@@ -402,6 +403,35 @@ def _compact_change_package_for_agent(package: dict) -> dict:
 
 
 # Unified Agent Execution Loop
+async def _prefetch_evidence(db_session, user_id: Optional[int], project_id: int, prompt: str, max_chars: Optional[int] = None) -> Optional[tuple[str, dict, str]]:
+    """Run the answer_context evidence pack for the symbols named in the question.
+
+    Returns (tool name, arguments, JSON result) when at least one named symbol resolves, otherwise None so the
+    regular bootstrap applies. Failures never block the chat."""
+    if user_id is None:
+        return None
+    question = (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()[:1400]
+    try:
+        from mcp_server import build_answer_context
+
+        user = db_session.query(User).filter(User.id == user_id).first()
+        if user is None:
+            return None
+        result = await asyncio.to_thread(
+            build_answer_context, db_session, user, project_id, question=question, max_chars=max_chars or cfg.CHAT_EVIDENCE_CHARS)
+    except Exception as exc:  # evidence is an accelerator; the model can still use its tools
+        logger.warning("Chat evidence prefetch failed (%s)", type(exc).__name__)
+        try:
+            db_session.rollback()
+        except Exception:
+            pass
+        return None
+    if not result.get("resolved"):
+        return None
+    args = {"symbols": [item["symbol"] for item in result["resolved"]], "topic": question[:200]}
+    return "answer_context", args, json.dumps(result, ensure_ascii=False)
+
+
 async def run_agent_loop(
     provider: str,
     model_name: str,
@@ -426,6 +456,7 @@ async def run_agent_loop(
     require_initial_tool_call: bool = False,
     walkthrough_documents: Optional[List[Dict[str, Any]]] = None,
     mcp_initialization_status: Optional[List[Dict[str, Any]]] = None,
+    evidence_chars: Optional[int] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -1403,7 +1434,21 @@ async def run_agent_loop(
     # deterministic and feed its result into the model before it formulates
     # an answer.
     bootstrap_tool: Optional[dict[str, Any]] = None
-    if require_initial_tool_call and project_id:
+    prefetched = None
+    if require_initial_tool_call and project_id and not pinned_file and cfg.CHAT_EVIDENCE_PREFETCH:
+        prefetched = await _prefetch_evidence(db_session, audit_user_id, project_id, prompt, evidence_chars)
+    if prefetched is not None:
+        bootstrap_name, bootstrap_args, bootstrap_result = prefetched
+        bootstrap_id = "bootstrap-0"
+        bootstrap_tool = {
+            "name": bootstrap_name, "arguments": bootstrap_args, "result": bootstrap_result, "id": bootstrap_id,
+            "truncated": _tool_result_was_truncated(bootstrap_result),
+        }
+        agent_steps.append({"type": "tool_call", "name": bootstrap_name, "arguments": bootstrap_args, "id": bootstrap_id})
+        yield {"type": "tool_call", "name": bootstrap_name, "arguments": bootstrap_args, "id": bootstrap_id}
+        agent_steps.append({"type": "tool_result", **bootstrap_tool})
+        yield {"type": "tool_result", **bootstrap_tool}
+    elif require_initial_tool_call and project_id:
         if pinned_file and repo_available:
             start_line = pinned_line or 1
             end_line = pinned_end_line

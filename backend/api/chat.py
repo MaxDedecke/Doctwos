@@ -172,6 +172,13 @@ def _session_accessible(session: ChatSession, user: User) -> bool:
     return session.owner_id == user.id or session.is_public
 
 
+def _evidence_budget(context_length: Optional[int]) -> Optional[int]:
+    """Characters of prefetched evidence a model with this context window can take next to prompt, history and answer."""
+    if not context_length:
+        return None
+    return max(3000, min(14000, int((context_length - 4500) * 1.5)))
+
+
 def _record_agent_source(
     agent_sources: list,
     file_path: str,
@@ -202,7 +209,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
     if event.get("type") != "tool_result":
         return
     tool_name = event.get("name")
-    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact", "inspect_change_package"):
+    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact", "inspect_change_package", "answer_context"):
         return
 
     result = event.get("result")
@@ -257,6 +264,21 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                     entity.get("end_line", 1),
                     entity.get("source_id") or source_id,
                 )
+    elif tool_name == "answer_context":
+        for entry in result.get("evidence", []):
+            if not isinstance(entry, dict):
+                continue
+            located = [(entry.get("entity") or {}).get("file_path") or (entry.get("entity") or {}).get("file"),
+                       (entry.get("entity") or {}).get("start_line"), (entry.get("entity") or {}).get("end_line")]
+            if located[0]:
+                _record_agent_source(agent_sources, located[0], located[1] or 1, located[2] or located[1] or 1, source_id)
+            for key in ("expanded", "helper_methods", "callee_chain"):
+                for part in entry.get(key) or []:
+                    text = (part.get("source") or {})
+                    file_path = part.get("file") or located[0]
+                    if file_path and text.get("start_line"):
+                        _record_agent_source(agent_sources, file_path, text["start_line"],
+                                             text.get("end_line") or text["start_line"], source_id)
     elif tool_name == "inspect_change_package":
         # The package's compact result retains the indexed source locations so
         # citations in the assistant answer remain clickable.
@@ -1444,6 +1466,7 @@ async def chat(
                         require_initial_tool_call=True,
                         walkthrough_documents=walkthrough_documents,
                         mcp_initialization_status=mcp_initialization_status,
+                        evidence_chars=_evidence_budget(selected_profile.llm_context_length),
                     ):
                         if event["type"] == "content_chunk":
                             first_token = telemetry.record_first_token()
