@@ -44,6 +44,7 @@ from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admiss
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
 from cobol import copybook as copybook_mod
+from core.failure_location import describe_failure
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
@@ -669,7 +670,7 @@ class GitConnector(BaseConnector):
                     # must never abort the repository-wide async task batch.
                     # Preserve searchable source text and expose the structural
                     # gap as a per-file partial result for a later reindex.
-                    error_msg = f"Strukturparser fehlgeschlagen: {type(exc).__name__}: {exc}"
+                    error_msg = f"Strukturparser fehlgeschlagen: {describe_failure(exc)}"
                     doc["extra_meta"]["parse_status"] = "partial"
                     doc["extra_meta"]["parse_error"] = error_msg
                     self._log(f"{error_msg} in '{doc['title']}', nutze Textfallback.")
@@ -722,6 +723,10 @@ class GitConnector(BaseConnector):
                 )
                 with track_admission_wait() as wait_times:
                     try:
+                    logger.warning(
+                        "Strukturparser fehlgeschlagen für '%s' (%s)",
+                        doc["title"], lang, exc_info=exc,
+                    )
                         for offset in range(0, len(to_embed), fair_batch_size):
                             batch = to_embed[offset : offset + fair_batch_size]
                             batch_embeddings = await get_embeddings_batch(
