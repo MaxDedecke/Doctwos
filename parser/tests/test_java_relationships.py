@@ -176,7 +176,13 @@ class Client {
         "app/Client.java",
     )
 
-    assert resolve_global_edges([service, client]) == 3
+    assert resolve_global_edges([service, client]) == 5
+    imports = {edge.dst_name: edge for edge in client.edges if edge.type == "IMPORTS"}
+    assert imports["api.Service"].meta["target_qualified_name"] == "api.Service"
+    static = imports["api.Service.parse"]
+    assert static.resolution == "resolved"
+    assert static.meta["target_qualified_name"] == "api.Service"
+    assert static.meta["imported_member"] == "parse"
     edges = [edge for edge in client.edges if edge.src_name == "app.Client#call()"]
     created = next(edge for edge in edges if edge.type == "INSTANTIATES")
     run = next(edge for edge in edges if edge.type == "CALLS" and edge.meta["method_name"] == "run")
@@ -205,7 +211,7 @@ class Client {
         "app/Client.java",
     )
 
-    assert resolve_global_edges([first, second, client]) == 1
+    assert resolve_global_edges([first, second, client]) == 3  # explicit type + two package imports
     usages = [edge for edge in client.edges if edge.type == "USES_TYPE"]
     ambiguous = next(edge for edge in usages if edge.dst_name == "Shared")
     explicit = next(edge for edge in usages if edge.dst_name == "one.Shared")
@@ -234,7 +240,7 @@ class Client { void go() { new App().run(); } }
         "module-a/src/main/java/client/Client.java",
     )
 
-    assert resolve_global_edges([module_a, module_b, client]) == 2
+    assert resolve_global_edges([module_a, module_b, client]) == 3
     targets = [edge for edge in client.edges if edge.type in {"INSTANTIATES", "CALLS"}]
     assert all(edge.resolution == "resolved" for edge in targets)
     assert {edge.meta["target_file_path"] for edge in targets} == {
@@ -349,7 +355,7 @@ class Client { void call() { new Service().run(1); } }
             next_id += 1
 
     pairs = _java_parse_results(persisted_entities, persisted_edges)
-    assert resolve_global_edges(pair[0] for pair in pairs) == 2
+    assert resolve_global_edges(pair[0] for pair in pairs) == 3
     call = next(
         parsed for _, _, parsed_edges in pairs for parsed in parsed_edges if parsed.type == "CALLS"
     )
@@ -620,3 +626,27 @@ class Flow {
     assert path("e") == [{"type": "SWITCH", "branch": "CASE", "subject": "mode", "when": "case 1"}]
     assert path("f") == [{"type": "SWITCH", "branch": "CASE", "subject": "mode", "when": "default"}]
     assert path("g") is None
+
+
+def test_java_imports_resolve_to_repository_types_and_packages_only() -> None:
+    api = parse_java_file("package api; public class Service { static int parse() { return 1; } }\n", "api/Service.java")
+    client = parse_java_file(
+        """package app;
+import api.Service;
+import api.*;
+import static api.Service.*;
+import java.util.List;
+import org.slf4j.Logger;
+class Client {}
+""",
+        "app/Client.java",
+    )
+
+    resolve_global_edges([api, client])
+    imports = {edge.dst_name: edge for edge in client.edges if edge.type == "IMPORTS"}
+    assert imports["api.Service"].resolution == "resolved"
+    assert imports["api.*"].resolution == "resolved"
+    assert imports["api.*"].meta["target_qualified_name"] == "api"
+    assert imports["api.Service.*"].meta["target_qualified_name"] == "api.Service"
+    assert imports["java.util.List"].resolution == "unresolved"
+    assert imports["org.slf4j.Logger"].resolution == "unresolved"

@@ -925,6 +925,43 @@ def _global_method_candidates(
     return candidates, owner_reason
 
 
+def _resolve_import(
+    edge: ParsedEdge,
+    *,
+    result: ParseResult,
+    types_by_qname: dict[str, list[Entity]],
+    packages_by_qname: dict[str, list[Entity]],
+    mark_global,
+) -> bool:
+    """Bind an import to the repository type or package it names (O-376).
+
+    `import a.B`, `import static a.B.member` and `import static a.B.*` target the
+    type `a.B`; `import a.*` targets the package. Several candidates stay
+    unresolved: the import alone cannot choose between modules."""
+    meta = edge.meta
+    target = meta.get("target_package") or edge.dst_name.removesuffix(".*")
+    if meta.get("wildcard") and not meta.get("static"):
+        candidates = packages_by_qname.get(target, [])
+        # One logical package may be modelled once per file; the persisted
+        # package row is chosen by qualified name, not by a compilation unit.
+        if len(candidates) >= 1:
+            _mark_resolved(edge, candidates[0], reason="package_in_repository")
+            edge.meta["resolution_scope"] = "global"
+            return True
+        return False
+    owner = target
+    if meta.get("static") and not meta.get("wildcard"):
+        owner, _, member = target.rpartition(".")
+        meta["imported_member"] = member
+    candidates = _scope_candidates(_candidates_at_stage((owner,), types_by_qname), result)
+    if len(candidates) == 1:
+        mark_global(edge, candidates[0], reason="import_in_repository")
+        return True
+    if len(candidates) > 1:
+        meta["resolution_reason"] = "ambiguous_import"
+    return False
+
+
 def resolve_global_edges(results: Iterable[ParseResult]) -> int:
     """Resolve Java edges across a collection of parsed Java files.
 
@@ -955,6 +992,11 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
         if entity.qualified_name:
             types_by_qname.setdefault(entity.qualified_name, []).append(entity)
         types_by_name.setdefault(entity.name, []).append(entity)
+
+    packages_by_qname: dict[str, list[Entity]] = {}
+    for entity in entities:
+        if entity.type == "package" and entity.qualified_name:
+            packages_by_qname.setdefault(entity.qualified_name, []).append(entity)
 
     methods_by_owner_and_name: dict[tuple[str, str], list[Entity]] = {}
     methods_by_qname: dict[str, list[Entity]] = {}
@@ -999,6 +1041,13 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
             ),
         )
         for edge in ordered_edges:
+            if edge.type == "IMPORTS" and edge.resolution == "unresolved":
+                if _resolve_import(
+                    edge, result=result, types_by_qname=types_by_qname,
+                    packages_by_qname=packages_by_qname, mark_global=mark_global,
+                ):
+                    resolved += 1
+                continue
             if edge.resolution != "unresolved" or edge.type not in _LOCAL_EDGE_TYPES:
                 continue
             meta = edge.meta or {}
