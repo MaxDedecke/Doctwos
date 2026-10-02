@@ -374,6 +374,30 @@ def _reconstruct_text(lines: list[LogicalLine]) -> str:
     return "\n".join(out_lines)
 
 
+def _blank_separators(text: str) -> str:
+    """Ersetzt Trenner-Kommas/-Semikolons durch Leerzeichen (O-374).
+
+    In COBOL sind `,` und `;` mit folgendem Leerraum Trenner und gleichwertig zu
+    einem Blank (`STRING A, B ...`, `CALL ... USING A, B,`). Die Grammatik kennt
+    sie nicht an jeder Stelle. Innerhalb von Literalen bleiben sie erhalten; die
+    Länge bleibt gleich, damit Offsets und Zeilennummern stimmen."""
+    out: list[str] = []
+    quote = ""
+    n = len(text)
+    for i, ch in enumerate(text):
+        if ch == "\n":
+            quote = ""
+        elif quote:
+            if ch == quote:
+                quote = ""
+        elif ch in ("'", '"'):
+            quote = ch
+        elif ch in (",", ";") and (i + 1 == n or text[i + 1] in " \t\r\n"):
+            ch = " "
+        out.append(ch)
+    return "".join(out)
+
+
 def _prepend_header(text: str, header: str) -> str:
     lines = text.split("\n")
     for idx, line in enumerate(lines):
@@ -458,7 +482,7 @@ def build_tree(
     bleibt SLL (schneller Normalfall, keine Kosten für unbetroffene
     Dateien); nur bei einem Fehler wird komplett neu mit LL(*) geparst."""
     grammar_lines = mask_for_grammar(masked_lines, copybook=header is not None)
-    text = _reconstruct_text(grammar_lines)
+    text = _blank_separators(_reconstruct_text(grammar_lines))
     if header:
         text = _prepend_header(text, header)
 

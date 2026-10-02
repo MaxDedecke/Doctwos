@@ -687,9 +687,13 @@ def _fallback_chunks(
     ]
 
 
-def _is_code_line(line: str) -> bool:
-    stripped = line.strip()
-    if not stripped:
+def _is_code_line(line: str, source_format: SourceFormat = "free") -> bool:
+    # Fixed format: Spalten 1-6 und 73-80 tragen Sequenznummern, kein Code. Eine
+    # Zeile, die nur den abschließenden Punkt eines Paragraphen enthält, ist keine
+    # unstrukturierte Lücke (O-374).
+    body = line[6:72] if source_format == "fixed" else line
+    stripped = body.strip()
+    if not stripped or stripped == ".":
         return False
     if len(line) >= 7 and line[6] in ("*", "/"):
         return False
@@ -746,7 +750,7 @@ def _collect_uncovered_chunks(
         gap_end = sorted_paras[i + 1].start_line - 1
         if gap_start <= gap_end:
             if any(
-                _is_code_line(source_lines[ln - 1])
+                _is_code_line(source_lines[ln - 1], source_format)
                 for ln in range(gap_start, gap_end + 1)
                 if ln - 1 < len(source_lines)
             ):
@@ -778,7 +782,7 @@ def _collect_uncovered_chunks(
         code_lines = [
             source_lines[ln - 1]
             for ln in range(tail_start, tail_end + 1)
-            if ln - 1 < len(source_lines) and _is_code_line(source_lines[ln - 1])
+            if ln - 1 < len(source_lines) and _is_code_line(source_lines[ln - 1], source_format)
         ]
         # Avoid creating chunks for lone END PROGRAM statements or trailing blank/comments
         if code_lines and any(not cl.strip().upper().startswith("END PROGRAM") for cl in code_lines):

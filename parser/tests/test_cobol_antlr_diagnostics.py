@@ -144,3 +144,41 @@ def test_consolidate_diagnostics_caps_total_count():
     assert last.code == "DIAGNOSTICS_TRUNCATED"
     assert last.severity == "warning"
     assert "31 weitere" in last.message
+
+
+SEPARATOR_COMMAS = """\
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COMMAS.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  WS-A                 PIC X(8).
+       01  WS-B                 PIC X(8).
+       01  WS-OUT               PIC X(40).
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           STRING WS-A, WS-B, 'A,B' DELIMITED BY SIZE
+                  INTO WS-OUT
+           END-STRING.
+           CALL "CEEDAYS" USING
+                  WS-A,
+                  WS-B;
+                  WS-OUT
+           END-CALL.
+           STOP RUN.
+"""
+
+
+def test_separator_commas_and_semicolons_do_not_cause_syntax_errors():
+    # O-374: `STRING A, B ...` und `CALL ... USING A, B,` (CardDemo CBACT04C,
+    # CSUTLDTC, COACCT01, CODATE01). Kommas/Semikolon mit folgendem Leerraum sind
+    # in COBOL Trenner; das Komma im Literal 'A,B' bleibt erhalten.
+    program, errors, diagnostics = _scan(SEPARATOR_COMMAS)
+    assert [d.message for d in diagnostics if d.severity == "error"] == []
+    assert [p.name for p in program.paragraphs] == ["MAIN-PARA"]
+
+
+def test_separator_blanking_keeps_literals_and_offsets():
+    text = "STRING A, B 'X, Y' \"P; Q\",\n  C;\n"
+    blanked = antlr_bridge._blank_separators(text)
+    assert len(blanked) == len(text)
+    assert blanked == "STRING A  B 'X, Y' \"P; Q\" \n  C \n"

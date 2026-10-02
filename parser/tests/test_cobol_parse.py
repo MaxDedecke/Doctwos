@@ -797,3 +797,35 @@ def test_o364_procedure_copybook_parsing():
     assert len(calls) == 1
     assert calls[0].src_name == "COPY-PARA"
     assert calls[0].dst_name == "SUBPROG"
+
+
+
+def _numbered_fixed_source(rows: list[str]) -> str:
+    """Festformat mit Sequenznummern in Spalte 1-6 und 73-80, wie in Mainframe-Quellen."""
+    out = []
+    for number, row in enumerate(rows, 1):
+        text = f"{number * 100:06d} " + row
+        out.append(text.ljust(72) + f"{number * 10:08d}")
+    return "\n".join(out) + "\n"
+
+
+def test_blank_sequence_numbered_lines_are_not_reported_as_unstructured_code():
+    # O-374: Zeilen, die nur Sequenznummern (Spalte 73-80) tragen, galten als Code
+    # und erzeugten Fallback-Chunks; COACCT01/CODATE01 wurden dadurch `partial`.
+    source = _numbered_fixed_source([
+        " IDENTIFICATION DIVISION.",
+        " PROGRAM-ID. LONEDOT.",
+        " DATA DIVISION.",
+        " WORKING-STORAGE SECTION.",
+        "     01  WS-A PIC X(8).",
+        " PROCEDURE DIVISION.",
+        " MAIN-PARA.",
+        "     MOVE 1 TO WS-A",
+        "     .",
+        "",
+        " NEXT-PARA.",
+        "     STOP RUN.",
+    ])
+    result = parse_program(source, "LONEDOT.cbl")
+    assert [c for c in result.chunks if c.meta.get("fallback")] == []
+    assert [e.name for e in result.entities if e.type == "paragraph"] == ["MAIN-PARA", "NEXT-PARA"]
