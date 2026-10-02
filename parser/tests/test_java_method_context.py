@@ -87,3 +87,39 @@ def test_exception_flow_records_throws_catches_finally_and_resources():
     assert catch["exception_types"] == ["IOException", "RuntimeException"]
     assert any(i["kind"] == "finally" for i in flow)
     assert method.meta["throws_types"] == ["IOException"]
+
+
+VOID_SOURCE = '''package demo;
+public class Filter {
+    public void run(final Request req) {
+        if (req == null) {
+            return;
+        }
+        Runnable r = () -> {
+            return;
+        };
+        switch (req.kind()) {
+            case 1:
+                return;
+            default:
+                break;
+        }
+        handle(req);
+    }
+
+    public int count(final Request req) {
+        if (req == null) {
+            return 0;
+        }
+        return req.size();
+    }
+}
+'''
+
+
+def test_bare_return_does_not_abort_structure_parsing():
+    result = parse_java_file(VOID_SOURCE, "src/Filter.java")
+    methods = {e.qualified_name: e for e in result.entities if e.type == "method"}
+    assert methods["demo.Filter#run(Request)"].meta["return_expressions"] == []
+    counted = methods["demo.Filter#count(Request)"].meta["return_expressions"]
+    assert [(r["expression"], r["start_line"]) for r in counted] == [("0", 21), ("req.size()", 23)]

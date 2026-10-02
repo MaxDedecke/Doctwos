@@ -285,7 +285,9 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             first = node.getChild(0) if rule == "statement" and node.getChildCount() else None
             if first is not None and getattr(first, "symbol", None) is not None and first.getText() == "return":
                 expression = node.expression()
-                expression = expression[0] if isinstance(expression, list) else expression
+                if isinstance(expression, list):
+                    # A bare `return;` yields an empty list, not None.
+                    expression = expression[0] if expression else None
                 if expression is not None:
                     returns.append({
                         "expression": self._source_text(expression)[:500],
