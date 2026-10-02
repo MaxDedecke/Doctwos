@@ -249,3 +249,28 @@ def test_entry_statement_is_attributed_to_its_own_program():
 
     assert errors == []
     assert program.entry_points == [EntryPoint("ALTENTRY", "MAIN-PARA", 5, 5)]
+
+
+MULTILINE_EXEC_AT_PARAGRAPH_END = """\
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. EXECEND.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           MOVE 1 TO WS-A.
+           EXEC CICS RETURN
+                     TRANSID (WS-TRANID)
+                     COMMAREA (WS-COMM)
+           END-EXEC.
+
+       NEXT-PARA.
+           GOBACK.
+"""
+
+
+def test_paragraph_end_line_covers_a_multiline_exec_block_at_its_end():
+    # O-373: die Grammatik sieht den maskierten EXEC-Block als eine Zeile; der
+    # Paragraph endete deshalb an der EXEC-Startzeile (6) statt bei END-EXEC (9).
+    programs, _, _ = _scan_text(MULTILINE_EXEC_AT_PARAGRAPH_END)
+    paragraphs = {p.name: p for p in programs[0].paragraphs}
+    assert (paragraphs["MAIN-PARA"].start_line, paragraphs["MAIN-PARA"].end_line) == (4, 9)
+    assert paragraphs["NEXT-PARA"].start_line == 11

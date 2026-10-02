@@ -4,7 +4,7 @@ missverstehen -- sie muss die strukturierten O-119-Diagnosen mit einbeziehen
 und den F-029-Textfallback von echten Teilerfolgen unterscheiden.
 """
 
-from core.model import Chunk, ParseDiagnostic, ParseResult, classify_completeness
+from core.model import Chunk, Entity, ParseDiagnostic, ParseResult, classify_completeness
 
 
 def _result(**kwargs) -> ParseResult:
@@ -99,3 +99,46 @@ def test_copybook_chunk_without_fallback_marker_is_not_text_fallback():
     status, reasons = classify_completeness(result)
     assert status == "complete"
     assert reasons == []
+
+
+def _gap_chunk(start: int, end: int) -> Chunk:
+    meta = {"program": "TESTPGM", "format": "fixed", "fallback": True, "partial": True, "unstructured": True}
+    return Chunk(content="x", start_line=start, end_line=end, meta=meta)
+
+
+def test_uncovered_gap_chunks_next_to_structure_are_partial_not_text_fallback():
+    # O-373: COSGN00C & Co. hatten Paragraphen/Entities, wurden aber wegen eines
+    # angehängten Lückenchunks als Volltext-Fallback gemeldet.
+    result = _result(chunks=[_chunk(), _gap_chunk(120, 125)])
+    status, reasons = classify_completeness(result)
+    assert status == "partial"
+    assert any("120-125" in reason for reason in reasons)
+    assert not any("PROCEDURE DIVISION" in reason for reason in reasons)
+
+
+def test_whole_file_fallback_stays_text_fallback_when_gap_chunks_exist_too():
+    result = _result(chunks=[_chunk(fallback=True), _gap_chunk(120, 125)])
+    status, _ = classify_completeness(result)
+    assert status == "text_fallback"
+
+
+def _block_entity(start: int, end: int) -> Entity:
+    return Entity(
+        name=f"EXEC-CICS-BLOCK@{start}", type="exec_block", start_line=start, end_line=end,
+        qualified_name=f"TESTPGM.EXEC-CICS-BLOCK@{start}", parent_name="TESTPGM",
+    )
+
+
+def test_gap_chunk_inside_an_exec_block_is_covered_structure_not_a_gap():
+    # COSGN00C/COMEN01C: Fortsetzungszeilen von `EXEC CICS ... END-EXEC` liegen
+    # hinter dem Paragraphenanker, gehören aber zur exec_block-Entity.
+    result = _result(chunks=[_chunk(), _gap_chunk(102, 106)], entities=[_block_entity(100, 107)])
+    status, reasons = classify_completeness(result)
+    assert (status, reasons) == ("complete", [])
+
+
+def test_gap_chunk_outside_any_exec_block_stays_partial():
+    result = _result(chunks=[_chunk(), _gap_chunk(130, 135)], entities=[_block_entity(100, 107)])
+    status, reasons = classify_completeness(result)
+    assert status == "partial"
+    assert any("130-135" in reason for reason in reasons)

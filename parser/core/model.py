@@ -208,6 +208,9 @@ class ParseResult:
 AnalysisStatus = Literal["complete", "partial", "text_fallback", "skipped"]
 
 
+_STRUCTURED_BLOCK_TYPES = frozenset({"exec_block", "sql_block"})
+
+
 def classify_completeness(result: ParseResult) -> tuple[AnalysisStatus, list[str]]:
     """Bewertet ein `ParseResult` danach, wie vollständig die Struktur der
     Datei tatsächlich erfasst wurde -- nicht nur, ob der Parser abgestürzt
@@ -231,10 +234,33 @@ def classify_completeness(result: ParseResult) -> tuple[AnalysisStatus, list[str
     reasons = list(result.errors)
     reasons += [d.message for d in result.diagnostics if d.severity in ("error", "warning")]
 
-    if any(chunk.meta.get("fallback") for chunk in result.chunks):
+    fallback_chunks = [chunk for chunk in result.chunks if chunk.meta.get("fallback")]
+    # O-359 hängt für nicht von Paragraphen abgedeckte Randbereiche Textchunks
+    # mit `fallback` UND `partial` an. Das ist eine strukturierte Datei mit
+    # Lücke, kein Volltext-Fallback (O-373).
+    whole_file_fallback = [chunk for chunk in fallback_chunks if not chunk.meta.get("partial")]
+    if whole_file_fallback:
         return "text_fallback", reasons or [
             "Keine PROCEDURE DIVISION gefunden, Datei wurde als Volltext statt als Struktur analysiert."
         ]
+    # Fortsetzungszeilen eines mehrzeiligen EXEC-Blocks liegen nach dem letzten
+    # Paragraphenanker, sind aber durch die exec_block-Entity strukturell belegt.
+    block_ranges = [
+        (e.start_line, e.end_line)
+        for e in result.entities
+        if e.type in _STRUCTURED_BLOCK_TYPES and e.start_line and e.end_line
+    ]
+    open_gaps = [
+        chunk for chunk in fallback_chunks
+        if not any(lo <= chunk.start_line and chunk.end_line <= hi for lo, hi in block_ranges)
+    ]
+    if open_gaps:
+        ranges = ", ".join(f"{c.start_line}-{c.end_line}" for c in open_gaps[:5])
+        more = f" (+{len(open_gaps) - 5} weitere)" if len(open_gaps) > 5 else ""
+        reasons.append(
+            f"{len(open_gaps)} Codebereich(e) außerhalb erkannter Paragraphen nur als Text erfasst: "
+            f"Zeilen {ranges}{more}."
+        )
     if reasons:
         return "partial", reasons
     return "complete", []

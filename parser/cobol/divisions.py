@@ -62,7 +62,14 @@ def scan(
     last_line = tokens[-1].phys_line
 
     tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines)
-    visitor = _StructureVisitor(source_text)
+    # Die Grammatik sieht maskierte mehrzeilige Anweisungen (EXEC ... END-EXEC) als
+    # EINE Zeile; ihr Token trägt nur die Startzeile. Das Zeilenende kommt von hier.
+    line_ends = {
+        line.phys_start_line: line.phys_end_line
+        for line in masked_lines
+        if line.phys_end_line > line.phys_start_line
+    }
+    visitor = _StructureVisitor(source_text, line_ends)
     visitor.visit(tree)
     programs = visitor.programs or [
         CobolProgram(name="", start_line=start_line, end_line=last_line)
@@ -117,10 +124,15 @@ class _StructureVisitor(Cobol85Visitor):
     procedureDivision? programUnit* endProgramStatement?` verschachtelte
     Unterprogramme immer ERST NACH der eigenen PROCEDURE DIVISION erlaubt."""
 
-    def __init__(self, source_text: str) -> None:
+    def __init__(self, source_text: str, line_ends: dict[int, int] | None = None) -> None:
         self.programs: list[CobolProgram] = []
         self._stack: list[_ProgramFrame] = []
         self._source_text = source_text
+        self._line_ends = line_ends or {}
+
+    def _end_line(self, token) -> int:
+        line = _line(token)
+        return max(line, self._line_ends.get(line, line))
 
     def visitProgramUnit(self, ctx: Cobol85Parser.ProgramUnitContext):  # noqa: N802
         # Der VOLLE Vorfahrenpfad (nicht nur der unmittelbare Elternname) -
@@ -183,7 +195,7 @@ class _StructureVisitor(Cobol85Visitor):
         header = ctx.procedureSectionHeader()
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
         self._stack[-1].sections.append(
-            Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop))
+            Section(name, "PROCEDURE", _line(ctx.start), self._end_line(ctx.stop))
         )
         self._collect_paragraphs(ctx.paragraphs(), name)
         return None
@@ -192,7 +204,7 @@ class _StructureVisitor(Cobol85Visitor):
         header = ctx.procedureSectionHeader()
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
         self._stack[-1].sections.append(
-            Section(name, "PROCEDURE", _line(ctx.start), _line(ctx.stop))
+            Section(name, "PROCEDURE", _line(ctx.start), self._end_line(ctx.stop))
         )
         self._collect_paragraphs(ctx.paragraphs(), name)
         return None
@@ -218,7 +230,7 @@ class _StructureVisitor(Cobol85Visitor):
             if not name:
                 continue
             self._stack[-1].paragraphs.append(
-                Paragraph(name, section_name, _line(p.start), _line(p.stop))
+                Paragraph(name, section_name, _line(p.start), self._end_line(p.stop))
             )
 
     def _record_named_section(self, ctx, name: str, start_tok, stop_tok, division: str) -> None:
