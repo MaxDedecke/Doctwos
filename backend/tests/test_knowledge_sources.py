@@ -264,6 +264,14 @@ def test_source_files_includes_skipped_files_and_their_status(client, make_proje
         }
     }
     assert body["scan_summary"] == {
+        "by_reason": {"not_indexable": {"total_files": 1, "by_language": {"text": 1}}},
+        "parser_error_classes": {},
+        "edges": {
+            "by_resolution": {},
+            "unresolved_external": 0,
+            "unresolved_open": 0,
+            "external_by_category": {},
+        },
         "total_files": 2,
         "by_status": {"complete": 1, "skipped": 1},
         "by_encoding": {"utf-8": 1},

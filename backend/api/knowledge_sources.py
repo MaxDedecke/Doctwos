@@ -47,6 +47,7 @@ from api.serializers import serialize_source
 from core.config import UPLOADS_DIR, REPOS_ROOT
 import core.config as cfg
 from core.db_setup import get_db
+from core.scan_report import summarize_edges, summarize_scan_reasons
 from models.database import (
     DocumentChunk,
     EntityDocLink,
@@ -502,6 +503,8 @@ def get_knowledge_source_files(
             file_status[path] = details
 
     scan_summary = {
+        **summarize_scan_reasons([(row[3], row[1], row[2]) for row in scan_rows]),
+        "edges": summarize_edges(db, source_id),
         "total_files": len(scan_rows),
         "by_status": dict(sorted(by_status.items())),
         "by_encoding": dict(sorted(by_encoding.items())),

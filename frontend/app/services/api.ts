@@ -109,6 +109,15 @@ export const api = {
             by_status: Record<string, number>;
             by_encoding: Record<string, number>;
             by_language: Record<string, { total_files: number; by_status: Record<string, number> }>;
+            // O-380: Gründe nicht vollständig analysierter Dateien und Kantenlage der Quelle.
+            by_reason?: Record<string, { total_files: number; by_language: Record<string, number> }>;
+            parser_error_classes?: Record<string, number>;
+            edges?: {
+                by_resolution: Record<string, number>;
+                unresolved_external: number;
+                unresolved_open: number;
+                external_by_category: Record<string, number>;
+            };
         };
     }>(`${API_URL}/knowledge-sources/${id}/files`),
     resolveWebOrigin: (id: number | string, url: string, theme?: string) => axios.get<{ content: string; format: string; url: string }>(`${API_URL}/knowledge-sources/${id}/resolve`, { params: { url, theme } }),
