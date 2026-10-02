@@ -440,6 +440,10 @@ def warmup() -> None:
     _parse(ascii_text, PredictionMode.LL)
 
 
+# Letzter Parse-Baum je Prozess (ein Eintrag: Dateien laufen nacheinander).
+_tree_cache: dict[str, tuple] = {}
+
+
 def build_tree(
     masked_lines: list[LogicalLine], header: str | None = None
 ) -> tuple[Cobol85Parser.StartRuleContext, str, list[ParseDiagnostic]]:
@@ -487,13 +491,23 @@ def build_tree(
         text = _prepend_header(text, header)
 
     ascii_text = text.translate(_UMLAUT_FOLD)
+    # divisions.scan() und data_division.parse() bauen den Baum für dieselbe Datei
+    # mit demselben Text; ein LL(*)-Fallback kostet bei großen Programmen Minuten.
+    # Die Visitoren lesen den Baum nur, ein geteilter Baum ist daher unkritisch.
+    cached = _tree_cache.get(ascii_text)
+    if cached is not None:
+        tree, diagnostics = cached
+        return tree, text, list(diagnostics)
     tree, had_error, diagnostics = _parse(ascii_text, PredictionMode.SLL)
     if had_error:
         # Nur der LL(*)-Durchlauf zählt jetzt — ein SLL-Fehler, den LL(*)
         # anschließend sauber auflöst, darf laut O-119-Abnahme nicht als
         # endgültige Diagnose gemeldet werden.
         tree, _, diagnostics = _parse(ascii_text, PredictionMode.LL)
-    return tree, text, _bundle_repeats(diagnostics)
+    diagnostics = _bundle_repeats(diagnostics)
+    _tree_cache.clear()
+    _tree_cache[ascii_text] = (tree, diagnostics)
+    return tree, text, list(diagnostics)
 
 
 def _bundle_repeats(diagnostics: list[ParseDiagnostic]) -> list[ParseDiagnostic]:

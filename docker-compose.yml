@@ -204,7 +204,7 @@ services:
       # Dateien, die ein Git-Sync gleichzeitig parst/einbettet, und Anzahl der
       # Parse-Prozesse (parser/parse_pool.py; 0 = Thread-Parsing wie zuvor).
       EMBED_CONCURRENCY: ${EMBED_CONCURRENCY:-3}
-      PARSE_WORKERS: ${PARSE_WORKERS:-}
+      PARSE_WORKERS: ${PARSE_WORKERS:-3}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
@@ -228,7 +228,11 @@ services:
       # reads every service's log file directly off disk, since parser-worker
       # has no Docker socket/CLI to shell out to `docker compose logs` with.
       - ./data/logs:/var/log/doctus
-    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=celery"]
+    # Ohne --concurrency startet Celery einen Prozess je CPU-Kern (24 unter WSL),
+    # jeder mit eigenem ANTLR-Speicher; mem_limit lässt im Zweifel den Container
+    # statt der WSL-VM sterben.
+    mem_limit: ${PARSER_MEM_LIMIT:-5g}
+    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=celery", "--concurrency=${PARSER_CONCURRENCY:-4}"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
       interval: 30s
