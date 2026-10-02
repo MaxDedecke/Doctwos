@@ -74,6 +74,9 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "2"
       # Entlaedt Modelle nach 1 Minute Inaktivitaet, um Systemspeicher (RAM) fuer naechtliche Backups freizugeben.
       OLLAMA_KEEP_ALIVE: "1m"
+      # Kleinerer KV-Cache, damit Chat- und Embedding-Modell auf einer 8-GB-GPU zusammen passen.
+      OLLAMA_FLASH_ATTENTION: "${OLLAMA_FLASH_ATTENTION:-1}"
+      OLLAMA_KV_CACHE_TYPE: "${OLLAMA_KV_CACHE_TYPE:-q8_0}"
     volumes:
       - ./data/ollama:/root/.ollama
     healthcheck:
