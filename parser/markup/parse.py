@@ -16,11 +16,30 @@ from core.model import Chunk, Entity, ParseDiagnostic, ParseResult
 
 
 _DOCTYPE_RE = re.compile(r"<!DOCTYPE\b", re.IGNORECASE)
+_LITERAL = r"(?:\"[^\"]*\"|'[^']*')"
+# Nur DOCTYPE mit externer ID und OHNE internes Subset (`[ ... ]`); dort stehen ENTITY-Deklarationen.
+_EXTERNAL_ONLY_DOCTYPE_RE = re.compile(
+    rf"<!DOCTYPE\s+[^\s>\[]+(?:\s+(?:SYSTEM\s+{_LITERAL}|PUBLIC\s+{_LITERAL}\s+{_LITERAL}))?\s*>",
+    re.IGNORECASE,
+)
 
 
 def _line_for_parse_error(exc: ET.ParseError) -> tuple[int, int]:
     position = getattr(exc, "position", None)
     return position if position else (1, 0)
+
+
+def _without_external_doctype(source: str) -> str:
+    """Blanks a lone `<!DOCTYPE … SYSTEM/PUBLIC "…">` so the XML itself can be read (O-379).
+
+    The declaration is only replaced by spaces (newlines kept, so line numbers
+    stay true). expat never fetches the referenced DTD. A DOCTYPE with an
+    internal subset can declare entities and keeps being refused."""
+    match = _EXTERNAL_ONLY_DOCTYPE_RE.search(source)
+    if match is None or len(_DOCTYPE_RE.findall(source)) != 1 or "<!ENTITY" in source.upper():
+        return source
+    blanked = re.sub(r"[^\n]", " ", match.group(0))
+    return source[: match.start()] + blanked + source[match.end():]
 
 
 def _local_name(tag: str) -> str:
@@ -46,7 +65,8 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
         for chunk in CodeParser("xml").chunk_file(source)
     ]
 
-    if _DOCTYPE_RE.search(source):
+    parse_source = _without_external_doctype(source)
+    if _DOCTYPE_RE.search(parse_source):
         return ParseResult(
             program_name=PurePosixPath(path).stem or "xml",
             path=path,
@@ -65,7 +85,7 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
         )
 
     try:
-        root = ET.fromstring(source)
+        root = ET.fromstring(parse_source)
     except ET.ParseError as exc:
         line, column = _line_for_parse_error(exc)
         return ParseResult(
