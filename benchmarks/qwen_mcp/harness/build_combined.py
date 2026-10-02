@@ -38,6 +38,13 @@ if (R / "narrative_v2.json").exists() and "v2" in template:
         v2["limits"] = v2["limits"] + late["limits_add"]
         v2["late"] = late
         payload["lateData"] = json.loads((R / "report_data_late.json").read_text())
+        if (R / "narrative_ch78.json").exists() and (R / "report_data_ch78.json").exists():
+            n78 = json.loads((R / "narrative_ch78.json").read_text())
+            v2["title"], v2["lead"], v2["top"], v2["next"] = n78["title"], n78["lead"], n78["top"], n78["next"]
+            v2["method"] = v2["method"] + n78["method_add"]
+            v2["limits"] = v2["limits"] + n78["limits_add"]
+            v2["ch78"] = n78
+            payload["ch78"] = json.loads((R / "report_data_ch78.json").read_text())
 html = tpl.replace("__CHAPTERS__", json.dumps(payload, ensure_ascii=False).replace("</", "<\\/"))
 out.write_text(html)
 print("->", out, len(html) // 1024, "KB")

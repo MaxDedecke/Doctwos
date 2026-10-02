@@ -1,0 +1,72 @@
+{
+ "title": "MCP im Benchmark: Qwen und Luna, vier Fassungen der Schnittstelle",
+ "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Doctus-MCP-Schnittstelle. Gemessen wurden v1, die Überarbeitung v2 und für Qwen zwei weitere Fassungen, bei denen der Server die Arbeit übernimmt (v3, v4/v4.1). Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in acht Kapiteln, am Ende der Vergleich.",
+ "top": [
+  "<b>Qwen:</b> Wenn der Server den Evidenz-Pack selbst als ersten Schritt ausführt (v4/v4.1), antwortet Qwen in 23 s statt 32 s und mit 3.500 statt 4.600 Tokens je Antwort (beides belegt gegenüber v3). Die Qualität liegt an den neuen Fragen bei 37 % bis 40 % gegenüber 36 % bei v3, das ist <b>kein belegter Unterschied</b>. Gegenüber v2 (17 %) ist der Gewinn belegt.",
+  "<b>Luna:</b> Mit Werkzeugen bleibt sie weit vorn (74 % bis 81 %), MCP v2 liegt aber auch an neuen Fragen hinter der lokalen Shell. Die neuen Fassungen wurden bei Luna nicht gemessen.",
+  "<b>Wichtigste Lehre:</b> Verbesserungen, die ich an einer Frage diagnostiziert habe, wirken an dieser Frage (C1: 2 % → 62 %), verschlechtern aber andere (C4: 21 % → 0 %). Ein belegter Qualitätsgewinn braucht neue, unberührte Fragen."
+ ],
+ "next": [
+  "<b>Unabhängige Endprüfung:</b> Zehn frische Fragen zu anderen Programmen, Rubrik und Festlegung vor dem Lauf, ein Durchgang mit v4.1. Erst das sagt, ob die Auswahllogik allgemein trägt.",
+  "<b>Mehr Kontext für das Beweispaket:</b> Das Paket muss in 8.192 Token Kontext passen (rund 5.500 Zeichen). Mit 16.000 Token wären bessere Antworten wahrscheinlich, das hängt an Arbeitsspeicher und Ollama-Einstellungen (Entscheidung offen).",
+  "<b>Paketgröße auch bei Java einhalten:</b> Bei den Entwicklungsfragen wurde das Paket in 9 von 18 Läufen von der Obergrenze des Harness (6.000 Zeichen) abgeschnitten, vor allem bei Java-Methoden mit vielen Aufrufern.",
+  "<b>Den Index verbessern:</b> J4 zeigt, dass nur 6 von 13 Aufruferklassen aufgelöst sind. Fehlende Auflösung kostet Punkte.",
+  "<b>Luna mit v4.1 messen</b> und die Fassung produktiv bereitstellen, sobald die Endprüfung vorliegt."
+ ],
+ "k7": {
+  "title": "Kapitel 7: Der Server führt den Evidenz-Pack selbst aus (v4)",
+  "intro": [
+   "<b>Idee:</b> In Kapitel 5 und 6 musste Qwen das neue Werkzeug <code>answer_context</code> erst wählen. Jetzt führt der Server es als ersten Schritt selbst aus (wie es der Chat in Doctus künftig tut) und legt das Ergebnis in die Unterhaltung. Qwen schreibt danach direkt die Antwort, weitere Werkzeuge bleiben erlaubt (nur <code>answer_context</code>, <code>explain_symbol</code>, <code>get_code_entity</code>, Denkmodus).",
+   "<b>Was v4 gegenüber v3 ändert:</b> (1) Fakten je Absatz oder Methode: Meldungstexte und zugewiesene Codes, zum Beispiel <code>sets WS-VALIDATION-FAIL-REASON=100</code>; (2) Auswahl der Absätze und Hilfsmethoden zusätzlich per bge-m3-Embedding; (3) die Aufrufkette wird bis Tiefe 2 verfolgt; (4) Parameter <code>symbols</code> und <code>topic</code> statt der ganzen Frage. Die Fakten berechnet der Server beim Abruf aus dem indexierten Quelltext, nicht im Parser. Ein neuer Import ist dafür nicht nötig.",
+   "<b>Messung:</b> Zehn Hold-out-Fragen × 3 Wiederholungen, nur MCP-Arm, gepaart gegen v3 (Kapitel 6) und v2 (Kapitel 4). Erwartungen vorab in <code>manifest_ch7.json</code> festgelegt: Qualität höher als v3, weniger Aufrufe, Zeit nicht über v3 + 5 s."
+  ],
+  "findings": [
+   "<b>Qualität unverändert:</b> 36,8 % gegenüber 36,2 % bei v3 (+0,6 Prozentpunkte, Intervall −11 bis +9, p = 0,92). Die Erwartung H1 ist <b>nicht bestätigt</b>.",
+   "<b>Zeit und Tokens belegt niedriger:</b> 24,5 s statt 32,4 s (−7,8 s, p &lt; 0,0001), Tokens gesamt 3.400 statt 4.600 (−1.170, p &lt; 0,0001). Die Zeit (H3) liegt unter v3, die Erwartung war „höchstens +5 s“, sie ist erfüllt.",
+   "<b>Jede Sitzung hat genau einen Werkzeugaufruf</b> (den festen Prefetch). Qwen ruft danach nichts mehr auf und antwortet in einem Zug. Das Paket ist im Mittel 6.100 Zeichen groß und braucht 0,8 s.",
+   "<b>Fehleranalyse:</b> In 21 von 30 Läufen hat die Obergrenze des Harness von 6.000 Zeichen das Paket am Ende abgeschnitten. Dazu kamen drei inhaltliche Fehler: Bei C1 wählte die Absatzauswahl die falschen Absätze (<code>1200-GET-INTEREST-RATE</code> statt <code>1300-COMPUTE-INTEREST</code>), <code>JWTAuthenticationFilter</code> wurde nicht als Symbol erkannt (Abkürzung am Wortanfang), und unwichtige Statusvariablen (<code>APPL-RESULT=12</code>) verdrängten die Fakten. Daraus entstand v4.1 (Kapitel 8)."
+  ]
+ },
+ "k8": {
+  "title": "Kapitel 8: Nachbesserung nach der Fehleranalyse (v4.1)",
+  "intro": [
+   "<b>Änderungen gegenüber v4:</b> (1) Namen mit Abkürzungspräfix werden als Symbol erkannt. (2) Die Absatzauswahl deckt die Fragewörter ab: bereits abgedeckte Wörter zählen nicht erneut, Allerweltswörter („Programm“, „Datei“) und die Labels der Fakten zählen nicht. (3) Ein PERFORM-Schritt weiter wird mitgeliefert. (4) Fakten nennen berechnete Felder (<code>computes WS-MONTHLY-INT</code>), Statusvariablen ohne Aussage entfallen. (5) Das Paket hält die Größe ein: Quelltexte werden gekürzt, statt ganze Absätze zu verwerfen.",
+   "<b>Wichtiger Hinweis zur Methodik:</b> Diese Änderungen entstanden, nachdem ich die Rubrikpunkte von Kapitel 7 auf denselben zehn Fragen gesehen hatte. Kapitel 8 ist deshalb ein <b>Entwicklungsdurchlauf</b>, kein unabhängiger Test. Auch die Wörterbucheinträge <code>formel</code> und <code>buchung</code> und die Stoppwörter stammen aus der Diagnose von C1. Festlegung: <code>manifest_ch8.json</code>.",
+   "<b>Messung:</b> Zehn Hold-out-Fragen × 3 und sechs Entwicklungsfragen × 3 Wiederholungen, nur MCP-Arm."
+  ],
+  "findings": [
+   "<b>Hold-out:</b> Qualität 39,9 % (v3 36,2 %, v4 36,8 %). Gegenüber v3 +3,6 Prozentpunkte, Intervall −8,8 bis +18,7, p = 0,44: <b>nicht belegt</b>. Zeit 23,3 s (−9,0 s gegenüber v3, belegt), Tokens gesamt 3.470 (−1.110, belegt). Gegenüber v2 ist der Qualitätsgewinn belegt (+22,7 Prozentpunkte, p = 0,0006).",
+   "<b>Entwicklungsfragen:</b> Qualität 56,2 % (v3 43,4 %, v2 45,2 %). Gegenüber v3 +6,7 Prozentpunkte, Intervall −5,3 bis +21,2, p = 0,16: nicht belegt. Brauchbare Antworten 13 von 18 (72 %) gegenüber 13 von 30 (43 %) bei v3; Zeit −7,1 s und Tokens −1.230 (belegt). Diese Fragen kenne ich seit der Entwicklung, der Wert ist geschönt.",
+   "<b>Eine Frage stark verbessert:</b> C1 Zinsberechnung stieg von 2 % auf 62 %, J2 JWT-Filter von 0 % auf 12 %. Das waren genau die Fälle, die ich repariert habe.",
+   "<b>Andere Fragen wurden schlechter:</b> C4 Bericht 21 % → 0 %, C3 Benutzer anlegen 64 % → 39 % (gegenüber v4), C2 Menü 28 % → 11 %. Mit rund 5.500 Zeichen Paketgröße (8.192 Token Kontext) bleibt wenig Platz: Wo die Auswahl andere Absätze wählt, fehlen die Belege der bisher getroffenen.",
+   "<b>Paketgröße:</b> Im Hold-out wurde das Paket nur noch in 3 von 30 Läufen abgeschnitten (v4: 21), bei den Entwicklungsfragen noch in 9 von 18 (mittlere Größe 7.700 Zeichen, vor allem Java-Methoden mit vielen Aufrufern)."
+  ],
+  "hyp": [
+   [
+    "<b>H1</b> Qualität höher als v3 (gepaart, Bonferroni α = 0,0125; nicht unterlegen −5 PP)",
+    "nicht belegt",
+    "v4: +0,6 PP (Intervall −11 bis +9, p = 0,92); v4.1: +3,6 PP (−8,8 bis +18,7, p = 0,44). Nichtunterlegenheit erfüllt, Überlegenheit nicht gezeigt."
+   ],
+   [
+    "<b>H2</b> Weniger Werkzeugaufrufe als v3",
+    "bestätigt (trivial)",
+    "1,0 statt 1,03: der feste Prefetch ist der einzige Aufruf. Der Unterschied ist klein."
+   ],
+   [
+    "<b>H3</b> Wandzeit nicht höher als v3 + 5 s",
+    "bestätigt",
+    "v4: −7,8 s, v4.1: −9,0 s gegenüber v3 (p &lt; 0,0001)."
+   ]
+  ]
+ },
+ "method_add": [
+  "<b>Kapitel 7 (v4):</b> Zehn Hold-out-Fragen × 3 Wiederholungen, nur MCP-Arm, mit Prefetch (Frage unverändert an <code>answer_context</code>, 5.000 Zeichen), lean Werkzeugliste und Denkmodus. Festlegung vorab in <code>manifest_ch7.json</code>, gepaart gegen v3 und v2.",
+  "<b>Kapitel 8 (v4.1):</b> Gleiche Konfiguration mit nachgebessertem Server. Festlegung <code>manifest_ch8.json</code>, mit dem Hinweis, dass die Änderungen nach Kenntnis der Ergebnisse auf denselben Fragen entstanden. Zusätzlich sechs Entwicklungsfragen × 3 Wiederholungen."
+ ],
+ "limits_add": [
+  "<b>Kapitel 8 ist kein unabhängiger Test:</b> Die Nachbesserungen folgen aus der Fehleranalyse derselben Fragen. Dass C1 steigt, ist erwartbar. Ob die Auswahllogik allgemein trägt, zeigt nur ein Test mit neuen Fragen.",
+  "<b>Wörterbuch und Stoppwörter</b> (<code>formel</code>, <code>buchung</code>, „Programm“ …) sind deutsch und COBOL-nah. Für andere Sprachen und Fachgebiete wären sie anzupassen.",
+  "<b>Der Prefetch ist in der Messung ein Harness-Schritt:</b> Er ruft denselben Code wie der Chat auf, aber über MCP. Der Chat in Doctus selbst wurde mit einem Modell noch nicht Ende-zu-Ende gemessen.",
+  "<b>Nur Qwen:</b> Luna wurde mit v4 und v4.1 nicht gemessen. v4.1 ist committet und auf <code>origin/develop</code>, produktiv deployed ist es nicht (dort läuft MCP v2)."
+ ]
+}

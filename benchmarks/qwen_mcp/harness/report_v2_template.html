@@ -451,7 +451,7 @@ function renderChapter(D, N, $root, chap) {
   var LD = C.lateData, LN = V.late;
   var HQ = { 'H-C1-INTEREST': 'Zinsberechnung', 'H-C2-MENU': 'Menüsteuerung', 'H-C3-USERADD': 'Benutzer anlegen', 'H-C4-REPORT': 'Bericht', 'H-C5-COPYBOOK': 'Copybook', 'H-J1-PASSWORDRULE': 'Passwortregel', 'H-J2-JWTFILTER': 'JWT-Prüfung', 'H-J3-NOTIFICATION': 'Benachrichtigung', 'H-J4-CALLERS': 'Aufrufer finden', 'H-J5-SCHEDTASK': 'Job-Ablauf' };
   var HT = Object.keys(HQ);
-  var VAR = { none: ['ohne Werkzeuge', 'var(--none)'], local: ['lokale Werkzeuge', 'var(--local)'], mcp: ['MCP v2', 'var(--mcp)'], v3: ['neue Schnittstelle (v3)', 'color-mix(in srgb, var(--mcp) 45%, var(--ink))'] };
+  var VAR = { none: ['ohne Werkzeuge', 'var(--none)'], local: ['lokale Werkzeuge', 'var(--local)'], mcp: ['MCP v2', 'var(--mcp)'], v3: ['neue Schnittstelle (v3)', 'color-mix(in srgb, var(--mcp) 45%, var(--ink))'], v2: ['MCP v2', 'var(--mcp)'], v4: ['v4: Server führt Pack aus', 'var(--local)'], v41: ['v4.1: nachgebessert', 'var(--bad)'] };
   var ZCOL = { Z0: 'var(--ink-3)', Z1: 'var(--local)', Z2: 'var(--none)', Z3: 'var(--ink-2)', Z4: 'var(--bad)', Z5: 'var(--mcp)' };
   function tableCard(parent, html, note) { var c = el('div', { class: 'card tablewrap' }); c.innerHTML = html; parent.appendChild(c); if (note) parent.appendChild(el('p', { class: 'note' }, note)); }
   function bullets(parent, arr) { var u = el('ul', { class: 'clean' }); arr.forEach(function (t) { u.appendChild(el('li', null, t)); }); parent.appendChild(u); }
@@ -652,6 +652,46 @@ function renderChapter(D, N, $root, chap) {
     s = sub(k6, 'Beispielantworten (Wiederholung 1)'); examplesBlock(s, Q.examples, [['mcp', 'MCP v2'], ['v3', 'v3']], HQ);
   }
 
+
+  function lateQwen78(part) {
+    var Q = C.ch78, N = V.ch78, H = Q.hold, Dv = Q.dev, e41 = {}, s;
+    H.eff.v41_v3.forEach(function (x) { e41[x.key] = x; });
+    var e4 = {}; H.eff.v4_v3.forEach(function (x) { e4[x.key] = x; });
+    /* ---- Kapitel 7 ---- */
+    var k7 = chapter(part, N.k7.title); paras(k7, N.k7.intro);
+    s = sub(k7, 'Befund'); bullets(s, N.k7.findings);
+    s = sub(k7, 'Alle Varianten im Überblick'); holdTable(s, H.means, [['local', 'lokale Dateiwerkzeuge'], ['v2', 'MCP v2'], ['v3', 'v3: schlanke Liste, Denkmodus'], ['v4', 'v4: Server führt den Pack aus', true]]);
+    s = sub(k7, 'Gesamteffekt gegenüber v3'); forestGen(s, H.eff.v4_v3, FDEFS);
+    s = sub(k7, 'Qualität und Schritte je Frage'); barsQ(s, H.cells, ['v2', 'v3', 'v4'], 'rubric', function (v) { return Math.round(v * 100) + ' %'; }, 1, 'Qualität je Frage', HQ);
+    s = sub(k7, 'Welche Rubrikpunkte erreicht wurden'); itemsTable(s, H.items, [['v2', 'v2'], ['v3', 'v3'], ['v4', 'v4']], HQ);
+    s = sub(k7, 'Wie Qwen die Werkzeuge nutzt'); usageGen(s, H.usage, [['v3', 'v3'], ['v4', 'v4']]);
+    s.appendChild(el('p', { class: 'note' }, 'Paket im Mittel ' + nf(H.prefetch.v4.chars) + ' Zeichen, ' + f(H.prefetch.v4.s, 1) + ' s; von der Obergrenze des Harness (6.000 Zeichen) abgeschnitten in ' + H.prefetch.v4.truncated + ' von ' + H.prefetch.v4.n + ' Läufen.'));
+    /* ---- Kapitel 8 ---- */
+    var k8 = chapter(part, N.k8.title); paras(k8, N.k8.intro);
+    s = sub(k8, 'Befund'); bullets(s, N.k8.findings);
+    s = sub(k8, 'Hold-out: alle Fassungen im Überblick'); holdTable(s, H.means, [['local', 'lokale Dateiwerkzeuge'], ['v2', 'MCP v2'], ['v3', 'v3'], ['v4', 'v4'], ['v41', 'v4.1: nachgebessert', true]]);
+    s = sub(k8, 'Was erwartet wurde und was eintrat'); hypGen(s, N.k8.hyp);
+    s = sub(k8, 'Qualität gegen Zeit, je Frage', 'Jeder Punkt ist der Mittelwert einer Frage aus drei Läufen. Oben links ist am besten. Der Pfeil zeigt den Weg von v3 zu v4.1.');
+    xyQ(s, H.cells, ['v2', 'v3', 'v41'], ['v3', 'v41'], 'Qualität gegen Zeit, v4.1 an den neuen Fragen', HQ); s.insertBefore(legendFor(['v2', 'v3', 'v41'], VAR), s.lastChild);
+    s = sub(k8, 'Qualität je Frage'); barsQ(s, H.cells, ['v3', 'v4', 'v41'], 'rubric', function (v) { return Math.round(v * 100) + ' %'; }, 1, 'Qualität je Frage', HQ);
+    s = sub(k8, 'Gesamteffekt gegenüber v3'); forestGen(s, H.eff.v41_v3, FDEFS);
+    s = sub(k8, 'Gesamteffekt gegenüber v4'); forestGen(s, H.eff.v41_v4, FDEFS);
+    s = sub(k8, 'Welche Rubrikpunkte erreicht wurden'); itemsTable(s, H.items, [['v3', 'v3'], ['v4', 'v4'], ['v41', 'v4.1']], HQ);
+    s = sub(k8, 'Wie Qwen die Werkzeuge nutzt'); usageGen(s, H.usage, [['v3', 'v3'], ['v4', 'v4'], ['v41', 'v4.1']]);
+    s.appendChild(el('p', { class: 'note' }, 'Paket (v4.1) im Mittel ' + nf(H.prefetch.v41.chars) + ' Zeichen, ' + f(H.prefetch.v41.s, 1) + ' s; abgeschnitten in ' + H.prefetch.v41.truncated + ' von ' + H.prefetch.v41.n + ' Läufen.'));
+    s = sub(k8, 'Beispielantworten (Wiederholung 1)'); examplesBlock(s, H.examples, [['v3', 'v3'], ['v4', 'v4'], ['v41', 'v4.1']], HQ);
+    s = sub(k8, 'Entwicklungsfragen (sechs Fragen × 3 Wiederholungen)', 'Diese Fragen kenne ich seit der Entwicklung; die Werte sind geschönt und dienen als Gegenprobe, nicht als Beleg. v2 und v3 stammen aus den Kapiteln 3 und 5 (je fünf Wiederholungen).');
+    var dt = '<table><thead><tr><th>Variante</th><th>Qualität</th><th>Brauchbare Antworten</th><th>Zeit</th><th>Aufrufe</th><th>Tokens gesamt</th></tr></thead><tbody>';
+    [['v2', 'MCP v2'], ['v3', 'v3 (Z5)'], ['v41', 'v4.1']].forEach(function (r) { var m = Dv.means[r[0]]; dt += '<tr' + (r[0] === 'v41' ? ' class="rowhl"' : '') + '><td>' + r[1] + '</td><td>' + pct(m.rubric) + '</td><td>' + Dv.usable_n[r[0]] + ' von ' + Dv.n[r[0]] + '</td><td>' + f(m.wall_s, 0) + ' s</td><td>' + f(m.tool_calls, 1) + '</td><td>' + nf(m.tokens_total) + '</td></tr>'; });
+    tableCard(s, dt + '</tbody></table>', 'Brauchbar = mindestens 50 % der Rubrikpunkte.');
+    var pt = '<table><thead><tr><th>Frage</th><th>v2</th><th>v3</th><th>v4.1</th></tr></thead><tbody>';
+    Object.keys(Dv.cells.v41).forEach(function (t) { pt += '<tr><td><b>' + (CATN[t] || t) + '</b><br><span class="note">' + t.split('-')[0] + '</span></td>' + ['v2', 'v3', 'v41'].map(function (v) { return '<td>' + pct(Dv.cells[v][t].rubric) + '</td>'; }).join('') + '</tr>'; });
+    tableCard(s, pt + '</tbody></table>', 'Mittlerer Rubrikwert je Frage.');
+    forestGen(s, Dv.eff.v41_v3, FDEFS.filter(function (d) { return d[0] !== 'tokens_prompt'; }).concat([['tokens_total', 'Tokens gesamt', -1]]));
+    s.appendChild(el('p', { class: 'note' }, 'Paket (v4.1) bei den Entwicklungsfragen im Mittel ' + nf(Dv.prefetch.v41.chars) + ' Zeichen; abgeschnitten in ' + Dv.prefetch.v41.truncated + ' von ' + Dv.prefetch.v41.n + ' Läufen.'));
+    s = sub(k8, 'Welche Rubrikpunkte erreicht wurden (Entwicklungsfragen)'); itemsTable(s, Dv.items, [['v2', 'v2'], ['v3', 'v3'], ['v41', 'v4.1']], CATN);
+  }
+
   function lateLuna(part) {
     var L = LD.hold.luna, N = LN.luna, e = {}; L.eff_mcp_local.forEach(function (x) { e[x.key] = x; });
     var k4 = chapter(part, N.k4.title); paras(k4, N.k4.intro);
@@ -697,7 +737,7 @@ function renderChapter(D, N, $root, chap) {
     part.appendChild(s3);
     var s4 = section('Was erwartet wurde und was eintrat'); hypTable(mk, s4); forest(mk, s4); part.appendChild(s4);
     var s5 = section('Wie das Modell die Schnittstelle nutzt'); usageTable(mk, s5); part.appendChild(s5);
-    if (mk === 'qwen' && LD) lateQwen(part);
+    if (mk === 'qwen' && LD) { lateQwen(part); if (C.ch78) lateQwen78(part); }
     if (mk === 'luna' && LD) lateLuna(part);
   }
   modelPart('qwen', 'qwen', V.qwen);
