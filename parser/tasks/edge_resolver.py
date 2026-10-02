@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from cobol.copybook import strip_copybook_extension
 from core.model import Entity, ParseResult, ParsedEdge
+from core.external_targets import classify_external
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
@@ -400,6 +401,32 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _mark_external_targets(db: Session, source_id: int) -> None:
+    """Kennzeichnet unaufgelöste COBOL-/JCL-Kanten auf Systemziele (O-375) und
+    entfernt die Kennzeichnung, sobald ein Ziel im Repository auftaucht."""
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.type.in_(("CALL", "COPY", "EXECUTES")),
+        )
+        .all()
+    )
+    for edge in edges:
+        meta = edge.meta_json or {}
+        external = (
+            classify_external(edge.type, edge.dst_name, meta.get("language"))
+            if edge.resolution == "unresolved" and edge.dst_entity_id is None
+            else None
+        )
+        if external == meta.get("external"):
+            continue
+        meta = {k: v for k, v in meta.items() if k != "external"}
+        if external:
+            meta["external"] = external
+        edge.meta_json = meta or None
+
+
 def resolve_global_edges(db: Session, source_id: int) -> int:
     """Resolve persisted COBOL and Java edges for one source.
 
@@ -413,6 +440,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)
     resolved += _resolve_jcl_edges(db, source_id)
+    _mark_external_targets(db, source_id)
     resolved += resolve_resource_edges(
         db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all(),
         db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all(),

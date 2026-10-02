@@ -356,9 +356,11 @@ def _build_edge(
     if edge.scope is not None:
         scope_row = by_qname.get(edge.scope)
         scope_entity_id = scope_row.id if scope_row else None
-        if resolution == "resolved" and (edge.meta or {}).get("target_qualified_name"):
+        if resolution == "resolved" and (edge.meta or {}).get("copybook_path"):
             # E-2-COPY-XREF: Ziel liegt absichtlich in einer anderen Datei
             # und wird nach dem vollständigen Sync pfadgenau nachaufgelöst.
+            # Nur diese Kanten tragen `copybook_path`; EXEC-/INCLUDE-/Ressourcen-
+            # Ziele derselben Datei werden unten sofort verdrahtet (O-375).
             resolution = "unresolved"
         elif resolution == "resolved":
             from cobol.persistence import resolve_local_target
