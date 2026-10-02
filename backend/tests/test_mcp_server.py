@@ -603,8 +603,10 @@ def test_research_project_uses_paged_call_flow_contract(
     assert result["resolution"] == "unique_exact_match"
     assert len(flow["edges"]) == 10
     assert flow["has_more"] and flow["next_cursor"]
-    assert flow["edges"][0]["source_excerpt"]["chunk_id"] is not None
+    # v2: kompakter Flow ohne Quellauszug je Kante; die Quelle kommt über explain_symbol.
+    assert "source_excerpt" not in flow["edges"][0]
     assert flow["follow_up_actions"][0]["tool"] == "get_call_flow"
+    assert result["follow_up_actions"][0]["tool"] == "explain_symbol"
 
 
 def test_research_terms_keep_prose_but_split_symbol_lists():
@@ -627,3 +629,185 @@ def test_research_project_prose_without_symbol_offers_code_and_knowledge_search(
     )
     assert result["resolution"] == "no_exact_match"
     assert [a["tool"] for a in result["follow_up_actions"]] == ["search_code", "search_knowledge"]
+
+
+def _method(project_id, name, qualified, path="src/Auth.java", start=1, end=6, kind="method"):
+    return CodeEntity(
+        project_id=project_id, name=name, type=kind, file_path=path,
+        qualified_name=qualified, start_line=start, end_line=end,
+    )
+
+
+def _chunk(project_id, path, lines, start=1):
+    return DocumentChunk(
+        project_id=project_id, source_id=None, file_path=path,
+        content="".join(f"{text}\n" for text in lines), start_line=start,
+        end_line=start + len(lines) - 1, metadata_json={},
+    )
+
+
+def test_query_variants_cover_the_java_method_spelling():
+    variants = mcp_server._query_variants("AuthDataAccessor.authenticate")
+    assert "AuthDataAccessor#authenticate" in variants
+    assert mcp_server._query_variants("org.x.Auth.run(String)")[:1] == ["org.x.Auth.run(String)"]
+    assert "Auth#run" in mcp_server._query_variants("org.x.Auth.run")
+    assert mcp_server._query_variants("COSGN00C.MAIN-PARA") == ["COSGN00C.MAIN-PARA"]
+
+
+def test_search_code_finds_java_methods_by_dotted_name_and_word_pairs(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    method = _method(project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)")
+    db_session.add(method)
+    db_session.commit()
+
+    dotted = mcp_server.search_code(_context(user.id), project_id=project_id, query="AuthDataAccessor.authenticate")
+    assert [hit["id"] for hit in dotted["results"]] == [method.id]
+    assert dotted["resolution"] == "exact"
+
+    words = mcp_server.search_code(_context(user.id), project_id=project_id, query="authenticate AuthDataAccessor")
+    assert [hit["id"] for hit in words["results"]] == [method.id]
+    assert words["resolution"] == "fuzzy"
+
+
+def test_search_code_suggests_similar_names_when_nothing_matches(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    db_session.add(_method(project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)"))
+    db_session.commit()
+
+    result = mcp_server.search_code(_context(user.id), project_id=project_id, query="AuthDataAccessor.unknownThing")
+    assert result["results"] == [] and result["resolution"] == "none"
+    assert result["did_you_mean"][0]["qualified_name"].endswith("AuthDataAccessor#authenticate(Authentication)")
+
+
+def test_search_code_compact_adds_source_only_for_the_best_exact_match(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    first = _method(project_id, "run", "demo.Job#run()", "src/Job.java", 1, 3)
+    second = _method(project_id, "run", "demo.Other#run()", "src/Other.java", 1, 3)
+    db_session.add_all([first, second, _chunk(project_id, "src/Job.java", ["a", "b", "c"]),
+                        _chunk(project_id, "src/Other.java", ["x", "y", "z"])])
+    db_session.commit()
+
+    compact = mcp_server.search_code(_context(user.id), project_id=project_id, query="run")
+    with_source = [hit for hit in compact["results"] if "source_excerpt" in hit]
+    assert len(with_source) == 1 and "analysis" not in compact["results"][0]
+    assert compact["follow_up_actions"][0]["tool"] == "explain_symbol"
+
+    full = mcp_server.search_code(_context(user.id), project_id=project_id, query="run", detail="full")
+    assert len([hit for hit in full["results"] if "source_excerpt" in hit]) == 2 and "analysis" in full["results"][0]
+    with pytest.raises(ValueError, match="invalid detail"):
+        mcp_server.search_code(_context(user.id), project_id=project_id, query="run", detail="bogus")
+
+
+def test_explain_symbol_returns_numbered_source_callers_callees_and_data_access(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    target = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 10, 13)
+    caller = _method(project_id, "login", "org.demo.Provider#login()", "src/Provider.java", 1, 4)
+    db_session.add_all([target, caller])
+    db_session.flush()
+    db_session.add_all([
+        _chunk(project_id, "src/Auth.java", ["m(String u) {", "  check(u);", "  return ok;", "}"], 10),
+        CodeEdge(project_id=project_id, src_entity_id=target.id, dst_entity_id=None, dst_name="check", type="CALLS",
+                 resolution="unresolved", src_start_line=11, src_end_line=11),
+        CodeEdge(project_id=project_id, src_entity_id=target.id, dst_entity_id=None, dst_name="failedLogins", type="WRITES",
+                 resolution="resolved", src_start_line=12, src_end_line=12, meta_json={"operation": "SET"}),
+    ])
+    db_session.commit()
+    root = {"id": target.id, "name": target.name, "qualified_name": target.qualified_name, "type": "method",
+            "file_path": target.file_path, "source_id": None, "start_line": 10, "end_line": 13}
+    caller_node = {"id": caller.id, "name": "login", "qualified_name": caller.qualified_name, "type": "method",
+                   "file_path": caller.file_path, "source_id": None, "start_line": 1, "end_line": 4}
+
+    def fake_flow(_db, *, direction, **_kwargs):
+        if direction == "incoming":
+            edge = {"id": 1, "source": caller.id, "target": target.id, "target_name": "authenticate", "type": "CALLS",
+                    "resolution": "resolved", "start_line": 2, "end_line": 2}
+            return {"status": "ok", "root": root, "nodes": [root, caller_node], "edges": [edge], "entry_candidates": []}
+        edge = {"id": 2, "source": target.id, "target": None, "target_name": "check", "type": "CALLS",
+                "resolution": "unresolved", "start_line": 11, "end_line": 11}
+        return {"status": "ok", "root": root, "nodes": [root], "edges": [edge], "entry_candidates": []}
+
+    monkeypatch.setattr(mcp_server, "trace_call_flow", fake_flow)
+    result = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="Auth.authenticate")
+
+    assert result["resolution"] == "unique_exact_match"
+    assert result["source"]["text"].splitlines()[1] == "11:   check(u);"
+    assert result["callers"][0]["from"] == caller.qualified_name
+    assert result["callees"][0]["to"] == "check"
+    assert result["data_access"][0]["target"] == "failedLogins" and result["data_access"][0]["operation"] == "SET"
+    assert "outline" not in result
+
+
+def test_explain_symbol_returns_an_outline_with_facts_when_the_source_exceeds_the_budget(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    program = _method(project_id, "BIGPROG", "BIGPROG", "app/BIGPROG.cbl", 1, 400, kind="program")
+    first = _method(project_id, "READ-FILE", "BIGPROG.READ-FILE", "app/BIGPROG.cbl", 10, 30, kind="paragraph")
+    second = _method(project_id, "WRITE-FILE", "BIGPROG.WRITE-FILE", "app/BIGPROG.cbl", 31, 60, kind="paragraph")
+    db_session.add_all([program, first, second])
+    db_session.flush()
+    db_session.add_all([
+        _chunk(project_id, "app/BIGPROG.cbl", ["X" * 80 for _ in range(400)], 1),
+        CodeEdge(project_id=project_id, src_entity_id=first.id, dst_entity_id=None, dst_name="XREF-FILE", type="READS",
+                 resolution="resolved", src_start_line=12, src_end_line=12,
+                 meta_json={"io_target_kind": "file_fd", "operation": "READ"}),
+        CodeEdge(project_id=project_id, src_entity_id=second.id, dst_entity_id=None, dst_name="NEXT-PARA", type="PERFORM",
+                 resolution="resolved", src_start_line=40, src_end_line=40),
+    ])
+    db_session.commit()
+
+    result = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="BIGPROG", max_chars=2000)
+    assert "source" not in result
+    symbols = {item["symbol"]: item for item in result["outline"]}
+    assert symbols["BIGPROG.READ-FILE"]["facts"] == "io READ XREF-FILE"
+    assert symbols["BIGPROG.WRITE-FILE"]["facts"] == "performs NEXT-PARA"
+    assert symbols["BIGPROG.READ-FILE"]["lines"] == "10-30"
+
+    ranged = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="BIGPROG.READ-FILE", start_line=10, end_line=12)
+    assert ranged["source"]["start_line"] == 10 and "outline" not in ranged
+
+
+def test_explain_symbol_reports_unknown_and_ambiguous_symbols(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    db_session.add_all([
+        _method(project_id, "create", "a.One#create()", "src/One.java", 1, 3),
+        _method(project_id, "create", "b.Two#create()", "src/Two.java", 1, 3),
+        _method(project_id, "create", "b.TwoTest#create()", "src/test/TwoTest.java", 1, 3),
+    ])
+    db_session.commit()
+
+    unknown = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="Nothing.here")
+    assert unknown["resolution"] == "none" and "hint" in unknown
+    ambiguous = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="create")
+    assert ambiguous["resolution"] == "ambiguous"
+    assert {c["qualified_name"] for c in ambiguous["candidates"]} == {"a.One#create()", "b.Two#create()", "b.TwoTest#create()"}
+
+
+def test_explain_symbol_denies_a_project_the_mcp_user_cannot_open(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    _owner, outsider, project_id, _foreign = mcp_project_context
+    with pytest.raises(ValueError, match="MCP request failed or access denied"):
+        mcp_server.explain_symbol(_context(outsider.id), project_id=project_id, symbol="anything")
+
+
+def test_get_code_entity_resolves_a_symbol_without_an_entity_id(db_session, mcp_project_context, monkeypatch):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    entity = _method(project_id, "run", "demo.Job#run()", "src/Job.java", 1, 2)
+    db_session.add_all([entity, _chunk(project_id, "src/Job.java", ["a", "b"])])
+    db_session.commit()
+
+    result = mcp_server.get_code_entity(_context(user.id), project_id=project_id, symbol="Job.run")
+    assert result["id"] == entity.id and result["definition"]["sections"]
+    with pytest.raises(ValueError, match="entity_id or symbol required"):
+        mcp_server.get_code_entity(_context(user.id), project_id=project_id)

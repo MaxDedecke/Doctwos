@@ -101,6 +101,153 @@ def _symbol_matches(entity: CodeEntity, term: str) -> bool:
     return bool(needle and (qualified.endswith("." + needle) or path.endswith("/" + needle)))
 
 
+_DOTTED = re.compile(r"^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$")
+_STOPWORDS = {"wie", "was", "der", "die", "das", "und", "oder", "the", "and", "how", "does", "what", "for", "with", "von", "mit"}
+_STRUCTURAL = {"program", "cobol_program", "section", "paragraph", "class", "interface", "enum", "record", "method", "constructor"}
+_TYPE_RANK = {"method": 0, "paragraph": 0, "constructor": 1, "program": 0, "cobol_program": 0, "section": 1, "class": 1,
+              "interface": 1, "enum": 1, "record": 1, "field": 2, "data_item": 2, "compilation_unit": 3}
+
+
+def _query_variants(term: str) -> list[str]:
+    """Spellings an index may use for one symbol: Java methods are stored as ``Klasse#methode``."""
+    term = term.strip()
+    base = term.split("(", 1)[0]
+    variants = [term]
+    if _DOTTED.match(base):
+        parts = base.split(".")
+        variants.append(".".join(parts[:-1]) + "#" + parts[-1])
+        if len(parts) > 2:
+            variants.append(parts[-2] + "#" + parts[-1])
+            variants.append(parts[-2] + "." + parts[-1])
+    out, seen = [], set()
+    for variant in variants:
+        if variant.casefold() not in seen:
+            seen.add(variant.casefold())
+            out.append(variant)
+    return out
+
+
+def _symbol_like(token: str) -> bool:
+    return bool(any(mark in token for mark in ".#:()_$") or re.search(r"[a-z][A-Z]", token)
+                or re.fullmatch(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", token))
+
+
+def _entity_haystack(entity: CodeEntity) -> str:
+    return " ".join([entity.name or "", (entity.qualified_name or "").replace("#", "."), entity.file_path or ""]).casefold()
+
+
+def _find_entities(db: Session, user: User, project_id: int, term: str, limit: int) -> tuple[list[CodeEntity], list[dict], str]:
+    """Tolerant symbol lookup: spelling variants, multi-word fallback, suggestions when nothing matches.
+
+    Returns ``(entities, suggestions, mode)``; ``mode`` is ``exact``, ``tokens`` or ``none``.
+    Exact symbol matches are listed first, then structural entities before fields.
+    """
+    visible_teams = get_visible_team_ids(user, db)
+    visible_projects = get_visible_project_ids(user, db)
+
+    def search(query: str, size: int) -> list[CodeEntity]:
+        hits, _ = search_nodes(
+            db, q=query, types="entity", project_id=project_id, limit=size,
+            visible_team_ids=visible_teams, visible_project_ids=visible_projects, count_total=False,
+        )
+        found = []
+        for hit in hits:
+            try:
+                found.append(_entity(db, user, project_id, hit["node_id"]))
+            except HTTPException:
+                continue
+        return found
+
+    found: list[CodeEntity] = []
+    seen: set[int] = set()
+    mode = "exact"
+    for variant in _query_variants(term):
+        for entity in search(variant, limit + 1):
+            if entity.id not in seen:
+                seen.add(entity.id)
+                found.append(entity)
+        if any(_symbol_matches(entity, variant) for entity in found):
+            break
+    if not found:
+        tokens = [t for t in re.split(r"[\s,;|]+", term.strip()) if len(t) >= 3 and t.casefold() not in _STOPWORDS]
+        if len(tokens) > 1:
+            mode = "tokens"
+            anchor = max(tokens, key=lambda t: (_symbol_like(t), len(t)))
+            rest = [t.casefold() for t in tokens if t != anchor]
+            pool: dict[int, CodeEntity] = {}
+            for variant in _query_variants(anchor):
+                for entity in search(variant, 80):
+                    pool[entity.id] = entity
+            scored = sorted(((sum(t in _entity_haystack(e) for t in rest), e) for e in pool.values()), key=lambda x: -x[0])
+            found = [e for score, e in scored if score == len(rest)] or [e for score, e in scored if score > 0]
+            found = found[: limit + 1]
+    suggestions: list[dict] = []
+    if not found:
+        mode = "none"
+        for head in [t for t in re.split(r"[.#\s(|]+", term) if len(t) >= 3][:2]:
+            for entity in search(head, 5):
+                suggestions.append({"qualified_name": entity.qualified_name, "type": entity.type,
+                                    "file_path": entity.file_path, "start_line": entity.start_line})
+            if suggestions:
+                break
+    found.sort(key=lambda e: (0 if _symbol_matches(e, term) else 1, _TYPE_RANK.get(e.type, 4), e.file_path or "", e.start_line or 0))
+    return found, suggestions[:5], mode
+
+
+def _compact_entity(entity: CodeEntity) -> dict:
+    meta = entity.meta_json or {}
+    item = {
+        "id": entity.id, "qualified_name": entity.qualified_name, "type": entity.type,
+        "file_path": entity.file_path, "start_line": entity.start_line, "end_line": entity.end_line,
+    }
+    if meta.get("signature"):
+        item["signature"] = meta["signature"]
+    return item
+
+
+def _numbered(text: str, start_line: int) -> str:
+    return "\n".join(f"{start_line + i}: {line}" for i, line in enumerate(text.splitlines()))
+
+
+class ToolInputError(ValueError):
+    """Input problem whose message is safe to show: it only names symbols the caller may already see."""
+
+
+def _pick_entity(structural: list[CodeEntity]) -> tuple[CodeEntity | None, list[CodeEntity]]:
+    """Choose one entity among exact matches or return (None, candidates) when it stays ambiguous.
+
+    Overloads in one file: first by line. Otherwise prefer non-test paths, then one declaring type/program.
+    """
+    if len(structural) == 1:
+        return structural[0], []
+    pool = structural
+    if len({e.file_path for e in pool}) > 1:
+        non_test = [e for e in pool if "/test/" not in (e.file_path or "")]
+        pool = non_test or pool
+    if len({e.file_path for e in pool}) > 1:
+        declaring = [e for e in pool if e.type in {"class", "interface", "enum", "record", "program", "cobol_program"}]
+        pool = declaring or pool
+    if len({e.file_path for e in pool}) > 1:
+        return None, structural
+    pool = sorted(pool, key=lambda e: (_TYPE_RANK.get(e.type, 4), e.start_line or 0))
+    return pool[0], [e for e in structural if e is not pool[0]]
+
+
+def _resolve_symbol(db: Session, user: User, project_id: int, symbol: str) -> CodeEntity:
+    """One entity for a symbol name, or a ValueError that names the candidates."""
+    found, suggestions, _ = _find_entities(db, user, project_id, symbol, 8)
+    exact = [e for e in found if _symbol_matches(e, symbol)] or found
+    structural = [e for e in exact if e.type in _STRUCTURAL] or exact
+    if not structural:
+        hint = "; ".join(str(s["qualified_name"]) for s in suggestions) or "none"
+        raise ToolInputError(f"symbol not found: {symbol}. Similar: {hint}")
+    picked, _ = _pick_entity(structural)
+    if picked is not None:
+        return picked
+    names = "; ".join(f"{e.qualified_name} ({e.file_path}:{e.start_line})" for e in structural[:6])
+    raise ToolInputError(f"symbol is ambiguous: {symbol}. Use one qualified name: {names}")
+
+
 def _bounded(value: str | None, limit: int = 1200) -> tuple[str | None, bool]:
     if value is None:
         return None, False
@@ -344,6 +491,8 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
         failure = type(exc).__name__
         logger.warning("MCP tool %s failed (%s)", name, failure)
         safe_message = str(exc) if isinstance(exc, ValueError) else ""
+        if isinstance(exc, ToolInputError):
+            raise ValueError(safe_message) from None
         if safe_message in {
             "invalid query", "invalid cursor", "invalid direction", "invalid relationship",
             "invalid scope", "cursor does not match this call-flow query",
@@ -388,6 +537,13 @@ _hosts = sorted({"localhost:*", "127.0.0.1:*", "[::1]:*", _api_host, *cfg.MCP_AL
 _origins = sorted({cfg.API_URL, cfg.FRONTEND_URL, *cfg.MCP_ALLOWED_ORIGINS})
 mcp = FastMCP(
     "doctus",
+    instructions=(
+        "Doctus indexes source code. For any named class, method, program or paragraph call explain_symbol first: "
+        "it returns the original source with line numbers, callers, callees and data access in one call "
+        "(a large program or class returns an outline; call explain_symbol again with one outline symbol). "
+        "Use search_code only to discover names, search_knowledge for wording or business terms. "
+        "Cite the file:line numbers from the results."
+    ),
     stateless_http=True,
     json_response=True,
     streamable_http_path="/mcp",
@@ -424,68 +580,60 @@ def search_code(
     query: str,
     limit: int = 10,
     include_source: bool = True,
+    detail: Annotated[str, Field(description="'compact' (default): one line per hit, source only for the best exact match. 'full': three source excerpts and analysis blobs.")] = "compact",
 ) -> dict:
     """Find indexed code entities by symbol, qualified name, or file path in one project.
 
-    Separate alternatives with ``|``. Optional declaration prefixes such as
-    ``class`` are ignored (for example, ``class ConnectorLogic|class Other``).
-    Use ``get_code_entity`` to page the original declaration, and
-    ``trace_data_access`` when a returned entity is a data item or routine.
+    Accepts ``Klasse.methode`` and ``Klasse#methode`` alike, several alternatives separated by ``|``,
+    and short phrases such as ``authenticate AuthDataAccessor``. An empty result lists similar names.
+    To understand a symbol use ``explain_symbol`` (source, callers, callees and data access in one call).
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
-    with _tool_context(ctx, "search_code", project_id, {"limit": limit, "include_source": include_source}) as (db, user):
+    if detail not in {"compact", "full"}:
+        raise ValueError("invalid detail")
+    with _tool_context(ctx, "search_code", project_id, {"limit": limit, "include_source": include_source, "detail": detail}) as (db, user):
         if not query or len(query) > 200:
             raise ValueError("invalid query")
         _project(db, user, project_id)
         alternatives = _search_code_alternatives(query)
         if len(alternatives) > 12:
             raise ValueError("invalid query")
-        hits = []
-        seen_ids = set()
+        entities: list[CodeEntity] = []
+        seen_ids: set[int] = set()
+        suggestions: list[dict] = []
+        modes = []
         for alternative in alternatives:
-            alternative_hits, _ = search_nodes(
-                db,
-                q=alternative,
-                types="entity",
-                project_id=project_id,
-                limit=limit + 1,
-                visible_team_ids=get_visible_team_ids(user, db),
-                visible_project_ids=get_visible_project_ids(user, db),
-                count_total=False,
-            )
-            for hit in alternative_hits:
-                if hit["node_id"] not in seen_ids:
-                    seen_ids.add(hit["node_id"])
-                    hits.append(hit)
+            found, alt_suggestions, mode = _find_entities(db, user, project_id, alternative, limit)
+            modes.append(mode)
+            suggestions += alt_suggestions
+            for entity in found:
+                if entity.id not in seen_ids:
+                    seen_ids.add(entity.id)
+                    entities.append(entity)
+        total = len(entities)
+        entities = entities[:limit]
+        compact = detail == "compact"
         visible = []
-        for hit in hits[:limit]:
-            try:
-                entity = _entity(db, user, project_id, hit["node_id"])
-            except HTTPException:
-                continue
-            item = {
-                "id": entity.id,
-                "project_id": entity.project_id,
-                "source_id": entity.source_id,
-                "variant_key": entity.variant_key,
-                "name": entity.name,
-                "qualified_name": entity.qualified_name,
-                "type": entity.type,
-                "file_path": entity.file_path,
-                "start_line": entity.start_line,
-                "end_line": entity.end_line,
-                "analysis": _entity_analysis(entity),
-            }
-            # Give the best few symbol matches enough original source to cite
-            # without making every result a full-file response.
-            if include_source and len(visible) < 3:
-                result = entity_api.get_entity(
-                    entity_id=entity.id, project_id=project_id, db=db, user=user
-                )
+        for entity in entities:
+            if compact:
+                item = _compact_entity(entity)
+                item.update({"project_id": entity.project_id, "source_id": entity.source_id, "variant_key": entity.variant_key, "name": entity.name})
+            else:
+                item = {
+                    "id": entity.id, "project_id": entity.project_id, "source_id": entity.source_id,
+                    "variant_key": entity.variant_key, "name": entity.name, "qualified_name": entity.qualified_name,
+                    "type": entity.type, "file_path": entity.file_path, "start_line": entity.start_line,
+                    "end_line": entity.end_line, "analysis": _entity_analysis(entity),
+                }
+            exact = any(_symbol_matches(entity, alternative) for alternative in alternatives)
+            # Source only where it can be cited directly: the best exact match (compact) or the top three (full).
+            wants_source = include_source and (len(visible) < 3 if not compact else (exact and not any("source_excerpt" in v for v in visible)))
+            if wants_source and entity.type in _STRUCTURAL | {"field", "compilation_unit", "data_item"}:
+                result = entity_api.get_entity(entity_id=entity.id, project_id=project_id, db=db, user=user)
                 definition = result.get("definition")
                 if definition:
-                    excerpt, clipped = _bounded(definition.get("content"), 1600)
+                    excerpt, clipped = _bounded(definition.get("content"), 2400 if compact else 1600)
                     item["source_excerpt"] = {
                         "start_line": definition["start_line"],
                         "end_line": definition["end_line"],
@@ -493,10 +641,7 @@ def search_code(
                         "delivered_start_line": definition["start_line"],
                         "delivered_end_line": min(
                             definition["end_line"],
-                            definition["start_line"] + max(
-                                0,
-                                len((excerpt or "").splitlines()) - 1,
-                            ),
+                            definition["start_line"] + max(0, len((excerpt or "").splitlines()) - 1),
                         ),
                         "content": excerpt,
                         "truncated": clipped,
@@ -506,11 +651,11 @@ def search_code(
                     }
             visible.append(item)
         follow_up_actions = []
-        for item in visible[:3]:
+        for item in visible[: (1 if compact else 3)]:
             follow_up_actions.append({
-                "tool": "get_code_entity",
-                "arguments": {"project_id": project_id, "entity_id": item["id"], "max_chars": 5000},
-                "reason": "Read the source ranges and continue with the returned chunk cursor.",
+                "tool": "explain_symbol",
+                "arguments": {"project_id": project_id, "symbol": item["qualified_name"]},
+                "reason": "Source, callers, callees and data access of this symbol in one call.",
             })
             if item["type"] in {"data_item", "sql_table", "file_fd", "record"}:
                 follow_up_actions.append({
@@ -519,11 +664,14 @@ def search_code(
                     "reason": "Inspect indexed reads and writes for this data entity.",
                 })
         response = {
-            "results": visible[:limit],
-            "truncated": len(hits) > limit or len(visible) < len(hits),
+            "results": visible,
+            "truncated": total > limit,
             "limit_applied": limit,
-            "follow_up_actions": follow_up_actions[:6],
+            "resolution": "none" if not visible else ("fuzzy" if "tokens" in modes else "exact"),
+            "follow_up_actions": follow_up_actions[:3],
         }
+        if not visible and suggestions:
+            response["did_you_mean"] = suggestions[:5]
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 
@@ -543,11 +691,7 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
         visible_teams = get_visible_team_ids(user, db)
         visible_projects = get_visible_project_ids(user, db)
         for term in terms:
-            hits, _ = search_nodes(
-                db, q=term, types="entity", project_id=project_id, limit=limit + 1,
-                visible_team_ids=visible_teams, visible_project_ids=visible_projects,
-                count_total=False,
-            )
+            found_entities, _suggestions, _mode = _find_entities(db, user, project_id, term, limit)
             needle = term.replace("\\", "/").casefold()
             if "/" in needle:
                 exact_files = db.query(CodeEntity).filter(
@@ -559,11 +703,7 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                         by_id[entity.id] = _entity(db, user, project_id, entity.id)
                     except HTTPException:
                         continue
-            for hit in hits:
-                try:
-                    entity = _entity(db, user, project_id, hit["node_id"])
-                except HTTPException:
-                    continue
+            for entity in found_entities:
                 by_id[entity.id] = entity
 
         def serialize(entity: CodeEntity) -> dict:
@@ -596,12 +736,12 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                 match["call_flow"] = _call_flow_page(
                     db, user, project_id, exact[0]["id"], hops=hops, direction="outgoing",
                     scope="execution", page_size=10, cursor=None,
-                    include_source=len(terms) == 1,
+                    include_source=False,
                 )
                 match["follow_up_actions"] = [{
-                    "tool": "get_code_entity",
-                    "arguments": {"project_id": project_id, "entity_id": exact[0]["id"], "max_chars": 5000},
-                    "reason": "Read the indexed declaration and its original source chunks.",
+                    "tool": "explain_symbol",
+                    "arguments": {"project_id": project_id, "symbol": exact[0]["qualified_name"]},
+                    "reason": "Original source with line numbers, callers, callees and data access in one call.",
                 }]
             elif not exact:
                 match["follow_up_actions"] = [{
@@ -635,18 +775,235 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
         return response
 
 
+def _flow_summary(flow: dict, direction: str, limit: int = 12) -> list[dict]:
+    nodes = {node.get("id"): node for node in flow.get("nodes", [])}
+    items = []
+    for edge in flow.get("edges", [])[:limit]:
+        other = nodes.get(edge.get("target") if direction == "outgoing" else edge.get("source"))
+        item = {
+            "type": edge.get("type"),
+            ("to" if direction == "outgoing" else "from"): (other or {}).get("qualified_name") or edge.get("target_name"),
+            "line": edge.get("start_line"),
+            "resolution": edge.get("resolution"),
+        }
+        if other and other.get("file_path"):
+            item["location"] = f"{other['file_path']}:{other.get('start_line')}"
+        items.append(item)
+    return items
+
+
+def _fact_line(buckets: dict[str, list[str]]) -> str:
+    parts = []
+    for label in ("calls", "performs", "cics", "datasets", "io"):
+        names = [name.split("(", 1)[0][-48:] for name in (buckets.get(label) or [])]
+        if names:
+            parts.append(f"{label} {', '.join(names[:5])}")
+    return "; ".join(parts)[:200]
+
+
+def _outline(db: Session, entity: CodeEntity) -> list[dict]:
+    """Children of a large entity with one-line facts per child (calls, performs, CICS commands, datasets)."""
+    same_file = [
+        CodeEntity.project_id == entity.project_id, CodeEntity.source_id == entity.source_id,
+        CodeEntity.file_path == entity.file_path,
+    ]
+    children = db.query(CodeEntity).filter(
+        *same_file, CodeEntity.id != entity.id, CodeEntity.type.in_(list(_STRUCTURAL)),
+        CodeEntity.start_line >= entity.start_line, CodeEntity.end_line <= entity.end_line,
+    ).order_by(CodeEntity.start_line, CodeEntity.id).limit(80).all()
+    edges = db.query(CodeEdge).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
+        CodeEdge.project_id == entity.project_id, *same_file,
+        or_(
+            CodeEdge.type.in_(["CALL", "CALLS", "PERFORM", "GOTO", "EXECUTES", "USES_DATASET"]),
+            and_(CodeEdge.type.in_(["READS", "WRITES"]), func.json_extract_path_text(CodeEdge.meta_json, "io_target_kind").isnot(None)),
+        ),
+        CodeEdge.src_start_line >= entity.start_line, CodeEdge.src_start_line <= entity.end_line,
+    ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(2500).all()
+    labels = {"CALL": "calls", "CALLS": "calls", "PERFORM": "performs", "GOTO": "performs", "EXECUTES": "cics", "USES_DATASET": "datasets",
+              "READS": "io", "WRITES": "io"}
+    outline = []
+    for child in children:
+        buckets: dict[str, list[str]] = {}
+        for edge in edges:
+            if child.start_line <= (edge.src_start_line or 0) <= child.end_line and edge.dst_name:
+                names = buckets.setdefault(labels[edge.type], [])
+                label = edge.dst_name
+                if edge.type in {"READS", "WRITES"}:
+                    label = f"{(edge.meta_json or {}).get('operation') or edge.type} {edge.dst_name}"
+                if label not in names:
+                    names.append(label)
+        item = {"symbol": child.qualified_name, "type": child.type, "lines": f"{child.start_line}-{child.end_line}"}
+        facts = _fact_line(buckets)
+        if facts:
+            item["facts"] = facts
+        outline.append(item)
+    return outline
+
+
+def _data_access_summary(db: Session, entity: CodeEntity, limit: int = 15) -> list[dict]:
+    rows = db.query(CodeEdge).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
+        CodeEdge.project_id == entity.project_id, CodeEntity.source_id == entity.source_id,
+        CodeEntity.file_path == entity.file_path,
+        CodeEdge.type.in_(["READS", "WRITES", "USES_DATASET"]),
+        CodeEdge.src_start_line >= entity.start_line, CodeEdge.src_start_line <= entity.end_line,
+    ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(400).all()
+    groups: dict[tuple[str, str], dict] = {}
+    for edge in rows:
+        key = (edge.type, edge.dst_name or "")
+        group = groups.setdefault(key, {"access": edge.type, "target": edge.dst_name, "lines": []})
+        if len(group["lines"]) < 4:
+            group["lines"].append(edge.src_start_line)
+        meta = edge.meta_json or {}
+        if meta.get("operation") and "operation" not in group:
+            group["operation"] = meta["operation"]
+        if meta.get("io_target_kind"):
+            group["file_io"] = True
+    order = {"WRITES": 0, "USES_DATASET": 1, "READS": 2}
+    return sorted(groups.values(), key=lambda g: (0 if g.get("file_io") else 1, order.get(g["access"], 3), g["lines"][0] or 0))[:limit]
+
+
+@mcp.tool(annotations=READ_ONLY)
+def explain_symbol(
+    ctx: Context,
+    project_id: int,
+    symbol: str,
+    max_chars: Annotated[int, Field(description="Response budget for source and facts, 1500-12000.")] = 7000,
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> dict:
+    """FIRST CHOICE for any named class, method, program or paragraph: everything in ONE call.
+
+    Resolves ``Klasse.methode``, ``Klasse#methode``, ``PROGRAM`` or ``PROGRAM.PARAGRAPH`` and returns the original
+    source with line numbers, callers, callees and indexed data access. For a large program or class it returns an
+    outline instead: every paragraph or method with its line range and facts (calls, performs, CICS commands,
+    datasets). Then call ``explain_symbol`` again with one outline ``symbol``. Use ``start_line``/``end_line``
+    to read a specific range of the same symbol.
+    """
+    max_chars = max(1500, min(max_chars, 12000))
+    symbol = symbol.strip()
+    if start_line is not None and start_line < 1:
+        raise ValueError("invalid start_line")
+    if end_line is not None and (end_line < 1 or (start_line is not None and end_line < start_line)):
+        raise ValueError("invalid end_line")
+    with _tool_context(ctx, "explain_symbol", project_id, {"max_chars": max_chars, "start_line": start_line, "end_line": end_line}) as (db, user):
+        if not symbol or len(symbol) > 200:
+            raise ValueError("invalid symbol")
+        _project(db, user, project_id)
+        found, suggestions, mode = _find_entities(db, user, project_id, symbol, 8)
+        exact = [e for e in found if _symbol_matches(e, symbol)] or found
+        structural = [e for e in exact if e.type in _STRUCTURAL] or exact
+        if not structural:
+            response = {"project_id": project_id, "symbol": symbol, "resolution": "none", "did_you_mean": suggestions,
+                        "hint": "No indexed symbol matched. Try search_code with a shorter name or search_knowledge for wording."}
+            _capture_mcp_result(ctx, db, project_id, response)
+            return response
+        entity, others = _pick_entity(structural)
+        if entity is None:
+            response = {"project_id": project_id, "symbol": symbol, "resolution": "ambiguous",
+                        "candidates": [_compact_entity(e) for e in structural[:8]],
+                        "hint": "Call explain_symbol again with one qualified_name from candidates."}
+            _capture_mcp_result(ctx, db, project_id, response)
+            return response
+        low = start_line if start_line is not None else entity.start_line or 1
+        high = end_line if end_line is not None else entity.end_line or 10**9
+        pieces: list[tuple[int, str]] = []
+        for chunk in entity_api._definition_chunks(entity, db, start_line=start_line, end_line=end_line):
+            first, last = max(low, chunk.start_line), min(high, chunk.end_line)
+            if first > last:
+                continue
+            lines = chunk.content.splitlines()
+            pieces.append((first, "\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1])))
+        source_budget = int(max_chars * 0.65)
+        total_chars = sum(len(text) for _first, text in pieces)
+        outline = None
+        source = None
+        if start_line is None and end_line is None and total_chars > source_budget:
+            outline = _outline(db, entity)
+        if not outline:
+            outline = None
+            parts, used, truncated, next_line, last_delivered = [], 0, False, None, None
+            for first, text in pieces:
+                room = source_budget - used
+                if room <= 0:
+                    truncated, next_line = True, first
+                    break
+                clipped = text[:room]
+                if len(clipped) < len(text):
+                    clipped = clipped[: clipped.rfind("\n")] if "\n" in clipped else clipped
+                    truncated = True
+                parts.append(_numbered(clipped, first))
+                used += len(clipped)
+                last_delivered = first + max(0, len(clipped.splitlines()) - 1)
+                if truncated:
+                    next_line = last_delivered + 1
+                    break
+            source = {
+                "start_line": pieces[0][0] if pieces else entity.start_line,
+                "end_line": last_delivered if last_delivered is not None else entity.end_line,
+                "text": "\n".join(parts), "truncated": truncated, "next_start_line": next_line,
+            }
+        response = {
+            "project_id": project_id, "symbol": symbol,
+            "resolution": "unique_exact_match" if mode == "exact" and not others else ("overloads" if others else "fuzzy"),
+            "entity": _compact_entity(entity),
+        }
+        if source is not None:
+            response["source"] = source
+        else:
+            kept, size = [], 0
+            for item in outline:
+                size += len(json.dumps(item, ensure_ascii=False))
+                if size > max_chars and kept:
+                    break
+                kept.append(item)
+            response["outline"] = kept
+            if len(kept) < len(outline):
+                response["outline_omitted"] = len(outline) - len(kept)
+            response["notice"] = "Source not inlined (larger than the budget). Call explain_symbol with one outline symbol."
+        if source is not None:
+            try:
+                callees = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="outgoing",
+                                                        scope="execution", page_size=12, cursor=None, include_source=False), "outgoing")
+                callers = _flow_summary(_call_flow_page(db, user, project_id, entity.id, hops=1, direction="incoming",
+                                                        scope="execution", page_size=8, cursor=None, include_source=False), "incoming", 8)
+            except (ValueError, HTTPException):
+                callees, callers = [], []
+            if callees:
+                response["callees"] = callees
+            if callers:
+                response["callers"] = callers
+            access = _data_access_summary(db, entity)
+            if access:
+                response["data_access"] = access
+        if others:
+            response["other_matches"] = [_compact_entity(e) for e in others[:6]]
+        if source is not None and source["truncated"] and source["next_start_line"]:
+            response["follow_up_actions"] = [{
+                "tool": "explain_symbol",
+                "arguments": {"project_id": project_id, "symbol": entity.qualified_name,
+                              "start_line": source["next_start_line"], "end_line": entity.end_line, "max_chars": max_chars},
+                "reason": "Continue reading the rest of this symbol.",
+            }]
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
+
+
 @mcp.tool(annotations=READ_ONLY)
 def get_code_entity(
     ctx: Context,
     project_id: int,
-    entity_id: int,
+    entity_id: int | None = None,
     start_line: int | None = None,
     end_line: int | None = None,
     max_chars: int = 5000,
     chunk_id: int | None = None,
     char_offset: int = 0,
+    symbol: Annotated[str | None, Field(description="Qualified name instead of entity_id, e.g. Klasse#methode or PROGRAM.PARAGRAPH.")] = None,
 ) -> dict:
-    """Read an indexed entity with paged, line-attributed original source."""
+    """Read an indexed entity with paged, line-attributed original source.
+
+    Pass ``entity_id`` or, without a prior search, a ``symbol`` name. ``explain_symbol`` returns more in one call.
+    """
     max_chars = max(500, min(max_chars, 5000))
     if start_line is not None and start_line < 1:
         raise ValueError("invalid start_line")
@@ -658,7 +1015,13 @@ def get_code_entity(
         "entity_id": entity_id, "start_line": start_line, "end_line": end_line,
         "max_chars": max_chars, "chunk_id": chunk_id, "char_offset": char_offset,
     }) as (db, user):
-        entity = _entity(db, user, project_id, entity_id)
+        if entity_id is None:
+            if not symbol:
+                raise ToolInputError("entity_id or symbol required")
+            _project(db, user, project_id)
+            entity = _resolve_symbol(db, user, project_id, symbol.strip())
+        else:
+            entity = _entity(db, user, project_id, entity_id)
         source_chunks = entity_api._definition_chunks(
             entity, db, start_line=start_line, end_line=end_line
         )
