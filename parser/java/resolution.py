@@ -962,6 +962,168 @@ def _resolve_import(
     return False
 
 
+_JAVA_LANG_TYPES = frozenset({
+    "Object", "String", "StringBuilder", "StringBuffer", "Integer", "Long", "Short", "Byte",
+    "Double", "Float", "Boolean", "Character", "Number", "Math", "System", "Thread", "Runnable",
+    "Class", "Enum", "Record", "Iterable", "Comparable", "CharSequence", "AutoCloseable",
+    "Throwable", "Exception", "RuntimeException", "Error", "IllegalArgumentException",
+    "IllegalStateException", "NullPointerException", "UnsupportedOperationException",
+    "IndexOutOfBoundsException", "InterruptedException", "Override", "Deprecated",
+    "FunctionalInterface", "SuppressWarnings", "SafeVarargs", "Void",
+})
+
+
+def _external_origin(qualified_name: str) -> dict[str, str]:
+    """Herkunft eines Typs außerhalb des Repositorys (O-377)."""
+    if qualified_name.startswith(("java.", "javax.")):
+        category = "jdk"
+    elif qualified_name.startswith("jakarta."):
+        category = "jakarta"
+    else:
+        category = "library"
+    return {"category": category, "library": qualified_name}
+
+
+def _external_type(
+    name: str,
+    result: ParseResult,
+    *,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+) -> str | None:
+    """Qualified name eines belegt externen Typs, sonst None (kein Raten)."""
+    name = _base_type(name)
+    if not name:
+        return None
+    candidates, _ = _global_type_candidates(
+        name, result=result, source_owner=None,
+        types_by_qname=types_by_qname, types_by_name=types_by_name,
+    )
+    if candidates:
+        return None
+    if "." in name:
+        # Nur paketqualifizierte Namen (`java.util.List`), nicht `Outer.Inner`.
+        return name if name[:1].islower() and name not in types_by_qname else None
+    for edge in _imports_for(result):
+        if edge.meta.get("static") or edge.meta.get("wildcard"):
+            continue
+        if edge.dst_name.rsplit(".", 1)[-1] == name:
+            return None if edge.dst_name in types_by_qname else edge.dst_name
+    if name in _JAVA_LANG_TYPES and f"java.lang.{name}" not in types_by_qname:
+        return f"java.lang.{name}"
+    return None
+
+
+def mark_external_edges(
+    java_results: list[ParseResult],
+    *,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+    packages_by_qname: dict[str, list[Entity]],
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
+    hierarchy: dict[str, list[str]],
+) -> None:
+    """Kennzeichnet unaufgelöste Java-Kanten, deren Ziel belegt außerhalb liegt (O-377).
+
+    `resolution` bleibt `unresolved`; `meta["external"]` trägt Kategorie
+    (`jdk`/`jakarta`/`library`), den qualifizierten Typ und den Belegweg. Es gilt
+    nur, was der Quelltext selbst belegt: Import, paketqualifizierter Name oder
+    `java.lang`. Statische Wildcard-Importe gelten nur als „possible“."""
+    for result in java_results:
+        for edge in result.edges:
+            meta = edge.meta
+            if edge.resolution != "unresolved":
+                meta.pop("external", None)
+                continue
+            origin = _external_origin_for_edge(
+                edge, result,
+                types_by_qname=types_by_qname, types_by_name=types_by_name,
+                packages_by_qname=packages_by_qname,
+                fields_by_owner_and_name=fields_by_owner_and_name,
+                variables_by_parent_and_name=variables_by_parent_and_name,
+                hierarchy=hierarchy,
+            )
+            if origin:
+                meta["external"] = origin
+            else:
+                meta.pop("external", None)
+
+
+def _external_origin_for_edge(
+    edge: ParsedEdge,
+    result: ParseResult,
+    *,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+    packages_by_qname: dict[str, list[Entity]],
+    fields_by_owner_and_name: dict[tuple[str, str], list[Entity]],
+    variables_by_parent_and_name: dict[tuple[str, str], list[Entity]],
+    hierarchy: dict[str, list[str]],
+) -> dict[str, str] | None:
+    meta = edge.meta
+    lookup = {"types_by_qname": types_by_qname, "types_by_name": types_by_name}
+    if edge.type == "IMPORTS":
+        if meta.get("resolution_reason") == "ambiguous_import":
+            return None
+        target = meta.get("target_package") or edge.dst_name.removesuffix(".*")
+        if meta.get("wildcard") and not meta.get("static"):
+            return None if target in packages_by_qname else _external_origin(target)
+        owner = target if meta.get("wildcard") else target.rpartition(".")[0]
+        return None if not owner or owner in types_by_qname else {**_external_origin(owner), "via": "import"}
+    if edge.type in {"USES_TYPE", "INSTANTIATES", "EXTENDS", "IMPLEMENTS"}:
+        qname = _external_type(edge.dst_name, result, **lookup)
+        return {**_external_origin(qname), "via": "type_reference"} if qname else None
+    if edge.type in {"READS", "WRITES"}:
+        # Statischer Feldzugriff auf einen Typ (`StringUtils.EMPTY`); Variablen bleiben offen.
+        prefix = edge.dst_name.rpartition(".")[0]
+        qname = _external_type(prefix, result, **lookup) if prefix[:1].isupper() else None
+        return {**_external_origin(qname), "via": "type_receiver"} if qname else None
+    if edge.type not in {"CALLS", "REFERENCES_METHOD"}:
+        return None
+
+    method_name = meta.get("method_name") or edge.dst_name.rsplit(".", 1)[-1]
+    receiver = meta.get("receiver")
+    if receiver in {None, "this", "super"}:
+        if receiver is not None or edge.type != "CALLS":
+            return None
+        explicit_owners = list(dict.fromkeys(
+            imp.dst_name.rpartition(".")[0]
+            for imp in _imports_for(result)
+            if imp.meta.get("static") and not imp.meta.get("wildcard")
+            and imp.dst_name.rsplit(".", 1)[-1] == method_name
+        ))
+        if explicit_owners:
+            # Ein ausdrücklicher Import benennt den Eigentümer; Wildcards ändern daran nichts.
+            if len(explicit_owners) != 1 or explicit_owners[0] in types_by_qname:
+                return None
+            return {**_external_origin(explicit_owners[0]), "via": "static_import"}
+        owners = list(dict.fromkeys(_static_import_owners(result, method_name)))
+        if len(owners) != 1 or owners[0] in types_by_qname:
+            return None
+        return {
+            **_external_origin(owners[0]),
+            "via": "static_wildcard_import",
+            "certainty": "possible",
+        }
+    if re.fullmatch(r"[A-Za-z_$][\w$]*", receiver):
+        declarations, _ = _receiver_declaration(
+            receiver, edge, fields_by_owner_and_name=fields_by_owner_and_name,
+            variables_by_parent_and_name=variables_by_parent_and_name, hierarchy=hierarchy,
+        )
+        if len(declarations) == 1:
+            declared = _entity_type_name(declarations[0])
+            qname = _external_type(declared, result, **lookup) if declared else None
+            return {**_external_origin(qname), "via": "declared_receiver_type"} if qname else None
+        if not declarations and receiver[:1].isupper():
+            qname = _external_type(receiver, result, **lookup)
+            return {**_external_origin(qname), "via": "type_receiver"} if qname else None
+    elif "." in receiver and receiver[:1].islower() and "(" not in receiver:
+        qname = _external_type(receiver, result, **lookup)
+        return {**_external_origin(qname), "via": "qualified_receiver"} if qname else None
+    return None
+
+
 def resolve_global_edges(results: Iterable[ParseResult]) -> int:
     """Resolve Java edges across a collection of parsed Java files.
 
@@ -1244,4 +1406,13 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                 else:
                     meta.setdefault("resolution_reason", "receiver_or_classpath_not_resolved")
                 meta["dispatch_scope"] = "static_declaration_only"
+    mark_external_edges(
+        java_results,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
+        packages_by_qname=packages_by_qname,
+        fields_by_owner_and_name=fields_by_owner_and_name,
+        variables_by_parent_and_name=variables_by_parent_and_name,
+        hierarchy=hierarchy,
+    )
     return resolved
