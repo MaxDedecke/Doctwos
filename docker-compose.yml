@@ -72,8 +72,9 @@ services:
       # Verhindert nur, dass beim Modellwechsel im UI zusaetzlich ein zweites Chat-Modell parallel
       # geladen bleibt und mit dem aktiven um die 4 CPU-Kerne konkurriert (beobachtet: 56s -> 4m16s).
       OLLAMA_MAX_LOADED_MODELS: "2"
-      # Entlaedt Modelle nach 1 Minute Inaktivitaet, um Systemspeicher (RAM) fuer naechtliche Backups freizugeben.
-      OLLAMA_KEEP_ALIVE: "1m"
+      # -1 = Modelle bleiben dauerhaft geladen (kein Kaltstart); z. B. "1m" setzen, um
+      # Speicher nach Inaktivitaet freizugeben (etwa fuer naechtliche Backups).
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:--1}"
       # Kleinerer KV-Cache, damit Chat- und Embedding-Modell auf einer 8-GB-GPU zusammen passen.
       OLLAMA_FLASH_ATTENTION: "${OLLAMA_FLASH_ATTENTION:-1}"
       OLLAMA_KV_CACHE_TYPE: "${OLLAMA_KV_CACHE_TYPE:-q8_0}"
