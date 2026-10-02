@@ -71,20 +71,20 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=_parse_cobol,
         prepare_source=prepare_copybook_index,
         root_entity_types=("program",),
-        parser_version="cobol-structure-3",
+        parser_version="cobol-structure-4",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "copybook": ParserEntry(
         parse=_parse_copybook,
         prepare_source=prepare_copybook_index,
         root_entity_types=("copybook",),
-        parser_version="cobol-structure-3",
+        parser_version="cobol-structure-4",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "java": ParserEntry(
         parse=_parse_java,
         root_entity_types=("compilation_unit",),
-        parser_version="java-structure-3",
+        parser_version="java-structure-4",
         grammar_fingerprint=java_grammar_fingerprint,
     ),
     "maven": ParserEntry(
@@ -103,7 +103,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "xml": ParserEntry(
         parse=parse_xml_document,
         root_entity_types=("xml_document",),
-        parser_version="xml-root-1",
+        parser_version="xml-root-2",
     ),
     "html": ParserEntry(
         parse=parse_jsp_or_html,

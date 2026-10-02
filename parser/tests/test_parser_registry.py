@@ -28,13 +28,13 @@ def test_shared_registry_declares_roots_and_parser_analysis_inputs():
 
     assert cobol_entry.root_entity_types == ("program",)
     assert copybook_entry.root_entity_types == ("copybook",)
-    assert cobol_entry.parser_version == "cobol-structure-3"
+    assert cobol_entry.parser_version == "cobol-structure-4"
     assert cobol_entry.grammar_fingerprint is not None
     assert len(cobol_entry.grammar_fingerprint()) == 64
 
     java_entry = registry.STRUCTURE_PARSERS["java"]
     assert java_entry.root_entity_types == ("compilation_unit",)
-    assert java_entry.parser_version == "java-structure-3"
+    assert java_entry.parser_version == "java-structure-4"
     assert len(java_entry.grammar_fingerprint()) == 64
 
 
@@ -74,7 +74,7 @@ def test_registry_inputs_preserve_existing_cobol_analysis_fingerprint():
     legacy_fingerprint = analysis_fingerprint(
         source_revision="blob-sha",
         profile=BuildProfile(),
-        parser_version="cobol-structure-3",
+        parser_version="cobol-structure-4",
     )
 
     assert shared_fingerprint == legacy_fingerprint
