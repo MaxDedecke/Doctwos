@@ -28,6 +28,7 @@ import os
 import time
 import uuid
 from collections import defaultdict
+from concurrent.futures.process import BrokenProcessPool
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
@@ -37,14 +38,15 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import aliased
 
 import git_utils
+import parse_pool
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
 from core.analysis_fingerprint import analysis_fingerprint
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
+from core.failure_location import describe_failure
 from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
 from cobol import copybook as copybook_mod
-from core.failure_location import describe_failure
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
@@ -622,6 +624,55 @@ class GitConnector(BaseConnector):
         # dort neu entdeckte Abhängigkeitsmenge in Blob-SHAs statt nur
         # Pfade umzuwandeln (siehe _discover_copybook_dependencies()).
         self._copybook_hashes: dict[str, str] = {}
+        # Prozess-Pool für CPU-gebundenes Strukturparsen (parse_pool.py). Nur
+        # sync() schaltet ihn ein; direkte _embed_document()-Aufrufe (Tests)
+        # parsen weiter im Thread. Angelegt wird er lazy beim ersten Parse,
+        # weil _prepared_by_lang erst in fetch_documents() befüllt wird.
+        self._parse_workers = 0
+        self._parse_pool = None
+        self._parse_pool_lock = asyncio.Lock()
+
+    async def _get_parse_pool(self):
+        if self._parse_pool is None and self._parse_workers > 1:
+            async with self._parse_pool_lock:
+                if self._parse_pool is None and self._parse_workers > 1:
+                    pool = None
+                    try:
+                        pool = parse_pool.create_pool(self._parse_workers, self._prepared_by_lang)
+                        # Start-Check: ohne ihn würde ein nicht startbarer Pool jede
+                        # Datei still auf den Text-Fallback schicken.
+                        await asyncio.get_running_loop().run_in_executor(pool, parse_pool._ping)
+                        self._parse_pool = pool
+                    except Exception as exc:
+                        self._log(
+                            f"Parse-Prozess-Pool nicht startbar ({type(exc).__name__}: {exc}) "
+                            "— nutze Thread-Parsing."
+                        )
+                        self._parse_workers = 0
+                        if pool is not None:
+                            pool.shutdown(wait=False, cancel_futures=True)
+        return self._parse_pool
+
+    async def _parse_structure(self, entry, lang: str, doc, parse_kwargs: dict[str, Any]):
+        pool = await self._get_parse_pool()
+        if pool is not None:
+            try:
+                return await asyncio.get_running_loop().run_in_executor(
+                    pool,
+                    parse_pool._parse_in_worker,
+                    lang,
+                    doc["content"],
+                    doc["storage_key"],
+                    parse_kwargs.get("profile"),
+                )
+            except BrokenProcessPool:
+                self._log("Parse-Prozess-Pool defekt — wechsle auf Thread-Parsing.")
+                self._parse_workers = 0
+                self._parse_pool = None
+                pool.shutdown(wait=False, cancel_futures=True)
+        return await asyncio.to_thread(
+            entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
+        )
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
@@ -653,9 +704,7 @@ class GitConnector(BaseConnector):
                 if profile is not None:
                     parse_kwargs["profile"] = profile
                 try:
-                    parse_result = await asyncio.to_thread(
-                        entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
-                    )
+                    parse_result = await self._parse_structure(entry, lang, doc, parse_kwargs)
                     chunks = [
                         {
                             "content": c.content,
@@ -674,6 +723,10 @@ class GitConnector(BaseConnector):
                     doc["extra_meta"]["parse_status"] = "partial"
                     doc["extra_meta"]["parse_error"] = error_msg
                     self._log(f"{error_msg} in '{doc['title']}', nutze Textfallback.")
+                    logger.warning(
+                        "Strukturparser fehlgeschlagen für '%s' (%s)",
+                        doc["title"], lang, exc_info=exc,
+                    )
                     parser = CodeParser(lang)
                     chunks = await asyncio.to_thread(
                         parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
@@ -723,10 +776,6 @@ class GitConnector(BaseConnector):
                 )
                 with track_admission_wait() as wait_times:
                     try:
-                    logger.warning(
-                        "Strukturparser fehlgeschlagen für '%s' (%s)",
-                        doc["title"], lang, exc_info=exc,
-                    )
                         for offset in range(0, len(to_embed), fair_batch_size):
                             batch = to_embed[offset : offset + fair_batch_size]
                             batch_embeddings = await get_embeddings_batch(
@@ -1414,6 +1463,11 @@ class GitConnector(BaseConnector):
                     f"(statt {config.EMBED_CONCURRENCY})."
                 )
             semaphore = asyncio.Semaphore(embed_concurrency)
+            self._parse_workers = min(parse_pool.default_workers(), embed_concurrency)
+            self._log(
+                f"Strukturparsing: {max(self._parse_workers, 1)} Prozess(e), "
+                f"{embed_concurrency} Dateien parallel."
+            )
             pending_tasks = set()
 
             async def doc_producer():
@@ -1534,6 +1588,9 @@ class GitConnector(BaseConnector):
                 self.source.last_error = error_msg
                 self.db.commit()
         finally:
+            if self._parse_pool is not None:
+                self._parse_pool.shutdown(wait=False, cancel_futures=True)
+                self._parse_pool = None
             self.db.close()
             current_owner = redis_client.get(lock_key)
             if current_owner == lock_owner.encode("utf-8"):

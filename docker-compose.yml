@@ -201,6 +201,10 @@ services:
       INFERENCE_BATCH_RESERVE: ${INFERENCE_BATCH_RESERVE:-1}
       INFERENCE_CHAT_WAIT_SECONDS: ${INFERENCE_CHAT_WAIT_SECONDS:-30}
       INFERENCE_BATCH_WAIT_SECONDS: ${INFERENCE_BATCH_WAIT_SECONDS:-900}
+      # Dateien, die ein Git-Sync gleichzeitig parst/einbettet, und Anzahl der
+      # Parse-Prozesse (parser/parse_pool.py; 0 = Thread-Parsing wie zuvor).
+      EMBED_CONCURRENCY: ${EMBED_CONCURRENCY:-3}
+      PARSE_WORKERS: ${PARSE_WORKERS:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
