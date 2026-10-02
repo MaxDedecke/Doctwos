@@ -1041,6 +1041,41 @@ async def test_git_connector_progress_advances_only_as_files_actually_complete(
 
 
 @pytest.mark.anyio
+async def test_git_connector_records_progress_while_other_files_still_run(
+    db_session, test_source
+):
+    """Regression: fertige Dateien wurden erst ab 50 offenen Tasks verbucht -- ein
+    Sync mit weniger Dateien zeigte bis zum Schluss keinen Stand (z. B. 245/350)."""
+    connector = GitConnector(test_source.id)
+    original_embed = connector._embed_document
+    original_update = connector._update_progress
+    first_done = asyncio.Event()
+    calls = 0
+
+    async def gated_embed(doc, semaphore):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            await asyncio.wait_for(first_done.wait(), timeout=10)
+        return await original_embed(doc, semaphore)
+
+    def spy_update(current, total=None, message=None):
+        if current >= 1:
+            first_done.set()
+        original_update(current, total, message)
+
+    connector._embed_document = gated_embed
+    connector._update_progress = spy_update
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    db_session.refresh(test_source)
+    assert test_source.sync_status == "completed", test_source.last_error
+    assert test_source.parsed_files == test_source.total_files == 2
+
+
+@pytest.mark.anyio
 async def test_git_connector_skips_known_binary_formats_instead_of_embedding_garbage(
     db_session, test_source, git_remote
 ):

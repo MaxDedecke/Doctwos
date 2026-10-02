@@ -54,7 +54,14 @@ from structure_persist import persist_parse_result, rehome_shared_java_container
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
 from java.modules import module_from_path
-from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
+from models.database import (
+    CodeEdge,
+    CodeEntity,
+    DocumentChunk,
+    JobCenterDismissal,
+    KnowledgeSource,
+    SourceScanFile,
+)
 from insight_review import mark_source_insights_outdated
 from ollama_client import (
     EMBED_BATCH_MAX_CHUNKS,
@@ -1431,9 +1438,16 @@ class GitConnector(BaseConnector):
             self.source.sync_status = "syncing"
             self.source.parse_started_at = self._sync_start_time
             self.source.progress = 0
+            self.source.parsed_files = 0
             self.source.progress_message = "Initialisiere…"
             self.source.last_error = None
             self.source.sync_log = ""
+            # Ein früher ausgeblendeter Job muss im Job-Center wieder erscheinen,
+            # auch wenn der Sync nicht über die API angestoßen wurde (Zeitplan, Beat).
+            self.db.query(JobCenterDismissal).filter(
+                JobCenterDismissal.kind == "source",
+                JobCenterDismissal.job_id == self.source_id,
+            ).delete(synchronize_session=False)
             self.db.commit()
 
             self._log(
@@ -1479,71 +1493,67 @@ class GitConnector(BaseConnector):
             processed = 0
             failed_files = 0
 
+            async def finish(t):
+                nonlocal total_chunks, processed, failed_files
+                doc, chunks, parse_result = await t
+                chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
+                total_chunks += chunk_count
+                processed += 1
+                self.has_changes = True
+                if not doc["extra_meta"].get("index_error"):
+                    metrics = doc.get("extra_meta", {}).get("metrics")
+                    metric_suffix = (
+                        f", Parse: {metrics['parse_duration_ms']}ms, "
+                        f"Embed-Batch: {metrics['embed_batch_size']}, "
+                        f"Admission-Wartezeit: {metrics['admission_wait_ms']}ms"
+                        if metrics
+                        else ""
+                    )
+                    self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks{metric_suffix}).")
+                else:
+                    failed_files += 1
+                # O-075: parsed_files/progress hier setzen, nicht beim
+                # Einreihen (siehe fetch_documents()) -- das bildet ab,
+                # wie viele Dateien wirklich fertig sind, statt nur
+                # eingelesen, und friert dadurch nicht ein, während im
+                # Hintergrund noch an den letzten (oft langsamen)
+                # Dateien gearbeitet wird.
+                self.source.parsed_files = processed
+                self._update_progress(
+                    processed,
+                    self.source.total_files,
+                    f"{processed} von {self.source.total_files} Dateien fertig",
+                )
+
+            async def drain_finished():
+                # Schon fertige Tasks sofort verbuchen, nicht erst ab 50 offenen:
+                # sonst zeigt ein Repo mit weniger Dateien bis zum Ende keinen
+                # Fortschritt, und große COBOL-Dateien halten alle Ergebnisse zurück.
+                nonlocal pending_tasks
+                finished = {t for t in pending_tasks if t.done()}
+                pending_tasks -= finished
+                for t in finished:
+                    await finish(t)
+
             async for task in doc_producer():
                 pending_tasks.add(task)
                 redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
+                await drain_finished()
 
                 if len(pending_tasks) >= 50:
                     done, pending_tasks = await asyncio.wait(
                         pending_tasks, return_when=asyncio.FIRST_COMPLETED
                     )
                     for t in done:
-                        doc, chunks, parse_result = await t
-                        chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
-                        total_chunks += chunk_count
-                        processed += 1
-                        self.has_changes = True
-                        if not doc["extra_meta"].get("index_error"):
-                            metrics = doc.get("extra_meta", {}).get("metrics")
-                            metric_suffix = (
-                                f", Parse: {metrics['parse_duration_ms']}ms, "
-                                f"Embed-Batch: {metrics['embed_batch_size']}, "
-                                f"Admission-Wartezeit: {metrics['admission_wait_ms']}ms"
-                                if metrics
-                                else ""
-                            )
-                            self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks{metric_suffix}).")
-                        else:
-                            failed_files += 1
-                        # O-075: parsed_files/progress hier setzen, nicht beim
-                        # Einreihen (siehe fetch_documents()) -- das bildet ab,
-                        # wie viele Dateien wirklich fertig sind, statt nur
-                        # eingelesen, und friert dadurch nicht ein, während im
-                        # Hintergrund noch an den letzten (oft langsamen)
-                        # Dateien gearbeitet wird.
-                        self.source.parsed_files = processed
-                        self._update_progress(
-                            processed,
-                            self.source.total_files,
-                            f"{processed} von {self.source.total_files} Dateien fertig",
-                        )
+                        await finish(t)
 
-            if pending_tasks:
-                done, _ = await asyncio.wait(pending_tasks)
+            while pending_tasks:
+                redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
+                done, pending_tasks = await asyncio.wait(
+                    pending_tasks, timeout=30, return_when=asyncio.FIRST_COMPLETED
+                )
                 for t in done:
-                    doc, chunks, parse_result = await t
-                    chunk_count = await self._save_document_chunks(doc, chunks, parse_result)
-                    total_chunks += chunk_count
-                    processed += 1
-                    self.has_changes = True
-                    if not doc["extra_meta"].get("index_error"):
-                        metrics = doc.get("extra_meta", {}).get("metrics")
-                        metric_suffix = (
-                            f", Parse: {metrics['parse_duration_ms']}ms, "
-                            f"Embed-Batch: {metrics['embed_batch_size']}, "
-                            f"Admission-Wartezeit: {metrics['admission_wait_ms']}ms"
-                            if metrics
-                            else ""
-                        )
-                        self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks{metric_suffix}).")
-                    else:
-                        failed_files += 1
-                    self.source.parsed_files = processed
-                    self._update_progress(
-                        processed,
-                        self.source.total_files,
-                        f"{processed} von {self.source.total_files} Dateien fertig",
-                    )
+                    await finish(t)
 
             # Pass 2 (Plan §6.4, E-1): globale Kanten (CALL/COPY) über den
             # gesamten Sync-Lauf hinweg nachauflösen - erst jetzt sind alle in
