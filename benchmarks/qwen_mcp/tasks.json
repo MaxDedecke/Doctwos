@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "projects": {
+    "carddemo": {"project_id": 1, "corpus": "corpus/carddemo", "language": "COBOL", "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"},
+    "syncope": {"project_id": 2, "corpus": "corpus/syncope", "language": "Java", "commit": "c550d2f547910b28754abef9768074af10cf1212"}
+  },
+  "scoring": {
+    "note": "Ein Item gilt als erfuellt, wenn JEDE Gruppe in `all` mindestens eine ihrer Regex-Alternativen in der Antwort trifft (case-insensitive). Penalties ziehen ihr Gewicht ab, wenn der Regex trifft. Rubrikwert = max(0, Summe erfuellter Gewichte - Penalties) / Summe aller Item-Gewichte.",
+    "usable_threshold": 0.5
+  },
+  "tasks": [
+    {
+      "id": "C1-SIGNON",
+      "project": "carddemo",
+      "category": "einfacher Flow",
+      "prompt": "In AWS CardDemo: Welches Programm wird nach erfolgreicher Anmeldung in COSGN00C als naechstes gestartet, wovon haengt die Auswahl ab, und welche Datei wird fuer die Pruefung der Zugangsdaten gelesen?",
+      "ground_truth": "app/cbl/COSGN00C.cbl, READ-USER-SEC-FILE (Zeilen 209-250): READ DATASET USRSEC; bei gleichem SEC-USR-PWD wird per XCTL zu COADM01C (CDEMO-USRTYP-ADMIN) sonst COMEN01C gewechselt.",
+      "items": [
+        {"id": "admin-target", "weight": 2, "all": [["COADM01C"], ["admin"]]},
+        {"id": "user-target", "weight": 2, "all": [["COMEN01C"], ["nicht.{0,12}admin", "normal", "regul", "standard", "sonst", "else", "other", "user"]]},
+        {"id": "selector", "weight": 1, "all": [["SEC-USR-TYPE", "CDEMO-USER-TYPE", "CDEMO-USRTYP-ADMIN", "benutzertyp", "user.?type", "usertyp"]]},
+        {"id": "usrsec-file", "weight": 2, "all": [["USRSEC"]]},
+        {"id": "password-compare", "weight": 1, "all": [["SEC-USR-PWD", "passwort", "password", "kennwort"]]},
+        {"id": "xctl", "weight": 1, "all": [["XCTL"]]}
+      ],
+      "penalties": []
+    },
+    {
+      "id": "C2-BILLPAY",
+      "project": "carddemo",
+      "category": "Datenzugriff",
+      "prompt": "In AWS CardDemo: Was tut COBIL00C, wenn der Benutzer die Zahlung mit 'Y' bestaetigt? Welche Dateien/Datasets werden gelesen, geschrieben oder geaendert, wie wird die neue Transaktions-ID gebildet und wie aendert sich der Kontostand?",
+      "ground_truth": "app/cbl/COBIL00C.cbl PROCESS-ENTER-KEY (Z.154-247): READ ACCTDAT, READ CXACAIX (Kartennummer), STARTBR/READPREV/ENDBR TRANSACT mit HIGH-VALUES -> letzte ID +1, WRITE TRANSACT (Typ '02', Kat 2, 'BILL PAYMENT - ONLINE', TRAN-AMT = ACCT-CURR-BAL), COMPUTE ACCT-CURR-BAL = ACCT-CURR-BAL - TRAN-AMT, REWRITE ACCTDAT; Abbruch 'You have nothing to pay' wenn Saldo <= 0.",
+      "items": [
+        {"id": "transact-write", "weight": 2, "all": [["TRANSACT"], ["write", "schreib", "anleg", "neu", "insert", "erzeug", "ergaenz", "ergänz", "hinzu"]]},
+        {"id": "acctdat-update", "weight": 2, "all": [["ACCTDAT"], ["update", "rewrite", "aktualis", "aender", "änder", "schreib", "reduz", "verringer"]]},
+        {"id": "cxacaix-read", "weight": 1, "all": [["CXACAIX"]]},
+        {"id": "txn-id", "weight": 2, "all": [["READPREV", "STARTBR", "HIGH-VALUES", "letzt", "last", "hoechst", "höchst", "highest", "maxim"], ["\\+ ?1", "plus 1", "erhoeh", "erhöh", "increment", "um 1", "add 1", "naechste", "nächste", "next"]]},
+        {"id": "balance", "weight": 2, "all": [["ACCT-CURR-BAL", "kontostand", "saldo", "balance"], ["TRAN-AMT", "volle", "gesamt", "full", "entire", "vollstaendig", "vollständig", "abgezogen", "subtra", "minus", "reduz", "verringer"]]},
+        {"id": "txn-attrs", "weight": 1, "all": [["BILL PAYMENT", "'02'", "\"02\"", "tran-type", "typ.{0,6}02"]]},
+        {"id": "nothing-to-pay", "weight": 1, "all": [["nothing to pay", "<= ?0", "<= ?zero", "nichts zu zahlen", "nicht positiv", "kein.{0,12}saldo", "not positive", "balance.{0,20}zero", "null"]]}
+      ],
+      "penalties": []
+    },
+    {
+      "id": "C3-POSTING",
+      "project": "carddemo",
+      "category": "Regeln und Batch",
+      "prompt": "In AWS CardDemo: Welche Validierungen fuehrt das Batch-Programm CBTRN02C fuer eine Tagestransaktion durch (mit Ablehnungscodes und Bedingungen), und was passiert mit abgelehnten bzw. akzeptierten Transaktionen (welche Dateien werden geschrieben oder aktualisiert)?",
+      "ground_truth": "app/cbl/CBTRN02C.cbl 1500-VALIDATE-TRAN (Z.370-420): 100 Karte nicht in XREF, 101 Konto nicht gefunden, 102 OVERLIMIT (Credit-Debit+Betrag > Limit), 103 Transaktion nach Ablaufdatum; Rejects -> DALYREJS; akzeptiert -> 2000-POST-TRANSACTION: TCATBAL write/rewrite, Konto-REWRITE (ACCT-CURR-BAL, Cycle Credit/Debit), WRITE TRANSACT (TRANFILE).",
+      "items": [
+        {"id": "code-100", "weight": 1, "all": [["\\b100\\b"], ["XREF", "karte", "card"]]},
+        {"id": "code-101", "weight": 1, "all": [["\\b101\\b"], ["account", "konto", "ACCT"]]},
+        {"id": "code-102", "weight": 2, "all": [["\\b102\\b"], ["overlimit", "limit", "kreditlimit"]]},
+        {"id": "code-103", "weight": 2, "all": [["\\b103\\b"], ["expir", "ablauf", "abgelaufen"]]},
+        {"id": "rejects-file", "weight": 2, "all": [["DALYREJS"]]},
+        {"id": "post-transact", "weight": 1, "all": [["TRANFILE", "TRANSACT"]]},
+        {"id": "post-tcatbal", "weight": 2, "all": [["TCATBAL"]]},
+        {"id": "post-account", "weight": 1, "all": [["rewrite", "aktualis", "update", "aender", "änder"], ["ACCT", "account", "konto"]]}
+      ],
+      "penalties": []
+    },
+    {
+      "id": "J1-AUTHENTICATE",
+      "project": "syncope",
+      "category": "Methodenablauf",
+      "prompt": "In Apache Syncope: Wie laeuft die Benutzername/Passwort-Authentifizierung in AuthDataAccessor.authenticate ab? Beschreibe die Reihenfolge der Pruefungen, die interne Pruefung gegenueber Pass-through-Ressourcen, MFA und das Verhalten bei Erfolg und Misserfolg.",
+      "ground_truth": "core/spring/.../security/AuthDataAccessor.java authenticate (Z.523-565) und authenticateUser (Z.403-512): Anonymous/Admin Sonderfaelle; Benutzersuche ueber AUTHENTICATION_ATTRIBUTES (Default username), sonst UsernameNotFoundException; suspendiert -> DisabledException; AUTHENTICATION_STATUSES; interne Passwortpruefung, danach Pass-through-Ressourcen bis verifiziert; MFA TOTP oder Recovery-Code; Erfolg: lastLoginDate, failedLogins=0; Misserfolg: failedLogins+1; Ergebnis UsernamePasswordAuthResult.",
+      "items": [
+        {"id": "special-users", "weight": 1, "all": [["anonymous"], ["admin"]]},
+        {"id": "lookup-attrs", "weight": 1, "all": [["AUTHENTICATION_ATTRIBUTES", "authentication.?attributes", "authentifizierungs.?attribut"]]},
+        {"id": "not-found", "weight": 1, "all": [["UsernameNotFound"]]},
+        {"id": "suspended", "weight": 1, "all": [["DisabledException", "suspend", "gesperrt"]]},
+        {"id": "auth-statuses", "weight": 1, "all": [["AUTHENTICATION_STATUSES", "authentication.?statuses", "status"], ["erlaubt", "allowed", "zugelassen", "AUTHENTICATION_STATUSES"]]},
+        {"id": "internal-then-passthrough", "weight": 2, "all": [["pass.?through"], ["intern", "internal", "storage", "zuerst", "first", "danach", "anschliess", "falls", "wenn.{0,25}nicht"]]},
+        {"id": "mfa", "weight": 1, "all": [["TOTP", "recovery", "MFA", "OTP"]]},
+        {"id": "success-reset", "weight": 2, "all": [["failedLogins", "failed.?logins", "fehlversuch", "fehlgeschlagene"], ["reset", "zurueck", "zurück", "\\b0\\b", "null", "auf 0", "zero"]]},
+        {"id": "failure-increment", "weight": 2, "all": [["failedLogins", "failed.?logins", "fehlversuch", "fehlgeschlagene"], ["\\+ ?1", "erhoeh", "erhöh", "increment", "plus", "hochgez", "inkrement"]]},
+        {"id": "result-record", "weight": 1, "all": [["UsernamePasswordAuthResult"]]}
+      ],
+      "penalties": []
+    },
+    {
+      "id": "J2-LOCKOUT",
+      "project": "syncope",
+      "category": "Aufrufkette",
+      "prompt": "In Apache Syncope: Welche Klasse ruft AuthDataAccessor.authenticate fuer Benutzername/Passwort auf, und was passiert danach bei einer fehlgeschlagenen Anmeldung? Wann genau wird ein Benutzer wegen zu vieler Fehlversuche gesperrt und woher stammt das Limit?",
+      "ground_truth": "core/spring/.../UsernamePasswordAuthenticationProvider.java (Z.95-110): bei !isSuccess -> provisioningManager.suspendOnAuthFailures; bei Erfolg authenticationThrottler.clearFailures. core/workflow-java/.../AbstractUserWorkflowAdapter.java (Z.213-214): suspend wenn failedLogins > policy.getMaxAuthenticationAttempts() und max > 0 und nicht bereits suspendiert; Limit aus der AccountPolicy.",
+      "items": [
+        {"id": "caller", "weight": 2, "all": [["UsernamePasswordAuthenticationProvider"]]},
+        {"id": "suspend-call", "weight": 2, "all": [["suspendOnAuthFailures"]]},
+        {"id": "workflow", "weight": 1, "all": [["AbstractUserWorkflowAdapter", "UserWorkflowAdapter", "workflow"]]},
+        {"id": "max-attempts", "weight": 2, "all": [["maxAuthenticationAttempts", "max.?authentication.?attempts", "maximale.{0,20}anmeldeversuche", "maximale.{0,20}authentifizierungsversuche"]]},
+        {"id": "account-policy", "weight": 2, "all": [["AccountPolicy", "account.?policy", "kontorichtlinie", "konto.?richtlinie"]]},
+        {"id": "strict-greater", "weight": 1, "all": [["failedLogins", "failed.?logins", "fehlversuch"], [">", "groesser", "größer", "greater", "exceed", "uebersteig", "übersteig", "mehr als"]]},
+        {"id": "throttler", "weight": 1, "all": [["clearFailures", "throttler"]]}
+      ],
+      "penalties": []
+    },
+    {
+      "id": "J3-CREATE-USER",
+      "project": "syncope",
+      "category": "Create-Pfad",
+      "prompt": "In Apache Syncope: Wie wird ein Benutzer ueber UserLogic.create angelegt? Welche Schritte laufen in AbstractUserLogic.doCreate ab, welche Berechtigung wird geprueft und welche Komponente fuehrt die eigentliche Provisionierung aus?",
+      "ground_truth": "core/idrepo/logic/.../UserLogic.java (Z.135-137) @PreAuthorize USER_CREATE -> AbstractUserLogic.doCreate (Z.82-110): beforeCreate; Realm null -> InvalidRealm; securityChecks gegen effektive USER_CREATE-Realms (ausser self); provisioningManager.create; afterCreate(binder.getUserTO(...)).",
+      "items": [
+        {"id": "do-create", "weight": 1, "all": [["doCreate"], ["AbstractUserLogic"]]},
+        {"id": "before-create", "weight": 1, "all": [["beforeCreate"]]},
+        {"id": "invalid-realm", "weight": 2, "all": [["InvalidRealm", "realm.{0,30}(null|fehlt|leer|missing|nicht gesetzt)"]]},
+        {"id": "entitlement", "weight": 2, "all": [["USER_CREATE"]]},
+        {"id": "security-checks", "weight": 1, "all": [["securityChecks", "realm", "berechtig", "authoriz"], ["self", "ausser", "außer", "nicht.{0,12}selbst", "effektiv", "effective"]]},
+        {"id": "provisioning", "weight": 2, "all": [["provisioningManager", "ProvisioningManager"]]},
+        {"id": "after-create", "weight": 1, "all": [["afterCreate"]]},
+        {"id": "pre-authorize", "weight": 1, "all": [["PreAuthorize", "hasRole"]]}
+      ],
+      "penalties": []
+    }
+  ]
+}

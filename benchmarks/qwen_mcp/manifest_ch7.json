@@ -1,0 +1,17 @@
+{
+ "chapter": 7,
+ "titel": "Server-seitiger Evidenz-Pack (v4) an den Hold-out-Fragen",
+ "stand": "2026-10-02T21:43:10+0200",
+ "tasks_file": "tasks_holdout.json",
+ "tasks_sha256": "fa36743e1a5406d699489b40c12852edc29b2013c804337994b05972300445c8",
+ "konfiguration": "v4-Server (Port 8002): Evidenz-Pack vom Server als erster Schritt (wie der Chat-Prefetch, Frage unveraendert uebergeben, 5000 Zeichen), danach nur answer_context, explain_symbol, get_code_entity, Denkmodus (think=true, num_predict 3500); neu gegenueber v3: Fakten je Absatz/Methode (Meldungstexte, zugewiesene Codes), Auswahl per bge-m3-Embedding, Aufrufkette bis Tiefe 2, symbols/topic-Parameter; Qwen3-8B, num_ctx 8192, T 0,3, Seeds 1000+Wdh.",
+ "server_sha256": "0575625eac068e290e356cd6bcaaed9f0932a550bbc3735d6ba7a53bd0a568a1",
+ "design": "10 Fragen x 3 Wiederholungen = 30 Sitzungen, nur MCP-Arm; gepaarter Vergleich je Frage und Wiederholung gegen v3 (Kapitel 6) und v2 (Kapitel 4)",
+ "hypothesen": {
+  "H1": "Qualitaet hoeher als v3 (Rubrikmittel, gepaart, Bonferroni alpha 0,0125; nicht-unterlegen -5 PP).",
+  "H2": "Werkzeugaufrufe niedriger als v3 (der erste Aufruf ist fest).",
+  "H3": "Wandzeit nicht hoeher als v3 + 5 s."
+ },
+ "bonferroni_alpha": 0.0125,
+ "hinweis": "Die Fragen waren dem Entwickler bekannt; die Fakten-/Ketten-Aenderungen wurden an Stichproben aus Entwicklungs- und Hold-out-Fragen (COSGN00C, CBTRN02C, AuthDataAccessor) geprueft."
+}

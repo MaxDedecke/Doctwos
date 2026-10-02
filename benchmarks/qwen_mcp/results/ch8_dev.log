@@ -1,0 +1,19 @@
+[1/18] C1-SIGNON        mcp   rep1 ok           17.6s turns=1 tools=1 tok=2515+786
+[2/18] C2-BILLPAY       mcp   rep1 ok           31.1s turns=1 tools=1 tok=2724+1392
+[3/18] C3-POSTING       mcp   rep1 ok           29.2s turns=1 tools=1 tok=2759+1306
+[4/18] J1-AUTHENTICATE  mcp   rep1 ok           25.1s turns=1 tools=1 tok=2448+1108
+[5/18] J2-LOCKOUT       mcp   rep1 ok           18.5s turns=1 tools=1 tok=2436+816
+[6/18] J3-CREATE-USER   mcp   rep1 ok           19.4s turns=1 tools=1 tok=2545+844
+[7/18] C1-SIGNON        mcp   rep2 ok           19.9s turns=1 tools=1 tok=2515+969
+[8/18] C2-BILLPAY       mcp   rep2 ok           23.0s turns=1 tools=1 tok=2724+1082
+[9/18] C3-POSTING       mcp   rep2 ok           29.1s turns=1 tools=1 tok=2759+1367
+[10/18] J1-AUTHENTICATE  mcp   rep2 ok           32.7s turns=1 tools=1 tok=2448+1432
+[11/18] J2-LOCKOUT       mcp   rep2 ok           16.5s turns=1 tools=1 tok=2436+711
+[12/18] J3-CREATE-USER   mcp   rep2 ok           17.1s turns=1 tools=1 tok=2545+745
+[13/18] C1-SIGNON        mcp   rep3 ok           17.0s turns=1 tools=1 tok=2515+773
+[14/18] C2-BILLPAY       mcp   rep3 ok           28.9s turns=1 tools=1 tok=2724+1291
+[15/18] C3-POSTING       mcp   rep3 ok           32.1s turns=1 tools=1 tok=2759+1441
+[16/18] J1-AUTHENTICATE  mcp   rep3 ok           38.6s turns=1 tools=1 tok=2448+1761
+[17/18] J2-LOCKOUT       mcp   rep3 ok           14.8s turns=1 tools=1 tok=2436+638
+[18/18] J3-CREATE-USER   mcp   rep3 ok           20.9s turns=1 tools=1 tok=2545+917
+fertig: /bench/results/raw/ch8_qwen_v41_dev.jsonl

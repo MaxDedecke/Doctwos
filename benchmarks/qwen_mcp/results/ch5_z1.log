@@ -1,0 +1,32 @@
+[1/30] C1-SIGNON        mcp   rep1 ok            5.1s turns=2 tools=1 tok=4733+201
+[2/30] C2-BILLPAY       mcp   rep1 ok           14.4s turns=3 tools=1 tok=6928+630
+[3/30] C3-POSTING       mcp   rep1 ok           22.9s turns=3 tools=2 tok=9376+956
+[4/30] J1-AUTHENTICATE  mcp   rep1 ok           27.2s turns=3 tools=2 tok=8876+1151
+[5/30] J2-LOCKOUT       mcp   rep1 ok           11.5s turns=3 tools=2 tok=8858+412
+[6/30] J3-CREATE-USER   mcp   rep1 ok           22.7s turns=6 tools=5 tok=23077+806
+[7/30] C1-SIGNON        mcp   rep2 ok            5.1s turns=2 tools=1 tok=4733+158
+[8/30] C2-BILLPAY       mcp   rep2 ok           16.3s turns=3 tools=1 tok=6928+712
+[9/30] C3-POSTING       mcp   rep2 ok           24.3s turns=3 tools=2 tok=9376+1020
+[10/30] J1-AUTHENTICATE  mcp   rep2 ok           23.7s turns=3 tools=2 tok=8876+997
+[11/30] J2-LOCKOUT       mcp   rep2 ok           12.2s turns=3 tools=2 tok=8858+452
+[12/30] J3-CREATE-USER   mcp   rep2 empty_answer    6.8s turns=4 tools=3 tok=10516+179
+[13/30] C1-SIGNON        mcp   rep3 ok            8.9s turns=2 tools=1 tok=4733+213
+[14/30] C2-BILLPAY       mcp   rep3 ok           18.1s turns=3 tools=1 tok=6928+809
+[15/30] C3-POSTING       mcp   rep3 ok           21.2s turns=3 tools=2 tok=9376+879
+[16/30] J1-AUTHENTICATE  mcp   rep3 ok           24.7s turns=3 tools=2 tok=8876+1041
+[17/30] J2-LOCKOUT       mcp   rep3 ok           10.0s turns=3 tools=2 tok=8858+369
+[18/30] J3-CREATE-USER   mcp   rep3 ok           20.9s turns=5 tools=4 tok=16088+758
+[19/30] C1-SIGNON        mcp   rep4 ok            4.9s turns=2 tools=1 tok=4733+162
+[20/30] C2-BILLPAY       mcp   rep4 ok           14.2s turns=3 tools=1 tok=6928+626
+[21/30] C3-POSTING       mcp   rep4 ok           23.5s turns=3 tools=2 tok=9376+975
+[22/30] J1-AUTHENTICATE  mcp   rep4 ok           32.6s turns=3 tools=2 tok=8876+1383
+[23/30] J2-LOCKOUT       mcp   rep4 ok           11.8s turns=3 tools=2 tok=8858+420
+[24/30] J3-CREATE-USER   mcp   rep4 ok           35.7s turns=6 tools=5 tok=21111+1103
+[25/30] C1-SIGNON        mcp   rep5 error:HTTPStatusError:Server error '500 Internal Server Error' for url 'http://localhost:11434/api/chat'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500    0.8s turns=0 tools=0 tok=0+0
+[26/30] C2-BILLPAY       mcp   rep5 empty_answer   16.7s turns=3 tools=0 tok=5010+318
+[27/30] C3-POSTING       mcp   rep5 ok           18.2s turns=3 tools=2 tok=9376+762
+[28/30] J1-AUTHENTICATE  mcp   rep5 ok           24.6s turns=3 tools=2 tok=8876+1016
+[29/30] J2-LOCKOUT       mcp   rep5 ok            9.8s turns=3 tools=2 tok=8858+365
+[30/30] J3-CREATE-USER   mcp   rep5 ok           19.0s turns=5 tools=4 tok=15978+738
+fertig: /bench/results/raw/ch5_z1.jsonl

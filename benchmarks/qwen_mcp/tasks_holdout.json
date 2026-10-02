@@ -1,0 +1,1211 @@
+{
+ "version": 1,
+ "purpose": "Hold-out: zehn neue Fragen aus denselben zwei Beständen; vorab festgelegt, ohne Modellläufe",
+ "projects": {
+  "carddemo": {
+   "project_id": 1,
+   "corpus": "corpus/carddemo",
+   "language": "COBOL",
+   "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+  },
+  "syncope": {
+   "project_id": 2,
+   "corpus": "corpus/syncope",
+   "language": "Java",
+   "commit": "c550d2f547910b28754abef9768074af10cf1212"
+  }
+ },
+ "scoring": {
+  "note": "Ein Item gilt als erfuellt, wenn JEDE Gruppe in `all` mindestens eine ihrer Regex-Alternativen in der Antwort trifft (case-insensitive). Penalties ziehen ihr Gewicht ab, wenn der Regex trifft. Rubrikwert = max(0, Summe erfuellter Gewichte - Penalties) / Summe aller Item-Gewichte.",
+  "usable_threshold": 0.5
+ },
+ "tasks": [
+  {
+   "id": "H-C1-INTEREST",
+   "project": "carddemo",
+   "category": "Batch-Berechnung",
+   "prompt": "In AWS CardDemo: Wie berechnet das Batch-Programm CBACT04C die Zinsen? Nenne die Formel, die gelesenen Dateien, welche Buchung geschrieben wird und wie das Konto am Ende angepasst wird.",
+   "ground_truth": "app/cbl/CBACT04C.cbl: 1300-COMPUTE-INTEREST (WS-MONTHLY-INT = TRAN-CAT-BAL * DIS-INT-RATE / 1200, nur wenn DIS-INT-RATE <> 0), 1300-B-WRITE-TX (Typ '01', Kategorie '05', Quelle 'System', Text 'Int. for a/c', ID = PARM-DATE + WS-TRANID-SUFFIX, WRITE TRANSACT), 1050-UPDATE-ACCOUNT (ADD WS-TOTAL-INT TO ACCT-CURR-BAL, ACCT-CURR-CYC-CREDIT und ACCT-CURR-CYC-DEBIT auf 0, REWRITE). Eingaben TCATBALF, XREFFILE, DISCGRP, ACCTFILE.",
+   "items": [
+    {
+     "id": "formula",
+     "weight": 3,
+     "all": [
+      [
+       "TRAN-CAT-BAL"
+      ],
+      [
+       "DIS-INT-RATE"
+      ],
+      [
+       "1200"
+      ]
+     ]
+    },
+    {
+     "id": "rate-nonzero",
+     "weight": 1,
+     "all": [
+      [
+       "DIS-INT-RATE"
+      ],
+      [
+       "NOT = 0",
+       "<> ?0",
+       "ungleich 0",
+       "ungleich null",
+       "nicht null",
+       "nicht gleich 0",
+       "!= ?0",
+       "≠ ?0",
+       "not zero",
+       "not equal to zero",
+       "nur wenn",
+       "only if",
+       "only when"
+      ]
+     ]
+    },
+    {
+     "id": "type-category",
+     "weight": 2,
+     "all": [
+      [
+       "\\b01\\b"
+      ],
+      [
+       "\\b05\\b"
+      ]
+     ]
+    },
+    {
+     "id": "source-text",
+     "weight": 1,
+     "all": [
+      [
+       "System"
+      ],
+      [
+       "Int\\. for a/c"
+      ]
+     ]
+    },
+    {
+     "id": "tran-id",
+     "weight": 2,
+     "all": [
+      [
+       "PARM-DATE"
+      ],
+      [
+       "WS-TRANID-SUFFIX",
+       "suffix"
+      ]
+     ]
+    },
+    {
+     "id": "account-balance",
+     "weight": 2,
+     "all": [
+      [
+       "ACCT-CURR-BAL"
+      ],
+      [
+       "WS-TOTAL-INT"
+      ]
+     ]
+    },
+    {
+     "id": "cycle-reset",
+     "weight": 1,
+     "all": [
+      [
+       "CYC-CREDIT",
+       "Zyklus.{0,25}(Credit|Gutschrift)",
+       "cycle.{0,12}credit"
+      ],
+      [
+       "CYC-DEBIT",
+       "Zyklus.{0,30}(Debit|Belastung)",
+       "-Debit",
+       "cycle.{0,12}debit"
+      ]
+     ]
+    },
+    {
+     "id": "input-files",
+     "weight": 2,
+     "all": [
+      [
+       "TCATBAL"
+      ],
+      [
+       "DISCGRP"
+      ]
+     ]
+    },
+    {
+     "id": "output-file",
+     "weight": 1,
+     "all": [
+      [
+       "TRANSACT"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-C2-MENU",
+   "project": "carddemo",
+   "category": "Menüsteuerung",
+   "prompt": "In AWS CardDemo: Wie verarbeitet COMEN01C die Eingabe einer Menüoption? Wie viele Optionen gibt es, welche Prüfungen laufen, was passiert bei Admin-Optionen für normale Benutzer und wie wird das Zielprogramm gestartet?",
+   "ground_truth": "app/cbl/COMEN01C.cbl PROCESS-ENTER-KEY; app/cpy/COMEN02Y.cpy: CDEMO-MENU-OPT-COUNT = 11; Option nicht numerisch, > Anzahl oder 0 -> 'Please enter a valid option number...'; normaler Benutzer (CDEMO-USRTYP-USER) bei CDEMO-MENU-OPT-USRTYPE = 'A' -> 'No access - Admin Only option...'; COPAUS0C: EXEC CICS INQUIRE, sonst 'is not installed'; DUMMY* -> 'is coming soon'; sonst XCTL PROGRAM(CDEMO-MENU-OPT-PGMNAME(WS-OPTION)) mit CARDDEMO-COMMAREA.",
+   "items": [
+    {
+     "id": "option-count",
+     "weight": 1,
+     "all": [
+      [
+       "\\b11\\b"
+      ],
+      [
+       "CDEMO-MENU-OPT-COUNT",
+       "Optionen",
+       "options"
+      ]
+     ]
+    },
+    {
+     "id": "valid-option",
+     "weight": 2,
+     "all": [
+      [
+       "valid option number",
+       "gültige Optionsnummer",
+       "ungültige Option",
+       "ungültig"
+      ],
+      [
+       "CDEMO-MENU-OPT-COUNT",
+       "WS-OPTION"
+      ]
+     ]
+    },
+    {
+     "id": "admin-only",
+     "weight": 2,
+     "all": [
+      [
+       "Admin Only",
+       "No access"
+      ],
+      [
+       "CDEMO-MENU-OPT-USRTYPE",
+       "CDEMO-USRTYP-USER",
+       "'A'"
+      ]
+     ]
+    },
+    {
+     "id": "copaus0c",
+     "weight": 2,
+     "all": [
+      [
+       "COPAUS0C"
+      ],
+      [
+       "INQUIRE"
+      ]
+     ]
+    },
+    {
+     "id": "dummy",
+     "weight": 2,
+     "all": [
+      [
+       "DUMMY"
+      ],
+      [
+       "coming soon",
+       "kommt bald",
+       "demnächst"
+      ]
+     ]
+    },
+    {
+     "id": "xctl-target",
+     "weight": 2,
+     "all": [
+      [
+       "XCTL"
+      ],
+      [
+       "CDEMO-MENU-OPT-PGMNAME"
+      ]
+     ]
+    },
+    {
+     "id": "commarea",
+     "weight": 1,
+     "all": [
+      [
+       "CARDDEMO-COMMAREA"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-C3-USERADD",
+   "project": "carddemo",
+   "category": "Eingabeprüfung",
+   "prompt": "In AWS CardDemo: Wie legt COUSR01C einen neuen Benutzer an? Welche Eingaben werden geprüft (mit den Meldungen), wohin wird geschrieben und was passiert bei doppelter Benutzer-ID und bei den Funktionstasten?",
+   "ground_truth": "app/cbl/COUSR01C.cbl: Pflichtfelder FNAMEI, LNAMEI, USERIDI, PASSWDI, USRTYPEI -> '<Feld> can NOT be empty...'; WRITE-USER-SEC-FILE: EXEC CICS WRITE DATASET USRSEC; DFHRESP(DUPKEY)/(DUPREC) -> 'User ID already exist...'; sonst 'Unable to Add User...'; Erfolg 'User <id> has been added ...'; PF3 -> COADM01C, PF4 -> CLEAR-CURRENT-SCREEN; sonst Rückkehr zu COSGN00C per XCTL.",
+   "items": [
+    {
+     "id": "empty-message",
+     "weight": 2,
+     "all": [
+      [
+       "can NOT be empty"
+      ]
+     ]
+    },
+    {
+     "id": "field-names",
+     "weight": 1,
+     "all": [
+      [
+       "FNAMEI",
+       "LNAMEI",
+       "USERIDI",
+       "PASSWDI",
+       "USRTYPEI"
+      ]
+     ]
+    },
+    {
+     "id": "usrsec-write",
+     "weight": 2,
+     "all": [
+      [
+       "USRSEC"
+      ],
+      [
+       "WRITE"
+      ]
+     ]
+    },
+    {
+     "id": "duplicate",
+     "weight": 2,
+     "all": [
+      [
+       "DUPKEY",
+       "DUPREC"
+      ],
+      [
+       "already exist"
+      ]
+     ]
+    },
+    {
+     "id": "unable",
+     "weight": 1,
+     "all": [
+      [
+       "Unable to Add User"
+      ]
+     ]
+    },
+    {
+     "id": "success",
+     "weight": 1,
+     "all": [
+      [
+       "has been added"
+      ]
+     ]
+    },
+    {
+     "id": "pf3",
+     "weight": 1,
+     "all": [
+      [
+       "DFHPF3",
+       "PF3"
+      ],
+      [
+       "COADM01C"
+      ]
+     ]
+    },
+    {
+     "id": "pf4",
+     "weight": 1,
+     "all": [
+      [
+       "DFHPF4",
+       "PF4"
+      ],
+      [
+       "CLEAR-CURRENT-SCREEN",
+       "Eingabefelder",
+       "leert",
+       "löscht",
+       "zurückgesetzt"
+      ]
+     ]
+    },
+    {
+     "id": "signon-return",
+     "weight": 1,
+     "all": [
+      [
+       "XCTL"
+      ],
+      [
+       "COSGN00C"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-C4-REPORT",
+   "project": "carddemo",
+   "category": "Berichtserzeugung",
+   "prompt": "In AWS CardDemo: Wie erzeugt CBTRN03C den Transaktionsbericht? Welche Dateien werden gelesen und geschrieben, wie wird der Zeitraum gefiltert und wann werden Seiten-, Konten- und Gesamtsummen geschrieben?",
+   "ground_truth": "app/cbl/CBTRN03C.cbl: DATEPARM (WS-START-DATE/WS-END-DATE) filtert TRAN-PROC-TS (1:10); Eingaben TRANFILE, CARDXREF, TRANTYPE, TRANCATG, Ausgabe TRANREPT; WS-PAGE-SIZE = 20, Seitenwechsel per FUNCTION MOD(WS-LINE-COUNTER, WS-PAGE-SIZE) = 0 -> 1110-WRITE-PAGE-TOTALS + Kopfzeilen; Kontensumme bei Wechsel der Kartennummer (WS-CURR-CARD-NUM) mit 1120-WRITE-ACCOUNT-TOTALS; WS-PAGE-TOTAL, WS-ACCOUNT-TOTAL, WS-GRAND-TOTAL.",
+   "items": [
+    {
+     "id": "dateparm",
+     "weight": 2,
+     "all": [
+      [
+       "DATEPARM"
+      ],
+      [
+       "WS-START-DATE",
+       "WS-END-DATE"
+      ]
+     ]
+    },
+    {
+     "id": "filter-field",
+     "weight": 2,
+     "all": [
+      [
+       "TRAN-PROC-TS"
+      ]
+     ]
+    },
+    {
+     "id": "input-files",
+     "weight": 2,
+     "all": [
+      [
+       "TRANFILE",
+       "TRANSACT-FILE"
+      ],
+      [
+       "CARDXREF",
+       "XREF"
+      ],
+      [
+       "TRANTYPE"
+      ],
+      [
+       "TRANCATG"
+      ]
+     ]
+    },
+    {
+     "id": "report-file",
+     "weight": 1,
+     "all": [
+      [
+       "TRANREPT"
+      ]
+     ]
+    },
+    {
+     "id": "page-size",
+     "weight": 2,
+     "all": [
+      [
+       "WS-PAGE-SIZE",
+       "\\b20\\b"
+      ],
+      [
+       "MOD",
+       "WS-LINE-COUNTER"
+      ]
+     ]
+    },
+    {
+     "id": "totals",
+     "weight": 2,
+     "all": [
+      [
+       "WS-PAGE-TOTAL"
+      ],
+      [
+       "WS-ACCOUNT-TOTAL"
+      ],
+      [
+       "WS-GRAND-TOTAL"
+      ]
+     ]
+    },
+    {
+     "id": "card-change",
+     "weight": 2,
+     "all": [
+      [
+       "WS-CURR-CARD-NUM",
+       "Wechsel der Kartennummer",
+       "Kartenwechsel",
+       "Kartennummer wechselt",
+       "neue Kartennummer",
+       "card number changes",
+       "card changes"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-C5-COPYBOOK",
+   "project": "carddemo",
+   "category": "Datensatz und Auswirkung",
+   "prompt": "In AWS CardDemo: Wie ist der Transaktionssatz TRAN-RECORD aufgebaut (Copybook CVTRA05Y, nenne Felder mit Länge) und welche Programme binden dieses Copybook ein?",
+   "ground_truth": "app/cpy/CVTRA05Y.cpy: TRAN-ID X(16), TRAN-TYPE-CD X(02), TRAN-CAT-CD 9(04), TRAN-SOURCE X(10), TRAN-DESC X(100), TRAN-AMT S9(09)V99, TRAN-MERCHANT-ID 9(09), TRAN-MERCHANT-NAME X(50), TRAN-MERCHANT-CITY X(50), TRAN-MERCHANT-ZIP X(10), TRAN-CARD-NUM X(16), TRAN-ORIG-TS X(26), TRAN-PROC-TS X(26), FILLER X(20). COPY CVTRA05Y in: CBACT04C, CBEXPORT, CBIMPORT, CBTRN01C, CBTRN02C, CBTRN03C, COBIL00C, CORPT00C, COTRN00C, COTRN01C, COTRN02C.",
+   "items": [
+    {
+     "id": "tran-id",
+     "weight": 1,
+     "all": [
+      [
+       "TRAN-ID.{0,40}\\b16\\b"
+      ]
+     ]
+    },
+    {
+     "id": "tran-desc",
+     "weight": 1,
+     "all": [
+      [
+       "TRAN-DESC.{0,40}\\b100\\b"
+      ]
+     ]
+    },
+    {
+     "id": "tran-amt",
+     "weight": 1,
+     "all": [
+      [
+       "TRAN-AMT.{0,40}S9\\(0?9\\)V99"
+      ]
+     ]
+    },
+    {
+     "id": "merchant-name",
+     "weight": 1,
+     "all": [
+      [
+       "TRAN-MERCHANT-NAME.{0,40}\\b50\\b"
+      ]
+     ]
+    },
+    {
+     "id": "orig-ts",
+     "weight": 1,
+     "all": [
+      [
+       "TRAN-ORIG-TS.{0,40}\\b26\\b"
+      ]
+     ]
+    },
+    {
+     "id": "filler",
+     "weight": 1,
+     "all": [
+      [
+       "FILLER.{0,40}\\b20\\b"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBACT04C",
+     "weight": 1,
+     "all": [
+      [
+       "CBACT04C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBEXPORT",
+     "weight": 1,
+     "all": [
+      [
+       "CBEXPORT"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBIMPORT",
+     "weight": 1,
+     "all": [
+      [
+       "CBIMPORT"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBTRN01C",
+     "weight": 1,
+     "all": [
+      [
+       "CBTRN01C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBTRN02C",
+     "weight": 1,
+     "all": [
+      [
+       "CBTRN02C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CBTRN03C",
+     "weight": 1,
+     "all": [
+      [
+       "CBTRN03C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-COBIL00C",
+     "weight": 1,
+     "all": [
+      [
+       "COBIL00C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-CORPT00C",
+     "weight": 1,
+     "all": [
+      [
+       "CORPT00C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-COTRN00C",
+     "weight": 1,
+     "all": [
+      [
+       "COTRN00C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-COTRN01C",
+     "weight": 1,
+     "all": [
+      [
+       "COTRN01C"
+      ]
+     ]
+    },
+    {
+     "id": "prog-COTRN02C",
+     "weight": 1,
+     "all": [
+      [
+       "COTRN02C"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-J1-PASSWORDRULE",
+   "project": "syncope",
+   "category": "Richtlinienprüfung",
+   "prompt": "In Apache Syncope: Wie prüft DefaultPasswordRule.enforce ein neues Passwort für einen Benutzer? Welche Werte dürfen nicht im Passwort vorkommen, welche Regeln werden zusammengestellt und welche Ausnahme wird bei einem Verstoß geworfen?",
+   "ground_truth": "core/spring/.../policy/DefaultPasswordRule.java: enforce(User, clearPassword) kehrt bei null zurück; sammelt über conf.getSchemasNotPermitted() die Attributwerte des Benutzers (getPlainAttr/getValuesAsStrings); enforce(username, clearPassword, notPermitted): PasswordGenerator.conf2Rules(conf) plus WordListDictionary mit DictionarySubstringRule (isNotPermittedAsSubstrings) bzw. DictionaryRule, isNotPermittedBackwards, isNotPermittedCaseSensitive; Validierung mit DefaultPasswordValidator; Verstoß -> PasswordPolicyException mit den Meldungen (Collectors.joining(',')).",
+   "items": [
+    {
+     "id": "schemas-not-permitted",
+     "weight": 2,
+     "all": [
+      [
+       "SchemasNotPermitted",
+       "schemasNotPermitted"
+      ]
+     ]
+    },
+    {
+     "id": "attr-values",
+     "weight": 1,
+     "all": [
+      [
+       "getPlainAttr",
+       "PlainAttr",
+       "getValuesAsStrings"
+      ]
+     ]
+    },
+    {
+     "id": "dictionary-rules",
+     "weight": 2,
+     "all": [
+      [
+       "DictionarySubstringRule"
+      ],
+      [
+       "DictionaryRule"
+      ]
+     ]
+    },
+    {
+     "id": "flags",
+     "weight": 2,
+     "all": [
+      [
+       "NotPermittedAsSubstrings"
+      ],
+      [
+       "NotPermittedBackwards"
+      ]
+     ]
+    },
+    {
+     "id": "case-sensitive",
+     "weight": 1,
+     "all": [
+      [
+       "NotPermittedCaseSensitive"
+      ]
+     ]
+    },
+    {
+     "id": "conf2rules",
+     "weight": 2,
+     "all": [
+      [
+       "conf2Rules",
+       "PasswordGenerator"
+      ]
+     ]
+    },
+    {
+     "id": "validator",
+     "weight": 1,
+     "all": [
+      [
+       "DefaultPasswordValidator",
+       "PasswordValidator"
+      ]
+     ]
+    },
+    {
+     "id": "exception",
+     "weight": 2,
+     "all": [
+      [
+       "PasswordPolicyException"
+      ]
+     ]
+    },
+    {
+     "id": "joining",
+     "weight": 1,
+     "all": [
+      [
+       "joining",
+       "kommagetrennt",
+       "durch Komma",
+       "mit Komma",
+       "comma"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-J2-JWTFILTER",
+   "project": "syncope",
+   "category": "Token-Prüfung",
+   "prompt": "In Apache Syncope: Wie prüft JWTAuthenticationFilter ein JWT? Beschreibe die Prüfschritte in der Reihenfolge, die Fehlerfälle und wie die Authentifizierung gesetzt wird.",
+   "ground_truth": "core/spring/.../security/JWTAuthenticationFilter.java: 1. Signatur (dataAccessor.getJWTSSOProvider(Issuer), jwt.verify -> BadCredentialsException 'Invalid signature'); 2. Ablauf (getExpirationTime < jetzt -> dataAccessor.removeExpired(JWTID), CredentialsExpiredException 'JWT is expired'); 3. NotBefore -> CredentialsExpiredException 'JWT not valid yet'; 4. JWTAuthentication, AuthContextUtils.runAsAdmin(domain) -> dataAccessor.authenticate, SecurityContextHolder.setAuthentication, chain.doFilter; ParseException/JOSEException -> clearContext + authenticationEntryPoint.commence(BadCredentialsException).",
+   "items": [
+    {
+     "id": "provider-by-issuer",
+     "weight": 2,
+     "all": [
+      [
+       "getJWTSSOProvider"
+      ]
+     ]
+    },
+    {
+     "id": "verify",
+     "weight": 1,
+     "all": [
+      [
+       "verify"
+      ],
+      [
+       "Invalid signature",
+       "Signatur",
+       "signature"
+      ]
+     ]
+    },
+    {
+     "id": "expiration",
+     "weight": 2,
+     "all": [
+      [
+       "removeExpired"
+      ]
+     ]
+    },
+    {
+     "id": "expired-message",
+     "weight": 1,
+     "all": [
+      [
+       "JWT is expired",
+       "CredentialsExpiredException"
+      ]
+     ]
+    },
+    {
+     "id": "not-before",
+     "weight": 2,
+     "all": [
+      [
+       "not valid yet",
+       "NotBefore",
+       "nbf"
+      ]
+     ]
+    },
+    {
+     "id": "authenticate-as-admin",
+     "weight": 2,
+     "all": [
+      [
+       "runAsAdmin"
+      ],
+      [
+       "authenticate"
+      ]
+     ]
+    },
+    {
+     "id": "security-context",
+     "weight": 1,
+     "all": [
+      [
+       "SecurityContextHolder"
+      ]
+     ]
+    },
+    {
+     "id": "error-handling",
+     "weight": 2,
+     "all": [
+      [
+       "ParseException",
+       "JOSEException"
+      ],
+      [
+       "clearContext"
+      ]
+     ]
+    },
+    {
+     "id": "entry-point",
+     "weight": 1,
+     "all": [
+      [
+       "authenticationEntryPoint",
+       "commence",
+       "EntryPoint"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-J3-NOTIFICATION",
+   "project": "syncope",
+   "category": "Ereignisverarbeitung",
+   "prompt": "In Apache Syncope: Wie erzeugt DefaultNotificationManager.createTasks (die Variante mit who, type, category, subcategory, op, outcome) Benachrichtigungsaufgaben? Welche Bedingungen müssen erfüllt sein und welche Variablen stehen der Vorlage zur Verfügung?",
+   "ground_truth": "core/provisioning-java/.../notification/DefaultNotificationManager.java createTasks: Any aus before/output über userDAO/anyObjectDAO/groupDAO.findById; je Notification (nur isActive): OpEvent.toString(type, category, subcategory, op, outcome) muss in notification.getEvents() sein; about-Bedingung per anyMatchDAO.matches(SearchCondConverter.convert(...)); JEXL-Variablen who, type, category, subcategory, event, condition, before, output, input sowie user/group/anyObject (userDataBinder.getUserTO ...); getNotificationTask(...) und taskDAO.save; createTasks(AfterHandlingEvent) läuft per AuthContextUtils.runAsAdmin(event.getDomain()).",
+   "items": [
+    {
+     "id": "active",
+     "weight": 1,
+     "all": [
+      [
+       "isActive"
+      ]
+     ]
+    },
+    {
+     "id": "event-match",
+     "weight": 2,
+     "all": [
+      [
+       "OpEvent.toString"
+      ],
+      [
+       "getEvents"
+      ]
+     ]
+    },
+    {
+     "id": "about-condition",
+     "weight": 2,
+     "all": [
+      [
+       "anyMatchDAO"
+      ],
+      [
+       "SearchCondConverter",
+       "SearchCond",
+       "getAbout"
+      ]
+     ]
+    },
+    {
+     "id": "jexl-vars",
+     "weight": 2,
+     "all": [
+      [
+       "jexlVars",
+       "JEXL"
+      ],
+      [
+       "subcategory"
+      ]
+     ]
+    },
+    {
+     "id": "entity-binder",
+     "weight": 1,
+     "all": [
+      [
+       "getUserTO",
+       "userDataBinder",
+       "UserDataBinder"
+      ]
+     ]
+    },
+    {
+     "id": "task-save",
+     "weight": 2,
+     "all": [
+      [
+       "getNotificationTask"
+      ],
+      [
+       "taskDAO"
+      ]
+     ]
+    },
+    {
+     "id": "entity-lookup",
+     "weight": 1,
+     "all": [
+      [
+       "userDAO",
+       "anyObjectDAO",
+       "groupDAO"
+      ],
+      [
+       "findById"
+      ]
+     ]
+    },
+    {
+     "id": "run-as-admin",
+     "weight": 1,
+     "all": [
+      [
+       "runAsAdmin"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-J4-CALLERS",
+   "project": "syncope",
+   "category": "Aufrufer finden",
+   "prompt": "In Apache Syncope: Welche Klassen rufen notificationManager.createTasks (NotificationManager) auf, um Benachrichtigungen auszulösen? Nenne möglichst viele Klassen.",
+   "ground_truth": "Aufrufer von notificationManager.createTasks in: LogicInvocationHandler, DefaultUserWorkflowAdapter, AfterHandlingJob, AbstractSchedTaskJobDelegate, AbstractPropagationTaskExecutor, AbstractPullResultHandler, AbstractReportJobDelegate, DefaultRealmPullResultHandler, LiveSyncTaskSaver, AbstractNotificationJobDelegate (sowie Notify im Flowable-Modul).",
+   "items": [
+    {
+     "id": "caller-LogicInvocationHandler",
+     "weight": 1,
+     "all": [
+      [
+       "LogicInvocationHandler"
+      ]
+     ]
+    },
+    {
+     "id": "caller-DefaultUserWorkflowAdapter",
+     "weight": 1,
+     "all": [
+      [
+       "DefaultUserWorkflowAdapter"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AfterHandlingJob",
+     "weight": 1,
+     "all": [
+      [
+       "AfterHandlingJob"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AbstractSchedTaskJobDelegate",
+     "weight": 1,
+     "all": [
+      [
+       "AbstractSchedTaskJobDelegate"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AbstractPropagationTaskExecutor",
+     "weight": 1,
+     "all": [
+      [
+       "AbstractPropagationTaskExecutor"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AbstractPullResultHandler",
+     "weight": 1,
+     "all": [
+      [
+       "AbstractPullResultHandler"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AbstractReportJobDelegate",
+     "weight": 1,
+     "all": [
+      [
+       "AbstractReportJobDelegate"
+      ]
+     ]
+    },
+    {
+     "id": "caller-DefaultRealmPullResultHandler",
+     "weight": 1,
+     "all": [
+      [
+       "DefaultRealmPullResultHandler"
+      ]
+     ]
+    },
+    {
+     "id": "caller-LiveSyncTaskSaver",
+     "weight": 1,
+     "all": [
+      [
+       "LiveSyncTaskSaver"
+      ]
+     ]
+    },
+    {
+     "id": "caller-AbstractNotificationJobDelegate",
+     "weight": 1,
+     "all": [
+      [
+       "AbstractNotificationJobDelegate"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  },
+  {
+   "id": "H-J5-SCHEDTASK",
+   "project": "syncope",
+   "category": "Job-Ablauf",
+   "prompt": "In Apache Syncope: Wie läuft AbstractSchedTaskJobDelegate.execute ab? Welche Schritte, welche Abbruch- und Fehlerfälle gibt es und was passiert am Ende der Ausführung?",
+   "ground_truth": "core/provisioning-java/.../job/AbstractSchedTaskJobDelegate.java execute: init (taskDAO.findById, sonst JobExecutionException 'Not found', MDC OPERATION_ID); task.isActive() false (Task nicht aktiv) -> 'not active, aborting' und Rückkehr; setStatus('Initialization completed') über JobStatusEvent; initExecution (newTaskExec, Start, Executor); doExecute(context) (abstrakt, in Unterklassen); SecurityException/JobExecutionException -> Status FAILURE mit Stacktrace, sonst SUCCESS; endExecution: Message/Status/Ende setzen, bei hasToBeRegistered register, notificationManager.createTasks, auditManager.audit; end() entfernt MDC OPERATION_ID.",
+   "items": [
+    {
+     "id": "init",
+     "weight": 1,
+     "all": [
+      [
+       "taskDAO"
+      ],
+      [
+       "findById"
+      ],
+      [
+       "Not found",
+       "nicht gefunden"
+      ]
+     ]
+    },
+    {
+     "id": "inactive",
+     "weight": 2,
+     "all": [
+      [
+       "isActive",
+       "nicht aktiv",
+       "not active",
+       "inaktiv",
+       "inactive"
+      ],
+      [
+       "aborting",
+       "abbrech",
+       "Abbruch",
+       "return",
+       "beendet"
+      ]
+     ]
+    },
+    {
+     "id": "status-event",
+     "weight": 1,
+     "all": [
+      [
+       "setStatus",
+       "JobStatusEvent",
+       "publishEvent"
+      ],
+      [
+       "Initialization completed"
+      ]
+     ]
+    },
+    {
+     "id": "init-execution",
+     "weight": 1,
+     "all": [
+      [
+       "initExecution"
+      ],
+      [
+       "newTaskExec",
+       "TaskExec"
+      ]
+     ]
+    },
+    {
+     "id": "do-execute",
+     "weight": 2,
+     "all": [
+      [
+       "doExecute"
+      ],
+      [
+       "abstract",
+       "abstrakt",
+       "Unterklasse",
+       "Kindklasse",
+       "child"
+      ]
+     ]
+    },
+    {
+     "id": "failure",
+     "weight": 2,
+     "all": [
+      [
+       "SecurityException"
+      ],
+      [
+       "JobExecutionException"
+      ],
+      [
+       "FAILURE"
+      ]
+     ]
+    },
+    {
+     "id": "end-execution",
+     "weight": 2,
+     "all": [
+      [
+       "endExecution"
+      ],
+      [
+       "hasToBeRegistered"
+      ],
+      [
+       "register"
+      ]
+     ]
+    },
+    {
+     "id": "notify-audit",
+     "weight": 2,
+     "all": [
+      [
+       "notificationManager",
+       "createTasks"
+      ],
+      [
+       "auditManager",
+       "audit"
+      ]
+     ]
+    },
+    {
+     "id": "mdc",
+     "weight": 1,
+     "all": [
+      [
+       "MDC"
+      ],
+      [
+       "OPERATION_ID",
+       "operationId"
+      ]
+     ]
+    }
+   ],
+   "penalties": []
+  }
+ ]
+}

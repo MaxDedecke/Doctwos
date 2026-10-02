@@ -1,0 +1,58 @@
+{
+ "title": "MCP im Benchmark: Qwen und Luna, erste und überarbeitete Fassung",
+ "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten sechs Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Doctus-MCP-Schnittstelle. MCP wurde zweimal gemessen: in der ersten Fassung (v1) und nach einer Überarbeitung (v2). Unten stehen die Ergebnisse je Modell einzeln, am Ende der Vergleich der beiden Modelle.",
+ "top": [
+  "<b>Qwen:</b> Mit MCP v2 steigt die Qualität von 20 % auf 45 %. Das ist belastbar.",
+  "<b>Luna:</b> Die Qualität bleibt bei 92 %, sie war schon an der Obergrenze. Bei Einzelfragen halbiert v2 die Schritte, bei ganzen COBOL-Programmen braucht es mehr.",
+  "<b>Zeit und Tokens:</b> Bei beiden Modellen insgesamt nicht gesunken."
+ ],
+ "qwen": {
+  "lead": "Ein kleines Modell auf der lokalen 8-GB-GPU. Es hat ohne Hilfe kaum Chancen. Die Frage ist, ob die Schnittstelle es nutzbar macht.",
+  "findings": [
+   "<b>Qualität.</b> Anteil der erfüllten Rubrikpunkte: ohne Werkzeuge 18 %, lokale Dateiwerkzeuge 9 %, MCP v1 20 %, MCP v2 45 %. Der Sprung von v1 zu v2 beträgt +25,7 Prozentpunkte (Intervall +3,4 bis +48,8, p = 0,0003). Das ist die einzige der vier vorab festgelegten Erwartungen, die sich bestätigt hat.",
+   "<b>Brauchbare Antworten</b> (mindestens 50 % der Punkte): ohne Werkzeuge 0 von 30, lokale Werkzeuge 1 von 30, MCP v1 7 von 30, MCP v2 10 von 30.",
+   "<b>Wo es besser wurde:</b> J3 (0,09 → 0,73), C1 (0,00 → 0,53), J1 (0,23 → 0,45), J2 (0,00 → 0,27). C2 bleibt bei 0,40, C3 fällt von 0,45 auf 0,33.",
+   "<b>Aufwand.</b> Aufrufe 3,4 → 3,0, Zeit 14 s → 18 s, Eingabe-Tokens 11.700 → 13.100. Keine dieser Änderungen ist belastbar. Die Zeit liegt tendenziell höher (+3,7 s, p = 0,018, Schwelle 0,0125).",
+   "<b>Werkzeugwahl.</b> Qwen beginnt in 24 von 30 Sitzungen mit <code>search_code</code> und ruft <code>explain_symbol</code> erst danach auf. Leere Suchen sind von 0,93 auf 0,30 je Sitzung gefallen, das erklärt die Java-Verbesserungen."
+  ]
+ },
+ "luna": {
+  "lead": "Ein starkes Modell in der Codex CLI (Reasoning medium, Cloud). Mit Werkzeugen beantwortet es fast alles richtig. Die Frage ist, ob die Schnittstelle den Weg dorthin kürzer macht.",
+  "findings": [
+   "<b>Qualität.</b> Ohne Werkzeuge 6 %, lokale Shell 95 %, MCP v1 92 %, MCP v2 92 %. Zwischen v1 und v2 gibt es keinen Unterschied (+0,1 Prozentpunkte). Dass v2 nicht schlechter ist, lässt sich mit der Grenze von −5 Prozentpunkten nicht belegen (untere Intervallgrenze −7,5).",
+   "<b>Brauchbare Antworten:</b> ohne Werkzeuge 1 von 30, lokale Shell 30 von 30, MCP v1 30 von 30, MCP v2 29 von 30.",
+   "<b>Einzelfragen: der Ein-Aufruf-Ansatz trägt.</b> J1 braucht 3,0 statt 7,2 Aufrufe (Eingabe-Tokens 139.800 → 70.900, −49 %), C1 1,6 statt 3,8.",
+   "<b>Ganze COBOL-Programme: er trägt nicht.</b> C2 braucht 13,6 statt 8,8 Aufrufe, C3 15,0 statt 10,2. Luna bekommt zuerst eine Gliederung und fragt dann jeden Paragraphen einzeln ab (11 bzw. 13 Aufrufe von <code>explain_symbol</code>). Die Shell liest dieselbe Datei mit 3 bis 5 Befehlen. C3 sinkt dabei von 0,90 auf 0,83.",
+   "<b>Aufwand insgesamt.</b> Aufrufe 7,9 → 8,7, Zeit 35 s → 37 s, Eingabe-Tokens 127.800 → 110.300 (−14 %, nicht belastbar, p = 0,10). Der Server antwortet im Mittel in 101 ms, die Zeit entsteht in den Modellzügen (etwa 4 s je Zug)."
+  ]
+ },
+ "compare": {
+  "lead": "Nur die vier Messungen, um die es geht: Qwen v1, Qwen v2, Luna v1, Luna v2. Qualität und brauchbare Antworten lassen sich zwischen den Modellen vergleichen, weil Fragen und Bewertung gleich sind. Zeit und Tokens nicht: Luna läuft in der Cloud mit einem anderen Systemtext, Qwen lokal.",
+  "findings": [
+   "<b>Die Überarbeitung hilft dem kleinen Modell, dem starken kaum.</b> Qwen steigt von 20 % auf 45 %, Luna bleibt bei 92 %. Luna lag schon vorher an der Obergrenze, dort ist nichts mehr zu gewinnen.",
+   "<b>Das Modell bleibt wichtiger als die Schnittstelle.</b> Luna mit MCP v1 (92 %) liegt weit über Qwen mit MCP v2 (45 %).",
+   "<b>Aufwand:</b> Bei keinem der beiden Modelle sinken Aufrufe, Zeit und Tokens belastbar. Nur bei Einzelfragen (Luna: J1, C1) halbiert sich der Aufwand.",
+   "<b>Was noch fehlt:</b> Für ganze Programme braucht es einen Aufruf, der mehrere Paragraphen auf einmal liefert (siehe Ausblick)."
+  ]
+ },
+ "next": [
+  "<b>Alle Paragraphen eines Programms in einem Aufruf</b> (mit Budget): <code>explain_symbol</code> liefert für ein Programm oder eine Klasse zusätzlich zur Gliederung die Quelltexte der Einheiten, die am meisten Fakten tragen, bis zum Budget. Das zielt auf C2, C3 und J2, wo Luna heute 8 bis 13 Aufrufe braucht.",
+  "<b>Die Gliederung ersetzen, wenn das Programm in das Budget passt:</b> Unterhalb von etwa 25.000 Zeichen das ganze Programm mit Zeilennummern liefern, wie es die Shell mit einem <code>sed</code> tut. Bei Qwen braucht es dafür eine kleinere Antwort je Aufruf.",
+  "<b>Qwen früher auf <code>explain_symbol</code> lenken:</b> Server-Hinweise (<code>instructions</code>) kommen im eigenen Harness nicht an. Dort müsste der Systemtext den Hinweis enthalten, oder <code>search_code</code> liefert bei exaktem Treffer schon den Kontext von <code>explain_symbol</code>.",
+  "<b>Fakten beim Indexieren berechnen</b> (nicht umgesetzt): Ablehnungscodes, Meldungstexte und Weiterleitungsziele als strukturierte Karte je Programm. C3 und die Hälfte von C1 hängen an solchen Konstanten, die der Index heute nicht kennt."
+ ],
+ "method": [
+  "<b>Festlegung vorab:</b> Hypothesen, Prüfsummen von Aufgaben und Server-Code und der Plan wurden vor der Messung in <code>manifest_ch3.json</code> abgelegt (Backend-Stand <code>dc7d3df</code>, Aufgaben-Prüfsumme wie in Kapitel 1 und 2).",
+  "<b>Design:</b> Je Modell 6 Aufgaben × 2 Varianten (lokale Werkzeuge als Tageskontrolle, MCP v2) × 5 Wiederholungen = 60 Sitzungen. Verglichen wird MCP v2 mit MCP v1 aus Kapitel 1 und 2, gepaart nach Aufgabe und Wiederholung, und mit der Tageskontrolle.",
+  "<b>Statistik:</b> Wie in Kapitel 1 und 2 (gepaarte Differenzen, Bootstrap-Intervall über Aufgaben, exakter Permutationstest). Für die vier Hauptkennzahlen gilt p &lt; 0,0125. Die Nichtunterlegenheit bei Luna wird mit einer Grenze von −5 Prozentpunkten an der unteren Intervallgrenze geprüft.",
+  "<b>Umgebung:</b> Qwen wie in Kapitel 1. Für Luna wurde <code>qwen3:8b</code> vorher entladen, damit <code>bge-m3</code> im Speicher bleibt (Kapitel 2 lief mit beiden Modellen im VRAM).",
+  "<b>Abweichungen:</b> Eine lokale Qwen-Sitzung (J1, Wiederholung 1) fiel durch einen Speicherfehler (Linux-OOM-Kill des Ollama-Prozesses, HTTP 500) aus und wurde mit gleichem Seed wiederholt. Während der Entwicklung wurde die Schnittstelle nach einem Pilot an vier Qwen-Fragen noch einmal angepasst (<code>detail</code> entfernt, <code>explain_symbol</code> an die erste Stelle). Die gewertete Messung lief danach unverändert. Die Fehlerfreiheit aller Luna-Sitzungen und fehlende Leckage-Markierungen sind geprüft."
+ ],
+ "limits": [
+  "Die Vorher-Nachher-Paare liegen zeitlich getrennt (Kapitel 1 und 2 gegen Kapitel 3). Die Tageskontrolle zeigt keine auffällige Drift, ausschließen lässt sie sich nicht, bei Luna besonders für die Cloud-Zeiten.",
+  "Qwen sieht nur die Werkzeugbeschreibungen, Luna zusätzlich die Server-Hinweise. Der Vergleich zwischen den Modellen ist deshalb nicht rein.",
+  "Die Schnittstelle wurde unter Kenntnis der Kapitel-1-und-2-Ergebnisse entworfen und am selben Aufgabensatz gemessen. Ein Teil des Gewinns kann auf diese Aufgaben zugeschnitten sein. Eine Prüfung an neuen Fragen steht aus.",
+  "Sechs Aufgaben, fünf Wiederholungen. Aufgabenweise Zahlen sind beschreibend. Die Rubrik prüft Begriffe und nicht Bedeutung.",
+  "Der erwartete Vorteil des Index beim Maßstab (zweistellige GB) wurde nicht gemessen."
+ ]
+}

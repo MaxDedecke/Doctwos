@@ -1,0 +1,51 @@
+{
+ "chapter": 3,
+ "stand": "2026-10-02",
+ "frage": "Senken die MCP-v2-Änderungen (explain_symbol, tolerante Auflösung, kompakte Treffer) Züge, Zeit und Tokens, ohne die Qualität zu verschlechtern?",
+ "unveraendert": {
+  "tasks_sha256": "ba1f3c9d807bb60f3668d8dffdc529e6e8396fabee0e5dd0d28637f6b3752067",
+  "prompt": "derselbe Text wie in Kapitel 1 und 2",
+  "reps": 5,
+  "statistik": "wie Kapitel 1",
+  "bonferroni_alpha": 0.0125
+ },
+ "geaendert": {
+  "backend_commit": "dc7d3df47839f7881a6187545689bf7543d11064",
+  "mcp_server_sha256": "6e02d594d1735a6bc0738ef85c22db068d61193550d1e743968e44f339bac6ed",
+  "inhalt": "explain_symbol (Ein-Aufruf-Kontext, Gliederung mit Fakten bei großen Einheiten), tolerante Auflösung (Klasse.methode, Mehrwortanfragen, Vorschläge), kompaktes search_code ohne Parameter-Einträge, get_code_entity per Namen, explain_symbol zuerst in der Werkzeugliste, Server-Hinweise (instructions)"
+ },
+ "arme": {
+  "local": "neu gemessen als Kontrolle am selben Tag",
+  "mcp": "MCP v2 (neues Backend)"
+ },
+ "vergleiche": [
+  "mcp v2 gegen local (Kapitel 3, gepaart)",
+  "mcp v2 gegen mcp v1 (Kapitel 1 bzw. 2, gepaart nach Aufgabe und Wiederholung)"
+ ],
+ "primaere_kennzahlen": [
+  "Werkzeugaufrufe je Sitzung",
+  "Wandzeit",
+  "Eingabe-Tokens",
+  "Rubrikwert"
+ ],
+ "hypothesen": {
+  "H1": "MCP v2 braucht weniger Werkzeugaufrufe als MCP v1.",
+  "H2": "MCP v2 ist nicht langsamer als MCP v1; Ziel: nicht langsamer als die lokalen Werkzeuge.",
+  "H3": "MCP v2 braucht weniger Eingabe-Tokens als MCP v1.",
+  "H4": "Qualität: Luna nicht schlechter als mit MCP v1 (Nichtunterlegenheit −5 Prozentpunkte); Qwen besser als mit MCP v1, vor allem bei Java."
+ },
+ "umgebung": {
+  "qwen": "wie Kapitel 1 (num_ctx 8192, T 0,3, Seeds 1000+Wdh.), beide Modelle im VRAM",
+  "luna": "wie Kapitel 2; qwen3:8b zuvor entladen, damit bge-m3 im VRAM bleibt"
+ },
+ "bekannte_unterschiede": [
+  "Der Qwen-Harness reicht nur die Werkzeugbeschreibungen weiter; die neuen Server-Hinweise (instructions) sieht nur Codex.",
+  "Zeiten der Cloud-Modelle schwanken über den Tag; deshalb die Kontrolle `local` am selben Tag."
+ ],
+ "nicht_umgesetzt": [
+  "Fakten beim Indexieren vorberechnen (Parser/Reindex): stattdessen werden Fakten zur Abfragezeit aus vorhandenen Kanten gebildet.",
+  "Maßstabstest mit mehreren GB Quelltext."
+ ],
+ "tasks_sha256_check": "ba1f3c9d807bb60f3668d8dffdc529e6e8396fabee0e5dd0d28637f6b3752067",
+ "eingefroren": "2026-10-02T16:37:44+0200"
+}

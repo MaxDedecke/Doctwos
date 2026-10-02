@@ -1,0 +1,20 @@
+{
+ "title": "MCP im Benchmark: zwei Modelle, drei Kapitel",
+ "lead": "Sechs Code-Fragen an Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI), je ohne Werkzeuge, mit lokalen Werkzeugen und mit Doctus-MCP. Kapitel 1 und 2 messen die erste MCP-Fassung, Kapitel 3 die überarbeitete Schnittstelle v2. Kurz gesagt: Das Modell entscheidet über die Qualität. Die Überarbeitung hat dem kleinen Modell die Qualität mehr als verdoppelt, dem starken Modell wenig geändert, und sie hat Zeit und Tokens insgesamt nicht gesenkt.",
+ "findings": [
+  "<b>Das Modell zählt mehr als das Werkzeug.</b> Luna erreicht mit Shell und mit MCP 95 % und 92 % der Rubrikpunkte, Qwen in der besten Variante 20 %. Der Abstand zwischen den Modellen beträgt etwa das Fünffache, der zwischen den Werkzeugwegen höchstens ein paar Prozentpunkte.",
+  "<b>Qualität mit MCP gegenüber lokalen Werkzeugen:</b> Bei Qwen +11 Prozentpunkte (p = 0,06), bei Luna −3 Prozentpunkte (p = 0,067). Beide Unterschiede sind nach dem vorab festgelegten Maßstab nicht abgesichert und zeigen in entgegengesetzte Richtungen.",
+  "<b>Brauchbare Antworten:</b> Luna liefert sie mit und ohne MCP (30 von 30). Qwen schafft mit MCP 7 von 30, mit lokalen Dateitools 1 von 30 und ohne Werkzeuge keine. Nur für das kleine Modell macht MCP den Unterschied zwischen unbrauchbar und gelegentlich brauchbar, und nur bei COBOL.",
+  "<b>Geschwindigkeit:</b> MCP ist in keinem Kapitel nachweislich schneller (Qwen +2,4 s, Luna +1,8 s, beide nicht signifikant). Je nach Aufgabe ist es mal schneller, mal langsamer.",
+  "<b>Tokens:</b> MCP braucht in beiden Kapiteln deutlich mehr Eingabe als lokale Werkzeuge (Qwen +126 %, Luna +57 %, beide p &lt; 0,001). Das ist der einzige Befund, der in beiden Modellen gleich ausfällt.",
+  "<b>Robustheit der Schnittstelle:</b> Bei Java findet die Suche die Form <code>Klasse.methode</code> nicht. Luna formuliert um und verliert keine Qualität, nur Schritte. Qwen gibt auf und erreicht bei Java keinen spezifischen Punkt. Je schwächer das Modell, desto wichtiger wird eine fehlertolerante Schnittstelle.",
+  "<b>Ohne Werkzeuge:</b> Qwen rät und erfindet Dateinamen, Luna sagt „unbelegt“. Beide bekommen so gut wie keine spezifischen Punkte."
+ ],
+ "notes": [
+  "Vergleichbar zwischen den Kapiteln sind die Fragen, die Rubrik und damit der Rubrikwert und die Nutzbarkeit. Nicht vergleichbar sind Zeiten (Cloud gegen lokale GPU) und Tokens (anderer Systemtext, anderer Tokenizer, Zwischenspeicher).",
+  "Die lokalen Werkzeuge unterscheiden sich: In Kapitel 1 sind es drei einfache Dateitools, in Kapitel 2 die Codex-Shell. Dass Luna mit der Shell nahezu perfekt ist und Qwen mit den Dateitools schwach, liegt auch am Modell und nicht nur an den Werkzeugen.",
+  "Zwischen den Modellen gibt es keinen statistischen Test. Alle Tests betreffen die Unterschiede zwischen den Varianten innerhalb eines Modells.",
+  "Bei Luna liegen beide Werkzeugwege an der Obergrenze der Skala. Ein Vorteil von MCP ließe sich nur mit schwereren Fragen oder größeren Beständen messen.",
+  "Kapitel 2 sendet Fragen und Auszüge aus zwei öffentlichen Repositories an den Modellanbieter. Kapitel 1 lief vollständig lokal."
+ ]
+}

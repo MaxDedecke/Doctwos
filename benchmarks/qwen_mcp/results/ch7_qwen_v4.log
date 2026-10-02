@@ -1,0 +1,32 @@
+[1/30] H-C1-INTEREST    mcp   rep1 ok           24.8s turns=1 tools=1 tok=2622+1054
+[2/30] H-C2-MENU        mcp   rep1 ok           22.0s turns=1 tools=1 tok=2818+947
+[3/30] H-C3-USERADD     mcp   rep1 ok           35.8s turns=1 tools=1 tok=2780+1236
+[4/30] H-C4-REPORT      mcp   rep1 ok           50.1s turns=1 tools=1 tok=2646+1308
+[5/30] H-C5-COPYBOOK    mcp   rep1 error:HTTPStatusError:Server error '500 Internal Server Error' for url 'http://localhost:11434/api/chat'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500    7.2s turns=0 tools=1 tok=0+0
+[6/30] H-J1-PASSWORDRULE mcp   rep1 ok           32.4s turns=1 tools=1 tok=2483+777
+[7/30] H-J2-JWTFILTER   mcp   rep1 ok           21.6s turns=1 tools=1 tok=1690+1048
+[8/30] H-J3-NOTIFICATION mcp   rep1 ok           19.2s turns=1 tools=1 tok=1916+935
+[9/30] H-J4-CALLERS     mcp   rep1 ok           28.9s turns=1 tools=1 tok=2377+1385
+[10/30] H-J5-SCHEDTASK   mcp   rep1 ok           28.6s turns=1 tools=1 tok=2515+1300
+[11/30] H-C1-INTEREST    mcp   rep2 ok           20.5s turns=1 tools=1 tok=2622+914
+[12/30] H-C2-MENU        mcp   rep2 ok           20.3s turns=1 tools=1 tok=2818+934
+[13/30] H-C3-USERADD     mcp   rep2 ok           29.0s turns=1 tools=1 tok=2780+1319
+[14/30] H-C4-REPORT      mcp   rep2 ok           27.6s turns=1 tools=1 tok=2646+1243
+[15/30] H-C5-COPYBOOK    mcp   rep2 ok           26.8s turns=1 tools=1 tok=2470+1288
+[16/30] H-J1-PASSWORDRULE mcp   rep2 ok           18.9s turns=1 tools=1 tok=2483+881
+[17/30] H-J2-JWTFILTER   mcp   rep2 ok           24.4s turns=1 tools=1 tok=1690+1172
+[18/30] H-J3-NOTIFICATION mcp   rep2 ok           22.4s turns=1 tools=1 tok=1916+1062
+[19/30] H-J4-CALLERS     mcp   rep2 ok           22.8s turns=1 tools=1 tok=2377+1096
+[20/30] H-J5-SCHEDTASK   mcp   rep2 ok           33.8s turns=1 tools=1 tok=2515+1529
+[21/30] H-C1-INTEREST    mcp   rep3 ok           21.0s turns=1 tools=1 tok=2622+928
+[22/30] H-C2-MENU        mcp   rep3 ok           21.2s turns=1 tools=1 tok=2818+995
+[23/30] H-C3-USERADD     mcp   rep3 ok           20.4s turns=1 tools=1 tok=2780+949
+[24/30] H-C4-REPORT      mcp   rep3 ok           22.4s turns=1 tools=1 tok=2646+1060
+[25/30] H-C5-COPYBOOK    mcp   rep3 ok           25.0s turns=1 tools=1 tok=2470+1231
+[26/30] H-J1-PASSWORDRULE mcp   rep3 ok           16.4s turns=1 tools=1 tok=2483+769
+[27/30] H-J2-JWTFILTER   mcp   rep3 ok           21.5s turns=1 tools=1 tok=1690+1054
+[28/30] H-J3-NOTIFICATION mcp   rep3 ok           21.5s turns=1 tools=1 tok=1916+1044
+[29/30] H-J4-CALLERS     mcp   rep3 ok           19.6s turns=1 tools=1 tok=2377+919
+[30/30] H-J5-SCHEDTASK   mcp   rep3 ok           29.3s turns=1 tools=1 tok=2515+1320
+fertig: /bench/results/raw/ch7_qwen_v4.jsonl

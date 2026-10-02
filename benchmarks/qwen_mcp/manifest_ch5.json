@@ -1,0 +1,29 @@
+{
+ "chapter": 5,
+ "phase": "Entwicklung (Dev-Satz = die sechs ursprünglichen Fragen)",
+ "stand": "2026-10-02T18:40:43+0200",
+ "frage": "Verbessern ein serverseitiges Beweispaket (answer_context) und der Qwen-Denkmodus die Antworten von Qwen3-8B?",
+ "dev_fragen": {
+  "tasks_file": "tasks.json",
+  "tasks_sha256": "ba1f3c9d807bb60f3668d8dffdc529e6e8396fabee0e5dd0d28637f6b3752067"
+ },
+ "server": {
+  "datei": "backend/mcp_server.py (v3: answer_context, used_by, verdichtete Auszüge, gekürzte Werkzeugbeschreibungen)",
+  "sha256": "6dfeadb1c502299721f6d6c8fce9b723689b274598ff03e44dd542333f57a984",
+  "instanz": "Entwicklungs-Instanz Port 8002, gleiche Datenbank; Port 8000 bleibt auf v2"
+ },
+ "bedingungen": {
+  "Z0": "Referenz: MCP v2, kein Denkmodus (Kapitel 3, 30 Sitzungen)",
+  "Z1": "v3-Server, alle Werkzeuge, kein Denkmodus",
+  "Z2": "v3-Server, alle Werkzeuge, Denkmodus",
+  "Z3": "v3-Server ohne answer_context, Denkmodus (trennt den Denkmodus-Effekt)",
+  "Z4": "v3-Server, nur answer_context, explain_symbol, get_code_entity, kein Denkmodus",
+  "Z5": "wie Z4 mit Denkmodus"
+ },
+ "design": "je Bedingung 6 Fragen × 5 Wiederholungen; Harness wie Kapitel 3 (num_ctx 8192, T 0,3, Seeds 1000+Wdh.); Denkmodus: think=true, num_predict 3500",
+ "primaer": "Rubrikwert; sekundär Aufrufe, Zeit, Tokens, erzwungene Abschlüsse",
+ "entscheidungsregel": "Die Bedingung mit dem höchsten Rubrikmittel (bei Gleichstand die schnellere) geht in den Test an den zehn Hold-out-Fragen aus Kapitel 4; dort wird sie einmal gegen MCP v2 (Kapitel 4) gemessen.",
+ "hinweis_hold_out": "Die Hold-out-Fragen waren dem Entwickler bekannt (Fragetypen: Aufrufer, Copybook-Verwendung). Jede neue Fähigkeit wurde deshalb an den Dev-Fragen begründet (Aufrufer: J2). Der Test ist damit nicht mehr völlig unberührt.",
+ "harness_aenderung": "Nach den ersten 22 Z1-Sitzungen (5 leere Antworten) wurde im Harness ein Wiederholungsversuch ergänzt: Ollama verwirft Werkzeugaufrufe mit ungültigem JSON (Qwen maskiert ' als \\') still und liefert eine leere Nachricht; der Client wiederholt dann bis zu zweimal mit einem Hinweis. Die Läufe ohne Wiederholungsversuch liegen getrennt (ch5_z1_ohne_retry) und werden nur als Befund berichtet. Frühere Kapitel hatten keine leeren Antworten, die Änderung betrifft sie nicht.",
+ "zusatz_z4_z5": "Nachträglich ergänzt, nachdem Z1 und Z2 zeigten, dass Qwen answer_context selten wählt (Z1 4 von 30, Z2 11 von 30 Sitzungen); Z4 und Z5 prüfen die Werkzeugwahl als Engpass. Entscheidungsregel unverändert."
+}

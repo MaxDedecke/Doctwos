@@ -1,0 +1,18 @@
+{
+ "chapter": 6,
+ "titel": "Test der Entwicklungsergebnisse an den Hold-out-Fragen",
+ "stand": "2026-10-02T20:38:07+0200",
+ "tasks_file": "tasks_holdout.json",
+ "tasks_sha256": "fa36743e1a5406d699489b40c12852edc29b2013c804337994b05972300445c8",
+ "konfiguration": "Z5: v3-Server (Port 8002), nur answer_context, explain_symbol, get_code_entity, Denkmodus (think=true, num_predict 3500), Wiederholungsversuch bei verworfenem Werkzeugaufruf; Qwen3-8B, num_ctx 8192, T 0,3, Seeds 1000+Wdh.",
+ "server_sha256": "6dfeadb1c502299721f6d6c8fce9b723689b274598ff03e44dd542333f57a984",
+ "auswahlregel": "Aus den Entwicklungsläufen Z1 bis Z5 hat Z5 das höchste Rubrikmittel (0,434).",
+ "design": "10 Fragen × 3 Wiederholungen = 30 Sitzungen, nur MCP-Arm; Vergleich gepaart je Frage und Wiederholung gegen MCP v2 aus Kapitel 4 (gleiche Fragen); lokale Werkzeuge und ohne Werkzeuge aus Kapitel 4 als beschreibende Referenz",
+ "hypothesen": {
+  "H1": "Qualität nicht schlechter als MCP v2 (Nichtunterlegenheit −5 Prozentpunkte an der unteren Intervallgrenze).",
+  "H2": "Werkzeugaufrufe und Eingabe-Tokens niedriger als mit MCP v2.",
+  "H3": "Wandzeit höher als mit MCP v2 (Denkmodus)."
+ },
+ "bonferroni_alpha": 0.0125,
+ "hinweis": "Die Fragen waren dem Entwickler bekannt; der Test ist nicht mehr völlig unberührt."
+}

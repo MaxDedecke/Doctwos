@@ -1,0 +1,23 @@
+{
+ "chapter": 8,
+ "titel": "v4.1: Nachbesserung nach der Fehleranalyse von Kapitel 7",
+ "stand": "2026-10-02T22:03:10+0200",
+ "tasks_files": {
+  "tasks_holdout.json": "fa36743e1a5406d699489b40c12852edc29b2013c804337994b05972300445c8",
+  "tasks.json": "ba1f3c9d807bb60f3668d8dffdc529e6e8396fabee0e5dd0d28637f6b3752067"
+ },
+ "tasks_file": "tasks_holdout.json",
+ "tasks_sha256": "fa36743e1a5406d699489b40c12852edc29b2013c804337994b05972300445c8",
+ "konfiguration": "Wie Kapitel 7 (Prefetch, 3 Werkzeuge, Denkmodus, 5000 Zeichen), Server v4.1.",
+ "server_sha256": "ea96c7e456f5830d6cf474563b0cd71a8a96c1dd60830894c084de24e98bbbb3",
+ "aenderungen_gegenueber_v4": [
+  "Symbolerkennung erkennt Namen mit Abkuerzungspraefix (JWTAuthenticationFilter)",
+  "Absatzauswahl deckt die Fragewoerter ab (gierig, bereits abgedeckte Woerter zaehlen nicht erneut), Allerweltswoerter und Faktenlabels zaehlen nicht",
+  "ein PERFORM-Schritt weiter",
+  "Fakten je Absatz um berechnete Felder ergaenzt, Statusvariablen ohne Aussage entfernt",
+  "Paketgroesse wird eingehalten: Quelltexte werden gekuerzt statt Absaetze verworfen; Frage nicht mehr im Ergebnis wiederholt"
+ ],
+ "hinweis_methodik": "Die Aenderungen entstanden NACH Kenntnis der Rubrikpunkte von Kapitel 7 auf denselben Hold-out-Fragen. Kapitel 8 ist daher ein Entwicklungsdurchlauf, kein unabhaengiger Test; Gegenpruefung nur mit neuen Fragen.",
+ "design": "Hold-out 10 Fragen x 3 Wiederholungen und Entwicklungsfragen 6 x 3, nur MCP-Arm; gepaart gegen Kapitel 7 (v4), Kapitel 6 (v3) und Kapitel 4 (v2).",
+ "bonferroni_alpha": 0.0125
+}

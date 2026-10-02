@@ -1,0 +1,27 @@
+{
+ "lead": "Dieselben sechs Fragen, dieselbe Rubrik, derselbe Ablauf, aber mit GPT-6-Luna (Reasoning medium) in der Codex CLI. Luna beantwortet fast alles, sobald sie den Code sehen kann, mit lokaler Shell wie mit MCP. Der Abstand zwischen den beiden Wegen ist klein und nicht abgesichert. MCP ist hier nicht besser und nicht schneller, braucht aber mehr Schritte und Tokens.",
+ "findings": [
+  "<b>Qualität:</b> Mit lokaler Shell erfüllt Luna im Mittel 95 % der Rubrikpunkte, mit MCP 92 %, ohne Werkzeuge 6 %. MCP liegt 3,2 Prozentpunkte hinter der Shell, das Intervall reicht von −7,5 bis +0,9 (p = 0,067). Das ist nach dem vorab festgelegten Maßstab (p &lt; 0,0125) <b>kein belastbarer Unterschied</b>.",
+  "<b>Nutzbar (mindestens 50 % der Punkte):</b> Mit Shell und mit MCP in 30 von 30 Sitzungen, ohne Werkzeuge in 1 von 30. Die Aufgaben trennen die beiden Werkzeugwege bei Luna kaum, weil beide an der Obergrenze der Skala liegen (Deckeneffekt). Ein Vorteil von MCP wäre hier nur an schwereren Aufgaben messbar.",
+  "<b>Ohne Werkzeuge:</b> Luna rät nicht. Sie antwortet meist, dass sie ohne Code nichts belegen kann (Rubrik 6 %). Anders als Qwen erfindet sie dabei keine Dateinamen oder Zeilen.",
+  "<b>Geschwindigkeit:</b> Kein belastbarer Unterschied. MCP braucht im Mittel 35,2 s, die Shell 33,4 s (+1,8 s, Intervall −4,5 bis +7,4 s, p = 0,41). Je Aufgabe ist MCP bei J1 (−5,8 s) und J3 (−6,1 s) schneller und bei J2 (+7,8 s), C2 (+6,6 s), C3 (+5,6 s) und C1 (+2,7 s) langsamer.",
+  "<b>Schritte und Tokens:</b> MCP braucht 7,9 Werkzeugaufrufe je Antwort, die Shell 4,1 (+94 %). Der Eingabeaufwand liegt bei 127.800 Tokens gegenüber 80.978 (+57 %, p &lt; 0,0001). Rund 80 % davon kamen aus dem Zwischenspeicher des Anbieters, die Zahlen sind deshalb nicht kostengleich. Es ist das einzige klar signifikante Ergebnis, und es spricht gegen MCP.",
+  "<b>Die Suchlücke bei Java:</b> Auch Luna findet <code>AuthDataAccessor.authenticate</code> nicht auf Anhieb. In 9 von 15 Java-Sitzungen mit MCP gab es mindestens eine leere Suche. Luna formuliert dann um (<code>AuthDataAccessor</code>, <code>Klasse#methode</code>, <code>search_knowledge</code>) und kommt trotzdem ans Ziel: Rubrik 0,94 mit leerer Suche, 0,91 ohne. Die Lücke kostet Luna Schritte, aber keine Qualität.",
+  "<b>Wo MCP Punkte liegen lässt:</b> Am deutlichsten bei C3 (Regeln und Batch). Die Ablehnungsdatei <code>DALYREJS</code> nennt MCP nur in 2 von 5 Läufen, die Shell in 5 von 5. Bei C2 fehlt die Herleitung der neuen Transaktions-ID in 3 von 5 Läufen (Shell: 2 von 5).",
+  "<b>Fehler und Werkzeugnutzung:</b> Beide Wege sind fast fehlerfrei (Shell 0,23, MCP 0,03 Fehler je Sitzung). Alle 90 Sitzungen lieferten eine Antwort, es gab keine Zeitüberschreitung und keinen Hinweis auf Zugriffe außerhalb des Repositorys."
+ ],
+ "method": [
+  "<b>Modell:</b> <code>gpt-6-luna</code> mit Reasoning <code>medium</code>, ausgeführt über die Codex CLI 0.160.0 (<code>codex exec</code>) mit Cloud-Anbindung. Kein Seed und keine Temperaturkontrolle.",
+  "<b>Design:</b> Identisch zu Kapitel 1: 6 Aufgaben × 3 Varianten × 5 Wiederholungen = 90 Sitzungen, gleiche Fragen, gleiche Rubrik (gleicher Prüfsummenwert), gleicher Reihenfolgeplan, gleiche Statistik.",
+  "<b>Varianten:</b> Ohne Werkzeuge: Shell und MCP abgeschaltet, leeres Arbeitsverzeichnis. Lokal: nur die Codex-Shell (lesend) im Checkout. MCP: nur die Doctus-Werkzeuge, Shell abgeschaltet.",
+  "<b>Isolierung:</b> Eigenes Codex-Verzeichnis ohne Plugins, Apps, Websuche und Gedächtnis. Der Checkout lag in einer Kopie außerhalb des Repositorys, jeder Shell-Befehl wurde auf Zugriffe außerhalb davon und auf Benchmarkbegriffe geprüft. Es gab keinen Treffer.",
+  "<b>Abweichungen:</b> Keine Sitzung ist ausgefallen oder wurde wiederholt. Protokoll und Prüfsumme stehen in <code>PROTOCOL_CH2.md</code> und <code>manifest_ch2.lock</code>."
+ ],
+ "limits": [
+  "Deckeneffekt: Beide Werkzeugwege liegen bei 92 bis 95 %. Kleine Qualitätsunterschiede lassen sich kaum messen, und die Rubrik trennt gute von sehr guten Antworten nicht.",
+  "Die lokale Variante ist die Shell von Codex (<code>rg</code>, <code>sed</code>) und damit mächtiger als die drei Dateitools in Kapitel 1. Der Vergleich der Kapitel ist deshalb nur beschreibend.",
+  "Die Zeiten enthalten Cloud-Latenz und Serverlast. Die Tokenzahlen enthalten den Systemtext von Codex (rund 8.000 Tokens je Aufruf, gemessen in der Variante ohne Werkzeuge) und Zwischenspeichertreffer. Beides ist nicht mit Kapitel 1 vergleichbar.",
+  "Das Modell kann die öffentlichen Repositories aus dem Training kennen. Die Variante ohne Werkzeuge zeigt mit 6 % wenig Vorwissen, ausschließen lässt es sich nicht.",
+  "Die Rubrik prüft Begriffe, keine Bedeutung, und es gibt keine menschliche Zweitbewertung. Nur sechs Aufgaben aus zwei Beständen."
+ ]
+}

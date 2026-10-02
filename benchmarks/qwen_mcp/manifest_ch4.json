@@ -1,0 +1,40 @@
+{
+ "chapter": 4,
+ "stand": "2026-10-02",
+ "titel": "Prüfung mit anderen Fragen (Hold-out)",
+ "frage": "Tragen die Ergebnisse mit MCP v2 auch bei Fragen, an denen die Schnittstelle nicht entwickelt wurde?",
+ "tasks_file": "tasks_holdout.json",
+ "tasks_sha256": "fa36743e1a5406d699489b40c12852edc29b2013c804337994b05972300445c8",
+ "fragen": "10 neue Fragen (5 COBOL aus CardDemo, 5 Java aus Syncope), mit Quelltext-Beleg und Rubrik vorab festgelegt; Rubriken wurden nur gegen ihre eigene Sollantwort und das Wiederholen der Frage geprüft, nicht gegen Modellantworten.",
+ "unveraendert": {
+  "mcp_server_sha256": "6e02d594d1735a6bc0738ef85c22db068d61193550d1e743968e44f339bac6ed",
+  "backend_commit": "dc7d3df47839f7881a6187545689bf7543d11064",
+  "prompt_text": "derselbe Text wie in Kapitel 1 bis 3",
+  "statistik": "wie Kapitel 1 bis 3",
+  "bonferroni_alpha": 0.0125
+ },
+ "design": "10 Fragen × 3 Varianten (ohne Werkzeuge, lokale Werkzeuge, MCP v2) × 3 Wiederholungen = 90 Sitzungen je Modell; Qwen3-8B und GPT-6-Luna wie zuvor.",
+ "primaere_kennzahlen": [
+  "Qualität (Rubrikwert)",
+  "Werkzeugaufrufe",
+  "Wandzeit",
+  "Eingabe-Tokens"
+ ],
+ "vergleich": "MCP v2 gegen lokale Werkzeuge, gepaart je Frage und Wiederholung; zusätzlich beschreibend gegen die Messung an den ursprünglichen sechs Fragen (Kapitel 3).",
+ "hypothesen": {
+  "H1": "Qwen: MCP v2 liefert bessere Qualität als die lokalen Werkzeuge (Wiederholung des Befunds aus Kapitel 3).",
+  "H2": "Luna: MCP v2 ist qualitativ nicht schlechter als die lokale Shell (Nichtunterlegenheit, Grenze −5 Prozentpunkte an der unteren Intervallgrenze).",
+  "H3": "Beide Modelle: MCP v2 braucht nicht weniger Werkzeugaufrufe, Zeit und Tokens als die lokalen Werkzeuge (zweiseitig geprüft).",
+  "H4": "Luna: Der Mehraufwand an Werkzeugaufrufen gegenüber der Shell ist bei Fragen zu ganzen Programmen (H-C1, H-C3, H-C4) größer als bei Fragen zu einzelnen Methoden (H-C2, H-J1, H-J2, H-J3, H-J5)."
+ },
+ "verallgemeinerung": "Der Unterschied der MCP-v2-Qualität zwischen den ursprünglichen Fragen und den neuen Fragen wird beschreibend berichtet (kein Test).",
+ "umgebung": {
+  "qwen": "wie Kapitel 1 und 3 (num_ctx 8192, T 0,3, Seeds 1000+Wdh.)",
+  "luna": "wie Kapitel 3 (qwen3:8b zuvor entladen)"
+ },
+ "bekannte_unterschiede": [
+  "Die Rubrik für H-J4 und H-C5 beruht auf Aufzählungen (Aufrufer, Programme, Felder); das Ergebnis zeigt hier vor allem Vollständigkeit.",
+  "Der Qwen-Harness reicht nur die Werkzeugbeschreibungen weiter, Codex zusätzlich die Server-Hinweise."
+ ],
+ "eingefroren": "2026-10-02T18:04:49+0200"
+}

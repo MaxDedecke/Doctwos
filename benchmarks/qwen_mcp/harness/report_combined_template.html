@@ -1,0 +1,574 @@
+<title>Doctus MCP-Benchmark</title>
+<style>
+/* Layout: ein Lesefluss, Befund oben, danach Koordinatensystem, Disziplinen, Effekte, Methodik. */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --ink: #16181d;
+  --ink-2: #4a4f59;
+  --ink-3: #6e7380;
+  --line: #dcdde2;
+  --grid: #ebecef;
+  --mcp: #2a78d6;
+  --local: #eb6834;
+  --none: #1baf7a;
+  --good: #1f7a45;
+  --bad: #b3372f;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --surface: #1a1d23; --ink: #eceef2; --ink-2: #b5bac4; --ink-3: #8b909c;
+    --line: #2d313a; --grid: #23272f; --mcp: #3987e5; --local: #d95926; --none: #199e70;
+    --good: #4cc27f; --bad: #ee7b72; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --surface: #1a1d23; --ink: #eceef2; --ink-2: #b5bac4; --ink-3: #8b909c;
+  --line: #2d313a; --grid: #23272f; --mcp: #3987e5; --local: #d95926; --none: #199e70;
+  --good: #4cc27f; --bad: #ee7b72; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; padding-inline: 20px; padding-block: 28px 64px; }
+main { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4.2vw, 42px); line-height: 1.12; }
+h2 { font-size: 24px; line-height: 1.2; }
+h3 { font-size: 17px; }
+p { margin: 0; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.lead { font-size: 18px; color: var(--ink-2); max-width: 68ch; }
+.sec { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sec > p.sub { color: var(--ink-2); max-width: 70ch; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.sw { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.sw.mcp { background: var(--mcp); } .sw.local { background: var(--local); } .sw.none { background: var(--none); }
+
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.vcell { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.vcell .k { font-size: 13px; color: var(--ink-3); }
+.vcell .v { font-family: var(--font-data); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.vcell .d { font-size: 13px; color: var(--ink-2); }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--font-data); fill: var(--ink-2); font-size: 11.5px; }
+svg .t-strong { fill: var(--ink); }
+svg .grid { stroke: var(--grid); stroke-width: 1; }
+svg .axis { stroke: var(--line); stroke-width: 1.2; }
+.chart-wrap { position: relative; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 4px 16px rgba(0,0,0,.14); z-index: 5; min-width: 150px; opacity: 0; transition: opacity .08s; }
+.tip b { font-weight: 600; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; font-family: var(--font-data); font-size: 12px; }
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+thead th { font-family: var(--font-data); font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.tablewrap { overflow-x: auto; }
+.badge { display: inline-block; font-family: var(--font-data); font-size: 11.5px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--ink-2); }
+.badge.mcp { border-color: var(--mcp); color: var(--mcp); } .badge.local { border-color: var(--local); color: var(--local); } .badge.none { border-color: var(--none); color: var(--none); }
+details { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--surface); }
+details + details { margin-top: 8px; }
+summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+details pre { white-space: pre-wrap; font-family: var(--font-body); font-size: 14px; color: var(--ink-2); margin: 10px 0 0; overflow-wrap: anywhere; }
+.toolline { font-family: var(--font-data); font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; margin-top: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.note { font-size: 13.5px; color: var(--ink-3); max-width: 72ch; }
+ul.clean { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
+.theme-toggle { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 14px; font-family: var(--font-data); font-size: 12px; background: var(--surface); color: var(--ink-2); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px; cursor: pointer; z-index: 10; }
+:focus-visible { outline: 2px solid var(--mcp); outline-offset: 2px; }
+@media (max-width: 560px) { body { padding-inline: 16px; } .card { padding: 12px; } }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+
+<button class="theme-toggle" id="themeBtn" type="button" aria-label="Darstellung wechseln">hell / dunkel</button>
+<main id="root"></main>
+
+<script id="chapters" type="application/json">__CHAPTERS__</script>
+<script>
+function renderChapter(D, N, $root, chap) {
+  var ARMS = ['none', 'local', 'mcp'];
+  var ARM_LABEL = chap.armLabel;
+  var ARM_SHORT = { none: 'ohne', local: 'lokal', mcp: 'MCP' };
+  var COLORS = { none: 'var(--none)', local: 'var(--local)', mcp: 'var(--mcp)' };
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function el(tag, attrs, html) { var e = document.createElement(tag); if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; }
+  function sv(tag, attrs, text) { var e = document.createElementNS(NS, tag); if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  function f(x, d) { return x == null ? '–' : Number(x).toFixed(d == null ? 1 : d); }
+  function pct(x, d) { return x == null ? '–' : (x * 100).toFixed(d == null ? 0 : d) + ' %'; }
+  function signed(x, d, suf) { if (x == null) return '–'; var s = x > 0 ? '+' : (x < 0 ? '−' : ''); return s + Math.abs(x).toFixed(d) + (suf || ''); }
+  function cell(t, a) { return D.cells[t + '|' + a]; }
+  var tasks = D.tasks.map(function (t) { return t.id; });
+  var catOf = {}; D.tasks.forEach(function (t) { catOf[t.id] = t.category; });
+  var projOf = {}; D.tasks.forEach(function (t) { projOf[t.id] = t.project === 'carddemo' ? 'COBOL' : 'Java'; });
+  var eff = (D.effects['mcp-local'] || []);
+  function effOf(key, pair) { return (D.effects[pair || 'mcp-local'] || []).filter(function (e) { return e.key === key; })[0]; }
+
+  var tip = el('div', { class: 'tip', role: 'status' });
+  function showTip(wrap, evt, html) {
+    tip.innerHTML = html; wrap.appendChild(tip);
+    var r = wrap.getBoundingClientRect(); var x = evt.clientX - r.left + 14; var y = evt.clientY - r.top + 14;
+    if (x + 200 > r.width) x = Math.max(4, evt.clientX - r.left - 214);
+    tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.style.opacity = 1;
+  }
+  function hideTip() { tip.style.opacity = 0; }
+
+  /* ---------- Kopf und Befund ---------- */
+  var head = el('header', { class: 'sec' });
+  head.appendChild(el('div', { class: 'eyebrow' }, chap.eyebrow + ' · ' + D.n_sessions + ' Sitzungen'));
+  head.appendChild(el('h2', { style: 'font-size:30px' }, chap.title));
+  head.appendChild(el('p', { class: 'lead' }, N.lead));
+  $root.appendChild(head);
+
+  var vd = el('div', { class: 'verdict' });
+  function vcell(label, value, detail, cls) { vd.appendChild(el('div', { class: 'vcell' }, '<span class="k">' + label + '</span><span class="v ' + (cls || '') + '">' + value + '</span><span class="d">' + detail + '</span>')); }
+  var q = effOf('rubric'), tm = effOf('wall_s'), tk = effOf('tokens_total'), us = effOf('usable');
+  if (q) vcell('Qualität (Rubrik)', pct(q.mean_a) + ' vs ' + pct(q.mean_b), 'MCP vs lokale Tools · Differenz ' + signed(q.diff * 100, 1, ' PP') + ' [' + signed(q.lo * 100, 1) + '; ' + signed(q.hi * 100, 1) + ']', q.diff > 0 ? 'pos' : 'neg');
+  if (tm) vcell('Zeit je Antwort', f(tm.mean_a, 0) + ' s vs ' + f(tm.mean_b, 0) + ' s', 'MCP vs lokale Tools · ' + signed(tm.rel * 100, 0, ' %') + ' (p = ' + f(tm.p, 3) + ')', tm.diff < 0 ? 'pos' : 'neg');
+  if (tk) vcell('Tokens je Antwort', Math.round(tk.mean_a).toLocaleString('de-DE') + ' vs ' + Math.round(tk.mean_b).toLocaleString('de-DE'), 'MCP vs lokale Tools · ' + signed(tk.rel * 100, 0, ' %') + ' (p = ' + f(tk.p, 3) + ')', tk.diff < 0 ? 'pos' : 'neg');
+  if (us) vcell('Nutzbare Antworten', pct(us.mean_a) + ' vs ' + pct(us.mean_b), 'Anteil mit ≥ 50 % Rubrik · MCP vs lokal', us.diff > 0 ? 'pos' : 'neg');
+  $root.appendChild(vd);
+
+  var fin = el('section', { class: 'sec' });
+  fin.appendChild(el('h2', null, 'Befund in Kürze'));
+  var ul = el('ul', { class: 'clean' });
+  N.findings.forEach(function (t) { ul.appendChild(el('li', null, t)); });
+  fin.appendChild(ul);
+  $root.appendChild(fin);
+
+  /* ---------- Koordinatensystem: Qualität über Zeit ---------- */
+  var s1 = el('section', { class: 'sec' });
+  s1.appendChild(el('h2', null, 'Qualität gegen Geschwindigkeit'));
+  s1.appendChild(el('p', { class: 'sub' }, 'Jeder große Punkt ist der Mittelwert einer Aufgabe mit fünf Wiederholungen, die kleinen Punkte sind die einzelnen Sitzungen. Oben links ist am besten: schnell und gut. Die Linie zeigt je Aufgabe den Weg von den lokalen Dateitools (orange) zu MCP (blau).'));
+  var lg = el('div', { class: 'legend' }); ARMS.slice().reverse().forEach(function (a) { lg.appendChild(el('span', null, '<i class="sw ' + a + '"></i>' + ARM_LABEL[a])); });
+  s1.appendChild(lg);
+  var wrap1 = el('div', { class: 'chart-wrap card' }); s1.appendChild(wrap1); $root.appendChild(s1);
+
+  (function scatter() {
+    var W = 900, H = 520, m = { l: 56, r: 24, t: 24, b: 54 };
+    var maxT = 0; D.sessions.forEach(function (s) { if (s.wall_s > maxT) maxT = s.wall_s; });
+    var xmax = Math.ceil(maxT / 10) * 10; if (xmax < 20) xmax = 20;
+    var X = function (v) { return m.l + (v / xmax) * (W - m.l - m.r); };
+    var Y = function (v) { return H - m.b - v * (H - m.t - m.b); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Streudiagramm Qualität gegen Wandzeit je Aufgabe und Arm' });
+    for (var i = 0; i <= 4; i++) { var v = i / 4; svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), class: 'grid' })); svg.appendChild(sv('text', { x: m.l - 8, y: Y(v) + 4, 'text-anchor': 'end' }, Math.round(v * 100) + ' %')); }
+    var step = xmax <= 60 ? 10 : (xmax <= 150 ? 20 : 50);
+    for (var x = 0; x <= xmax; x += step) { svg.appendChild(sv('line', { x1: X(x), x2: X(x), y1: m.t, y2: H - m.b, class: 'grid' })); svg.appendChild(sv('text', { x: X(x), y: H - m.b + 18, 'text-anchor': 'middle' }, x + ' s')); }
+    svg.appendChild(sv('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, class: 'axis' }));
+    svg.appendChild(sv('line', { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, class: 'axis' }));
+    svg.appendChild(sv('text', { x: (W + m.l) / 2, y: H - 10, 'text-anchor': 'middle', class: 't-strong' }, 'Wandzeit je Antwort (Sekunden, niedriger ist besser) →'));
+    var yl = sv('text', { transform: 'rotate(-90)', x: -(H - m.b + m.t) / 2, y: 14, 'text-anchor': 'middle', class: 't-strong' }, 'Rubrikwert (höher ist besser) →'); svg.appendChild(yl);
+    svg.appendChild(sv('text', { x: m.l + 10, y: m.t + 16, style: 'font-size:12px;opacity:.75' }, '▲ gut und schnell'));
+    svg.appendChild(sv('text', { x: W - m.r - 10, y: H - m.b - 10, 'text-anchor': 'end', style: 'font-size:12px;opacity:.75' }, 'langsam und schwach ▼'));
+    D.sessions.forEach(function (s) { var c = sv('circle', { cx: X(s.wall_s), cy: Y(s.rubric), r: 3, fill: COLORS[s.arm], 'fill-opacity': .28 }); svg.appendChild(c); });
+    tasks.forEach(function (t) { var a = cell(t, 'local'), b = cell(t, 'mcp'); if (!a || !b) return;
+      svg.appendChild(sv('line', { x1: X(a.wall_s), y1: Y(a.rubric), x2: X(b.wall_s), y2: Y(b.rubric), stroke: 'var(--ink-3)', 'stroke-width': 1.2, 'stroke-dasharray': '3 3', opacity: .7 })); });
+    tasks.forEach(function (t) { ARMS.forEach(function (a) { var c = cell(t, a); if (!c) return;
+      var g = sv('g', { tabindex: 0, style: 'cursor:pointer', 'aria-label': t + ' ' + ARM_LABEL[a] });
+      g.appendChild(sv('circle', { cx: X(c.wall_s), cy: Y(c.rubric), r: 15, fill: 'transparent' }));
+      g.appendChild(sv('circle', { cx: X(c.wall_s), cy: Y(c.rubric), r: 8, fill: COLORS[a], stroke: 'var(--surface)', 'stroke-width': 2 }));
+      if (a === 'mcp') g.appendChild(sv('text', { x: X(c.wall_s) + 11, y: Y(c.rubric) - 9, class: 't-strong', style: 'font-size:11px' }, t.split('-')[0]));
+      var html = function () { return '<b>' + t + '</b> · ' + catOf[t] + ' (' + projOf[t] + ')<div class="row"><span>' + ARM_LABEL[a] + '</span></div><div class="row"><span>Qualität</span><span>' + pct(c.rubric) + ' ± ' + pct(c.rubric_sd) + '</span></div><div class="row"><span>Zeit</span><span>' + f(c.wall_s) + ' s</span></div><div class="row"><span>Tokens</span><span>' + Math.round(c.tokens_total) + '</span></div><div class="row"><span>Werkzeugaufrufe</span><span>' + f(c.tool_calls) + '</span></div>'; };
+      g.addEventListener('mousemove', function (e) { showTip(wrap1, e, html()); }); g.addEventListener('mouseleave', hideTip);
+      g.addEventListener('focus', function () { var r = g.getBoundingClientRect(), w = wrap1.getBoundingClientRect(); showTip(wrap1, { clientX: r.left + 10, clientY: r.top + 10 }, html()); }); g.addEventListener('blur', hideTip);
+      svg.appendChild(g); }); });
+    wrap1.appendChild(svg);
+  })();
+
+  /* ---------- Disziplinen ---------- */
+  var s2 = el('section', { class: 'sec' });
+  s2.appendChild(el('h2', null, 'Die sechs Disziplinen'));
+  s2.appendChild(el('p', { class: 'sub' }, 'Jede Disziplin ist eine Frage an echten Code mit überprüfbarer Antwort. Links steht, wie viel der Antwort stimmt, rechts, wie lange das Modell braucht. Die Zahl am Balkenende ist der Mittelwert aus fünf Läufen.'));
+  var lg2 = lg.cloneNode(true); s2.appendChild(lg2);
+  var grid2 = el('div', { class: 'grid2' });
+  var wq = el('div', { class: 'card chart-wrap' }); var wt = el('div', { class: 'card chart-wrap' });
+  grid2.appendChild(wq); grid2.appendChild(wt); s2.appendChild(grid2); $root.appendChild(s2);
+
+  function barChart(wrap, key, title, fmtv, max, axisSuffix) {
+    var rowH = 74, W = 440, m = { l: 128, r: 52, t: 30, b: 28 }, H = m.t + m.b + tasks.length * rowH;
+    var X = function (v) { return m.l + (v / max) * (W - m.l - m.r); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': title });
+    svg.appendChild(sv('text', { x: m.l, y: 14, class: 't-strong', style: 'font-size:12.5px' }, title));
+    var ticks = 4; for (var i = 0; i <= ticks; i++) { var v = max * i / ticks; svg.appendChild(sv('line', { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b, class: 'grid' })); svg.appendChild(sv('text', { x: X(v), y: H - m.b + 16, 'text-anchor': 'middle' }, fmtv(v, true))); }
+    tasks.forEach(function (t, ti) {
+      var y0 = m.t + ti * rowH; var yc = y0 + rowH / 2;
+      svg.appendChild(sv('text', { x: m.l - 10, y: yc - 4, 'text-anchor': 'end', class: 't-strong', style: 'font-size:12px' }, catOf[t]));
+      svg.appendChild(sv('text', { x: m.l - 10, y: yc + 10, 'text-anchor': 'end', style: 'font-size:10.5px;opacity:.8' }, t.split('-')[0] + ' · ' + projOf[t]));
+      var winner = null; var bestV = null;
+      ARMS.forEach(function (a, ai) { var c = cell(t, a); if (!c) return; var by = y0 + 8 + ai * 19;
+        var val = c[key]; var g = sv('g', { tabindex: 0 });
+        g.appendChild(sv('rect', { x: m.l, y: by - 2, width: W - m.l - m.r + 40, height: 18, fill: 'transparent' }));
+        g.appendChild(sv('rect', { x: m.l, y: by, width: Math.max(2, X(val) - m.l), height: 13, rx: 3, fill: COLORS[a] }));
+        g.appendChild(sv('text', { x: X(val) + 6, y: by + 11, class: 't-strong', style: 'font-size:11px' }, fmtv(val)));
+        var html = '<b>' + t + '</b><div class="row"><span>' + ARM_LABEL[a] + '</span><span>' + fmtv(val) + '</span></div>';
+        g.addEventListener('mousemove', function (e) { showTip(wrap, e, html); }); g.addEventListener('mouseleave', hideTip);
+        g.addEventListener('focus', function () { var r = g.getBoundingClientRect(); showTip(wrap, { clientX: r.left + 20, clientY: r.top + 10 }, html); }); g.addEventListener('blur', hideTip);
+        svg.appendChild(g); });
+    });
+    svg.appendChild(sv('line', { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, class: 'axis' }));
+    wrap.appendChild(svg);
+  }
+  barChart(wq, 'rubric', 'Antwortqualität (Anteil erfüllter Rubrikpunkte, höher ist besser)', function (v, axis) { return axis ? Math.round(v * 100) + '%' : Math.round(v * 100) + ' %'; }, 1);
+  var tmax = 0; D.speed.forEach(function (r) { ARMS.forEach(function (a) { if (r[a] > tmax) tmax = r[a]; }); }); tmax = Math.ceil(tmax / 10) * 10 || 10;
+  barChart(wt, 'wall_s', 'Zeit je Antwort (Sekunden, niedriger ist besser)', function (v, axis) { return axis ? Math.round(v) : v.toFixed(1) + ' s'; }, tmax);
+
+  /* ---------- Wer ist wo schneller ---------- */
+  var s3 = el('section', { class: 'sec' });
+  s3.appendChild(el('h2', null, 'Wo ist MCP schneller, wo nicht?'));
+  s3.appendChild(el('p', { class: 'sub' }, 'Zeit je Antwort im Mittel. Die Spalte „Unterschied“ vergleicht MCP mit den lokalen Dateitools: ein negativer Wert heißt, MCP war schneller.'));
+  var tw = el('div', { class: 'card tablewrap' });
+  var tb = '<table><thead><tr><th>Disziplin</th><th>ohne</th><th>lokal</th><th>MCP</th><th>Unterschied MCP–lokal</th><th>Qualität lokal → MCP</th><th>Schnellster Arm</th></tr></thead><tbody>';
+  D.speed.forEach(function (r) {
+    var diff = (r.mcp != null && r.local != null) ? r.mcp - r.local : null; var rel = diff != null ? diff / r.local : null;
+    var best = ARMS.filter(function (a) { return r[a] != null; }).sort(function (a, b) { return r[a] - r[b]; })[0];
+    var ql = cell(r.task, 'local'), qm = cell(r.task, 'mcp');
+    tb += '<tr><td><b>' + r.category + '</b><br><span class="note">' + r.task + ' · ' + projOf[r.task] + '</span></td><td>' + f(r.none) + ' s</td><td>' + f(r.local) + ' s</td><td>' + f(r.mcp) + ' s</td><td class="' + (diff < 0 ? 'pos' : 'neg') + '">' + signed(diff, 1, ' s') + ' (' + signed(rel * 100, 0, ' %') + ')</td><td>' + pct(ql && ql.rubric) + ' → ' + pct(qm && qm.rubric) + '</td><td><span class="badge ' + best + '">' + ARM_LABEL[best] + '</span></td></tr>';
+  });
+  tb += '</tbody></table>'; tw.innerHTML = tb; s3.appendChild(tw); $root.appendChild(s3);
+
+  /* ---------- Forest-Plot ---------- */
+  var s4 = el('section', { class: 'sec' });
+  s4.appendChild(el('h2', null, 'Gesamteffekt von MCP je Dimension'));
+  s4.appendChild(el('p', { class: 'sub' }, 'Relative Veränderung von MCP gegenüber den lokalen Dateitools, bei allen Dimensionen so gedreht, dass rechts „MCP besser“ bedeutet. Der Balken ist das 95-%-Konfidenzintervall. Schneidet er die Nulllinie, ist der Unterschied nicht belastbar.'));
+  var wrap4 = el('div', { class: 'card chart-wrap' }); s4.appendChild(wrap4); $root.appendChild(s4);
+  (function forest() {
+    var rows = eff.filter(function (e) { return e.rel != null; });
+    var rowH = 46, W = 900, m = { l: 210, r: 150, t: 34, b: 38 }, H = m.t + m.b + rows.length * rowH;
+    var lim = 0; rows.forEach(function (e) { var a = [e.rel_lo, e.rel_hi, e.rel]; a.forEach(function (v) { if (Math.abs(v) > lim) lim = Math.abs(v); }); });
+    lim = Math.min(Math.max(0.2, Math.ceil(lim * 10) / 10), 3); var X = function (v) { return m.l + ((v + lim) / (2 * lim)) * (W - m.l - m.r); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Forest-Plot: Effekt von MCP gegenüber lokalen Dateitools' });
+    var steps = 4; for (var i = 0; i <= steps; i++) { var v = -lim + 2 * lim * i / steps; svg.appendChild(sv('line', { x1: X(v), x2: X(v), y1: m.t, y2: H - m.b, class: 'grid' })); svg.appendChild(sv('text', { x: X(v), y: H - m.b + 16, 'text-anchor': 'middle' }, signed(v * 100, 0, ' %'))); }
+    svg.appendChild(sv('line', { x1: X(0), x2: X(0), y1: m.t - 6, y2: H - m.b, stroke: 'var(--ink-2)', 'stroke-width': 1.4 }));
+    svg.appendChild(sv('text', { x: X(0) - 8, y: 16, 'text-anchor': 'end', class: 't-strong' }, '← MCP schlechter'));
+    svg.appendChild(sv('text', { x: X(0) + 8, y: 16, class: 't-strong' }, 'MCP besser →'));
+    rows.forEach(function (e, i) {
+      var yc = m.t + i * rowH + rowH / 2; var dir = e.direction; var v = e.rel * dir, lo = Math.min(e.rel_lo * dir, e.rel_hi * dir), hi = Math.max(e.rel_lo * dir, e.rel_hi * dir);
+      var sig = lo > 0 || hi < 0; var col = 'var(--mcp)';
+      svg.appendChild(sv('text', { x: m.l - 14, y: yc - 2, 'text-anchor': 'end', class: 't-strong', style: 'font-size:12.5px' }, e.label));
+      svg.appendChild(sv('text', { x: m.l - 14, y: yc + 12, 'text-anchor': 'end', style: 'font-size:10.5px;opacity:.8' }, e.unit));
+      var g = sv('g', { tabindex: 0 });
+      g.appendChild(sv('rect', { x: m.l, y: yc - rowH / 2, width: W - m.l - m.r, height: rowH, fill: 'transparent' }));
+      g.appendChild(sv('line', { x1: X(lo), x2: X(hi), y1: yc, y2: yc, stroke: col, 'stroke-width': 3, 'stroke-linecap': 'round', opacity: sig ? 1 : .45 }));
+      g.appendChild(sv('circle', { cx: X(v), cy: yc, r: 7, fill: sig ? col : 'var(--surface)', stroke: col, 'stroke-width': 2 }));
+      svg.appendChild(sv('text', { x: W - m.r + 14, y: yc - 2, class: 't-strong', style: 'font-size:12px' }, signed(v * 100, 0, ' %') + (sig ? ' ●' : '')));
+      svg.appendChild(sv('text', { x: W - m.r + 14, y: yc + 13, style: 'font-size:10.5px' }, 'p = ' + f(e.p, 3) + ' · n = ' + e.n));
+      var html = '<b>' + e.label + '</b><div class="row"><span>MCP</span><span>' + (e.key === 'wall_s' ? f(e.mean_a) + ' s' : (e.key === 'tokens_total' || e.key === 'tool_calls' ? f(e.mean_a, e.key === 'tool_calls' ? 1 : 0) : pct(e.mean_a))) + '</span></div><div class="row"><span>lokale Tools</span><span>' + (e.key === 'wall_s' ? f(e.mean_b) + ' s' : (e.key === 'tokens_total' || e.key === 'tool_calls' ? f(e.mean_b, e.key === 'tool_calls' ? 1 : 0) : pct(e.mean_b))) + '</span></div><div class="row"><span>Effekt d<sub>z</sub></span><span>' + f(e.dz, 2) + '</span></div>';
+      g.addEventListener('mousemove', function (ev) { showTip(wrap4, ev, html); }); g.addEventListener('mouseleave', hideTip);
+      g.addEventListener('focus', function () { var r = g.getBoundingClientRect(); showTip(wrap4, { clientX: r.left + 20, clientY: r.top + 10 }, html); }); g.addEventListener('blur', hideTip);
+      svg.appendChild(g);
+    });
+    wrap4.appendChild(svg);
+  })();
+  wrap4.appendChild(el('p', { class: 'note', style: 'margin-top:10px' }, '● = Konfidenzintervall schneidet die Null nicht. Bei den Tests gilt für die vier Hauptkennzahlen (Qualität, Zeit, Tokens, Nutzbarkeit) die korrigierte Schwelle p < 0,0125.'));
+
+  /* ---------- Gesamttabelle ---------- */
+  var s5 = el('section', { class: 'sec' });
+  s5.appendChild(el('h2', null, 'Alle Kennzahlen im Überblick'));
+  var t5 = el('div', { class: 'card tablewrap' });
+  var am = D.arm_means; var rowsDef = [
+    ['Antwortqualität (Rubrik)', 'rubric', function (v) { return pct(v); }], ['Nutzbar (Rubrik ≥ 50 %)', 'usable', pct],
+    ['Wandzeit je Antwort', 'wall_s', function (v) { return f(v) + ' s'; }], ['Tokens gesamt', 'tokens_total', function (v) { return Math.round(v).toLocaleString('de-DE'); }],
+    ['Tokens Prompt (summiert)', 'tokens_prompt', function (v) { return Math.round(v).toLocaleString('de-DE'); }], ['Tokens Antwort', 'tokens_completion', function (v) { return Math.round(v).toLocaleString('de-DE'); }],
+    ['Werkzeugaufrufe', 'tool_calls', function (v) { return f(v, 1); }], ['davon Fehler', 'tool_errors', function (v) { return f(v, 2); }], ['davon leere Treffer', 'tool_empty', function (v) { return f(v, 2); }],
+    ['Zitierte Dateien existieren', 'cite_file_rate', pct], ['Zitierte Zeilen plausibel', 'cite_line_rate', pct], ['Ohne erzwungenen Abschluss', 'completed', pct], ['Modellzüge je Antwort', 'turns', function (v) { return f(v, 1); }]];
+  var tb5 = '<table><thead><tr><th>Kennzahl</th><th>ohne</th><th>lokal</th><th>MCP</th></tr></thead><tbody>';
+  rowsDef.forEach(function (r) { tb5 += '<tr><td>' + r[0] + '</td>' + ARMS.map(function (a) { return '<td>' + (am[a] ? r[2](am[a][r[1]]) : '–') + '</td>'; }).join('') + '</tr>'; });
+  tb5 += '</tbody></table>'; t5.innerHTML = tb5; s5.appendChild(t5);
+  var use = el('p', { class: 'note' }); var parts = [];
+  ['local', 'mcp'].forEach(function (a) { var u = D.tool_usage[a] || {}; var s = Object.keys(u).sort(function (x, y) { return u[y] - u[x]; }).map(function (k) { return k + ' ×' + u[k]; }).join(', '); parts.push('<b>' + ARM_LABEL[a] + ':</b> ' + (s || 'keine Aufrufe')); });
+  use.innerHTML = 'Genutzte Werkzeuge. ' + parts.join(' · ') + '. Auf das Limit von 6 000 Zeichen gekürzte Werkzeugausgaben: ' + D.truncated_outputs + '.';
+  s5.appendChild(use); $root.appendChild(s5);
+
+  /* ---------- Rubrik auf Item-Ebene ---------- */
+  var s6 = el('section', { class: 'sec' });
+  s6.appendChild(el('h2', null, 'Was genau wurde erkannt?'));
+  s6.appendChild(el('p', { class: 'sub' }, 'Jede Disziplin hat 6 bis 10 Punkte mit festem Gewicht, die in der Antwort vorkommen müssen. Die Zahl zeigt, in wie vielen der fünf Läufe der Punkt erfüllt war.'));
+  var t6 = el('div', { class: 'card tablewrap' });
+  var tb6 = '<table><thead><tr><th>Disziplin · Punkt</th><th>Gewicht</th><th>ohne</th><th>lokal</th><th>MCP</th></tr></thead><tbody>';
+  D.item_hits.forEach(function (r) { tb6 += '<tr><td>' + r.task.split('-')[0] + ' · ' + r.item + '</td><td>' + r.weight + '</td>' + ARMS.map(function (a) { return '<td>' + (r[a] ? r[a][0] + '/' + r[a][1] : '–') + '</td>'; }).join('') + '</tr>'; });
+  tb6 += '</tbody></table>'; t6.innerHTML = tb6; s6.appendChild(t6); $root.appendChild(s6);
+
+  /* ---------- Methodik ---------- */
+  var s7 = el('section', { class: 'sec' });
+  s7.appendChild(el('h2', null, 'So wurde gemessen'));
+  var mt = el('ul', { class: 'clean' });
+  N.method.forEach(function (t) { mt.appendChild(el('li', null, t)); }); s7.appendChild(mt);
+  s7.appendChild(el('h3', null, 'Grenzen der Aussage')); var lm = el('ul', { class: 'clean' }); N.limits.forEach(function (t) { lm.appendChild(el('li', null, t)); }); s7.appendChild(lm);
+  s7.appendChild(el('h3', null, 'Die sechs Fragen')); var qs = el('div', null);
+  D.tasks.forEach(function (t) { qs.appendChild(el('details', null, '<summary>' + t.id + ' · ' + t.category + ' (' + (t.project === 'carddemo' ? 'COBOL, CardDemo' : 'Java, Syncope') + ')</summary><pre>' + t.prompt + '\n\nSollantwort: ' + t.ground_truth + '</pre>')); });
+  s7.appendChild(qs);
+  s7.appendChild(el('h3', null, 'Beispielantworten (jeweils Wiederholung 1)'));
+  var ex = el('div', null);
+  D.examples.forEach(function (e) { var d = el('details', null, '<summary>' + e.task + ' · <span class="badge ' + e.arm + '">' + ARM_LABEL[e.arm] + '</span> · Rubrik ' + pct(e.rubric) + '</summary><div class="toolline">' + (e.tools.length ? 'Werkzeuge: ' + e.tools.join(' → ') : 'keine Werkzeugaufrufe') + '</div><pre></pre>'); d.querySelector('pre').textContent = e.answer; ex.appendChild(d); });
+  s7.appendChild(ex); $root.appendChild(s7);
+
+  var foot = el('p', { class: 'note' }, chap.footer + ' · Protokoll-Hash ' + String(D.meta.protocol_sha256 || '').slice(0, 10) + ' · Aufgaben-Hash ' + String(D.meta.tasks_sha256 || '').slice(0, 10));
+  $root.appendChild(foot);
+}
+</script>
+<script>
+(function () {
+  var C = JSON.parse(document.getElementById('chapters').textContent);
+  var root = document.getElementById('root');
+  var NS = 'http://www.w3.org/2000/svg';
+  var ARMS = ['none', 'local', 'mcp'];
+  var COLORS = { none: 'var(--none)', local: 'var(--local)', mcp: 'var(--mcp)' };
+  var ARM_NAME = { none: 'ohne Werkzeuge', local: 'lokale Werkzeuge', mcp: 'mit MCP' };
+  function el(tag, attrs, html) { var e = document.createElement(tag); if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; }
+  function sv(tag, attrs, text) { var e = document.createElementNS(NS, tag); if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; }
+  function f(x, d) { return x == null ? '–' : Number(x).toFixed(d == null ? 1 : d); }
+  function pct(x) { return x == null ? '–' : Math.round(x * 100) + ' %'; }
+  function signed(x, d, suf) { if (x == null) return '–'; var s = x > 0 ? '+' : (x < 0 ? '−' : ''); return s + Math.abs(x).toFixed(d) + (suf || ''); }
+  var X = C.cross;
+  var M = C.chapters.map(function (c) { return { name: c.chap.model, D: c.D, short: c.chap.short }; });
+
+  var tip = el('div', { class: 'tip', role: 'status' });
+  function showTip(wrap, evt, html) { tip.innerHTML = html; wrap.appendChild(tip); var r = wrap.getBoundingClientRect(); var x = evt.clientX - r.left + 14, y = evt.clientY - r.top + 14; if (x + 210 > r.width) x = Math.max(4, evt.clientX - r.left - 224); tip.style.left = x + 'px'; tip.style.top = y + 'px'; tip.style.opacity = 1; }
+  function hideTip() { tip.style.opacity = 0; }
+
+  /* Kopf */
+  var head = el('header', { class: 'sec' });
+  head.appendChild(el('div', { class: 'eyebrow' }, 'Doctus · MCP-Benchmark · zwei Modelle, dieselben Aufgaben'));
+  head.appendChild(el('h1', null, X.title));
+  head.appendChild(el('p', { class: 'lead' }, X.lead));
+  root.appendChild(head);
+
+  var fin = el('section', { class: 'sec' }); fin.appendChild(el('h2', null, 'Das Wichtigste'));
+  var ul = el('ul', { class: 'clean' }); X.findings.forEach(function (t) { ul.appendChild(el('li', null, t)); }); fin.appendChild(ul); root.appendChild(fin);
+
+  /* ===== Kapitel 3: MCP v2 vorher/nachher ===== */
+  function renderCh3(D3, N3) {
+    var MODELS = [['qwen', 'Qwen3-8B (lokal)'], ['luna', 'GPT-6-Luna (Codex CLI)']];
+    var TASKS = ['C1-SIGNON', 'C2-BILLPAY', 'C3-POSTING', 'J1-AUTHENTICATE', 'J2-LOCKOUT', 'J3-CREATE-USER'];
+    var CATN = { 'C1-SIGNON': 'Einfacher Flow', 'C2-BILLPAY': 'Datenzugriff', 'C3-POSTING': 'Regeln und Batch', 'J1-AUTHENTICATE': 'Methodenablauf', 'J2-LOCKOUT': 'Aufrufkette', 'J3-CREATE-USER': 'Create-Pfad' };
+    var wrapAll = el('div', { style: 'display:flex;flex-direction:column;gap:40px;border-top:2px solid var(--line);padding-top:36px' });
+    root.appendChild(wrapAll);
+    var head3 = el('header', { class: 'sec' });
+    head3.appendChild(el('div', { class: 'eyebrow' }, 'Kapitel 3 · neu in v2 · MCP-Schnittstelle überarbeitet und neu gemessen'));
+    head3.appendChild(el('h2', { style: 'font-size:30px' }, 'Kapitel 3: MCP v2 gegen MCP v1'));
+    head3.appendChild(el('p', { class: 'lead' }, N3.lead));
+    wrapAll.appendChild(head3);
+
+    /* Hypothesen */
+    var hs = el('section', { class: 'sec' });
+    hs.appendChild(el('h2', null, 'Was vorab erwartet wurde und was eintrat'));
+    hs.appendChild(el('p', { class: 'sub' }, 'Vier Hypothesen wurden vor der Messung festgelegt. Verglichen wird MCP v2 mit MCP v1, gepaart nach Aufgabe und Wiederholung. Ein Ergebnis gilt nur als belegt, wenn das 95-%-Intervall die Null nicht schneidet und p &lt; 0,0125 ist.'));
+    var hc = el('div', { class: 'card tablewrap' });
+    var ht = '<table><thead><tr><th>Hypothese</th>' + MODELS.map(function (m) { return '<th style="text-align:left">' + m[1] + '</th>'; }).join('') + '</tr></thead><tbody>';
+    ['H1', 'H2', 'H3', 'H4'].forEach(function (h) {
+      var first = D3.models.qwen.verdicts[h];
+      ht += '<tr><td><b>' + h + '</b> ' + first.text + (h === 'H4' ? ' <span class="note">(Qwen: besser; Luna: Grenze −5 PP)</span>' : '') + '</td>';
+      MODELS.forEach(function (m) { var v = D3.models[m[0]].verdicts[h], e = v.effect;
+        var ok = v.result === 'bestätigt'; var unit = e.key === 'rubric' ? function (x) { return signed(x * 100, 1, ' PP'); } : (e.key === 'wall_s' ? function (x) { return signed(x, 1, ' s'); } : (e.key === 'tokens_prompt' ? function (x) { return signed(x, 0); } : function (x) { return signed(x, 1); }));
+        ht += '<td style="text-align:left"><span class="badge ' + (ok ? 'mcp' : '') + '">' + v.result + '</span><br><span class="note">Δ ' + unit(e.diff) + ' [' + unit(e.lo) + '; ' + unit(e.hi) + '] · p = ' + f(e.p, 3) + '</span></td>'; });
+      ht += '</tr>';
+    });
+    ht += '</tbody></table>'; hc.innerHTML = ht; hs.appendChild(hc); wrapAll.appendChild(hs);
+
+    var fs = el('section', { class: 'sec' }); fs.appendChild(el('h2', null, 'Befund in Kürze'));
+    var fu = el('ul', { class: 'clean' }); N3.findings.forEach(function (t) { fu.appendChild(el('li', null, t)); }); fs.appendChild(fu); wrapAll.appendChild(fs);
+
+    /* Koordinatensystem Qualität gegen Zeit */
+    var sc = el('section', { class: 'sec' });
+    sc.appendChild(el('h2', null, 'Qualität gegen Zeit: vorher und nachher'));
+    sc.appendChild(el('p', { class: 'sub' }, 'Jeder Punkt ist der Mittelwert einer Aufgabe aus fünf Läufen. Oben links ist am besten. Der Pfeil zeigt je Aufgabe den Weg von MCP v1 (Ring) zu MCP v2 (gefüllt). Die Raute ist die lokale Kontrolle vom selben Tag.'));
+    var lg3 = el('div', { class: 'legend' }); lg3.innerHTML = '<span><i class="sw" style="background:none;border:2px solid var(--mcp)"></i>MCP v1</span><span><i class="sw mcp"></i>MCP v2</span><span><i class="sw local" style="border-radius:2px;transform:rotate(45deg)"></i>lokale Werkzeuge</span>'; sc.appendChild(lg3);
+    var g3 = el('div', { class: 'grid2' }); sc.appendChild(g3); wrapAll.appendChild(sc);
+    MODELS.forEach(function (mm) {
+      var m = mm[0], X3 = D3.models[m], wrap = el('div', { class: 'card chart-wrap' }); g3.appendChild(wrap);
+      var W = 440, H = 340, mg = { l: 46, r: 16, t: 30, b: 44 }, maxT = 0;
+      TASKS.forEach(function (t) { ['mcp1', 'mcp2', 'local'].forEach(function (a) { if (X3.cells[t][a].wall_s > maxT) maxT = X3.cells[t][a].wall_s; }); });
+      var xmax = Math.ceil(maxT / 10) * 10 + 5;
+      var Xs = function (v) { return mg.l + v / xmax * (W - mg.l - mg.r); }, Ys = function (v) { return H - mg.b - v * (H - mg.t - mg.b); };
+      var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Qualität gegen Zeit, ' + mm[1] });
+      svg.appendChild(sv('text', { x: mg.l, y: 14, class: 't-strong', style: 'font-size:12.5px' }, mm[1]));
+      for (var i = 0; i <= 4; i++) { var v = i / 4; svg.appendChild(sv('line', { x1: mg.l, x2: W - mg.r, y1: Ys(v), y2: Ys(v), class: 'grid' })); svg.appendChild(sv('text', { x: mg.l - 6, y: Ys(v) + 4, 'text-anchor': 'end' }, Math.round(v * 100) + '%')); }
+      var step = xmax <= 60 ? 10 : 20; for (var x = 0; x <= xmax; x += step) { svg.appendChild(sv('line', { x1: Xs(x), x2: Xs(x), y1: mg.t, y2: H - mg.b, class: 'grid' })); svg.appendChild(sv('text', { x: Xs(x), y: H - mg.b + 16, 'text-anchor': 'middle' }, x + ' s')); }
+      svg.appendChild(sv('line', { x1: mg.l, x2: W - mg.r, y1: H - mg.b, y2: H - mg.b, class: 'axis' })); svg.appendChild(sv('line', { x1: mg.l, x2: mg.l, y1: mg.t, y2: H - mg.b, class: 'axis' }));
+      svg.appendChild(sv('text', { x: (W + mg.l) / 2, y: H - 6, 'text-anchor': 'middle', class: 't-strong' }, 'Zeit je Antwort (niedriger ist besser) →'));
+      svg.appendChild(sv('text', { transform: 'rotate(-90)', x: -(H - mg.b + mg.t) / 2, y: 12, 'text-anchor': 'middle', class: 't-strong' }, 'Rubrikwert (höher ist besser) →'));
+      TASKS.forEach(function (t) { var a = X3.cells[t].mcp1, b = X3.cells[t].mcp2;
+        svg.appendChild(sv('line', { x1: Xs(a.wall_s), y1: Ys(a.rubric), x2: Xs(b.wall_s), y2: Ys(b.rubric), stroke: 'var(--ink-3)', 'stroke-width': 1.2, 'stroke-dasharray': '3 3' })); });
+      function dot(t, a, shape) { var c = X3.cells[t][a], g = sv('g', { tabindex: 0, style: 'cursor:pointer' }); var cx = Xs(c.wall_s), cy = Ys(c.rubric);
+        g.appendChild(sv('circle', { cx: cx, cy: cy, r: 14, fill: 'transparent' }));
+        if (shape === 'ring') g.appendChild(sv('circle', { cx: cx, cy: cy, r: 6.5, fill: 'var(--surface)', stroke: 'var(--mcp)', 'stroke-width': 2.2 }));
+        else if (shape === 'dot') g.appendChild(sv('circle', { cx: cx, cy: cy, r: 7, fill: 'var(--mcp)', stroke: 'var(--surface)', 'stroke-width': 2 }));
+        else g.appendChild(sv('rect', { x: cx - 5, y: cy - 5, width: 10, height: 10, transform: 'rotate(45 ' + cx + ' ' + cy + ')', fill: 'var(--local)', stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+        if (shape === 'dot') g.appendChild(sv('text', { x: cx + 10, y: cy - 8, class: 't-strong', style: 'font-size:11px' }, t.split('-')[0]));
+        var lab = { mcp1: 'MCP v1', mcp2: 'MCP v2', local: 'lokale Werkzeuge' }[a];
+        var html = '<b>' + t + '</b> · ' + CATN[t] + '<div class="row"><span>' + lab + '</span></div><div class="row"><span>Qualität</span><span>' + pct(c.rubric) + '</span></div><div class="row"><span>Zeit</span><span>' + f(c.wall_s) + ' s</span></div><div class="row"><span>Aufrufe</span><span>' + f(c.tool_calls) + '</span></div>';
+        g.addEventListener('mousemove', function (e) { showTip(wrap, e, html); }); g.addEventListener('mouseleave', hideTip);
+        g.addEventListener('focus', function () { var r = g.getBoundingClientRect(); showTip(wrap, { clientX: r.left + 14, clientY: r.top + 10 }, html); }); g.addEventListener('blur', hideTip);
+        svg.appendChild(g); }
+      TASKS.forEach(function (t) { dot(t, 'local', 'diamond'); }); TASKS.forEach(function (t) { dot(t, 'mcp1', 'ring'); }); TASKS.forEach(function (t) { dot(t, 'mcp2', 'dot'); });
+      wrap.appendChild(svg);
+    });
+
+    /* Dumbbells je Kennzahl */
+    function dumbbells(title, sub, key, fmtv, axisFmt) {
+      var s = el('section', { class: 'sec' }); s.appendChild(el('h2', null, title)); s.appendChild(el('p', { class: 'sub' }, sub));
+      var g = el('div', { class: 'grid2' }); s.appendChild(g); wrapAll.appendChild(s);
+      var maxv = 0; MODELS.forEach(function (mm) { TASKS.forEach(function (t) { ['mcp1', 'mcp2', 'local'].forEach(function (a) { if (D3.models[mm[0]].cells[t][a][key] > maxv) maxv = D3.models[mm[0]].cells[t][a][key]; }); }); });
+      MODELS.forEach(function (mm) {
+        var X3 = D3.models[mm[0]], wrap = el('div', { class: 'card chart-wrap' }); g.appendChild(wrap);
+        var mx = key === 'rubric' ? 1 : Math.ceil(Math.max.apply(null, TASKS.map(function (t) { return Math.max(X3.cells[t].mcp1[key], X3.cells[t].mcp2[key], X3.cells[t].local[key]); })) * 1.1 / (key === 'tokens_prompt' ? 20000 : (key === 'tool_calls' ? 2 : 10))) * (key === 'tokens_prompt' ? 20000 : (key === 'tool_calls' ? 2 : 10));
+        var W = 440, rowH = 44, mg = { l: 128, r: 20, t: 30, b: 30 }, H = mg.t + mg.b + TASKS.length * rowH;
+        var Xs = function (v) { return mg.l + v / mx * (W - mg.l - mg.r); };
+        var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': title + ', ' + mm[1] });
+        svg.appendChild(sv('text', { x: mg.l, y: 14, class: 't-strong', style: 'font-size:12.5px' }, mm[1]));
+        for (var i = 0; i <= 4; i++) { var v = mx * i / 4; svg.appendChild(sv('line', { x1: Xs(v), x2: Xs(v), y1: mg.t, y2: H - mg.b, class: 'grid' })); svg.appendChild(sv('text', { x: Xs(v), y: H - mg.b + 16, 'text-anchor': 'middle' }, axisFmt(v))); }
+        TASKS.forEach(function (t, ti) { var yc = mg.t + ti * rowH + rowH / 2, c = X3.cells[t];
+          svg.appendChild(sv('text', { x: mg.l - 10, y: yc - 3, 'text-anchor': 'end', class: 't-strong', style: 'font-size:12px' }, CATN[t])); svg.appendChild(sv('text', { x: mg.l - 10, y: yc + 10, 'text-anchor': 'end', style: 'font-size:10.5px;opacity:.8' }, t.split('-')[0]));
+          var g1 = sv('g', { tabindex: 0 }); g1.appendChild(sv('rect', { x: mg.l, y: yc - rowH / 2, width: W - mg.l, height: rowH, fill: 'transparent' }));
+          g1.appendChild(sv('line', { x1: Xs(c.mcp1[key]), x2: Xs(c.mcp2[key]), y1: yc, y2: yc, stroke: 'var(--mcp)', 'stroke-width': 3, opacity: .55 }));
+          g1.appendChild(sv('rect', { x: Xs(c.local[key]) - 5, y: yc - 5, width: 10, height: 10, transform: 'rotate(45 ' + Xs(c.local[key]) + ' ' + yc + ')', fill: 'var(--local)' }));
+          g1.appendChild(sv('circle', { cx: Xs(c.mcp1[key]), cy: yc, r: 6, fill: 'var(--surface)', stroke: 'var(--mcp)', 'stroke-width': 2.2 }));
+          g1.appendChild(sv('circle', { cx: Xs(c.mcp2[key]), cy: yc, r: 6.5, fill: 'var(--mcp)', stroke: 'var(--surface)', 'stroke-width': 1.5 }));
+          var html = '<b>' + t + '</b> · ' + CATN[t] + '<div class="row"><span>MCP v1</span><span>' + fmtv(c.mcp1[key]) + '</span></div><div class="row"><span>MCP v2</span><span>' + fmtv(c.mcp2[key]) + '</span></div><div class="row"><span>lokale Werkzeuge</span><span>' + fmtv(c.local[key]) + '</span></div>';
+          g1.addEventListener('mousemove', function (e) { showTip(wrap, e, html); }); g1.addEventListener('mouseleave', hideTip);
+          g1.addEventListener('focus', function () { var r = g1.getBoundingClientRect(); showTip(wrap, { clientX: r.left + 20, clientY: r.top + 10 }, html); }); g1.addEventListener('blur', hideTip);
+          svg.appendChild(g1); });
+        svg.appendChild(sv('line', { x1: mg.l, x2: mg.l, y1: mg.t, y2: H - mg.b, class: 'axis' })); wrap.appendChild(svg);
+      });
+      var lgd = el('div', { class: 'legend' }); lgd.innerHTML = '<span><i class="sw" style="background:none;border:2px solid var(--mcp)"></i>MCP v1</span><span><i class="sw mcp"></i>MCP v2</span><span><i class="sw local" style="border-radius:2px;transform:rotate(45deg)"></i>lokale Werkzeuge</span>'; s.insertBefore(lgd, g);
+    }
+    dumbbells('Werkzeugaufrufe je Aufgabe', 'Wie viele Schritte braucht der Agent? Weiter links ist weniger. Bei den Einzelfragen C1 und J1 halbiert MCP v2 die Aufrufe bei Luna, bei den Programmfragen C2 und C3 steigen sie.', 'tool_calls', function (v) { return f(v, 1); }, function (v) { return f(v, 0); });
+    dumbbells('Qualität je Aufgabe', 'Anteil der erfüllten Rubrikpunkte. Weiter rechts ist besser.', 'rubric', function (v) { return pct(v); }, function (v) { return Math.round(v * 100) + '%'; });
+    dumbbells('Eingabe-Tokens je Aufgabe', 'Summe der Eingabe-Tokens über alle Modellzüge einer Antwort. Weiter links ist weniger. Die Werte von Qwen und Luna sind nicht vergleichbar (anderer Systemtext, Zwischenspeicher).', 'tokens_prompt', function (v) { return Math.round(v).toLocaleString('de-DE'); }, function (v) { return v >= 1000 ? Math.round(v / 1000) + 'k' : Math.round(v); });
+
+    /* Forest-Plot v2 gegen v1 */
+    var fo = el('section', { class: 'sec' });
+    fo.appendChild(el('h2', null, 'Gesamteffekt der Überarbeitung (v2 gegen v1)'));
+    fo.appendChild(el('p', { class: 'sub' }, 'Relative Veränderung gegenüber MCP v1, bei allen Kennzahlen so gedreht, dass rechts „v2 besser“ bedeutet. Der Balken ist das 95-%-Intervall. Schneidet er die Nulllinie, ist der Unterschied nicht belastbar.'));
+    var gf = el('div', { class: 'grid2' }); fo.appendChild(gf); wrapAll.appendChild(fo);
+    var DEFS = [['rubric', 'Qualität', 1], ['usable', 'Nutzbar', 1], ['tool_calls', 'Werkzeugaufrufe', -1], ['wall_s', 'Zeit', -1], ['tokens_prompt', 'Eingabe-Tokens', -1]];
+    MODELS.forEach(function (mm) {
+      var effs = {}; D3.models[mm[0]].effects['v2-v1'].forEach(function (e) { effs[e.key] = e; });
+      var wrap = el('div', { class: 'card chart-wrap' }); gf.appendChild(wrap);
+      var W = 440, rowH = 46, mg = { l: 112, r: 76, t: 34, b: 34 }, H = mg.t + mg.b + DEFS.length * rowH, lim = 0.6;
+      DEFS.forEach(function (d) { var e = effs[d[0]]; if (e.base) [e.lo / e.base, e.hi / e.base].forEach(function (v) { if (Math.abs(v) > lim) lim = Math.min(3, Math.ceil(Math.abs(v) * 5) / 5); }); });
+      var Xs = function (v) { return mg.l + (v + lim) / (2 * lim) * (W - mg.l - mg.r); };
+      var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Effekt v2 gegen v1, ' + mm[1] });
+      svg.appendChild(sv('text', { x: mg.l, y: 14, class: 't-strong', style: 'font-size:12.5px' }, mm[1]));
+      for (var i = 0; i <= 4; i++) { var v = -lim + 2 * lim * i / 4; svg.appendChild(sv('line', { x1: Xs(v), x2: Xs(v), y1: mg.t, y2: H - mg.b, class: 'grid' })); svg.appendChild(sv('text', { x: Xs(v), y: H - mg.b + 16, 'text-anchor': 'middle' }, signed(v * 100, 0, '%'))); }
+      svg.appendChild(sv('line', { x1: Xs(0), x2: Xs(0), y1: mg.t - 4, y2: H - mg.b, stroke: 'var(--ink-2)', 'stroke-width': 1.4 }));
+      svg.appendChild(sv('text', { x: Xs(0) - 6, y: 28, 'text-anchor': 'end' }, '← v2 schlechter')); svg.appendChild(sv('text', { x: Xs(0) + 6, y: 28 }, 'v2 besser →'));
+      DEFS.forEach(function (d, i) { var e = effs[d[0]], yc = mg.t + i * rowH + rowH / 2 + 4; if (!e.base) return;
+        var vv = e.diff / e.base * d[2], a = e.lo / e.base * d[2], b = e.hi / e.base * d[2], lo = Math.min(a, b), hi = Math.max(a, b), sig = lo > 0 || hi < 0;
+        svg.appendChild(sv('text', { x: mg.l - 10, y: yc + 4, 'text-anchor': 'end', class: 't-strong', style: 'font-size:12px' }, d[1]));
+        var g = sv('g', { tabindex: 0 }); g.appendChild(sv('rect', { x: mg.l, y: yc - rowH / 2, width: W - mg.l, height: rowH, fill: 'transparent' }));
+        g.appendChild(sv('line', { x1: Xs(Math.max(-lim, lo)), x2: Xs(Math.min(lim, hi)), y1: yc, y2: yc, stroke: 'var(--mcp)', 'stroke-width': 3, 'stroke-linecap': 'round', opacity: sig ? 1 : .45 }));
+        g.appendChild(sv('circle', { cx: Xs(Math.max(-lim, Math.min(lim, vv))), cy: yc, r: 6.5, fill: sig ? 'var(--mcp)' : 'var(--surface)', stroke: 'var(--mcp)', 'stroke-width': 2 }));
+        svg.appendChild(sv('text', { x: W - mg.r + 10, y: yc - 1, class: 't-strong', style: 'font-size:11.5px' }, signed(vv * 100, 0, ' %') + (sig ? ' ●' : '')));
+        svg.appendChild(sv('text', { x: W - mg.r + 10, y: yc + 12, style: 'font-size:10px' }, 'p = ' + f(e.p, 3)));
+        var html = '<b>' + d[1] + '</b><div class="row"><span>MCP v1</span><span>' + (d[0] === 'wall_s' ? f(e.base) + ' s' : (d[0] === 'rubric' || d[0] === 'usable' ? pct(e.base) : f(e.base, d[0] === 'tool_calls' ? 1 : 0))) + '</span></div><div class="row"><span>MCP v2</span><span>' + (d[0] === 'wall_s' ? f(e.other) + ' s' : (d[0] === 'rubric' || d[0] === 'usable' ? pct(e.other) : f(e.other, d[0] === 'tool_calls' ? 1 : 0))) + '</span></div><div class="row"><span>d<sub>z</sub></span><span>' + f(e.dz, 2) + '</span></div>';
+        g.addEventListener('mousemove', function (ev) { showTip(wrap, ev, html); }); g.addEventListener('mouseleave', hideTip);
+        g.addEventListener('focus', function () { var r = g.getBoundingClientRect(); showTip(wrap, { clientX: r.left + 20, clientY: r.top + 10 }, html); }); g.addEventListener('blur', hideTip);
+        svg.appendChild(g); });
+      wrap.appendChild(svg);
+    });
+    fo.appendChild(el('p', { class: 'note' }, '● = Intervall schneidet die Null nicht. Hauptkennzahlen: korrigierte Schwelle p &lt; 0,0125.'));
+
+    /* Nutzungsmuster */
+    var us = el('section', { class: 'sec' });
+    us.appendChild(el('h2', null, 'Wie die Modelle die neue Schnittstelle nutzen'));
+    us.appendChild(el('p', { class: 'sub' }, 'Aufrufe von <code>explain_symbol</code> je Aufgabe (Mittel aus fünf Läufen) und die ersten Werkzeuge. Bei Luna fragt die Gliederung eines COBOL-Programms viele Folgeaufrufe nach.'));
+    var uc = el('div', { class: 'card tablewrap' });
+    var ut = '<table><thead><tr><th>Aufgabe</th><th>Qwen: explain_symbol</th><th>Luna: explain_symbol</th><th>Luna: Aufrufe gesamt v1 → v2 (lokal)</th></tr></thead><tbody>';
+    TASKS.forEach(function (t) { var L = D3.models.luna.cells[t]; ut += '<tr><td><b>' + CATN[t] + '</b><br><span class="note">' + t.split('-')[0] + ' · ' + (t[0] === 'C' ? 'COBOL' : 'Java') + '</span></td><td>' + f(D3.models.qwen.usage.explain_per_task[t], 1) + '</td><td>' + f(D3.models.luna.usage.explain_per_task[t], 1) + '</td><td>' + f(L.mcp1.tool_calls, 1) + ' → ' + f(L.mcp2.tool_calls, 1) + ' (' + f(L.local.tool_calls, 1) + ')</td></tr>'; });
+    ut += '</tbody></table>'; uc.innerHTML = ut; us.appendChild(uc);
+    var q = D3.models.qwen.usage, l = D3.models.luna.usage;
+    us.appendChild(el('p', { class: 'note' }, 'Erster Aufruf. Qwen: ' + Object.keys(q.first_tool_v2).map(function (k) { return k + ' ×' + q.first_tool_v2[k]; }).join(', ') + '. Luna: ' + Object.keys(l.first_tool_v2).map(function (k) { return k + ' ×' + l.first_tool_v2[k]; }).join(', ') + '. Leere Suchen je Sitzung (v1 → v2): Qwen ' + f(q.empty_per_session.v1, 2) + ' → ' + f(q.empty_per_session.v2, 2) + ', Luna ' + f(l.empty_per_session.v1, 2) + ' → ' + f(l.empty_per_session.v2, 2) + '.'));
+    var at = '<table><thead><tr><th>Werkzeug</th><th>Aufrufe</th><th>Serverzeit Ø</th><th>Serverzeit p95</th><th>Antwort Ø Zeichen</th></tr></thead><tbody>';
+    D3.audit.forEach(function (a) { at += '<tr><td>' + a.tool + '</td><td>' + a.n + '</td><td>' + a.avg_ms + ' ms</td><td>' + a.p95_ms + ' ms</td><td>' + Number(a.avg_bytes).toLocaleString('de-DE') + '</td></tr>'; }); at += '</tbody></table>';
+    var ac = el('div', { class: 'card tablewrap' }); ac.innerHTML = at; us.appendChild(ac);
+    us.appendChild(el('p', { class: 'note' }, 'Serverzeit laut MCP-Audit der Datenbank für alle Aufrufe der Kapitel-3-Läufe und ihrer Piloten. Sie ist gegenüber der Modellzeit von etwa 4 Sekunden je Zug vernachlässigbar.'));
+    wrapAll.appendChild(us);
+
+    /* Nächste Schritte, Methodik, Grenzen */
+    function list(title, arr) { var s = el('section', { class: 'sec' }); s.appendChild(el('h2', null, title)); var u = el('ul', { class: 'clean' }); arr.forEach(function (t) { u.appendChild(el('li', null, t)); }); s.appendChild(u); wrapAll.appendChild(s); }
+    list('Was als Nächstes die größte Wirkung hätte', N3.next);
+    list('So wurde in Kapitel 3 gemessen', N3.method);
+    list('Grenzen der Aussage', N3.limits);
+  }
+
+  if (C.ch3) { renderCh3(C.ch3.D, C.ch3.N); }
+
+  /* Qualität je Variante und Modell */
+  var s1 = el('section', { class: 'sec' });
+  s1.appendChild(el('div', { class: 'eyebrow' }, 'Kapitel 1 und 2 · MCP v1'));
+  s1.appendChild(el('h2', null, 'Wie gut ist jedes Modell ohne und mit MCP?'));
+  s1.appendChild(el('p', { class: 'sub' }, 'Links der Anteil der erfüllten Rubrikpunkte, rechts der Anteil der Antworten mit mindestens 50 % der Punkte. Beide Größen sind modellübergreifend vergleichbar, weil Fragen und Bewertung identisch sind.'));
+  var lg = el('div', { class: 'legend' }); ARMS.slice().reverse().forEach(function (a) { lg.appendChild(el('span', null, '<i class="sw ' + a + '"></i>' + ARM_NAME[a])); }); s1.appendChild(lg);
+  var g2 = el('div', { class: 'grid2' }); var w1 = el('div', { class: 'card chart-wrap' }), w2 = el('div', { class: 'card chart-wrap' }); g2.appendChild(w1); g2.appendChild(w2); s1.appendChild(g2); root.appendChild(s1);
+  function grouped(wrap, key, title, fmtv) {
+    var W = 440, rowH = 26, gap = 30, m = { l: 96, r: 54, t: 30, b: 30 }, H = m.t + m.b + M.length * (3 * rowH + gap) - gap;
+    var Xs = function (v) { return m.l + v * (W - m.l - m.r); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': title });
+    svg.appendChild(sv('text', { x: m.l, y: 14, class: 't-strong', style: 'font-size:12.5px' }, title));
+    for (var i = 0; i <= 4; i++) { var v = i / 4; svg.appendChild(sv('line', { x1: Xs(v), x2: Xs(v), y1: m.t, y2: H - m.b, class: 'grid' })); svg.appendChild(sv('text', { x: Xs(v), y: H - m.b + 16, 'text-anchor': 'middle' }, Math.round(v * 100) + '%')); }
+    M.forEach(function (mod, mi) {
+      var y0 = m.t + mi * (3 * rowH + gap);
+      svg.appendChild(sv('text', { x: m.l - 10, y: y0 + 1.5 * rowH + 4, 'text-anchor': 'end', class: 't-strong', style: 'font-size:12.5px' }, mod.short));
+      ARMS.forEach(function (a, ai) { var val = mod.D.arm_means[a][key]; var by = y0 + ai * rowH + 3; var g = sv('g', { tabindex: 0 });
+        g.appendChild(sv('rect', { x: m.l, y: by - 2, width: W - m.l, height: rowH - 2, fill: 'transparent' }));
+        g.appendChild(sv('rect', { x: m.l, y: by, width: Math.max(2, Xs(val) - m.l), height: rowH - 8, rx: 3, fill: COLORS[a] }));
+        g.appendChild(sv('text', { x: Xs(val) + 6, y: by + rowH - 11, class: 't-strong', style: 'font-size:11px' }, fmtv(val)));
+        var html = '<b>' + mod.name + '</b><div class="row"><span>' + ARM_NAME[a] + '</span><span>' + fmtv(val) + '</span></div>';
+        g.addEventListener('mousemove', function (e) { showTip(wrap, e, html); }); g.addEventListener('mouseleave', hideTip);
+        g.addEventListener('focus', function () { var r = g.getBoundingClientRect(); showTip(wrap, { clientX: r.left + 20, clientY: r.top + 10 }, html); }); g.addEventListener('blur', hideTip);
+        svg.appendChild(g); });
+    });
+    svg.appendChild(sv('line', { x1: m.l, x2: m.l, y1: m.t, y2: H - m.b, class: 'axis' }));
+    wrap.appendChild(svg);
+  }
+  grouped(w1, 'rubric', 'Erfüllte Rubrikpunkte', pct);
+  grouped(w2, 'usable', 'Antworten mit ≥ 50 % der Punkte', pct);
+
+  /* Heatmap je Disziplin */
+  var s2 = el('section', { class: 'sec' });
+  s2.appendChild(el('h2', null, 'Qualität je Disziplin'));
+  s2.appendChild(el('p', { class: 'sub' }, 'Mittlerer Rubrikwert je Aufgabe aus fünf Läufen. Je dunkler das Blau, desto mehr Punkte. Die Zahl steht in jeder Zelle.'));
+  var hw = el('div', { class: 'card tablewrap' });
+  var tasks = M[0].D.tasks;
+  var th = '<table><thead><tr><th rowspan="2">Disziplin</th>' + M.map(function (m) { return '<th colspan="3" style="text-align:center;border-left:1px solid var(--line)">' + m.name + '</th>'; }).join('') + '</tr><tr>' + M.map(function () { return ARMS.map(function (a, i) { return '<th style="' + (i === 0 ? 'border-left:1px solid var(--line)' : '') + '">' + { none: 'ohne', local: 'lokal', mcp: 'MCP' }[a] + '</th>'; }).join(''); }).join('') + '</tr></thead><tbody>';
+  tasks.forEach(function (t) { th += '<tr><td><b>' + t.category + '</b><br><span class="note">' + t.id.split('-')[0] + ' · ' + (t.project === 'carddemo' ? 'COBOL' : 'Java') + '</span></td>';
+    M.forEach(function (m) { ARMS.forEach(function (a, i) { var c = m.D.cells[t.id + '|' + a]; var v = c ? c.rubric : null; var bg = v == null ? 'transparent' : 'color-mix(in srgb, var(--mcp) ' + Math.round(v * 85) + '%, var(--surface))'; var fg = v != null && v > 0.55 ? '#fff' : 'var(--ink)';
+      th += '<td style="background:' + bg + ';color:' + fg + ';text-align:center;' + (i === 0 ? 'border-left:1px solid var(--line);' : '') + '">' + (v == null ? '–' : Math.round(v * 100) + ' %') + '</td>'; }); });
+    th += '</tr>'; });
+  th += '</tbody></table>'; hw.innerHTML = th; s2.appendChild(hw); root.appendChild(s2);
+
+  /* Effekttabelle */
+  var s3 = el('section', { class: 'sec' });
+  s3.appendChild(el('h2', null, 'Was ändert MCP gegenüber lokalen Werkzeugen?'));
+  s3.appendChild(el('p', { class: 'sub' }, 'Mittlere gepaarte Differenz MCP minus lokale Werkzeuge mit 95-%-Intervall und p-Wert. Grün heißt besser für MCP, rot schlechter. Zeit und Tokens gelten nur innerhalb eines Modells, nicht zwischen den Modellen.'));
+  var ew = el('div', { class: 'card tablewrap' });
+  var rowsDef = [['rubric', 'Qualität (Rubrikwert)', 1, function (v) { return signed(v * 100, 1, ' PP'); }], ['usable', 'Nutzbare Antworten', 1, function (v) { return signed(v * 100, 0, ' PP'); }], ['wall_s', 'Zeit je Antwort', -1, function (v) { return signed(v, 1, ' s'); }], ['tokens_total', 'Tokens je Antwort', -1, function (v) { return signed(v, 0); }], ['tool_calls', 'Werkzeugaufrufe', -1, function (v) { return signed(v, 1); }], ['tool_used', 'Werkzeug genutzt', 1, function (v) { return signed(v * 100, 0, ' PP'); }]];
+  var et = '<table><thead><tr><th>Kennzahl</th>' + M.map(function (m) { return '<th>' + m.name + '</th>'; }).join('') + '</tr></thead><tbody>';
+  rowsDef.forEach(function (r) { et += '<tr><td>' + r[1] + '</td>'; M.forEach(function (m) { var e = (m.D.effects['mcp-local'] || []).filter(function (x) { return x.key === r[0]; })[0];
+    if (!e) { et += '<td>–</td>'; return; } var good = e.diff * r[2] > 0; var sig = e.lo > 0 || e.hi < 0;
+    et += '<td class="' + (e.diff === 0 ? '' : (good ? 'pos' : 'neg')) + '">' + r[3](e.diff) + '<br><span class="note">[' + r[3](e.lo) + '; ' + r[3](e.hi) + '] · p = ' + f(e.p, 3) + (sig ? ' ●' : '') + '</span></td>'; }); et += '</tr>'; });
+  et += '</tbody></table>'; ew.innerHTML = et; s3.appendChild(ew);
+  s3.appendChild(el('p', { class: 'note' }, '● = Konfidenzintervall schneidet die Null nicht. PP = Prozentpunkte. Für die vier Hauptkennzahlen gilt die korrigierte Schwelle p &lt; 0,0125.'));
+  root.appendChild(s3);
+
+  /* Kapitel */
+  C.chapters.forEach(function (c, i) {
+    var wrap = el('div', { style: 'display:flex;flex-direction:column;gap:44px;border-top:2px solid var(--line);padding-top:36px' });
+    root.appendChild(wrap); renderChapter(c.D, c.N, wrap, c.chap);
+  });
+  var cn = el('section', { class: 'sec' }); cn.appendChild(el('h2', null, 'Zum Vergleich der Kapitel')); var cu = el('ul', { class: 'clean' }); X.notes.forEach(function (t) { cu.appendChild(el('li', null, t)); }); cn.appendChild(cu); root.appendChild(cn);
+
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var r = document.documentElement; var cur = r.getAttribute('data-theme');
+    var dark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    r.setAttribute('data-theme', dark ? 'light' : 'dark');
+  });
+})();
+</script>

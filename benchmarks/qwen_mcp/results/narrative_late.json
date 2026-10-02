@@ -1,0 +1,100 @@
+{
+  "title": "MCP im Benchmark: Qwen und Luna, drei Fassungen der Schnittstelle",
+  "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Doctus-MCP-Schnittstelle. Gemessen wurden die erste Fassung (v1), eine Überarbeitung (v2) und für Qwen eine dritte Fassung (v3), bei der der Server die Arbeit macht. Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in sechs Kapiteln, am Ende der Vergleich.",
+  "top": [
+    "<b>Qwen:</b> An den neuen Fragen steigt die Qualität von 17 % (v2) auf 36 % (v3, schlanke Werkzeugliste mit Denkmodus). Dafür braucht es mehr als doppelt so lange (32 s statt 14 s).",
+    "<b>Luna:</b> Mit Werkzeugen bleibt sie weit vorn (74 % bis 81 %), MCP v2 liegt aber auch an neuen Fragen hinter der lokalen Shell. Die neue Schnittstelle wurde bei Luna nicht gemessen.",
+    "<b>Wichtigste Lehre:</b> Der Qwen-Vorsprung von v2 an den Entwicklungsfragen (45 %) schrumpfte an neuen Fragen auf 17 %. Erst ein Test an anderen Fragen zeigt, was trägt."
+  ],
+  "qwen": {
+    "k4": {
+      "title": "Kapitel 4: Prüfung mit zehn neuen Fragen (MCP v2)",
+      "intro": [
+        "<b>Warum diese Prüfung?</b> Die Schnittstelle v2 wurde an den sechs Fragen der ersten Messungen entworfen und nachgebessert. Ob der Gewinn auch bei Fragen trägt, an denen niemand etwas verändert hat, war ungeprüft. Eine Verbesserung, die nur an den Entwicklungsfragen sichtbar ist, wäre Überanpassung.",
+        "<b>Vorgehen:</b> Zehn neue Fragen aus denselben zwei Beständen (fünf COBOL aus CardDemo, fünf Java aus Syncope), jeweils mit Quelltext-Beleg, gewichteter Rubrik und Hypothesen, festgelegt und mit Prüfsumme versehen, bevor ein Modell sie gesehen hat. Die Rubriken wurden nur gegen ihre eigene Sollantwort (alle Punkte erfüllt) und gegen das bloße Wiederholen der Frage (kein Punkt) geprüft, nie gegen Modellantworten. Dabei habe ich fünf zu enge Suchmuster verbreitert. Je Modell 10 Fragen × 3 Varianten × 3 Wiederholungen = 90 Sitzungen. Die Fragen decken ganze Programme (Zinsberechnung, Benutzer anlegen, Bericht), einzelne Methoden (Passwortregel, JWT-Prüfung, Job-Ablauf, Benachrichtigung, Menüsteuerung) und zwei Aufzählungsfragen (Aufrufer finden, Copybook samt Verwendern) ab."
+      ],
+      "findings": [
+        "<b>Qualität:</b> ohne Werkzeuge 2 %, lokale Werkzeuge 7 %, MCP v2 17 %. Der Vorsprung von MCP v2 vor den lokalen Werkzeugen beträgt +10,6 Prozentpunkte (Intervall −11 bis +28, p = 0,099) und ist nicht belastbar. Gegenüber „ohne Werkzeuge“ sind es +15,5 Punkte (p = 0,0001).",
+        "<b>Der Gewinn war zum Teil zugeschnitten.</b> An den sechs Entwicklungsfragen erreichte MCP v2 45 %, an den neuen Fragen 17 %. Die lokalen Werkzeuge liegen an beiden Sätzen gleich (8 % und 7 %), die neuen Fragen sind also nicht einfach schwerer. Der Vorsprung gegenüber lokalen Werkzeugen sank von +37 auf +11 Prozentpunkte.",
+        "<b>Aufwand:</b> Aufrufe 1,6 gegen 2,8 (lokal), Zeit 14 s gegen 10 s (+4,7 s, p = 0,003), Eingabe-Tokens 6.900 gegen 3.100 (p = 0,0006). MCP v2 ist hier also langsamer und teurer als die einfachen Dateiwerkzeuge.",
+        "<b>Wo MCP v2 scheitert:</b> Bei C5 (Copybook mit allen Feldern und den Programmen, die es einbinden) erreicht Qwen mit MCP v2 nur 2 %, mit den lokalen Werkzeugen 63 %. v2 liefert weder den Quelltext des Copybooks noch die Verwender. Bei den Fragen J1 (Passwortregel), C2 (Menü) und J3 (Benachrichtigung) holt Qwen mit MCP v2 keinen einzigen Punkt."
+      ],
+      "reading": "Lesehilfe: Zeit und Tokens gelten nur innerhalb eines Modells. Je Variante 30 Antworten, die Rubrikwerte je Frage beruhen auf je drei Läufen."
+    },
+    "k5": {
+      "title": "Kapitel 5: Weiterentwicklung, der Server macht mehr Arbeit",
+      "intro": [
+        "<b>Diagnose aus Kapitel 4 und aus den Verläufen:</b> Qwen hört nach 1 bis 3 Werkzeugaufrufen auf und antwortet. Je mehr es nachschlägt, desto besser die Antwort. Das Modell kann den nötigen Weg (suchen, Entität holen, Paragraphen für Paragraphen lesen) nicht zuverlässig selbst gehen. Also sollte der Server die Arbeit machen.",
+        "<b>Was <code>answer_context</code> tut:</b> Es nimmt die Frage als Text, erkennt darin Namen von Klassen, Methoden, Programmen, Paragraphen und Copybooks, löst sie im Index auf (auch <code>Klasse.methode</code> und Mehrwortanfragen) und liefert ein Beweispaket in einem Aufruf. Dazu gehören der Quelltext mit Zeilennummern (ohne Leer- und Kommentarzeilen), Aufrufer und Aufgerufene, Datenzugriffe, die Verwender des Symbols (zum Beispiel alle Programme, die ein Copybook einbinden), bei Methoden die wichtigste Hilfsmethode derselben Klasse, bei Aufrufer-Fragen die Aufrufstelle und bei großen Programmen die Paragraphen, die zur Frage passen (ausgewählt über eine deutsch-englische Wortzuordnung). Die Antwort ist hart auf etwa 8.000 Zeichen begrenzt, weil Qwen nur 8.192 Token Kontext hat. Zusätzlich habe ich die Werkzeugbeschreibungen von etwa 2.300 auf 1.900 Token gekürzt.",
+        "<b>Vorgehen:</b> Entwickelt und gemessen wurde nur an den sechs ursprünglichen Fragen (Entwicklungssatz), der Testsatz aus Kapitel 4 blieb unberührt. Sechs Bedingungen mit je 30 Sitzungen (Tabelle). Die Regel für die Auswahl der Variante, die in den Test geht, wurde vorab festgelegt: die mit der höchsten Qualität."
+      ],
+      "coverage_title": "Was das Beweispaket enthält, gemessen ohne Modell",
+      "coverage_text": "Wendet man die Rubrik auf den Text des Beweispakets selbst an, erhält man die Obergrenze dessen, was ein Modell daraus entnehmen könnte. Im ersten Entwurf lag sie im Mittel bei 59 %, nach den Verbesserungen bei 74 %. Offen bleiben C3 (die Ablehnungscodes liegen in zwei Paragraphen, die nicht ausgewählt werden) und J2 (die Sperrregel liegt zwei Klassen weiter).",
+      "coverage": [["C1 Anmeldung", 0.44, 1.00], ["C2 Zahlung", 0.73, 0.73], ["C3 Buchung", 0.50, 0.50], ["J1 Authentifizierung", 0.62, 0.69], ["J2 Sperre", 0.27, 0.55], ["J3 Benutzer anlegen", 1.00, 1.00]],
+      "findings": [
+        "<b>Der Denkmodus allein hilft nicht.</b> Mit allen Werkzeugen liegt die Qualität mit Denkmodus bei 36 %, ohne bei 38 %, die Zeit verdoppelt sich. Der Denkmodus beseitigt aber die ungültigen Werkzeugaufrufe (0 leere Antworten gegen 3).",
+        "<b>Qwen wählt das neue Werkzeug kaum.</b> Mit allen Werkzeugen ruft es <code>answer_context</code> in 4 (ohne Denkmodus) bzw. 11 (mit Denkmodus) von 30 Sitzungen auf und greift stattdessen zu <code>search_code</code>. Wo es genutzt wird, liegt die Qualität bei 58 % bis 68 %, sonst bei 24 % bis 33 %. Das ist mit den Fragen vermischt, zeigt aber, dass die Werkzeugwahl der Engpass ist.",
+        "<b>Eine schlanke Liste ohne Denkmodus scheitert.</b> Nur <code>answer_context</code>, <code>explain_symbol</code> und <code>get_code_entity</code>, ohne Denkmodus: 13 von 30 Antworten sind leer, 53 Wiederholungen waren nötig. Die Ursache steht im Kasten unten.",
+        "<b>Beides zusammen funktioniert.</b> Schlanke Liste und Denkmodus (Z5): 26 von 30 Sitzungen nutzen <code>answer_context</code>, ein einziger Aufruf genügt, 1 leere Antwort. Die Qualität liegt mit 43 % auf dem Niveau der Referenz (45 %, Unterschied −1,8 Prozentpunkte, Intervall −16 bis +10, p = 0,70). Der Gewinn liegt woanders: Aufrufe 1,0 statt 3,0 und Tokens 4.700 statt 13.800 (−66 %). Der Preis sind 32 s statt 18 s Zeit.",
+        "<b>Schwächen bleiben:</b> C1 (0,53 → 0,29) und J2 (0,27 → 0,15) sind schlechter als in der Referenz, C2 (0,40 → 0,55) und J1 (0,45 → 0,55) besser."
+      ],
+      "failure_title": "Anatomie des Fehlers: ein ungültiger Werkzeugaufruf",
+      "failure_text": "Bei Z4 blieb fast die Hälfte der Antworten leer. Die Ursache habe ich am rohen Text nachvollzogen: Qwen schreibt einen Werkzeugaufruf, der fast richtig ist, maskiert aber das einfache Anführungszeichen in <code>'Y'</code> als <code>\\'</code>. Das ist in JSON nicht erlaubt. Ollama kann den Aufruf nicht lesen, verwirft ihn ohne Fehlermeldung und liefert eine leere Nachricht. Der neue Parameter mit der ganzen Frage als freiem Text hat diese Fehlerquelle eingeführt, die früheren Werkzeuge nahmen nur Namen und Zahlen. Mit eingeschaltetem Denkmodus tritt der Fehler praktisch nicht auf. Im Test-Harness wiederholt der Client bei einer leeren Nachricht bis zu zweimal mit einem Hinweis, wie es ein Agent-Client auch täte.",
+      "failure_raw": "<tool_call>\n{\"name\": \"answer_context\", \"arguments\": {\"project_id\": 1, \"question\": \"In AWS CardDemo: Was tut COBIL00C, wenn der Benutzer die Zahlung mit \\'Y\\' bestaetigt? ...\", \"max_chars\": 8000}}\n</tool_call>"
+    },
+    "k6": {
+      "title": "Kapitel 6: Test der neuen Schnittstelle an den neuen Fragen",
+      "intro": [
+        "<b>Vorgehen:</b> Die beste Entwicklungsvariante (Z5, schlanke Werkzeugliste mit Denkmodus) wurde einmal an den zehn neuen Fragen aus Kapitel 4 gemessen, ohne weitere Änderung, mit vorab festgelegten Erwartungen und gepaart gegen MCP v2 an denselben Fragen und Wiederholungen. Die Erwartungen: Qualität nicht schlechter als v2; weniger Aufrufe und Tokens; höhere Zeit."
+      ],
+      "findings": [
+        "<b>Qualität: 36 % statt 17 %</b> mit MCP v2 (+19 Prozentpunkte, Intervall +1,7 bis +41, p = 0,002). 14 von 30 Antworten sind brauchbar (mindestens 50 % der Punkte), mit v2 sind es 5, mit den lokalen Werkzeugen 2. Gegenüber den lokalen Werkzeugen +30 Prozentpunkte (p &lt; 0,0001).",
+        "<b>Aufwand:</b> Die Eingabe-Tokens sinken von 6.900 auf 3.000 (−56 %, p &lt; 0,0001, belegt). Die Aufrufe sinken von 1,6 auf 1,0, das Intervall schneidet aber knapp die Null (−1,1 bis +0,03, p = 0,007), nach dem festgelegten Maßstab ist das nicht eindeutig belegt. Die Zeit steigt von 14 s auf 32 s (+18 s, p &lt; 0,0001), das ist der Denkmodus.",
+        "<b>Was besser wurde:</b> C5 Copybook (0,02 → 1,00), J1 Passwortregel (0,00 → 0,55), C2 Menü (0,00 → 0,22), J4 Aufrufer (0,30 → 0,50). <b>Weiter schwach:</b> C1 Zinsberechnung (0,02), J2 JWT-Filter (0,00), J3 Benachrichtigung (0,03).",
+        "<b>Einschränkung:</b> Ich kannte die zehn Fragen, als ich die Funktion für Verwender und Aufrufer entworfen habe. Der Sprung bei C5 (Copybook samt Verwendern) ist deshalb der am wenigsten unabhängige Teil. Die Qualität bleibt insgesamt niedrig: 36 % gegenüber 74 % bis 81 % bei Luna."
+      ]
+    }
+  },
+  "luna": {
+    "k4": {
+      "title": "Kapitel 4: Prüfung mit zehn neuen Fragen (MCP v2)",
+      "intro": [
+        "Dieselben zehn neuen Fragen, dieselbe Rubrik und dieselbe Auswertung wie bei Qwen (siehe dort für Begründung und Vorgehen). Je Variante 30 Antworten, 90 Sitzungen. Die neue Schnittstelle (v3) wurde bei Luna bewusst nicht gemessen."
+      ],
+      "findings": [
+        "<b>Qualität:</b> ohne Werkzeuge 0 %, lokale Shell 81 %, MCP v2 74 %. Der Unterschied von −7,3 Prozentpunkten ist nicht belastbar (Intervall −24 bis +6, p = 0,14). Dass MCP nicht schlechter ist, lässt sich mit der Grenze von −5 Prozentpunkten nicht belegen.",
+        "<b>Beide Wege fallen gegenüber den Entwicklungsfragen ab</b> (Shell 94 % → 81 %, MCP v2 92 % → 74 %), der Abstand wächst von 3 auf 7 Prozentpunkte.",
+        "<b>Der Mehraufwand hängt an der Fragenart.</b> Bei Fragen zu ganzen Programmen (C1, C3, C4) braucht MCP im Mittel 7,1 Aufrufe mehr als die Shell, bei Fragen zu einzelnen Methoden 0,8. Das bestätigt den Befund aus der ersten Messung: Luna fragt ein Programm Paragraph für Paragraph ab, wo die Shell es am Stück liest.",
+        "<b>Schwachstellen von MCP v2:</b> J4 (Aufrufer von <code>createTasks</code>) 0,37 gegen 1,00 mit der Shell, weil der Index nur 6 von 13 Aufruferklassen kennt, und C4 (Bericht) 0,56 gegen 1,00. <b>Vorne liegt MCP</b> bei J2 (0,86 gegen 0,71), C3 (0,92 gegen 0,83) und J5 (0,81 gegen 0,74).",
+        "<b>Ohne Werkzeuge bekommt Luna nichts</b> (0 %), die Rubrik lässt sich also nicht erraten. Luna antwortet dann, dass sie ohne Code nichts belegen kann."
+      ]
+    }
+  },
+  "compare": {
+    "title": "An den neuen Fragen",
+    "lead": "Qualität und brauchbare Antworten an den zehn neuen Fragen, soweit gemessen. Für Luna gibt es nur MCP v2.",
+    "findings": [
+      "<b>Auch an neuen Fragen bleibt der Abstand zwischen den Modellen groß:</b> Qwen mit der neuen Schnittstelle 36 %, Luna mit MCP v2 74 %.",
+      "<b>Die neue Schnittstelle hilft dem kleinen Modell deutlich</b> (17 % → 36 %), bei Luna ist sie nicht gemessen. Ob sie dort etwas ändert oder schadet, ist offen.",
+      "<b>Qwens Gewinn kostet Zeit:</b> 32 s statt 14 s. Luna braucht mit MCP v2 32 s."
+    ]
+  },
+  "next": [
+    "<b>Den Parameter verschlanken:</b> Statt der ganzen Frage nur die Namen der Symbole und ein kurzes Thema entgegennehmen. Das beseitigt die ungültigen Werkzeugaufrufe an der Wurzel und könnte den Denkmodus (und damit 18 s) überflüssig machen. Dafür müsste neu gemessen werden.",
+    "<b>Eine schlanke Werkzeugliste für kleine Modelle anbieten:</b> Qwen wählt <code>answer_context</code> nur, wenn es die einzige Alternative zur Suche ist. Der Server könnte ein Profil „klein“ mit nur drei Werkzeugen ausliefern.",
+    "<b>Die drei schwachen Fragen untersuchen:</b> C1, J2 und J3 liefern auch mit dem Beweispaket kaum Punkte. Dort liegt die Information tiefer oder in Konstanten, die der Index nicht kennt (Weiterleitungsziele, Meldungstexte).",
+    "<b>Den Index verbessern:</b> J4 zeigt, dass nur 6 von 13 Aufruferklassen aufgelöst sind. Fehlende Auflösung kostet bei Luna Punkte.",
+    "<b>Eine unabhängige Endprüfung:</b> Zehn frische Fragen, die vor der Messung weder dem Entwickler noch der Rubrik bekannt sind, und ein Test der neuen Schnittstelle auch mit Luna."
+  ],
+  "method_add": [
+    "<b>Kapitel 4 (Prüfung):</b> Zehn neue Fragen (fünf COBOL, fünf Java) mit Prüfsumme, Rubrik und Hypothesen vor dem ersten Lauf festgelegt. Die Rubriken wurden nur gegen die eigene Sollantwort und das Wiederholen der Frage geprüft. 10 Fragen × 3 Varianten × 3 Wiederholungen je Modell.",
+    "<b>Kapitel 5 (Entwicklung):</b> Entwickelt und gemessen nur an den sechs ursprünglichen Fragen, je Bedingung 5 Wiederholungen. Der Entwicklungsserver lief auf einer zweiten Instanz mit gleicher Datenbank, der produktive Server blieb auf v2. Die Auswahlregel (höchste Qualität) wurde vorab festgelegt.",
+    "<b>Kapitel 6 (Test):</b> Die ausgewählte Variante wurde einmal an den zehn neuen Fragen gemessen (30 Sitzungen), mit vorab festgelegten Erwartungen, gepaart gegen MCP v2 an denselben Fragen.",
+    "<b>Harnessänderung:</b> Nach den ersten 22 Sitzungen von Z1 wurde ein Wiederholungsversuch ergänzt (bis zu zwei Mal mit einem Hinweis), wenn Ollama einen Werkzeugaufruf mit ungültigem JSON verwirft. Die Läufe ohne Wiederholungsversuch sind getrennt abgelegt. In früheren Kapiteln gab es keine leeren Antworten, die Änderung betrifft sie nicht."
+  ],
+  "limits_add": [
+    "<b>Der Testsatz ist nicht völlig unberührt:</b> Ich kannte die zehn neuen Fragen, als ich <code>answer_context</code> entworfen habe, und habe jede Fähigkeit mit einer der Entwicklungsfragen begründet. Der Sprung bei C5 gilt am wenigsten als unabhängig.",
+    "<b>Qwen wurde mit einer verschlankten Werkzeugliste und im Denkmodus getestet.</b> Das ist eine Clientwahl und nicht die Standardeinstellung eines Agenten. Mit allen Werkzeugen wählt Qwen das neue Werkzeug kaum.",
+    "<b>Die neue Schnittstelle wurde mit Luna nicht gemessen</b> und ist nicht deployed. Produktiv läuft MCP v2."
+  ]
+}
