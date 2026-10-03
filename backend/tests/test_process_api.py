@@ -556,3 +556,48 @@ def test_process_helpers_map_loops_to_iteration_and_never_return_list_conditions
     assert _condition_text({"control_context": "catch(IOException)"}) == "catch(IOException)"
     assert _condition_text({"control_context": [{"type": "IF", "branch": "THEN"}]}) is None
     assert _condition_text({}) is None
+
+
+def test_process_focus_on_a_cobol_program_starts_at_its_unique_entry_paragraph(
+    client, db_session, test_project, test_team
+):
+    """Die Kanten hängen an Paragraphen: ein Programm als Einstieg lieferte nur den Wurzelknoten."""
+    source = KnowledgeSource(
+        name="process-program-entry", type="Git", project_id=test_project, team_id=test_team, branch="main",
+    )
+    db_session.add(source)
+    db_session.flush()
+    program = CodeEntity(
+        project_id=test_project, source_id=source.id, file_path="PAY.cbl", name="PAY",
+        qualified_name="PAY", type="program", start_line=1, end_line=60, meta_json={"language": "cobol"},
+    )
+    db_session.add(program)
+    db_session.flush()
+
+    def paragraph(name, start):
+        item = CodeEntity(
+            project_id=test_project, source_id=source.id, file_path="PAY.cbl", name=name,
+            qualified_name=f"PAY.{name}", type="paragraph", start_line=start, end_line=start + 5,
+            parent_id=program.id, meta_json={"language": "cobol"},
+        )
+        db_session.add(item)
+        db_session.flush()
+        return item
+
+    main, init = paragraph("MAIN-PARA", 10), paragraph("1000-INIT", 20)
+    db_session.add(CodeEdge(
+        project_id=test_project, source_id=source.id, src_entity_id=main.id, dst_entity_id=init.id,
+        dst_name="1000-INIT", type="PERFORM", resolution="resolved", src_start_line=12, src_end_line=12,
+    ))
+    db_session.commit()
+    try:
+        body = client.get("/process/focus", params={"entity_id": program.id, "project_id": test_project, "hops": 1}).json()
+        assert body["root_node_id"] == f"entity:{main.id}"
+        assert [(t["source"], t["target"]) for t in body["transitions"]] == [(f"entity:{main.id}", f"entity:{init.id}")]
+
+        init2 = paragraph("MAIN", 30)  # zweiter Einstiegsname: mehrdeutig, Programm bleibt Wurzel
+        body = client.get("/process/focus", params={"entity_id": program.id, "project_id": test_project}).json()
+        assert body["root_node_id"] == f"entity:{program.id}" and init2.id
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()

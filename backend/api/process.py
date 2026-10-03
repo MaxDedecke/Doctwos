@@ -404,6 +404,37 @@ def _projection(
     )
 
 
+_ENTRY_NAMES = {"main-para", "main", "procedure-division", "procedure-start"}
+
+
+def _program_entry(db: Session, program: CodeEntity) -> CodeEntity | None:
+    """Einstiegsparagraph eines COBOL-Programms (die Kanten hängen an Paragraphen, nicht am Programm).
+
+    Gleiche Regel wie `services.call_flow.trace_call_flow`: ein eindeutig benannter Einstieg
+    oder der einzige Paragraph; sonst bleibt das Programm die Wurzel."""
+    children = (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.project_id == program.project_id,
+            CodeEntity.source_id == program.source_id,
+            CodeEntity.variant_key == program.variant_key,
+            CodeEntity.parent_id == program.id,
+            CodeEntity.type.in_(["paragraph", "section"]),
+        )
+        .order_by(CodeEntity.start_line, CodeEntity.id)
+        .limit(2_000)
+        .all()
+    )
+    named = [
+        c for c in children
+        if c.name.casefold() in _ENTRY_NAMES
+        or (c.qualified_name or "").casefold().endswith(tuple("." + n for n in _ENTRY_NAMES))
+    ]
+    if len(named) == 1:
+        return named[0]
+    return children[0] if len(children) == 1 else None
+
+
 @router.get("/focus", response_model=ProcessProjection)
 def focus_process(
     entity_id: int,
@@ -420,6 +451,8 @@ def focus_process(
     if root is None:
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(root, user, db, project_id)
+    if direction == "outgoing" and root.type in {"program", "cobol_program"}:
+        root = _program_entry(db, root) or root
     return _projection(
         db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds)
     )
