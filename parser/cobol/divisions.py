@@ -108,6 +108,10 @@ class _ProgramFrame:
         self.paragraphs: list[Paragraph] = []
 
 
+# Name des Ankers für Sätze direkt unter PROCEDURE DIVISION / SECTION ohne Paragraphenkopf.
+IMPLICIT_PARAGRAPH_NAME = "PROCEDURE-START"
+
+
 class _StructureVisitor(Cobol85Visitor):
     """Ein Durchlauf über ALLE `programUnit`-Knoten (O-138: mehrere
     aufeinanderfolgende PROGRAM-IDs UND echt verschachtelte Unterprogramme).
@@ -220,6 +224,19 @@ class _StructureVisitor(Cobol85Visitor):
     def _collect_paragraphs(self, paragraphs_ctx, section_name: str | None) -> None:
         if paragraphs_ctx is None:
             return
+        # Sätze vor dem ersten Paragraphennamen (kleine Dienstprogramme wie
+        # CardDemo `COBSWAIT.cbl` haben gar keinen) gehören zu keinem benannten
+        # Paragraphen; ohne Anker bliebe die ganze Datei ein Textfallback.
+        leading = paragraphs_ctx.sentence()
+        if leading:
+            self._stack[-1].paragraphs.append(
+                Paragraph(
+                    IMPLICIT_PARAGRAPH_NAME,
+                    section_name,
+                    _line(leading[0].start),
+                    self._end_line(leading[-1].stop),
+                )
+            )
         for p in paragraphs_ctx.paragraph():
             name_ctx = p.paragraphName()
             name = (

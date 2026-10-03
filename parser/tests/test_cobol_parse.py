@@ -829,3 +829,27 @@ def test_blank_sequence_numbered_lines_are_not_reported_as_unstructured_code():
     result = parse_program(source, "LONEDOT.cbl")
     assert [c for c in result.chunks if c.meta.get("fallback")] == []
     assert [e.name for e in result.entities if e.type == "paragraph"] == ["MAIN-PARA", "NEXT-PARA"]
+
+
+def test_statements_directly_under_procedure_division_get_an_implicit_paragraph():
+    """CardDemo COBSWAIT.cbl: kein Paragraphenname, trotzdem strukturiert statt Volltext."""
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. COBSWAIT.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 MVSWAIT-TIME                    PIC 9(8) COMP.\n"
+        "       01 PARM-VALUE                      PIC X(8).\n"
+        "       PROCEDURE DIVISION.\n"
+        "           ACCEPT PARM-VALUE      FROM SYSIN.\n"
+        "           MOVE  PARM-VALUE       TO MVSWAIT-TIME.\n"
+        "           CALL 'MVSWAIT'       USING MVSWAIT-TIME.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(text, "/repo/cbl/COBSWAIT.cbl")
+
+    anchor = next(e for e in result.entities if e.type == "paragraph")
+    assert (anchor.name, anchor.start_line, anchor.end_line) == ("PROCEDURE-START", 8, 11)
+    assert not [c for c in result.chunks if c.meta.get("fallback")]
+    call = next(e for e in result.edges if e.type == "CALL")
+    assert (call.src_name, call.dst_name) == ("PROCEDURE-START", "MVSWAIT")
