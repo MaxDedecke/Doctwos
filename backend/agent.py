@@ -612,8 +612,9 @@ async def run_agent_loop(
                 "name": "search_knowledge",
                 "description": (
                     "Runs a bounded lexical search in the current project over indexed code entity names/paths "
-                    "and document titles/paths. It does not perform semantic or full-text chunk search. "
-                    "Use the returned query, types, and source scope unchanged when offering its results view."
+                    "and document titles/paths. It does not perform semantic or full-text chunk search, "
+                    "and path matches are weak evidence; prefer answer_context or explain_symbol for questions "
+                    "about specific code."
                 ),
                 "inputSchema": {
                     "type": "object",

@@ -231,29 +231,26 @@ describe('GlobalSearch add-view menu', () => {
     vi.restoreAllMocks();
   });
 
-  it('offers the same view types as the type selector inside a view, including Agentensuche and Erkenntnisse', () => {
+  it('offers the same view types as the type selector inside a view, including Erkenntnisse', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ currentUser: { is_admin: true }, panelConfigs: ['code'] });
     fireEvent.click(screen.getByTitle('Ansicht hinzufügen'));
 
     for (const label of [
-      '💬 Chat-Ansicht', '💻 Code-Editor', '📖 Dokumentation', '🕸️ Wissensnetz (Graph)', '🔎 Agentensuche',
+      '💬 Chat-Ansicht', '💻 Code-Editor', '📖 Dokumentation', '🕸️ Wissensnetz (Graph)',
       '🔀 Process View', '🌐 Web-Vorschau', '🔗 Link Manager', '💡 Erkenntnisse',
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
 
-  it('opens a search or insights view via the menu', () => {
+  it('opens an insights view via the menu and offers no agent search view anymore', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     const onAddPanel = vi.fn();
     renderGlobalSearch({ currentUser: { is_admin: false }, panelConfigs: ['chat'], onAddPanel });
 
     fireEvent.click(screen.getByTitle('Ansicht hinzufügen'));
-    fireEvent.click(screen.getByText('🔎 Agentensuche'));
-    expect(onAddPanel).toHaveBeenLastCalledWith('search');
-
-    fireEvent.click(screen.getByTitle('Ansicht hinzufügen'));
+    expect(screen.queryByText('🔎 Agentensuche')).toBeNull();
     fireEvent.click(screen.getByText('💡 Erkenntnisse'));
     expect(onAddPanel).toHaveBeenLastCalledWith('insights');
   });

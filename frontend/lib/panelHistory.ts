@@ -1,4 +1,4 @@
-import type { AgentGraphViewAction, AgentSearchViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
+import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from './callFlow';
 export type PanelSelection = {
   selectedFile: string | null;
@@ -7,7 +7,6 @@ export type PanelSelection = {
   selectedLine: number | null;
   customCallFlow?: CallFlowData | null;
   graphNeighborhood?: AgentGraphViewAction['target'] | null;
-  agentSearch?: AgentSearchViewAction['target'] | null;
 };
 
 export type PanelHistoryEntry = {
@@ -24,7 +23,6 @@ export const EMPTY_PANEL_SELECTION: PanelSelection = {
   selectedLine: null,
   customCallFlow: null,
   graphNeighborhood: null,
-  agentSearch: null,
 };
 
 export function panelSelectionsEqual(a: PanelSelection, b: PanelSelection): boolean {
@@ -33,8 +31,7 @@ export function panelSelectionsEqual(a: PanelSelection, b: PanelSelection): bool
     a.selectedEntity === b.selectedEntity &&
     a.selectedLine === b.selectedLine &&
     a.customCallFlow === b.customCallFlow &&
-    JSON.stringify(a.graphNeighborhood ?? null) === JSON.stringify(b.graphNeighborhood ?? null) &&
-    JSON.stringify(a.agentSearch ?? null) === JSON.stringify(b.agentSearch ?? null);
+    JSON.stringify(a.graphNeighborhood ?? null) === JSON.stringify(b.graphNeighborhood ?? null);
 }
 
 /**
@@ -48,7 +45,7 @@ export function appendPanelHistory(
   next: PanelSelection,
 ): PanelHistoryEntry {
   if (panelSelectionsEqual(previous, next) || (
-    !previous.selectedFile && !previous.selectedDoc && !previous.graphNeighborhood && !previous.agentSearch
+    !previous.selectedFile && !previous.selectedDoc && !previous.graphNeighborhood
   )) {
     return entry;
   }

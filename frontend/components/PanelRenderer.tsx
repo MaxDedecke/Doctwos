@@ -151,7 +151,6 @@ function historyButtonClass(theme: string) {
 
 function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate) {
   if (focusObject) return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: 'text-ds-purple-400' };
-  if (selection.agentSearch) return { Icon: Search, label: selection.agentSearch.query, kind: t('page.viewTypes.search'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: selection.selectedEntity.type || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedDoc) {
     const isWeb = selection.selectedDoc.isWebOrigin || ['confluence', 'jira'].includes((selection.selectedDoc.type || '').toLowerCase());

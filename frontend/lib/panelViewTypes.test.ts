@@ -5,7 +5,7 @@ import { getAvailablePanelViewTypes, PANEL_VIEW_TYPES } from './panelViewTypes';
 describe('panelViewTypes', () => {
   it('offers Agentensuche and Erkenntnisse in addition to the classic views', () => {
     expect([...PANEL_VIEW_TYPES]).toEqual(
-      ['chat', 'code', 'doc', 'graph', 'search', 'callgraph', 'webview', 'linkmanager', 'insights'],
+      ['chat', 'code', 'doc', 'graph', 'callgraph', 'webview', 'linkmanager', 'insights'],
     );
   });
 

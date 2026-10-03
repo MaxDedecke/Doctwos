@@ -9,7 +9,6 @@ export const PANEL_VIEW_TYPES = [
   'code',
   'doc',
   'graph',
-  'search',
   'callgraph',
   'webview',
   'linkmanager',

@@ -198,7 +198,7 @@ export function useWorkspaceLayout({
       // panel's destination and leave its editor blank until the next action.
       if (explicitlySeededPanelIdsRef.current.has(panelIds[index])) return selection;
       const panelType = panelConfigs[index];
-      const shouldSync = panelType !== 'search' && (
+      const shouldSync = (
         panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
         || incomingType === null || incomingType === panelType
       );
@@ -290,7 +290,6 @@ export function useWorkspaceLayout({
       selectedLine: selectionOverride?.selectedLine ?? null,
       customCallFlow: selectionOverride?.customCallFlow ?? null,
       graphNeighborhood: selectionOverride?.graphNeighborhood ?? null,
-      agentSearch: selectionOverride?.agentSearch ?? null,
     }]);
     setPanelHistory((previous) => [...previous, { past: [], future: [] }]);
     setPanelConfigs((previous) => [...previous, type]);
@@ -298,7 +297,7 @@ export function useWorkspaceLayout({
     const hasExplicitDestination = Boolean(
       selectionOverride && (
         selectionOverride.selectedFile || selectionOverride.selectedDoc || selectionOverride.selectedEntity ||
-        selectionOverride.graphNeighborhood || selectionOverride.agentSearch
+        selectionOverride.graphNeighborhood
       )
     );
     if (hasExplicitDestination) {
@@ -579,7 +578,8 @@ export function useWorkspaceLayout({
       : ['chat'];
     const allowedPanelIndexes = rawPanelConfigs
       .map((type, index) => ({ type, index }))
-      .filter(({ type }) => type !== 'linkmanager' || linkManagerEnabled);
+      // `search` (Agentensuche, entfernt) kann noch in gespeicherten Sitzungen stehen und wird verworfen.
+      .filter(({ type }) => type !== 'search' && (type !== 'linkmanager' || linkManagerEnabled));
     const restoredSelections = allowedPanelIndexes.map(({ index }) =>
       Array.isArray(snapshot.panelSelections) ? (snapshot.panelSelections[index] || EMPTY_PANEL_SELECTION) : EMPTY_PANEL_SELECTION,
     );
