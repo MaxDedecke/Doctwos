@@ -6,12 +6,27 @@ Cross-type search across Project, CodeEntity, KnowledgeSource, and DocumentChunk
 
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func, case
+from sqlalchemy import or_, func, case, false
 
 from core.projects import build_document_chunk_code_gate, get_globally_exposed_project_ids
 from models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
 
 ALL_TYPES = "project,entity,document,knowledge_source"
+
+
+def _project_is_visible(
+    db: Session,
+    project_id: int,
+    visible_team_ids: Optional[list[int]],
+    visible_project_ids: Optional[list[int]],
+) -> bool:
+    """None bedeutet „keine Einschränkung“ (Administratoren)."""
+    if visible_project_ids is not None and project_id not in visible_project_ids:
+        return False
+    if visible_team_ids is not None:
+        team_id = db.query(Project.team_id).filter(Project.id == project_id).scalar()
+        return team_id in visible_team_ids
+    return True
 
 
 def search_nodes(
@@ -71,6 +86,10 @@ def search_nodes(
             query = query.filter(CodeEntity.source_id == source_id)
         if project_id:
             query = query.filter(CodeEntity.project_id == project_id)
+            # Ein explizit genanntes Projekt darf nicht an der Sichtbarkeit vorbei
+            # durchsucht werden (Nicht-Admins sahen sonst fremde Code-Entities).
+            if not _project_is_visible(db, project_id, visible_team_ids, visible_project_ids):
+                query = query.filter(false())
         else:
             # Kein Projekt-Kontext ("Allgemein") -- Code-Analyse-Objekte anderer Projekte
             # tauchen hier nur auf, wenn ihr Projekt explizit dafür freigegeben ist (siehe

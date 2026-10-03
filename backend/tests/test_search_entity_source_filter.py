@@ -52,3 +52,30 @@ def test_entity_search_respects_source_filter(db_session, test_project):
         db_session.delete(a)
         db_session.delete(b)
         db_session.commit()
+
+
+def test_entity_search_with_explicit_project_respects_visibility(db_session, test_project):
+    """Isolationsfund 03.10.: `project_id` eines unsichtbaren Projekts lieferte fremde Entities."""
+    src = _source(db_session, test_project, "Isolation")
+    entity = _entity(db_session, test_project, src.id, "x/COPAUA0C.cbl")
+    team_id = db_session.query(Project.team_id).filter(Project.id == test_project).scalar()
+    try:
+        _, hidden = search_nodes(
+            db_session, q="COPAUA0C", types="entity", project_id=test_project,
+            visible_team_ids=[team_id + 1000], visible_project_ids=[],
+        )
+        _, other_project = search_nodes(
+            db_session, q="COPAUA0C", types="entity", project_id=test_project,
+            visible_team_ids=[team_id], visible_project_ids=[test_project + 1000],
+        )
+        _, visible = search_nodes(
+            db_session, q="COPAUA0C", types="entity", project_id=test_project,
+            visible_team_ids=[team_id], visible_project_ids=[test_project],
+        )
+        _, admin = search_nodes(db_session, q="COPAUA0C", types="entity", project_id=test_project)
+        assert hidden["entity"] == 0 and other_project["entity"] == 0
+        assert visible["entity"] == 1 and admin["entity"] == 1
+    finally:
+        db_session.delete(entity)
+        db_session.delete(src)
+        db_session.commit()
