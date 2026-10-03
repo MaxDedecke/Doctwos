@@ -22,7 +22,7 @@ _RESOURCE_RE = re.compile(
     r"PCB|PSB|PSBNAME|SEGMENT|DATABASE|DBDNAME|TDQUEUE|TSQUEUE|"
     r"CHANNEL|CONTAINER|URIMAP|WEBSERVICE|PIPELINE|TCPIPSERVICE|"
     r"MQNAME|TOPIC|APPLID|CONNECTION|SESSION|TRANSACTION)\s*\(\s*"
-    r"(?:'([^']*)'|\"([^\"]*)\"|([A-Za-z][A-Za-z0-9-]*))\s*\)",
+    r"(?:'([^']*)'|\"([^\"]*)\"|([A-Za-z][A-Za-z0-9-]*)(?:\s*\([^()]*\))?)\s*\)",
     re.IGNORECASE,
 )
 _DATA_OPERAND_RE = re.compile(

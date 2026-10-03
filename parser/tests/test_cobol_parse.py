@@ -853,3 +853,60 @@ def test_statements_directly_under_procedure_division_get_an_implicit_paragraph(
     assert not [c for c in result.chunks if c.meta.get("fallback")]
     call = next(e for e in result.edges if e.type == "CALL")
     assert (call.src_name, call.dst_name) == ("PROCEDURE-START", "MVSWAIT")
+
+
+_DYNAMIC_CALLS = """       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MENU01C.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-TO-PROGRAM              PIC X(08).
+       01 LIT-ADMIN                  PIC X(08) VALUE 'COADM01C'.
+       01 WS-OPTION                  PIC 9(02).
+       01 MENU-TABLE.
+          05 MENU-PGMNAME OCCURS 5   PIC X(08).
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           MOVE 'COSGN00C' TO WS-TO-PROGRAM
+           MOVE 'COMEN01C' TO WS-TO-PROGRAM
+           MOVE 'COSGN00C' TO WS-TO-PROGRAM
+           EXEC CICS XCTL
+               PROGRAM(WS-TO-PROGRAM)
+           END-EXEC
+           EXEC CICS XCTL
+               PROGRAM(MENU-PGMNAME(WS-OPTION))
+           END-EXEC
+           EXEC CICS LINK
+               PROGRAM(LIT-ADMIN)
+           END-EXEC
+           EXEC CICS XCTL
+               PROGRAM('LITERAL1')
+           END-EXEC
+           GOBACK.
+"""
+
+
+def test_dynamic_call_targets_carry_evidenced_candidates_but_stay_dynamic():
+    """CardDemo: `XCTL PROGRAM(CDEMO-TO-PROGRAM)` nach `MOVE 'COSGN00C' TO CDEMO-TO-PROGRAM`."""
+    result = parse_program(_DYNAMIC_CALLS, "/repo/cbl/MENU01C.cbl")
+    calls = {e.dst_name: e for e in result.edges if e.type == "CALL"}
+
+    to_program = calls["WS-TO-PROGRAM"]
+    assert to_program.resolution == "dynamic"
+    assert [(c["name"], c["count"], c["source"]) for c in to_program.meta["candidate_targets"]] == [
+        ("COSGN00C", 2, "move"), ("COMEN01C", 1, "move"),
+    ]
+    assert to_program.meta["candidate_basis"] == "literal_assignments_in_program"
+
+    linked = calls["LIT-ADMIN"]
+    assert linked.resolution == "dynamic"
+    assert linked.meta["candidate_targets"][0] | {"line": 0} == {"name": "COADM01C", "line": 0, "source": "value", "count": 1}
+
+    assert calls["LITERAL1"].resolution == "resolved" and "candidate_targets" not in calls["LITERAL1"].meta
+
+
+def test_cics_program_operand_with_a_subscript_still_produces_a_dynamic_edge():
+    """CardDemo `XCTL PROGRAM(CDEMO-MENU-OPT-PGMNAME(WS-OPTION))` erzeugte gar keine Kante."""
+    result = parse_program(_DYNAMIC_CALLS, "/repo/cbl/MENU01C.cbl")
+    edge = next(e for e in result.edges if e.type == "CALL" and e.dst_name == "MENU-PGMNAME")
+    assert edge.resolution == "dynamic" and edge.meta["invocation_kind"] == "cics_xctl"
+    assert "candidate_targets" not in edge.meta

@@ -134,6 +134,15 @@
       "scope": null,
       "meta": {
         "program": "DYNCALL",
+        "candidate_targets": [
+          {
+            "name": "SUBPROG",
+            "line": 5,
+            "source": "value",
+            "count": 2
+          }
+        ],
+        "candidate_basis": "literal_assignments_in_program",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

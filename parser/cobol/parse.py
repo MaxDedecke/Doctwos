@@ -38,6 +38,7 @@ from . import antlr_bridge
 from . import copybook as copybook_mod
 from . import conditional as conditional_mod
 from . import data_division as data_division_mod
+from . import dynamic_targets as dynamic_targets_mod
 from . import divisions as divisions_mod
 from . import embedded as embedded_mod
 from . import exec as exec_mod
@@ -209,6 +210,9 @@ def parse_program(
         fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)
         io_edges = io_mod.scan(program, tokens, file_descriptors, items)
         xref_edges = _drop_xref_edges_covered_by_io(io_edges, xref_edges)
+        dynamic_targets_mod.annotate(
+            [*proc_edges, *exec_edges], tokens, program.start_line, program.end_line
+        )
         edges.extend(
             [
                 *proc_edges,
