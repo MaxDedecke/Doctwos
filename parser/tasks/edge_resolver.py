@@ -21,6 +21,7 @@ sind in hunderten Programmen gleich benannt).
 
 from __future__ import annotations
 
+import posixpath
 from collections import defaultdict
 from pathlib import Path
 
@@ -402,6 +403,67 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+_MAVEN_DECLARATION_EDGES = ("CONTAINS_MODULE", "DEPENDS_ON", "USES_PLUGIN", "DECLARES_SOURCE_ROOT")
+
+
+def _resolve_maven_edges(db: Session, source_id: int) -> int:
+    """Maven-Kanten zeigen auf die Deklaration derselben POM (Modul, Abhängigkeit, Plugin, Quellverzeichnis).
+
+    Diese Entity existiert immer; die Kante ist damit aufgelöst. Zusätzlich wird belegt vermerkt, ob die
+    Deklaration auf ein Projekt im selben Quellstand zeigt: eine Abhängigkeit mit gleicher `groupId:artifactId`
+    oder ein Modul, dessen POM unter dem Modulpfad liegt (`meta.internal_project`). Das Kantenziel bleibt die
+    Deklaration; es wird nichts geraten (mehrdeutige Koordinaten bleiben ohne Vermerk)."""
+    edges = (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.type.in_(_MAVEN_DECLARATION_EDGES))
+        .all()
+    )
+    edges = [edge for edge in edges if (edge.meta_json or {}).get("language") == "maven"]
+    if not edges:
+        return 0
+    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id, CodeEntity.type.like("maven_%")).all()
+    by_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
+    projects_by_coordinates: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
+    projects_by_path: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
+    for entity in entities:
+        by_qname[(entity.variant_key, entity.qualified_name)].append(entity)
+        if entity.type == "maven_project":
+            meta = entity.meta_json or {}
+            projects_by_coordinates[(entity.variant_key, meta.get("group_id") or "", meta.get("artifact_id") or entity.name)].append(entity)
+            projects_by_path[(entity.variant_key, entity.file_path)].append(entity)
+
+    def unique(candidates: list[CodeEntity]) -> CodeEntity | None:
+        return candidates[0] if len(candidates) == 1 else None
+
+    resolved = 0
+    for edge in edges:
+        meta = dict(edge.meta_json or {})
+        target = unique(by_qname.get((edge.variant_key, meta.get("target_qualified_name") or ""), []))
+        if target is None:
+            continue
+        project = None
+        target_meta = target.meta_json or {}
+        if target.type == "maven_dependency":
+            project = unique(projects_by_coordinates.get(
+                (edge.variant_key, target_meta.get("group_id") or "", target_meta.get("artifact_id") or ""), []))
+        elif target.type == "maven_module":
+            module_pom = posixpath.normpath(posixpath.join(
+                posixpath.dirname(target_meta.get("path") or target.file_path), target.name, "pom.xml"))
+            project = unique(projects_by_path.get((edge.variant_key, module_pom), []))
+        if project is not None and project.id != target.id:
+            meta["internal_project"] = {"entity_id": project.id, "name": project.name, "path": project.file_path}
+        else:
+            meta.pop("internal_project", None)
+        if edge.resolution != "resolved" or edge.dst_entity_id != target.id:
+            edge.dst_entity_id = target.id
+            edge.resolution = "resolved"
+            resolved += 1
+        meta["resolution_scope"] = "declaration"
+        if meta != (edge.meta_json or {}):
+            edge.meta_json = meta
+    return resolved
+
+
 def _derive_dataset_assignments(db: Session, source_id: int) -> int:
     """O-147: `ASSIGNED_DATASET`-Kanten Datei → Dataset neu ableiten (idempotent). Gibt neue Kanten zurück."""
     entities = db.query(CodeEntity).filter(
@@ -484,6 +546,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)
     resolved += _resolve_jcl_edges(db, source_id)
+    resolved += _resolve_maven_edges(db, source_id)
     _derive_dataset_assignments(db, source_id)
     _mark_external_targets(db, source_id)
     resolved += resolve_resource_edges(
