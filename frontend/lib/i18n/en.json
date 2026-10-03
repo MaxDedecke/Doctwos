@@ -760,7 +760,16 @@
     "noPinnedSources": "No pinned knowledge sources",
     "globalSourceBadge": "Global",
     "loadingFiles": "Loading files...",
-    "noFiles": "No files available"
+    "noFiles": "No files available",
+    "scanSummaryTitle": "{count} of {total} files not fully structured",
+    "scanReason_not_indexable": "Not indexable (e.g. binary/EBCDIC)",
+    "scanReason_no_structure_parser": "No structure parser (text index)",
+    "scanReason_parser_error": "Parser error",
+    "scanReason_uncovered_code": "Code only partly covered",
+    "scanReason_blocked_for_safety": "Blocked for safety",
+    "scanReason_other": "Other",
+    "scanEdgesOpen": "Unresolved edges (real gaps)",
+    "scanEdgesExternal": "External targets (JDK, libraries)"
   },
   "chatView": {
     "modeLabel": "Chat mode",

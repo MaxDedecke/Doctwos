@@ -21,6 +21,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { FileTreeList } from './sidebar/FileTreeList';
+import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
 import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
 
 interface SidebarProps {
@@ -82,6 +83,7 @@ export function Sidebar({
   // (siehe api.ts::getKnowledgeSourceFiles) -- FileTreeList zeigt daraus ein
   // Badge, fehlt ein Pfad hier gilt er als unauffällig.
   const [sourceFileStatus, setSourceFileStatus] = useState<Record<number, Record<string, AnalysisStatusInfo>>>({});
+  const [sourceScanSummary, setSourceScanSummary] = useState<Record<number, SourceScanSummaryData | undefined>>({});
   const [loadingSourceId, setLoadingSourceId] = useState<number | null>(null);
 
   const loadSourceFiles = async (sourceId: number) => {
@@ -90,6 +92,7 @@ export function Sidebar({
       const res = await api.getKnowledgeSourceFiles(sourceId);
       setSourceFiles(prev => ({ ...prev, [sourceId]: res.data.files || [] }));
       setSourceFileStatus(prev => ({ ...prev, [sourceId]: res.data.file_status || {} }));
+      setSourceScanSummary(prev => ({ ...prev, [sourceId]: res.data.scan_summary }));
     } catch (e) {
       console.error("Failed to load source files", e);
     } finally {
@@ -403,6 +406,8 @@ export function Sidebar({
                                         {t('sidebar.noFiles')}
                                       </div>
                                     ) : (
+                                      <>
+                                      <SourceScanSummary summary={sourceScanSummary[Number(source.id)]} theme={theme} />
                                       <FileTreeList
                                         filesList={filesList}
                                         fileStatus={sourceFileStatus[Number(source.id)]}
@@ -414,6 +419,7 @@ export function Sidebar({
                                         onFileSelect={handleTreeFileSelect}
                                         theme={theme}
                                       />
+                                      </>
                                     )}
                                   </div>
                                 )}
