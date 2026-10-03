@@ -1900,7 +1900,9 @@ def get_call_flow(
 
     ``scope`` selects ``execution`` (CALL/PERFORM/etc.), ``dependencies``
     (COPY/import/resource/data edges), or ``all``. ``direction`` is outgoing,
-    incoming, or both. Continue a large result with the returned ``next_cursor``
+    incoming, or both; outgoing and both resolve a COBOL program or Java class to
+    its entry paragraph or method (``both`` additionally returns the callers of the
+    program or class itself). Continue a large result with the returned ``next_cursor``
     and the same root, hops, direction, and scope.
     """
     hops = max(0, min(hops, 3))

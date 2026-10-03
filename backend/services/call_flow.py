@@ -169,7 +169,7 @@ def trace_call_flow(
     # executable call edges are attached to internal paragraphs. Resolve only
     # a single conventional entry paragraph; otherwise return candidates and
     # let the caller choose explicitly.
-    if direction == "outgoing" and root.type in {"program", "cobol_program"}:
+    if direction in {"outgoing", "both"} and root.type in {"program", "cobol_program"}:
         paragraphs = (
             db.query(CodeEntity)
             .filter(
@@ -221,7 +221,7 @@ def trace_call_flow(
                 "mermaid": "",
                 "notice": "Unter diesem COBOL-Programm ist kein Einstieg-Paragraph indexiert.",
             }
-    if direction == "outgoing" and root.type in {"class", "interface", "enum", "record"}:
+    if direction in {"outgoing", "both"} and root.type in {"class", "interface", "enum", "record"}:
         methods = (
             db.query(CodeEntity)
             .filter(
@@ -261,6 +261,11 @@ def trace_call_flow(
 
     seen = {root.id}
     frontier = {root.id}
+    if direction == "both" and root.id != requested_root.id:
+        # Der aufgelöste Einstieg liefert die ausgehenden Aufrufe; Aufrufer zeigen auf das Programm bzw. die
+        # Klasse selbst, deshalb bleibt die angefragte Wurzel Startpunkt für die eingehende Richtung.
+        seen.add(requested_root.id)
+        frontier.add(requested_root.id)
     edge_rows: dict[int, CodeEdge] = {}
     truncated = False
 
@@ -365,7 +370,7 @@ def trace_call_flow(
         + (
             " Programme und Klassen tragen die Aufrufe an Absätzen bzw. Methoden: "
             "direction=outgoing löst den Einstieg auf, sonst eine Methode/einen Absatz direkt wählen."
-            if direction != "outgoing"
+            if direction == "incoming"
             and root.type in {"program", "cobol_program", "class", "interface", "enum", "record"}
             else ""
         ),
