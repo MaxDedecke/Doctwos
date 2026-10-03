@@ -363,3 +363,17 @@ def test_negated_statement_about_a_missing_edge_is_not_an_edge_claim():
         assert consistent, answer
     _, invented = _validate_answer_sources("POSTTRAN ruft CBTRN02C auf.", [], edges)
     assert not invented
+
+
+def test_verified_answer_keeps_an_unbacked_edge_sentence_but_marks_it():
+    """Live-Fall C5: eine zusätzliche JCL-Aussage ohne Flow-Beleg verwirft nicht die ganze Antwort."""
+    sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
+    edges = {("cobswait", "mvswait")}
+    answer = "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`). Der JCL-Schritt ruft DFSRRC00 auf."
+
+    text, consistent = _validate_answer_sources(answer, sources, edges)
+
+    assert consistent
+    assert "COBSWAIT ruft MVSWAIT auf" in text
+    assert "ruft DFSRRC00 auf (Beziehung nicht im Index belegt)" in text
+    assert "nicht im Index belegt" in text.rsplit("Hinweis", 1)[1]

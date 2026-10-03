@@ -986,6 +986,8 @@ def _validate_answer_sources(
     # from proximity in a file snippet.
     # Punkte in Dateinamen (`COBSWAIT.cbl:36`) dürfen keine Satzgrenze sein.
     protected = _BACKTICK_RE.sub(lambda m: "`" + m.group(1).replace(".", "\u2024") + "`", answer)
+    supported_claims = 0
+    unsupported_claims: list[str] = []
     for sentence in (part.replace("\u2024", ".") for part in re.split(r"[.!?\n]+", protected)):
         # Zitierter Quelltext (`CALL 'X' USING ...`) ist keine Behauptung über den
         # Aufrufer, sondern der Beleg selbst.
@@ -999,28 +1001,35 @@ def _validate_answer_sources(
             # der Satz mindestens zwei Bezeichner nennt.
             if not (_EDGE_NOUN_RE.search(prose) and len(_IDENTIFIER_RE.findall(prose)) >= 2):
                 continue
-        if not edge_pairs:
-            logger.warning("Verwerfe Agent-Antwort mit Kantenbehauptung ohne Flow-Beleg: %s", sentence.strip()[:200])
+        lowered = sentence.casefold()
+        if any(
+            _mentions_name(lowered, pair[0]) and _mentions_name(lowered, pair[1])
+            for pair in (edge_pairs or ())
+        ):
+            supported_claims += 1
+        else:
+            unsupported_claims.append(sentence.strip())
+
+    if unsupported_claims:
+        if not (verified or supported_claims):
+            # Nur unbelegte Kanten: keine Ersatzkante als Antwort anbieten.
+            logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s", unsupported_claims[0][:200])
             return (
                 "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
                 "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
                 "Zielentität erneut auflösen oder den Call-Flow prüfen.",
                 False,
             )
-        lowered = sentence.casefold()
-        mentioned_pairs = [
-            pair
-            for pair in edge_pairs
-            if _mentions_name(lowered, pair[0]) and _mentions_name(lowered, pair[1])
-        ]
-        if mentioned_pairs:
-            continue
-        logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s", sentence.strip()[:200])
-        return (
-            "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
-            "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
-            "Zielentität erneut auflösen oder den Call-Flow prüfen.",
-            False,
+        # O-346: Belegte Antwort mit einer zusätzlichen Kantenaussage ohne Index-Beleg:
+        # Der Satz bleibt, wird aber als nicht belegt gekennzeichnet.
+        logger.warning("Markiere unbelegte Kantenbehauptung(en): %s", [c[:120] for c in unsupported_claims])
+        for claim in unsupported_claims:
+            if claim and claim in answer:
+                answer = answer.replace(claim, f"{claim} (Beziehung nicht im Index belegt)", 1)
+        answer = (
+            answer.rstrip()
+            + "\n\n> Hinweis: Mindestens eine Beziehungsaussage stammt nicht aus den abgerufenen "
+            "Analyseergebnissen und ist als „nicht im Index belegt“ markiert."
         )
     return answer, True
 
