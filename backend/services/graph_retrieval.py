@@ -42,6 +42,7 @@ RETRIEVAL_EDGE_TYPES = frozenset(
         "STARTS_JAVA",
         "REFERENCES_RESOURCE",
         "REFERENCES_PROPERTY_KEY",
+        "ASSIGNED_DATASET",
     }
 )
 

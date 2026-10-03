@@ -42,6 +42,7 @@ EDGE_KIND = {
     "READS": "data_access",
     "WRITES": "data_access",
     "USES_DATASET": "data_access",
+    "ASSIGNED_DATASET": "data_access",
     "USES_RESOURCE": "data_access",
     "TRANSFORMS_WITH": "data_access",
 }

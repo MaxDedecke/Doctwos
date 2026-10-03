@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from cobol.copybook import strip_copybook_extension
 from core.model import Entity, ParseResult, ParsedEdge
 from core.external_targets import classify_external
+from core.dataset_assignment import EDGE_TYPE as ASSIGNED_DATASET, assignment_key, derive_assignments
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
@@ -401,6 +402,49 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _derive_dataset_assignments(db: Session, source_id: int) -> int:
+    """O-147: `ASSIGNED_DATASET`-Kanten Datei → Dataset neu ableiten (idempotent). Gibt neue Kanten zurück."""
+    entities = db.query(CodeEntity).filter(
+        CodeEntity.source_id == source_id,
+        CodeEntity.type.in_(("jcl_step", "jcl_dataset", "program", "file_fd")),
+    ).all()
+    step_ids = [entity.id for entity in entities if entity.type == "jcl_step"]
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.src_entity_id.in_(step_ids),
+            CodeEdge.type.in_(("EXECUTES", "READS", "WRITES", "USES_DATASET")),
+        )
+        .all()
+        if step_ids else []
+    )
+    desired = {assignment_key(record): record for record in derive_assignments(entities, edges)}
+    existing = {}
+    for edge in db.query(CodeEdge).filter(CodeEdge.source_id == source_id, CodeEdge.type == ASSIGNED_DATASET).all():
+        meta = edge.meta_json or {}
+        key = (edge.src_entity_id, edge.dst_entity_id, meta.get("jcl_step_entity_id"), meta.get("ddname"))
+        if key in desired and key not in existing:
+            existing[key] = edge
+        else:
+            db.delete(edge)  # veraltet (Ziel/Step/Programm hat sich geändert) oder doppelt
+    created = 0
+    for key, record in desired.items():
+        edge = existing.get(key)
+        if edge is not None:
+            if edge.meta_json != record["meta"]:
+                edge.meta_json = record["meta"]
+            continue
+        db.add(CodeEdge(
+            project_id=record["project_id"], source_id=record["source_id"], variant_key=record["variant_key"],
+            src_entity_id=record["src_entity_id"], dst_entity_id=record["dst_entity_id"],
+            dst_name=record["dst_name"], type=ASSIGNED_DATASET, resolution="resolved",
+            src_start_line=record["src_start_line"], src_end_line=record["src_end_line"], meta_json=record["meta"],
+        ))
+        created += 1
+    return created
+
+
 def _mark_external_targets(db: Session, source_id: int) -> None:
     """Kennzeichnet unaufgelöste COBOL-/JCL-Kanten auf Systemziele (O-375) und
     entfernt die Kennzeichnung, sobald ein Ziel im Repository auftaucht."""
@@ -440,6 +484,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)
     resolved += _resolve_jcl_edges(db, source_id)
+    _derive_dataset_assignments(db, source_id)
     _mark_external_targets(db, source_id)
     resolved += resolve_resource_edges(
         db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all(),

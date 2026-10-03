@@ -1486,7 +1486,7 @@ def _data_access_summary(db: Session, entity: CodeEntity, limit: int = 15) -> li
     rows = db.query(CodeEdge).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
         CodeEdge.project_id == entity.project_id, CodeEntity.source_id == entity.source_id,
         CodeEntity.file_path == entity.file_path,
-        CodeEdge.type.in_(["READS", "WRITES", "USES_DATASET"]),
+        CodeEdge.type.in_(["READS", "WRITES", "USES_DATASET", "ASSIGNED_DATASET"]),
         CodeEdge.src_start_line >= entity.start_line, CodeEdge.src_start_line <= entity.end_line,
     ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(400).all()
     groups: dict[tuple[str, str], dict] = {}
@@ -1500,7 +1500,12 @@ def _data_access_summary(db: Session, entity: CodeEntity, limit: int = 15) -> li
             group["operation"] = meta["operation"]
         if meta.get("io_target_kind"):
             group["file_io"] = True
-    order = {"WRITES": 0, "USES_DATASET": 1, "READS": 2}
+        if meta.get("derived_by") == "jcl_dd_assign" and "ddname" not in group:
+            # O-147: Datei des Programms ↔ Dataset aus dem JCL-DD gleichen Namens (nur `possible`).
+            group["ddname"] = meta.get("ddname")
+            group["via_jcl"] = f"{meta.get('jcl_file_path')}:{meta.get('jcl_start_line')}"
+            group["certainty"] = "possible"
+    order = {"WRITES": 0, "USES_DATASET": 1, "ASSIGNED_DATASET": 1, "READS": 2}
     return sorted(groups.values(), key=lambda g: (0 if g.get("file_io") else 1, order.get(g["access"], 3), g["lines"][0] or 0))[:limit]
 
 

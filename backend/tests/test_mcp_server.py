@@ -1071,3 +1071,37 @@ def test_ide_file_marks_known_system_targets_as_external(unauthenticated_client,
     by_name = {ref["name"]: ref for ref in response.json()["references"]}
     assert by_name["CMQODV"]["external_category"] == "mq" and by_name["CMQODV"]["resolution"] == "unresolved"
     assert by_name["MYBOOK"]["external_category"] is None
+
+
+def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(db_session, mcp_project_context):
+    """O-147: `ASSIGNED_DATASET` erscheint in der Datenzugriffsübersicht mit DD-Name und JCL-Fundstelle."""
+    from models.database import CodeEdge
+
+    _owner, _outsider, project_id, _foreign = mcp_project_context
+    source = KnowledgeSource(name="dd-src", type="Git", project_id=project_id, team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar())
+    db_session.add(source)
+    db_session.flush()
+
+    def entity(type_, name, path, start, end, parent=None):
+        item = CodeEntity(project_id=project_id, source_id=source.id, file_path=path, name=name, qualified_name=name,
+                          type=type_, start_line=start, end_line=end, parent_id=parent.id if parent else None)
+        db_session.add(item)
+        db_session.flush()
+        return item
+
+    program = entity("program", "CBTRN02C", "cbl/CBTRN02C.cbl", 1, 90)
+    file_fd = entity("file_fd", "TRANSACT-FILE", "cbl/CBTRN02C.cbl", 30, 31, parent=program)
+    dataset = entity("jcl_dataset", "AWS.TRANSACT.KSDS", "jcl/POSTTRAN.jcl", 14, 14)
+    db_session.add(CodeEdge(
+        project_id=project_id, source_id=source.id, src_entity_id=file_fd.id, dst_entity_id=dataset.id,
+        dst_name=dataset.name, type="ASSIGNED_DATASET", resolution="resolved", src_start_line=30, src_end_line=31,
+        meta_json={"derived_by": "jcl_dd_assign", "ddname": "TRANFILE", "jcl_file_path": "jcl/POSTTRAN.jcl", "jcl_start_line": 14},
+    ))
+    db_session.commit()
+
+    summary = mcp_server._data_access_summary(db_session, program)
+
+    assert summary == [{
+        "access": "ASSIGNED_DATASET", "target": "AWS.TRANSACT.KSDS", "lines": [30],
+        "ddname": "TRANFILE", "via_jcl": "jcl/POSTTRAN.jcl:14", "certainty": "possible",
+    }]
