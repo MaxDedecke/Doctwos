@@ -349,3 +349,17 @@ def test_dots_inside_code_spans_do_not_split_a_sentence_into_a_false_edge_claim(
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
     text, consistent = _validate_answer_sources(answer, sources, edges)
     assert consistent and text.startswith("COBSWAIT liest")
+
+
+def test_negated_statement_about_a_missing_edge_is_not_an_edge_claim():
+    """Live-Fall C5: „keine nachgewiesene JCL-zu-COBOL-Kante“ ist die gewünschte Lückenaussage."""
+    edges = {("cobswait", "mvswait")}
+    for answer in (
+        "Das ist ein Textbeleg, aber keine nachgewiesene Kante, die POSTTRAN ruft CBTRN02C aufruft.",
+        "POSTTRAN ruft CBTRN02C nicht auf (Index).",
+        "There is no edge: POSTTRAN calls CBTRN02C only in the README.",
+    ):
+        _, consistent = _validate_answer_sources(answer, [], edges)
+        assert consistent, answer
+    _, invented = _validate_answer_sources("POSTTRAN ruft CBTRN02C auf.", [], edges)
+    assert not invented

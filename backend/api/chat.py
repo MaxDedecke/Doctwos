@@ -815,6 +815,10 @@ _EDGE_CLAIM_RE = re.compile(
     r"\b(?:ruft|calls?|invokes?)\b",
     re.IGNORECASE,
 )
+_NEGATION_RE = re.compile(
+    r"\b(?:kein|keine|keinen|keiner|keinem|nicht|ohne|nie|niemals|no|not|without|never|nothing)\b",
+    re.IGNORECASE,
+)
 _EDGE_NOUN_RE = re.compile(r"\baufruf", re.IGNORECASE)
 _IDENTIFIER_RE = re.compile(
     r"\b[A-Z][A-Z0-9]*[-_][A-Z0-9_-]*\b|\b[A-Z]{4,}[A-Z0-9]*\b|\b\w+[.#]\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b"
@@ -986,6 +990,10 @@ def _validate_answer_sources(
         # Zitierter Quelltext (`CALL 'X' USING ...`) ist keine Behauptung über den
         # Aufrufer, sondern der Beleg selbst.
         prose = _CODE_QUOTE_RE.sub(" ", sentence)
+        if _NEGATION_RE.search(prose):
+            # „keine nachgewiesene Kante“, „ruft … nicht auf“: eine Lückenaussage
+            # behauptet keine Beziehung und darf nicht als solche verworfen werden.
+            continue
         if not _EDGE_CLAIM_RE.search(prose):
             # Das bloße Substantiv „Aufruf“ behauptet erst dann eine Kante, wenn
             # der Satz mindestens zwei Bezeichner nennt.
