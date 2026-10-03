@@ -38,6 +38,12 @@ export function SourceScanSummary({ summary, theme }: { summary?: SourceScanSumm
       .map(([lang, n]) => `${lang} ${n}`)
       .join(', ');
 
+  const hint = (reason: string) => {
+    const key = `sidebar.scanHint_${reason}`;
+    const text = t(key);
+    return text === key ? '' : text;
+  };
+
   return (
     <details data-testid="source-scan-summary" className={cn('px-2 py-1 text-[0.625rem]', muted)}>
       <summary className="cursor-pointer select-none font-medium">
@@ -48,7 +54,7 @@ export function SourceScanSummary({ summary, theme }: { summary?: SourceScanSumm
       <ul className="mt-1 space-y-0.5">
         {reasons.map(([reason, v]) => (
           <li key={reason} className="flex justify-between gap-2">
-            <span className="truncate" title={languages(v.by_language)}>
+            <span className="truncate" title={[hint(reason), languages(v.by_language)].filter(Boolean).join(' · ')}>
               {t(`sidebar.scanReason_${reason}`)}
             </span>
             <span className="shrink-0 tabular-nums">{v.total_files}</span>
@@ -56,13 +62,13 @@ export function SourceScanSummary({ summary, theme }: { summary?: SourceScanSumm
         ))}
         {openEdges > 0 && (
           <li className="flex justify-between gap-2">
-            <span className="truncate">{t('sidebar.scanEdgesOpen')}</span>
+            <span className="truncate" title={t('sidebar.scanHint_edges_open')}>{t('sidebar.scanEdgesOpen')}</span>
             <span className="shrink-0 tabular-nums">{openEdges}</span>
           </li>
         )}
         {externalEdges > 0 && (
           <li className="flex justify-between gap-2">
-            <span className="truncate">{t('sidebar.scanEdgesExternal')}</span>
+            <span className="truncate" title={t('sidebar.scanHint_edges_external')}>{t('sidebar.scanEdgesExternal')}</span>
             <span className="shrink-0 tabular-nums">{externalEdges}</span>
           </li>
         )}
