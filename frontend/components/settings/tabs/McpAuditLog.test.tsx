@@ -66,6 +66,22 @@ describe('McpAuditLog', () => {
     expect((screen.getByLabelText('settings.pager.nextPage') as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('does not jump back to page 1 when the unchanged filter debounce fires after paging', async () => {
+    apiMocks.getMcpToolAuditLogs.mockImplementation(async ({ offset }: { offset: number }) =>
+      page(range(45 - offset, 20), 45, offset));
+    render(<McpAuditLog />);
+    await screen.findAllByTestId('mcp-audit-row');
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
+    expect(await screen.findByText('tool_25')).toBeTruthy();
+
+    // Der Entprellzeitgeber (300 ms) wurde beim Öffnen gestartet und feuert jetzt, obwohl der Filter unverändert ist.
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 450)); });
+
+    expect(apiMocks.getMcpToolAuditLogs).not.toHaveBeenLastCalledWith({ limit: 20, offset: 0 });
+    expect(screen.getByText('tool_25')).toBeTruthy();
+    expect(screen.queryByText('tool_45')).toBeNull();
+  });
+
   it('disables the previous button on the first page', async () => {
     apiMocks.getMcpToolAuditLogs.mockResolvedValue(page(range(30, 20), 30));
     render(<McpAuditLog />);

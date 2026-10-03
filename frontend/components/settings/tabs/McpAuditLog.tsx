@@ -37,9 +37,15 @@ export const McpAuditLog: React.FC = () => {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const requestCounter = useRef(0);
 
+  // Der Entprellzeitgeber läuft auch beim Öffnen einmal ab. Die Seite wird nur zurückgesetzt, wenn sich der
+  // Filter wirklich geändert hat; sonst würde ein früh gewähltes Blättern auf Seite 1 zurückspringen.
+  const appliedToolFilter = useRef('');
   useEffect(() => {
     const timer = setTimeout(() => {
-      setToolFilter(toolInput.trim());
+      const next = toolInput.trim();
+      if (next === appliedToolFilter.current) return;
+      appliedToolFilter.current = next;
+      setToolFilter(next);
       setPage(0);
     }, FILTER_DEBOUNCE_MS);
     return () => clearTimeout(timer);

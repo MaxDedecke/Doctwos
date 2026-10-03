@@ -36,9 +36,15 @@ export const EvaluationSettingsTab: React.FC = () => {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const isDark = theme === 'dark';
 
+  // Der Entprellzeitgeber läuft auch beim Öffnen einmal ab. Die Seite wird nur zurückgesetzt, wenn sich die
+  // Suche wirklich geändert hat; sonst würde ein früh gewähltes Blättern auf Seite 1 zurückspringen.
+  const appliedQuery = useRef('');
   useEffect(() => {
     const timer = setTimeout(() => {
-      setQuery(queryInput.trim());
+      const next = queryInput.trim();
+      if (next === appliedQuery.current) return;
+      appliedQuery.current = next;
+      setQuery(next);
       setPage(0);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);

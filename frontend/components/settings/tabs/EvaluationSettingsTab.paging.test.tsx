@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -70,6 +70,21 @@ describe('EvaluationSettingsTab negative feedback list paging', () => {
     await waitFor(() => expect(apiMocks.getNegativeChatFeedback).toHaveBeenLastCalledWith({ limit: 20, offset: 40 }));
     await waitFor(() => expect(document.querySelectorAll('details.group')).toHaveLength(5));
     expect((screen.getByLabelText('settings.pager.nextPage') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('does not jump back to page 1 when the unchanged search debounce fires after paging', async () => {
+    apiMocks.getNegativeChatFeedback.mockImplementation(async ({ offset }: { offset: number }) =>
+      page(range(45 - offset, 20), 45));
+    render(<EvaluationSettingsTab />);
+    await waitFor(() => expect(document.querySelectorAll('details.group')).toHaveLength(20));
+    fireEvent.click(screen.getByLabelText('settings.pager.nextPage'));
+    expect(await screen.findByText('Frage 25', { selector: 'span' })).toBeTruthy();
+
+    // Der Entprellzeitgeber (300 ms) wurde beim Öffnen gestartet und feuert jetzt, obwohl der Filter unverändert ist.
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 450)); });
+
+    expect(apiMocks.getNegativeChatFeedback).not.toHaveBeenLastCalledWith({ limit: 20, offset: 0 });
+    expect(screen.getByText('Frage 25', { selector: 'span' })).toBeTruthy();
   });
 
   it('searches on the server (debounced), resets to page 1 and shows the no-match state', async () => {
