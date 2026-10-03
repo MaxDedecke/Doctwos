@@ -1126,11 +1126,21 @@ def get_graph_neighborhood(
         entity_ids = {entity.id for entity in file_entities}
 
         if "code_dependency" in allowed_rels:
+            # Unaufgelöste und dateiinterne Kanten erscheinen nie als Dateikante
+            # (_append_code_dependencies); sie müssen vor der Paginierung
+            # ausscheiden, sonst liefern Seiten 0 Kanten bei has_more=true.
             clauses = []
             if direction in {"outgoing", "both"}:
-                clauses.append(CodeEdge.src_entity_id.in_(entity_ids))
+                clauses.append(and_(
+                    CodeEdge.src_entity_id.in_(entity_ids),
+                    CodeEdge.dst_entity_id.isnot(None),
+                    CodeEdge.dst_entity_id.notin_(entity_ids),
+                ))
             if direction in {"incoming", "both"}:
-                clauses.append(CodeEdge.dst_entity_id.in_(entity_ids))
+                clauses.append(and_(
+                    CodeEdge.dst_entity_id.in_(entity_ids),
+                    CodeEdge.src_entity_id.notin_(entity_ids),
+                ))
             code_query = db.query(CodeEdge).filter(CodeEdge.project_id == proj_id, or_(*clauses))
             code_edges = code_query.order_by(CodeEdge.id).offset(offset).limit(limit + 1).all()
             if len(code_edges) > limit:

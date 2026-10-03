@@ -620,3 +620,55 @@ def test_graph_neighborhood_cursor_pagination_and_document_nodes(
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_graph_neighborhood_pages_skip_unresolved_and_same_file_edges(
+    client, db_session, test_project, test_team
+):
+    """O-194: unaufgelöste und dateiinterne Kanten dürfen die Seiten nicht füllen,
+    sonst liefert eine Seite 0 Kanten bei has_more=true."""
+    source, caller, target, _, _, _ = _fixture_graph(db_session, test_project, test_team)
+    try:
+        sibling = CodeEntity(
+            project_id=test_project, source_id=source.id, file_path="CALLER.CBL",
+            name="SIBLING", type="paragraph", qualified_name="CALLER::SIBLING",
+        )
+        db_session.add(sibling)
+        db_session.flush()
+        # Vor der echten Kante liegen viele Kanten ohne Dateiziel (niedrigere IDs).
+        for i in range(6):
+            db_session.add(CodeEdge(
+                project_id=test_project, source_id=source.id, src_entity_id=caller.id,
+                dst_entity_id=None, dst_name=f"EXT{i}", type="CALLS", resolution="unresolved",
+            ))
+            db_session.add(CodeEdge(
+                project_id=test_project, source_id=source.id, src_entity_id=caller.id,
+                dst_entity_id=sibling.id, dst_name="SIBLING", type="PERFORMS",
+                resolution="resolved",
+            ))
+        # Die echte Kante bekommt eine höhere ID als das Rauschen.
+        db_session.query(CodeEdge).filter(
+            CodeEdge.src_entity_id == caller.id, CodeEdge.dst_entity_id == target.id
+        ).delete()
+        db_session.add(CodeEdge(
+            project_id=test_project, source_id=source.id, src_entity_id=caller.id,
+            dst_entity_id=target.id, dst_name="TARGET", type="CALLS", resolution="resolved",
+        ))
+        db_session.commit()
+        caller_file = _code_file_id(test_project, source.id, "CALLER.CBL")
+        res = client.get(
+            "/graph/neighborhood",
+            params={
+                "node_id": caller_file, "project_id": test_project, "limit": 2,
+                "direction": "outgoing", "relationships": "code_dependency",
+            },
+        )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["edges"], "Seite darf nicht leer sein"
+        assert all(e["source"] == caller_file and e["target"] != caller_file for e in body["edges"])
+        if body["has_more"]:
+            assert body["next_cursor"] is not None
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
