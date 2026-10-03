@@ -86,6 +86,19 @@ def evaluate_fact(client, project_id, fact):
         if not wanted:
             return False, f"Zeile {fact['line']} nicht geliefert ({str(response.get('error', ''))[:80] if isinstance(response, dict) else ''})"
         return fact["contains"] in wanted[0], wanted[0].strip()[:100]
+    if fact["kind"] in {"annotation", "return_expression"}:
+        response = client.call("get_code_entity", {"project_id": project_id, "symbol": fact["symbol"]})
+        analysis = response.get("analysis") if isinstance(response, dict) else None
+        if not analysis:
+            return False, f"keine Analyse ({str(response.get('error', ''))[:80] if isinstance(response, dict) else ''})"
+        expect = fact["expect"]
+        if fact["kind"] == "annotation":
+            for item in analysis.get("annotation_details", []):
+                if item["name"] == expect["annotation"] and expect["contains"] in json.dumps(item["values"]):
+                    return True, item["source"][:100]
+            return False, f"@{expect['annotation']} mit {expect['contains']!r} nicht belegt"
+        expressions = [item["expression"] for item in analysis.get("return_expressions", [])]
+        return expect["contains"] in expressions, "; ".join(expressions)[:100]
     entity_id = resolve_entity(client, project_id, fact["entity"])
     if entity_id is None:
         return False, f"Entity {fact['entity']!r} nicht aufgelöst"
@@ -102,6 +115,10 @@ def evaluate_fact(client, project_id, fact):
             if edge["type"] == expect["type"] and edge["target_name"] == expect["target_name"]:
                 if "target_qualified_name" in expect and nodes.get(edge.get("target")) != expect["target_qualified_name"]:
                     continue
+                if "arguments" in expect:
+                    given = (edge.get("resolution_evidence") or {}).get("argument_expressions")
+                    if given != expect["arguments"]:
+                        return False, f"Argumente {given}"
                 return edge["resolution"] == expect["resolution"], f"{edge['type']} {edge['target_name']} {edge['resolution']}"
         if not flow.get("next_cursor"):
             break

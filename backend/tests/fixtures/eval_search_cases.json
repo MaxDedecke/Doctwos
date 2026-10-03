@@ -430,6 +430,48 @@
         "target_name": "MQPUT1",
         "resolution": "unresolved"
       }
+    },
+    {
+      "id": "A-J7a",
+      "project": "syncope",
+      "kind": "annotation",
+      "case": "O-357 UPDATE: Transaktionsannotation am Methodenbereich",
+      "symbol": "org.apache.syncope.core.provisioning.java.DefaultUserProvisioningManager#update(UserUR,ProvisioningReport,Boolean,Set<String>,boolean,String,String)",
+      "expect": {
+        "annotation": "Transactional",
+        "contains": "REQUIRES_NEW"
+      }
+    },
+    {
+      "id": "A-J7b",
+      "project": "syncope",
+      "kind": "return_expression",
+      "case": "O-357 CREATE: Rückgabeausdruck",
+      "symbol": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)",
+      "expect": {
+        "contains": "doCreate(createReq, false, nullPriorityAsync)"
+      }
+    },
+    {
+      "id": "A-J7c",
+      "project": "syncope",
+      "kind": "flow_edge",
+      "case": "O-357 CREATE: Argumentausdrücke des Aufrufs",
+      "entity": "org.apache.syncope.core.logic.AbstractUserLogic#doCreate(UserCR,boolean,boolean)",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "CALLS",
+        "target_name": "provisioningManager.create",
+        "resolution": "resolved",
+        "arguments": [
+          "before.key()",
+          "nullPriorityAsync",
+          "AuthContextUtils.getUsername()",
+          "REST_CONTEXT"
+        ]
+      }
     }
   ]
 }
