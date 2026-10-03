@@ -136,3 +136,45 @@ def test_constructor_delegation_keeps_a_clean_target_name():
     names = {e.dst_name for e in box.edges if e.type == "CALLS"}
     assert {"super", "this"} <= names
     assert not any(name.startswith(("super(", "this(")) for name in names)
+
+
+def test_inherited_field_type_is_resolved_in_the_import_context_of_its_declaring_file():
+    """`LOG` steht in der Oberklasse; die Unterklasse importiert `Logger` nicht selbst."""
+    base = parse_java_file(
+        "package base;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n"
+        "public class BasePanel { protected static final Logger LOG = LoggerFactory.getLogger(BasePanel.class); }\n",
+        "base/BasePanel.java",
+    )
+    child = parse_java_file(
+        "package app;\nimport base.BasePanel;\npublic class Child extends BasePanel { void go() { LOG.error(\"x\"); } }\n",
+        "app/Child.java",
+    )
+    resolve_global_edges([base, child])
+    edge = next(e for e in child.edges if e.type == "CALLS" and e.dst_name == "LOG.error")
+    assert edge.resolution == "unresolved"
+    assert edge.meta["external"]["library"] == "org.slf4j.Logger"
+    assert edge.meta["external"]["via"] == "declared_receiver_type"
+
+
+def test_calls_in_a_class_with_an_external_superclass_are_attributed_to_it():
+    child = parse_java_file(
+        "package app;\nimport org.apache.wicket.markup.html.panel.Panel;\n"
+        "public class Child extends Panel {\n"
+        "  Child(String id) { super(id); }\n"
+        "  void go() { add(null); }\n"
+        "}\n"
+        "class Plain { void go() { add(null); } }\n",
+        "app/Child.java",
+    )
+    resolve_global_edges([child])
+    by_source = {}
+    for edge in child.edges:
+        if edge.type == "CALLS":
+            by_source.setdefault(edge.meta["source_qualified_name"].split("#")[0], []).append(edge)
+    super_call = next(e for e in by_source["app.Child"] if e.dst_name == "super")
+    assert super_call.meta["external"]["library"] == "org.apache.wicket.markup.html.panel.Panel"
+    assert super_call.meta["external"]["via"] == "external_superclass" and "certainty" not in super_call.meta["external"]
+    add_call = next(e for e in by_source["app.Child"] if e.dst_name == "add")
+    assert add_call.meta["external"]["via"] == "inherited_from_external_superclass"
+    assert add_call.meta["external"]["certainty"] == "possible"
+    assert "external" not in next(e for e in by_source["app.Plain"] if e.dst_name == "add").meta

@@ -1033,6 +1033,7 @@ def mark_external_edges(
     (`jdk`/`jakarta`/`library`), den qualifizierten Typ und den Belegweg. Es gilt
     nur, was der Quelltext selbst belegt: Import, paketqualifizierter Name oder
     `java.lang`. Statische Wildcard-Importe gelten nur als „possible“."""
+    result_of_entity = {id(entity): result for result in java_results for entity in result.entities}
     for result in java_results:
         for edge in result.edges:
             meta = edge.meta
@@ -1040,7 +1041,7 @@ def mark_external_edges(
                 meta.pop("external", None)
                 continue
             origin = _external_origin_for_edge(
-                edge, result,
+                edge, result, result_of_entity=result_of_entity,
                 types_by_qname=types_by_qname, types_by_name=types_by_name,
                 packages_by_qname=packages_by_qname,
                 fields_by_owner_and_name=fields_by_owner_and_name,
@@ -1051,12 +1052,65 @@ def mark_external_edges(
                 meta["external"] = origin
             else:
                 meta.pop("external", None)
+    _mark_external_superclass_calls(java_results, hierarchy)
+
+
+def _mark_external_superclass_calls(java_results: list[ParseResult], hierarchy: dict[str, list[str]]) -> None:
+    """`super(...)` und unqualifizierte Aufrufe in Klassen mit externer Oberklasse (O-377).
+
+    Erbt die Klasse (oder eine Repository-Oberklasse) von einem belegt externen Typ, kann ein Aufruf ohne
+    Repository-Ziel nur dort liegen: `super(...)` sicher, ein unqualifizierter Aufruf nur als `possible`
+    (er könnte auch ein statischer Import oder eine äußere Klasse sein). Mehrere verschiedene externe
+    Oberklassen in der Kette bleiben ungekennzeichnet."""
+    external_super: dict[str, str] = {}
+    for result in java_results:
+        for edge in result.edges:
+            external = edge.meta.get("external")
+            if edge.type == "EXTENDS" and external and external.get("category") != "type_parameter":
+                owner = _source_owner(edge)
+                if owner and external.get("library"):
+                    external_super[owner] = external["library"]
+    if not external_super:
+        return
+
+    def libraries(owner: str) -> set[str]:
+        found, seen, stack = set(), set(), [owner]
+        while stack:
+            current = stack.pop()
+            if current in seen:
+                continue
+            seen.add(current)
+            if current in external_super:
+                found.add(external_super[current])
+            stack.extend(hierarchy.get(current, []))
+        return found
+
+    for result in java_results:
+        for edge in result.edges:
+            meta = edge.meta
+            receiver = meta.get("receiver")
+            if (
+                edge.type != "CALLS" or edge.resolution != "unresolved" or "external" in meta
+                or receiver not in {None, "super"} or edge.dst_name == "this"
+                or "@anonymous" in (meta.get("source_qualified_name") or "")
+            ):
+                continue
+            owner = _source_owner(edge)
+            found = libraries(owner) if owner else set()
+            if len(found) == 1:
+                library = next(iter(found))
+                meta["external"] = {
+                    **_external_origin(library),
+                    "via": "external_superclass" if receiver == "super" or edge.dst_name == "super" else "inherited_from_external_superclass",
+                    **({} if receiver == "super" or edge.dst_name == "super" else {"certainty": "possible"}),
+                }
 
 
 def _external_origin_for_edge(
     edge: ParsedEdge,
     result: ParseResult,
     *,
+    result_of_entity: dict[int, ParseResult] | None = None,
     types_by_qname: dict[str, list[Entity]],
     types_by_name: dict[str, list[Entity]],
     packages_by_qname: dict[str, list[Entity]],
@@ -1120,7 +1174,9 @@ def _external_origin_for_edge(
         )
         if len(declarations) == 1:
             declared = _entity_type_name(declarations[0])
-            qname = _external_type(declared, result, **lookup) if declared else None
+            # Das Feld kann in einer Oberklasse stehen: der Typname gilt im Import-Kontext seiner Datei.
+            declaring = (result_of_entity or {}).get(id(declarations[0]), result)
+            qname = _external_type(declared, declaring, **lookup) if declared else None
             return {**_external_origin(qname), "via": "declared_receiver_type"} if qname else None
         if not declarations and receiver[:1].isupper():
             qname = _external_type(receiver, result, **lookup)
