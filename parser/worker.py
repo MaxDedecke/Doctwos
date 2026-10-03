@@ -100,6 +100,14 @@ def _register_task_id(model, row_id: int, task_id: str | None) -> None:
 
 
 @worker_process_init.connect
+def _reset_db_pool_after_fork(**kwargs):
+    """Geforkte Prefork-Kinder dürfen keine vom Elternprozess geerbten DB-Verbindungen nutzen."""
+    from db import engine
+
+    engine.dispose(close=False)
+
+
+@worker_process_init.connect
 def _warmup_antlr_cobol_parser(**kwargs):
     """Phase 3 (E-11, docs/ENTSCHEIDUNGEN.md): zahlt ANTLRs einmaligen
     Full-Context-Fallback (siehe cobol/antlr_bridge.py::warmup()) beim

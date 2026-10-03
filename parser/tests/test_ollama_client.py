@@ -320,3 +320,21 @@ async def test_get_chat_json_sets_explicit_num_ctx(monkeypatch):
 
     assert result == {"ok": True}
     assert captured["payload"]["options"] == {"num_ctx": 12345}
+
+
+def test_requested_model_equal_to_the_active_profile_model_uses_the_profile(monkeypatch):
+    """Link-Läufe geben den Profilnamen weiter; er darf nicht an Ollama gehen (404)."""
+    import ollama_client as oc
+
+    monkeypatch.setenv("LLM_MODEL", "qwen3:8b")
+    monkeypatch.setattr(oc, "_load_server_settings", lambda: {
+        "llm_model": "gpt-6-luna", "llm_base_url": "https://api.openai.com/v1", "llm_api_key": "k",
+        "protocol": "openai_responses", "llm_path": "/responses", "llm_context_length": 8192,
+    })
+    profile = oc._effective_llm_settings("gpt-6-luna")
+    assert (profile["protocol"], profile["model"], profile["base_url"]) == (
+        "openai_responses", "gpt-6-luna", "https://api.openai.com/v1",
+    )
+    # Ein fremdes Modell ohne Profilbezug bleibt eine direkte Ollama-Anfrage.
+    other = oc._effective_llm_settings("some-other-model")
+    assert (other["protocol"], other["model"]) == ("ollama", "some-other-model")

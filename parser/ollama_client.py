@@ -136,7 +136,9 @@ def _load_server_settings() -> Optional[dict]:
         finally:
             db.close()
     except Exception as exc:
-        logger.debug("AI settings DB lookup unavailable; using worker env: %s", exc)
+        # Nicht still: ein Rückfall auf die Worker-Umgebung ändert das genutzte Modell
+        # (z. B. LLM_MODEL aus .env statt des aktiven Profils).
+        logger.warning("AI settings DB lookup unavailable; using worker env: %s", exc, exc_info=True)
         return None
 
 
@@ -165,7 +167,10 @@ def get_embedding_input_budget(model: Optional[str] = None) -> int:
 def _effective_llm_settings(model: str) -> dict:
     settings = _load_server_settings()
     configured_model = os.getenv("LLM_MODEL", "disabled")
-    use_server_model = settings and model in (configured_model, "disabled")
+    # Auch das Modell des aktiven Profils gilt als Profilanfrage: Link-Läufe geben den
+    # Profilnamen (z. B. `gpt-6-luna`) weiter, der weder `LLM_MODEL` noch „disabled“ ist;
+    # sonst ginge der Aufruf mit diesem Namen an Ollama (404).
+    use_server_model = settings and model in (configured_model, "disabled", settings["llm_model"])
     return {
         "base_url": settings["llm_base_url"].rstrip("/")
         if use_server_model and settings and settings["llm_base_url"]
@@ -390,6 +395,10 @@ async def get_chat_json(
         )
 
     settings = _effective_llm_settings(model)
+    logger.info(
+        "LLM-Aufruf: protocol=%s model=%s host=%s (angefordert: %s)",
+        settings["protocol"], settings["model"], settings["base_url"], model,
+    )
     if settings["protocol"] in {"openai_chat", "openai_responses"}:
         if settings["protocol"] == "openai_responses":
             payload = {
