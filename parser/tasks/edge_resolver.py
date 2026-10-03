@@ -371,11 +371,27 @@ def _resolve_shell_edges(db: Session, source_id: int) -> int:
 
 
 _JCL_PROC_EXTENSIONS = frozenset({"PRC", "PROC"})
+_JCL_PROC_FILE_EXTENSIONS = frozenset({".PRC", ".PROC"})
 
 
 def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     """Resolve literal JCL PGM/PROC targets within one source and variant."""
     entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    # Prozedur-Aufrufe werden bei jedem Lauf neu entschieden, damit eine Regeländerung auch frühere
+    # (z. B. auf die eigene Prozedur gerichtete) Auflösungen korrigiert.
+    for stale in db.query(CodeEdge).filter(
+        CodeEdge.source_id == source_id, CodeEdge.type == "EXECUTES", CodeEdge.resolution == "resolved",
+    ).all():
+        stale_meta = stale.meta_json or {}
+        if stale_meta.get("language") == "jcl" and stale_meta.get("target_entity_type") == "jcl_proc":
+            # Auch die lokale Verdrahtung beim Persistieren (gleiche Datei) wird neu entschieden: In einem
+            # Bibliotheks-Member ist die gleichnamige `PROC`-Anweisung nicht automatisch das Ziel.
+            stale.dst_entity_id = None
+            stale.resolution = "unresolved"
+            stale.meta_json = {
+                k: v for k, v in stale_meta.items() if k not in {"resolution_scope", "resolution_via", "target_qualified_name"}
+            }
+    db.flush()
     edges = db.query(CodeEdge).filter(
         CodeEdge.source_id == source_id,
         CodeEdge.type == "EXECUTES",
@@ -408,9 +424,19 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
         else:
             via = None
         if len(candidates) > 1 and target_type == "jcl_proc":
-            # Mehrere gleichnamige Prozeduren: Die im Aufrufer-Member selbst definierte gewinnt.
-            own_file = file_by_entity.get(edge.src_entity_id)
-            candidates = [item for item in candidates if item.file_path == own_file] or candidates
+            # Mehrere gleichnamige `PROC`-Anweisungen. Reihenfolge wie im JCL: (1) eine Instream-Prozedur
+            # im selben Job gewinnt; ein Bibliotheks-Member (`.prc`) ist kein Job und hat keine Instream-Prozeduren.
+            # (2) Sonst gilt das Member, das so heißt wie die Prozedur: die Bibliothek sucht nach Membername,
+            # nicht nach dem Label der `PROC`-Anweisung (`TRANREPT.prc` beginnt mit `//REPROC PROC`).
+            own_file = file_by_entity.get(edge.src_entity_id) or ""
+            if posixpath.splitext(own_file)[1].upper() not in _JCL_PROC_FILE_EXTENSIONS:
+                candidates = [item for item in candidates if item.file_path == own_file] or candidates
+            if len(candidates) > 1:
+                member = [
+                    item for item in candidates
+                    if posixpath.splitext(posixpath.basename(item.file_path))[0].upper() == target_name.upper()
+                ]
+                candidates = member or candidates
         if len(candidates) == 1:
             edge.dst_entity_id = candidates[0].id
             edge.resolution = "resolved"
