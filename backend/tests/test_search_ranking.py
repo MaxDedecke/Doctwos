@@ -3,7 +3,7 @@
 import pytest
 
 from models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project
-from services.search import search_nodes
+from services.search import _search_tokens, search_nodes
 
 REL = "app/app-authorization-ims-db2-mq"
 
@@ -116,3 +116,11 @@ def test_blank_or_separator_only_queries_do_not_crash(db_session, corpus):
     for q in ("", "   ", ". #"):
         results, counts = search_nodes(db_session, q=q, types="entity,document", project_id=corpus, limit=5)
         assert isinstance(results, list) and "entity" in counts
+
+
+def test_a_long_qualified_name_keeps_its_specific_tail():
+    """Mehr als sechs Teilbegriffe: der Klassen-/Methodenteil am Ende darf nicht abgeschnitten werden."""
+    tokens = _search_tokens("org.apache.syncope.core.rest.cxf.service.UserServiceImpl#create(UserCR)")
+    assert tokens[-2:] == ["UserServiceImpl", "create(UserCR)"] and len(tokens) == 6
+    # Mehrwortanfragen behalten dagegen den Anfang der Eingabe.
+    assert _search_tokens("a b c d e f g h") == ["a", "b", "c", "d", "e", "f"]

@@ -180,6 +180,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. EXECDEMO.",
+      "start_line": 1,
+      "end_line": 2,
+      "meta": {
+        "program": "EXECDEMO",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+            "start_line": 1,
+            "end_line": 2
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [

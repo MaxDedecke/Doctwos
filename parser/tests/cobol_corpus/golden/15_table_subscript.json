@@ -555,6 +555,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. TABSUB.\n\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01  WS-IDX              PIC 9(02).\n       01  WS-MONATE.\n           05  WS-MONAT-NR     PIC 9(02) OCCURS 12 TIMES.\n",
+      "start_line": 1,
+      "end_line": 9,
+      "meta": {
+        "program": "TABSUB",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/15_table_subscript.cbl",
+            "start_line": 1,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

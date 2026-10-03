@@ -223,6 +223,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. GLOBRPL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       REPLACE ==:TAG:== BY ==CUSTOMER==.\n       01  :TAG:-ID PIC 9(5).\n       01  WS-UNCHANGED PIC X(5).",
+      "start_line": 1,
+      "end_line": 7,
+      "meta": {
+        "program": "GLOBRPL",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/19_global_replace.cbl",
+            "start_line": 1,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

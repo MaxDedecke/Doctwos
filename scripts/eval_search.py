@@ -67,6 +67,48 @@ def evaluate(case, response):
     return True, "ok"
 
 
+def resolve_entity(client, project_id, name):
+    response = client.call("research_project", {"project_id": project_id, "query": name})
+    candidates = response.get("candidates") or []
+    exact = [item for item in candidates if item.get("qualified_name") == name]
+    return (exact or candidates)[0]["id"] if (exact or candidates) else None
+
+
+def evaluate_fact(client, project_id, fact):
+    if fact["kind"] == "search":
+        arguments = {"project_id": project_id, "query": fact["query"], "limit": 10}
+        return evaluate(fact, client.call(fact["tool"], arguments))
+    if fact["kind"] == "source_line":
+        low, high = max(1, fact["line"] - 1), fact["line"] + 1
+        response = client.call("explain_symbol", {"project_id": project_id, "symbol": fact["symbol"], "start_line": low, "end_line": high})
+        text = (response.get("source") or {}).get("text", "") if isinstance(response, dict) else ""
+        wanted = [row for row in text.splitlines() if row.startswith(f"{fact['line']}:")]
+        if not wanted:
+            return False, f"Zeile {fact['line']} nicht geliefert ({str(response.get('error', ''))[:80] if isinstance(response, dict) else ''})"
+        return fact["contains"] in wanted[0], wanted[0].strip()[:100]
+    entity_id = resolve_entity(client, project_id, fact["entity"])
+    if entity_id is None:
+        return False, f"Entity {fact['entity']!r} nicht aufgelöst"
+    expect, arguments = fact["expect"], {
+        "project_id": project_id, "entity_id": entity_id, "hops": fact["hops"], "direction": fact["direction"],
+        "scope": fact["scope"], "page_size": 15,
+    }
+    for _ in range(8):  # Seiten über den Cursor, bis die Kante gefunden oder der Fluss erschöpft ist
+        flow = client.call("get_call_flow", arguments)
+        if "error" in flow:
+            return False, f"Fehler: {str(flow['error'])[:100]}"
+        nodes = {node["id"]: node.get("qualified_name") for node in flow.get("nodes", [])}
+        for edge in flow.get("edges", []):
+            if edge["type"] == expect["type"] and edge["target_name"] == expect["target_name"]:
+                if "target_qualified_name" in expect and nodes.get(edge.get("target")) != expect["target_qualified_name"]:
+                    continue
+                return edge["resolution"] == expect["resolution"], f"{edge['type']} {edge['target_name']} {edge['resolution']}"
+        if not flow.get("next_cursor"):
+            break
+        arguments["cursor"] = flow["next_cursor"]
+    return False, f"Kante {expect['type']} {expect['target_name']} nicht im Fluss"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default=os.environ.get("DOCTUS_MCP_URL", "http://localhost:8000/mcp"))
@@ -90,7 +132,17 @@ def main():
         ok, detail = evaluate(case, client.call(case["tool"], arguments))
         failed += not ok
         print(f"{'PASS' if ok else 'FAIL'} {case['id']} [{case['kind']}] {case['query']!r}: {detail}")
-    print(f"{len(catalogue['cases']) - failed} bestanden, {failed} verfehlt")
+    total = len(catalogue["cases"])
+    for fact in catalogue.get("facts", []):
+        name = catalogue["projects"][fact["project"]]["name"]
+        if name not in project_ids:
+            print(f"SKIP {fact['id']}: Projekt {name!r} nicht sichtbar")
+            continue
+        total += 1
+        ok, detail = evaluate_fact(client, project_ids[name], fact)
+        failed += not ok
+        print(f"{'PASS' if ok else 'FAIL'} {fact['id']} [{fact['kind']}] {fact.get('case', '')}: {detail}")
+    print(f"{total - failed} bestanden, {failed} verfehlt")
     sys.exit(1 if failed else 0)
 
 

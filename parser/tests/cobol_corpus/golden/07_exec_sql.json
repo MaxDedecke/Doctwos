@@ -513,6 +513,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. EXECSQL.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       01  WS-DEPT-ID          PIC X(4).\n       01  WS-EMP-ID           PIC 9(6).\n       01  WS-EMP-NAME         PIC X(30).",
+      "start_line": 1,
+      "end_line": 7,
+      "meta": {
+        "program": "EXECSQL",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 1,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

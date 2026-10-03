@@ -90,6 +90,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "IDENTIFICATION DIVISION.\nPROGRAM-ID. FREEDIR.",
+      "start_line": 4,
+      "end_line": 5,
+      "meta": {
+        "program": "FREEDIR",
+        "format": "free",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/14_free_format_directive.cbl",
+            "start_line": 4,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [

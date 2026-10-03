@@ -242,6 +242,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. IDPARA.\n       AUTHOR. GEMINI-CLI.\n       DATE-WRITTEN. 2024-01-15.\n\n       ENVIRONMENT DIVISION.\n       INPUT-OUTPUT SECTION.\n       FILE-CONTROL.\n           SELECT SOME-FILE ASSIGN TO \"some.dat\".\n\n       DATA DIVISION.\n       FILE SECTION.\n           COPY \"SOME-FILE.cpy\".\n\n       WORKING-STORAGE SECTION.\n       01  WS-FLAG             PIC X(01) VALUE 'N'.\n",
+      "start_line": 1,
+      "end_line": 17,
+      "meta": {
+        "program": "IDPARA",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/12_identification_paragraphs.cbl",
+            "start_line": 1,
+            "end_line": 17
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

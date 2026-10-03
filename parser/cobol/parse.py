@@ -241,6 +241,9 @@ def parse_program(
             # diese als Fallback-Chunks erfassen, damit kein Quelltext still verloren geht.
             uncovered_chunks = _collect_uncovered_chunks(program, program_chunks, source_lines, source_format)
             program_chunks.extend(uncovered_chunks)
+            # O-384: Kopfbereich (IDENTIFICATION/ENVIRONMENT/DATA DIVISION) bis zum ersten Absatz, damit
+            # programmlokale Datenfelder, FDs und EXEC SQL INCLUDE/DECLARE abrufbaren Originaltext haben.
+            program_chunks.extend(_head_chunks(program, source_lines, source_format))
         chunks.extend(program_chunks)
 
     result = ParseResult(
@@ -733,6 +736,38 @@ def _drop_xref_edges_covered_by_io(
         for meta_key, value in (twin.meta or {}).items():
             io_edge.meta.setdefault(meta_key, value)
     return [edge for edge in xref_edges if id(edge) not in consumed]
+
+
+def _head_chunks(
+    program: CobolProgram,
+    source_lines: list[str],
+    source_format: SourceFormat,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+) -> list[Chunk]:
+    """Chunks für den Bereich vor dem ersten Absatz; kein `fallback`, die Struktur ist vollständig erkannt."""
+    if not program.paragraphs:
+        return []
+    head_start = program.start_line
+    head_end = min(paragraph.start_line for paragraph in program.paragraphs) - 1
+    # Die Überschrift der PROCEDURE DIVISION gehört zu den Absätzen, nicht zum Kopf.
+    proc_div = next((d for d in program.divisions if d.name == "PROCEDURE"), None)
+    if proc_div is not None:
+        head_end = min(head_end, proc_div.start_line - 1)
+    if head_end < head_start or not any(
+        _is_code_line(source_lines[ln - 1], source_format)
+        for ln in range(head_start, head_end + 1)
+        if ln - 1 < len(source_lines)
+    ):
+        return []
+    return [
+        Chunk(
+            content=content,
+            start_line=start_line,
+            end_line=end_line,
+            meta={"program": program.name, "format": source_format, "division": "declarations"},
+        )
+        for content, start_line, end_line in _pack_whole_file(source_lines, chunk_size, (head_start, head_end))
+    ]
 
 
 def _collect_uncovered_chunks(

@@ -18,7 +18,7 @@ def _parse_fixture(name: str, path: str = "x"):
     return parse_program(text, path)
 
 
-def test_minimal_program_produces_program_and_paragraph_entity_plus_one_chunk():
+def test_minimal_program_produces_program_and_paragraph_entity_plus_paragraph_and_declaration_chunks():
     result = _parse_fixture("01_minimal.cbl")
 
     assert result.program_name == "MINIMAL"
@@ -37,8 +37,12 @@ def test_minimal_program_produces_program_and_paragraph_entity_plus_one_chunk():
     assert paragraph_entity.parent_name == "MINIMAL"
     assert paragraph_entity.qualified_name == "MINIMAL.MAIN-PARA"
 
-    assert len(result.chunks) == 1
-    assert result.chunks[0].meta.get("fallback") is None
+    paragraph_chunks = [chunk for chunk in result.chunks if not chunk.meta.get("division")]
+    head_chunks = [chunk for chunk in result.chunks if chunk.meta.get("division") == "declarations"]
+    assert len(paragraph_chunks) == 1 and paragraph_chunks[0].meta.get("fallback") is None
+    # O-384: der Bereich vor dem ersten Absatz ist ebenfalls abrufbar, ohne als Fallback zu gelten.
+    assert [(chunk.start_line, chunk.end_line) for chunk in head_chunks] == [(1, 2)]
+    assert head_chunks[0].meta.get("fallback") is None
 
 
 def test_data_item_hierarchy_produces_dotted_qualified_names():
@@ -936,3 +940,23 @@ def test_db2_statements_beyond_the_basics_are_classified_and_merge_gets_its_tabl
     assert blocks["MERGE"].meta["tables"] == ["CUSTOMER", "NEWCUST"]
     access = {(e.type, e.dst_name) for e in result.edges if e.dst_name in {"CUSTOMER", "NEWCUST"}}
     assert access == {("WRITES", "CUSTOMER"), ("READS", "NEWCUST")}
+
+
+def test_data_division_text_is_chunked_so_local_fields_and_sql_have_source():
+    source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. HEADTEST.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-A PIC X(4).\n"
+        "           EXEC SQL INCLUDE SQLCA END-EXEC.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           MOVE 'A' TO WS-A.\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(source, "x.cbl")
+    head = [chunk for chunk in result.chunks if chunk.meta.get("division") == "declarations"]
+    covered = {line for chunk in head for line in range(chunk.start_line, chunk.end_line + 1)}
+    assert {5, 6} <= covered and 7 not in covered and 8 not in covered
+    assert "WS-A PIC X(4)" in "".join(chunk.content for chunk in head)

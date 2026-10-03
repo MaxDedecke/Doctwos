@@ -147,6 +147,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. COPYMISS.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       COPY NOSUCHBOOK.",
+      "start_line": 1,
+      "end_line": 5,
+      "meta": {
+        "program": "COPYMISS",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/05_copy_missing.cbl",
+            "start_line": 1,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

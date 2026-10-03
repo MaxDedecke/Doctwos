@@ -912,6 +912,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. DATAQUAL.\n       DATA DIVISION.\n       FILE SECTION.\n       FD  EMPLOYEE-FILE.\n       01  EMPLOYEE-RECORD.\n           05  EMP-ID          PIC 9(6).\n           05  EMP-NAME        PIC X(30).\n       WORKING-STORAGE SECTION.\n       01  GROUP-A.\n           05  WS-CODE         PIC X(2).\n       01  GROUP-B.\n           05  WS-CODE         PIC X(4).\n       01  WS-COUNT            PIC 9(3) VALUE 0.\n       01  WS-TABLE.\n           05  WS-ENTRY        PIC X(10)\n                               OCCURS 1 TO 50 TIMES\n                               DEPENDING ON WS-COUNT.\n       01  WS-ALT REDEFINES WS-TABLE PIC X(500).\n       01  WS-EOF-FLAG         PIC X VALUE 'N'.\n           88  WS-EOF                     VALUE 'Y'.",
+      "start_line": 1,
+      "end_line": 21,
+      "meta": {
+        "program": "DATAQUAL",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/06_data_qualified.cbl",
+            "start_line": 1,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

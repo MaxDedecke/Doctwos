@@ -90,6 +90,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. INDENTDIR.",
+      "start_line": 2,
+      "end_line": 3,
+      "meta": {
+        "program": "INDENTDIR",
+        "format": "free",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/16_source_format_free_directive_indented.cbl",
+            "start_line": 2,
+            "end_line": 3
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [

@@ -184,6 +184,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "identification division.\nprogram-id. DIALECTTEST.\ndata division.\nworking-storage section.\n01 FLAG PIC X.",
+      "start_line": 1,
+      "end_line": 5,
+      "meta": {
+        "program": "DIALECTTEST",
+        "format": "free",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/17_conditional_compilation_true_branch.cbl",
+            "start_line": 1,
+            "end_line": 5
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],

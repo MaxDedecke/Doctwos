@@ -29,6 +29,9 @@ _MAX_TOKEN_LENGTH = 80
 def _search_tokens(q: str) -> list[str]:
     """Suchbegriff in Teilbegriffe zerlegen: Leerzeichen sowie `.`, `#`, `::` trennen (`Klasse.methode`)."""
     tokens = [t for t in _TOKEN_SPLIT.split(q or "") if t]
+    if len((q or "").split()) <= 1:
+        # Ein einzelner qualifizierter Name (`a.b.c.Klasse#methode(Typ)`): das Ende ist der spezifische Teil.
+        return [t[:_MAX_TOKEN_LENGTH] for t in tokens[-_MAX_TOKENS:]]
     return [t[:_MAX_TOKEN_LENGTH] for t in tokens[:_MAX_TOKENS]]
 
 

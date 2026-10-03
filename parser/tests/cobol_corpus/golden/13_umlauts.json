@@ -485,6 +485,33 @@
           "condition": null
         }
       }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. KONTOSTATUSPRÜFUNG.\n\n       ENVIRONMENT DIVISION.\n       INPUT-OUTPUT SECTION.\n       FILE-CONTROL.\n           SELECT PRÜF-DATEI ASSIGN TO \"pruef.dat\".\n\n       DATA DIVISION.\n       FILE SECTION.\n       FD  PRÜF-DATEI.\n       01  PRÜF-SATZ           PIC X(20).\n\n       WORKING-STORAGE SECTION.\n       01  WS-ANZAHL-PRÜFUNGEN  PIC 9(03).\n       01  WS-STATUS-TABELLE.\n           05  WS-STATUS-EINTRAG PIC X(01)\n               OCCURS 1 TO 10 TIMES DEPENDING ON WS-ANZAHL-PRÜFUNGEN.\n       01  WS-STATUS-FLAG      PIC X(01).\n           88  STATUS-GEPRÜFT      VALUE 'J'.\n",
+      "start_line": 1,
+      "end_line": 21,
+      "meta": {
+        "program": "KONTOSTATUSPRÜFUNG",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/13_umlauts.cbl",
+            "start_line": 1,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "errors": [],
