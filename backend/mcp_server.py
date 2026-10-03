@@ -172,6 +172,11 @@ def _find_entities(db: Session, user: User, project_id: int, term: str, limit: i
                 found.append(entity)
         if any(_symbol_matches(entity, variant) for entity in found):
             break
+    if found and len(term.split()) > 1 and not any(
+        _symbol_matches(entity, variant) for entity in found for variant in _query_variants(term)
+    ):
+        # `search_nodes` löst Mehrwortbegriffe selbst auf (UND über die Teilbegriffe); das ist kein exakter Symboltreffer.
+        mode = "tokens"
     if not found:
         tokens = [t for t in re.split(r"[\s,;|]+", term.strip()) if len(t) >= 3 and t.casefold() not in _STOPWORDS]
         if len(tokens) > 1:
