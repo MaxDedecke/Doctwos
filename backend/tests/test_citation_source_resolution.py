@@ -324,3 +324,16 @@ def test_answer_context_supplies_edges_and_sources_for_validation():
     assert "nicht belegt" not in text
     _, other = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf.", sources, edges)
     assert not other
+
+
+def test_quoted_call_statement_is_evidence_not_an_edge_claim():
+    """Live-Fall COBSWAIT: „Zeile 38: CALL 'MVSWAIT' USING MVSWAIT-TIME“ zitiert den Beleg."""
+    edges = {("cobswait", "mvswait")}
+    for answer in (
+        "Zeile 38: CALL 'MVSWAIT' USING MVSWAIT-TIME",
+        "Aufruf in `CALL 'MVSWAIT' USING MVSWAIT-TIME` (Zeile 38).",
+    ):
+        _, consistent = _validate_answer_sources(answer, [], edges)
+        assert consistent, answer
+    _, invented = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf", [], edges)
+    assert not invented

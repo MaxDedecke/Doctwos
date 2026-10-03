@@ -808,9 +808,16 @@ def _append_agent_source_fallback(
     return answer.rstrip() + f"\n\n{header}\n" + "\n".join(references)
 
 
+_CODE_QUOTE_RE = re.compile(
+    r"`[^`]*`|\bCALL\s+['\"][^'\"]*['\"](?:\s+USING\s+[\w-]+(?:\s*,?\s*[\w-]+)*)?"
+)
 _EDGE_CLAIM_RE = re.compile(
-    r"\b(?:ruft|aufruf|calls?|invokes?)\b",
+    r"\b(?:ruft|calls?|invokes?)\b",
     re.IGNORECASE,
+)
+_EDGE_NOUN_RE = re.compile(r"\baufruf", re.IGNORECASE)
+_IDENTIFIER_RE = re.compile(
+    r"\b[A-Z][A-Z0-9]*[-_][A-Z0-9_-]*\b|\b[A-Z]{4,}[A-Z0-9]*\b|\b\w+[.#]\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b"
 )
 
 
@@ -974,10 +981,16 @@ def _validate_answer_sources(
     # by trace_call_flow in this turn. We intentionally do not infer edges
     # from proximity in a file snippet.
     for sentence in re.split(r"[.!?\n]+", answer):
-        if not _EDGE_CLAIM_RE.search(sentence):
-            continue
+        # Zitierter Quelltext (`CALL 'X' USING ...`) ist keine Behauptung über den
+        # Aufrufer, sondern der Beleg selbst.
+        prose = _CODE_QUOTE_RE.sub(" ", sentence)
+        if not _EDGE_CLAIM_RE.search(prose):
+            # Das bloße Substantiv „Aufruf“ behauptet erst dann eine Kante, wenn
+            # der Satz mindestens zwei Bezeichner nennt.
+            if not (_EDGE_NOUN_RE.search(prose) and len(_IDENTIFIER_RE.findall(prose)) >= 2):
+                continue
         if not edge_pairs:
-            logger.warning("Verwerfe Agent-Antwort mit Kantenbehauptung ohne Flow-Beleg")
+            logger.warning("Verwerfe Agent-Antwort mit Kantenbehauptung ohne Flow-Beleg: %s", sentence.strip()[:200])
             return (
                 "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
                 "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
@@ -992,7 +1005,7 @@ def _validate_answer_sources(
         ]
         if mentioned_pairs:
             continue
-        logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung")
+        logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s", sentence.strip()[:200])
         return (
             "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
             "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
