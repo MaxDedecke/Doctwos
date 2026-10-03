@@ -317,7 +317,7 @@ Es wurde nichts verändert. Die Zahlen sind Momentaufnahmen vom 02.10.2026.
 - Syncope `src/site/xdoc/docs/index.xml`: `&nbsp;` ohne DTD ließ die Datei scheitern; HTML-Entitäten werden zeilen- und spaltentreu geleert, unbekannte bleiben Fehler (`markup/parse.py`).
 - `COBSWAIT.cbl` (Sätze direkt unter `PROCEDURE DIVISION`, kein Paragraphenname): ganze Datei war `text_fallback`; jetzt Anker-Paragraph `PROCEDURE-START` mit Zeilenbereich, Kanten und Chunks (`divisions.py`, Test in `test_cobol_parse.py`). Parserversion `cobol-structure-6`.
 - Nicht behoben, bewusst: `CSSETATY.cpy` ist eine Vorlage mit Platzhaltern (`(TESTVAR1)`), kein gültiges COBOL; bleibt `partial`.
-Tests: `test_cobol_parse_copybook.py`, `test_xml_doctype.py`. Restmenge unaufgelöster Kanten: Syncope 72.675 offen / 110.461 extern, CardDemo 337 offen / 139 extern.
+Tests: `test_cobol_parse_copybook.py`, `test_xml_doctype.py`. **Live bestätigt (CardDemo, Sync 03.10.2026):** `partial` 4 → 1 (nur die Vorlage `CSSETATY.cpy`), `other` 1 → 0, `parser_error` 4 → 1. Restmenge unaufgelöster Kanten: Syncope 72.675 offen / 110.461 extern, CardDemo 337 offen / 139 extern.
 
 ### Sprachlogik und anklickbare Codeobjekte
 
