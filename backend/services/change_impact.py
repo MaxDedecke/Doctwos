@@ -80,6 +80,21 @@ def inspect_change_impact(
         normalized_path = _relative_path(str(file_path or ""))
         if normalized_path is None:
             return {"error": "file_path must be a safe repository-relative path."}
+        exact_exists = (
+            db.query(CodeEntity.id)
+            .filter(CodeEntity.project_id == project_id, CodeEntity.file_path == normalized_path)
+            .first()
+        )
+        if exact_exists is None:
+            # Mainframe-Bestände haben oft Großbuchstaben-Endungen (`CBSTM03B.CBL`): ein eindeutiger
+            # Treffer ohne Beachtung der Groß-/Kleinschreibung gilt als dieselbe Datei.
+            same_ignoring_case = {
+                path for (path,) in db.query(CodeEntity.file_path)
+                .filter(CodeEntity.project_id == project_id, func.lower(CodeEntity.file_path) == normalized_path.lower())
+                .distinct().limit(2).all()
+            }
+            if len(same_ignoring_case) == 1:
+                normalized_path = same_ignoring_case.pop()
         if entity_id is not None:
             matching_query = (
                 db.query(CodeEntity.id).filter(
