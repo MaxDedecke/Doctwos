@@ -9,7 +9,7 @@ from core.evidence import source_evidence
 
 RESOURCE_EDGE_TYPES = frozenset({
     "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
-    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "LINKS_TO",
+    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "REFERENCES_PROPERTY_KEY", "LINKS_TO",
 })
 
 
@@ -29,8 +29,15 @@ def resolve_resource_edges(entities, edges):
                 and entity_meta.get("parameter_types") in (["String[]"], ["java.lang.String[]"])):
             entrypoints[(entity.variant_key, entity.file_path,
                          entity.qualified_name.split("#", 1)[0])].append(entity)
+    properties_by_key = defaultdict(list)
+    for entity in entities:
+        if entity.type == "property":
+            properties_by_key[((entity.meta_json or {}).get("property_key"), entity.variant_key)].append(entity)
     resolved = 0
     for edge in edges:
+        if edge.type == "REFERENCES_PROPERTY_KEY":
+            resolved += _resolve_property_key(edge, by_id, properties_by_key)
+            continue
         meta = dict(edge.meta_json or {})
         if edge.type not in RESOURCE_EDGE_TYPES or meta.get("language") not in {
             "java", "shell", "xslt", "jsp", "html"
@@ -96,3 +103,31 @@ def resolve_resource_edges(entities, edges):
         meta["evidence"]["variant"]["key"] = edge.variant_key
         edge.meta_json = meta
     return resolved
+
+
+def _resolve_property_key(edge, by_id, properties_by_key) -> int:
+    """Schlüssel -> `property`-Entity: erst im Modul des Aufrufers, sonst projektweit; nie bei Mehrdeutigkeit."""
+    meta = dict(edge.meta_json or {})
+    source = by_id.get(edge.src_entity_id)
+    if source is None:
+        return 0
+    key = meta.get("property_key")
+    candidates = properties_by_key.get((key, edge.variant_key), [])
+    module = module_from_path(source.file_path)
+    scope = "project"
+    local = [c for c in candidates if module is not None and module_from_path(c.file_path) == module]
+    if local:
+        candidates, scope = local, "module"
+    was_resolved = edge.resolution == "resolved"
+    edge.dst_entity_id = None
+    if len(candidates) == 1:
+        edge.dst_entity_id = candidates[0].id
+        edge.resolution = "resolved"
+        reason = "exact_property_key"
+    else:
+        edge.resolution = "unresolved"
+        reason = "ambiguous_property_key" if candidates else "property_key_not_found"
+    meta.update(resolution_reason=reason, candidate_count=len(candidates), resolution_scope=scope,
+                source_file_path=source.file_path, relationship_kind="resource")
+    edge.meta_json = meta
+    return int(edge.resolution == "resolved" and not was_resolved)

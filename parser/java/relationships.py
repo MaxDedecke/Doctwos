@@ -58,6 +58,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         self._scopes = [root]
         self._types: list[Entity] = []
         self._package_name: str | None = None
+        self._imports: set[str] = set()
         self._entities = entities
         self._header_type_contexts: set[int] = set()
         self._fields_by_type: dict[str, set[str]] = {}
@@ -320,6 +321,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
 
     def visitImportDeclaration(self, context):
         destination = context.qualifiedName().getText()
+        self._imports.add(destination)
         wildcard = context.MUL() is not None
         if wildcard:
             destination += ".*"
@@ -418,6 +420,15 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         finally:
             self._scopes.pop()
 
+    def visitAnnotation(self, context):
+        name = context.qualifiedName().getText() if context.qualifiedName() is not None else ""
+        if name.rsplit(".", 1)[-1] == "Value" and (
+            name != "Value" or self._imports_package("org.springframework.")
+        ):
+            for key in re.findall(r"\$\{([\w.\-]+)(?::[^}]*)?\}", self._source_text(context)):
+                self._property_key_edge(key, context, "spring_value", "certain")
+        return self.visitChildren(context)
+
     def visitTypeType(self, context):
         if id(context) not in self._header_type_contexts:
             class_type = context.classOrInterfaceType()
@@ -429,6 +440,36 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     meta={"usage": "type", "target_type": class_type.getText()},
                 )
         return self.visitChildren(context)
+
+    @staticmethod
+    def _string_literal(expression: ParserRuleContext | None) -> str | None:
+        """Wert eines reinen Zeichenkettenliterals, sonst None (kein Raten bei Ausdrücken)."""
+        text = expression.getText() if expression is not None else ""
+        match = re.fullmatch(r'"((?:[^"\\]|\\.)*)"', text)
+        return match.group(1) if match else None
+
+    def _first_string_argument(self, arguments: ParserRuleContext | None) -> str | None:
+        expression_list = arguments.expressionList() if arguments is not None else None
+        expressions = expression_list.expression() if expression_list is not None else []
+        return self._string_literal(expressions[0]) if expressions else None
+
+    def _property_key_edge(self, key: str, context: ParserRuleContext, via: str, certainty: str) -> None:
+        """Verweis auf einen `.properties`-Schlüssel; aufgelöst wird später gegen die Property-Entities."""
+        if not key or not re.fullmatch(r"[\w.\-]+", key):
+            return
+        self._edge(
+            "REFERENCES_PROPERTY_KEY",
+            key,
+            context,
+            meta={
+                "property_key": key, "key_source": via, "certainty": certainty,
+                "target_entity_type": "property",
+                "owner_type": self.current_type.qualified_name if self.current_type else None,
+            },
+        )
+
+    def _imports_package(self, prefix: str) -> bool:
+        return any(name.startswith(prefix) for name in self._imports)
 
     def _argument_count(self, context: ParserRuleContext) -> int:
         expression_list = context.expressionList()
@@ -509,6 +550,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
             },
         )
+        # Wicket `Component#getString("key")`: nur ohne Receiver und mit Wicket-Import belegt.
+        if name == "getString" and receiver in (None, "this") and self._imports_package("org.apache.wicket."):
+            key = self._first_string_argument(context.arguments())
+            if key is not None:
+                self._property_key_edge(key, context, "wicket_get_string", "probable")
         # Class-literal receivers prove java.lang.Class resource semantics.
         # Arbitrary methods named getResource are not sufficient evidence.
         if name in {"getResource", "getResourceAsStream"} and receiver and receiver.endswith(".class"):
@@ -649,6 +695,14 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             )
 
         rest = context.classCreatorRest()
+        if (
+            created_name is not None
+            and rest is not None
+            and created_name.getText().rsplit(".", 1)[-1] == "ResourceModel"
+        ):
+            key = self._first_string_argument(rest.arguments())
+            if key is not None:
+                self._property_key_edge(key, context, "wicket_resource_model", "certain")
         class_body = rest.classBody() if rest is not None else None
         if class_body is None:
             return self.visitChildren(context)

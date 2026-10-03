@@ -63,3 +63,64 @@ def test_classpath_resources_do_not_cross_modules_or_invent_method_semantics():
     resources = [e for e in edges if e.type == 'USES_RESOURCE']
     assert len(resources) == 1
     assert resources[0].resolution == 'unresolved'
+
+
+WICKET_PAGE = '''package demo;
+import org.apache.wicket.markup.html.WebPage;
+import org.apache.wicket.model.ResourceModel;
+import org.springframework.beans.factory.annotation.Value;
+public class Page extends WebPage {
+    @Value("${db.url:jdbc:h2:mem}")
+    private String url;
+    void build() {
+        add(new Label("title", new ResourceModel("page.title", "Title")));
+        add(new Label("other", new ResourceModel(dynamicKey)));
+        String text = getString("page.hint");
+        String json = node.getString("page.hint");
+    }
+}
+'''
+
+
+def _property_rows(extra_bundles=()):
+    from resources.properties import parse_properties_file
+    bundles = [parse_properties_file("page.title=Hello\npage.hint=Hint\n", "app/src/main/resources/demo/Page.properties"),
+               parse_properties_file("db.url=jdbc:h2\n", "app/src/main/resources/application.properties"), *extra_bundles]
+    return bundles
+
+
+def test_java_references_to_property_keys_resolve_to_the_property_entity():
+    page = parse_java_file(WICKET_PAGE, "app/src/main/java/demo/Page.java")
+    keys = [(e.meta["property_key"], e.meta["key_source"], e.meta["certainty"])
+            for e in page.edges if e.type == "REFERENCES_PROPERTY_KEY"]
+    assert keys == [
+        ("db.url", "spring_value", "certain"),
+        ("page.title", "wicket_resource_model", "certain"),
+        ("page.hint", "wicket_get_string", "probable"),
+    ]  # dynamicKey und node.getString(...) liefern keine Kante
+
+    entities, edges = rows([page, *_property_rows()])
+    resolve_resource_edges(entities, edges)
+    by_key = {e.meta_json["property_key"]: e for e in edges if e.type == "REFERENCES_PROPERTY_KEY"}
+    assert {k: e.resolution for k, e in by_key.items()} == {
+        "db.url": "resolved", "page.title": "resolved", "page.hint": "resolved",
+    }
+    target = next(e for e in entities if e.id == by_key["page.title"].dst_entity_id)
+    assert target.type == "property" and target.qualified_name.endswith("Page.properties::page.title")
+    assert by_key["page.title"].meta_json["resolution_scope"] == "module"
+
+
+def test_property_key_with_two_bundles_in_the_module_is_ambiguous_and_missing_key_is_reported():
+    from resources.properties import parse_properties_file
+    twin = parse_properties_file("page.title=Other\n", "app/src/main/resources/demo/Other.properties")
+    page = parse_java_file(WICKET_PAGE, "app/src/main/java/demo/Page.java")
+    entities, edges = rows([page, *_property_rows([twin])])
+    resolve_resource_edges(entities, edges)
+    by_key = {e.meta_json["property_key"]: e for e in edges if e.type == "REFERENCES_PROPERTY_KEY"}
+    assert by_key["page.title"].resolution == "unresolved"
+    assert by_key["page.title"].meta_json["resolution_reason"] == "ambiguous_property_key"
+    assert by_key["page.title"].dst_entity_id is None
+
+    entities, edges = rows([page])
+    resolve_resource_edges(entities, edges)
+    assert {e.meta_json["resolution_reason"] for e in edges if e.type == "REFERENCES_PROPERTY_KEY"} == {"property_key_not_found"}
