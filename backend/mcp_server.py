@@ -1314,6 +1314,9 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
         matches = []
         for term in terms:
             exact = [serialize(entity) for entity in by_id.values() if _symbol_matches(entity, term)]
+            # Parameter und lokale Variablen einer Methode tragen deren Namen im Qualified Name; sie machen
+            # einen sonst eindeutigen Treffer nicht mehrdeutig.
+            exact = [item for item in exact if item["type"] not in _NOISE_TYPES] or exact
             if "/" in term:
                 file_programs = [item for item in exact if item["type"] in {"program", "cobol_program", "compilation_unit"}]
                 if file_programs:

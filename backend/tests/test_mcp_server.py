@@ -609,6 +609,30 @@ def test_research_project_uses_paged_call_flow_contract(
     assert result["follow_up_actions"][0]["tool"] == "explain_symbol"
 
 
+def test_research_project_ignores_parameters_that_share_the_method_name(
+    db_session, mcp_project_context, monkeypatch
+):
+    """Ein langer qualifizierter Methodenname bleibt eindeutig, obwohl der Parameter ihn im Namen trägt."""
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    qualified = "org.apache.demo.core.rest.cxf.service.Widget#create(Req)"
+    method = CodeEntity(project_id=project_id, name="create", type="method", file_path="src/Widget.java",
+                        qualified_name=qualified, start_line=1, end_line=5)
+    db_session.add(method)
+    db_session.add(CodeEntity(project_id=project_id, name="req", type="parameter", file_path="src/Widget.java",
+                              qualified_name=f"{qualified}@param:req", start_line=1, end_line=1))
+    db_session.commit()
+    monkeypatch.setattr(
+        mcp_server, "trace_call_flow",
+        lambda *_a, **_k: {"status": "ok", "root": {}, "nodes": [], "edges": [], "entry_candidates": []},
+    )
+    result = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="org.apache.demo.core.rest.cxf.service.Widget#create",
+    )
+    assert result["resolution"] == "unique_exact_match"
+    assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
+
+
 def test_research_terms_keep_prose_but_split_symbol_lists():
     terms = mcp_server._research_terms
     assert terms("how does approval/decline work") == ["how does approval/decline work"]

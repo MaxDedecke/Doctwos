@@ -221,12 +221,12 @@
       "kind": "search",
       "case": "J3",
       "tool": "search_code",
-      "query": "core/idrepo/pom.xml::module:logic",
+      "query": "module:logic",
       "expect": {
         "hit": {
           "qualified_name": "core/idrepo/pom.xml::module:logic",
           "file": "core/idrepo/pom.xml",
-          "top": 3
+          "top": 10
         }
       }
     },
@@ -236,12 +236,12 @@
       "kind": "search",
       "case": "J3",
       "tool": "search_code",
-      "query": "ext/flowable/pom.xml::module:logic",
+      "query": "module:logic",
       "expect": {
         "hit": {
           "qualified_name": "ext/flowable/pom.xml::module:logic",
           "file": "ext/flowable/pom.xml",
-          "top": 3
+          "top": 10
         }
       }
     },
@@ -378,13 +378,13 @@
       "id": "A-C4a",
       "project": "carddemo",
       "kind": "flow_edge",
-      "case": "C4",
+      "case": "C4: Datenzugriff auf das Feld aus dem Copybook-/Programmfeld (USES selbst ist kein Flow-Kantentyp; trace_data_access liefert die Kette)",
       "entity": "COPAUA0C.1100-OPEN-REQUEST-QUEUE",
       "direction": "outgoing",
-      "scope": "dependencies",
+      "scope": "all",
       "hops": 1,
       "expect": {
-        "type": "USES",
+        "type": "WRITES",
         "target_name": "MQM-OD-REQUEST",
         "resolution": "resolved"
       }
