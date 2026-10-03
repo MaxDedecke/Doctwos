@@ -466,7 +466,14 @@ class JavaRelationshipVisitor(JavaParserVisitor):
 
     def visitMethodCall(self, context):
         identifier = context.identifier()
-        name = identifier.getText() if identifier is not None else context.getText().rstrip("()")
+        if identifier is not None:
+            name = identifier.getText()
+        elif context.SUPER() is not None:
+            name = "super"  # Konstruktordelegation; getText() enthielte die Argumente
+        elif context.THIS() is not None:
+            name = "this"
+        else:
+            name = context.getText().rstrip("()")
         receiver = None
         parent = context.parentCtx
         if (

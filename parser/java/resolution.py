@@ -1014,6 +1014,9 @@ def _external_type(
     return None
 
 
+_TYPE_VARIABLE_RE = re.compile(r"[A-Z][A-Z0-9]?")
+
+
 def mark_external_edges(
     java_results: list[ParseResult],
     *,
@@ -1072,6 +1075,10 @@ def _external_origin_for_edge(
         owner = target if meta.get("wildcard") else target.rpartition(".")[0]
         return None if not owner or owner in types_by_qname else {**_external_origin(owner), "via": "import"}
     if edge.type in {"USES_TYPE", "INSTANTIATES", "EXTENDS", "IMPLEMENTS"}:
+        # `T`, `E`, `K2`: Typvariablen sind weder Repo- noch Bibliothekstypen; als
+        # offene Lücke gezählt würden sie die Restmenge um Tausende aufblähen.
+        if _TYPE_VARIABLE_RE.fullmatch(edge.dst_name) and edge.dst_name not in types_by_name:
+            return {"category": "type_parameter", "library": edge.dst_name, "via": "generic_parameter"}
         qname = _external_type(edge.dst_name, result, **lookup)
         return {**_external_origin(qname), "via": "type_reference"} if qname else None
     if edge.type in {"READS", "WRITES"}:

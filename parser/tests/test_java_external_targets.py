@@ -109,3 +109,30 @@ class C {
     assert read.meta["external"]["library"] == "org.apache.commons.lang3.StringUtils"
     reference = next(e for e in client.edges if e.type == "REFERENCES_METHOD")
     assert reference.meta["external"]["library"] == "org.apache.commons.lang3.StringUtils"
+
+
+GENERIC = """package app;
+import java.util.List;
+class Box<T> extends Base {
+    private T value;
+    Box(String id, int n) { super(id, n); }
+    Box() { this("x", 1); }
+    <E> List<E> wrap(E item) { return List.of(item); }
+}
+class Base { Base(String id, int n) {} }
+"""
+
+
+def test_type_variables_are_not_counted_as_open_gaps():
+    box = parse_java_file(GENERIC, "app/Box.java")
+    resolve_global_edges([box])
+    variables = [e for e in box.edges if e.type == "USES_TYPE" and e.dst_name in {"T", "E"}]
+    assert variables
+    assert all(e.meta["external"]["category"] == "type_parameter" for e in variables)
+
+
+def test_constructor_delegation_keeps_a_clean_target_name():
+    box = parse_java_file(GENERIC, "app/Box.java")
+    names = {e.dst_name for e in box.edges if e.type == "CALLS"}
+    assert {"super", "this"} <= names
+    assert not any(name.startswith(("super(", "this(")) for name in names)
