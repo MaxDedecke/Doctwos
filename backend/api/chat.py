@@ -860,6 +860,8 @@ def _validate_answer_sources(
 
     # Only Markdown code spans are considered citations.  Plain prose can
     # legitimately mention a filename while explaining why it was not found.
+    verified = 0
+    unverified: list[tuple[str, str]] = []
     for raw in _BACKTICK_RE.findall(answer):
         match = _FILE_LINE_RE.match(raw.strip())
         if not match:
@@ -875,15 +877,33 @@ def _validate_answer_sources(
             candidates = basenames.get(os.path.basename(path_key), set())
             if len(candidates) == 1:
                 ranges = evidence[next(iter(candidates))]
-        if not ranges or not any(start <= claimed_line <= end for start, end in ranges):
-            logger.warning("Verwerfe Agent-Antwort mit unbelegter Quellenangabe: %s", raw)
-            return (
-                "Die angefragte Datei bzw. Code-Stelle ist im aktuellen Index oder in den "
-                "abgerufenen Quellen nicht belastbar belegt. Ich nenne deshalb keine "
-                "Ersatzdatei als Beleg; bitte den Import/Parserstatus prüfen oder die "
-                "Zieldatei erneut indexieren.",
-                False,
-            )
+        if ranges and any(start <= claimed_line <= end for start, end in ranges):
+            verified += 1
+        else:
+            unverified.append((raw, f"{claimed_path}:{claimed_line}"))
+
+    if unverified and not verified:
+        logger.warning("Verwerfe Agent-Antwort mit unbelegter Quellenangabe: %s", unverified[0][0])
+        return (
+            "Die angefragte Datei bzw. Code-Stelle ist im aktuellen Index oder in den "
+            "abgerufenen Quellen nicht belastbar belegt. Ich nenne deshalb keine "
+            "Ersatzdatei als Beleg; bitte den Import/Parserstatus prüfen oder die "
+            "Zieldatei erneut indexieren.",
+            False,
+        )
+    if unverified:
+        # O-346: Eine belegte Antwort mit einer zusätzlichen, nicht abgerufenen
+        # Nebenstelle wird nicht verworfen; die Stelle verliert ihren Quellen-Link
+        # und wird als Lücke benannt.
+        logger.warning("Markiere unbelegte Quellenangabe(n): %s", [item[1] for item in unverified])
+        for raw, label in unverified:
+            answer = answer.replace(f"`{raw}`", f"{label} (nicht belegt)")
+        answer = (
+            answer.rstrip()
+            + "\n\n> Hinweis: "
+            + ", ".join(label for _, label in unverified)
+            + " stammt nicht aus den abgerufenen Quellen und ist deshalb nicht als Beleg verlinkt."
+        )
 
     # A call assertion is only admissible when its directed pair was returned
     # by trace_call_flow in this turn. We intentionally do not infer edges

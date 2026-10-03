@@ -269,3 +269,24 @@ def test_rejected_answer_still_lists_the_lines_the_tools_really_read():
     assert "`a/Real.java:10`" in out
     assert "keine Aussage zur Anfrage" in out
     assert _append_agent_source_fallback("Nicht belegt.", [], rejected=True) == "Nicht belegt."
+
+
+def test_answer_with_one_verified_citation_keeps_its_text_and_flags_the_extra_one():
+    """O-346: eine belegte Antwort mit zusätzlicher, nie abgerufener Nebenstelle
+    (Live-Fall COBSWAIT/WAITSTEP.jcl) wird nicht verworfen, die Stelle wird markiert."""
+    sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
+    answer = "Liest den Parameter in `app/cbl/COBSWAIT.cbl:36`; der JCL-Step steht in `app/jcl/WAITSTEP.jcl:26`."
+
+    text, consistent = _validate_answer_sources(answer, sources)
+
+    assert consistent
+    assert "`app/cbl/COBSWAIT.cbl:36`" in text
+    assert "`app/jcl/WAITSTEP.jcl:26`" not in text
+    assert "app/jcl/WAITSTEP.jcl:26 (nicht belegt)" in text
+    assert "nicht als Beleg verlinkt" in text
+
+
+def test_answer_with_only_unverified_citations_is_still_rejected():
+    sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
+    text, consistent = _validate_answer_sources("Siehe `app/jcl/WAITSTEP.jcl:26`.", sources)
+    assert not consistent and "nicht belastbar belegt" in text
