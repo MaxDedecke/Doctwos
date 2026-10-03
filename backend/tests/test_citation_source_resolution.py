@@ -257,3 +257,15 @@ def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session)
     assert "analysis_status" not in result[0]
     assert result[0]["provenance"]["kind"] == "unknown"
     assert result[0]["provenance"]["verification_status"] == "unavailable"
+
+
+def test_rejected_answer_still_lists_the_lines_the_tools_really_read():
+    """O-346: eine verworfene Antwort darf nicht mit sources=[] enden, wenn Tools
+    belegte Stellen geliefert haben."""
+    from api.chat import _append_agent_source_fallback
+
+    sources = [{"file": "a/Real.java", "lines": [10, 20]}]
+    out = _append_agent_source_fallback("Nicht belegt.", sources, rejected=True)
+    assert "`a/Real.java:10`" in out
+    assert "keine Aussage zur Anfrage" in out
+    assert _append_agent_source_fallback("Nicht belegt.", [], rejected=True) == "Nicht belegt."

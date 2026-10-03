@@ -751,15 +751,24 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
     return resolved
 
 
-def _append_agent_source_fallback(answer: str, agent_sources: list[dict]) -> str:
+def _append_agent_source_fallback(
+    answer: str, agent_sources: list[dict], rejected: bool = False
+) -> str:
     """Make tool-read code locations visible if the model omitted the citation syntax.
 
     Models sometimes use a different citation style even after being instructed to
     emit ``path/to/file.java:line``.  The locations below are not inferred: they
     come from repository tools that actually ran during this answer.  Keep this
     fallback explicit so the user can distinguish it from model-written prose.
+
+    ``rejected``: the answer was replaced by a gap notice (O-346).  The tool-read
+    locations are then listed as the only verified evidence instead of leaving
+    ``sources=[]``.
     """
-    if not agent_sources or any(_FILE_EXT_RE.search(source.get("file", "")) for source in agent_sources):
+    if not rejected and (
+        not agent_sources
+        or any(_FILE_EXT_RE.search(source.get("file", "")) for source in agent_sources)
+    ):
         if _parse_citations(answer, {source.get("file", "") for source in agent_sources}):
             return answer
     if not agent_sources:
@@ -780,7 +789,14 @@ def _append_agent_source_fallback(answer: str, agent_sources: list[dict]) -> str
         references.append(f"- `{file_path}:{line}`")
     if not references:
         return answer
-    return answer.rstrip() + "\n\nVom Agenten gelesene Code-Stellen:\n" + "\n".join(references)
+    if rejected:
+        references = references[:10]
+    header = (
+        "Tatsächlich gelesene und belegte Code-Stellen (keine Aussage zur Anfrage):"
+        if rejected
+        else "Vom Agenten gelesene Code-Stellen:"
+    )
+    return answer.rstrip() + f"\n\n{header}\n" + "\n".join(references)
 
 
 _EDGE_CLAIM_RE = re.compile(
@@ -1597,8 +1613,10 @@ async def chat(
                     if event["type"] == "error":
                         return
 
-            if agent_ran and answer_is_source_consistent:
-                answer = _append_agent_source_fallback(answer, agent_sources)
+            if agent_ran:
+                answer = _append_agent_source_fallback(
+                    answer, agent_sources, rejected=not answer_is_source_consistent
+                )
             sources = _resolve_cited_sources(answer, candidate_sources)
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):
                 sources.insert(0, pinned_source)
