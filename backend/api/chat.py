@@ -980,7 +980,9 @@ def _validate_answer_sources(
     # A call assertion is only admissible when its directed pair was returned
     # by trace_call_flow in this turn. We intentionally do not infer edges
     # from proximity in a file snippet.
-    for sentence in re.split(r"[.!?\n]+", answer):
+    # Punkte in Dateinamen (`COBSWAIT.cbl:36`) dürfen keine Satzgrenze sein.
+    protected = _BACKTICK_RE.sub(lambda m: "`" + m.group(1).replace(".", "\u2024") + "`", answer)
+    for sentence in (part.replace("\u2024", ".") for part in re.split(r"[.!?\n]+", protected)):
         # Zitierter Quelltext (`CALL 'X' USING ...`) ist keine Behauptung über den
         # Aufrufer, sondern der Beleg selbst.
         prose = _CODE_QUOTE_RE.sub(" ", sentence)

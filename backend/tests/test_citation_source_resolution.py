@@ -337,3 +337,15 @@ def test_quoted_call_statement_is_evidence_not_an_edge_claim():
         assert consistent, answer
     _, invented = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf", [], edges)
     assert not invented
+
+
+def test_dots_inside_code_spans_do_not_split_a_sentence_into_a_false_edge_claim():
+    """Live-Fall COBSWAIT: `COBSWAIT.cbl:36` zerschnitt den Satz mit dem zitierten CALL."""
+    edges = {("cobswait", "mvswait")}
+    answer = (
+        "COBSWAIT liest den Parameter (`app/cbl/COBSWAIT.cbl:36`: `ACCEPT PARM-VALUE FROM SYSIN`), "
+        "überträgt ihn nach `MVSWAIT-TIME` und übergibt ihn mit `CALL 'MVSWAIT' USING MVSWAIT-TIME`."
+    )
+    sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
+    text, consistent = _validate_answer_sources(answer, sources, edges)
+    assert consistent and text.startswith("COBSWAIT liest")
