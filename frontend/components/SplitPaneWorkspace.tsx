@@ -144,7 +144,10 @@ export const detectLanguage = (filename: string | null) => {
     case 'fish': return 'shell';
     case 'yml':
     case 'yaml': return 'yaml';
-    case 'java': return 'java';
+    case 'java':
+    // Groovy hat im Editor keine eigene Grammatik; die Java-Hervorhebung passt syntaktisch am besten.
+    case 'groovy':
+    case 'gvy': return 'java';
     case 'c': return 'c';
     case 'cpp':
     case 'cc':

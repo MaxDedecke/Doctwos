@@ -136,6 +136,8 @@ describe('mixed-language editor detection', () => {
     expect(detectLanguage('web/view.jsp')).toBe('html');
     expect(detectLanguage('bin/import.bash')).toBe('shell');
     expect(detectLanguage('config/messages.properties')).toBe('ini');
+    expect(detectLanguage('console/src/main/resources/Rules.groovy')).toBe('java');
+    expect(detectLanguage('app/cbl/CBSTM03B.CBL')).toBe('cobol');
     expect(detectLanguage('web/report.xslt')).toBe('xml');
     expect(detectLanguage('web/report.jspf')).toBe('html');
     expect(detectLanguage('scripts/tool.mjs')).toBe('javascript');
