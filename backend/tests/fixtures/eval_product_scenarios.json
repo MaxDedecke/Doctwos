@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "note": "Produktschnitt-Szenarien (O-304): je Arbeitsansicht (Structure, Process, Impact, Knowledge Graph) ein Java- und ein COBOL-Fall plus Negativfälle, geprüft über die REST-Endpunkte der Oberfläche. Ground Truth ist unabhängig aus den Kanten der Datenbank abgeleitet und gilt nur für die genannte Quell-Revision. Lauf: scripts/eval_product_slice.py",
+  "projects": {
+    "carddemo": {"name": "AWS CardDemo", "revision": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"},
+    "syncope": {"name": "Apache Syncope", "revision": "c550d2f547910b28754abef9768074af10cf1212"}
+  },
+  "max_latency_ms": 5000,
+  "scenarios": [
+    {"id": "P-C1", "view": "structure", "project": "carddemo", "entity": {"query": "COSGN00C", "qualified_name": "COSGN00C"},
+     "expect": {"group": "COPY:out", "targets": [{"name": "COCOM01Y", "resolution": "resolved"}]}},
+    {"id": "P-C2", "view": "process", "project": "carddemo", "entity": {"query": "COSGN00C", "qualified_name": "COSGN00C"}, "hops": 2,
+     "expect": {"root_label": "MAIN-PARA", "labels": ["SEND-SIGNON-SCREEN", "PROCESS-ENTER-KEY", "SEND-PLAIN-TEXT", "READ-USER-SEC-FILE"], "truncated": false}},
+    {"id": "P-C3", "view": "impact", "project": "carddemo", "entity": {"query": "CBTRN03C.9999-ABEND-PROGRAM", "qualified_name": "CBTRN03C.9999-ABEND-PROGRAM"}, "hops": 2,
+     "expect": {"impact_status": "ok", "affected_count": 25, "affected_names": ["CBTRN03C.0550-DATEPARM-READ"], "honest_unknowns": ["tests", "responsibility"]}},
+    {"id": "P-C4", "view": "graph", "project": "carddemo", "entity": {"query": "COSGN00C", "qualified_name": "COSGN00C"},
+     "expect": {"labels": ["app/cbl/COSGN00C.cbl", "app/cpy/COCOM01Y.cpy"]}},
+    {"id": "P-C5", "view": "negative", "project": "carddemo", "request": "process", "entity_id": 999999999, "expect": {"status": 404}},
+    {"id": "P-J1", "view": "structure", "project": "syncope", "entity": {"query": "org.apache.syncope.core.rest.cxf.service.UserServiceImpl", "qualified_name": "org.apache.syncope.core.rest.cxf.service.UserServiceImpl"},
+     "expect": {"group": "EXTENDS:out", "targets": [{"name": "AbstractAnyService<UserTO,UserCR,UserUR>", "resolution": "resolved"}]}},
+    {"id": "P-J2", "view": "process", "project": "syncope", "entity": {"query": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)", "qualified_name": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)"}, "hops": 2,
+     "expect": {"root_label": "create", "labels": ["doCreate", "beforeCreate", "provisioningManager"], "truncated": false}},
+    {"id": "P-J3", "view": "impact", "project": "syncope", "entity": {"query": "org.apache.syncope.core.logic.AuditLogic#addForOutcomes", "qualified_name": "org.apache.syncope.core.logic.AuditLogic#addForOutcomes(Set<OpEvent>,OpEvent.CategoryType,String,String,String)"}, "hops": 2,
+     "expect": {"impact_status": "ok", "affected_count": 5, "honest_unknowns": ["tests", "responsibility"]}},
+    {"id": "P-J4", "view": "graph", "project": "syncope", "entity": {"query": "org.apache.syncope.core.rest.cxf.service.UserServiceImpl", "qualified_name": "org.apache.syncope.core.rest.cxf.service.UserServiceImpl"},
+     "expect": {"labels": ["core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java"]}},
+    {"id": "P-J5", "view": "negative", "project": "syncope", "request": "change-package-without-target", "expect": {"status": 422}}
+  ]
+}
