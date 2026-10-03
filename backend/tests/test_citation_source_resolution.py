@@ -388,3 +388,11 @@ def test_fenced_mermaid_block_is_neither_checked_nor_annotated():
     )
     text, consistent = _validate_answer_sources(answer, sources, {("x", "y")})
     assert consistent and text == answer
+
+
+def test_no_result_answer_gets_no_unrelated_read_locations_appended():
+    """Live-Fall: „Die Suche lieferte keine Treffer“ hängte zufällig gelesene JCL-Zeilen an."""
+    sources = [{"file": "app/jcl/POSTTRAN.jcl", "lines": [34, 34]}]
+    text = "Die Suche nach „Autorisierung“ lieferte keine Treffer."
+    assert _append_agent_source_fallback(text, sources) == text
+    assert "POSTTRAN" in _append_agent_source_fallback("Der Job ruft CBTRN02C auf.", sources)

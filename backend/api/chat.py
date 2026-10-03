@@ -761,6 +761,12 @@ def _resolve_cited_sources(answer: str, candidates: List[dict]) -> List[dict]:
     return resolved
 
 
+_NO_RESULT_RE = re.compile(
+    r"\b(?:keine\s+(?:Treffer|Ergebnisse)|nichts\s+gefunden|no\s+(?:results|matches)|nothing\s+found)\b",
+    re.IGNORECASE,
+)
+
+
 def _append_agent_source_fallback(
     answer: str, agent_sources: list[dict], rejected: bool = False
 ) -> str:
@@ -775,6 +781,9 @@ def _append_agent_source_fallback(
     locations are then listed as the only verified evidence instead of leaving
     ``sources=[]``.
     """
+    if not rejected and _NO_RESULT_RE.search(answer):
+        # „keine Treffer“: die zufällig gelesenen Stellen belegen nichts und würden als Beleg wirken.
+        return answer
     if not rejected and (
         not agent_sources
         or any(_FILE_EXT_RE.search(source.get("file", "")) for source in agent_sources)
