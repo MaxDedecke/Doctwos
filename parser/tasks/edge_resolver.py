@@ -383,6 +383,7 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     ).all()
     by_variant_type_name: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
     proc_members: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
+    file_by_entity = {entity.id: entity.file_path for entity in entities}
     for entity in entities:
         key_name = entity.name.upper()
         by_variant_type_name[(entity.variant_key, entity.type, key_name)].append(entity)
@@ -406,6 +407,10 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
             via = "proc_library_member"
         else:
             via = None
+        if len(candidates) > 1 and target_type == "jcl_proc":
+            # Mehrere gleichnamige Prozeduren: Die im Aufrufer-Member selbst definierte gewinnt.
+            own_file = file_by_entity.get(edge.src_entity_id)
+            candidates = [item for item in candidates if item.file_path == own_file] or candidates
         if len(candidates) == 1:
             edge.dst_entity_id = candidates[0].id
             edge.resolution = "resolved"

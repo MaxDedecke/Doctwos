@@ -34,7 +34,7 @@ def test_cataloged_procedure_resolves_to_unique_library_member(db_session):
     try:
         def entity(type_, name, path):
             row = CodeEntity(project_id=project_id, source_id=source.id, file_path=path, name=name, type=type_,
-                             qualified_name=path, start_line=1, end_line=1, meta_json={"language": "jcl"})
+                             qualified_name=f"{path}::{type_}:{name}", start_line=1, end_line=1, meta_json={"language": "jcl"})
             db_session.add(row)
             db_session.flush()
             return row
@@ -54,7 +54,18 @@ def test_cataloged_procedure_resolves_to_unique_library_member(db_session):
             return row
 
         found, twin, notproc, missing = edge("reproc"), edge("TWIN"), edge("NOTPROC"), edge("GONE")
-        assert _resolve_jcl_edges(db_session, source.id) == 1
+        own = entity("jcl_proc", "SHARED", "lib/OWNER.prc")
+        entity("jcl_proc", "SHARED", "lib/OTHER.prc")
+        caller = entity("jcl_step", "S1", "lib/OWNER.prc")
+        in_file = CodeEdge(project_id=project_id, source_id=source.id, src_entity_id=caller.id, dst_name="SHARED", type="EXECUTES",
+                           resolution="unresolved",
+                           meta_json={"language": "jcl", "execution_kind": "procedure", "target_entity_type": "jcl_proc", "target_proc_name": "SHARED"})
+        from_job = edge("SHARED")
+        db_session.add(in_file)
+        db_session.flush()
+        assert _resolve_jcl_edges(db_session, source.id) == 2
+        assert in_file.dst_entity_id == own.id
+        assert from_job.resolution == "unresolved"  # zwei Bibliotheken, Aufrufer in keiner davon
         assert (found.resolution, found.dst_entity_id) == ("resolved", reproc.id)
         assert found.meta_json["resolution_via"] == "proc_library_member"
         for item in (twin, notproc, missing):  # mehrdeutig, keine Prozedurdatei, fehlt: nichts geraten
