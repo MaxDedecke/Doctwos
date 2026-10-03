@@ -338,3 +338,20 @@ def test_requested_model_equal_to_the_active_profile_model_uses_the_profile(monk
     # Ein fremdes Modell ohne Profilbezug bleibt eine direkte Ollama-Anfrage.
     other = oc._effective_llm_settings("some-other-model")
     assert (other["protocol"], other["model"]) == ("ollama", "some-other-model")
+
+
+@pytest.mark.anyio
+async def test_disabled_active_profile_is_not_overridden_by_the_env_model(monkeypatch):
+    """Profil „Lokales Ollama“ (LLM disabled) + Worker-Env LLM_MODEL=qwen3:8b: kein Aufruf."""
+    import ollama_client as oc
+
+    monkeypatch.setenv("LLM_MODEL", "qwen3:8b")
+    monkeypatch.setattr(oc, "_load_server_settings", lambda: {
+        "llm_model": "disabled", "llm_base_url": "http://ollama:11434", "llm_api_key": "",
+        "protocol": "ollama", "llm_path": None, "llm_context_length": 8192,
+    })
+    called = []
+    monkeypatch.setattr(oc, "admitted_post", lambda *a, **k: called.append(1))
+    with pytest.raises(RuntimeError, match="deaktiviert"):
+        await oc.get_chat_json("x", "qwen3:8b")
+    assert not called

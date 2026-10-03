@@ -395,6 +395,11 @@ async def get_chat_json(
         )
 
     settings = _effective_llm_settings(model)
+    if not settings["model"] or settings["model"] == "disabled":
+        # Das aktive Profil hat das LLM abgeschaltet; ein Env-Modell (`LLM_MODEL`) darf das nicht überdecken.
+        raise RuntimeError(
+            "Das aktive LLM-Profil ist deaktiviert; für diese Aktion ein Profil mit LLM aktivieren."
+        )
     logger.info(
         "LLM-Aufruf: protocol=%s model=%s host=%s (angefordert: %s)",
         settings["protocol"], settings["model"], settings["base_url"], model,
