@@ -64,11 +64,16 @@ async function annotations(document, context) {
   return { settings, references: data.references };
 }
 
+// `unresolved` mit bekannter Kategorie (jdk, mq, cics, ...) wird als extern ausgewiesen.
+function statusText(ref) {
+  return ref.external_category && ref.resolution === 'unresolved' ? `external (${ref.external_category})` : ref.resolution;
+}
+
 function label(ref) {
   if (ref.direction === 'incoming') {
     return `Doctus: ${ref.type} from ${ref.target?.file_path || ref.name}:${ref.target?.start_line || 1}`;
   }
-  const destination = ref.target ? `${ref.target.file_path}:${ref.target.start_line || 1}` : ref.resolution;
+  const destination = ref.target ? `${ref.target.file_path}:${ref.target.start_line || 1}` : statusText(ref);
   return `Doctus: ${ref.type} ${ref.name} → ${destination}`;
 }
 
@@ -208,7 +213,7 @@ async function activate(context) {
           return range && range.contains(position);
         });
         if (!ref) return null;
-        const body = new vscode.MarkdownString(`**${markdownText(ref.type)} ${markdownText(ref.name)}** · ${markdownText(ref.resolution)}\n\n` +
+        const body = new vscode.MarkdownString(`**${markdownText(ref.type)} ${markdownText(ref.name)}** · ${markdownText(statusText(ref))}\n\n` +
           (ref.target ? `Target: ${markdownText(ref.target.file_path)}:${ref.target.start_line || 1}\n\n` : '') +
           (ref.resolution_reason ? `Resolution: ${markdownText(ref.resolution_reason)}\n\n` : '') +
           (ref.dispatch_scope ? `Dispatch: ${markdownText(ref.dispatch_scope)}\n\n` : '') +

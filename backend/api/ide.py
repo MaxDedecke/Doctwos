@@ -165,6 +165,7 @@ def file_annotations(
             "symbol_name": symbol_name,
             "resolution": edge.resolution if target or edge.dst_entity_id is None else "unresolved",
             "resolution_reason": meta.get("resolution_reason"),
+            "external_category": (meta.get("external") or {}).get("category") if isinstance(meta.get("external"), dict) else None,
             "dispatch_scope": meta.get("dispatch_scope"),
             "target": {
                 "id": target.id,

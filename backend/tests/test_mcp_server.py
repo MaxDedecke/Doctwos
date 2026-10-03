@@ -1042,3 +1042,32 @@ def test_outline_facts_name_the_fields_a_paragraph_computes(db_session, mcp_proj
     db_session.commit()
     facts = next(i for i in mcp_server._outline(db_session, program) if i["symbol"].endswith("COMPUTE-INTEREST"))["facts"]
     assert "computes WS-MONTHLY-INT, WS-TOTAL-INT" in facts
+
+
+def test_ide_file_marks_known_system_targets_as_external(unauthenticated_client, db_session, mcp_project_context):
+    """O-325: ein COPY auf ein MQ-Systemcopybook ist `unresolved`, aber extern und keine Indexlücke."""
+    from models.database import CodeEdge
+
+    owner, _outsider, project_id, _foreign = mcp_project_context
+    source = KnowledgeSource(name="ide-src", type="Git", project_id=project_id, team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar())
+    db_session.add(source)
+    db_session.flush()
+    program = CodeEntity(project_id=project_id, source_id=source.id, file_path="cbl/PROG.cbl", name="PROG",
+                         qualified_name="PROG", type="program", start_line=1, end_line=30)
+    db_session.add(program)
+    db_session.flush()
+    for name, meta in (("CMQODV", {"external": {"category": "mq", "kind": "system_copybook"}}), ("MYBOOK", {})):
+        db_session.add(CodeEdge(project_id=project_id, source_id=source.id, src_entity_id=program.id, dst_name=name,
+                                type="COPY", resolution="unresolved", src_start_line=10, src_end_line=10, meta_json=meta))
+    db_session.commit()
+    _token, secret = create_token(db_session, user=owner, name="ide external", days=1)
+
+    response = unauthenticated_client.get(
+        "/ide/file", params={"project_id": project_id, "source_id": source.id, "path": "cbl/PROG.cbl"},
+        headers={"Authorization": f"Bearer {secret}"},
+    )
+
+    assert response.status_code == 200
+    by_name = {ref["name"]: ref for ref in response.json()["references"]}
+    assert by_name["CMQODV"]["external_category"] == "mq" and by_name["CMQODV"]["resolution"] == "unresolved"
+    assert by_name["MYBOOK"]["external_category"] is None

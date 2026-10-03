@@ -124,6 +124,14 @@ def ref_range(uri, ref, line_fallback=False):
             "end": {"line": line - 1, "character": end}}
 
 
+def status_text(ref):
+    """`unresolved`, aber mit bekannter Kategorie (jdk, mq, cics, ...): als extern ausweisen."""
+    category = ref.get("external_category")
+    if category and ref.get("resolution") == "unresolved":
+        return f"external ({category})"
+    return ref.get("resolution", "unresolved")
+
+
 def code_lenses(uri):
     path, rows = references(uri)
     if path is None:
@@ -134,7 +142,7 @@ def code_lenses(uri):
         if not location:
             continue
         target = ref.get("target")
-        destination = f"{target['file_path']}:{target.get('start_line') or 1}" if target else ref.get("resolution", "unresolved")
+        destination = f"{target['file_path']}:{target.get('start_line') or 1}" if target else status_text(ref)
         title = (
             f"Doctus: {ref['type']} from {destination}"
             if ref.get("direction") == "incoming"
@@ -168,7 +176,7 @@ def hover(uri, position):
         target_text = f"\n\nTarget: {markdown_text(target['file_path'])}:{target.get('start_line') or 1}" if target else ""
         url = graph_url(path, ref["line"])
         return {"contents": {"kind": "markdown", "value":
-                f"**{markdown_text(ref['type'])} {markdown_text(ref['name'])}** · {markdown_text(ref.get('resolution', 'unresolved'))}"
+                f"**{markdown_text(ref['type'])} {markdown_text(ref['name'])}** · {markdown_text(status_text(ref))}"
                 f"{target_text}\n\n[Open in Doctus graph]({url})"}, "range": location}
     return None
 
