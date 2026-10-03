@@ -259,3 +259,29 @@ describe('useWorkspaceLayout snapshot autosave cache sync', () => {
     expect(api.updateChatSessionSnapshot).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useWorkspaceLayout restoring saved workspaces', () => {
+  it('verwirft das entfernte search-Panel samt seiner parallelen Zustände', () => {
+    const { result } = renderLayout();
+    const empty = { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
+    act(() => {
+      result.current.restoreWorkspaceSnapshot({
+        panelConfigs: ['chat', 'search', 'code'],
+        panelSelections: [empty, { ...empty, agentSearch: { query: 'x' } }, { ...empty, selectedFile: 'A.cbl' }],
+        panelFrozen: [false, true, false],
+        panelFocusObject: [null, null, null],
+      } as unknown as Parameters<typeof result.current.restoreWorkspaceSnapshot>[0]);
+    });
+    expect(result.current.panelConfigs).toEqual(['chat', 'code']);
+    expect(result.current.panelSelections).toHaveLength(2);
+    expect(result.current.panelFrozen).toEqual([false, false]);
+  });
+
+  it('fällt auf den Chat zurück, wenn nur das entfernte Panel gespeichert war', () => {
+    const { result } = renderLayout();
+    act(() => {
+      result.current.restoreWorkspaceSnapshot({ panelConfigs: ['search'] } as unknown as Parameters<typeof result.current.restoreWorkspaceSnapshot>[0]);
+    });
+    expect(result.current.panelConfigs).toEqual(['chat']);
+  });
+});
