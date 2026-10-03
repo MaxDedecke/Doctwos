@@ -20,6 +20,7 @@ _CALL_NAMES = {
 _UTILITIES = frozenset({
     "IEBGENER", "IEBCOPY", "IEBCOMPR", "IEBUPDTE", "IEFBR14", "IDCAMS", "SORT", "ICEMAN",
     "DFSORT", "ICETOOL", "IKJEFT01", "IKJEFT1B", "IEWL", "IEWBLINK", "HEWL", "ADRDSSU",
+    "SDSF", "IGYCRCTL",
 })
 
 
@@ -35,6 +36,14 @@ def classify_external(edge_type: str, dst_name: str, language: str | None) -> di
     if edge_type == "CALL":
         category = _CALL_NAMES.get(name) or next((c for p, c in _CALL_PREFIXES if name.startswith(p)), None)
         return {"category": category, "kind": "system_routine"} if category else None
-    if edge_type == "EXECUTES" and language == "jcl" and name in _UTILITIES:
-        return {"category": "ibm_utility", "kind": "utility_program"}
+    if edge_type == "EXECUTES" and language == "jcl":
+        if name in _UTILITIES:
+            return {"category": "ibm_utility", "kind": "utility_program"}
+        # `EXEC PGM=DFSRRC00` startet die IMS-Region, `DFHCSDUP`/`DFHECP1$` sind CICS-Werkzeuge.
+        category = (
+            _CALL_NAMES.get(name)
+            or ("cics" if name.startswith("DFH") else None)
+            or next((c for p, c in _CALL_PREFIXES if name.startswith(p)), None)
+        )
+        return {"category": category, "kind": "system_program"} if category else None
     return None

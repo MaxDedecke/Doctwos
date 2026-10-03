@@ -20,6 +20,11 @@ from tasks.edge_resolver import _mark_external_targets
         ("CALL", "CBLTDLI", None, "ims"),
         ("CALL", "MQOPEN", None, "mq"),
         ("EXECUTES", "IEBGENER", "jcl", "ibm_utility"),
+        ("EXECUTES", "SDSF", "jcl", "ibm_utility"),
+        ("EXECUTES", "IGYCRCTL", "jcl", "ibm_utility"),
+        ("EXECUTES", "DFSRRC00", "jcl", "ims"),
+        ("EXECUTES", "DFHCSDUP", "jcl", "cics"),
+        ("EXECUTES", "DFHECP1$", "jcl", "cics"),
     ],
 )
 def test_known_system_targets_are_classified(edge_type, name, language, category):
@@ -32,6 +37,8 @@ def test_known_system_targets_are_classified(edge_type, name, language, category
         ("CALL", "COBDATFT", None),  # kundeneigenes Programm: echte Lücke
         ("COPY", "CVACT01Y", None),
         ("EXECUTES", "IEBGENER", "cobol"),  # EXEC-Operation, kein JCL-Programm
+        ("EXECUTES", "REPROC", "jcl"),  # kundeneigene PROC: echte Lücke
+        ("EXECUTES", "CBTRN02C", "jcl"),  # Anwendungsprogramm: echte Lücke, falls ungelöst
         ("CALLS", "MQOPEN", "java"),
         ("CALL", "", None),
     ],
