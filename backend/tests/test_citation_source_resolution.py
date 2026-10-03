@@ -377,3 +377,14 @@ def test_verified_answer_keeps_an_unbacked_edge_sentence_but_marks_it():
     assert "COBSWAIT ruft MVSWAIT auf" in text
     assert "ruft DFSRRC00 auf (Beziehung nicht im Index belegt)" in text
     assert "nicht im Index belegt" in text.rsplit("Hinweis", 1)[1]
+
+
+def test_fenced_mermaid_block_is_neither_checked_nor_annotated():
+    """Live-Fall Syncope: `n1 -->|CALLS| n2` im Mermaid-Block zählte als Kantenbehauptung."""
+    sources = [{"file": "UserLogic.java", "lines": [100, 140]}]
+    answer = (
+        "`UserLogic.create` delegiert (`UserLogic.java:133`).\n\n"
+        "```mermaid\nflowchart TD\n  n1[\"a\"] -->|CALLS| n2[\"b\"]\n```\n"
+    )
+    text, consistent = _validate_answer_sources(answer, sources, {("x", "y")})
+    assert consistent and text == answer

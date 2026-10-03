@@ -623,6 +623,7 @@ _FILE_EXT_RE = re.compile(
     re.IGNORECASE,
 )
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
+_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _FILE_LINE_RE = re.compile(r"^(.+\.\w+):(\d+)(?:-\d+)?$")
 
 
@@ -938,7 +939,10 @@ def _validate_answer_sources(
     # legitimately mention a filename while explaining why it was not found.
     verified = 0
     unverified: list[tuple[str, str]] = []
-    for raw in _BACKTICK_RE.findall(answer):
+    # Umzäunte Code-Blöcke (Mermaid-Diagramm, Quelltext-Auszug) sind Belege bzw.
+    # Werkzeugausgabe und keine Behauptungen; sie werden weder geprüft noch markiert.
+    scan = _FENCE_RE.sub(" ", answer)
+    for raw in _BACKTICK_RE.findall(scan):
         match = _FILE_LINE_RE.match(raw.strip())
         if not match:
             continue
@@ -985,7 +989,7 @@ def _validate_answer_sources(
     # by trace_call_flow in this turn. We intentionally do not infer edges
     # from proximity in a file snippet.
     # Punkte in Dateinamen (`COBSWAIT.cbl:36`) dürfen keine Satzgrenze sein.
-    protected = _BACKTICK_RE.sub(lambda m: "`" + m.group(1).replace(".", "\u2024") + "`", answer)
+    protected = _BACKTICK_RE.sub(lambda m: "`" + m.group(1).replace(".", "\u2024") + "`", scan)
     supported_claims = 0
     unsupported_claims: list[str] = []
     for sentence in (part.replace("\u2024", ".") for part in re.split(r"[.!?\n]+", protected)):
