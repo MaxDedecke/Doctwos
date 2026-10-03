@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "note": "Such-Erwartungen (O-277). Jede Erwartung gilt nur für die genannte Quell-Revision; bei neuer Revision Fundstellen prüfen und `revision` fortschreiben. Lauf: scripts/eval_search.py",
+  "projects": {
+    "carddemo": {"name": "AWS CardDemo", "revision": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"},
+    "syncope": {"name": "Apache Syncope", "revision": "c550d2f547910b28754abef9768074af10cf1212"}
+  },
+  "cases": [
+    {"id": "S-C01", "project": "carddemo", "tool": "search_code", "query": "COPAUA0C", "kind": "symbol",
+     "expect": {"resolution": "exact", "hit": {"qualified_name": "COPAUA0C", "file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl", "top": 1}}},
+    {"id": "S-C02", "project": "carddemo", "tool": "search_code", "query": "TRANREPT", "kind": "symbol",
+     "expect": {"resolution": "exact", "hit": {"qualified_name": "app/jcl/TRANREPT.jcl::job:TRANREPT", "file": "app/jcl/TRANREPT.jcl", "top": 1}}},
+    {"id": "S-C03", "project": "carddemo", "tool": "search_code", "query": "CBACT04C.1300-COMPUTE-INTEREST", "kind": "symbol",
+     "expect": {"hit": {"qualified_name": "CBACT04C.1300-COMPUTE-INTEREST", "file": "app/cbl/CBACT04C.cbl", "top": 1}}},
+    {"id": "S-C04", "project": "carddemo", "tool": "search_code", "query": "COSGN00C", "kind": "symbol",
+     "expect": {"hit": {"qualified_name": "COSGN00C", "file": "app/cbl/COSGN00C.cbl", "top": 1}}},
+    {"id": "S-C05", "project": "carddemo", "tool": "search_code", "query": "transaction report", "kind": "wording",
+     "expect": {"hit": {"qualified_name": "CBTRN03C.1100-WRITE-TRANSACTION-REPORT", "file": "app/cbl/CBTRN03C.cbl", "top": 3}}},
+    {"id": "S-C06", "project": "carddemo", "tool": "research_project", "query": "COSGN00C", "kind": "entry",
+     "expect": {"resolution": "unique_exact_match", "hit": {"qualified_name": "COSGN00C", "file": "app/cbl/COSGN00C.cbl", "top": 1}}},
+    {"id": "S-C07", "project": "carddemo", "tool": "search_code", "query": "xyzzy nonexistent flurb", "kind": "negative",
+     "expect": {"resolution": "none", "empty": true}},
+    {"id": "S-J01", "project": "syncope", "tool": "search_code", "query": "UserServiceImpl", "kind": "symbol",
+     "expect": {"resolution": "exact", "hit": {"qualified_name": "org.apache.syncope.core.rest.cxf.service.UserServiceImpl", "file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java", "top": 3}}},
+    {"id": "S-J02", "project": "syncope", "tool": "search_code", "query": "UserLogic create", "kind": "wording",
+     "expect": {"hit": {"qualified_name": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)", "file": "core/idrepo/logic/src/main/java/org/apache/syncope/core/logic/UserLogic.java", "top": 5}}},
+    {"id": "S-J03", "project": "syncope", "tool": "search_code", "query": "provisioning manager create user", "kind": "wording",
+     "expect": {"hit": {"qualified_name": "org.apache.syncope.core.provisioning.java.DefaultUserProvisioningManager#create(UserCR,boolean,String,String)", "file": "core/provisioning-java/src/main/java/org/apache/syncope/core/provisioning/java/DefaultUserProvisioningManager.java", "top": 5}}},
+    {"id": "S-J04", "project": "syncope", "tool": "research_project", "query": "org.apache.syncope.core.logic.UserLogic#create", "kind": "entry",
+     "expect": {"resolution": "unique_exact_match", "hit": {"qualified_name": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)", "file": "core/idrepo/logic/src/main/java/org/apache/syncope/core/logic/UserLogic.java", "top": 1}}},
+    {"id": "S-J05", "project": "syncope", "tool": "search_code", "query": "QuantumFluxCapacitorService", "kind": "negative",
+     "expect": {"resolution": "none", "empty": true}}
+  ]
+}

@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Prüft die versionierten Such-Erwartungen (O-277) gegen eine laufende Doctus-Instanz über MCP.
+
+    DOCTUS_MCP_TOKEN=dct_mcp_... python3 scripts/eval_search.py [--url http://localhost:8000/mcp]
+
+Exit-Code 1, sobald eine Erwartung verfehlt wird. Ein Treffer zählt, wenn Qualified Name und Datei
+innerhalb der ersten `top` Ergebnisse stehen; Negativfälle müssen leer bleiben.
+"""
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+import requests
+
+CASES = Path(__file__).resolve().parent.parent / "backend" / "tests" / "fixtures" / "eval_search_cases.json"
+
+
+class Mcp:
+    def __init__(self, url: str, token: str):
+        self.url = url
+        self.headers = {"Authorization": f"Bearer {token}", "Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+        response, _ = self._rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "eval-search", "version": "1"}})
+        self.session = response.headers.get("mcp-session-id")
+        requests.post(self.url, headers=self._headers(), json={"jsonrpc": "2.0", "method": "notifications/initialized"}, timeout=30)
+
+    def _headers(self):
+        return {**self.headers, **({"mcp-session-id": self.session} if getattr(self, "session", None) else {})}
+
+    def _rpc(self, method, params, request_id=1):
+        response = requests.post(self.url, headers=self._headers(), json={"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}, timeout=120)
+        response.raise_for_status()
+        body = response.text
+        if body.startswith("event"):
+            body = next(line[5:] for line in body.splitlines() if line.startswith("data:"))
+        return response, json.loads(body)
+
+    def call(self, name, arguments):
+        _, payload = self._rpc("tools/call", {"name": name, "arguments": arguments}, 2)
+        result = payload.get("result") or {}
+        if result.get("structuredContent") is not None:
+            return result["structuredContent"]
+        text = next((item.get("text") for item in result.get("content", []) if item.get("text")), "")
+        try:
+            return json.loads(text)
+        except ValueError:
+            return {"error": text}
+
+
+def evaluate(case, response):
+    expect = case["expect"]
+    if "error" in response:
+        return False, f"Fehler: {str(response['error'])[:120]}"
+    rows = response.get("results") or response.get("candidates") or []
+    if "resolution" in expect and response.get("resolution") != expect["resolution"]:
+        return False, f"resolution={response.get('resolution')!r}, erwartet {expect['resolution']!r}"
+    if expect.get("empty"):
+        return (not rows), f"{len(rows)} Treffer, erwartet 0" if rows else "leer"
+    hit = expect.get("hit")
+    if hit:
+        for rank, row in enumerate(rows[: hit["top"]], start=1):
+            location = row.get("location") or row.get("file_path") or ""
+            if row.get("qualified_name") == hit["qualified_name"] and location.startswith(hit["file"]):
+                return True, f"Rang {rank}"
+        return False, f"{hit['qualified_name']} nicht in den ersten {hit['top']} Treffern"
+    return True, "ok"
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--url", default=os.environ.get("DOCTUS_MCP_URL", "http://localhost:8000/mcp"))
+    args = parser.parse_args()
+    token = os.environ.get("DOCTUS_MCP_TOKEN")
+    if not token:
+        sys.exit("DOCTUS_MCP_TOKEN fehlt")
+    catalogue = json.loads(CASES.read_text(encoding="utf-8"))
+    client = Mcp(args.url, token)
+    visible = client.call("list_visible_projects", {}).get("projects", [])
+    project_ids = {item["name"]: item["id"] for item in visible}
+    failed = 0
+    for case in catalogue["cases"]:
+        name = catalogue["projects"][case["project"]]["name"]
+        if name not in project_ids:
+            print(f"SKIP {case['id']}: Projekt {name!r} nicht sichtbar")
+            continue
+        arguments = {"project_id": project_ids[name], "query": case["query"]}
+        if case["tool"] == "search_code":
+            arguments["limit"] = 10
+        ok, detail = evaluate(case, client.call(case["tool"], arguments))
+        failed += not ok
+        print(f"{'PASS' if ok else 'FAIL'} {case['id']} [{case['kind']}] {case['query']!r}: {detail}")
+    print(f"{len(catalogue['cases']) - failed} bestanden, {failed} verfehlt")
+    sys.exit(1 if failed else 0)
+
+
+if __name__ == "__main__":
+    main()
