@@ -12,7 +12,7 @@ from html import escape
 from typing import Literal
 
 from sqlalchemy import case, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from models.database import CodeEdge, CodeEntity
 
@@ -59,6 +59,22 @@ CALL_FLOW_EDGE_PRIORITY = {
 }
 CallFlowDirection = Literal["outgoing", "incoming", "both"]
 CallFlowScope = Literal["execution", "dependencies", "all"]
+
+
+# Verzeichnis `test`/`tests`/`src/test` oder Java-Testklassen (`FooTest`, `FooTests`, `FooIT`).
+TEST_PATH_PATTERN = r"(^|/)(src/test|tests?)/|(Test|Tests|IT|ITCase)\.java$"
+
+
+def _without_test_code(query):
+    """Filtert Kanten, deren Aufrufer oder aufgelöstes Ziel in Testcode liegt."""
+    src = aliased(CodeEntity)
+    dst = aliased(CodeEntity)
+    return (
+        query.join(src, src.id == CodeEdge.src_entity_id)
+        .outerjoin(dst, dst.id == CodeEdge.dst_entity_id)
+        .filter(~src.file_path.op("~")(TEST_PATH_PATTERN))
+        .filter(or_(dst.id.is_(None), ~dst.file_path.op("~")(TEST_PATH_PATTERN)))
+    )
 
 
 def _node_json(entity: CodeEntity) -> dict:
@@ -114,6 +130,7 @@ def trace_call_flow(
     scope: CallFlowScope = "all",
     node_limit: int = CALL_FLOW_MAX_NODES,
     edge_limit: int = CALL_FLOW_MAX_EDGES,
+    include_tests: bool = True,
 ) -> dict:
     """Return a directional call flow rooted at one indexed code entity.
 
@@ -121,6 +138,10 @@ def trace_call_flow(
     root with ``project_id`` prevents an entity ID from another project from
     ever leaking into a tool result.  The hard limits protect both the model
     context and a Mermaid diagram from fan-out-heavy applications.
+
+    ``include_tests=False`` (O-377) drops edges whose caller or resolved target
+    lives in test code (see ``TEST_PATH_PATTERN``), so impact and caller
+    questions are not dominated by JUnit/Mockito call sites.
     """
     if direction not in {"outgoing", "incoming", "both"}:
         return {"error": "direction must be outgoing, incoming, or both"}
@@ -163,8 +184,8 @@ def trace_call_flow(
         candidates_truncated = len(paragraphs) > node_limit
         named_entries = [
             item for item in paragraphs
-            if item.name.casefold() in {"main-para", "main", "procedure-division"}
-            or (item.qualified_name or "").casefold().endswith((".main-para", ".main", ".procedure-division"))
+            if item.name.casefold() in {"main-para", "main", "procedure-division", "procedure-start"}
+            or (item.qualified_name or "").casefold().endswith((".main-para", ".main", ".procedure-division", ".procedure-start"))
         ]
         if not candidates_truncated and len(named_entries) == 1:
             root = named_entries[0]
@@ -272,6 +293,8 @@ def trace_call_flow(
         )
         if edge_rows:
             query = query.filter(CodeEdge.id.notin_(edge_rows))
+        if not include_tests:
+            query = _without_test_code(query)
         edge_priority = case(
             *[
                 (CodeEdge.type == edge_type, priority)

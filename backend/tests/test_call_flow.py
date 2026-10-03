@@ -317,3 +317,49 @@ def test_java_class_entry_selection(db_session, test_project, test_team, mode):
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_include_tests_false_hides_callers_from_test_code(db_session, test_project, test_team):
+    """O-377: Aufrufer aus Testcode dürfen Impact-/Caller-Fragen nicht überdecken."""
+    source = KnowledgeSource(
+        name="call-flow-tests", type="Git", url="https://example.test/t.git", branch="main",
+        project_id=test_project, team_id=test_team,
+    )
+    db_session.add(source)
+    db_session.flush()
+
+    def entity(path, name):
+        item = CodeEntity(
+            project_id=test_project, source_id=source.id, file_path=path, name=name,
+            qualified_name=name, type="method", start_line=1, end_line=5,
+        )
+        db_session.add(item)
+        db_session.flush()
+        return item
+
+    target = entity("core/src/main/java/OrderService.java", "load")
+    prod = entity("core/src/main/java/OrderController.java", "get")
+    unit = entity("core/src/test/java/OrderServiceTest.java", "shouldLoad")
+    named = entity("core/src/main/java/FooIT.java", "run")
+    lookalike = entity("core/src/main/java/EditService.java", "edit")
+    for caller in (prod, unit, named, lookalike):
+        db_session.add(CodeEdge(
+            project_id=test_project, source_id=source.id, src_entity_id=caller.id,
+            dst_entity_id=target.id, dst_name="load", type="CALLS", resolution="resolved",
+        ))
+    db_session.commit()
+    try:
+        everything = trace_call_flow(
+            db_session, project_id=test_project, entity_id=target.id, hops=1, direction="incoming",
+        )
+        assert {edge["source"] for edge in everything["edges"]} == {
+            prod.id, unit.id, named.id, lookalike.id,
+        }
+        production = trace_call_flow(
+            db_session, project_id=test_project, entity_id=target.id, hops=1,
+            direction="incoming", include_tests=False,
+        )
+        assert {edge["source"] for edge in production["edges"]} == {prod.id, lookalike.id}
+    finally:
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()

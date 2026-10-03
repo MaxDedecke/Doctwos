@@ -1694,6 +1694,7 @@ def trace_data_access(ctx: Context, project_id: int, entity_id: int, limit: int 
 def _call_flow_page(
     db: Session, user: User, project_id: int, entity_id: int, *, hops: int,
     direction: str, scope: str, page_size: int, cursor: str | None, include_source: bool,
+    include_tests: bool = True,
 ) -> dict:
     """One ACL-filtered, cursor-paged call-flow page shared by all MCP entry points."""
     if direction not in {"outgoing", "incoming", "both"}:
@@ -1715,6 +1716,9 @@ def _call_flow_page(
             "project_id": project_id, "entity_id": entity_id, "hops": hops,
             "direction": direction, "scope": scope, "include_source": include_source,
         }
+        # Ältere Cursor kennen include_tests nicht; sie gelten als include_tests=True.
+        if cursor_data.get("include_tests", True) != include_tests:
+            raise ValueError("cursor does not match this call-flow query")
         if any(cursor_data.get(key) != value for key, value in expected.items()):
             raise ValueError("cursor does not match this call-flow query")
         offset = cursor_data.get("offset")
@@ -1733,6 +1737,7 @@ def _call_flow_page(
     result = trace_call_flow(
         db, project_id=project_id, entity_id=entity_id, hops=hops,
         direction=direction, scope=scope, node_limit=node_limit, edge_limit=edge_limit,
+        include_tests=include_tests,
     )
     raw_nodes = result.get("nodes", [])
     source_access = {}
@@ -1801,7 +1806,7 @@ def _call_flow_page(
         next_data = {
             "project_id": project_id, "entity_id": entity_id, "hops": hops,
             "direction": direction, "scope": scope, "include_source": include_source,
-            "offset": next_offset,
+            "include_tests": include_tests, "offset": next_offset,
             "expansion": expansion + int(service_truncated and not page_has_more),
         }
         next_cursor = base64.urlsafe_b64encode(
@@ -1855,6 +1860,7 @@ def _call_flow_page(
                 "project_id": project_id, "entity_id": entity_id, "hops": hops,
                 "direction": direction, "scope": scope, "page_size": page_size,
                 "cursor": next_cursor, "include_source": include_source,
+                "include_tests": include_tests,
             },
             "reason": "Continue the ordered visible call-flow page.",
         }] if next_cursor else [],
@@ -1873,6 +1879,9 @@ def get_call_flow(
     page_size: Annotated[int, Field(description="Edges per page 1-15, larger clamped to 15.")] = 10,
     cursor: Annotated[str | None, Field(description="next_cursor of the previous page, unchanged.")] = None,
     include_source: bool = True,
+    include_tests: Annotated[bool, Field(
+        description="false hides edges from/to test code (src/test, *Test.java) so callers and impact show production code only."
+    )] = True,
 ) -> dict:
     """Trace executable calls or resource/data dependencies in a project.
 
@@ -1886,11 +1895,12 @@ def get_call_flow(
     with _tool_context(ctx, "get_call_flow", project_id, {
         "entity_id": entity_id, "hops": hops, "scope": scope,
         "direction": direction, "page_size": page_size, "cursor": cursor,
-        "include_source": include_source,
+        "include_source": include_source, "include_tests": include_tests,
     }) as (db, user):
         response = _call_flow_page(
             db, user, project_id, entity_id, hops=hops, direction=direction, scope=scope,
             page_size=page_size, cursor=cursor, include_source=include_source,
+            include_tests=include_tests,
         )
         _capture_mcp_result(ctx, db, project_id, response)
         return response
