@@ -472,6 +472,66 @@
           "REST_CONTEXT"
         ]
       }
+    },
+    {
+      "id": "A-C7a",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Betragsherkunft: UNSTRING INTO schreibt den Rohbetrag",
+      "entity": "COPAUA0C.2100-EXTRACT-REQUEST-MSG",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "WS-TRANSACTION-AMT-AN",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C7b",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Betragsherkunft: COMPUTE … NUMVAL liest den Rohbetrag",
+      "entity": "COPAUA0C.2100-EXTRACT-REQUEST-MSG",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "READS",
+        "target_name": "WS-TRANSACTION-AMT-AN",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C7c",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Betragsherkunft: COMPUTE schreibt den numerischen Betrag",
+      "entity": "COPAUA0C.2100-EXTRACT-REQUEST-MSG",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "PA-RQ-TRANSACTION-AMT",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C7d",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Betragsherkunft: MOVE in den Satz PA-TRANSACTION-AMT",
+      "entity": "COPAUA0C.8500-INSERT-AUTH",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "PA-TRANSACTION-AMT",
+        "resolution": "resolved"
+      }
     }
   ]
 }
