@@ -196,6 +196,12 @@ Runtime-Abhängigkeiten begrenzt.
   Ausbauschritt. Ein Rohscan der Distribution-Basis und der darin enthaltenen
   Systembibliotheken kann zusätzliche LGPL-/GPL-Befunde liefern; bis dieser
   Lauf erfolgt ist, gibt es dafür keinen vollständigen „keine Treffer"-Nachweis.
+- **Betriebssystempaket `git`** (Debian, GPL-2.0-only) steht im Backend- und im Parser-Image. Das
+  Programm wird nur als eigener Prozess aufgerufen (Subprozess `git rev-parse`/`git diff` im
+  lokalen Worktree), nicht gelinkt und nicht verändert; es liegt weder in `requirements.txt` noch
+  im Doctwos-Code. Im Backend seit 03.10.2026, weil die Änderungsfolgenanalyse im Git-Diff-Modus
+  (O-273) Revisionen auflöst. Die Einordnung als „Aufruf eines separaten GPL-Programms" ist
+  vor produktiver Auslieferung vom Lizenzverantwortlichen zu bestätigen.
 - **Modelllizenzen**: ändern sich mit jedem `OLLAMA_MODEL`-Wechsel in
   `.env` — bei Modellwechsel diesen Abschnitt manuell nachziehen.
 - **Transitive Docker-Build-Werkzeuge** (z.B. `build-essential` im

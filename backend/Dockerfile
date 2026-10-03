@@ -28,6 +28,12 @@ WORKDIR /app
 # Notion-MCP-Server, und Notion ist mit dem Doctus-Fork entfallen. mcp-atlassian
 # (Jira/Confluence) ist reines Python über requirements.txt.
 
+# git wird zur Laufzeit per Subprozess gebraucht: die Änderungsfolgenanalyse im Git-Diff-Modus
+# (services/change_package.py, O-273) löst Revisionen im lokalen Worktree auf. Wie im
+# Parser-Image nur das Programm, keine Bibliothek im Prozess (siehe docs/OSS-CLEARING.md).
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
