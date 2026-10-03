@@ -191,3 +191,19 @@ def test_entity_context_uses_bounded_repository_excerpt_and_direct_edges(
     assert "to CALL (resolved) com.acme.PaymentRepository" in context
     assert "return repository.persist(payment);" in context
     assert "unrelated" not in context
+
+
+def test_chunks_of_the_entitys_own_source_file_are_not_documentation_candidates():
+    """Live-Fall CBPAUP0C: der Vorschlag „Entity ↔ Zeilen der eigenen CBPAUP0C.cbl“ ist kein Dokubezug."""
+    from types import SimpleNamespace as NS
+
+    from tasks.link_builder import _exclude_own_source
+
+    entity = NS(source_id=7, file_path="app/cbl/CBPAUP0C.cbl")
+    own = NS(source_id=7, file_path="app/cbl/CBPAUP0C.cbl")
+    readme = NS(source_id=7, file_path="README.md")
+    other_source_same_path = NS(source_id=8, file_path="app/cbl/CBPAUP0C.cbl")
+
+    kept = _exclude_own_source(entity, [(own, 1.0, "keyword"), (readme, 0.98, "keyword"), (other_source_same_path, 0.9, "semantic")])
+
+    assert [page[0] for page in kept] == [readme, other_source_same_path]

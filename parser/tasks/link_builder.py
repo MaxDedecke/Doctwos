@@ -410,6 +410,14 @@ def _merge_passes(*passes) -> list[tuple[DocumentChunk, float, str]]:
     return [page for page in sorted_pages if page[1] > MERGE_SCORE_THRESHOLD]
 
 
+def _exclude_own_source(entity: CodeEntity, pages: list) -> list:
+    """Ein Chunk der eigenen Quelldatei ist der Code selbst, keine Dokumentation dazu."""
+    return [
+        page for page in pages
+        if not (page[0].source_id == entity.source_id and page[0].file_path == entity.file_path)
+    ]
+
+
 async def _llm_review(
     entity: CodeEntity,
     top_pages: list[tuple[DocumentChunk, float, str]],
@@ -766,10 +774,10 @@ async def compute_entity_links_async(
                 entity, project_id, db, selected_embedding_model, candidate_chunk_ids
             )
 
-            top_pages = _merge_passes(
+            top_pages = _exclude_own_source(entity, _merge_passes(
                 (semantic, "semantic"),
                 (keyword, "keyword"),
-            )
+            ))
 
             # Optimization: filter out candidates that are already approved or rejected before sending to LLM.
             undecided_pages = []
