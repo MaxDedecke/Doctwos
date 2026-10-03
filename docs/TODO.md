@@ -1,6 +1,6 @@
 # Doctus – priorisierte TODO-Liste
 
-Stand: 02.10.2026
+Stand: 04.10.2026
 
 Diese Datei ist die kanonische Liste der noch offenen Arbeit. Die Reihenfolge
 innerhalb einer Priorität ist zugleich die empfohlene Ausführungsreihenfolge.
@@ -11,6 +11,18 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 **MCP-Sicherheitsprüfung vom 24.09.2026:** Die zwei reproduzierten Befunde zu
 Projektisolation der Wissenssuche und unbeschränkter Call-Flow-Abfrage wurden
 behoben; 27 isolierte Sicherheitsprüfungen sowie 9 MCP-Regressionen bestanden.
+
+## Reihenfolge der offenen Arbeit (Stand 04.10.2026)
+
+Sortiert nach dem, was als Nächstes ohne Dritte abschließbar ist. Die Detailstatus stehen unverändert in den Tabellen darunter; Statustexte mit „Reindex-/Bestandsabnahme offen“ sind für O-371 bis O-377 und O-379 am Index nachgeprüft (Nachträge in den Zeilen).
+
+1. **Stand der Statustexte bereinigen (kein Code, am Index prüfbar).** Fachliche Java-Stichproben für O-309, O-352, O-366, O-367, O-368; Messbasis O-243, O-245, O-253, O-254 am Syncope-Bestand; O-289 (Shell), O-305 (Reindex ist inzwischen mit lokalem bge-m3 gelaufen), O-310, O-380, O-378 (Statustext verweist noch auf Groovy/SQL/JavaScript als offen, die Parser existieren seit `groovy/javascript/sql-structure-1`).
+2. **Kleine Codeabschlüsse.** O-377 Testcode-Filter; O-357 Überlast/Overloads am UPDATE-Fall; O-353 Datenfluss mit Reihenfolge und Bedingungen (Incident-Belege); Entscheidung, ob `get_call_flow(direction=both)` den Einstieg selbst auflöst (O-349); 4 mehrdeutige `REPROC`-Aufrufe (O-375).
+3. **Szenario- und Modellmessung (braucht ein Chatmodell, sparsam mit dem OpenAI-Profil).** O-304 (Produktschnitt mit versionierten Szenarien; Grundlage jetzt `eval_search_cases.json`), danach O-346, O-347, O-318/O-322 (Chat-Quellenbindung), O-354, O-358, O-342 bis O-345 und O-356 mit echtem Agentenlauf, O-300 (Änderungsanalyse fachlich).
+4. **Quellenarbeit mit Dokumenten.** Erwartete Dokumentpassagen (O-284 Rest): erst eine Testquelle mit Dokumenten anlegen; danach O-274, O-276.
+5. **Link-Berechnung und Laufzeit.** O-181 bis O-186 (Messung am Korpus), sobald O-304 steht.
+6. **Mainframe-Erweiterungen.** O-149, O-337, O-329 (JCL-Abschlusskriterium prüfen), O-313/O-330 (EBCDIC) und O-246.
+7. **Wartet auf Betreiber/Kunde/Entscheidung.** O-117, O-130, O-251, O-157, O-258, O-278, O-275, alle P3-Punkte, O-333 bis O-335 und O-338 bis O-341 (vLLM).
 
 ## P0 – abgeschlossen (Entwicklung abgeschlossen, Abnahmen laufen begleitend)
 
