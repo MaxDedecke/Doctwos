@@ -112,9 +112,10 @@ def test_java_references_to_property_keys_resolve_to_the_property_entity():
 
 def test_property_key_with_two_bundles_in_the_module_is_ambiguous_and_missing_key_is_reported():
     from resources.properties import parse_properties_file
-    twin = parse_properties_file("page.title=Other\n", "app/src/main/resources/demo/Other.properties")
+    twin = parse_properties_file("page.title=Other\n", "app/src/main/resources/ui/Other.properties")
     page = parse_java_file(WICKET_PAGE, "app/src/main/java/demo/Page.java")
-    entities, edges = rows([page, *_property_rows([twin])])
+    far = parse_properties_file("page.title=Far\n", "app/src/main/resources/ui/Far.properties")
+    entities, edges = rows([page, twin, far, *_property_rows()[1:]])
     resolve_resource_edges(entities, edges)
     by_key = {e.meta_json["property_key"]: e for e in edges if e.type == "REFERENCES_PROPERTY_KEY"}
     assert by_key["page.title"].resolution == "unresolved"
@@ -124,3 +125,15 @@ def test_property_key_with_two_bundles_in_the_module_is_ambiguous_and_missing_ke
     entities, edges = rows([page])
     resolve_resource_edges(entities, edges)
     assert {e.meta_json["resolution_reason"] for e in edges if e.type == "REFERENCES_PROPERTY_KEY"} == {"property_key_not_found"}
+
+
+def test_component_bundle_next_to_the_wicket_class_wins_over_other_module_bundles():
+    from resources.properties import parse_properties_file
+    own = parse_properties_file("page.title=Own\n", "app/src/main/resources/demo/Page.properties")
+    other = parse_properties_file("page.title=Other\n", "app/src/main/resources/demo/Other.properties")
+    page = parse_java_file(WICKET_PAGE, "app/src/main/java/demo/Page.java")
+    entities, edges = rows([page, own, other])
+    resolve_resource_edges(entities, edges)
+    edge = next(e for e in edges if e.type == "REFERENCES_PROPERTY_KEY" and e.meta_json["property_key"] == "page.title")
+    assert edge.resolution == "resolved" and edge.meta_json["resolution_scope"] == "component_bundle"
+    assert next(e for e in entities if e.id == edge.dst_entity_id).file_path.endswith("demo/Page.properties")

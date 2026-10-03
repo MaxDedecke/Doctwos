@@ -118,6 +118,14 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
     local = [c for c in candidates if module is not None and module_from_path(c.file_path) == module]
     if local:
         candidates, scope = local, "module"
+    if len(candidates) > 1:
+        # Wicket-Konvention: `<Klasse>.properties` bzw. `package.properties` im
+        # selben Paketpfad wie die Java-Datei geht dem Modul-Bestand vor.
+        stem, package_dir = _component_bundle_location(source.file_path)
+        near = [c for c in candidates
+                if _bundle_matches(c.file_path, package_dir, stem)] if package_dir is not None else []
+        if len(near) == 1:
+            candidates, scope = near, "component_bundle"
     was_resolved = edge.resolution == "resolved"
     edge.dst_entity_id = None
     if len(candidates) == 1:
@@ -131,3 +139,24 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
                 source_file_path=source.file_path, relationship_kind="resource")
     edge.meta_json = meta
     return int(edge.resolution == "resolved" and not was_resolved)
+
+
+def _component_bundle_location(java_path: str) -> tuple[str, str | None]:
+    """`m/src/main/java/org/x/Foo.java` -> (`Foo`, `org/x`); sonst (Stamm, None)."""
+    posix = java_path.replace("\\", "/")
+    stem = posixpath.splitext(posixpath.basename(posix))[0]
+    marker = "/src/"
+    if marker not in "/" + posix:
+        return stem, None
+    after = ("/" + posix).split(marker, 1)[1]
+    parts = after.split("/")
+    if len(parts) < 3 or parts[1] != "java":
+        return stem, None
+    return stem, "/".join(parts[2:-1])
+
+
+def _bundle_matches(property_path: str, package_dir: str, stem: str) -> bool:
+    posix = property_path.replace("\\", "/")
+    directory, name = posixpath.split(posix)
+    base = posixpath.splitext(name)[0]
+    return directory.endswith("/resources/" + package_dir) and base in {stem, "package"}

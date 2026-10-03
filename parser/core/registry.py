@@ -15,7 +15,10 @@ from jcl.parse import parse_jcl_file
 from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
+from resources.groovy import parse_groovy_file
+from resources.javascript import parse_javascript_file
 from resources.properties import parse_properties_file
+from resources.sqlscript import parse_sql_file
 from shell.parse import parse_shell_file
 from xslt.parse import parse_xslt_file
 
@@ -117,6 +120,21 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=parse_properties_file,
         root_entity_types=("properties_file",),
         parser_version="properties-structure-1",
+    ),
+    "groovy": ParserEntry(
+        parse=parse_groovy_file,
+        root_entity_types=("groovy_file",),
+        parser_version="groovy-structure-1",
+    ),
+    "javascript": ParserEntry(
+        parse=parse_javascript_file,
+        root_entity_types=("javascript_file",),
+        parser_version="javascript-structure-1",
+    ),
+    "sql": ParserEntry(
+        parse=parse_sql_file,
+        root_entity_types=("sql_script",),
+        parser_version="sql-structure-1",
     ),
     "shell": ParserEntry(
         parse=parse_shell_file,
