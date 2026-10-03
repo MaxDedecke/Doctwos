@@ -910,3 +910,29 @@ def test_cics_program_operand_with_a_subscript_still_produces_a_dynamic_edge():
     edge = next(e for e in result.edges if e.type == "CALL" and e.dst_name == "MENU-PGMNAME")
     assert edge.resolution == "dynamic" and edge.meta["invocation_kind"] == "cics_xctl"
     assert "candidate_targets" not in edge.meta
+
+
+def test_db2_statements_beyond_the_basics_are_classified_and_merge_gets_its_tables():
+    """Probe mit Varianten, die CardDemo nicht enthält: MERGE, PREPARE, EXECUTE IMMEDIATE."""
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. DB2VAR.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-STMT        PIC X(80).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC SQL PREPARE S1 FROM :WS-STMT END-EXEC\n"
+        "           EXEC SQL EXECUTE IMMEDIATE :WS-STMT END-EXEC\n"
+        "           EXEC SQL MERGE INTO CUSTOMER C USING NEWCUST N\n"
+        "               ON C.ID = N.ID WHEN MATCHED THEN\n"
+        "               UPDATE SET C.NAME = N.NAME END-EXEC\n"
+        "           EXEC SQL LOCK TABLE ORDERS IN SHARE MODE END-EXEC\n"
+        "           GOBACK.\n"
+    )
+    result = parse_program(text, "/repo/cbl/DB2VAR.cbl")
+    blocks = {e.meta["statement_type"]: e for e in result.entities if e.type == "sql_block"}
+    assert set(blocks) == {"PREPARE", "EXECUTE_IMMEDIATE", "MERGE", "LOCK"}
+    assert blocks["MERGE"].meta["tables"] == ["CUSTOMER", "NEWCUST"]
+    access = {(e.type, e.dst_name) for e in result.edges if e.dst_name in {"CUSTOMER", "NEWCUST"}}
+    assert access == {("WRITES", "CUSTOMER"), ("READS", "NEWCUST")}

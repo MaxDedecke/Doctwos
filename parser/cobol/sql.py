@@ -47,6 +47,16 @@ _STATEMENT_KEYWORDS = {
     "CALL",
     "EXECUTE",
     "SET",
+    # DB2-Anweisungen, die in Programmen vorkommen, aber nicht „OTHER“ heißen dürfen:
+    "MERGE",
+    "PREPARE",
+    "DESCRIBE",
+    "LOCK",
+    "SAVEPOINT",
+    "RELEASE",
+    "CONNECT",
+    "TRUNCATE",
+    "VALUES",
 }
 _CURSOR_STATEMENTS = ("OPEN", "FETCH", "CLOSE")
 _SELECT_CLAUSE_KEYWORDS = {
@@ -185,6 +195,8 @@ def _classify(tokens: list[str]) -> tuple[str, str | None]:
     first = tokens[0].upper()
     if first == "DECLARE" and len(tokens) >= 3 and tokens[2].upper() == "CURSOR":
         return "DECLARE_CURSOR", tokens[1]
+    if first == "EXECUTE" and len(tokens) >= 2 and tokens[1].upper() == "IMMEDIATE":
+        return "EXECUTE_IMMEDIATE", None
     if first in _STATEMENT_KEYWORDS:
         cursor_name = tokens[1] if first in _CURSOR_STATEMENTS and len(tokens) >= 2 else None
         return first, cursor_name
@@ -214,6 +226,22 @@ def _extract_tables_with_access(tokens: list[str], statement_type: str) -> list[
                 table_entries.append((tokens[i + 1], "READS"))
         elif upper == "JOIN" and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
             table_entries.append((tokens[i + 1], "READS"))
+        elif (
+            statement_type == "MERGE"
+            and upper in {"INTO", "USING"}
+            and i + 1 < len(tokens)
+            and not tokens[i + 1].startswith(":")
+            and tokens[i + 1].upper() not in {"(", "SELECT", "TABLE"}
+        ):
+            # MERGE INTO <Ziel> USING <Quelle>: das Ziel wird geschrieben, die Quelle gelesen.
+            table_entries.append((tokens[i + 1], "WRITES" if upper == "INTO" else "READS"))
+        elif (
+            statement_type == "TRUNCATE"
+            and upper == "TABLE"
+            and i + 1 < len(tokens)
+            and not tokens[i + 1].startswith(":")
+        ):
+            table_entries.append((tokens[i + 1], "WRITES"))
 
     return table_entries
 
