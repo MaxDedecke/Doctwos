@@ -370,6 +370,9 @@ def _resolve_shell_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+_JCL_PROC_EXTENSIONS = frozenset({"PRC", "PROC"})
+
+
 def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     """Resolve literal JCL PGM/PROC targets within one source and variant."""
     entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
@@ -379,9 +382,13 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
         CodeEdge.resolution == "unresolved",
     ).all()
     by_variant_type_name: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
+    proc_members: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
     for entity in entities:
         key_name = entity.name.upper()
         by_variant_type_name[(entity.variant_key, entity.type, key_name)].append(entity)
+        stem, dot, extension = key_name.rpartition(".")
+        if entity.type == "jcl_file" and dot and extension in _JCL_PROC_EXTENSIONS:
+            proc_members[(entity.variant_key, stem)].append(entity)
 
     resolved = 0
     for edge in edges:
@@ -393,11 +400,19 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
         if not target_type or not target_name:
             continue
         candidates = by_variant_type_name.get((edge.variant_key, target_type, target_name.upper()), [])
+        if not candidates and target_type == "jcl_proc":
+            # Katalogisierte Prozedur: Die Bibliothekselement-Datei heißt wie die Prozedur (`REPROC.prc`).
+            candidates = proc_members.get((edge.variant_key, target_name.upper()), [])
+            via = "proc_library_member"
+        else:
+            via = None
         if len(candidates) == 1:
             edge.dst_entity_id = candidates[0].id
             edge.resolution = "resolved"
             meta["target_qualified_name"] = candidates[0].qualified_name
             meta["resolution_scope"] = "source"
+            if via:
+                meta["resolution_via"] = via
             edge.meta_json = meta
             resolved += 1
     return resolved
