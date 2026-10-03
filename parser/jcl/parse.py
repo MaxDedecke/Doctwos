@@ -35,8 +35,16 @@ def _logical_statements(source: str):
         if not line.startswith("//"):
             continue
 
-        label = line[2:10].strip() if len(line) > 2 else ""
-        operand = line[11:71].strip() if len(line) > 11 else ""
+        # JCL-Felder sind durch Leerzeichen getrennt, nicht spaltengebunden:
+        # `//STEP15 EXEC PGM=X` und `//WAIT     EXEC PGM=X` sind gleichwertig.
+        body = line[2:71]
+        if not body.strip():
+            continue
+        if body[0].isspace():
+            label, operand = "", body.strip()
+        else:
+            label, _, rest = body.partition(" ")
+            operand = rest.strip()
         if not operand:
             continue
         match = _STATEMENT.match(operand)
