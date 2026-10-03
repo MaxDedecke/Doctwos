@@ -51,6 +51,7 @@ _TOKEN_RE = re.compile(
     | (?P<WORD>[^\W_](?:[^\W_]|-)*)
     | (?P<PERIOD>\.)
     | (?P<SYMBOL>[()])
+    | (?P<EQUALS>(?<![<>=!])=(?!=))
     | (?P<UNSUPPORTED_CHAR>[^\x00-\x7F\s])
     """,
     re.VERBOSE,

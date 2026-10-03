@@ -31,6 +31,13 @@ _QUALIFIERS = ("OF", "IN")
 _ASSIGNMENT_VERBS = {
     "ACCEPT", "ADD", "COMPUTE", "DIVIDE", "INITIALIZE", "MOVE",
     "MULTIPLY", "READ", "SET", "SUBTRACT", "WRITE", "REWRITE",
+    "STRING", "UNSTRING",
+}
+# Klauselwörter, die in STRING/UNSTRING die Richtung des folgenden Operanden festlegen.
+_STRING_CLAUSE_MODES = {
+    "INTO": ("WRITES", "target"), "DELIMITER": ("WRITES", "target"), "COUNT": ("WRITES", "target"),
+    "POINTER": ("READS_WRITES", "pointer"), "TALLYING": ("READS_WRITES", "counter"),
+    "DELIMITED": ("READS", "source"), "BY": ("READS", "source"),
 }
 _STATEMENT_VERBS = _ASSIGNMENT_VERBS | {
     "ACCEPT", "ALTER", "CALL", "CANCEL", "CLOSE", "CONTINUE", "DELETE",
@@ -40,6 +47,7 @@ _STATEMENT_VERBS = _ASSIGNMENT_VERBS | {
     "EVALUATE", "EXEC", "EXIT", "GO", "GOBACK", "GOTO", "IF", "INITIALIZE",
     "INSPECT", "MERGE", "OPEN", "PERFORM", "RELEASE", "RETURN", "SEARCH",
     "SORT", "START", "STOP", "THEN", "UNTIL", "WHEN",
+    "STRING", "UNSTRING", "END-STRING", "END-UNSTRING",
 }
 _READ_CONTEXT_VERBS = {"DISPLAY", "EVALUATE", "IF", "UNTIL", "WHEN"}
 
@@ -93,6 +101,17 @@ def _reference_access(proc_tokens: list[Token], idx: int) -> tuple[str, str, str
         equal = next((i for i, item in enumerate(words) if item == "="), None)
         if equal is not None:
             mode, role = ("WRITES", "result") if relative < equal else ("READS", "source")
+    elif verb in {"STRING", "UNSTRING"}:
+        # Quelle und Trennzeichen werden gelesen; INTO-/DELIMITER-/COUNT-Operanden geschrieben,
+        # POINTER/TALLYING gelesen und geschrieben. `ON OVERFLOW` beendet den Operandenbereich.
+        mode, role = "READS", "source"
+        for position, word in enumerate(words[:relative]):
+            if word in _STRING_CLAUSE_MODES:
+                mode, role = _STRING_CLAUSE_MODES[word]
+            elif word in {"ON", "NOT"} and position < relative:
+                mode, role = None, "operand"
+        if mode is None:
+            return None
     elif verb in {"ACCEPT", "INITIALIZE"}:
         mode, role = "WRITES", "target"
     elif verb == "READ":

@@ -74,14 +74,14 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=_parse_cobol,
         prepare_source=prepare_copybook_index,
         root_entity_types=("program",),
-        parser_version="cobol-structure-9",
+        parser_version="cobol-structure-10",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "copybook": ParserEntry(
         parse=_parse_copybook,
         prepare_source=prepare_copybook_index,
         root_entity_types=("copybook",),
-        parser_version="cobol-structure-9",
+        parser_version="cobol-structure-10",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "java": ParserEntry(

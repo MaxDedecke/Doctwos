@@ -960,3 +960,40 @@ def test_data_division_text_is_chunked_so_local_fields_and_sql_have_source():
     covered = {line for chunk in head for line in range(chunk.start_line, chunk.end_line + 1)}
     assert {5, 6} <= covered and 7 not in covered and 8 not in covered
     assert "WS-A PIC X(4)" in "".join(chunk.content for chunk in head)
+
+
+def test_compute_string_and_unstring_operands_get_directions():
+    """O-353: `COMPUTE` mit Ergebnis vor `=` und STRING/UNSTRING mit INTO-Zielen sind Lese-/Schreibzugriffe."""
+    source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. DIRS.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-AN PIC X(13).\n"
+        "       01 WS-AMT PIC S9(10)V99.\n"
+        "       01 WS-A PIC X(4).\n"
+        "       01 WS-B PIC X(4).\n"
+        "       01 WS-LINE PIC X(20).\n"
+        "       01 WS-PTR PIC 9(4).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           UNSTRING WS-LINE DELIMITED BY ','\n"
+        "                INTO WS-A\n"
+        "                     WS-B\n"
+        "           END-UNSTRING\n"
+        "           COMPUTE WS-AMT =\n"
+        "                   FUNCTION NUMVAL(WS-AN)\n"
+        "           COMPUTE WS-AMT = WS-AMT + 1\n"
+        "           STRING WS-A WS-B DELIMITED BY SIZE INTO WS-LINE\n"
+        "                WITH POINTER WS-PTR\n"
+        "           END-STRING\n"
+        "           STOP RUN.\n"
+    )
+    result = parse_program(source, "x.cbl")
+    seen = {(e.type, e.dst_name, e.src_start_line) for e in result.edges if e.type in {"READS", "WRITES", "READS_WRITES", "USES"}}
+    assert ("READS", "WS-LINE", 13) in seen
+    assert {("WRITES", "WS-A", 14), ("WRITES", "WS-B", 15)} <= seen
+    assert ("WRITES", "WS-AMT", 17) in seen and ("READS", "WS-AN", 18) in seen
+    assert ("WRITES", "WS-AMT", 19) in seen and ("READS", "WS-AMT", 19) in seen
+    assert {("READS", "WS-A", 20), ("READS", "WS-B", 20), ("WRITES", "WS-LINE", 20)} <= seen
+    assert {("READS", "WS-PTR", 21), ("WRITES", "WS-PTR", 21)} <= seen
