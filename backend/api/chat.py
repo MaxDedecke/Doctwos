@@ -272,6 +272,15 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                        (entry.get("entity") or {}).get("start_line"), (entry.get("entity") or {}).get("end_line")]
             if located[0]:
                 _record_agent_source(agent_sources, located[0], located[1] or 1, located[2] or located[1] or 1, source_id)
+            for caller in entry.get("callers") or []:
+                location = caller.get("location") if isinstance(caller, dict) else None
+                match = _FILE_LINE_RE.match(str(location or ""))
+                if match:
+                    _record_agent_source(agent_sources, match.group(1), int(match.group(2)), int(match.group(2)), source_id)
+            for site in entry.get("call_sites") or []:
+                numbers = [int(n) for n in re.findall(r"(?m)^(\d+):", site.get("text") or "")] if isinstance(site, dict) else []
+                if isinstance(site, dict) and site.get("file") and numbers:
+                    _record_agent_source(agent_sources, site["file"], min(numbers), max(numbers), source_id)
             for key in ("expanded", "helper_methods", "callee_chain"):
                 for part in entry.get(key) or []:
                     text = (part.get("source") or {})
@@ -805,9 +814,58 @@ _EDGE_CLAIM_RE = re.compile(
 )
 
 
+def _symbol_tail(value: str) -> str:
+    """`Class#method(int)`, `pkg.Class.method`, `file::job:X::step:Y` -> kleinstes Namensstück."""
+    head = str(value or "").split("(", 1)[0].strip()
+    return re.split(r"[.#:/]+", head)[-1].casefold() if head else ""
+
+
+def _answer_context_edge_pairs(result: dict) -> set[tuple[str, str]]:
+    """Directed pairs the server-built evidence pack states explicitly.
+
+    The pack lists, per symbol, its callees (``NAME (Zeile n)``), its callers
+    (``from``), and the second-hop ``callee_chain``/``calls``. These are index
+    edges, not inferences from proximity."""
+    pairs: set[tuple[str, str]] = set()
+    for entry in result.get("evidence") or []:
+        if not isinstance(entry, dict):
+            continue
+        entity = entry.get("entity") or {}
+        symbol = _symbol_tail(entry.get("symbol") or entity.get("qualified_name") or entity.get("name"))
+        if not symbol:
+            continue
+        for callee in entry.get("callees") or []:
+            name = _symbol_tail(callee if isinstance(callee, str) else (callee or {}).get("to"))
+            if name:
+                pairs.add((symbol, name))
+        for caller in entry.get("callers") or []:
+            if not isinstance(caller, dict) or not caller.get("from"):
+                continue
+            origin = str(caller["from"])
+            stem = os.path.splitext(os.path.basename(origin.split("::", 1)[0]))[0].casefold()
+            for name in {_symbol_tail(origin), stem}:
+                if name:
+                    pairs.add((name, symbol))
+        for hop in entry.get("callee_chain") or []:
+            if not isinstance(hop, dict):
+                continue
+            hop_symbol = _symbol_tail(hop.get("symbol"))
+            if hop_symbol:
+                pairs.add((symbol, hop_symbol))
+                for callee in hop.get("calls") or []:
+                    name = _symbol_tail(callee)
+                    if name:
+                        pairs.add((hop_symbol, name))
+        for helper in entry.get("helper_methods") or []:
+            name = _symbol_tail((helper or {}).get("symbol")) if isinstance(helper, dict) else ""
+            if name:
+                pairs.add((symbol, name))
+    return pairs
+
+
 def _extract_tool_edge_pairs(event: dict) -> set[tuple[str, str]]:
     """Return directed entity-name pairs from a successful flow-tool result."""
-    if event.get("type") != "tool_result" or event.get("name") != "trace_call_flow":
+    if event.get("type") != "tool_result" or event.get("name") not in ("trace_call_flow", "answer_context"):
         return set()
     result = event.get("result")
     if isinstance(result, str):
@@ -815,6 +873,8 @@ def _extract_tool_edge_pairs(event: dict) -> set[tuple[str, str]]:
             result = json.loads(result)
         except (TypeError, json.JSONDecodeError):
             return set()
+    if event.get("name") == "answer_context":
+        return _answer_context_edge_pairs(result) if isinstance(result, dict) else set()
     if not isinstance(result, dict) or result.get("status") != "ok":
         return set()
     names = {
@@ -830,6 +890,11 @@ def _extract_tool_edge_pairs(event: dict) -> set[tuple[str, str]]:
         and edge.get("source") in names
         and edge.get("target") in names
     }
+
+
+def _mentions_name(text: str, name: str) -> bool:
+    """Whole-name match: ``wait`` must not be found inside ``cobswait``."""
+    return re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text) is not None
 
 
 def _validate_answer_sources(
@@ -923,7 +988,7 @@ def _validate_answer_sources(
         mentioned_pairs = [
             pair
             for pair in edge_pairs
-            if pair[0] in lowered and pair[1] in lowered
+            if _mentions_name(lowered, pair[0]) and _mentions_name(lowered, pair[1])
         ]
         if mentioned_pairs:
             continue

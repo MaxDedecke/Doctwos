@@ -290,3 +290,37 @@ def test_answer_with_only_unverified_citations_is_still_rejected():
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
     text, consistent = _validate_answer_sources("Siehe `app/jcl/WAITSTEP.jcl:26`.", sources)
     assert not consistent and "nicht belastbar belegt" in text
+
+
+_ANSWER_CONTEXT = {
+    "type": "tool_result",
+    "name": "answer_context",
+    "result": {
+        "evidence": [{
+            "symbol": "COBSWAIT",
+            "entity": {"qualified_name": "COBSWAIT", "file_path": "app/cbl/COBSWAIT.cbl",
+                       "start_line": 22, "end_line": 40},
+            "callees": ["MVSWAIT (Zeile 38)"],
+            "callers": [{"type": "EXECUTES", "from": "app/jcl/WAITSTEP.jcl::job:WAITSTEP::step:WAIT",
+                         "line": 22, "location": "app/jcl/WAITSTEP.jcl:22"}],
+            "call_sites": [{"file": "app/jcl/WAITSTEP.jcl", "around_line": 22,
+                            "text": "18: //WAITSTEP JOB\n19: //WAIT EXEC PGM=COBSWAIT\n26: //SYSIN DD *"}],
+        }],
+    },
+}
+
+
+def test_answer_context_supplies_edges_and_sources_for_validation():
+    """Live-Fall COBSWAIT: das Evidenzpaket nennt Aufrufer und Aufgerufene ausdrücklich."""
+    edges = _extract_tool_edge_pairs(_ANSWER_CONTEXT)
+    assert ("cobswait", "mvswait") in edges
+    assert ("waitstep", "cobswait") in edges
+
+    sources: list = []
+    _extract_tool_sources(_ANSWER_CONTEXT, sources, 7)
+    answer = "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`); gestartet von `app/jcl/WAITSTEP.jcl:26`."
+    text, consistent = _validate_answer_sources(answer, sources, edges)
+    assert consistent
+    assert "nicht belegt" not in text
+    _, other = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf.", sources, edges)
+    assert not other
