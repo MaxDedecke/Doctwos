@@ -361,7 +361,14 @@ def trace_call_flow(
         "notice": None
         if edges
         else "Für diesen Einstieg und die gewählte Tiefe/Richtung sind "
-        "keine Aufrufkanten indexiert. Das belegt nicht, dass zur Laufzeit keine Aufrufe erfolgen.",
+        "keine Aufrufkanten indexiert. Das belegt nicht, dass zur Laufzeit keine Aufrufe erfolgen."
+        + (
+            " Programme und Klassen tragen die Aufrufe an Absätzen bzw. Methoden: "
+            "direction=outgoing löst den Einstieg auf, sonst eine Methode/einen Absatz direkt wählen."
+            if direction != "outgoing"
+            and root.type in {"program", "cobol_program", "class", "interface", "enum", "record"}
+            else ""
+        ),
         "hops": hops,
         "direction": direction,
         "scope": scope,

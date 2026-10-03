@@ -313,6 +313,8 @@ def test_java_class_entry_selection(db_session, test_project, test_team, mode):
             assert flow["root"]["id"] == root.id
             assert flow["status"] == "no_indexed_calls"
             assert flow["notice"]
+            if mode == "incoming":
+                assert "direction=outgoing" in flow["notice"]
         assert "error" in trace_call_flow(db_session, project_id=-1, entity_id=root.id)
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
