@@ -1054,6 +1054,7 @@
     "loadingLinkedReferences": "Lade verknüpfte Referenzen...",
     "noDirectLinksInGraph": "Keine direkten Verknüpfungen für dieses Element im Graph vorhanden.",
     "unresolvedLabel": "Nicht aufgelöst",
+    "externalLabel": "Extern ({{category}})",
     "webPreviewFallbackTitle": "Web-Vorschau",
     "localSourceBadge": "Lokal",
     "openReferenceAtLine": "Referenz in {{file}} öffnen (Zeile {{line}})",

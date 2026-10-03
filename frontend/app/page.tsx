@@ -966,7 +966,7 @@ function AppContent() {
         return next;
       });
       setActiveMobileTab('graph');
-      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'info');
+      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'success');
       return true;
     }
 
@@ -981,7 +981,7 @@ function AppContent() {
     });
     if (added) {
       setActiveMobileTab('graph');
-      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'info');
+      showToast(t('callGraphView.flowLoadedToast', { name: flowData.root.name }), 'success');
     }
     return added;
   }, [addPanel, panelConfigs, panelFrozen, setActiveMobileTab, setPanelSelections, showToast, t]);

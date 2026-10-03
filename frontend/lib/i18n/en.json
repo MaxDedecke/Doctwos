@@ -1054,6 +1054,7 @@
     "loadingLinkedReferences": "Loading linked references...",
     "noDirectLinksInGraph": "No direct links for this element in the graph.",
     "unresolvedLabel": "Unresolved",
+    "externalLabel": "External ({{category}})",
     "webPreviewFallbackTitle": "Web Preview",
     "localSourceBadge": "Local",
     "openReferenceAtLine": "Open reference in {{file}} (line {{line}})",

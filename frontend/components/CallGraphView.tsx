@@ -114,6 +114,12 @@ function traceProcessNodeShape(ctx: CanvasRenderingContext2D, node: CallNode, ra
 
 export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere, onOpenDoc }: Props) {
   const { t } = useLanguage();
+  // Kantentypen aus dem Index (CALLS, READS, ...) haben keinen Übersetzungseintrag; dann gilt der Typname selbst.
+  const kindLabel = (type: string) => {
+    const key = `callGraphView.processKinds.${type}`;
+    const translated = t(key);
+    return translated === key ? type : translated;
+  };
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<ForceGraphMethods<CallNode, CallEdge> | undefined>(undefined);
@@ -642,7 +648,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         {availableTypes.map(type => {
           const color = PROCESS_COLORS[type] ?? '#64748b';
-          return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[0.5625rem] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{t(`callGraphView.processKinds.${type}`)}</button>;
+          return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[0.5625rem] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{kindLabel(type)}</button>;
         })}
       </div>
       <div ref={containerRef} className="relative flex-1 min-h-0 overflow-hidden">
@@ -936,7 +942,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
                 <span className="text-ds-zinc-500" aria-hidden="true">→</span>
                 <span>{selectedEdgeTarget?.name ?? (typeof selectedEdge.target === 'string' ? selectedEdge.target : selectedEdge.target.name)}</span>
                 <span className="rounded border px-1.5 py-0.5 text-[0.5625rem]" style={{ borderColor: PROCESS_COLORS[selectedEdge.type] ?? '#64748b', color: PROCESS_COLORS[selectedEdge.type] ?? '#64748b' }}>
-                  {t(`callGraphView.processKinds.${selectedEdge.type}`)}
+                  {kindLabel(selectedEdge.type)}
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[0.625rem] sm:grid-cols-3">

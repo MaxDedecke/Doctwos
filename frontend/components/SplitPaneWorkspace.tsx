@@ -1236,6 +1236,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                   const entity = neighbor.entity;
                                   const document = neighbor.document;
                                   const reference = neighbor.reference;
+                                  const externalMeta = neighbor.meta?.external;
+                                  const externalCategory = externalMeta && typeof externalMeta === 'object' ? String((externalMeta as { category?: unknown }).category ?? '') : '';
                                   const canOpenTarget = !!entity || !!document?.file_path || !!document?.url;
                                   const openNeighbor = () => {
                                     if (entity) {
@@ -1304,7 +1306,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                           {entity?.name || document?.title || neighbor.dst_name}
                                         </span>
                                         <span className="block truncate text-[0.625rem] text-ds-zinc-500 font-mono">
-                                          {entity?.file_path || document?.file_path || document?.url || document?.source_type || t('splitPane.unresolvedLabel')}
+                                          {entity?.file_path || document?.file_path || document?.url || document?.source_type || (externalCategory ? t('splitPane.externalLabel', { category: externalCategory }) : t('splitPane.unresolvedLabel'))}
                                         </span>
                                       </span>
                                       {document?.section && (
