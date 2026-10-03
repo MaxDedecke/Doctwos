@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getMermaidRenderConfig, MermaidDiagram } from './MermaidDiagram';
+import { getMermaidRenderConfig, MermaidDiagram, repairMermaidSource } from './MermaidDiagram';
 
 vi.mock('mermaid', () => ({
   default: {
@@ -40,5 +40,11 @@ describe('MermaidDiagram', () => {
       securityLevel: 'strict',
       htmlLabels: false,
     });
+  });
+
+  it('removes the claim marker that older answers appended to edge lines', () => {
+    const broken = 'flowchart TD\n  a -->|CALLS| b (Beziehung nicht im Index belegt)\n  c -->|CALLS| d (Beziehung nicht im Index belegt) (Beziehung nicht im Index belegt)\n  e -->|READS| f';
+    expect(repairMermaidSource(broken)).toBe('flowchart TD\n  a -->|CALLS| b\n  c -->|CALLS| d\n  e -->|READS| f');
+    expect(repairMermaidSource('flowchart TD\n  a --> b')).toBe('flowchart TD\n  a --> b');
   });
 });

@@ -30,6 +30,15 @@ export function getMermaidRenderConfig(theme: string): MermaidConfig {
   };
 }
 
+/**
+ * Ältere Antworten tragen den Zusatz „(Beziehung nicht im Index belegt)“ hinter Kantenzeilen des Diagramms
+ * (die Antwortprüfung hat Mermaid-Zeilen früher als Kantenbehauptungen markiert). Er ist keine Mermaid-Syntax;
+ * ohne Bereinigung schlägt das Rendern fehl.
+ */
+export function repairMermaidSource(code: string): string {
+  return code.replace(/(?:[ \t]*\(Beziehung nicht im Index belegt\))+/g, '');
+}
+
 /** Render Mermaid supplied by an agent answer without trusting its SVG output. */
 function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
   const reactId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -43,7 +52,7 @@ function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
       try {
         const { default: mermaid } = await import('mermaid');
         mermaid.initialize(getMermaidRenderConfig(theme));
-        const result = await mermaid.render(`doctus-mermaid-${reactId}`, code);
+        const result = await mermaid.render(`doctus-mermaid-${reactId}`, repairMermaidSource(code));
         if (!cancelled) setSvg(sanitizeSvg(result.svg));
       } catch {
         if (!cancelled) setError('Das Ablaufdiagramm konnte nicht gerendert werden.');
