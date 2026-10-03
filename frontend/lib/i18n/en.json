@@ -1559,6 +1559,21 @@
     "investigateFromHere": "Investigate from here",
     "investigateFromHereTitle": "Investigate this step as new process root",
     "flowLoadedToast": "Flow for {{name}} opened in Process View",
+    "flowAnimation": {
+      "label": "Flow",
+      "play": "Start flow animation: shows the paths across the nodes one after another in a loop",
+      "stop": "Stop flow animation",
+      "pause": "Pause",
+      "resume": "Resume",
+      "speed": "Change speed",
+      "pathSelect": "Choose path",
+      "allPaths": "All paths ({{count}})",
+      "pathOption": "Path {{index}} ({{steps}} steps)",
+      "status": "Path {{path}}/{{paths}} · step {{step}}/{{steps}}",
+      "truncated": "Not all paths are shown: path count, depth or search effort are limited.",
+      "reducedMotion": "The animation is off because the system asks for reduced motion.",
+      "noPaths": "No visible transition leaves the root; there is no path to animate."
+    },
     "certainty": {
       "certain": "Certain",
       "possible": "Possible",

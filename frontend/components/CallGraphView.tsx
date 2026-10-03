@@ -8,12 +8,14 @@ import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
 import { resolveDsColor } from '@/lib/designTokens';
 import { layoutZones, type Zone } from '@/lib/processZones';
+import { buildFlowPaths } from '@/lib/processFlowPaths';
+import { useFlowAnimation } from '@/hooks/useFlowAnimation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
 import { InsightDraftAction } from './InsightDraftAction';
 import { ProvenanceDisclosure } from './ProvenanceDisclosure';
-import { AlertTriangle, Compass, FileCode, LayoutGrid, Loader2, Maximize2, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, Compass, FileCode, LayoutGrid, Loader2, Maximize2, Pause, Play, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { ProcessFlow } from './ProcessFlow';
@@ -562,6 +564,25 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
     return node.id === activeSourceId || `entity:${node.entityId}` === activeSourceId;
   }, [activeSourceId]);
 
+  // O-381: Fluss-Animation. Pfade und Zustand entstehen aus den sichtbaren Übergängen (nach Typfilter).
+  const flowRootId = `entity:${currentRoot?.id}`;
+  const { flowPaths, flowEndpoints } = useMemo(() => {
+    const endpoint = (end: string | CallNode) => (typeof end === 'string' ? end : end.id);
+    const links = filtered.links.map(edge => ({
+      id: edge.id, source: endpoint(edge.source), target: endpoint(edge.target), sequence: edge.sequence,
+    }));
+    return {
+      flowPaths: buildFlowPaths(links, flowRootId),
+      flowEndpoints: new Map(links.map(link => [link.id, { source: link.source, target: link.target }])),
+    };
+  }, [filtered.links, flowRootId]);
+  const flow = useFlowAnimation(flowPaths.paths, flowEndpoints, flowRootId);
+  const flowEdgeKind = (edge: CallEdge): 'active' | 'trail' | 'dim' | null => {
+    if (!flow.active) return null;
+    if (edge.id === flow.view.activeEdgeId) return 'active';
+    return flow.view.trailEdgeIds.has(edge.id) ? 'trail' : 'dim';
+  };
+
   if (!currentRoot?.id) {
     return <div className="h-full flex flex-col items-center justify-center gap-2 text-ds-zinc-500"><FileCode className="w-10 h-10 opacity-30" /><p className="text-sm">{t('callGraphView.focusFirst')}</p></div>;
   }
@@ -639,6 +660,40 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
           </button>
         )}
         {!customFlow && [1, 2, 3, 4, 5].map(value => <button key={value} onClick={() => setHops(value)} className={cn('h-7 px-2 rounded border text-[0.625rem] font-bold', hops === value ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>{value} {t('callGraphView.hopUnit')}</button>)}
+        <div className="flex items-center gap-1" data-testid="flow-animation-controls">
+          <button
+            type="button"
+            data-testid="flow-animation-toggle"
+            onClick={flow.toggle}
+            disabled={!flow.supported}
+            aria-pressed={flow.active}
+            title={flow.reducedMotion ? t('callGraphView.flowAnimation.reducedMotion') : flowPaths.paths.length === 0 ? t('callGraphView.flowAnimation.noPaths') : (flow.active ? t('callGraphView.flowAnimation.stop') : t('callGraphView.flowAnimation.play'))}
+            className={cn('h-7 px-2 rounded border text-[0.625rem] font-bold flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed', flow.active ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-400 hover:border-ds-indigo-500 hover:text-ds-indigo-400 cursor-pointer')}
+          >
+            <Play className="w-3 h-3" />{t('callGraphView.flowAnimation.label')}
+          </button>
+          {flow.active && (
+            <>
+              <button type="button" data-testid="flow-animation-pause" onClick={flow.togglePause} aria-pressed={flow.paused} title={flow.paused ? t('callGraphView.flowAnimation.resume') : t('callGraphView.flowAnimation.pause')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer">
+                {flow.paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+              </button>
+              <button type="button" data-testid="flow-animation-speed" onClick={flow.cycleSpeed} title={t('callGraphView.flowAnimation.speed')} className="h-7 px-1.5 rounded border border-ds-zinc-700 text-[0.625rem] font-bold text-ds-zinc-400 hover:border-ds-indigo-500 cursor-pointer">{flow.speed}×</button>
+              <select
+                data-testid="flow-animation-path"
+                value={flow.fixedPath ?? 'all'}
+                onChange={event => flow.selectPath(event.target.value === 'all' ? null : Number(event.target.value))}
+                aria-label={t('callGraphView.flowAnimation.pathSelect')}
+                className={cn('h-7 rounded border px-1 text-[0.625rem] font-bold', isDark ? 'border-ds-zinc-700 bg-ds-zinc-950 text-ds-zinc-300' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-700')}
+              >
+                <option value="all">{t('callGraphView.flowAnimation.allPaths', { count: flow.pathCount })}</option>
+                {flowPaths.paths.map((path, index) => <option key={index} value={index}>{t('callGraphView.flowAnimation.pathOption', { index: index + 1, steps: path.length })}</option>)}
+              </select>
+              <span data-testid="flow-animation-status" className="text-[0.5625rem] text-ds-zinc-500 tabular-nums" title={flowPaths.truncated ? t('callGraphView.flowAnimation.truncated') : undefined}>
+                {t('callGraphView.flowAnimation.status', { path: flow.cursor.path + 1, paths: flow.pathCount, step: flow.cursor.step, steps: flow.pathLength })}{flowPaths.truncated ? ' …' : ''}
+              </span>
+            </>
+          )}
+        </div>
         <button onClick={loadGraph} title={t('callGraphView.reloadTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() * 1.3, 250)} title={t('callGraphView.zoomInTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomIn className="w-3.5 h-3.5" /></button>
         <button onClick={() => graphRef.current?.zoom(graphRef.current.zoom() / 1.3, 250)} title={t('callGraphView.zoomOutTitle')} className="p-1.5 text-ds-zinc-500 hover:text-ds-indigo-400 cursor-pointer"><ZoomOut className="w-3.5 h-3.5" /></button>
@@ -698,10 +753,10 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
           nodeVal={(node: CallNode) => isNodePrimary(node) ? 8 : (isNodeSource(node) ? 6 : 4)}
           nodeCanvasObjectMode={() => 'replace'}
           nodeCanvasObject={(node: CallNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            const isPrimary = isNodePrimary(node);
+            const isPrimary = isNodePrimary(node) || (flow.active && node.id === flow.view.activeNodeId);
             const isSource = isNodeSource(node) && !isPrimary;
             const hasActiveContext = Boolean(highlightedEdgeId != null || (customFlow && customFlow.focus_entity_id != null));
-            const isDimmed = hasActiveContext && !isPrimary && !isSource;
+            const isDimmed = (hasActiveContext && !isPrimary && !isSource) || (flow.active && !isPrimary && !flow.view.trailNodeIds.has(node.id));
 
             ctx.save();
             if (isDimmed) {
@@ -868,6 +923,10 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             ctx.restore();
           }}
           linkColor={(edge: CallEdge) => {
+            const flowKind = flowEdgeKind(edge);
+            if (flowKind === 'active') return isDark ? '#38bdf8' : '#0284c7';
+            if (flowKind === 'trail') return isDark ? 'rgba(56, 189, 248, 0.55)' : 'rgba(2, 132, 199, 0.55)';
+            if (flowKind === 'dim') return isDark ? 'rgba(148, 163, 184, 0.10)' : 'rgba(100, 116, 139, 0.18)';
             const isHighlighted = isEdgeHighlighted(edge);
             if (isHighlighted) {
               return isDark ? '#38bdf8' : '#0284c7';
@@ -879,15 +938,27 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             if (edge.certainty === 'possible') return resolveDsColor('rgb(var(--ds-warning-base))');
             return PROCESS_COLORS[edge.type] ?? resolveDsColor('rgb(var(--ds-info-base))');
           }}
-          linkWidth={(edge: CallEdge) => isEdgeHighlighted(edge) ? 4.5 : 1.5}
-          linkDirectionalArrowLength={(edge: CallEdge) => isEdgeHighlighted(edge) ? 6.5 : 4}
+          linkWidth={(edge: CallEdge) => {
+            const flowKind = flowEdgeKind(edge);
+            if (flowKind) return flowKind === 'active' ? 4.5 : (flowKind === 'trail' ? 3 : 1);
+            return isEdgeHighlighted(edge) ? 4.5 : 1.5;
+          }}
+          linkDirectionalArrowLength={(edge: CallEdge) => {
+            const flowKind = flowEdgeKind(edge);
+            if (flowKind) return flowKind === 'active' ? 6.5 : (flowKind === 'trail' ? 5 : 3);
+            return isEdgeHighlighted(edge) ? 6.5 : 4;
+          }}
           linkDirectionalArrowRelPos={1}
           linkLineDash={(edge: CallEdge) => edge.certainty === 'certain' ? null : [4, 3]}
-          linkDirectionalParticles={(edge: CallEdge) => isEdgeHighlighted(edge) ? 5 : (isEdgeOutgoingFromSelection(edge) ? 2 : 0)}
-          linkDirectionalParticleSpeed={(edge: CallEdge) => isEdgeHighlighted(edge) ? 0.012 : 0.004}
-          linkDirectionalParticleWidth={(edge: CallEdge) => isEdgeHighlighted(edge) ? 5 : 2.5}
+          linkDirectionalParticles={(edge: CallEdge) => {
+            const flowKind = flowEdgeKind(edge);
+            if (flowKind) return flowKind === 'active' ? 5 : 0;
+            return isEdgeHighlighted(edge) ? 5 : (isEdgeOutgoingFromSelection(edge) ? 2 : 0);
+          }}
+          linkDirectionalParticleSpeed={(edge: CallEdge) => (isEdgeHighlighted(edge) || flowEdgeKind(edge) === 'active') ? 0.012 : 0.004}
+          linkDirectionalParticleWidth={(edge: CallEdge) => (isEdgeHighlighted(edge) || flowEdgeKind(edge) === 'active') ? 5 : 2.5}
           linkDirectionalParticleCanvasObject={(x: number, y: number, edge: CallEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            const isHighlighted = isEdgeHighlighted(edge);
+            const isHighlighted = isEdgeHighlighted(edge) || flowEdgeKind(edge) === 'active';
             const r = (isHighlighted ? 3.5 : 2) / globalScale;
             ctx.save();
             ctx.beginPath();

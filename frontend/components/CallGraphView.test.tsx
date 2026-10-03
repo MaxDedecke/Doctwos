@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { ProcessNetworkView as ProcessView, type CallEdge, type CallNode } from './CallGraphView';
@@ -10,6 +10,7 @@ type GraphProps = {
   onLinkClick: (edge: CallEdge) => void;
   linkLabel: (edge: CallEdge) => string;
   linkDirectionalParticles?: (edge: CallEdge) => number;
+  linkWidth?: (edge: CallEdge) => number;
 };
 let latestGraphData: GraphProps['graphData'] | null = null;
 const ForceGraph = React.forwardRef<{ zoom: () => number; zoomToFit: () => void; screen2GraphCoords: (x: number, y: number) => { x: number; y: number } }, GraphProps>((props, ref) => {
@@ -31,6 +32,7 @@ const ForceGraph = React.forwardRef<{ zoom: () => number; zoomToFit: () => void;
       data-testid={`edge-${edge.id}`}
       title={props.linkLabel(edge)}
       data-particles={props.linkDirectionalParticles ? props.linkDirectionalParticles(edge) : 0}
+      data-width={props.linkWidth ? props.linkWidth(edge) : 0}
       onClick={() => props.onLinkClick(edge)}
     >
       {edge.type}
@@ -287,5 +289,64 @@ describe('ProcessView', () => {
     expect(screen.getByTestId('node-entity:500')).toBeTruthy();
     fireEvent.click(screen.getByTestId('node-entity:500'));
     expect(screen.getByTestId('investigate-from-here')).toBeTruthy();
+  });
+
+  describe('Fluss-Animation (O-381)', () => {
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('ist standardmäßig aus, zeigt beim Einschalten Schritt für Schritt die belegten Übergänge und dunkelt den Rest ab', async () => {
+      renderView();
+      expect(await screen.findByTestId('process-graph')).toBeTruthy();
+      const toggle = screen.getByTestId('flow-animation-toggle') as HTMLButtonElement;
+      expect(toggle.disabled).toBe(false);
+      expect(toggle.getAttribute('aria-pressed')).toBe('false');
+      expect(screen.queryByTestId('flow-animation-status')).toBeNull();
+      const edge7 = screen.getByTestId('edge-code-edge:7');
+      const edge8 = screen.getByTestId('edge-code-edge:8');
+      expect(Number(edge7.getAttribute('data-width'))).toBe(1.5);
+
+      vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+      fireEvent.click(toggle);
+      expect(toggle.getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByTestId('flow-animation-status').textContent).toContain('Pfad 1/1');
+      // Takt 0: nur die Wurzel, alle Kanten abgedunkelt
+      expect(Number(edge7.getAttribute('data-width'))).toBe(1);
+
+      act(() => { vi.advanceTimersByTime(900); });
+      expect(Number(edge7.getAttribute('data-width'))).toBe(4.5);
+      expect(Number(edge7.getAttribute('data-particles'))).toBe(5);
+      expect(Number(edge8.getAttribute('data-width'))).toBe(1);
+
+      act(() => { vi.advanceTimersByTime(900); });
+      expect(Number(edge7.getAttribute('data-width'))).toBe(3);
+      expect(Number(edge8.getAttribute('data-width'))).toBe(4.5);
+
+      fireEvent.click(toggle);
+      expect(Number(edge7.getAttribute('data-width'))).toBe(1.5);
+      expect(screen.queryByTestId('flow-animation-status')).toBeNull();
+    });
+
+    it('pausiert, wechselt das Tempo und lässt einen Pfad wählen', async () => {
+      renderView();
+      await screen.findByTestId('process-graph');
+      fireEvent.click(screen.getByTestId('flow-animation-toggle'));
+      fireEvent.click(screen.getByTestId('flow-animation-pause'));
+      expect(screen.getByTestId('flow-animation-pause').getAttribute('aria-pressed')).toBe('true');
+      fireEvent.click(screen.getByTestId('flow-animation-speed'));
+      expect(screen.getByTestId('flow-animation-speed').textContent).toBe('2×');
+      fireEvent.change(screen.getByTestId('flow-animation-path'), { target: { value: '0' } });
+      expect((screen.getByTestId('flow-animation-path') as HTMLSelectElement).value).toBe('0');
+    });
+
+    it('bleibt mit prefers-reduced-motion aus', async () => {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('reduce'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      })) as unknown as typeof window.matchMedia;
+      renderView();
+      await screen.findByTestId('process-graph');
+      const toggle = screen.getByTestId('flow-animation-toggle') as HTMLButtonElement;
+      expect(toggle.disabled).toBe(true);
+      expect(toggle.title).toContain('reduzierte Bewegung');
+    });
   });
 });

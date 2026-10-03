@@ -1559,6 +1559,21 @@
     "investigateFromHere": "Ab hier untersuchen",
     "investigateFromHereTitle": "Diesen Schritt als neue Prozesswurzel untersuchen",
     "flowLoadedToast": "Ablauf für {{name}} in der Process View geöffnet",
+    "flowAnimation": {
+      "label": "Fluss",
+      "play": "Fluss-Animation starten: zeigt die Wege über die Knoten nacheinander in Dauerschleife",
+      "stop": "Fluss-Animation beenden",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "speed": "Tempo ändern",
+      "pathSelect": "Pfad wählen",
+      "allPaths": "Alle Pfade ({{count}})",
+      "pathOption": "Pfad {{index}} ({{steps}} Schritte)",
+      "status": "Pfad {{path}}/{{paths}} · Schritt {{step}}/{{steps}}",
+      "truncated": "Nicht alle Pfade werden gezeigt: Pfadanzahl, Tiefe oder Suchaufwand sind begrenzt.",
+      "reducedMotion": "Die Animation ist abgeschaltet, weil das System reduzierte Bewegung wünscht.",
+      "noPaths": "Von der Wurzel führt kein sichtbarer Übergang weiter; es gibt keinen Pfad zum Animieren."
+    },
     "certainty": {
       "certain": "Belegt",
       "possible": "Möglich",
