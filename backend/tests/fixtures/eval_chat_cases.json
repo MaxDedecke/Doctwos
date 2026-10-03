@@ -2,30 +2,162 @@
   "version": 1,
   "note": "Chat-Fragen mit Checkliste (O-304/O-346/O-347/O-354). Gelten für die Revisionen aus eval_search_cases.json. Jeder Punkt ist maschinenprüfbar: `answer_all` und `answer_any` sind Regexe auf die Antwort, `cites` verlangt eine Quelle mit Datei und mindestens einer Zeile im Bereich, `no_claim` ist ein Regex, der NICHT passen darf. Lauf: scripts/eval_chat.py",
   "cases": [
-    {"id": "Q1", "project": "Apache Syncope", "label": "J1 Typbeziehungen",
-     "question": "Erkläre anhand des indizierten Codes, wie `UserServiceImpl` im Modul `core/idrepo/rest-cxf` typisiert ist. Welche Klasse erweitert sie, welches Interface implementiert sie, und welche Syncope-Typen nutzt sie? Bitte mit Fundstellen und Zeilenangaben.",
-     "checks": {"answer_all": ["AbstractAnyService", "UserService\\b", "UserDAO|UserLogicOp"],
-                "cites": [{"file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java", "lines": [35, 48]}]}},
-    {"id": "Q2", "project": "Apache Syncope", "label": "J2 REST zu Logik",
-     "question": "Verfolge in Syncope den Weg von `UserServiceImpl.create` zur fachlichen Benutzerlogik. Zeige die belegten Methoden und Kanten. Kennzeichne ausdrücklich, welche Aufrufkante aufgelöst ist und welche im Index offen bleibt.",
-     "checks": {"answer_all": ["logic\\.create", "AnyCRUDLogicOp|UserLogic"],
-                "cites": [{"file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java", "lines": [68, 68]}]}},
-    {"id": "Q3", "project": "AWS CardDemo", "label": "C1 Kontrollfluss",
-     "question": "Beschreibe den belegten Kontrollfluss von `COPAUA0C.MAIN-PARA`. Welche Paragraphen werden ausgeführt und welche Folgeschritte ruft `1000-INITIALIZE` auf? Bitte mit Datei- und Zeilenbelegen und mit dem Status der Kanten.",
-     "checks": {"answer_all": ["1000-INITIALIZE", "2000-MAIN-PROCESS", "9000-TERMINATE", "3100-READ-REQUEST-MQ", "1100-OPEN-REQUEST-QUEUE"],
-                "cites": [{"file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl", "lines": [220, 246]}]}},
-    {"id": "Q4", "project": "AWS CardDemo", "label": "C2 COPY-Grenzen",
-     "question": "Welche Copybooks bindet `COPAUA0C` ein? Trenne aufgelöste Repository-Copybooks von nicht aufgelösten MQ-Copybooks und nenne Beispiele für beide Gruppen.",
-     "checks": {"answer_all": ["CCPAURQY", "CVCUS01Y", "CMQV|CMQODV|CMQMDV"],
-                "answer_any": ["unaufgel", "nicht aufgel", "unresolved"],
-                "no_claim": "CMQ\\w+[^\\n]{0,40}\\baufgelöst\\b(?![^\\n]{0,10}nicht)"}},
-    {"id": "Q5", "project": "AWS CardDemo", "label": "C3 DB2-SQL",
-     "question": "Finde in CardDemo ein konkretes COBOL-Programm mit eingebetteten DB2-SQL-Blöcken. Erkläre anhand eines ausgewählten Blocks, welche Tabellen/Felder und Operationen der Quelltext tatsächlich belegt; zitiere die Originalzeilen.",
-     "checks": {"answer_all": ["EXEC SQL", "TRANSACTION_TYPE|TR_TYPE|CARDDEMO\\."],
-                "cites": [{"file": "app/app-transaction-type-db2/cbl/COTRTLIC.cbl", "lines": [304, 2055]}, {"file": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl", "lines": [1, 3000]}, {"file": "app/app-authorization-ims-db2-mq/cbl/COPAUS2C.cbl", "lines": [1, 400]}, {"file": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl", "lines": [1, 400]}]}},
-    {"id": "Q6", "project": "AWS CardDemo", "label": "C4 Betragsherkunft",
-     "question": "Woher stammt der Betrag `PA-TRANSACTION-AMT` in `COPAUA0C`? Verfolge die Herkunft vom Eingang der Nachricht bis zur Zuweisung und nenne die Anweisungen mit Zeilen. Wenn sich die Kette nicht durchgängig belegen lässt, benenne die fehlende Stelle.",
-     "checks": {"answer_all": ["PA-RQ-TRANSACTION-AMT", "WS-TRANSACTION-AMT-AN|NUMVAL", "PA-TRANSACTION-AMT"],
-                "cites": [{"file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl", "lines": [376, 379]}, {"file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl", "lines": [885, 885]}]}}
+    {
+      "id": "Q1",
+      "project": "Apache Syncope",
+      "label": "J1 Typbeziehungen",
+      "question": "Erkläre anhand des indizierten Codes, wie `UserServiceImpl` im Modul `core/idrepo/rest-cxf` typisiert ist. Welche Klasse erweitert sie, welches Interface implementiert sie, und welche Syncope-Typen nutzt sie? Bitte mit Fundstellen und Zeilenangaben.",
+      "checks": {
+        "answer_all": [
+          "AbstractAnyService",
+          "UserService\\b",
+          "UserDAO|UserLogicOp"
+        ],
+        "cites": [
+          {
+            "file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java",
+            "lines": [
+              35,
+              48
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q2",
+      "project": "Apache Syncope",
+      "label": "J2 REST zu Logik",
+      "question": "Verfolge in Syncope den Weg von `UserServiceImpl.create` zur fachlichen Benutzerlogik. Zeige die belegten Methoden und Kanten. Kennzeichne ausdrücklich, welche Aufrufkante aufgelöst ist und welche im Index offen bleibt.",
+      "checks": {
+        "answer_all": [
+          "logic\\.create",
+          "AnyCRUDLogicOp|UserLogic"
+        ],
+        "cites": [
+          {
+            "file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java",
+            "lines": [
+              68,
+              68
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q3",
+      "project": "AWS CardDemo",
+      "label": "C1 Kontrollfluss",
+      "question": "Beschreibe den belegten Kontrollfluss von `COPAUA0C.MAIN-PARA`. Welche Paragraphen werden ausgeführt und welche Folgeschritte ruft `1000-INITIALIZE` auf? Bitte mit Datei- und Zeilenbelegen und mit dem Status der Kanten.",
+      "checks": {
+        "answer_all": [
+          "1000-INITIALIZE",
+          "2000-MAIN-PROCESS",
+          "9000-TERMINATE",
+          "3100-READ-REQUEST-MQ",
+          "1100-OPEN-REQUEST-QUEUE"
+        ],
+        "cites": [
+          {
+            "file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl",
+            "lines": [
+              220,
+              246
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q4",
+      "project": "AWS CardDemo",
+      "label": "C2 COPY-Grenzen",
+      "question": "Welche Copybooks bindet `COPAUA0C` ein? Trenne aufgelöste Repository-Copybooks von nicht aufgelösten MQ-Copybooks und nenne Beispiele für beide Gruppen.",
+      "checks": {
+        "answer_all": [
+          "CCPAURQY",
+          "CVCUS01Y",
+          "CMQV|CMQODV|CMQMDV"
+        ],
+        "answer_any": [
+          "unaufgel",
+          "nicht[^.\\n]{0,60}aufgel",
+          "unresolved"
+        ],
+        "no_claim": "CMQ\\w+[^\\n]{0,40}\\baufgelöst\\b(?![^\\n]{0,10}nicht)"
+      }
+    },
+    {
+      "id": "Q5",
+      "project": "AWS CardDemo",
+      "label": "C3 DB2-SQL",
+      "question": "Finde in CardDemo ein konkretes COBOL-Programm mit eingebetteten DB2-SQL-Blöcken. Erkläre anhand eines ausgewählten Blocks, welche Tabellen/Felder und Operationen der Quelltext tatsächlich belegt; zitiere die Originalzeilen.",
+      "checks": {
+        "answer_all": [
+          "EXEC SQL",
+          "TRANSACTION_TYPE|TR_TYPE|CARDDEMO\\."
+        ],
+        "cites": [
+          {
+            "file": "app/app-transaction-type-db2/cbl/COTRTLIC.cbl",
+            "lines": [
+              304,
+              2055
+            ]
+          },
+          {
+            "file": "app/app-transaction-type-db2/cbl/COTRTUPC.cbl",
+            "lines": [
+              1,
+              3000
+            ]
+          },
+          {
+            "file": "app/app-authorization-ims-db2-mq/cbl/COPAUS2C.cbl",
+            "lines": [
+              1,
+              400
+            ]
+          },
+          {
+            "file": "app/app-transaction-type-db2/cbl/COBTUPDT.cbl",
+            "lines": [
+              1,
+              400
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q6",
+      "project": "AWS CardDemo",
+      "label": "C4 Betragsherkunft",
+      "question": "Woher stammt der Betrag `PA-TRANSACTION-AMT` in `COPAUA0C`? Verfolge die Herkunft vom Eingang der Nachricht bis zur Zuweisung und nenne die Anweisungen mit Zeilen. Wenn sich die Kette nicht durchgängig belegen lässt, benenne die fehlende Stelle.",
+      "checks": {
+        "answer_all": [
+          "PA-RQ-TRANSACTION-AMT",
+          "WS-TRANSACTION-AMT-AN|NUMVAL",
+          "PA-TRANSACTION-AMT"
+        ],
+        "cites": [
+          {
+            "file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl",
+            "lines": [
+              376,
+              379
+            ]
+          },
+          {
+            "file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl",
+            "lines": [
+              885,
+              885
+            ]
+          }
+        ]
+      }
+    }
   ]
 }

@@ -525,3 +525,45 @@ async def test_openai_responses_agent_executes_function_call(monkeypatch):
         "output": "Ergebnis",
     }
     assert "temperature" not in requests[0]
+
+
+@pytest.mark.asyncio
+async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_is_used_up(monkeypatch):
+    """Ein Modell, das nur Werkzeuge aufruft, liefert in der letzten Runde eine Antwort aus den Belegen."""
+    requests = []
+
+    class FakeResponse:
+        def __init__(self, data):
+            self._data = data
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._data
+
+    async def mock_post(self, url, **kwargs):
+        payload = json.loads(json.dumps(kwargs["json"]))
+        requests.append(payload)
+        if payload.get("tool_choice") == "none":
+            return FakeResponse({"output": [{"type": "message", "content": [{"type": "output_text", "text": "Teilantwort aus Belegen"}]}]})
+        return FakeResponse({"output": [{"type": "function_call", "call_id": f"call-{len(requests)}", "name": "big_lookup", "arguments": "{}"}]})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="openai_responses", model_name="gpt-5.6-luna", api_key="secret",
+            base_url="https://api.openai.com/v1", endpoint_path="/responses", system_prompt="System",
+            prompt="Frage", temperature=0.2, repo_id=None, db_session=SimpleNamespace(),
+            mcp_clients=[_FakeMcpClient("Ergebnis")],
+        )
+    ]
+
+    assert events[-1]["type"] == "answer"
+    assert events[-1]["content"] == "Teilantwort aus Belegen"
+    assert "Maximale Anzahl" not in events[-1]["content"]
+    assert len(requests) == 8 and [r.get("tool_choice") for r in requests[:-1]] == [None] * 7
+    assert requests[-1]["tool_choice"] == "none"
+    assert "Recherchebudget" in requests[-1]["input"][-1]["content"]

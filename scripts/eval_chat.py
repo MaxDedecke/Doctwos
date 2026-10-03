@@ -24,7 +24,7 @@ def ask(session, base, project_id, question, profile):
     response = session.post(f"{base}/chat", json={"message": question, "mode": "evidence", "project_id": project_id,
                                                   "llm_profile_id": profile, "temperature": 0.2}, stream=True, timeout=900)
     response.raise_for_status()
-    answer, sources, tools, completed = "", [], 0, {}
+    answer, sources, tools, completed, calls = "", [], 0, {}, []
     for raw in response.iter_lines(decode_unicode=True):
         if not raw or not raw.startswith("data:"):
             continue
@@ -36,9 +36,10 @@ def ask(session, base, project_id, question, profile):
             sources = event.get("sources", [])
         elif kind == "tool_call":
             tools += 1
+            calls.append({"name": event.get("name"), "arguments": event.get("arguments")})
         elif kind == "telemetry" and event.get("event") == "completed":
             completed = event.get("metrics", {})
-    return {"answer": answer, "sources": sources, "tool_calls": tools, "seconds": round(time.monotonic() - started, 1), "metrics": completed}
+    return {"answer": answer, "sources": sources, "tool_calls": tools, "calls": calls, "seconds": round(time.monotonic() - started, 1), "metrics": completed}
 
 
 def score(case, result):
@@ -50,10 +51,16 @@ def score(case, result):
     if checks.get("no_claim"):
         items.append(("Antwort behauptet nichts Falsches", re.search(checks["no_claim"], answer) is None))
     if checks.get("cites"):
+        # Zitate stehen im Antworttext (`Datei:Zeile` oder `Datei:von-bis`, oft nur mit Dateinamen);
+        # die Quellenliste enthält nur, was die Oberfläche zusätzlich verlinkt.
+        citations = [(m.group(1), int(m.group(2)), int(m.group(3) or m.group(2)))
+                     for m in re.finditer(r"([\w./-]+\.\w+):(\d+)(?:-(\d+))?", answer)]
+        citations += [(src["file"], src["lines"][0], src["lines"][1]) for src in result["sources"] if src.get("file") and src.get("lines")]
+
         def cited(want):
-            return any(src.get("file") == want["file"] and src.get("lines") and not (src["lines"][1] < want["lines"][0] or src["lines"][0] > want["lines"][1])
-                       for src in result["sources"])
-        items.append(("Quelle trifft erwartete Zeilen", any(cited(want) for want in checks["cites"])))
+            return any((path == want["file"] or want["file"].endswith("/" + path)) and not (end < want["lines"][0] or start > want["lines"][1])
+                       for path, start, end in citations)
+        items.append(("Zitat trifft erwartete Datei und Zeilen", any(cited(want) for want in checks["cites"])))
     items.append(("Antwort nicht leer, nicht „nicht belastbar belegt“", bool(answer.strip()) and "nicht belastbar belegt" not in answer))
     return items
 

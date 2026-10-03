@@ -1587,6 +1587,13 @@ async def run_agent_loop(
 
     # --- Run provider specific loops ---
     max_turns = 8
+    # Letzte Runde: keine Werkzeuge mehr, stattdessen Antwort aus den bisher abgerufenen Belegen. Ohne
+    # diese Runde endet ein Lauf, der das Recherchebudget aufbraucht, ohne jede Antwort (obwohl Quellen vorliegen).
+    final_turn_instruction = (
+        "Das Recherchebudget ist ausgeschöpft. Rufe keine weiteren Werkzeuge auf. Beantworte die Frage jetzt "
+        "ausschließlich mit den bisher abgerufenen Belegen, nenne Fundstellen mit Zeilen und benenne ausdrücklich, "
+        "was die Recherche nicht klären konnte."
+    )
 
     if provider == "openai_responses":
         # The Responses API has a different tool contract from the
@@ -1636,6 +1643,9 @@ async def run_agent_loop(
         async with httpx.AsyncClient(timeout=120.0) as client_http:
             required_tool_retry = False
             for turn in range(max_turns):
+                final_turn = turn == max_turns - 1
+                if final_turn:
+                    response_input.append({"role": "user", "content": final_turn_instruction})
                 payload = {
                     "model": model,
                     "instructions": full_system_prompt,
@@ -1643,6 +1653,8 @@ async def run_agent_loop(
                     "tools": responses_tools,
                     "stream": False,
                 }
+                if final_turn:
+                    payload["tool_choice"] = "none"
                 if cfg.openai_model_supports_custom_temperature(model):
                     payload["temperature"] = temperature if temperature is not None else 0.7
                 if (
@@ -1829,12 +1841,17 @@ async def run_agent_loop(
         async with httpx.AsyncClient(timeout=120.0) as client_http:
             required_tool_retry = False
             for turn in range(max_turns):
+                final_turn = turn == max_turns - 1
+                if final_turn:
+                    messages.append({"role": "user", "content": final_turn_instruction})
                 payload = {
                     "model": model,
                     "messages": messages,
                     "tools": openai_tools,
                     "stream": True,
                 }
+                if final_turn:
+                    payload["tool_choice"] = "none"
                 if is_ollama or cfg.openai_model_supports_custom_temperature(model):
                     payload["temperature"] = temperature if temperature is not None else 0.7
                 if is_ollama:
