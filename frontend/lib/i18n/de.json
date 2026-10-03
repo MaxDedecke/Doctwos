@@ -1477,6 +1477,7 @@
       "failed": "Fehlgeschlagen",
       "completed": "Abgeschlossen",
       "cancelled": "Abgebrochen",
+      "budget_reached": "Budget erreicht (fortsetzbar)",
       "syncing": "Synchronisierung",
       "parsing": "Verarbeitung"
     }

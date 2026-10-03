@@ -104,6 +104,18 @@ describe('JobCenter', () => {
       expect(screen.getByText('Datei 12 von 40')).toBeTruthy();
     });
 
+    it('zeigt einen Link-Lauf am Budget als fortsetzbar statt als abgebrochen', async () => {
+      stubJobs([
+        makeJob({ key: 'link_builder:1', kind: 'link_builder', status: 'cancelled', progress_message: 'Budget nach 5 von 13636 Entitäten erreicht; im Job Center fortsetzen.', can_resume: true }),
+        makeJob({ key: 'link_builder:2', kind: 'link_builder', status: 'cancelled', progress_message: 'Vom Nutzer gestoppt' }),
+      ]);
+
+      await openPanel();
+
+      expect(await screen.findByText('Budget erreicht (fortsetzbar)')).toBeTruthy();
+      expect(screen.getAllByText('Abgebrochen')).toHaveLength(1);
+    });
+
     it('meldet eine leere Liste als solche', async () => {
       stubJobs([]);
 
