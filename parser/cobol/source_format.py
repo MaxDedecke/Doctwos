@@ -163,10 +163,26 @@ def _append_columnar_line(
     # Fixed-format columns are display columns. Tabs before the code area
     # therefore advance to the next eight-column stop rather than counting
     # as one source column.
+    had_tab = "\t" in raw
     raw = raw.expandtabs(8)
     layout = _layout_for(fmt, columns)
     indicator = raw[layout.indicator_index] if len(raw) > layout.indicator_index else " "
-    code = raw[layout.area_a_start : layout.code_end]
+    code_end = layout.code_end
+    if (
+        had_tab
+        and columns is None
+        and fmt == "fixed"
+        and code_end is not None
+        and len(raw) > code_end
+        and not raw[code_end - 1].isspace()
+        and not raw[code_end].isspace()
+    ):
+        # Tab-eingerückte Dateien (z. B. CardDemo ``CUSTREC.cpy``) sind nicht
+        # spaltentreu: die Tab-Expansion schiebt Code hinter Spalte 72, und der
+        # Schnitt würde ein Token zerreißen (``PIC X(2`` statt ``X(25).``).
+        # Ein Schnitt mitten im Token ist nie eine Sequenznummer.
+        code_end = None
+    code = raw[layout.area_a_start : code_end]
 
     if indicator in _COMMENT_INDICATORS:
         lines.append(LogicalLine(lineno, lineno, [], fmt, is_comment=True))

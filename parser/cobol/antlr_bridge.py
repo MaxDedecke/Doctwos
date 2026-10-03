@@ -194,7 +194,9 @@ def _parse(
     return tree, had_error, diagnostics
 
 
-def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> list[LogicalLine]:
+def mask_for_grammar(
+    lines: list[LogicalLine], *, copybook: bool = False, initial_division: str | None = None
+) -> list[LogicalLine]:
     """Ersetzt COPY-Anweisungen und embedded.mask()-Platzhalter durch
     grammatikgültige No-Ops, ohne Zeilennummern zu verschieben.
 
@@ -209,9 +211,13 @@ def mask_for_grammar(lines: list[LogicalLine], *, copybook: bool = False) -> lis
     wird die Zeile deshalb komplett geleert statt mit einem Platzhalter
     versehen — kostet im schlimmsten Fall ein zu knapp berechnetes Section-/
     Division-Zeilenende in diesem seltenen Randfall, verhindert aber den
-    kaskadierenden Totalausfall."""
+    kaskadierenden Totalausfall.
+
+    `initial_division`: Division, in der ein Copybook ohne eigene Kopfzeile
+    beginnt (ein Procedure-Copybook mit EXEC-Blöcken braucht `CONTINUE` statt
+    eines Datenfeld-Platzhalters)."""
     result: list[LogicalLine] = []
-    current_division: str | None = None
+    current_division: str | None = initial_division
     in_data_section = False
     current_data_section: str | None = None
     i = 0
@@ -485,7 +491,13 @@ def build_tree(
     Section-Entities, UniqueViolation beim Persistieren). Erster Versuch
     bleibt SLL (schneller Normalfall, keine Kosten für unbetroffene
     Dateien); nur bei einem Fehler wird komplett neu mit LL(*) geparst."""
-    grammar_lines = mask_for_grammar(masked_lines, copybook=header is not None)
+    grammar_lines = mask_for_grammar(
+        masked_lines,
+        copybook=header is not None,
+        initial_division=(
+            "PROCEDURE" if header and header.rstrip().upper().endswith("PROCEDURE DIVISION.") else None
+        ),
+    )
     text = _blank_separators(_reconstruct_text(grammar_lines))
     if header:
         text = _prepend_header(text, header)

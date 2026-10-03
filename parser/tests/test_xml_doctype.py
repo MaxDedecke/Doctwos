@@ -38,3 +38,16 @@ def test_doctype_with_internal_entity_subset_stays_blocked():
 def test_external_doctype_next_to_entity_declaration_stays_blocked():
     source = '<!DOCTYPE a SYSTEM "a.dtd">\n<!-- <!ENTITY x "y"> -->\n<a/>'
     assert parse_xml_document(source, "a.xml").diagnostics[0].code == "XML_EXTERNAL_DECLARATION_BLOCKED"
+
+
+def test_html_named_entities_without_dtd_do_not_abort_the_file():
+    """Syncope `src/site/xdoc/docs/index.xml` enthält `&nbsp;` ohne DTD."""
+    source = '<?xml version="1.0"?>\n<document>\n  <p>a&nbsp;b &amp; c</p>\n</document>\n'
+    result = parse_xml_document(source, "index.xml")
+    assert result.diagnostics == []
+    assert result.entities[0].name == "document"
+
+
+def test_unknown_named_entities_stay_a_parse_error():
+    result = parse_xml_document("<a>&bogus;</a>", "a.xml")
+    assert [d.code for d in result.diagnostics] == ["XML_PARSE_ERROR"]

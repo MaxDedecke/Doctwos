@@ -8,6 +8,7 @@ target without loading external entities, DTDs, URLs, or executing anything.
 from __future__ import annotations
 
 import re
+from html.entities import name2codepoint
 import xml.etree.ElementTree as ET
 from pathlib import PurePosixPath
 
@@ -40,6 +41,26 @@ def _without_external_doctype(source: str) -> str:
         return source
     blanked = re.sub(r"[^\n]", " ", match.group(0))
     return source[: match.start()] + blanked + source[match.end():]
+
+
+_XML_PREDEFINED_ENTITIES = {"amp", "lt", "gt", "quot", "apos"}
+_NAMED_ENTITY_RE = re.compile(r"&([A-Za-z][A-Za-z0-9]*);")
+
+
+def _without_html_named_entities(source: str) -> str:
+    """Blanks HTML-only named references such as `&nbsp;` (Syncope `xdoc` pages).
+
+    Without a DTD they are undefined XML entities and abort the whole file. A
+    same-width space keeps columns and line numbers true; no entity is ever
+    declared or expanded."""
+
+    def blank(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name in _XML_PREDEFINED_ENTITIES or name not in name2codepoint:
+            return match.group(0)
+        return " " * len(match.group(0))
+
+    return _NAMED_ENTITY_RE.sub(blank, source)
 
 
 def _local_name(tag: str) -> str:
@@ -85,7 +106,7 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
         )
 
     try:
-        root = ET.fromstring(parse_source)
+        root = ET.fromstring(_without_html_named_entities(parse_source))
     except ET.ParseError as exc:
         line, column = _line_for_parse_error(exc)
         return ParseResult(

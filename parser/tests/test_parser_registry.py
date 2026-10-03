@@ -28,7 +28,7 @@ def test_shared_registry_declares_roots_and_parser_analysis_inputs():
 
     assert cobol_entry.root_entity_types == ("program",)
     assert copybook_entry.root_entity_types == ("copybook",)
-    assert cobol_entry.parser_version == "cobol-structure-4"
+    assert cobol_entry.parser_version == "cobol-structure-5"
     assert cobol_entry.grammar_fingerprint is not None
     assert len(cobol_entry.grammar_fingerprint()) == 64
 
@@ -74,7 +74,7 @@ def test_registry_inputs_preserve_existing_cobol_analysis_fingerprint():
     legacy_fingerprint = analysis_fingerprint(
         source_revision="blob-sha",
         profile=BuildProfile(),
-        parser_version="cobol-structure-4",
+        parser_version="cobol-structure-5",
     )
 
     assert shared_fingerprint == legacy_fingerprint

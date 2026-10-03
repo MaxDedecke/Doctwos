@@ -816,13 +816,28 @@ _PROCEDURE_COPYBOOK_VERBS = {
 }
 
 
+def _has_word_sequence(tokens: list[lexer_mod.Token], first: str, second: str) -> bool:
+    for prev, tok in zip(tokens, tokens[1:]):
+        if (
+            prev.kind == "WORD"
+            and tok.kind == "WORD"
+            and prev.value.upper() == first
+            and tok.value.upper() == second
+        ):
+            return True
+    return False
+
+
 def _is_procedure_copybook(
     text: str, tokens: list[lexer_mod.Token], embedded_blocks: list[embedded_mod.EmbeddedBlock]
 ) -> bool:
-    upper_text = text.upper()
-    if "PROCEDURE DIVISION" in upper_text:
+    # Kommentare (``*Procedure Division Copybook ...``) zählen nicht: geprüft
+    # wird auf den Token-Strom, der Kommentarzeilen nicht enthält.
+    if _has_word_sequence(tokens, "PROCEDURE", "DIVISION"):
         return True
-    if "DATA DIVISION" in upper_text or "WORKING-STORAGE SECTION" in upper_text:
+    if _has_word_sequence(tokens, "DATA", "DIVISION") or _has_word_sequence(
+        tokens, "WORKING-STORAGE", "SECTION"
+    ):
         return False
 
     first_tok = None
@@ -920,8 +935,7 @@ def parse_copybook(
             end_line=end_line,
             divisions=[Division("PROCEDURE", start_line, end_line)],
         )
-        upper_text = text.upper()
-        if "PROCEDURE DIVISION" in upper_text:
+        if _has_word_sequence(tokens, "PROCEDURE", "DIVISION"):
             header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER."
         else:
             header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER. PROCEDURE DIVISION."
