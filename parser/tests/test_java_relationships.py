@@ -650,3 +650,32 @@ class Client {}
     assert imports["api.Service.*"].meta["target_qualified_name"] == "api.Service"
     assert imports["java.util.List"].resolution == "unresolved"
     assert imports["org.slf4j.Logger"].resolution == "unresolved"
+
+
+def test_overload_is_chosen_from_inferred_argument_types():
+    """O-309: `List.of(...)`, Casts, `X.class` und `"a" + b` liefern belegbare Argumenttypen für die Überladungswahl."""
+    source = (
+        "package app;\n"
+        "import java.util.List;\n"
+        "class Panel {\n"
+        "  void setChoices(List<String> choices) {}\n"
+        "  void setChoices(IModel<String> model) {}\n"
+        "  void put(Class<?> type) {}\n"
+        "  void put(String name) {}\n"
+        "  void run(Object o) {\n"
+        "    setChoices(List.of(\"a\"));\n"
+        "    put(Panel.class);\n"
+        "    put(\"x\" + o);\n"
+        "    setChoices(o);\n"
+        "    setChoices(List.of(\"a\").get(0));\n"
+        "  }\n"
+        "}\n"
+    )
+    result = parse_java_file(source, "app/Panel.java")
+    resolve_global_edges([result])
+    calls = {(e.src_start_line, e.dst_name): e for e in result.edges if e.type == "CALLS"}
+    assert calls[(9, "setChoices")].meta["target_qualified_name"] == "app.Panel#setChoices(List<String>)"
+    assert calls[(10, "put")].meta["target_qualified_name"] == "app.Panel#put(Class<?>)"
+    assert calls[(11, "put")].meta["target_qualified_name"] == "app.Panel#put(String)"
+    assert calls[(12, "setChoices")].resolution == "unresolved"  # `o` hat keinen belegbaren Typ
+    assert calls[(13, "setChoices")].resolution == "unresolved"  # `.get(0)` ist nicht die Fabrik selbst

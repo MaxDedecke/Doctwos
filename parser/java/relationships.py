@@ -49,6 +49,47 @@ _ASSIGNMENT_OPERATORS = {
 }
 
 
+# Statische JDK-Fabriken, deren Rückgabetyp der Typname selbst bestimmt (O-309): `List.of(...)` ist eine `List`.
+_STATIC_FACTORY_TYPES = {
+    "List": {"of", "copyOf"}, "Set": {"of", "copyOf"}, "Map": {"of", "copyOf", "ofEntries"},
+    "Optional": {"of", "ofNullable", "empty"}, "Arrays": {"asList"}, "String": {"valueOf", "format", "join"},
+}
+_STATIC_FACTORY_RETURNS = {("Arrays", "asList"): "List", ("String", "valueOf"): "String",
+                           ("String", "format"): "String", ("String", "join"): "String"}
+
+
+def _whole_call(text: str, open_index: int) -> bool:
+    """Ob die Klammer ab `open_index` erst am Ende des Ausdrucks schließt (der Aufruf ist der ganze Ausdruck)."""
+    depth = 0
+    in_string = False
+    for index in range(open_index, len(text)):
+        char = text[index]
+        if char == '"' and text[index - 1:index] != "\\":
+            in_string = not in_string
+        elif not in_string:
+            depth += (char == "(") - (char == ")")
+            if depth == 0:
+                return index == len(text) - 1
+    return False
+
+
+def _inferred_expression_type(text: str) -> str | None:
+    """Belegbarer Typ eines Argumentausdrucks, sonst None (nie raten)."""
+    if re.fullmatch(r"[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.class", text):
+        return "Class"
+    cast = re.fullmatch(
+        r"\(([A-Z][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:<[^()]*>)?\)[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*(?:\(.*\))?", text
+    )
+    if cast:  # `(Typ) name.chain(...)`: kein Operator außerhalb von Klammern, der den Typ ändern könnte
+        return cast.group(1)
+    if re.match(r'"(?:[^"\\]|\\.)*"\+', text):
+        return "String"  # Zeichenkettenliteral + Ausdruck ist immer ein String
+    factory = re.match(r"([A-Z][\w$]*)\.([a-z][\w$]*)\(", text)
+    if factory and factory.group(2) in _STATIC_FACTORY_TYPES.get(factory.group(1), ()) and _whole_call(text, factory.end() - 1):
+        return _STATIC_FACTORY_RETURNS.get((factory.group(1), factory.group(2)), factory.group(1))
+    return None
+
+
 class JavaRelationshipVisitor(JavaParserVisitor):
     """Collect source-backed Java edges while walking declarations and bodies."""
 
@@ -502,7 +543,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 result.append("char")
             else:
                 match = re.fullmatch(r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)", text)
-                result.append(match.group(1) if match else None)
+                result.append(match.group(1) if match else _inferred_expression_type(text))
         return result
 
     def visitMethodCall(self, context):
