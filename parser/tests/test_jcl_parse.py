@@ -67,3 +67,20 @@ def test_dd_data_and_dlm_keep_jcl_looking_lines_inside_the_data():
     )
     steps = [e.name for e in parse_jcl_file(source, "x.jcl").entities if e.type == "jcl_step"]
     assert steps == ["A", "C"]
+
+
+def test_job_level_dd_statements_belong_to_the_job():
+    """`JOBLIB` und seine Fortsetzungs-DDs vor dem ersten EXEC sind Datenzugriffe des Jobs."""
+    source = (
+        "//J1 JOB\n"
+        "//JOBLIB DD DSN=OEM.DB2.SDSNLOAD,DISP=SHR\n"
+        "//  DD DSN=CEE.SCEERUN,DISP=SHR\n"
+        "//A EXEC PGM=IEWL\n"
+        "//SYSLIB DD DSN=SYS1.LINKLIB,DISP=SHR\n"
+    )
+    result = parse_jcl_file(source, "x.jcl")
+    by_target = {e.dst_name: e for e in result.edges if e.type in {"READS", "WRITES", "USES_DATASET"}}
+    assert set(by_target) == {"OEM.DB2.SDSNLOAD", "CEE.SCEERUN", "SYS1.LINKLIB"}
+    assert by_target["OEM.DB2.SDSNLOAD"].src_name.endswith("::job:J1") and by_target["OEM.DB2.SDSNLOAD"].meta["dd_scope"] == "job"
+    assert by_target["CEE.SCEERUN"].src_name.endswith("::job:J1")
+    assert by_target["SYS1.LINKLIB"].src_name.endswith("::step:A") and by_target["SYS1.LINKLIB"].meta["dd_scope"] == "step"

@@ -222,7 +222,9 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
                 ))
             continue
 
-        if keyword != "DD" or current_step is None:
+        # `JOBLIB`/`JOBCAT` stehen vor dem ersten EXEC und gehören dem Job, nicht einem Step.
+        owner = current_step or (current_job if current_proc is None else None)
+        if keyword != "DD" or owner is None:
             continue
         dataset_name = _value(_DSN.search(arguments))
         if not dataset_name or re.fullmatch(r"(?i)(?:DUMMY|SYSOUT=.*)", dataset_name):
@@ -250,11 +252,12 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
         else:
             edge_type, access_basis = "USES_DATASET", "JCL does not declare application read/write mode"
         edges.append(ParsedEdge(
-            type=edge_type, src_name=current_step.qualified_name or current_step.name,
+            type=edge_type, src_name=owner.qualified_name or owner.name,
             dst_name=dataset_name, resolution="dynamic" if dynamic else "resolved",
             src_start_line=line, src_end_line=statement["end_line"],
             meta={
                 "language": "jcl", "ddname": statement["label"] or None,
+                "dd_scope": "step" if owner is current_step else "job",
                 "disposition": disposition, "access_certainty": "possible" if edge_type in {"READS", "WRITES"} else "certain",
                 "access_basis": access_basis,
                 "target_qualified_name": None if dynamic else dataset.qualified_name,
