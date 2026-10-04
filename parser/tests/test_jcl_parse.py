@@ -37,3 +37,33 @@ def test_column_aligned_step_still_parses_and_continuation_cards_stay_with_their
     free = parse_jcl_file(FREE_SPACING, "app/jcl/POSTTRAN.jcl")
     jobs = [e for e in free.entities if e.type == "jcl_job"]
     assert [(j.name, j.start_line) for j in jobs] == [("POSTTRAN", 1)]
+
+
+def test_instream_star_data_ends_at_the_next_jcl_statement_without_a_delimiter():
+    """`DD *` ohne `/*` endet an der nächsten `//`-Zeile (CardDemo `IMSMQCMP.jcl` verlor sonst drei Steps)."""
+    source = (
+        "//J1 JOB\n"
+        "//A EXEC PGM=IEBGENER\n"
+        "//SYSUT1 DD *\n"
+        "  INCLUDE X\n"
+        "//SYSUT2 DD DSN=&&T,DISP=(NEW,PASS)\n"
+        "//B EXEC PGM=IEWL\n"
+        "//SYSLIB DD DSN=SYS1.LINKLIB,DISP=SHR\n"
+    )
+    result = parse_jcl_file(source, "x.jcl")
+    steps = [e.name for e in result.entities if e.type == "jcl_step"]
+    assert steps == ["A", "B"]
+    assert any(e.dst_name == "SYS1.LINKLIB" for e in result.edges)
+
+
+def test_dd_data_and_dlm_keep_jcl_looking_lines_inside_the_data():
+    source = (
+        "//J1 JOB\n"
+        "//A EXEC PGM=IEBGENER\n"
+        "//SYSUT1 DD DATA,DLM=ZZ\n"
+        "//B EXEC PGM=NOT.A.STEP\n"
+        "ZZ\n"
+        "//C EXEC PGM=IEWL\n"
+    )
+    steps = [e.name for e in parse_jcl_file(source, "x.jcl").entities if e.type == "jcl_step"]
+    assert steps == ["A", "C"]

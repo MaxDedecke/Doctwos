@@ -68,7 +68,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "jcl": ParserEntry(
         parse=parse_jcl_file,
         root_entity_types=("jcl_file",),
-        parser_version="jcl-structure-2",
+        parser_version="jcl-structure-3",
     ),
     "cobol": ParserEntry(
         parse=_parse_cobol,

@@ -25,11 +25,18 @@ def _logical_statements(source: str):
     """Yield fixed-column JCL statements with physical start/end lines."""
     current: dict | None = None
     in_stream = False
+    stream_delimiter = "/*"
+    stream_ends_at_jcl = True
     for line_number, line in enumerate(source.splitlines(), 1):
         if in_stream:
-            if line.startswith("/*"):
+            if line.startswith(stream_delimiter):
                 in_stream = False
-            continue
+                continue
+            if stream_ends_at_jcl and line.startswith("//"):
+                # `DD *` endet auch ohne `/*` an der nächsten JCL-Anweisung; diese Zeile gehört dem Job.
+                in_stream = False
+            else:
+                continue
         if line.startswith("//*"):
             continue
         if not line.startswith("//"):
@@ -56,6 +63,10 @@ def _logical_statements(source: str):
             current = {"label": label, "operand": operand, "line": line_number, "end_line": line_number}
             if keyword == "DD" and re.match(r"^DD\s+(?:\*|DATA)(?:\s|,|$)", operand, re.I):
                 yield current
+                dlm = re.search(r"\bDLM\s*=\s*'?([^',\s]+)", operand, re.I)
+                # `DD DATA` und `DLM=` erlauben `//`-Zeilen in den Daten; nur das Endezeichen beendet sie.
+                stream_ends_at_jcl = not (re.match(r"^DD\s+DATA\b", operand, re.I) or dlm)
+                stream_delimiter = dlm.group(1) if dlm else "/*"
                 current = None
                 in_stream = True
         elif current is not None:
