@@ -2,7 +2,7 @@
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
-import { DEFAULT_EMBEDDING_MODEL } from '@/hooks/useAiSettings';
+import { sourceEmbeddingState } from '@/lib/embeddingModel';
 import {
   Select,
   SelectContent,
@@ -275,8 +275,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
               const meta = getConnectorMetadata(inst.type);
               const isPinned = pinnedSourceIds.includes(Number(inst.id));
               const project = projects.find((p) => p.id === inst.project_id);
-              const sourceEmbeddingModel = inst.embedding_model || DEFAULT_EMBEDDING_MODEL;
-              const embeddingModelMismatch = sourceEmbeddingModel !== activeEmbeddingModel;
+              const { label: sourceEmbeddingModel, mismatch: embeddingModelMismatch } = sourceEmbeddingState(inst.embedding_model, activeEmbeddingModel);
 
               return (
                 <div
