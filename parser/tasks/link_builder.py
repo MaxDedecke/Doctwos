@@ -353,12 +353,50 @@ async def _pass_semantic(
     return result
 
 
+# Obergrenze für den Arbeitsspeicher-Korpus des Keyword-Passes (Zeichen kleingeschriebenen Chunk-Texts).
+# Darüber bleibt es beim bisherigen Lesen je Entity, damit ein sehr großer Bestand den Worker nicht sprengt.
+KEYWORD_CORPUS_MAX_CHARS = int(os.getenv("LINK_KEYWORD_CORPUS_MAX_CHARS", str(400_000_000)))
+
+
+class KeywordCorpus:
+    """Kleingeschriebene Chunk-Texte eines Projekts, einmal je Lauf entschlüsselt.
+
+    DocumentChunk.content ist at rest verschlüsselt; ein SQL-Filter auf den Inhalt ist nicht möglich. Statt für
+    jede Entity alle Chunks erneut zu lesen und zu entschlüsseln (Kosten Entities x Chunks), liegt der Text
+    einmal im Speicher. Die Treffer bleiben gleich: Teilstring-Suche, Reihenfolge nach Chunk-ID.
+    """
+
+    def __init__(self, db, project_id: int, embedding_model: str | None = None):
+        selected_model = embedding_model or config.EMBED_MODEL
+        self.items: list[tuple[int, str]] | None = []
+        total = 0
+        rows = (
+            db.query(DocumentChunk.id, DocumentChunk.content)
+            .filter(
+                DocumentChunk.project_id == project_id,
+                DocumentChunk.source_id.isnot(None),
+                _embedding_model_filter(selected_model),
+            )
+            .order_by(DocumentChunk.id)
+            .yield_per(500)
+        )
+        for chunk_id, content in rows:
+            text = (content or "").lower()
+            total += len(text)
+            if total > KEYWORD_CORPUS_MAX_CHARS:
+                self.items = None
+                logger.warning("[LinkBuilder] Keyword-Korpus über %s Zeichen; lese je Entity", KEYWORD_CORPUS_MAX_CHARS)
+                return
+            self.items.append((chunk_id, text))
+
+
 def _pass_keyword(
     entity: CodeEntity,
     project_id: int,
     db,
     embedding_model: str | None = None,
     candidate_chunk_ids: set[int] | None = None,
+    corpus: "KeywordCorpus | None" = None,
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -372,6 +410,34 @@ def _pass_keyword(
     if not keywords:
         return {}
 
+    if corpus is not None and corpus.items is not None:
+        matched: list[tuple[int, float]] = []
+        for chunk_id, text in corpus.items:
+            if candidate_chunk_ids is not None and chunk_id not in candidate_chunk_ids:
+                continue
+            hits = sum(1 for kw in keywords if kw in text)
+            if hits == 0:
+                continue
+            if len(matched) + 1 > TOP_CHUNKS_KEYWORD:
+                break
+            matched.append((chunk_id, hits / len(keywords)))
+        wanted = [(chunk_id, score) for chunk_id, score in matched if score >= MIN_SCORE_KEYWORD]
+        if not wanted:
+            return {}
+        by_id = {
+            chunk.id: chunk
+            for chunk in db.query(DocumentChunk).filter(DocumentChunk.id.in_([chunk_id for chunk_id, _ in wanted]))
+        }
+        result: dict[str, tuple] = {}
+        for chunk_id, score in wanted:
+            chunk = by_id.get(chunk_id)
+            if chunk is None:
+                continue
+            title = _candidate_key(chunk, chunk.metadata_json or {})
+            if title not in result or score > result[title][1]:
+                result[title] = (chunk, score)
+        return result
+
     query = db.query(DocumentChunk).filter(
         DocumentChunk.project_id == project_id,
         DocumentChunk.source_id.isnot(None),
@@ -379,7 +445,8 @@ def _pass_keyword(
     )
     if candidate_chunk_ids is not None:
         query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
-    candidates = query.all()
+    # Feste Reihenfolge: Die Obergrenze TOP_CHUNKS_KEYWORD schneidet sonst je nach Heap-Reihenfolge anders ab.
+    candidates = query.order_by(DocumentChunk.id).all()
 
     result: dict[str, tuple] = {}
     matched_chunks = 0
@@ -755,6 +822,7 @@ async def compute_entity_links_async(
         ] = {}
 
         await ensure_model_pulled(selected_embedding_model)
+        keyword_corpus = KeywordCorpus(db, project_id, selected_embedding_model)
 
         for processed_index, entity in enumerate(entities, start=1):
             db.refresh(run)
@@ -806,7 +874,7 @@ async def compute_entity_links_async(
                 entity_context=entity_context,
             )
             keyword = _pass_keyword(
-                entity, project_id, db, selected_embedding_model, candidate_chunk_ids
+                entity, project_id, db, selected_embedding_model, candidate_chunk_ids, corpus=keyword_corpus
             )
 
             top_pages = _exclude_own_source(entity, _merge_passes(

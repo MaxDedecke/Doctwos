@@ -293,3 +293,48 @@ def test_llm_review_prompt_has_no_example_confidence(monkeypatch):
     chunk = SimpleNamespace(content="CBPAUP0C", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
     asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))
     assert '"confidence": 85' not in seen["prompt"] and "nicht für alle Kandidaten denselben Wert" in seen["prompt"]
+
+
+def test_keyword_corpus_gives_the_same_candidates_as_the_per_entity_scan(db_session, test_project, monkeypatch):
+    """O-181: Der einmal je Lauf gebaute Korpus ändert die Treffer nicht; auch die Obergrenze schneidet gleich ab."""
+    import tasks.link_builder as link_builder
+
+    project_id, source_id = test_project
+    entity = CodeEntity(project_id=project_id, file_path="src/payroll_calculator.py", name="calculate_payroll", type="function")
+    db_session.add(entity)
+    db_session.add_all(
+        DocumentChunk(
+            project_id=project_id, source_id=source_id, file_path=f"docs/payroll_{index}.pdf",
+            content="Calculate payroll runs monthly." if index % 3 else "Unrelated gardening notes.",
+        )
+        for index in range(12)
+    )
+    db_session.commit()
+    db_session.refresh(entity)
+    monkeypatch.setattr(link_builder, "TOP_CHUNKS_KEYWORD", 5)
+
+    scanned = link_builder._pass_keyword(entity, project_id, db_session)
+    cached = link_builder._pass_keyword(
+        entity, project_id, db_session, corpus=link_builder.KeywordCorpus(db_session, project_id)
+    )
+
+    assert scanned and {key: (value[0].id, value[1]) for key, value in scanned.items()} == {
+        key: (value[0].id, value[1]) for key, value in cached.items()
+    }
+    delta = {chunk.id for chunk in db_session.query(DocumentChunk).filter(DocumentChunk.project_id == project_id).limit(4)}
+    assert set(link_builder._pass_keyword(entity, project_id, db_session, candidate_chunk_ids=delta)) == set(
+        link_builder._pass_keyword(
+            entity, project_id, db_session, candidate_chunk_ids=delta,
+            corpus=link_builder.KeywordCorpus(db_session, project_id),
+        )
+    )
+
+
+def test_keyword_corpus_over_the_memory_cap_falls_back_to_the_scan(db_session, test_project, monkeypatch):
+    import tasks.link_builder as link_builder
+
+    project_id, source_id = test_project
+    db_session.add(DocumentChunk(project_id=project_id, source_id=source_id, file_path="docs/a.pdf", content="payroll text"))
+    db_session.commit()
+    monkeypatch.setattr(link_builder, "KEYWORD_CORPUS_MAX_CHARS", 3)
+    assert link_builder.KeywordCorpus(db_session, project_id).items is None
