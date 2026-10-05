@@ -1289,6 +1289,19 @@
     "scopeLabel": "Scope ({{count}} Quellen)",
     "scopeHint": "Der Cross-Source-Lauf bleibt auf das ausgewählte Projekt und mindestens zwei Quellen begrenzt.",
     "scopeNoSources": "Keine Projektquellen verfügbar.",
+    "runOptions": {
+      "label": "Erweitert",
+      "hint": "Optionen dieses Laufs. Leere Felder verwenden den Standard des Servers (Platzhalter).",
+      "reviewConcurrency": "Parallele Bewertungen",
+      "reviewBatchSize": "Kandidaten je Modellaufruf (0 = alle)",
+      "topKSemantic": "Semantische Kandidaten (Top-k)",
+      "topKKeyword": "Stichwort-Kandidaten (Top-k)",
+      "mergeThreshold": "Mindest-Score vor der Bewertung",
+      "minScoreSemantic": "Mindest-Ähnlichkeit (semantisch)",
+      "minScoreKeyword": "Mindest-Trefferanteil (Stichwort)",
+      "dedupeByChunk": "Jeden Abschnitt einzeln bewerten (statt einer Seite)",
+      "reset": "Zurücksetzen"
+    },
     "budget": {
       "label": "Budget",
       "hint": "Maximale Zahl Code-Entitäten bzw. Dokument-Abschnitte je Lauf (1–5000). Im Job Center kann ein begrenzter Lauf fortgesetzt oder ein aktiver Lauf abgebrochen werden.",

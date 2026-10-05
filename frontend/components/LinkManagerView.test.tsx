@@ -331,6 +331,26 @@ describe('LinkManagerView', () => {
       expect(screen.getByText(/Suche gestartet/)).toBeTruthy();
     });
 
+    it('gibt die erweiterten Lauf-Optionen nur gesetzt und begrenzt an den Entity-Lauf weiter', async () => {
+      const fetchMock = stubFetch();
+
+      renderView({ currentUser: { is_admin: true } });
+      fireEvent.change(await screen.findByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
+      fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung'), { target: { value: '0.8' } });
+      fireEvent.click(screen.getByLabelText('Jeden Abschnitt einzeln bewerten (statt einer Seite)'));
+
+      fireEvent.click(screen.getByRole('button', { name: /Automatisch verknüpfen/ }));
+
+      await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').length).toBeGreaterThan(0));
+      const entityRun = calls(fetchMock, '/compute', 'POST').find(u => u.includes('/link-recommendations/compute'))!;
+      expect(entityRun).toContain('review_concurrency=8');
+      expect(entityRun).toContain('merge_threshold=0.8');
+      expect(entityRun).toContain('dedupe_by_chunk=true');
+      expect(entityRun).not.toContain('top_k_semantic');
+      // Der Cross-Source-Lauf kennt diese Optionen nicht.
+      expect(calls(fetchMock, '/knowledge-links/compute', 'POST').every(u => !u.includes('review_concurrency'))).toBe(true);
+    });
+
     it('zeigt den Topics-Bereich nur Admins', async () => {
       stubFetch();
 

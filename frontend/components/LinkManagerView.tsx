@@ -40,6 +40,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { TopicsPanel } from './TopicsPanel';
 import type { KnowledgeSource } from '@/types/domain';
+import { LINK_RUN_OPTION_FIELDS, clampRunOption, linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -207,6 +208,7 @@ export function LinkManagerView({
   const [minScore, setMinScore] = useState(0);
   const [minConfidence, setMinConfidence] = useState<number>(readStoredMinConfidence);
   const [maxItems, setMaxItems] = useState(200);
+  const [runOptions, setRunOptions] = useState<LinkRunOptions>({});
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
@@ -486,7 +488,8 @@ export function LinkManagerView({
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
-    const confidenceParam = `min_confidence=${minConfidence}&max_items=${limit}`;
+    const optionsQuery = linkRunOptionsQuery(runOptions);
+    const confidenceParam = `min_confidence=${minConfidence}&max_items=${limit}${optionsQuery ? `&${optionsQuery}` : ''}`;
     const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
     const calls: Promise<Response>[] = [
       api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }),
@@ -1037,6 +1040,47 @@ export function LinkManagerView({
                   <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
                   <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
                 </button>
+                <details className="relative" data-testid="link-run-options">
+                  <summary className={cn('cursor-pointer list-none text-[0.625rem] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)} title={t('linkManagerView.runOptions.hint')}>
+                    {t('linkManagerView.runOptions.label')}
+                  </summary>
+                  <div className={cn('absolute right-0 top-full z-30 mt-1 w-72 rounded-md border p-3 shadow-lg', dropdownBg)}>
+                    <p className={cn('mb-2 text-[0.625rem] leading-relaxed', subText)}>{t('linkManagerView.runOptions.hint')}</p>
+                    <div className="space-y-1.5">
+                      {LINK_RUN_OPTION_FIELDS.map(field => (
+                        <label key={field.key} className={cn('flex items-center justify-between gap-2 text-[0.625rem]', subText)}>
+                          <span>{t(`linkManagerView.runOptions.${field.key}`)}</span>
+                          <input
+                            type="number" min={field.min} max={field.max} step={field.step}
+                            value={runOptions[field.key] ?? ''} placeholder={field.placeholder} disabled={isComputing}
+                            aria-label={t(`linkManagerView.runOptions.${field.key}`)}
+                            onChange={event => {
+                              const raw = event.target.value;
+                              setRunOptions(previous => {
+                                const next = { ...previous };
+                                if (raw === '' || Number.isNaN(Number(raw))) delete next[field.key];
+                                else next[field.key] = clampRunOption(field, Number(raw));
+                                return next;
+                              });
+                            }}
+                            className={cn('w-16 rounded border bg-transparent px-1 text-right focus:outline-none disabled:opacity-50', isDark ? 'border-ds-zinc-700 text-ds-zinc-200' : 'border-ds-zinc-300 text-ds-zinc-800')}
+                          />
+                        </label>
+                      ))}
+                      <label className={cn('flex items-center gap-2 text-[0.625rem]', subText)}>
+                        <input
+                          type="checkbox" checked={Boolean(runOptions.dedupeByChunk)} disabled={isComputing}
+                          onChange={event => setRunOptions(previous => ({ ...previous, dedupeByChunk: event.target.checked }))}
+                        />
+                        <span>{t('linkManagerView.runOptions.dedupeByChunk')}</span>
+                      </label>
+                    </div>
+                    <button type="button" onClick={() => setRunOptions({})} disabled={isComputing}
+                      className={cn('mt-2 text-[0.625rem] underline disabled:opacity-40', cardMuted)}>
+                      {t('linkManagerView.runOptions.reset')}
+                    </button>
+                  </div>
+                </details>
                 {isAdmin && <details className="relative">
                   <summary className={cn('cursor-pointer list-none text-[0.625rem] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
                     {t('linkManagerView.scopeLabel', { count: selectedScopeSourceIds.length })}

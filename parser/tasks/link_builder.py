@@ -47,6 +47,7 @@ from models.database import (
 from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, ensure_model_pulled
 from core import config
 from chunk_reindex import content_fingerprint
+import httpx
 import redis
 from celery import current_app
 from sqlalchemy import or_
@@ -418,6 +419,9 @@ class LinkRunParams:
         return {name: getattr(self, name) for name in self.__dataclass_fields__ if name != "LIMITS"}
 
 
+LLM_REVIEW_TIMEOUT = float(os.getenv("LINK_LLM_REVIEW_TIMEOUT", "180"))
+
+
 # Kontexte, deren Embeddings der Lauf gebündelt vorausberechnet (ein Aufruf statt einem je Entity;
 # gemessen mit bge-m3 auf der GPU: 23 ms statt 179 ms je Kontext bei 16 Texten).
 LINK_EMBED_WINDOW = _DEFAULT_EMBED_WINDOW
@@ -672,7 +676,13 @@ async def _llm_review_once(
     )
 
     try:
-        response = await get_chat_json(prompt, config.LLM_MODEL)
+        # Bei parallelen Bewertungen wartet eine Anfrage in der Warteschlange des Modellservers; das Standard-
+        # Zeitlimit von 60 s ist dann zu knapp. Ein Zeitüberschreitungsfehler wird einmal wiederholt.
+        try:
+            response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
+        except httpx.TimeoutException:
+            logger.warning("[LinkBuilder] LLM-Bewertung für %s: Zeitüberschreitung, zweiter Versuch", entity.name)
+            response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
         # Ollamas format="json" erzwingt beim Modell ein JSON-*Objekt*, nie ein
         # rohes Top-Level-Array (beobachtet z.B. {"valid_json_array": [...]}
         # mit beliebigem, nicht vorhersagbarem Schlüsselnamen) - das angeforderte
@@ -704,7 +714,7 @@ async def _llm_review_once(
             reviewed.append((chunk, confidence / 100.0, link_type, reason))
         return reviewed
     except Exception as e:
-        raise RuntimeError(f"LLM-Prüfung für {entity.name} fehlgeschlagen: {e}") from e
+        raise RuntimeError(f"LLM-Prüfung für {entity.name} fehlgeschlagen: {type(e).__name__}: {e}") from e
 
 
 def _entity_content_hash(entity: CodeEntity) -> str:

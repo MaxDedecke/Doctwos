@@ -476,3 +476,37 @@ def test_store_reviewed_links_updates_pending_and_keeps_decisions(db_session, te
     assert rows[chunks[0].id].status == "approved" and rows[chunks[0].id].score is None  # Entscheidung bleibt
     assert rows[chunks[1].id].score == 0.8 and rows[chunks[1].id].context == reason
     assert rows[chunks[2].id].status == "pending" and rows[chunks[2].id].created_by == "auto"
+
+
+def test_llm_review_retries_once_after_a_timeout_and_names_the_error_type(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    import httpx
+
+    import tasks.link_builder as link_builder
+
+    entity = SimpleNamespace(type="program", name="CBPAUP0C", qualified_name="CBPAUP0C", file_path="CBPAUP0C.cbl")
+    chunk = SimpleNamespace(content="CBPAUP0C", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
+    reason = "Die README beschreibt dieses Programm und nennt dessen Zweck ausdrücklich im Detail."
+    attempts = []
+
+    async def slow_once(prompt, model, timeout=60.0, **kwargs):
+        attempts.append(timeout)
+        if len(attempts) == 1:
+            raise httpx.ReadTimeout("")
+        return {"index": 0, "confidence": 70, "reason": reason}
+
+    monkeypatch.setattr(link_builder, "get_chat_json", slow_once)
+    assert len(asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))) == 1
+    assert attempts == [link_builder.LLM_REVIEW_TIMEOUT] * 2
+
+    async def always_slow(prompt, model, timeout=60.0, **kwargs):
+        raise httpx.ReadTimeout("")
+
+    monkeypatch.setattr(link_builder, "get_chat_json", always_slow)
+    try:
+        asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))
+        raise AssertionError("erwartet: RuntimeError")
+    except RuntimeError as error:
+        assert "ReadTimeout" in str(error)  # vorher eine leere Meldung

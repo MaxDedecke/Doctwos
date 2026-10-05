@@ -1289,6 +1289,19 @@
     "scopeLabel": "Scope ({{count}} sources)",
     "scopeHint": "The cross-source run is limited to the selected project and at least two sources.",
     "scopeNoSources": "No project sources available.",
+    "runOptions": {
+      "label": "Advanced",
+      "hint": "Options for this run. Empty fields use the server default (shown as placeholder).",
+      "reviewConcurrency": "Parallel reviews",
+      "reviewBatchSize": "Candidates per model call (0 = all)",
+      "topKSemantic": "Semantic candidates (top-k)",
+      "topKKeyword": "Keyword candidates (top-k)",
+      "mergeThreshold": "Minimum score before review",
+      "minScoreSemantic": "Minimum similarity (semantic)",
+      "minScoreKeyword": "Minimum match share (keyword)",
+      "dedupeByChunk": "Review every section on its own (instead of one page)",
+      "reset": "Reset"
+    },
     "budget": {
       "label": "Budget",
       "hint": "Maximum code entities or document sections per run (1–5000). Resume a limited run or stop an active run in Job Center.",
