@@ -567,3 +567,54 @@ async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_
     assert len(requests) == 8 and [r.get("tool_choice") for r in requests[:-1]] == [None] * 7
     assert requests[-1]["tool_choice"] == "none"
     assert "Recherchebudget" in requests[-1]["input"][-1]["content"]
+
+
+async def _first_preflight(mcp_clients, mcp_initialization_status=None):
+    """Startet den Agenten und liefert nur das Preflight-Ereignis (der Lauf wird danach geschlossen)."""
+    events = run_agent_loop(
+        provider="ollama", model_name="test-model", api_key=None, base_url=None, system_prompt="System",
+        prompt="Was passiert hier?", temperature=0.2, repo_id=1, db_session=SimpleNamespace(),
+        mcp_clients=mcp_clients, ollama_base_url="http://ollama:11434", project_id=1,
+        mcp_initialization_status=mcp_initialization_status,
+    )
+    try:
+        async for event in events:
+            if event["type"] == "mcp_preflight":
+                return event
+    finally:
+        await events.aclose()
+    raise AssertionError("kein mcp_preflight-Ereignis")
+
+
+class _PreflightMcpClient:
+    def __init__(self, name, tools=None, error=None):
+        self.name, self._tools, self._error = name, tools or [], error
+
+    async def list_tools(self):
+        if self._error:
+            raise RuntimeError(self._error)
+        return [{"name": tool} for tool in self._tools]
+
+
+@pytest.mark.asyncio
+async def test_mcp_preflight_reports_not_configured_ready_and_unavailable():
+    """O-345: Vor dem Agentenlauf steht fest, ob und welche externen MCP-Werkzeuge verfügbar sind."""
+    none = await _first_preflight([])
+    assert (none["status"], none["servers"], none["tool_count"]) == ("not_configured", [], 0)
+
+    ready = await _first_preflight([_PreflightMcpClient("jira-3", ["jira_search", "jira_get_issue"])])
+    assert ready["status"] == "ready" and ready["tool_count"] == 2
+    assert ready["servers"][0]["tools"] == ["jira_search", "jira_get_issue"]
+
+    down = await _first_preflight([_PreflightMcpClient("jira-3", error="Verbindung abgelehnt")])
+    assert down["status"] == "unavailable" and down["tool_count"] == 0
+    assert "Verbindung abgelehnt" in down["servers"][0]["error"]
+
+    mixed = await _first_preflight([_PreflightMcpClient("jira-3", error="x"), _PreflightMcpClient("confluence-4", ["page_get"])])
+    assert mixed["status"] == "ready" and mixed["tool_count"] == 1
+    assert {item["server"]: item["available"] for item in mixed["servers"]} == {"jira-3": False, "confluence-4": True}
+
+    # Eine Quelle ohne Zugangsdaten ist nicht verfügbar und wird mit ihrem Grund gemeldet.
+    unconfigured = await _first_preflight([], [{"server": "jira-5", "available": False, "status": "not_configured"}])
+    assert unconfigured["status"] == "unavailable"
+    assert unconfigured["servers"][0]["status"] == "not_configured"

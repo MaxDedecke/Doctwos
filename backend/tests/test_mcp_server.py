@@ -176,6 +176,42 @@ def test_search_code_denies_a_project_the_mcp_user_cannot_open(
         mcp_server.search_code(_context(outsider.id), project_id=project_id, query="CARDDEMO")
 
 
+def test_every_project_tool_denies_a_user_without_project_access_with_the_same_generic_message(
+    db_session, mcp_project_context, monkeypatch
+):
+    """O-370: Ein Nutzer ohne Projektzugriff erfährt weder über die Entität noch über Eingabefehler etwas.
+
+    Der Zugriff wird vor der Eingabeprüfung entschieden; auch ein ungültiger Cursor oder ein außerhalb der Grenzen
+    liegender Wert ergibt dieselbe Meldung wie ein gültiger Aufruf."""
+    import asyncio
+
+    _use_test_session(monkeypatch, db_session)
+    _owner, outsider, project_id, _foreign_project_id = mcp_project_context
+    entity = CodeEntity(project_id=project_id, name="secret", type="method", file_path="src/Secret.java",
+                        qualified_name="demo.Secret#secret()", start_line=1, end_line=3)
+    db_session.add(entity)
+    db_session.commit()
+    ctx = _context(outsider.id)
+    denied = "MCP request failed or access denied"
+    calls = [
+        lambda: mcp_server.search_code(ctx, project_id=project_id, query="secret"),
+        lambda: mcp_server.research_project(ctx, project_id=project_id, query="Secret.secret"),
+        lambda: mcp_server.explain_symbol(ctx, project_id=project_id, symbol="demo.Secret#secret()"),
+        lambda: mcp_server.answer_context(ctx, project_id=project_id, symbols=["demo.Secret#secret()"], question="was tut secret"),
+        lambda: mcp_server.get_code_entity(ctx, project_id=project_id, entity_id=entity.id),
+        lambda: mcp_server.trace_data_access(ctx, project_id=project_id, entity_id=entity.id),
+        lambda: mcp_server.get_call_flow(ctx, project_id=project_id, entity_id=entity.id),
+        lambda: mcp_server.get_call_flow(ctx, project_id=project_id, entity_id=entity.id, cursor="nicht-gueltig", page_size=99, hops=9),
+        lambda: mcp_server.get_graph_neighbors(ctx, project_id=project_id, entity_id=entity.id),
+        lambda: asyncio.run(mcp_server.search_knowledge(ctx, project_id=project_id, query="secret")),
+    ]
+    for call in calls:
+        with pytest.raises(ValueError) as error:
+            call()
+        assert str(error.value) == denied or denied in str(error.value)
+        assert "secret" not in str(error.value).lower() and "cursor" not in str(error.value).lower()
+
+
 @pytest.mark.parametrize("direction", ["outgoing", "incoming", "both"])
 def test_get_call_flow_accepts_documented_directions(
     db_session, mcp_project_context, monkeypatch, direction
