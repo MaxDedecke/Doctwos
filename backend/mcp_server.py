@@ -94,7 +94,51 @@ def _symbol_key(value: str | None) -> str:
     return re.sub(r"\s+", "", value).strip(".")
 
 
+def _split_params(text: str) -> list[str]:
+    """Split a parameter list at top-level commas; generic arguments keep theirs."""
+    parts, depth, current = [], 0, ""
+    for char in text:
+        if char in "<(":
+            depth += 1
+        elif char in ">)":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    if current.strip():
+        parts.append(current)
+    return parts
+
+
+def _param_type(param: str) -> str:
+    """Parameter type without modifiers or a trailing parameter name (``final UserUR req`` -> ``userur``)."""
+    param = re.sub(r"\b(?:final)\b", " ", param.strip())
+    named = re.match(r"^(.*[>\]\w])\s+[\w$]+$", param.strip())
+    return re.sub(r"\s+", "", (named.group(1) if named else param)).casefold()
+
+
+def _query_signature(term: str) -> list[str] | None:
+    """Parameter types a query asks for, ``None`` when it names no signature."""
+    match = re.search(r"\((.*)\)\s*$", term.strip())
+    return [_param_type(part) for part in _split_params(match.group(1))] if match else None
+
+
+def _entity_signature(entity: CodeEntity) -> list[str] | None:
+    """Parameter types of a method/constructor (``Klasse#name(A,B)``); ``None`` for everything else."""
+    match = re.search(r"#[^#@()]*\((.*)\)$", entity.qualified_name or "")
+    return [_param_type(part) for part in _split_params(match.group(1))] if match else None
+
+
 def _symbol_matches(entity: CodeEntity, term: str) -> bool:
+    wanted = _query_signature(term)
+    if wanted is not None and _entity_signature(entity) != wanted:
+        return False
+    return _symbol_name_matches(entity, term)
+
+
+def _symbol_name_matches(entity: CodeEntity, term: str) -> bool:
     needle = _symbol_key(term)
     name = _symbol_key(entity.name)
     qualified = _symbol_key(entity.qualified_name)
@@ -1321,14 +1365,22 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                 file_programs = [item for item in exact if item["type"] in {"program", "cobol_program", "compilation_unit"}]
                 if file_programs:
                     exact = file_programs
+            overloads = []
+            if not exact and _query_signature(term) is not None:
+                # Name stimmt, Signatur nicht: vorhandene Überladungen zeigen statt eine fremde Signatur als exakt auszugeben.
+                overloads = [serialize(entity) for entity in by_id.values()
+                             if _symbol_name_matches(entity, term) and _entity_signature(entity) is not None
+                             and entity.type not in _NOISE_TYPES]
             match = {
                 "query": term,
                 "resolution": "unique_exact_match" if len(exact) == 1 else (
-                    "ambiguous" if len(exact) > 1 else "no_exact_match"
+                    "ambiguous" if len(exact) > 1 else ("signature_mismatch" if overloads else "no_exact_match")
                 ),
-                "candidates": exact[:limit],
-                "candidate_count": len(exact),
+                "candidates": (exact or overloads)[:limit],
+                "candidate_count": len(exact or overloads),
             }
+            if overloads:
+                match["notice"] = "Keine Überladung mit dieser Signatur im Index; die vorhandenen Überladungen stehen in `candidates`."
             if len(exact) == 1:
                 match["call_flow"] = _call_flow_page(
                     db, user, project_id, exact[0]["id"], hops=hops, direction="outgoing",

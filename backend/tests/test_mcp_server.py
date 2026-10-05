@@ -1129,3 +1129,33 @@ def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(db_sess
         "access": "ASSIGNED_DATASET", "target": "AWS.TRANSACT.KSDS", "lines": [30],
         "ddname": "TRANFILE", "via_jcl": "jcl/POSTTRAN.jcl:14", "certainty": "possible",
     }]
+
+
+def test_symbol_signature_must_match_the_overload():
+    def method(qualified):
+        return CodeEntity(name=qualified.split("#")[1].split("(")[0], type="method", qualified_name=qualified)
+
+    update = method("a.UserServiceImpl#update(UserUR)")
+    create = method("a.UserLogic#create(UserCR,boolean)")
+    matches = mcp_server._symbol_matches
+    assert matches(update, "UserServiceImpl.update")
+    assert matches(update, "UserServiceImpl#update(UserUR)")
+    assert matches(update, "UserServiceImpl.update(final UserUR req)")
+    assert not matches(update, "UserServiceImpl.update(UserTO)")
+    assert not matches(update, "UserServiceImpl.update()")
+    assert matches(create, "UserLogic.create(UserCR, boolean)")
+    assert not matches(create, "UserLogic.create(UserCR)")
+
+
+def test_research_project_reports_signature_mismatch_with_existing_overloads(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    qualified = "org.demo.UserServiceImpl#update(UserUR)"
+    db_session.add(CodeEntity(project_id=project_id, name="update", type="method", file_path="src/UserServiceImpl.java",
+                              qualified_name=qualified, start_line=1, end_line=5))
+    db_session.commit()
+    result = mcp_server.research_project(_context(user.id), project_id=project_id, query="UserServiceImpl.update(UserTO)")
+    assert result["resolution"] == "signature_mismatch"
+    assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
