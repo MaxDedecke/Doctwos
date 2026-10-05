@@ -187,6 +187,23 @@ def _make_link(db_session, project_id, entity, chunk=None, **overrides):
     return link
 
 
+def _more_chunks(db_session, project_id, source, count):
+    """Weitere Chunks derselben Quelle: je Paar (Entität, Chunk) gibt es höchstens einen Link (O-184).
+    Sie verschwinden mit der Quelle (Kaskade der Fixture)."""
+    chunks = [
+        DocumentChunk(
+            project_id=project_id, source_id=source.id, file_path=f"extra-{index}.md", content="Zusatz.",
+            start_line=1, end_line=1, metadata_json={"title": f"Extra {index}"},
+        )
+        for index in range(count)
+    ]
+    db_session.add_all(chunks)
+    db_session.commit()
+    for chunk in chunks:
+        db_session.refresh(chunk)
+    return chunks
+
+
 # ── GET /projects/{id}/link-recommendations ─────────────────────────────────
 
 
@@ -195,7 +212,8 @@ def test_get_link_recommendations_lists_links_with_counts(
 ):
     source, entity, chunk = source_entity_chunk
     pending = _make_link(db_session, test_project, entity, chunk, status="pending", score=0.9)
-    approved = _make_link(db_session, test_project, entity, chunk, status="approved", score=0.4)
+    # Je Paar (Entität, Chunk) gibt es höchstens einen Link (Unique-Constraint, O-184); der zweite hat keinen Chunk.
+    approved = _make_link(db_session, test_project, entity, None, status="approved", score=0.4)
     try:
         res = client.get(f"/projects/{test_project}/link-recommendations")
         assert res.status_code == 200
@@ -242,9 +260,10 @@ def test_get_link_recommendations_filters_by_status_and_min_score(
     client, db_session, test_project, source_entity_chunk
 ):
     source, entity, chunk = source_entity_chunk
+    other_one, other_two = _more_chunks(db_session, test_project, source, 2)
     low = _make_link(db_session, test_project, entity, chunk, status="pending", score=0.1)
-    high = _make_link(db_session, test_project, entity, chunk, status="pending", score=0.9)
-    approved = _make_link(db_session, test_project, entity, chunk, status="approved", score=0.9)
+    high = _make_link(db_session, test_project, entity, other_one, status="pending", score=0.9)
+    approved = _make_link(db_session, test_project, entity, other_two, status="approved", score=0.9)
     try:
         res = client.get(
             f"/projects/{test_project}/link-recommendations", params={"status": "pending"}
@@ -383,9 +402,10 @@ def test_trigger_link_computation_preserves_pending_and_reviewed_links(
     source, entity, chunk = source_entity_chunk
     # O-180: Die Route löscht Pending-Vorschläge nicht global. Der Worker
     # invalidiert sie nur, wenn der zugehörige Entity-/Chunk-Endpunkt dirty ist.
+    other_one, other_two = _more_chunks(db_session, test_project, source, 2)
     pending_id = _make_link(db_session, test_project, entity, chunk, status="pending").id
-    approved_id = _make_link(db_session, test_project, entity, chunk, status="approved").id
-    rejected_id = _make_link(db_session, test_project, entity, chunk, status="rejected").id
+    approved_id = _make_link(db_session, test_project, entity, other_one, status="approved").id
+    rejected_id = _make_link(db_session, test_project, entity, other_two, status="rejected").id
 
     with patch.object(entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
         res = client.post(f"/projects/{test_project}/link-recommendations/compute")
@@ -415,6 +435,29 @@ def test_trigger_link_computation_rejects_team_member_without_project(
         f"/projects/{test_project}/link-recommendations/compute"
     )
     assert res.status_code == 403
+
+
+def test_trigger_link_computation_records_validated_run_parameters(client, db_session, test_project):
+    """O-183: Nur gesetzte Parameter landen im Lauf; Werte außerhalb der Grenzen werden abgewiesen."""
+    with patch.object(entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
+        too_many = client.post(
+            f"/projects/{test_project}/link-recommendations/compute", params={"review_concurrency": 99}
+        )
+        too_low = client.post(
+            f"/projects/{test_project}/link-recommendations/compute", params={"merge_threshold": -0.1}
+        )
+        accepted = client.post(
+            f"/projects/{test_project}/link-recommendations/compute",
+            params={"top_k_semantic": 5, "review_concurrency": 2, "review_batch_size": 3, "dedupe_by_chunk": "true"},
+        )
+    assert too_many.status_code == 422 and too_low.status_code == 422
+    assert accepted.status_code == 200, accepted.text
+    run = db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == accepted.json()["run_id"]).one()
+    assert run.scope_json["params"] == {
+        "top_k_semantic": 5, "review_concurrency": 2, "review_batch_size": 3, "dedupe_by_chunk": True,
+    }
+    db_session.query(LinkBuilderRun).filter(LinkBuilderRun.project_id == test_project).delete(synchronize_session=False)
+    db_session.commit()
 
 
 def test_trigger_link_computation_deduplicates_when_run_is_active(
@@ -782,8 +825,9 @@ def test_get_entity_links_returns_only_approved(
     client, db_session, test_project, source_entity_chunk
 ):
     source, entity, chunk = source_entity_chunk
+    (other,) = _more_chunks(db_session, test_project, source, 1)
     approved = _make_link(db_session, test_project, entity, chunk, status="approved")
-    pending = _make_link(db_session, test_project, entity, chunk, status="pending")
+    pending = _make_link(db_session, test_project, entity, other, status="pending")
     try:
         res = client.get(f"/projects/{test_project}/entities/{entity.id}/links")
         assert res.status_code == 200

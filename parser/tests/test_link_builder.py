@@ -219,7 +219,7 @@ def _review_with(monkeypatch, response):
         return response
 
     monkeypatch.setattr(link_builder, "get_chat_json", fake_chat_json)
-    entity = SimpleNamespace(type="data_item", name="WS-AUTH-DATE", file_path="CBPAUP0C.cbl")
+    entity = SimpleNamespace(type="program", name="CBPAUP0C", qualified_name="CBPAUP0C", file_path="CBPAUP0C.cbl")
     chunk = SimpleNamespace(content="Text", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
     return asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))
 

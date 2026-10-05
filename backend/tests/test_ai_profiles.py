@@ -207,7 +207,7 @@ def test_llamacpp_profile_and_serving_limits_round_trip(client, db_session):
 
 
 def test_llamacpp_profile_requires_remote_chat_completions(client):
-    response = client.post("/ai-profiles", json=_payload(provider="llamacpp", kind="local"))
+    response = client.post("/ai-profiles", json=_payload(provider="llamacpp", kind="cloud"))
     assert response.status_code == 400
     assert "llama.cpp" in response.json()["detail"]
 
