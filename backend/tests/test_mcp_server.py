@@ -1159,3 +1159,42 @@ def test_research_project_reports_signature_mismatch_with_existing_overloads(
     result = mcp_server.research_project(_context(user.id), project_id=project_id, query="UserServiceImpl.update(UserTO)")
     assert result["resolution"] == "signature_mismatch"
     assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
+
+
+def test_answer_context_follows_a_data_field_back_to_its_origin(db_session, mcp_project_context, monkeypatch):
+    """O-346/Q6: Die Herkunftskette eines Feldes steht im Beweispaket, nicht nur seine Deklaration."""
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    paragraph = _method(project_id, "2100-EXTRACT", "DEMO.2100-EXTRACT", "src/DEMO.cbl", 9, 16, kind="paragraph")
+    amount = _method(project_id, "AMT-OUT", "DEMO.AMT-OUT", "src/DEMO.cbl", 3, 3, kind="data_item")
+    raw = _method(project_id, "AMT-RAW", "DEMO.AMT-RAW", "src/DEMO.cbl", 4, 4, kind="data_item")
+    buffer = _method(project_id, "MSG-BUFFER", "DEMO.MSG-BUFFER", "src/DEMO.cbl", 5, 5, kind="data_item")
+    other = _method(project_id, "OTHER-FIELD", "DEMO.OTHER-FIELD", "src/DEMO.cbl", 6, 6, kind="data_item")
+    db_session.add_all([paragraph, amount, raw, buffer, other])
+    db_session.flush()
+
+    def edge(kind, src, dst, line, operation, role):
+        return CodeEdge(project_id=project_id, src_entity_id=src.id, dst_entity_id=dst.id, dst_name=dst.name, type=kind,
+                        resolution="resolved", src_start_line=line, src_end_line=line,
+                        meta_json={"operation": operation, "operand_role": role})
+
+    db_session.add_all([
+        _chunk(project_id, "src/DEMO.cbl", [
+            "UNSTRING MSG-BUFFER", "   INTO AMT-RAW", "COMPUTE AMT-OUT =", "   NUMVAL(AMT-RAW)", "MOVE OTHER-FIELD TO X",
+        ], 10),
+        edge("READS", paragraph, buffer, 10, "UNSTRING", "source"),
+        edge("WRITES", paragraph, raw, 11, "UNSTRING", "target"),
+        edge("WRITES", paragraph, amount, 12, "COMPUTE", "result"),
+        edge("READS", paragraph, raw, 13, "COMPUTE", "source"),
+        edge("READS", paragraph, other, 14, "MOVE", "source"),
+    ])
+    db_session.commit()
+
+    result = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["AMT-OUT"],
+                                       question="Woher stammt AMT-OUT?")
+    chain = result["evidence"][0]["data_origin"]
+    assert [(step["field"], step["operation"], step["reads"]) for step in chain] == [
+        ("AMT-OUT", "COMPUTE", ["AMT-RAW"]),
+        ("AMT-RAW", "UNSTRING", ["MSG-BUFFER"]),
+    ]
+    assert chain[0]["line"] == 12 and chain[0]["cite"] == "src/DEMO.cbl:12" and "OTHER-FIELD" not in str(chain)

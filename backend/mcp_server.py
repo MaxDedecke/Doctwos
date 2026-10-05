@@ -920,6 +920,7 @@ def _fit_evidence(evidence: list[dict], limit: int) -> None:
         lambda e: e.get("expanded") and len(e["expanded"]) > 1 and e["expanded"].pop(),
         lambda e: e.get("helper_methods") and len(e["helper_methods"]) > 1 and e["helper_methods"].pop(),
         lambda e: e.pop("callees", None),
+        lambda e: e.get("data_origin") and len(e["data_origin"]) > 5 and e["data_origin"].pop(),
     ]
     for step in steps:
         for entry in reversed(evidence):
@@ -978,6 +979,73 @@ def _resolve_chain_target(db: Session, project_id: int, name: str) -> CodeEntity
     return (structural or rows or [None])[0]
 
 
+def _data_origin_chain(
+    db: Session, user: User, project_id: int, field: CodeEntity, depth: int = 4, max_steps: int = 10
+) -> list[dict]:
+    """Where a data field gets its value: indexed writes, followed backwards through the operands of each write.
+
+    A write edge carries the line of its own operand, so the operands read by the same statement are the READS
+    edges of the same routine and operation next to it (``MOVE``: the same line; other operations: up to two
+    lines below; ``STRING``/``UNSTRING``: the source operand above the target). The chain is an index fact per step, not a
+    path-sensitive runtime flow.
+    """
+    steps: list[dict] = []
+    seen = {field.id}
+    frontier = [field]
+    for _level in range(depth):
+        following: list[CodeEntity] = []
+        for current in frontier:
+            writes = db.query(CodeEdge).filter(
+                CodeEdge.project_id == project_id, CodeEdge.type == "WRITES", CodeEdge.dst_entity_id == current.id,
+            ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(4).all()
+            for write in writes:
+                if len(steps) >= max_steps:
+                    return steps
+                routine = db.query(CodeEntity).filter(
+                    CodeEntity.id == write.src_entity_id, CodeEntity.project_id == project_id).first()
+                if routine is None or not _source_visible(db, user, routine.source_id):
+                    continue
+                operation = (write.meta_json or {}).get("operation")
+                line = write.src_start_line or 0
+                reads = db.query(CodeEdge).filter(
+                    CodeEdge.project_id == project_id, CodeEdge.type == "READS",
+                    CodeEdge.src_entity_id == write.src_entity_id,
+                    CodeEdge.src_start_line.between(line - 25, line + 3),
+                ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(40).all()
+                operands: dict[int, str] = {}
+                for read in reads:
+                    meta = read.meta_json or {}
+                    if meta.get("operation") != operation or read.dst_entity_id in (None, current.id):
+                        continue
+                    read_line = read.src_start_line or 0
+                    if operation in {"STRING", "UNSTRING"}:
+                        near = meta.get("operand_role") == "source" and read_line <= line
+                    elif operation == "MOVE":
+                        near = read_line == line  # a MOVE is one line; neighbours are other statements
+                    else:
+                        near = meta.get("operand_role") == "source" and 0 <= read_line - line <= 2
+                    if near:
+                        operands[read.dst_entity_id] = read.dst_name
+                site = _site_excerpt(db, user, routine, line, 0) if line else None
+                steps.append({
+                    "field": current.name, "written_by": routine.name, "file": routine.file_path, "line": line,
+                    "cite": f"{routine.file_path}:{line}",
+                    "operation": operation, "statement": ((site or {}).get("text") or "")[:140],
+                    "reads": sorted(operands.values()),
+                })
+                for entity_id in operands:
+                    if entity_id not in seen:
+                        seen.add(entity_id)
+                        found = db.query(CodeEntity).filter(
+                            CodeEntity.id == entity_id, CodeEntity.project_id == project_id).first()
+                        if found is not None and found.type == "data_item":
+                            following.append(found)
+        if not following:
+            break
+        frontier = following
+    return steps
+
+
 def build_answer_context(
     db: Session, user: User, project_id: int, *, question: str = "", symbols: list[str] | None = None,
     topic: str = "", max_chars: int = 8000, use_embeddings: bool = True,
@@ -1030,6 +1098,14 @@ def build_answer_context(
     for term, entity, others, mode in primary:
         entry = _explain_entity(db, user, project_id, entity, others, mode, term, per_entity, None, None,
                                 with_context=True, used_by_limit=40 if callers_intent else 12, compact=True)
+        if entity.type == "data_item":
+            origin = _data_origin_chain(db, user, project_id, entity)
+            if origin:
+                entry["data_origin"] = origin
+                entry["data_origin_notice"] = (
+                    "Indexed writes of this field, followed backwards through the operands of each write "
+                    "(`reads`). Each step is an index fact with its source line; cite it as `cite`. It is not a complete runtime flow."
+                )
         if "outline" in entry:
             expanded = []
             child_budget = max(600, min(2200, int(per_entity * 0.62) // 5))
