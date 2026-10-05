@@ -1302,7 +1302,7 @@ def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
 
     asked = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
                                       question="Welche Copybooks bindet PAYPROG ein?")
-    copies = asked["evidence"][0]["copybooks"]
+    copies = asked["evidence"][0]["includes"]
     assert copies["counts"] == {"resolved": 1, "external": 1, "unresolved": 1}
     assert copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10" and copies["resolved"][0]["file"] == "src/CPYREC.cpy"
     assert (copies["external"][0]["name"], copies["external"][0]["category"]) == ("CMQV", "mq")
@@ -1311,7 +1311,7 @@ def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
 
     plain = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
                                       question="Was macht PAYPROG?")
-    assert "copybooks" not in plain["evidence"][0]  # ohne COPY-Frage keine zusätzliche Last im Paket
+    assert "includes" not in plain["evidence"][0]  # ohne COPY-Frage keine zusätzliche Last im Paket
 
 
 def test_answer_context_follows_a_data_field_back_to_its_origin(db_session, mcp_project_context, monkeypatch):
@@ -1351,3 +1351,134 @@ def test_answer_context_follows_a_data_field_back_to_its_origin(db_session, mcp_
         ("AMT-RAW", "UNSTRING", ["MSG-BUFFER"]),
     ]
     assert chain[0]["line"] == 12 and chain[0]["cite"] == "src/DEMO.cbl:12" and "OTHER-FIELD" not in str(chain)
+
+
+def test_language_profile_gives_cobol_java_and_jcl_the_same_roles():
+    from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
+
+    assert [role_of(t) for t in ("program", "paragraph", "data_item")] == ["container", "routine", "data"]
+    assert [role_of(t) for t in ("class", "method", "field")] == ["container", "routine", "data"]
+    assert [role_of(t) for t in ("jcl_job", "jcl_step", "jcl_dataset")] == ["container", "routine", "data"]
+    assert role_of("maven_module") is None and role_of(None) is None
+    assert profile_of("lambda").name == "java" and profile_of("section").name == "cobol"
+    assert {"PERFORM", "CALL", "CALLS", "EXECUTES"} <= CONTROL_EDGES and {"COPY", "IMPORTS", "EXTENDS"} <= INCLUDE_EDGES
+
+
+def _flow_entities(db_session, project_id, container_type, routine_type, file_path, names):
+    container = _method(project_id, "UNIT", "UNIT", file_path, 1, 200, kind=container_type)
+    routines = [_method(project_id, name, f"UNIT.{name}", file_path, 10 + 10 * i, 18 + 10 * i, kind=routine_type)
+                for i, name in enumerate(names)]
+    db_session.add_all([container, *routines])
+    db_session.flush()
+    return container, routines
+
+
+def _control(db_session, project_id, edge_type, source, target, line, resolution="resolved", external=None, name=None):
+    db_session.add(CodeEdge(
+        project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
+        dst_name=name or (target.name if target else "x"), type=edge_type, resolution=resolution,
+        src_start_line=line, src_end_line=line, meta_json={"external": external} if external else None))
+
+
+@pytest.mark.parametrize("container_type, routine_type, edge_type", [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")])
+def test_control_flow_block_works_for_cobol_and_java_the_same_way(
+    db_session, mcp_project_context, monkeypatch, container_type, routine_type, edge_type
+):
+    """O-346/Q3: Ein Baustein, zwei Sprachen: Ablauf einer Routine über zwei Stufen und Ablauf eines Containers."""
+    from services import evidence
+
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    unit, (main, init, work, leaf) = _flow_entities(
+        db_session, project_id, container_type, routine_type, "src/Unit.src", ["main", "init", "work", "leaf"])
+    _control(db_session, project_id, edge_type, main, init, 12)
+    _control(db_session, project_id, edge_type, main, work, 14)
+    _control(db_session, project_id, edge_type, main, None, 15, "unresolved", {"category": "logging"}, "LOG.debug")  # nicht listen
+    _control(db_session, project_id, edge_type, init, leaf, 22)
+    _control(db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call")
+    db_session.commit()
+    user_obj = db_session.get(type(user), user.id)
+
+    routine_flow = evidence.control_flow(db_session, user_obj, project_id, main)
+    steps = routine_flow["flow"][0]["calls"]
+    assert [(s["to"], s["line"], s["status"]) for s in steps] == [("init", 12, "resolved"), ("work", 14, "resolved")]
+    assert [t["to"] for t in steps[0]["then"]] == ["leaf"]  # zweite Stufe
+    assert steps[1]["then"] if "then" in steps[1] else True
+    assert steps[0]["cite"] == "src/Unit.src:12"
+    assert routine_flow["flow"][0].get("more_calls") == 1  # die unaufgelöste Bibliotheksstelle ist gezählt, nicht gelistet
+
+    unit_flow = evidence.control_flow(db_session, user_obj, project_id, unit)
+    assert [item["routine"] for item in unit_flow["flow"]] == ["UNIT.main", "UNIT.init", "UNIT.work"]  # Quelltextreihenfolge
+    assert unit_flow["routines_without_transfers"] == ["leaf"]
+    # Unaufgelöste Aufrufe bleiben sichtbar, wenn eine Routine nur solche hat.
+    assert unit_flow["flow"][2]["calls"][0]["status"] == "unresolved"
+
+
+def test_includes_block_serves_java_imports_and_inheritance_like_cobol_copy(db_session, mcp_project_context, monkeypatch):
+    from services import evidence
+
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    cls = _method(project_id, "UserServiceImpl", "demo.UserServiceImpl", "src/UserServiceImpl.java", 1, 80, kind="class")
+    unit = _method(project_id, "UserServiceImpl.java", "src/UserServiceImpl.java", "src/UserServiceImpl.java", 1, 80, kind="compilation_unit")
+    helper = _method(project_id, "UserCR", "demo.UserCR", "src/UserCR.java", 1, 10, kind="class")
+    db_session.add_all([cls, unit, helper])
+    db_session.flush()
+
+    def edge(kind, source, name, line, resolution, target=None, external=None):
+        db_session.add(CodeEdge(project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
+                                dst_name=name, type=kind, resolution=resolution, src_start_line=line, src_end_line=line,
+                                meta_json={"external": external} if external else None))
+
+    edge("IMPORTS", unit, "demo.UserCR", 3, "resolved", helper)
+    edge("IMPORTS", unit, "java.time.OffsetDateTime", 4, "unresolved", external={"category": "jdk", "library": "java.time.OffsetDateTime"})
+    edge("IMPORTS", unit, "com.acme.Missing", 5, "unresolved")
+    edge("EXTENDS", cls, "AbstractService", 12, "unresolved", external={"category": "library"})
+    edge("IMPLEMENTS", cls, "UserService", 12, "resolved", helper)
+    db_session.commit()
+
+    block = evidence.includes(db_session, db_session.get(type(user), user.id), project_id, cls)
+    assert block["counts"] == {"resolved": 2, "external": 2, "unresolved": 1}
+    assert {(item["name"], item["kind"]) for item in block["resolved"]} == {("demo.UserCR", "imports"), ("UserService", "implements")}
+    assert {item["category"] for item in block["external"]} == {"jdk", "library"}
+    assert block["unresolved"][0]["cite"] == "src/UserServiceImpl.java:5"
+
+
+def test_evidence_pack_shrinking_keeps_the_answering_blocks_and_drops_redundant_extras_first():
+    import json
+
+    flow = {"flow": [{"routine": f"R{i}", "line": i, "calls": [{"to": "x", "line": i, "edge": "PERFORM", "status": "resolved", "cite": "f:1"}]} for i in range(8)]}
+    entry = {"symbol": "S", "source": {"text": "x" * 900, "start_line": 1, "end_line": 20}, "callees": ["a", "b"], "callee_chain": [{"x": "y" * 400}],
+             "call_sites": [{"text": "z" * 2000}], "helper_methods": [{"x": "h" * 600}], "control_flow": flow}
+    pack = [entry]
+    before = len(json.dumps(pack))
+    mcp_server._fit_evidence(pack, before - 2500)
+    assert "control_flow" in pack[0] and len(pack[0]["control_flow"]["flow"]) == 8  # Block bleibt, solange andere Teile reichen
+    assert "callees" not in pack[0] and "callee_chain" not in pack[0]  # durch den Ablauf überflüssig
+    mcp_server._fit_evidence(pack, 350)  # sehr knapp: erst jetzt wird der Ablauf selbst gekürzt
+    assert 6 <= len(pack[0]["control_flow"]["flow"]) < 8
+
+
+def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named_program(
+    db_session, mcp_project_context, monkeypatch
+):
+    """O-346/Q3: `PROG.PARA` und `1000-INIT` werden erkannt; ein Name, den viele Programme haben, gehört zum genannten."""
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    assert mcp_server._extract_symbols("Fluss von `COPAUA0C.MAIN-PARA` und `1000-INITIALIZE` bitte")[:2] == [
+        "COPAUA0C.MAIN-PARA", "1000-INITIALIZE"]
+    one = _method(project_id, "PROGONE", "PROGONE", "src/ONE.cbl", 1, 90, kind="program")
+    two = _method(project_id, "PROGTWO", "PROGTWO", "src/TWO.cbl", 1, 90, kind="program")
+    para_one = _method(project_id, "MAIN-PARA", "PROGONE.MAIN-PARA", "src/ONE.cbl", 10, 20, kind="paragraph")
+    init_one = _method(project_id, "1000-INITIALIZE", "PROGONE.1000-INITIALIZE", "src/ONE.cbl", 30, 40, kind="paragraph")
+    init_two = _method(project_id, "1000-INITIALIZE", "PROGTWO.1000-INITIALIZE", "src/TWO.cbl", 30, 40, kind="paragraph")
+    db_session.add_all([one, two, para_one, init_one, init_two])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    result = mcp_server.build_answer_context(
+        db_session, db_session.get(type(user), user.id), project_id,
+        question="Beschreibe den Fluss von PROGONE.MAIN-PARA und was 1000-INITIALIZE aufruft.", use_embeddings=False)
+    assert sorted(item["symbol"] for item in result["resolved"]) == ["PROGONE.1000-INITIALIZE", "PROGONE.MAIN-PARA"]
+    assert result["unresolved_terms"] == []

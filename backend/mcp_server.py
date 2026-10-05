@@ -47,6 +47,12 @@ from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
 from services.ollama_client import embed_text, search_project_chunks
 from services.search import search_nodes
+from core.language_profile import role_of
+from services import evidence as evidence_blocks
+from services.source_access import COMMENT_START as _COMMENT_START
+from services.source_access import numbered as _numbered
+from services.source_access import site_excerpt as _site_excerpt
+from services.source_access import source_visible as _source_visible
 
 
 logger = logging.getLogger(__name__)
@@ -283,20 +289,6 @@ def _compact_entity(entity: CodeEntity) -> dict:
     return item
 
 
-_COMMENT_START = ("//", "/*", "*", "#", "--")
-
-
-def _numbered(text: str, start_line: int, compact: bool = False) -> str:
-    """Line-numbered text; compact drops blank, comment-only and COBOL comment lines but keeps the original numbers."""
-    out = []
-    for i, line in enumerate(text.splitlines()):
-        stripped = line.strip()
-        if compact and (not stripped or stripped.startswith(_COMMENT_START) or (len(line) > 6 and line[6] == "*")):
-            continue
-        out.append(f"{start_line + i}: {line}")
-    return "\n".join(out)
-
-
 class ToolInputError(ValueError):
     """Input problem whose message is safe to show: it only names symbols the caller may already see."""
 
@@ -464,19 +456,6 @@ def _flow_edge_excerpt(
             "reason": "Read the original indexed chunk around this call site.",
         },
     }
-
-
-def _source_visible(db: Session, user: User, source_id: int | None) -> bool:
-    if source_id is None:
-        return True
-    source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
-    if source is None:
-        return False
-    try:
-        assert_knowledge_source_visible(source, user, db)
-    except HTTPException:
-        return False
-    return True
 
 
 def _knowledge_chunk_in_project(
@@ -682,6 +661,9 @@ def _used_by(db: Session, user: User, entity: CodeEntity, limit: int = 12) -> li
 
 
 _SYMBOL_PATTERNS = [
+    # COBOL: Programm.Absatz (`COPAUA0C.MAIN-PARA`, `COPAUA0C.1000-INITIALIZE`) und Absatznamen mit führender Zahl.
+    re.compile(r"\b[A-Z][A-Z0-9]*\.[0-9A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b"),
+    re.compile(r"\b[0-9]{2,5}-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*\b"),
     re.compile(r"\b[A-Za-z_$][\w$]*(?:[.#][A-Za-z_$][\w$]*)+(?:\(\))?"),
     re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b"),
     re.compile(r"\b[A-Z]{2,}[0-9][A-Z0-9]*\b"),
@@ -802,25 +784,6 @@ def _relevant_children(question: str, outline: list[dict], count: int = 6, sims=
     return (chosen + extras)[: count + 1]
 
 
-def _site_excerpt(db: Session, user: User, entity: CodeEntity, line: int, radius: int = 10) -> dict | None:
-    """Numbered source lines around one call site, read from the indexed chunks of that file."""
-    if not _source_visible(db, user, entity.source_id):
-        return None
-    low, high = max(1, line - radius), line + radius
-    chunks = db.query(DocumentChunk).filter(
-        DocumentChunk.project_id == entity.project_id, DocumentChunk.source_id == entity.source_id,
-        DocumentChunk.file_path == entity.file_path, DocumentChunk.start_line <= high, DocumentChunk.end_line >= low,
-    ).order_by(DocumentChunk.start_line).limit(4).all()
-    parts = []
-    for chunk in chunks:
-        first, last = max(low, chunk.start_line), min(high, chunk.end_line)
-        if first <= last:
-            lines = chunk.content.splitlines()
-            parts.append(_numbered("\n".join(lines[first - chunk.start_line:last - chunk.start_line + 1]), first))
-    text = "\n".join(parts)[:2200]
-    return {"file": entity.file_path, "around_line": line, "text": text} if text else None
-
-
 def _explain_entity(
     db: Session, user: User, project_id: int, entity: CodeEntity, others: list[CodeEntity], mode: str, symbol: str,
     max_chars: int, start_line: int | None, end_line: int | None, *, with_context: bool = True, used_by_limit: int = 12,
@@ -930,24 +893,58 @@ def _shrink_largest_source(entry: dict) -> bool:
 
 
 def _fit_evidence(evidence: list[dict], limit: int) -> None:
-    """Shrink an evidence pack in steps until it fits: later extras first, then lists, never the primary source."""
+    """Shrink an evidence pack in steps until it fits.
+
+    Order: redundant extras first (a control-flow block makes ``callees`` and ``callee_chain`` redundant), then lists,
+    never the primary source and last of all the evidence blocks (includes, control flow, data origin) that answer
+    the question directly."""
     def size() -> int:
         return len(json.dumps(evidence, ensure_ascii=False))
+
+    def trim_sites(entry: dict) -> bool:
+        trimmed = False
+        for site in entry.get("call_sites") or []:
+            if isinstance(site, dict) and len(site.get("text") or "") > 700:
+                site["text"] = site["text"][:700]
+                trimmed = True
+        return trimmed
+
+    def trim_includes(entry: dict) -> bool:
+        block = entry.get("includes")
+        if not block or not any(len(block[key]) > 14 for key in ("resolved", "external", "unresolved")):
+            return False
+        for key in ("resolved", "external", "unresolved"):
+            del block[key][14:]
+        block["truncated"] = True
+        return True
+
+    def trim_flow(entry: dict) -> bool:
+        flow = (entry.get("control_flow") or {}).get("flow")
+        if not flow or len(flow) <= 6:
+            return False
+        flow.pop()
+        return True
+
     steps = [
         lambda e: e.pop("other_matches", None),
         _shrink_largest_source,
+        lambda e: e.get("control_flow") and (e.pop("callees", None) or e.pop("callee_chain", None)),
+        trim_sites,
         lambda e: e.__setitem__("data_access", e["data_access"][:6]) if len(e.get("data_access") or []) > 6 else None,
         lambda e: e.__setitem__("used_by", e["used_by"][:8]) if len(e.get("used_by") or []) > 8 else None,
         lambda e: e.__setitem__("callers", e["callers"][:3]) if len(e.get("callers") or []) > 3 else None,
         lambda e: e.__setitem__("callees", e["callees"][:6]) if len(e.get("callees") or []) > 6 else None,
         lambda e: e.get("call_sites") and len(e["call_sites"]) > 1 and e["call_sites"].pop(),
+        lambda e: e.pop("call_sites", None),
         lambda e: e.pop("data_access", None),
         lambda e: e.get("expanded") and len(e["expanded"]) > 1 and e["expanded"].pop(),
         lambda e: e.get("helper_methods") and len(e["helper_methods"]) > 1 and e["helper_methods"].pop(),
+        lambda e: e.pop("helper_methods", None),
         lambda e: e.pop("callees", None),
+        lambda e: e.pop("callee_chain", None),
         lambda e: e.get("data_origin") and len(e["data_origin"]) > 5 and e["data_origin"].pop(),
-        lambda e: e.get("copybooks") and any(len(e["copybooks"][k]) > 14 for k in ("resolved", "external", "unresolved"))
-        and [e["copybooks"][k].__delitem__(slice(14, None)) for k in ("resolved", "external", "unresolved")],
+        trim_includes,
+        trim_flow,
     ]
     for step in steps:
         for entry in reversed(evidence):
@@ -1006,114 +1003,6 @@ def _resolve_chain_target(db: Session, project_id: int, name: str) -> CodeEntity
     return (structural or rows or [None])[0]
 
 
-def _copy_edges(db: Session, user: User, project_id: int, entity: CodeEntity, limit: int = 60) -> dict | None:
-    """COPY and SQL INCLUDE relations of one program file, grouped the way a question about copybooks asks for them.
-
-    ``resolved`` copybooks exist in the repository, ``external`` ones are system copybooks the index recognises
-    (MQ, CICS, DB2 ...), ``unresolved`` ones are real gaps. Every item carries its source line as ``cite``."""
-    if not _source_visible(db, user, entity.source_id):
-        return None
-    rows = db.query(CodeEdge).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
-        CodeEdge.project_id == project_id, CodeEdge.type.in_(["COPY", "INCLUDES"]),
-        CodeEntity.project_id == project_id, CodeEntity.source_id == entity.source_id,
-        CodeEntity.file_path == entity.file_path,
-    ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(limit + 1).all()
-    targets = {
-        target.id: target for target in db.query(CodeEntity).filter(
-            CodeEntity.project_id == project_id, CodeEntity.id.in_([row.dst_entity_id for row in rows if row.dst_entity_id])
-        )
-    } if rows else {}
-    groups: dict[str, list[dict]] = {"resolved": [], "external": [], "unresolved": []}
-    seen: set[tuple[str, int]] = set()
-    for row in rows[:limit]:
-        line = row.src_start_line or 0
-        if (row.dst_name, line) in seen:
-            continue
-        seen.add((row.dst_name, line))
-        item = {"name": row.dst_name, "line": line, "cite": f"{entity.file_path}:{line}",
-                "kind": "sql_include" if row.type == "INCLUDES" else "copy"}
-        external = (row.meta_json or {}).get("external")
-        target = targets.get(row.dst_entity_id) if row.dst_entity_id else None
-        if row.resolution == "resolved" and target is not None:
-            groups["resolved"].append({**item, "file": target.file_path})
-        elif isinstance(external, dict) and external:
-            groups["external"].append({**item, "category": external.get("category"), "system_kind": external.get("kind")})
-        else:
-            groups["unresolved"].append(item)
-    if not any(groups.values()):
-        return None
-    return {**groups, "counts": {name: len(items) for name, items in groups.items()}, "truncated": len(rows) > limit,
-            "notice": "COPY and SQL INCLUDE statements of this file from the index; `external` names are system copybooks "
-                      "the index recognises, `unresolved` is a genuine gap."}
-
-
-def _data_origin_chain(
-    db: Session, user: User, project_id: int, field: CodeEntity, depth: int = 4, max_steps: int = 10
-) -> list[dict]:
-    """Where a data field gets its value: indexed writes, followed backwards through the operands of each write.
-
-    A write edge carries the line of its own operand, so the operands read by the same statement are the READS
-    edges of the same routine and operation next to it (``MOVE``: the same line; other operations: up to two
-    lines below; ``STRING``/``UNSTRING``: the source operand above the target). The chain is an index fact per step, not a
-    path-sensitive runtime flow.
-    """
-    steps: list[dict] = []
-    seen = {field.id}
-    frontier = [field]
-    for _level in range(depth):
-        following: list[CodeEntity] = []
-        for current in frontier:
-            writes = db.query(CodeEdge).filter(
-                CodeEdge.project_id == project_id, CodeEdge.type == "WRITES", CodeEdge.dst_entity_id == current.id,
-            ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(4).all()
-            for write in writes:
-                if len(steps) >= max_steps:
-                    return steps
-                routine = db.query(CodeEntity).filter(
-                    CodeEntity.id == write.src_entity_id, CodeEntity.project_id == project_id).first()
-                if routine is None or not _source_visible(db, user, routine.source_id):
-                    continue
-                operation = (write.meta_json or {}).get("operation")
-                line = write.src_start_line or 0
-                reads = db.query(CodeEdge).filter(
-                    CodeEdge.project_id == project_id, CodeEdge.type == "READS",
-                    CodeEdge.src_entity_id == write.src_entity_id,
-                    CodeEdge.src_start_line.between(line - 25, line + 3),
-                ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(40).all()
-                operands: dict[int, str] = {}
-                for read in reads:
-                    meta = read.meta_json or {}
-                    if meta.get("operation") != operation or read.dst_entity_id in (None, current.id):
-                        continue
-                    read_line = read.src_start_line or 0
-                    if operation in {"STRING", "UNSTRING"}:
-                        near = meta.get("operand_role") == "source" and read_line <= line
-                    elif operation == "MOVE":
-                        near = read_line == line  # a MOVE is one line; neighbours are other statements
-                    else:
-                        near = meta.get("operand_role") == "source" and 0 <= read_line - line <= 2
-                    if near:
-                        operands[read.dst_entity_id] = read.dst_name
-                site = _site_excerpt(db, user, routine, line, 0) if line else None
-                steps.append({
-                    "field": current.name, "written_by": routine.name, "file": routine.file_path, "line": line,
-                    "cite": f"{routine.file_path}:{line}",
-                    "operation": operation, "statement": ((site or {}).get("text") or "")[:140],
-                    "reads": sorted(operands.values()),
-                })
-                for entity_id in operands:
-                    if entity_id not in seen:
-                        seen.add(entity_id)
-                        found = db.query(CodeEntity).filter(
-                            CodeEntity.id == entity_id, CodeEntity.project_id == project_id).first()
-                        if found is not None and found.type == "data_item":
-                            following.append(found)
-        if not following:
-            break
-        frontier = following
-    return steps
-
-
 def build_answer_context(
     db: Session, user: User, project_id: int, *, question: str = "", symbols: list[str] | None = None,
     topic: str = "", max_chars: int = 8000, use_embeddings: bool = True,
@@ -1132,12 +1021,14 @@ def build_answer_context(
         r"aufrufer|wer ruft|ruft .{0,90}auf|rufen .{0,90}auf|welche (klasse|klassen|programm|programme|methode|methoden|modul|module)|binden .{0,60}ein|einbind|"
         r"verwendet von|verwenden|nutzen|callers?|called by|included? by|who calls|which (classes|programs)",
         text.lower()))
-    copy_intent = bool(re.search(r"copy|copybook|include|einbind|binden .{0,40}ein", text.lower()))
+    includes_intent = bool(evidence_blocks.INCLUDES_INTENT.search(text))
+    flow_intent = bool(evidence_blocks.FLOW_INTENT.search(text))
     given = [s.strip() for s in (symbols or []) if isinstance(s, str) and 2 < len(s.strip()) <= 160][:8]
     terms = given or _extract_symbols(text)
     resolved: list[tuple[str, CodeEntity, list[CodeEntity], str]] = []
     seen: set[int] = set()
     unresolved: list[str] = []
+    ambiguous: list[tuple[str, list[CodeEntity], str]] = []
     for term in terms:
         found, _suggestions, mode = _find_entities(db, user, project_id, term, 6)
         exact = [e for e in found if _symbol_matches(e, term)]
@@ -1146,6 +1037,17 @@ def build_answer_context(
             unresolved.append(term)
             continue
         entity, others = _pick_entity(structural)
+        if entity is None or entity.id in seen:
+            if entity is None:
+                ambiguous.append((term, structural, mode))
+            continue
+        seen.add(entity.id)
+        resolved.append((term, entity, others, mode))
+    # A bare name that exists in many files (`1000-INITIALIZE`) belongs to the file of the symbols named next to it.
+    named_files = {entity.file_path for _t, entity, _o, _m in resolved}
+    for term, structural, mode in ambiguous:
+        scoped = [e for e in structural if e.file_path in named_files]
+        entity, others = _pick_entity(scoped) if scoped else (None, [])
         if entity is None or entity.id in seen:
             if entity is None:
                 unresolved.append(term)
@@ -1167,16 +1069,21 @@ def build_answer_context(
     for term, entity, others, mode in primary:
         entry = _explain_entity(db, user, project_id, entity, others, mode, term, per_entity, None, None,
                                 with_context=True, used_by_limit=40 if callers_intent else 12, compact=True)
-        if copy_intent and entity.type in {"program", "cobol_program"}:
-            copies = _copy_edges(db, user, project_id, entity)
-            if copies:
-                entry["copybooks"] = copies
-        if entity.type == "data_item":
-            origin = _data_origin_chain(db, user, project_id, entity)
+        role = role_of(entity.type)
+        if role == "container" and includes_intent:
+            included = evidence_blocks.includes(db, user, project_id, entity)
+            if included:
+                entry["includes"] = included
+        if role in {"container", "routine"} and flow_intent:
+            flow = evidence_blocks.control_flow(db, user, project_id, entity, budget_chars=min(3000, per_entity))
+            if flow:
+                entry["control_flow"] = flow
+        if role == "data":
+            origin = evidence_blocks.data_origin(db, user, project_id, entity)
             if origin:
                 entry["data_origin"] = origin
                 entry["data_origin_notice"] = (
-                    "Indexed writes of this field, followed backwards through the operands of each write "
+                    "Indexed writes of this data entity, followed backwards through the operands of each write "
                     "(`reads`). Each step is an index fact with its source line; cite it as `cite`. It is not a complete runtime flow."
                 )
         if "outline" in entry:

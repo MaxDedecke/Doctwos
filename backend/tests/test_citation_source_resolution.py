@@ -437,7 +437,7 @@ def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
                 {"field": "AMT-OUT", "file": "cbl/PROG.cbl", "line": 885, "cite": "cbl/PROG.cbl:885"},
                 {"field": "AMT-RAW", "file": "cbl/PROG.cbl", "line": 376, "cite": "cbl/PROG.cbl:376"},
             ],
-            "copybooks": {
+            "includes": {
                 "resolved": [{"name": "CPYREC", "line": 178, "cite": "cbl/PROG.cbl:178", "file": "cpy/CPYREC.cpy"}],
                 "external": [{"name": "CMQV", "line": 161, "cite": "cbl/PROG.cbl:161", "category": "mq"}],
                 "unresolved": [],

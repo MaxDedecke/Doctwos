@@ -286,7 +286,7 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                 if isinstance(step, dict) and step.get("file") and step.get("line"):
                     _record_agent_source(agent_sources, step["file"], int(step["line"]), int(step["line"]), source_id)
             for group in ("resolved", "external", "unresolved"):
-                for item in (entry.get("copybooks") or {}).get(group) or []:
+                for item in (entry.get("includes") or {}).get(group) or []:
                     match = _FILE_LINE_RE.match(str(item.get("cite") or "")) if isinstance(item, dict) else None
                     if match:
                         _record_agent_source(agent_sources, match.group(1), int(match.group(2)), int(match.group(2)), source_id)

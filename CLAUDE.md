@@ -34,6 +34,31 @@ offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
    Start-/Endzeile der Originaldatei. Copybooks werden **nie** in den Programmtext
    expandiert — sonst verschieben sich alle Zeilennummern und die Navigation bricht.
 
+## MCP-Ziel: Antworten in O(1) Schritten für Agenten
+
+Der MCP-Server (`backend/mcp_server.py`, Werkzeug `answer_context`) soll Agenten so bedienen, dass eine typische
+Frage in **einem** Werkzeugaufruf beantwortbar ist (nahezu O(1); immer ist unrealistisch). Der Server bereitet die
+Antwort aus dem Index vor, der Agent muss sie nicht aus mehreren Werkzeugläufen zusammensuchen. Gemessen am Chat:
+Wo das Beweispaket die Antwort fertig enthält (COPY-Liste, Herkunftskette), bestehen auch kleine Modelle (`qwen3:8b`)
+die Prüfung zuverlässig; wo der Agent selbst suchen muss, schwankt sie.
+
+Regeln dafür:
+
+1. **Sprachunabhängig bauen.** Beweispaket-Bausteine (Einbindungen, Kontrollfluss, Datenherkunft, ...) lesen nur
+   Rollen aus dem `LanguageProfile` (`backend/core/language_profile.py`), nie `COPY`, `PERFORM`, `data_item` oder
+   `IMPORTS` direkt. COBOL und Java müssen mit demselben Baustein funktionieren; weitere Sprachen kommen durch einen
+   Profil-Eintrag dazu, nicht durch neuen Servercode.
+2. **Fehlt dem Server eine Angabe, wird der Parser erweitert** (Entscheidung E-15), nicht im Server geraten oder mit
+   Zeilennähe-Heuristiken überbrückt. Jeder Sprachparser erfüllt den Parser-Vertrag in `docs/ENTSCHEIDUNGEN.md` E-15
+   (Kantentypen und Rollen, bei `READS`/`WRITES` zusätzlich `operation`, `operand_role`, `statement_line`).
+3. **Jede belegbare Angabe trägt `cite`** (`pfad/datei.ext:zeile`) und ist als klickbare Quelle auffindbar
+   (`api/chat.py::_extract_tool_sources`). Unbelegtes wird als Lücke benannt (`unresolved`, `external`, `unknown`),
+   nie ergänzt.
+4. **Das Paket bleibt begrenzt** (`max_chars`, `_fit_evidence`) und trägt Bausteine nur, wenn die Frage danach klingt
+   (Intent), damit andere Fragen nichts kosten.
+5. **Messen, nicht annehmen:** Neue Bausteine bekommen Eval-Fälle für COBOL **und** Java (`backend/tests/fixtures/`,
+   `scripts/eval_search.py`, `scripts/eval_chat.py`) und einen Unit-Test pro Sprache.
+
 ## Tech-Stack
 
 - **Frontend:** Next.js (React), Tailwind, Monaco Editor, Framer Motion — `frontend/`
