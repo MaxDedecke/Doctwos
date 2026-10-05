@@ -50,6 +50,10 @@ def parse_java_file(
     relationships = JavaRelationshipVisitor(root, visitor.entities)
     if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
         relationships.visit(parsed.tree)
+        for entity in visitor.entities:
+            flow = relationships.flows.get(entity.qualified_name)
+            if flow:
+                entity.meta["data_flow"] = flow  # Datenfluss-Tabelle der Routine (E-15)
     resolve_local_edges(relationships.edges, visitor.entities)
 
     diagnostics = [

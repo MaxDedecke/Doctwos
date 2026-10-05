@@ -15,6 +15,7 @@ from core.model import Entity, ParsedEdge
 
 from ._antlr.JavaParser import JavaParser
 from ._antlr.JavaParserVisitor import JavaParserVisitor
+from .variables import select_visible_variable
 
 
 _TYPE_ENTITY_TYPES = {
@@ -27,6 +28,11 @@ _TYPE_ENTITY_TYPES = {
     "anonymous_class",
 }
 _MAX_CONDITION_CHARS = 120
+# Datenfluss je Routine (`meta["data_flow"]`, siehe docs/ENTSCHEIDUNGEN.md E-15): Obergrenzen, damit die Tabelle klein bleibt.
+_FLOW_STATEMENTS = 80
+_FLOW_SOURCES = 8
+_FLOW_TEXT = 160
+_ROUTINE_SCOPE_TYPES = {"method", "constructor", "lambda", "initializer"}
 # Ab hier gehört ein Aufruf zu einem anderen Ablauf (eigene Methode/Lambda/Klasse).
 _CONTROL_PATH_STOP_RULES = {
     "methodDeclaration", "constructorDeclaration", "interfaceMethodDeclaration",
@@ -103,11 +109,17 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         self._entities = entities
         self._header_type_contexts: set[int] = set()
         self._fields_by_type: dict[str, set[str]] = {}
+        self._variables: dict[tuple[str, str], list[Entity]] = {}
+        self._entity_qnames: set[str] = set()
+        self.flows: dict[str, list[dict]] = {}
         for entity in entities:
+            self._entity_qnames.add(entity.qualified_name)
             if entity.type == "field" and entity.parent_qualified_name:
                 self._fields_by_type.setdefault(entity.parent_qualified_name, set()).add(
                     entity.name
                 )
+            if entity.type in {"local_variable", "parameter"} and entity.parent_qualified_name:
+                self._variables.setdefault((entity.parent_qualified_name, entity.name), []).append(entity)
 
     @property
     def scope(self) -> Entity:
@@ -587,6 +599,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "argument_count": self._argument_count(context.arguments()),
                 "argument_types": self._argument_types(context.arguments()),
                 "argument_expressions": self._argument_expressions(context.arguments()),
+                "argument_refs": self._argument_refs(context.arguments()),
                 "invocation_kind": invocation_kind,
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
             },
@@ -656,6 +669,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 "argument_count": self._argument_count(arguments),
                 "argument_types": self._argument_types(arguments),
                 "argument_expressions": self._argument_expressions(arguments),
+                "argument_refs": self._argument_refs(arguments),
                 "invocation_kind": "virtual" if receiver not in {"super", "this"} else "special",
                 "owner_type": self.current_type.qualified_name if self.current_type else None,
                 "generic": True,
@@ -730,6 +744,12 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     "argument_types": self._argument_types(context.classCreatorRest().arguments())
                     if context.classCreatorRest() is not None
                     else [],
+                    "argument_expressions": self._argument_expressions(context.classCreatorRest().arguments())
+                    if context.classCreatorRest() is not None
+                    else [],
+                    "argument_refs": self._argument_refs(context.classCreatorRest().arguments())
+                    if context.classCreatorRest() is not None
+                    else [],
                     "invocation_kind": "constructor",
                     "owner_type": self.current_type.qualified_name if self.current_type else None,
                 },
@@ -773,6 +793,193 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         finally:
             self._scopes.pop()
             self._types.pop()
+
+    # ------------------------------------------------------------------ data flow (meta["data_flow"], E-15)
+    def _flow_holder(self) -> Entity | None:
+        """The routine a statement belongs to; a field initializer belongs to its type."""
+        for scope in reversed(self._scopes):
+            if scope.type in _ROUTINE_SCOPE_TYPES:
+                return scope
+        return self.current_type
+
+    def _classify_name(self, name: str, line: int, column: int) -> dict:
+        """What a name denotes at one position: local variable or parameter by lexical scope, field, member, or unknown."""
+        root = name.split("[", 1)[0]
+        if root.startswith("this."):
+            root = root[5:]
+            field = root if "." not in root else None
+            if field and field in self._field_names() and self.current_type is not None:
+                return {"kind": "field", "name": field, "qualified_name": f"{self.current_type.qualified_name}#{field}"}
+            return {"kind": "member", "name": name.split("[", 1)[0]}
+        if "." in root:
+            return {"kind": "member", "name": root}
+        scopes = [s.qualified_name for s in reversed(self._scopes) if s.type in _ROUTINE_SCOPE_TYPES]
+        for scope_name in scopes:
+            variables = self._variables.get((scope_name, root), [])
+            if variables:
+                selected, status = select_visible_variable(variables, line, column)
+                if status == "found":
+                    return {"kind": selected[0].type, "name": root, "qualified_name": selected[0].qualified_name}
+                if status == "ambiguous":
+                    return {"kind": "unknown", "name": root}
+        if root in self._field_names() and self.current_type is not None:
+            return {"kind": "field", "name": root, "qualified_name": f"{self.current_type.qualified_name}#{root}"}
+        return {"kind": "unknown", "name": root}
+
+    def _classify_context(self, context: ParserRuleContext) -> dict:
+        start = context.start
+        return self._classify_name(
+            self._source_text(context).replace(" ", ""),
+            start.line if start is not None else 0,
+            start.column if start is not None else 0,
+        )
+
+    def _flow_sources(self, context: ParserRuleContext | None) -> list[dict]:
+        """Names, calls and creations an expression reads, in source order (bounded; literals only when nothing else)."""
+        found: list[dict] = []
+        state = {"literal": False}
+
+        def add(item: dict) -> None:
+            key = (item.get("kind"), item.get("name"), item.get("via"))
+            if len(found) < _FLOW_SOURCES and all((f.get("kind"), f.get("name"), f.get("via")) != key for f in found):
+                found.append(item)
+
+        def walk(node, via: str | None = None) -> None:
+            if not isinstance(node, ParserRuleContext) or len(found) >= _FLOW_SOURCES:
+                return
+            rule = JavaParser.ruleNames[node.getRuleIndex()]
+            if rule == "lambdaExpression":
+                add({"kind": "lambda", "name": "lambda"})
+                return
+            if rule == "literal":
+                state["literal"] = True
+                return
+            if rule == "creator":
+                name = node.createdName().getText() if node.createdName() is not None else "?"
+                add({"kind": "new", "name": name, **({"via": via} if via else {})})
+                for child in node.getChildren():
+                    if isinstance(child, ParserRuleContext) and JavaParser.ruleNames[child.getRuleIndex()] != "createdName":
+                        walk(child, f"new:{name}")
+                return
+            if rule == "primary":
+                identifier = node.identifier()
+                if identifier is not None:
+                    item = self._classify_context(identifier)
+                    add({**item, **({"via": via} if via else {})})
+                    return
+            if rule == "expression":
+                operator = getattr(node, "bop", None)
+                children = getattr(node, "children", ()) or ()
+                if operator is not None and operator.text == "." and children:
+                    last = children[-1]
+                    last_rule = JavaParser.ruleNames[last.getRuleIndex()] if isinstance(last, ParserRuleContext) else None
+                    if last_rule == "methodCall":
+                        name = last.identifier().getText() if last.identifier() is not None else last.getText().split("(")[0]
+                        walk(children[0], via or "receiver")
+                        add({"kind": "call", "name": f"{self._source_text(children[0])}.{name}"[:80],
+                             **({"via": via} if via else {})})
+                        walk(last.arguments(), f"call:{name}")
+                        return
+                    if last_rule == "identifier":
+                        item = self._classify_context(node)
+                        add({**item, **({"via": via} if via else {})})
+                        if self._source_text(children[0]) != "this":
+                            walk(children[0], via or "member")
+                        return
+            if rule == "methodCall":  # unqualified call: `build(a, b)`
+                name = node.identifier().getText() if node.identifier() is not None else "this"
+                add({"kind": "call", "name": name, **({"via": via} if via else {})})
+                walk(node.arguments(), f"call:{name}")
+                return
+            for child in node.getChildren():
+                walk(child, via)
+
+        walk(context)
+        if not found and state["literal"]:
+            found.append({"kind": "literal", "name": self._source_text(context)[:40]})
+        return found
+
+    def _flow_statement(self, context: ParserRuleContext) -> tuple[int, int, str]:
+        """Start line, end line and text of the statement a node belongs to (stops at a lambda or class boundary)."""
+        node = context
+        while node is not None:
+            rule = JavaParser.ruleNames[node.getRuleIndex()]
+            if rule in {"statement", "localVariableDeclaration", "fieldDeclaration", "lambdaBody"}:
+                break
+            if rule in {"lambdaExpression", "classBody", "methodDeclaration"}:
+                node = context
+                break
+            node = node.parentCtx
+        node = node or context
+        start, end = self._span(node)
+        return start, end, self._source_text(node)[:_FLOW_TEXT]
+
+    def _record_flow(self, context: ParserRuleContext, operation: str, target: dict, sources_from: ParserRuleContext | None) -> None:
+        holder = self._flow_holder()
+        if holder is None:
+            return
+        statements = self.flows.setdefault(holder.qualified_name, [])
+        if len(statements) >= _FLOW_STATEMENTS:
+            return
+        line, end_line, text = self._flow_statement(context)
+        statements.append({
+            "line": line, "end_line": end_line, "operation": operation, "target": target,
+            "sources": self._flow_sources(sources_from), "text": text,
+        })
+
+    def _argument_refs(self, arguments: ParserRuleContext | None) -> list[dict | None]:
+        """For each argument: the data entity it names when it is a plain name (`id`, `this.x`), else None."""
+        expression_list = arguments.expressionList() if arguments is not None else None
+        if expression_list is None:
+            return []
+        refs: list[dict | None] = []
+        for expression in expression_list.expression()[:16]:
+            text = self._source_text(expression).replace(" ", "")
+            if re.fullmatch(r"(?:this\.)?[A-Za-z_$][\w$]*", text):
+                item = self._classify_context(expression)
+                refs.append({k: v for k, v in item.items() if k in {"kind", "name", "qualified_name"}} if item["kind"] != "unknown" else None)
+            else:
+                refs.append(None)
+        return refs
+
+    def _declarator_target(self, identifier: ParserRuleContext, declarator: ParserRuleContext, local: bool) -> dict:
+        name = identifier.getText()
+        if local:
+            holder = self._flow_holder()
+            line = self._span(declarator)[0]
+            qualified = f"{holder.qualified_name}@local:{name}:{line}:{identifier.start.column}" if holder is not None else ""
+            for scope in (s for s in reversed(self._scopes) if s.type in _ROUTINE_SCOPE_TYPES):
+                for kind in ("local", "foreach"):
+                    candidate = f"{scope.qualified_name}@{kind}:{name}:{line}:{identifier.start.column}"
+                    if candidate in self._entity_qnames:
+                        return {"kind": "local_variable", "name": name, "qualified_name": candidate}
+            return {"kind": "local_variable", "name": name, "qualified_name": qualified} if qualified in self._entity_qnames else {"kind": "unknown", "name": name}
+        if self.current_type is not None and name in self._field_names():
+            return {"kind": "field", "name": name, "qualified_name": f"{self.current_type.qualified_name}#{name}"}
+        return {"kind": "unknown", "name": name}
+
+    def visitVariableDeclarator(self, context):
+        initializer = context.variableInitializer()
+        parent = context.parentCtx.parentCtx if context.parentCtx is not None else None
+        owner = JavaParser.ruleNames[parent.getRuleIndex()] if parent is not None else None
+        if initializer is not None and owner in {"localVariableDeclaration", "fieldDeclaration"}:
+            identifier = context.variableDeclaratorId().identifier()
+            self._record_flow(context, "init", self._declarator_target(identifier, context, owner == "localVariableDeclaration"), initializer)
+        return self.visitChildren(context)
+
+    def visitLocalVariableDeclaration(self, context):
+        if context.VAR() is not None and context.identifier() is not None and context.expression() is not None:
+            self._record_flow(
+                context, "init", self._declarator_target(context.identifier(), context, True), context.expression()
+            )
+        return self.visitChildren(context)
+
+    def visitStatement(self, context):
+        if context.RETURN() is not None:
+            expressions = self._as_list(context.expression())  # die Regel nennt `expression` mehrfach: Liste
+            if expressions:
+                self._record_flow(context, "return", {"kind": "return", "name": "return"}, expressions[0])
+        return self.visitChildren(context)
 
     def _field_names(self) -> set[str]:
         return (
@@ -841,6 +1048,11 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 if operator.text != "=":
                     self._emit_field_access(lhs, lhs.getText(), "READS")
                 self._emit_field_access(lhs, lhs.getText(), "WRITES")
+                rhs = children[-1] if len(children) >= 3 and isinstance(children[-1], ParserRuleContext) else None
+                if rhs is not None:
+                    self._record_flow(
+                        context, "assign" if operator.text == "=" else "compound_assign", self._classify_context(lhs), rhs
+                    )
         postfix = getattr(context, "postfix", None)
         prefix = getattr(context, "prefix", None)
         if postfix is not None or prefix is not None:
@@ -854,6 +1066,8 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 ):
                     self._emit_field_access(target, target.getText(), "READS")
                 self._emit_field_access(target, target.getText(), "WRITES")
+                if (postfix is not None and postfix.text in {"++", "--"}) or (prefix is not None and prefix.text in {"++", "--"}):
+                    self._record_flow(context, "increment", self._classify_context(target), None)
 
         if (
             operator is not None

@@ -177,64 +177,158 @@ def control_flow(
 
 
 # ----------------------------------------------------------------------------------------------------- data origin
-def data_origin(db: Session, user: User, project_id: int, field: CodeEntity, depth: int = 4, max_steps: int = 10) -> list[dict]:
-    """Where a data entity gets its value: indexed writes, followed backwards through the operands of each write.
+# Parser contract (docs/ENTSCHEIDUNGEN.md E-15): statement-level data flow reaches the server in one of two shapes.
+#   (a) READS/WRITES edge metadata `operation` + `operand_role` (COBOL): the operands of one statement are found next
+#       to the write edge;
+#   (b) a table `meta["data_flow"]` on the routine (Java): one row per statement with target and sources.
+# A routine that carries the table is read through (b), every other through (a); no language is named here.
+def _entity_by_qname(db: Session, project_id: int, qualified_name: str | None) -> CodeEntity | None:
+    if not qualified_name:
+        return None
+    return db.query(CodeEntity).filter(
+        CodeEntity.project_id == project_id, CodeEntity.qualified_name == qualified_name).first()
 
-    Reads the statement structure from READS/WRITES edge metadata (``operation``, ``operand_role``) as the parser
-    contract requires; a write edge carries the line of its own operand, so the operands read by the same statement
-    are the READS edges of the same routine and operation next to it (``MOVE``: the same line; other operations: up to
-    two lines below; ``STRING``/``UNSTRING``: the source operand above the target)."""
+
+def _origin_edge_statements(
+    db: Session, user: User, project_id: int, current: CodeEntity, limit: int = 4
+) -> list[tuple[dict, list[CodeEntity]]]:
+    """(a) Steps from WRITES edges whose statement structure sits in the edge metadata."""
+    out: list[tuple[dict, list[CodeEntity]]] = []
+    writes = db.query(CodeEdge).filter(
+        CodeEdge.project_id == project_id, CodeEdge.type == "WRITES", CodeEdge.dst_entity_id == current.id,
+    ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(limit).all()
+    for write in writes:
+        routine = db.query(CodeEntity).filter(CodeEntity.id == write.src_entity_id, CodeEntity.project_id == project_id).first()
+        if routine is None or not source_visible(db, user, routine.source_id) or (routine.meta_json or {}).get("data_flow"):
+            continue  # a routine with a table is read through (b)
+        operation = (write.meta_json or {}).get("operation")
+        line = write.src_start_line or 0
+        reads = db.query(CodeEdge).filter(
+            CodeEdge.project_id == project_id, CodeEdge.type == "READS", CodeEdge.src_entity_id == write.src_entity_id,
+            CodeEdge.src_start_line.between(line - 25, line + 3),
+        ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(40).all()
+        operands: dict[int, str] = {}
+        for read in reads:
+            meta = read.meta_json or {}
+            if meta.get("operation") != operation or read.dst_entity_id in (None, current.id):
+                continue
+            read_line = read.src_start_line or 0
+            if operation in {"STRING", "UNSTRING"}:
+                near = meta.get("operand_role") == "source" and read_line <= line
+            elif operation == "MOVE":
+                near = read_line == line  # a MOVE is one line; neighbours are other statements
+            else:
+                near = meta.get("operand_role") == "source" and 0 <= read_line - line <= 2
+            if near:
+                operands[read.dst_entity_id] = read.dst_name
+        site = site_excerpt(db, user, routine, line, 0) if line else None
+        step = {"field": current.name, "written_by": routine.name, "file": routine.file_path, "line": line,
+                "cite": f"{routine.file_path}:{line}", "operation": operation,
+                "statement": ((site or {}).get("text") or "")[:140], "reads": sorted(operands.values())}
+        followed = [e for e in (db.query(CodeEntity).filter(CodeEntity.project_id == project_id, CodeEntity.id.in_(list(operands))).all()
+                                if operands else []) if role_of(e.type) == "data"]
+        out.append((step, followed))
+    return out
+
+
+def _table_step(current: CodeEntity, routine: CodeEntity, row: dict) -> dict:
+    sources = [item for item in row.get("sources", []) if item.get("kind") != "literal"] or row.get("sources", [])
+    reads = []
+    for item in sources:
+        label = item["name"] if item["kind"] not in {"call", "new"} else f"{item['name']}(…)"
+        if item.get("via", "").startswith(("call:", "new:")):
+            label += f" (Argument von {item['via'].split(':', 1)[1]})"
+        reads.append(label)
+    return {"field": current.name, "written_by": routine.name, "file": routine.file_path, "line": row["line"],
+            "cite": f"{routine.file_path}:{row['line']}", "operation": row["operation"],
+            "statement": row.get("text", "")[:140], "reads": reads}
+
+
+def _follow_table_sources(db: Session, project_id: int, row: dict, current: CodeEntity) -> list[CodeEntity]:
+    found = []
+    for item in row.get("sources", []):
+        entity = _entity_by_qname(db, project_id, item.get("qualified_name"))
+        if entity is not None and entity.id != current.id and role_of(entity.type) == "data":
+            found.append(entity)
+    return found
+
+
+def _origin_table_statements(
+    db: Session, user: User, project_id: int, current: CodeEntity
+) -> list[tuple[dict, list[CodeEntity]]]:
+    """(b) Steps from `data_flow` tables: where the entity is a statement target, and for a parameter its call sites."""
+    out: list[tuple[dict, list[CodeEntity]]] = []
+    holders: dict[int, CodeEntity] = {}
+    parent = db.query(CodeEntity).filter(
+        CodeEntity.project_id == project_id, CodeEntity.id == current.parent_id).first() if current.parent_id else None
+    if parent is not None and role_of(current.type) == "data" and current.type != "parameter":
+        holders[parent.id] = parent  # a local variable's routine or a field's class (initializers)
+    if current.type not in {"local_variable", "parameter"}:
+        for write in db.query(CodeEdge).filter(
+            CodeEdge.project_id == project_id, CodeEdge.type == "WRITES", CodeEdge.dst_entity_id == current.id
+        ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(12):
+            routine = db.query(CodeEntity).filter(CodeEntity.id == write.src_entity_id, CodeEntity.project_id == project_id).first()
+            if routine is not None:
+                holders[routine.id] = routine
+    if current.type == "parameter" and parent is not None:
+        holders[parent.id] = parent  # assignments to the parameter inside its own routine
+    for holder in holders.values():
+        if not source_visible(db, user, holder.source_id):
+            continue
+        for row in (holder.meta_json or {}).get("data_flow") or []:
+            target = row.get("target") or {}
+            if target.get("qualified_name") == current.qualified_name:
+                out.append((_table_step(current, holder, row), _follow_table_sources(db, project_id, row, current)))
+                if len(out) >= 4:
+                    return out
+    if current.type == "parameter" and parent is not None and "@param:" in current.qualified_name:
+        siblings = db.query(CodeEntity).filter(
+            CodeEntity.project_id == project_id, CodeEntity.parent_id == parent.id,
+            CodeEntity.type == "parameter", CodeEntity.qualified_name.like("%@param:%"),
+        ).all()
+        siblings.sort(key=lambda e: (e.start_line or 0, int((e.meta_json or {}).get("declaration_column", 0))))
+        position = next((i for i, e in enumerate(siblings) if e.id == current.id), None)
+        if position is not None:
+            for call in db.query(CodeEdge).filter(
+                CodeEdge.project_id == project_id, CodeEdge.type == "CALLS", CodeEdge.dst_entity_id == parent.id,
+            ).order_by(CodeEdge.id).limit(4):
+                meta = call.meta_json or {}
+                expressions = meta.get("argument_expressions") or []
+                caller = db.query(CodeEntity).filter(CodeEntity.id == call.src_entity_id, CodeEntity.project_id == project_id).first()
+                if caller is None or position >= len(expressions) or not source_visible(db, user, caller.source_id):
+                    continue
+                refs = meta.get("argument_refs") or []
+                ref = refs[position] if position < len(refs) else None
+                followed = _entity_by_qname(db, project_id, (ref or {}).get("qualified_name"))
+                line = call.src_start_line or 0
+                step = {"field": current.name, "passed_by": caller.name, "file": caller.file_path, "line": line,
+                        "cite": f"{caller.file_path}:{line}", "operation": "argument",
+                        "statement": f"{_short(parent.qualified_name)}(… {expressions[position]} …)"[:140],
+                        "reads": [expressions[position]]}
+                out.append((step, [followed] if followed is not None and role_of(followed.type) == "data" else []))
+    return out
+
+
+def data_origin(db: Session, user: User, project_id: int, field: CodeEntity, depth: int = 5, max_steps: int = 10) -> list[dict]:
+    """Where a data entity gets its value, followed backwards through the sources of every writing statement.
+
+    Works for every language that follows the parser contract (see the comment above); a step is an index fact with
+    its source line (`cite`), not a complete runtime flow."""
     steps: list[dict] = []
     seen = {field.id}
     frontier = [field]
     for _level in range(depth):
         following: list[CodeEntity] = []
         for current in frontier:
-            writes = db.query(CodeEdge).filter(
-                CodeEdge.project_id == project_id, CodeEdge.type == "WRITES", CodeEdge.dst_entity_id == current.id,
-            ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(4).all()
-            for write in writes:
+            for step, followed in [*_origin_edge_statements(db, user, project_id, current),
+                                   *_origin_table_statements(db, user, project_id, current)]:
                 if len(steps) >= max_steps:
                     return steps
-                routine = db.query(CodeEntity).filter(
-                    CodeEntity.id == write.src_entity_id, CodeEntity.project_id == project_id).first()
-                if routine is None or not source_visible(db, user, routine.source_id):
-                    continue
-                operation = (write.meta_json or {}).get("operation")
-                line = write.src_start_line or 0
-                reads = db.query(CodeEdge).filter(
-                    CodeEdge.project_id == project_id, CodeEdge.type == "READS",
-                    CodeEdge.src_entity_id == write.src_entity_id,
-                    CodeEdge.src_start_line.between(line - 25, line + 3),
-                ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(40).all()
-                operands: dict[int, str] = {}
-                for read in reads:
-                    meta = read.meta_json or {}
-                    if meta.get("operation") != operation or read.dst_entity_id in (None, current.id):
-                        continue
-                    read_line = read.src_start_line or 0
-                    if operation in {"STRING", "UNSTRING"}:
-                        near = meta.get("operand_role") == "source" and read_line <= line
-                    elif operation == "MOVE":
-                        near = read_line == line  # a MOVE is one line; neighbours are other statements
-                    else:
-                        near = meta.get("operand_role") == "source" and 0 <= read_line - line <= 2
-                    if near:
-                        operands[read.dst_entity_id] = read.dst_name
-                site = site_excerpt(db, user, routine, line, 0) if line else None
-                steps.append({
-                    "field": current.name, "written_by": routine.name, "file": routine.file_path, "line": line,
-                    "cite": f"{routine.file_path}:{line}",
-                    "operation": operation, "statement": ((site or {}).get("text") or "")[:140],
-                    "reads": sorted(operands.values()),
-                })
-                for entity_id in operands:
-                    if entity_id not in seen:
-                        seen.add(entity_id)
-                        found = db.query(CodeEntity).filter(
-                            CodeEntity.id == entity_id, CodeEntity.project_id == project_id).first()
-                        if found is not None and role_of(found.type) == "data":
-                            following.append(found)
+                steps.append(step)
+                for entity in followed:
+                    if entity.id not in seen:
+                        seen.add(entity.id)
+                        following.append(entity)
         if not following:
             break
         frontier = following

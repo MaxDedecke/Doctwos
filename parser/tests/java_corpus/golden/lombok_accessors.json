@@ -462,6 +462,25 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 18,
+            "line": 18,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "field",
+                "name": "isEnabled",
+                "qualified_name": "corpus.lombok.Flags#isEnabled"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return isEnabled;"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [

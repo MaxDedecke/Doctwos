@@ -658,3 +658,40 @@ O-296 setzt die angegebenen sichtbaren Umbenennungen um.
 2. **O-274 – kein GitHub-/GitLab-Connector für PR-/MR-Diskussionen auf Vorrat.** ADRs, die als Markdown im Repository liegen, werden bereits mit Quelle, Revision und Zeilen indexiert. PR-/MR-Diskussionen brauchen API-Zugang, Rechtemodell, Löschung und Prüfstatus je Beitrag und sind damit ein eigener Connector. Das ist an den Zielkundenbedarf gebunden (siehe O-045 bis O-049) und wird erst gebaut, wenn ein Pilot ihn bestätigt.
 
 **Wann neu entscheiden:** Ein Pilot nennt PR-/MR-Diskussionen als Wissensquelle, oder Nutzer verlangen den Status an normalen Chatantworten.
+
+## E-15 — Parser-Vertrag für das sprachneutrale Beweispaket (MCP-Ziel O(1))
+
+**Entscheidung vom 05.10.2026.** Das Beweispaket des MCP-Servers (`answer_context`) soll typische Agentenfragen in einem
+Aufruf beantworten. Seine Bausteine (`services/evidence.py`: Einbindungen, Kontrollfluss, Datenherkunft) sind
+sprachneutral; sie lesen nur Rollen aus `core/language_profile.py` und die Angaben, die der Parser liefert. **Fehlt dem
+Server eine Angabe, wird der Parser erweitert** – nicht im Server geraten und nicht mit Zeilennähe überbrückt.
+
+**Was ein Sprachparser liefern muss**
+
+1. **Entitätstypen mit Rolle.** Jeder Typ ist Container (Programm, Klasse, Job), Routine (Absatz, Methode, Step) oder
+   Datenelement (Feld, Variable, Parameter, Dataset). Die Zuordnung steht im `LanguageProfile`.
+2. **Kantentypen mit Rolle.** Kontrollfluss (`PERFORM`, `CALL`, `GOTO`, `CALLS`, `EXECUTES`) und Einbindung (`COPY`,
+   `INCLUDES`, `IMPORTS`, `EXTENDS`, `IMPLEMENTS`), jeweils mit `resolution` (`resolved`, `unresolved`) und, wo der Index
+   ein Systemziel belegt, `meta.external = {category, kind}` (O-375/O-377). Jede Kante trägt Quelldatei und Zeile.
+3. **Datenzugriffe mit Anweisungsbezug.** `READS`/`WRITES` zwischen Routinen und Datenelementen. Die Struktur einer
+   Anweisung (Ziel, Quellen, Operation) kommt in einer von zwei Formen:
+   a. **Kantenmetadaten** `operation`, `operand_role` (`target`, `source`, `result`) an `READS`/`WRITES` (COBOL:
+      `MOVE`, `COMPUTE`, `UNSTRING`, …); der Server findet die Operanden einer Anweisung neben der Schreibkante.
+   b. **Tabelle `meta.data_flow` an der Routine** (Java): je Anweisung `{line, end_line, operation, target, sources, text}`;
+      `target` und `sources[]` tragen `kind` (`field`, `local_variable`, `parameter`, `call`, `new`, `literal`, …), `name`
+      und, wo auflösbar, `qualified_name` (Namen werden über die lexikalische Sichtbarkeit aufgelöst, `java/variables.py`).
+      Aufrufkanten tragen zusätzlich `argument_expressions` und `argument_refs` (die exakte Datenentität bei einfachen
+      Argumenten); damit führt die Herkunft eines Parameters zu den Aufrufern.
+   Eine Routine mit Tabelle wird über (b) gelesen, jede andere über (a); der Server nennt keine Sprache.
+4. **Begrenzung.** Tabellen und Listen sind klein (Java: höchstens 80 Anweisungen je Routine, 8 Quellen je Anweisung,
+   160 Zeichen Text), damit der Index nicht aufquillt.
+5. **Parserversion anheben**, wenn sich Entitäten oder Kanten ändern, damit der nächste Sync neu parst
+   (`parser/core/registry.py`). Golden-Dateien (`parser/tests/java_corpus/golden`) werden mit
+   `parser/tests/update_java_goldens.py` neu erzeugt und im Diff geprüft.
+
+**Eine neue Sprache anschließen**: Eintrag im `LanguageProfile`, Parser nach diesem Vertrag, je ein Unit-Test pro
+Baustein, Eval-Fälle (`backend/tests/fixtures/eval_search_cases.json`, `eval_chat_cases.json`). Servercode ändert sich nicht.
+
+**Grenzen (bewusst):** Die Datenherkunft ist ein Indexbeleg je Anweisung und kein pfadsensitiver Laufzeitfluss; Aufrufe
+(`call`) und Erzeugungen (`new`) beenden die Kette, Rückgabewerte fremder Methoden werden nicht verfolgt. Konstruktor-
+Parameter folgen den Aufrufern noch nicht (`INSTANTIATES` trägt `argument_refs`, wird aber nicht zu Konstruktoren aufgelöst).

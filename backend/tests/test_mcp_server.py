@@ -1482,3 +1482,69 @@ def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named
         question="Beschreibe den Fluss von PROGONE.MAIN-PARA und was 1000-INITIALIZE aufruft.", use_embeddings=False)
     assert sorted(item["symbol"] for item in result["resolved"]) == ["PROGONE.1000-INITIALIZE", "PROGONE.MAIN-PARA"]
     assert result["unresolved_terms"] == []
+
+
+def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_caller(
+    db_session, mcp_project_context, monkeypatch
+):
+    """O-346: Datenherkunft für Java über die Datenfluss-Tabelle (E-15): Feld <- lokale Variablen <- Parameter <- Aufrufer."""
+    from services import evidence
+
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    file_path = "src/Account.java"
+    klass = _method(project_id, "Account", "demo.Account", file_path, 1, 60, kind="class")
+    field = _method(project_id, "balance", "demo.Account#balance", file_path, 3, 3, kind="field")
+    deposit_qn = "demo.Account#deposit(long)"
+    param_qn, net_qn, checked_qn = (f"{deposit_qn}@param:amount", f"{deposit_qn}@local:net:16:13", f"{deposit_qn}@local:checked:17:13")
+    flow = [
+        {"line": 16, "end_line": 16, "operation": "init", "text": "long net = amount - 1;",
+         "target": {"kind": "local_variable", "name": "net", "qualified_name": net_qn},
+         "sources": [{"kind": "parameter", "name": "amount", "qualified_name": param_qn}]},
+        {"line": 17, "end_line": 17, "operation": "init", "text": "long checked = validate(net);",
+         "target": {"kind": "local_variable", "name": "checked", "qualified_name": checked_qn},
+         "sources": [{"kind": "call", "name": "validate"}, {"kind": "local_variable", "name": "net", "qualified_name": net_qn, "via": "call:validate"}]},
+        {"line": 18, "end_line": 18, "operation": "compound_assign", "text": "balance += checked;",
+         "target": {"kind": "field", "name": "balance", "qualified_name": "demo.Account#balance"},
+         "sources": [{"kind": "local_variable", "name": "checked", "qualified_name": checked_qn}]},
+    ]
+    deposit = _method(project_id, "deposit", deposit_qn, file_path, 15, 20, kind="method")
+    deposit.meta_json = {"data_flow": flow}
+    net = _method(project_id, "net", net_qn, file_path, 16, 16, kind="local_variable")
+    checked = _method(project_id, "checked", checked_qn, file_path, 17, 17, kind="local_variable")
+    amount = _method(project_id, "amount", param_qn, file_path, 15, 15, kind="parameter")
+    amount.meta_json = {"declaration_column": 30}
+    caller_qn, seed_qn = "demo.Main#run()", "demo.Main#run()@local:seed:5:13"
+    caller = _method(project_id, "run", caller_qn, "src/Main.java", 4, 9, kind="method")
+    caller.meta_json = {"data_flow": [{"line": 5, "end_line": 5, "operation": "init", "text": "long seed = 7L;",
+                                       "target": {"kind": "local_variable", "name": "seed", "qualified_name": seed_qn},
+                                       "sources": [{"kind": "literal", "name": "7L"}]}]}
+    seed = _method(project_id, "seed", seed_qn, "src/Main.java", 5, 5, kind="local_variable")
+    db_session.add_all([klass, deposit, caller])
+    db_session.flush()
+    field.parent_id = klass.id
+    for item in (net, checked, amount):
+        item.parent_id = deposit.id
+    seed.parent_id = caller.id
+    db_session.add_all([field, net, checked, amount, seed])
+    db_session.flush()
+    db_session.add_all([
+        CodeEdge(project_id=project_id, src_entity_id=deposit.id, dst_entity_id=field.id, dst_name="balance", type="WRITES",
+                 resolution="resolved", src_start_line=18, src_end_line=18),
+        CodeEdge(project_id=project_id, src_entity_id=caller.id, dst_entity_id=deposit.id, dst_name="deposit", type="CALLS",
+                 resolution="resolved", src_start_line=6, src_end_line=6,
+                 meta_json={"argument_expressions": ["seed"], "argument_refs": [{"kind": "local_variable", "qualified_name": seed_qn}]}),
+    ])
+    db_session.commit()
+
+    steps = evidence.data_origin(db_session, db_session.get(type(user), user.id), project_id, field)
+
+    assert [(step["field"], step["operation"], step["cite"]) for step in steps] == [
+        ("balance", "compound_assign", "src/Account.java:18"),
+        ("checked", "init", "src/Account.java:17"),
+        ("net", "init", "src/Account.java:16"),
+        ("amount", "argument", "src/Main.java:6"),
+        ("seed", "init", "src/Main.java:5"),
+    ]
+    assert steps[1]["reads"] == ["validate(…)", "net (Argument von validate)"]
+    assert steps[3]["passed_by"] == "run" and steps[3]["reads"] == ["seed"]

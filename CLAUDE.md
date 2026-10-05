@@ -50,7 +50,8 @@ Regeln dafür:
    Profil-Eintrag dazu, nicht durch neuen Servercode.
 2. **Fehlt dem Server eine Angabe, wird der Parser erweitert** (Entscheidung E-15), nicht im Server geraten oder mit
    Zeilennähe-Heuristiken überbrückt. Jeder Sprachparser erfüllt den Parser-Vertrag in `docs/ENTSCHEIDUNGEN.md` E-15
-   (Kantentypen und Rollen, bei `READS`/`WRITES` zusätzlich `operation`, `operand_role`, `statement_line`).
+   (Rollen der Entitäts- und Kantentypen; Datenzugriffe mit Anweisungsbezug als Kantenmetadaten `operation`/`operand_role`
+   oder als Tabelle `meta.data_flow` an der Routine).
 3. **Jede belegbare Angabe trägt `cite`** (`pfad/datei.ext:zeile`) und ist als klickbare Quelle auffindbar
    (`api/chat.py::_extract_tool_sources`). Unbelegtes wird als Lücke benannt (`unresolved`, `external`, `unknown`),
    nie ergänzt.

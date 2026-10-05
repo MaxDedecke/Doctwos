@@ -234,6 +234,26 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 11,
+            "line": 11,
+            "operation": "assign",
+            "sources": [
+              {
+                "kind": "parameter",
+                "name": "values",
+                "qualified_name": "corpus.legacy.Catalog#<init>(List<T>)@param:values"
+              }
+            ],
+            "target": {
+              "kind": "field",
+              "name": "values",
+              "qualified_name": "corpus.legacy.Catalog#values"
+            },
+            "text": "this.values = values;"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [
@@ -277,6 +297,36 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 15,
+            "line": 15,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "field",
+                "name": "values",
+                "qualified_name": "corpus.legacy.Catalog#values",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "values.get"
+              },
+              {
+                "kind": "parameter",
+                "name": "index",
+                "qualified_name": "corpus.legacy.Catalog#find(int)@param:index",
+                "via": "call:get"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return values.get(index);"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [
@@ -327,6 +377,41 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 19,
+            "line": 19,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "field",
+                "name": "values",
+                "qualified_name": "corpus.legacy.Catalog#values",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "values.get"
+              },
+              {
+                "kind": "parameter",
+                "name": "key",
+                "qualified_name": "corpus.legacy.Catalog#find(String)@param:key",
+                "via": "call:get"
+              },
+              {
+                "kind": "call",
+                "name": "key.length",
+                "via": "call:get"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return values.get(key.length());"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [

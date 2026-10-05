@@ -175,6 +175,51 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 12,
+            "line": 9,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "parameter",
+                "name": "shape",
+                "qualified_name": "corpus.modern.Area#calculate(Shape)@param:shape"
+              },
+              {
+                "kind": "unknown",
+                "name": "circle",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "circle.radius"
+              },
+              {
+                "kind": "member",
+                "name": "Math.PI"
+              },
+              {
+                "kind": "unknown",
+                "name": "Math",
+                "via": "member"
+              },
+              {
+                "kind": "unknown",
+                "name": "width"
+              },
+              {
+                "kind": "unknown",
+                "name": "height"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return switch (shape) { case Circle circle when circle.radius() > 0 -> Math.PI * circle.radius() * circle.radius(); cas…"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [

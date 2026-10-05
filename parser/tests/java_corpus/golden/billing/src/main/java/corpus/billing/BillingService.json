@@ -98,6 +98,25 @@
       "meta": {
         "annotation_details": [],
         "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 5,
+            "line": 5,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "parameter",
+                "name": "amount",
+                "qualified_name": "corpus.billing.BillingService#calculate(int)@param:amount"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return amount;"
+          }
+        ],
         "exception_flow": [],
         "language": "java",
         "modifiers": [
