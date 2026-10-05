@@ -525,6 +525,35 @@ def test_mcp_token_revocation_takes_effect_immediately(db_session, mcp_project_c
     assert token.revoked_at is not None
 
 
+def test_mcp_token_expiry_deactivated_accounts_and_malformed_secrets_are_rejected(db_session, mcp_project_context):
+    """O-324: Ein abgelaufener Token, ein deaktiviertes Konto und fremde oder überlange Geheimnisse schlagen fehl."""
+    from datetime import timedelta
+
+    user, _outsider, _project_id, _foreign_project_id = mcp_project_context
+    token, secret = create_token(db_session, user=user, name="MCP expiry test", days=30)
+    assert find_token_user(db_session, secret).id == user.id
+
+    token.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.commit()
+    assert find_token_user(db_session, secret) is None
+
+    token.expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    db_session.commit()
+    assert find_token_user(db_session, secret).id == user.id
+    user.is_active = False
+    db_session.commit()
+    try:
+        assert find_token_user(db_session, secret) is None
+    finally:
+        user.is_active = True
+        db_session.commit()
+    assert find_token_user(db_session, secret).id == user.id
+
+    assert find_token_user(db_session, "dct_mcp_" + "x" * 43) is None  # unbekannt
+    assert find_token_user(db_session, "Bearer " + secret) is None  # falsches Präfix
+    assert find_token_user(db_session, secret + "x" * 200) is None  # überlang
+
+
 def test_get_code_entity_continuation_keeps_later_chunks(
     db_session, mcp_project_context, monkeypatch
 ):

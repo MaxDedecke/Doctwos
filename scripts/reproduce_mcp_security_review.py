@@ -111,7 +111,8 @@ async def run(db):
                 record('malformed JSON denied',response.status_code==400,response.status_code)
                 response=await post({'jsonrpc':'2.0','id':3,'method':'tools/list'})
                 tools=response.json()['result']['tools']
-                record('six read-only tools',len(tools)==6 and all(t['annotations']['readOnlyHint'] for t in tools),[t['name'] for t in tools])
+                EXPECTED_TOOLS={'answer_context','explain_symbol','list_visible_projects','search_code','research_project','get_code_entity','trace_data_access','get_call_flow','get_graph_neighbors','search_knowledge'}
+                record('ten read-only tools',{t['name'] for t in tools}==EXPECTED_TOOLS and all(t['annotations']['readOnlyHint'] for t in tools),[t['name'] for t in tools])
                 visible=data(await call('list_visible_projects',{}))
                 record('project list scope', [p['id'] for p in visible['projects']]==[-8401])
                 for name,args in [('search_code',{'project_id':-8402,'query':'Foreign'}),

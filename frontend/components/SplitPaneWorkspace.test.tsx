@@ -283,6 +283,30 @@ describe('SplitPaneWorkspace', () => {
       isReferencesDropdownOpen: true,
     };
 
+    it('kennzeichnet unaufgelöste Ziele als extern, wenn der Index sie als Systemziel belegt (O-375)', async () => {
+      const unresolved = (id: number, name: string, meta: Record<string, unknown>) => ({
+        edge_id: id, type: 'COPY', direction: 'out', resolution: 'unresolved', dst_name: name,
+        entity: null, reference: null, start_line: id, end_line: id, meta,
+      });
+      vi.mocked(api.getEntityNeighbors).mockResolvedValueOnce(axiosResponse({
+        entity: codeTabProps.selectedEntity,
+        groups: {
+          'COPY:out': [
+            unresolved(1, 'CMQV', { external: { category: 'mq', kind: 'system_copybook' } }),
+            unresolved(2, 'COBDATFT', {}),
+          ],
+        },
+        page: { 'COPY:out': { total: 2, has_more: false, next_after: 2 } },
+      }));
+      renderWorkspace(codeTabProps);
+
+      const external = await screen.findByRole('button', { name: /CMQV/ });
+      expect(external.textContent).toContain('Extern (mq)');
+      expect(external.textContent).not.toContain('Nicht aufgelöst');
+      // Eine echte Lücke bleibt eine Lücke: kein Systemziel belegt, also „Nicht aufgelöst“.
+      expect((await screen.findByRole('button', { name: /COBDATFT/ })).textContent).toContain('Nicht aufgelöst');
+    });
+
     it('lädt Nachbargruppen mit 15 Einträgen, zeigt Gesamtzahl im Badge und lädt eine Gruppe erst auf Klick nach', async () => {
       vi.mocked(api.getEntityNeighbors)
         .mockResolvedValueOnce(axiosResponse({
