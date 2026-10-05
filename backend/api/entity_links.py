@@ -300,6 +300,8 @@ def trigger_link_computation(
     review_batch_size: Optional[int] = Query(None, ge=0, le=50, description="Kandidaten je Modellaufruf; 0 = alle einer Entität in einem Aufruf (Standard)."),
     review_concurrency: Optional[int] = Query(None, ge=1, le=8, description="Entitäten, deren Bewertung gleichzeitig läuft (Standard 1)."),
     embed_window: Optional[int] = Query(None, ge=1, le=20, description="Kontexte je gebündeltem Embedding-Aufruf (Standard 16)."),
+    max_review_candidates: Optional[int] = Query(None, ge=0, le=100, description="Obergrenze der Kandidaten je Entität vor der Modellbewertung, nach Score absteigend; 0 = keine. Ohne Angabe: 8 bei lokalem KI-Profil, sonst keine."),
+    keyword_selection: Optional[str] = Query(None, pattern="^(best|first)$", description="Stichwortsuche bei mehr Treffern als `top_k_keyword`: `best` = höchster Trefferanteil zuerst (Standard), `first` = die ersten Treffer nach Chunk-ID (früheres Verhalten)."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -341,7 +343,8 @@ def trigger_link_computation(
             "min_score_semantic": min_score_semantic, "min_score_keyword": min_score_keyword,
             "merge_threshold": merge_threshold, "dedupe_by_chunk": dedupe_by_chunk,
             "review_batch_size": review_batch_size, "review_concurrency": review_concurrency,
-            "embed_window": embed_window,
+            "embed_window": embed_window, "max_review_candidates": max_review_candidates,
+            "keyword_selection": keyword_selection,
         }.items()
         if value is not None
     }

@@ -1294,6 +1294,7 @@
       "hint": "Optionen dieses Laufs. Leere Felder verwenden den Standard des Servers (Platzhalter).",
       "reviewConcurrency": "Parallele Bewertungen",
       "reviewBatchSize": "Kandidaten je Modellaufruf (0 = alle)",
+      "maxReviewCandidates": "Kandidaten je Entität (Obergrenze, 0 = keine)",
       "topKSemantic": "Semantische Kandidaten (Top-k)",
       "topKKeyword": "Stichwort-Kandidaten (Top-k)",
       "mergeThreshold": "Mindest-Score vor der Bewertung",

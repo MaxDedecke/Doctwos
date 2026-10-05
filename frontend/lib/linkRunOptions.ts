@@ -4,6 +4,7 @@
 export type LinkRunOptionKey =
   | 'reviewConcurrency'
   | 'reviewBatchSize'
+  | 'maxReviewCandidates'
   | 'topKSemantic'
   | 'topKKeyword'
   | 'mergeThreshold'
@@ -23,6 +24,7 @@ export interface LinkRunOptionField {
 export const LINK_RUN_OPTION_FIELDS: LinkRunOptionField[] = [
   { key: 'reviewConcurrency', param: 'review_concurrency', min: 1, max: 8, step: 1, placeholder: '1' },
   { key: 'reviewBatchSize', param: 'review_batch_size', min: 0, max: 50, step: 1, placeholder: '0' },
+  { key: 'maxReviewCandidates', param: 'max_review_candidates', min: 0, max: 100, step: 1, placeholder: '8' },
   { key: 'topKSemantic', param: 'top_k_semantic', min: 1, max: 200, step: 1, placeholder: '20' },
   { key: 'topKKeyword', param: 'top_k_keyword', min: 1, max: 500, step: 1, placeholder: '50' },
   { key: 'mergeThreshold', param: 'merge_threshold', min: 0, max: 1, step: 0.05, placeholder: '0.9' },

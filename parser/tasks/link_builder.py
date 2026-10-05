@@ -37,6 +37,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from db import SessionLocal, REDIS_URL
 from models.database import (
+    AIProfile,
+    AISettings,
     CodeEntity,
     CodeEdge,
     DocumentChunk,
@@ -383,6 +385,8 @@ class LinkRunParams:
     merge_threshold: float = MERGE_SCORE_THRESHOLD
     min_confidence: int = LLM_MIN_CONFIDENCE
     dedupe_by_chunk: bool = False
+    keyword_selection: str = "best"  # "best": höchster Trefferanteil zuerst; "first": erste Treffer nach Chunk-ID
+    max_review_candidates: int = 0  # Obergrenze der Kandidaten je Entity vor der Modellbewertung; 0 = keine
     review_batch_size: int = 0  # Kandidaten je Modellaufruf; 0 = alle Kandidaten einer Entity in einem Aufruf
     review_concurrency: int = 1  # Entities, deren Bewertung gleichzeitig läuft
     embed_window: int = _DEFAULT_EMBED_WINDOW
@@ -392,11 +396,20 @@ class LinkRunParams:
         "top_k_semantic": (1, 200), "top_k_keyword": (1, 500),
         "min_score_semantic": (0.0, 1.0), "min_score_keyword": (0.0, 1.0), "merge_threshold": (0.0, 1.0),
         "min_confidence": (0, 100), "review_batch_size": (0, 50), "review_concurrency": (1, 8), "embed_window": (1, 20),
+        "max_review_candidates": (0, 100),
     }
 
+    # Gemessen nur mit `qwen3:8b` auf einer 8-GB-GPU (CardDemo/Syncope, 05.10.2026): 2 gleichzeitige Bewertungen und
+    # 3 Kandidaten je Aufruf; höchstens 8 Kandidaten je Entity (bei „beste 50“ liegen 90 % der Entities bei höchstens 7).
+    # Entfernte und Cloud-Profile behalten die allgemeinen Standardwerte.
+    LOCAL_PROFILE_DEFAULTS = {"review_concurrency": 2, "review_batch_size": 3, "max_review_candidates": 8}
+
     @classmethod
-    def from_scope(cls, scope: dict | None, min_confidence: int | None = None) -> "LinkRunParams":
-        raw = dict((scope or {}).get("params") or {})
+    def from_scope(
+        cls, scope: dict | None, min_confidence: int | None = None, profile_defaults: dict | None = None
+    ) -> "LinkRunParams":
+        """Werte des Laufs; was dort fehlt, kommt aus ``profile_defaults``, sonst aus den Modulkonstanten."""
+        raw = {**(profile_defaults or {}), **dict((scope or {}).get("params") or {})}
         if min_confidence is not None and "min_confidence" not in raw:
             raw["min_confidence"] = min_confidence
         values: dict = {}
@@ -406,6 +419,9 @@ class LinkRunParams:
             value = raw[name]
             if name == "dedupe_by_chunk":
                 values[name] = bool(value)
+                continue
+            if name == "keyword_selection":
+                values[name] = value if value in ("best", "first") else "best"
                 continue
             low, high = cls.LIMITS[name]
             try:
@@ -487,6 +503,7 @@ def _pass_keyword(
     top_k: int | None = None,
     min_score: float | None = None,
     per_chunk: bool = False,
+    selection: str = "best",
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -502,6 +519,9 @@ def _pass_keyword(
 
     limit = top_k or TOP_CHUNKS_KEYWORD
     threshold = MIN_SCORE_KEYWORD if min_score is None else min_score
+    # "best": die `limit` Treffer mit dem höchsten Trefferanteil (bei Gleichstand die kleinere Chunk-ID).
+    # "first": die ersten `limit` Treffer nach Chunk-ID, unabhängig von ihrem Anteil (früheres Verhalten).
+    best = selection != "first"
 
     if corpus is not None and corpus.items is not None:
         matched: list[tuple[int, float]] = []
@@ -511,9 +531,11 @@ def _pass_keyword(
             hits = sum(1 for kw in keywords if kw in text)
             if hits == 0:
                 continue
-            if len(matched) + 1 > limit:
+            if not best and len(matched) + 1 > limit:
                 break
             matched.append((chunk_id, hits / len(keywords)))
+        if best:
+            matched = sorted(matched, key=lambda item: (-item[1], item[0]))[:limit]
         wanted = [(chunk_id, score) for chunk_id, score in matched if score >= threshold]
         if not wanted:
             return {}
@@ -541,17 +563,19 @@ def _pass_keyword(
     # Feste Reihenfolge: Die Obergrenze TOP_CHUNKS_KEYWORD schneidet sonst je nach Heap-Reihenfolge anders ab.
     candidates = query.order_by(DocumentChunk.id).all()
 
-    result: dict[str, tuple] = {}
-    matched_chunks = 0
+    scored_chunks: list[tuple[DocumentChunk, float]] = []
     for chunk in candidates:
         content_lower = (chunk.content or "").lower()
         matched = sum(1 for kw in keywords if kw in content_lower)
         if matched == 0:
             continue
-        matched_chunks += 1
-        if matched_chunks > limit:
+        if not best and len(scored_chunks) + 1 > limit:
             break
-        score = matched / len(keywords)
+        scored_chunks.append((chunk, matched / len(keywords)))
+    if best:
+        scored_chunks = sorted(scored_chunks, key=lambda item: (-item[1], item[0].id))[:limit]
+    result: dict[str, tuple] = {}
+    for chunk, score in scored_chunks:
         if score < threshold:
             continue
         meta = chunk.metadata_json or {}
@@ -796,6 +820,22 @@ def _store_reviewed_links(db, project_id: int, entity: CodeEntity, reviewed: lis
             _stamp_link_snapshot(link, entity, chunk, embedding_model)
 
 
+def _profile_run_defaults(db) -> dict:
+    """Standardwerte des Laufs je aktivem KI-Profil: lokale Profile (Ollama auf dem eigenen Host) bekommen die
+    gemessenen Werte aus ``LinkRunParams.LOCAL_PROFILE_DEFAULTS``, entfernte und Cloud-Profile die allgemeinen."""
+    try:
+        settings = db.query(AISettings).order_by(AISettings.id).first()
+        profile = db.get(AIProfile, settings.active_profile_id) if settings and settings.active_profile_id else None
+    except Exception:
+        logger.warning("[LinkBuilder] Aktives KI-Profil nicht lesbar; allgemeine Standardwerte", exc_info=True)
+        return {}
+    return _defaults_for_profile_kind(profile.kind if profile is not None else None)
+
+
+def _defaults_for_profile_kind(kind: str | None) -> dict:
+    return dict(LinkRunParams.LOCAL_PROFILE_DEFAULTS) if kind == "local" else {}
+
+
 async def compute_entity_links_async(
     run_id: int,
     project_id: int,
@@ -839,7 +879,7 @@ async def compute_entity_links_async(
         embedding_model or run.embedding_model or config.EMBED_MODEL
     ).strip()
     run.embedding_model = selected_embedding_model
-    params = LinkRunParams.from_scope(run.scope_json, min_confidence)
+    params = LinkRunParams.from_scope(run.scope_json, min_confidence, _profile_run_defaults(db))
     effective_min_confidence = params.min_confidence
 
     # Try to acquire the Redis lock with run_id as owner, renewed per entity below.
@@ -1036,11 +1076,15 @@ async def compute_entity_links_async(
                 keyword = _pass_keyword(
                     entity, project_id, db, selected_embedding_model, candidate_chunk_ids, corpus=keyword_corpus,
                     top_k=params.top_k_keyword, min_score=params.min_score_keyword, per_chunk=params.dedupe_by_chunk,
+                    selection=params.keyword_selection,
                 )
                 top_pages = _exclude_own_source(entity, _merge_passes(
                     (semantic, "semantic"), (keyword, "keyword"), threshold=params.merge_threshold,
                 ))
-                prepared.append((entity, contexts[entity.id], _undecided_pages(db, entity, top_pages)))
+                undecided = _undecided_pages(db, entity, top_pages)  # nach Score absteigend sortiert
+                if params.max_review_candidates:
+                    undecided = undecided[: params.max_review_candidates]
+                prepared.append((entity, contexts[entity.id], undecided))
 
             gate = asyncio.Semaphore(params.review_concurrency)
 

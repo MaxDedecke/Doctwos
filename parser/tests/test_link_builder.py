@@ -510,3 +510,45 @@ def test_llm_review_retries_once_after_a_timeout_and_names_the_error_type(monkey
         raise AssertionError("erwartet: RuntimeError")
     except RuntimeError as error:
         assert "ReadTimeout" in str(error)  # vorher eine leere Meldung
+
+
+def test_keyword_selection_best_takes_the_highest_match_share_not_the_first_chunks(db_session, test_project):
+    """O-386: Mit mehr Treffern als `top_k` gewinnt der Trefferanteil, nicht die kleinere Chunk-ID."""
+    import tasks.link_builder as link_builder
+
+    project_id, source_id = test_project
+    entity = CodeEntity(project_id=project_id, file_path="src/payroll_calculator.py", name="calculate_payroll", type="function")
+    db_session.add(entity)
+    db_session.add_all([
+        DocumentChunk(project_id=project_id, source_id=source_id, file_path="docs/early_one.md", content="payroll"),
+        DocumentChunk(project_id=project_id, source_id=source_id, file_path="docs/early_two.md", content="payroll notes"),
+        DocumentChunk(project_id=project_id, source_id=source_id, file_path="docs/full.md", content="calculate payroll calculator"),
+    ])
+    db_session.commit()
+    db_session.refresh(entity)
+    corpus = link_builder.KeywordCorpus(db_session, project_id)
+
+    for corpus_arg in (None, corpus):  # beide Pfade (Datenbank und Speicher-Korpus) wählen gleich
+        first = link_builder._pass_keyword(entity, project_id, db_session, top_k=2, min_score=0.0, selection="first", corpus=corpus_arg)
+        best = link_builder._pass_keyword(entity, project_id, db_session, top_k=2, min_score=0.0, selection="best", corpus=corpus_arg)
+        assert set(first) == {"docs/early_one.md", "docs/early_two.md"}
+        assert "docs/full.md" in best and len(best) == 2
+        assert best["docs/full.md"][1] == 1.0
+
+
+def test_link_run_params_take_profile_defaults_but_the_run_wins():
+    from tasks.link_builder import LinkRunParams, _defaults_for_profile_kind
+
+    local = _defaults_for_profile_kind("local")
+    assert local == {"review_concurrency": 2, "review_batch_size": 3, "max_review_candidates": 8}
+    assert _defaults_for_profile_kind("cloud") == {} and _defaults_for_profile_kind(None) == {}
+
+    from_profile = LinkRunParams.from_scope(None, None, local)
+    assert (from_profile.review_concurrency, from_profile.max_review_candidates) == (2, 8)
+    assert from_profile.keyword_selection == "best"
+    chosen = LinkRunParams.from_scope(
+        {"params": {"review_concurrency": 4, "max_review_candidates": 0, "keyword_selection": "first"}}, None, local
+    )
+    assert (chosen.review_concurrency, chosen.max_review_candidates, chosen.keyword_selection) == (4, 0, "first")
+    assert LinkRunParams.from_scope({"params": {"keyword_selection": "unfug", "max_review_candidates": 999}}).keyword_selection == "best"
+    assert LinkRunParams.from_scope({"params": {"max_review_candidates": 999}}).max_review_candidates == 100

@@ -448,13 +448,22 @@ def test_trigger_link_computation_records_validated_run_parameters(client, db_se
         )
         accepted = client.post(
             f"/projects/{test_project}/link-recommendations/compute",
-            params={"top_k_semantic": 5, "review_concurrency": 2, "review_batch_size": 3, "dedupe_by_chunk": "true"},
+            params={"top_k_semantic": 5, "review_concurrency": 2, "review_batch_size": 3, "dedupe_by_chunk": "true",
+                    "max_review_candidates": 6, "keyword_selection": "first"},
+        )
+        bad_selection = client.post(
+            f"/projects/{test_project}/link-recommendations/compute", params={"keyword_selection": "zufall"}
+        )
+        too_many_candidates = client.post(
+            f"/projects/{test_project}/link-recommendations/compute", params={"max_review_candidates": 101}
         )
     assert too_many.status_code == 422 and too_low.status_code == 422
+    assert bad_selection.status_code == 422 and too_many_candidates.status_code == 422
     assert accepted.status_code == 200, accepted.text
     run = db_session.query(LinkBuilderRun).filter(LinkBuilderRun.id == accepted.json()["run_id"]).one()
     assert run.scope_json["params"] == {
         "top_k_semantic": 5, "review_concurrency": 2, "review_batch_size": 3, "dedupe_by_chunk": True,
+        "max_review_candidates": 6, "keyword_selection": "first",
     }
     db_session.query(LinkBuilderRun).filter(LinkBuilderRun.project_id == test_project).delete(synchronize_session=False)
     db_session.commit()

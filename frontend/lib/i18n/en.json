@@ -1294,6 +1294,7 @@
       "hint": "Options for this run. Empty fields use the server default (shown as placeholder).",
       "reviewConcurrency": "Parallel reviews",
       "reviewBatchSize": "Candidates per model call (0 = all)",
+      "maxReviewCandidates": "Candidates per entity (cap, 0 = none)",
       "topKSemantic": "Semantic candidates (top-k)",
       "topKKeyword": "Keyword candidates (top-k)",
       "mergeThreshold": "Minimum score before review",

@@ -9,11 +9,12 @@ describe('linkRunOptionsQuery', () => {
 
   it('übernimmt nur gesetzte Werte unter den Parameternamen der API', () => {
     const query = new URLSearchParams(
-      linkRunOptionsQuery({ reviewConcurrency: 4, reviewBatchSize: 0, mergeThreshold: 0.8, dedupeByChunk: true }),
+      linkRunOptionsQuery({ reviewConcurrency: 4, reviewBatchSize: 0, maxReviewCandidates: 8, mergeThreshold: 0.8, dedupeByChunk: true }),
     );
     expect(Object.fromEntries(query)).toEqual({
       review_concurrency: '4',
       review_batch_size: '0',
+      max_review_candidates: '8',
       merge_threshold: '0.8',
       dedupe_by_chunk: 'true',
     });
