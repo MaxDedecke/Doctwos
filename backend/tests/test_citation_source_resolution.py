@@ -453,3 +453,21 @@ def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
     # Eine solche Zitatform besteht die Validierung gegen die abgerufenen Quellen.
     answer, consistent = _validate_answer_sources("Zuweisung in `cbl/PROG.cbl:885` und `cbl/PROG.cbl:376`.", agent_sources)
     assert consistent and "nicht belegt" not in answer
+
+
+def test_answer_context_edge_pairs_cover_control_flow_includes_and_origin():
+    from api.chat import _answer_context_edge_pairs
+
+    result = {"evidence": [{
+        "symbol": "UserLogic#create",
+        "control_flow": {"flow": [{
+            "routine": "org.x.UserLogic#create(UserCR,boolean)",
+            "calls": [{"to": "doCreate", "then": [{"to": "beforeCreate"}]}],
+        }]},
+        "includes": {"resolved": [{"name": "UserCR"}]},
+        "data_origin": {"steps": [{"field": "expirationDate", "operation": "argument",
+                                   "passed_by": "caller", "statement": "store(expirationDate)"}]},
+    }]}
+    pairs = {(a.lower(), b.lower()) for a, b in _answer_context_edge_pairs(result)}
+    assert ("create", "docreate") in pairs
+    assert ("docreate", "beforecreate") in pairs

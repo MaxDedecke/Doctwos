@@ -850,6 +850,27 @@ def _answer_context_edge_pairs(result: dict) -> set[tuple[str, str]]:
             name = _symbol_tail((helper or {}).get("symbol")) if isinstance(helper, dict) else ""
             if name:
                 pairs.add((symbol, name))
+        # Evidence blocks (services/evidence.py) state their edges explicitly, for every language.
+        for item in (entry.get("control_flow") or {}).get("flow") or []:
+            routine = _symbol_tail(item.get("routine")) if isinstance(item, dict) else ""
+            for call in (item.get("calls") or []) if isinstance(item, dict) else []:
+                target = _symbol_tail(call.get("to"))
+                if routine and target:
+                    pairs.add((routine, target))
+                for follow in call.get("then") or []:
+                    follow_name = _symbol_tail(follow.get("to"))
+                    if target and follow_name:
+                        pairs.add((target, follow_name))
+        for group in ("resolved", "external", "unresolved"):
+            for item in (entry.get("includes") or {}).get(group) or []:
+                name = _symbol_tail(item.get("name")) if isinstance(item, dict) else ""
+                if name:
+                    pairs.add((symbol, name))
+        for step in entry.get("data_origin") or []:
+            if isinstance(step, dict) and step.get("operation") == "argument" and step.get("passed_by"):
+                callee = _symbol_tail(str(step.get("statement") or "").split("(", 1)[0])
+                if callee:
+                    pairs.add((_symbol_tail(step["passed_by"]), callee))
     return pairs
 
 

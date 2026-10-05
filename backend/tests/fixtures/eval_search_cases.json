@@ -865,6 +865,149 @@
         "target_name": "PA-DECLINED-AUTH-CNT",
         "resolution": "resolved"
       }
+    },
+    {
+      "id": "E-C1",
+      "project": "carddemo",
+      "kind": "evidence",
+      "case": "Einbindungen COBOL: aufgelöstes Copybook",
+      "symbols": [
+        "COPAUA0C"
+      ],
+      "topic": "Welche Copybooks bindet COPAUA0C ein?",
+      "block": "includes",
+      "expect": {
+        "group": "resolved",
+        "name": "CCPAURQY",
+        "line": 178
+      }
+    },
+    {
+      "id": "E-C2",
+      "project": "carddemo",
+      "kind": "evidence",
+      "case": "Einbindungen COBOL: externes MQ-Copybook",
+      "symbols": [
+        "COPAUA0C"
+      ],
+      "topic": "Welche Copybooks bindet COPAUA0C ein?",
+      "block": "includes",
+      "expect": {
+        "group": "external",
+        "name": "CMQV",
+        "line": 161
+      }
+    },
+    {
+      "id": "E-C3",
+      "project": "carddemo",
+      "kind": "evidence",
+      "case": "Kontrollfluss COBOL: Absatz und zweite Stufe",
+      "symbols": [
+        "COPAUA0C.MAIN-PARA"
+      ],
+      "topic": "Beschreibe den Kontrollfluss von COPAUA0C.MAIN-PARA",
+      "block": "control_flow",
+      "expect": {
+        "routine": "COPAUA0C.MAIN-PARA",
+        "to": "1000-INITIALIZE",
+        "line": 222,
+        "then": "1100-OPEN-REQUEST-QUEUE"
+      }
+    },
+    {
+      "id": "E-C4",
+      "project": "carddemo",
+      "kind": "evidence",
+      "case": "Datenherkunft COBOL: Berechnung des Betrags",
+      "symbols": [
+        "CIPAUDTY.PA-TRANSACTION-AMT"
+      ],
+      "topic": "Woher stammt der Betrag PA-TRANSACTION-AMT?",
+      "block": "data_origin",
+      "expect": {
+        "cite": "COPAUA0C.cbl:376",
+        "operation": "COMPUTE"
+      }
+    },
+    {
+      "id": "E-J1",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Einbindungen Java: Import aus dem Repository",
+      "symbols": [
+        "org.apache.syncope.core.rest.cxf.service.UserServiceImpl"
+      ],
+      "topic": "Welche Typen importiert und erweitert UserServiceImpl?",
+      "block": "includes",
+      "expect": {
+        "group": "resolved",
+        "name": "UserCR",
+        "line": 24
+      }
+    },
+    {
+      "id": "E-J2",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Einbindungen Java: Bibliotheksimport extern",
+      "symbols": [
+        "org.apache.syncope.core.rest.cxf.service.UserServiceImpl"
+      ],
+      "topic": "Welche Typen importiert und erweitert UserServiceImpl?",
+      "block": "includes",
+      "expect": {
+        "group": "external",
+        "name": "Response",
+        "line": 21
+      }
+    },
+    {
+      "id": "E-J3",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Kontrollfluss Java: Methode und zweite Stufe",
+      "symbols": [
+        "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)"
+      ],
+      "topic": "Beschreibe den Kontrollfluss von UserLogic#create",
+      "block": "control_flow",
+      "expect": {
+        "routine": "UserLogic#create(UserCR,boolean)",
+        "to": "doCreate",
+        "line": 136,
+        "then": "beforeCreate"
+      }
+    },
+    {
+      "id": "E-J4",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Datenherkunft Java: Zuweisung im Setter",
+      "symbols": [
+        "org.apache.syncope.common.lib.wa.MfaTrustedDevice#expirationDate"
+      ],
+      "topic": "Woher stammt der Wert des Feldes expirationDate?",
+      "block": "data_origin",
+      "expect": {
+        "cite": "MfaTrustedDevice.java:88",
+        "operation": "assign"
+      }
+    },
+    {
+      "id": "E-J5",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Datenherkunft Java: Aufruferausdruck des Setters",
+      "symbols": [
+        "org.apache.syncope.common.lib.wa.MfaTrustedDevice#expirationDate"
+      ],
+      "topic": "Woher stammt der Wert des Feldes expirationDate?",
+      "block": "data_origin",
+      "expect": {
+        "cite": "WAMultifactorAuthenticationTrustStorage.java:68",
+        "operation": "argument"
+      }
     }
   ]
 }

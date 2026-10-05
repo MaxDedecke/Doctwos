@@ -15,12 +15,17 @@ from sqlalchemy.orm import Session
 
 from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of
 from models.database import CodeEdge, CodeEntity, User
+from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import site_excerpt, source_visible
 
 # Question wording that asks for one block; a block is only built when the question asks for it.
 INCLUDES_INTENT = re.compile(
     r"copy|copybook|include|einbind|import|abh[aä]ngig|depend|extends|implements|erb[t]|implementier|"
     r"binden .{0,40}ein|welche (typen|klassen) .{0,30}nutz", re.I)
+# The question asks about a value or a field rather than about behaviour: a data entity wins over a same-named method.
+DATA_INTENT = re.compile(
+    r"\bfeld(es|er|s)?\b|\bfield\b|variable|attribut|herkunft|origin|befüll|"
+    r"\bwert\b.{0,40}(stammt|kommt|gesetzt)|woher .{0,40}(wert|betrag|inhalt)", re.I)
 FLOW_INTENT = re.compile(
     r"kontrollfluss|control flow|ablauf|l[aä]uft|ausgef[uü]hrt|folgeschritt|reihenfolge|aufrufkette|call chain|"
     r"perform|schritte|was passiert|ruft .{0,60}auf|aufgerufen|call hierarch", re.I)
@@ -59,7 +64,7 @@ def includes(db: Session, user: User, project_id: int, entity: CodeEntity, limit
         external = (row.meta_json or {}).get("external")
         target = targets.get(row.dst_entity_id) if row.dst_entity_id else None
         if row.resolution == "resolved" and target is not None:
-            groups["resolved"].append({**item, "file": target.file_path})
+            groups["resolved"].append({**item, "defined_in": target.file_path})
         elif isinstance(external, dict) and external:
             groups["external"].append({**item, "category": external.get("category"), "system_kind": external.get("kind")})
         else:
@@ -84,7 +89,7 @@ def _step(row: CodeEdge, source: CodeEntity, target: CodeEntity | None) -> dict:
     step = {"edge": row.type, "to": _short(target.qualified_name if target is not None else row.dst_name) or row.dst_name,
             "line": line, "status": status, "cite": f"{source.file_path}:{line}"}
     if target is not None and target.file_path != source.file_path:
-        step["file"] = target.file_path
+        step["defined_in"] = target.file_path
     if status == "external":
         step["category"] = external.get("category")
     return step
@@ -289,12 +294,19 @@ def _origin_table_statements(
         siblings.sort(key=lambda e: (e.start_line or 0, int((e.meta_json or {}).get("declaration_column", 0))))
         position = next((i for i, e in enumerate(siblings) if e.id == current.id), None)
         if position is not None:
-            for call in db.query(CodeEdge).filter(
+            call_edges = db.query(CodeEdge).filter(
                 CodeEdge.project_id == project_id, CodeEdge.type == "CALLS", CodeEdge.dst_entity_id == parent.id,
-            ).order_by(CodeEdge.id).limit(4):
+            ).order_by(CodeEdge.id).limit(30).all()
+            callers_by_id = {
+                caller.id: caller for caller in db.query(CodeEntity).filter(
+                    CodeEntity.project_id == project_id, CodeEntity.id.in_([edge.src_entity_id for edge in call_edges]))
+            } if call_edges else {}
+            # Production callers first: a call from test code explains how the code is used, not where the value comes from.
+            call_edges.sort(key=lambda edge: (bool(re.search(TEST_PATH_PATTERN, getattr(callers_by_id.get(edge.src_entity_id), "file_path", "") or "")), edge.id))
+            for call in call_edges[:4]:
                 meta = call.meta_json or {}
                 expressions = meta.get("argument_expressions") or []
-                caller = db.query(CodeEntity).filter(CodeEntity.id == call.src_entity_id, CodeEntity.project_id == project_id).first()
+                caller = callers_by_id.get(call.src_entity_id)
                 if caller is None or position >= len(expressions) or not source_visible(db, user, caller.source_id):
                     continue
                 refs = meta.get("argument_refs") or []

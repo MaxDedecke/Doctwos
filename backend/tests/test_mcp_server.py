@@ -1304,7 +1304,7 @@ def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
                                       question="Welche Copybooks bindet PAYPROG ein?")
     copies = asked["evidence"][0]["includes"]
     assert copies["counts"] == {"resolved": 1, "external": 1, "unresolved": 1}
-    assert copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10" and copies["resolved"][0]["file"] == "src/CPYREC.cpy"
+    assert copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10" and copies["resolved"][0]["defined_in"] == "src/CPYREC.cpy"
     assert (copies["external"][0]["name"], copies["external"][0]["category"]) == ("CMQV", "mq")
     assert copies["unresolved"][0]["name"] == "LOSTCPY"
     assert "cite" in asked["notice"]

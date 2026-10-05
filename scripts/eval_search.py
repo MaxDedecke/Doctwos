@@ -86,7 +86,44 @@ def resolve_entity(client, project_id, name):
     return (exact or candidates)[0]["id"] if (exact or candidates) else None
 
 
+def evaluate_evidence(client, project_id, fact):
+    """Bausteine des Beweispakets (answer_context): Einbindungen, Kontrollfluss, Datenherkunft; je Sprache dasselbe."""
+    pack = client.call("answer_context", {"project_id": project_id, "symbols": fact["symbols"], "topic": fact["topic"]})
+    if "error" in pack:
+        return False, f"Fehler: {str(pack['error'])[:100]}"
+    entries = pack.get("evidence") or []
+    block, expect = fact["block"], fact["expect"]
+    if not entries or block not in entries[0]:
+        return False, f"Baustein {block!r} fehlt im Paket"
+    data = entries[0][block]
+    if block == "includes":
+        item = next((x for x in data.get(expect["group"], []) if x["name"].endswith(expect["name"])), None)
+        if item is None:
+            return False, f"{expect['name']} nicht in {expect['group']}"
+        ok = item.get("line") == expect["line"] if "line" in expect else True
+        return ok, f"{item['kind']} {item['name'].rsplit('.', 1)[-1]} Zeile {item['line']} ({expect['group']})"
+    if block == "control_flow":
+        for flow in data["flow"]:
+            if not flow["routine"].endswith(expect["routine"]):
+                continue
+            step = next((c for c in flow["calls"] if c["to"] == expect["to"] and c["line"] == expect["line"]), None)
+            if step is None:
+                continue
+            if "then" in expect and not any(t["to"] == expect["then"] for t in step.get("then", [])):
+                return False, f"{expect['to']}: Folgeschritt {expect['then']} fehlt"
+            return step["status"] == expect.get("status", "resolved"), f"{expect['to']} Zeile {step['line']} {step['status']}"
+        return False, f"{expect['routine']} -> {expect['to']} Zeile {expect['line']} fehlt"
+    if block == "data_origin":
+        for step in data:
+            if step["cite"].endswith(expect["cite"]) and (expect.get("operation") is None or step["operation"] == expect["operation"]):
+                return True, f"{step['operation']} {step['cite'].rsplit('/', 1)[-1]}"
+        return False, f"Schritt {expect['cite']} fehlt ({[x['cite'].rsplit('/', 1)[-1] for x in data][:5]})"
+    return False, f"unbekannter Baustein {block!r}"
+
+
 def evaluate_fact(client, project_id, fact):
+    if fact["kind"] == "evidence":
+        return evaluate_evidence(client, project_id, fact)
     if fact["kind"] == "search":
         arguments = {"project_id": project_id, "query": fact["query"], "limit": 10}
         return evaluate(fact, client.call(fact["tool"], arguments))

@@ -158,6 +158,87 @@
           }
         ]
       }
+    },
+    {
+      "id": "Q7",
+      "project": "Apache Syncope",
+      "label": "J7 Kontrollfluss (Java, O(1)-Baustein)",
+      "question": "Beschreibe den belegten Kontrollfluss von `UserLogic#create`. Welche Methode ruft sie auf, und welche Methoden ruft diese danach in welcher Reihenfolge auf? Bitte mit Datei- und Zeilenbelegen.",
+      "checks": {
+        "answer_all": [
+          "doCreate",
+          "beforeCreate",
+          "securityChecks"
+        ],
+        "cites": [
+          {
+            "file": "core/idrepo/logic/src/main/java/org/apache/syncope/core/logic/UserLogic.java",
+            "lines": [
+              136,
+              136
+            ]
+          },
+          {
+            "file": "core/idrepo/logic/src/main/java/org/apache/syncope/core/logic/AbstractUserLogic.java",
+            "lines": [
+              87,
+              106
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q8",
+      "project": "Apache Syncope",
+      "label": "J8 Einbindungen (Java, O(1)-Baustein)",
+      "question": "Welche Typen importiert `UserServiceImpl` im Modul `core/idrepo/rest-cxf`, und was erweitert und implementiert die Klasse? Trenne Importe aus dem Repository von JDK- und Bibliotheksimporten und nenne Beispiele für beide Gruppen.",
+      "checks": {
+        "answer_all": [
+          "UserCR",
+          "AbstractAnyService",
+          "UserService\\b",
+          "Response|OffsetDateTime"
+        ],
+        "cites": [
+          {
+            "file": "core/idrepo/rest-cxf/src/main/java/org/apache/syncope/core/rest/cxf/service/UserServiceImpl.java",
+            "lines": [
+              21,
+              35
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q9",
+      "project": "Apache Syncope",
+      "label": "J9 Datenherkunft (Java, O(1)-Baustein)",
+      "question": "Woher stammt der Wert des Feldes `expirationDate` in `MfaTrustedDevice`? Verfolge ihn bis zu den Aufrufern des Setters und nenne die Zeilen.",
+      "checks": {
+        "answer_all": [
+          "setExpirationDate",
+          "expirationDate = expirationDate|this\\.expirationDate",
+          "WAMultifactorAuthenticationTrustStorage|toInstant"
+        ],
+        "cites": [
+          {
+            "file": "common/am/lib/src/main/java/org/apache/syncope/common/lib/wa/MfaTrustedDevice.java",
+            "lines": [
+              88,
+              88
+            ]
+          },
+          {
+            "file": "wa/starter/src/main/java/org/apache/syncope/wa/starter/mfa/WAMultifactorAuthenticationTrustStorage.java",
+            "lines": [
+              68,
+              68
+            ]
+          }
+        ]
+      }
     }
   ]
 }

@@ -1029,17 +1029,40 @@ def build_answer_context(
     seen: set[int] = set()
     unresolved: list[str] = []
     ambiguous: list[tuple[str, list[CodeEntity], str]] = []
+    data_intent = bool(evidence_blocks.DATA_INTENT.search(text))
+    looked: list[tuple[str, list[CodeEntity], list[CodeEntity], str]] = []
     for term in terms:
         found, _suggestions, mode = _find_entities(db, user, project_id, term, 6)
         exact = [e for e in found if _symbol_matches(e, term)]
         structural = [e for e in exact if e.type in _STRUCTURAL or e.type == "copybook"] or exact
-        if not structural:
+        looked.append((term, exact, structural, mode))
+    # Containers named in the question (a class, a program): a member name next to them belongs to them
+    # (`expirationDate` of `MfaTrustedDevice`), and a question about a value prefers the data entity.
+    containers = [
+        structural[0] for _t, _e, structural, _m in looked
+        if structural and role_of(structural[0].type) == "container" and len({e.file_path for e in structural}) == 1
+    ]
+    for term, exact, structural, mode in looked:
+        pool, candidates = structural, exact
+        if containers and "." not in term and "#" not in term and not any(c.name.casefold() == term.casefold() for c in containers):
+            for container in containers:
+                scoped_term = f"{container.name}.{term}"
+                scoped_found, _s, _m = _find_entities(db, user, project_id, scoped_term, 6)
+                scoped = [e for e in scoped_found if _symbol_matches(e, scoped_term)]
+                if scoped:
+                    pool, candidates = scoped, scoped
+                    break
+        if data_intent:
+            data = [e for e in candidates if role_of(e.type) == "data" and e.type != "parameter"]
+            if data:
+                pool = data
+        if not pool:
             unresolved.append(term)
             continue
-        entity, others = _pick_entity(structural)
+        entity, others = _pick_entity(pool)
         if entity is None or entity.id in seen:
             if entity is None:
-                ambiguous.append((term, structural, mode))
+                ambiguous.append((term, pool, mode))
             continue
         seen.add(entity.id)
         resolved.append((term, entity, others, mode))
