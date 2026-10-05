@@ -567,6 +567,24 @@ _FILE_EXT_RE = re.compile(
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
 _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _FILE_LINE_RE = re.compile(r"^(.+\.\w+):(\d+)(?:-\d+)?$")
+# Backtick-Dateiname ohne Zeile (`CMQV.cpy`): wird gegen die abgerufenen Werkzeugergebnisse geprüft.
+_BARE_SOURCE_FILE_RE = re.compile(
+    r"^[\w./-]+\.(?:cbl|cob|cobol|cpy|copy|jcl|prc|proc|java|groovy|xml|xsl|xslt|sh|sql|properties|html|js)$", re.I
+)
+_EMPTY_ANSWER_NOTICE = (
+    "Das Modell hat nach der Recherche keine Antwort geliefert. Es ist deshalb nichts belegt. "
+    "Bitte die Frage erneut stellen oder ein leistungsfähigeres Modell wählen."
+)
+
+
+def _tool_evidence_text(agent_steps: list, question: str = "") -> str:
+    """Frage und alle Werkzeugergebnisse eines Agentenlaufs als durchsuchbarer Kleintext."""
+    parts = [question]
+    for step in agent_steps:
+        if isinstance(step, dict) and step.get("type") == "tool_result":
+            result = step.get("result")
+            parts.append(result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str))
+    return "\n".join(parts).casefold()
 
 
 def _find_pinned_chunks(
@@ -861,7 +879,10 @@ def _mentions_name(text: str, name: str) -> bool:
 
 
 def _validate_answer_sources(
-    answer: str, sources: list[dict], edge_pairs: Optional[set[tuple[str, str]]] = None
+    answer: str,
+    sources: list[dict],
+    edge_pairs: Optional[set[tuple[str, str]]] = None,
+    evidence_text: Optional[str] = None,
 ) -> tuple[str, bool]:
     """Reject file/line citations and relationship claims without delivered evidence.
 
@@ -870,7 +891,14 @@ def _validate_answer_sources(
     citation.  In that case no partial answer is safer than presenting the
     neighbouring source as evidence for the requested file.  A basename is
     accepted only when it maps to exactly one tool-result file.
+
+    ``evidence_text`` (question plus tool results, casefolded) enables the check for
+    file names without a line: a name that occurs nowhere in it is marked as not
+    evidenced instead of being presented like a retrieved source.
     """
+    if not (answer or "").strip():
+        logger.warning("Agent-Antwort ist leer; ersetze durch einen Hinweis")
+        return _EMPTY_ANSWER_NOTICE, False
     evidence: dict[str, list[tuple[int, int]]] = {}
     basenames: dict[str, set[str]] = {}
     for source in sources:
@@ -913,6 +941,20 @@ def _validate_answer_sources(
         else:
             unverified.append((raw, f"{claimed_path}:{claimed_line}"))
 
+    unknown_files: list[str] = []
+    if evidence_text:
+        for raw in _BACKTICK_RE.findall(scan):
+            name = raw.strip()
+            if _BARE_SOURCE_FILE_RE.match(name):
+                base = os.path.basename(name.replace("\\", "/")).casefold()
+                stem = base.rsplit(".", 1)[0]
+                if (
+                    base not in evidence_text
+                    and not any(stem == os.path.splitext(known)[0] for known in basenames)
+                    and name not in unknown_files
+                ):
+                    unknown_files.append(name)
+
     if unverified and not verified:
         logger.warning("Verwerfe Agent-Antwort mit unbelegter Quellenangabe: %s", unverified[0][0])
         return (
@@ -934,6 +976,18 @@ def _validate_answer_sources(
             + "\n\n> Hinweis: "
             + ", ".join(label for _, label in unverified)
             + " stammt nicht aus den abgerufenen Quellen und ist deshalb nicht als Beleg verlinkt."
+        )
+
+    if unknown_files:
+        # Ein Dateiname, den kein Werkzeugergebnis nennt, ist keine Fundstelle: kennzeichnen statt verlinken.
+        logger.warning("Markiere nicht abgerufene Dateinamen: %s", unknown_files)
+        for name in unknown_files:
+            answer = answer.replace(f"`{name}`", f"{name} (nicht belegt)")
+        answer = (
+            answer.rstrip()
+            + "\n\n> Hinweis: "
+            + ", ".join(unknown_files)
+            + " kommt in keinem abgerufenen Werkzeugergebnis vor und ist nicht belegt."
         )
 
     # A call assertion is only admissible when its directed pair was returned
@@ -1578,7 +1632,11 @@ async def chat(
                             if model_end:
                                 yield f"data: {json.dumps(model_end)}\n\n"
                             answer, answer_is_source_consistent = _validate_answer_sources(
-                                event["content"], agent_sources, agent_edge_pairs
+                                event["content"], agent_sources, agent_edge_pairs,
+                                evidence_text=(
+                                    _tool_evidence_text(list(event.get("agent_steps") or agent_steps), request.message)
+                                    if (event.get("agent_steps") or agent_steps) else None
+                                ),
                             )
                             agent_steps = list(event.get("agent_steps") or [])
                             known_action_ids = {

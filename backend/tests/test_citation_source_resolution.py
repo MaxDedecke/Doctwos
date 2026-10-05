@@ -396,3 +396,30 @@ def test_no_result_answer_gets_no_unrelated_read_locations_appended():
     text = "Die Suche nach „Autorisierung“ lieferte keine Treffer."
     assert _append_agent_source_fallback(text, sources) == text
     assert "POSTTRAN" in _append_agent_source_fallback("Der Job ruft CBTRN02C auf.", sources)
+
+
+def test_answer_source_validation_replaces_an_empty_answer_with_a_notice():
+    for empty in ("", "  \n"):
+        answer, consistent = _validate_answer_sources(empty, [{"file": "src/A.java", "lines": [1, 5]}])
+        assert not consistent
+        assert "keine Antwort geliefert" in answer
+
+
+def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
+    from api.chat import _tool_evidence_text
+
+    steps = [{"type": "tool_result", "name": "answer_context", "result": {"copybooks": ["CMQV", "CCPAURQY.cpy"]}}]
+    evidence = _tool_evidence_text(steps, "Welche Copybooks bindet `COPAUA0C.cbl` ein?")
+    answer = "Genutzt werden `CCPAURQY.cpy`, `COPAUA0C.cbl` und `CICS-UTILITIES.cbl`."
+
+    checked, consistent = _validate_answer_sources(answer, [], evidence_text=evidence)
+
+    assert consistent
+    assert "CICS-UTILITIES.cbl (nicht belegt)" in checked
+    assert "`CCPAURQY.cpy`" in checked and "`COPAUA0C.cbl`" in checked
+    assert "kommt in keinem abgerufenen Werkzeugergebnis vor" in checked
+
+
+def test_answer_source_validation_skips_file_name_check_without_tool_evidence():
+    answer = "Siehe `Irgendwo.cbl`."
+    assert _validate_answer_sources(answer, [], evidence_text=None) == (answer, True)
