@@ -291,6 +291,15 @@ def trigger_link_computation(
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
     max_items: int = Query(200, ge=1, le=5000, description="Maximale Zahl Code-Entitäten pro Lauf; ein begrenzter Lauf kann fortgesetzt werden."),
+    top_k_semantic: Optional[int] = Query(None, ge=1, le=200, description="Semantische Kandidaten je Entität (Standard 20)."),
+    top_k_keyword: Optional[int] = Query(None, ge=1, le=500, description="Stichwort-Kandidaten je Entität (Standard 50)."),
+    min_score_semantic: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Ähnlichkeit der semantischen Suche (Standard 0,45)."),
+    min_score_keyword: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Trefferanteil der Stichwortsuche (Standard 0,30)."),
+    merge_threshold: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Score eines zusammengeführten Kandidaten vor der Modellbewertung (Standard 0,90)."),
+    dedupe_by_chunk: Optional[bool] = Query(None, description="true: jeder Abschnitt ist ein eigener Kandidat; false: eine Seite oder Datei ist ein Kandidat (Standard)."),
+    review_batch_size: Optional[int] = Query(None, ge=0, le=50, description="Kandidaten je Modellaufruf; 0 = alle einer Entität in einem Aufruf (Standard)."),
+    review_concurrency: Optional[int] = Query(None, ge=1, le=8, description="Entitäten, deren Bewertung gleichzeitig läuft (Standard 1)."),
+    embed_window: Optional[int] = Query(None, ge=1, le=20, description="Kontexte je gebündeltem Embedding-Aufruf (Standard 16)."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -323,6 +332,19 @@ def trigger_link_computation(
     # Vorschläge werden dort nur für tatsächlich geänderte Entity-/Chunk-
     # Endpunkte invalidiert; ein unveränderter Folgelauf bleibt dadurch billig.
 
+    # O-183: Nur gesetzte Parameter werden festgehalten; der Worker ergänzt die Standardwerte und schreibt
+    # die wirksamen Werte in den Lauf zurück.
+    run_params = {
+        name: value
+        for name, value in {
+            "top_k_semantic": top_k_semantic, "top_k_keyword": top_k_keyword,
+            "min_score_semantic": min_score_semantic, "min_score_keyword": min_score_keyword,
+            "merge_threshold": merge_threshold, "dedupe_by_chunk": dedupe_by_chunk,
+            "review_batch_size": review_batch_size, "review_concurrency": review_concurrency,
+            "embed_window": embed_window,
+        }.items()
+        if value is not None
+    }
     run = LinkBuilderRun(
         task_type="entity_links",
         project_id=project_id,
@@ -333,6 +355,7 @@ def trigger_link_computation(
             "min_confidence": min_confidence,
             "embedding_model": embedding_model.strip() if embedding_model else None,
             "max_items": max_items,
+            "params": run_params,
         },
         triggered_by_user_id=user.id,
     )

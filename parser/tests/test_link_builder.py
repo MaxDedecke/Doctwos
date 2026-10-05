@@ -385,3 +385,94 @@ def test_pass_semantic_uses_a_precomputed_embedding(db_session, test_project, mo
 
     monkeypatch.setattr(link_builder, "get_embedding", must_not_be_called)
     assert asyncio.run(link_builder._pass_semantic(entity, project_id, db_session, embedding=[0.0] * 1024)) == {}
+
+
+def test_link_run_params_default_to_the_constants_and_clamp_to_their_limits():
+    from tasks.link_builder import (
+        LLM_MIN_CONFIDENCE, MERGE_SCORE_THRESHOLD, TOP_CHUNKS_KEYWORD, TOP_CHUNKS_SEMANTIC, LinkRunParams,
+    )
+
+    defaults = LinkRunParams.from_scope(None)
+    assert (defaults.top_k_semantic, defaults.top_k_keyword, defaults.merge_threshold, defaults.min_confidence) == (
+        TOP_CHUNKS_SEMANTIC, TOP_CHUNKS_KEYWORD, MERGE_SCORE_THRESHOLD, LLM_MIN_CONFIDENCE
+    )
+    assert defaults.review_concurrency == 1 and defaults.review_batch_size == 0 and not defaults.dedupe_by_chunk
+
+    chosen = LinkRunParams.from_scope(
+        {"params": {"top_k_semantic": 5, "review_concurrency": 99, "merge_threshold": -1, "dedupe_by_chunk": True,
+                    "review_batch_size": "3", "top_k_keyword": "kaputt"}},
+        min_confidence=60,
+    )
+    assert chosen.top_k_semantic == 5 and chosen.review_concurrency == 8 and chosen.merge_threshold == 0.0
+    assert chosen.dedupe_by_chunk is True and chosen.review_batch_size == 3
+    assert chosen.top_k_keyword == TOP_CHUNKS_KEYWORD  # unlesbarer Wert: Standard
+    assert chosen.min_confidence == 60
+    assert LinkRunParams.from_scope({"params": chosen.as_dict()}) == LinkRunParams.from_scope(
+        {"params": chosen.as_dict()}
+    )
+
+
+def test_llm_review_splits_candidates_into_batches(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    sizes = []
+
+    async def fake_once(entity, pages, min_confidence, entity_context):
+        sizes.append(len(pages))
+        return [(page[0], 0.7, page[2], "Begründung " * 5) for page in pages]
+
+    monkeypatch.setattr(link_builder, "_llm_review_once", fake_once)
+    entity = SimpleNamespace(type="program", name="P", qualified_name="P", file_path="p.cbl")
+    pages = [(SimpleNamespace(id=index, content="x"), 0.9, "semantic") for index in range(5)]
+
+    assert len(asyncio.run(link_builder._llm_review(entity, pages, batch_size=2))) == 5
+    assert sizes == [2, 2, 1]
+    sizes.clear()
+    asyncio.run(link_builder._llm_review(entity, pages))
+    assert sizes == [5]
+
+
+def test_candidate_key_can_dedupe_per_chunk():
+    from types import SimpleNamespace
+
+    from tasks.link_builder import _candidate_key
+
+    chunk = SimpleNamespace(id=7, file_path="README.md")
+    assert _candidate_key(chunk, {"title": "README"}) == "README"
+    assert _candidate_key(chunk, {"title": "README"}, per_chunk=True) == "README#7"
+    assert _candidate_key(chunk, {"title": "README", "source_type": "Local"}) == "README#7"
+
+
+def test_store_reviewed_links_updates_pending_and_keeps_decisions(db_session, test_project):
+    from tasks.link_builder import _store_reviewed_links, _undecided_pages
+    from models.database import EntityDocLink
+
+    project_id, source_id = test_project
+    entity = CodeEntity(project_id=project_id, file_path="src/a.py", name="calc", type="function")
+    chunks = [
+        DocumentChunk(project_id=project_id, source_id=source_id, file_path=f"docs/{index}.md", content="calc")
+        for index in range(3)
+    ]
+    db_session.add_all([entity, *chunks])
+    db_session.commit()
+    db_session.add_all([
+        EntityDocLink(project_id=project_id, entity_id=entity.id, chunk_id=chunks[0].id, status="approved", created_by="user"),
+        EntityDocLink(project_id=project_id, entity_id=entity.id, chunk_id=chunks[1].id, status="pending", created_by="auto", score=0.1),
+    ])
+    db_session.commit()
+
+    pages = [(chunk, 0.9, "semantic") for chunk in chunks]
+    assert [page[0].id for page in _undecided_pages(db_session, entity, pages)] == [chunks[1].id, chunks[2].id]
+
+    reason = "Der Abschnitt beschreibt diese Funktion mit ihrem Zweck ausdrücklich im Detail."
+    _store_reviewed_links(db_session, project_id, entity, [(chunk, 0.8, "semantic", reason) for chunk in chunks], "bge-m3")
+    db_session.commit()
+
+    rows = {link.chunk_id: link for link in db_session.query(EntityDocLink).filter(EntityDocLink.entity_id == entity.id)}
+    assert len(rows) == 3
+    assert rows[chunks[0].id].status == "approved" and rows[chunks[0].id].score is None  # Entscheidung bleibt
+    assert rows[chunks[1].id].score == 0.8 and rows[chunks[1].id].context == reason
+    assert rows[chunks[2].id].status == "pending" and rows[chunks[2].id].created_by == "auto"

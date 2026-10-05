@@ -27,11 +27,13 @@ Nur "approved" Links werden vom Agent und Monaco-Tooltips verwendet.
 Bestehende approved/rejected Links werden nie überschrieben.
 """
 
+import asyncio
 import logging
 import hashlib
 import json
 import os
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from db import SessionLocal, REDIS_URL
 from models.database import (
@@ -300,7 +302,7 @@ def _build_entity_context(
     return "\n".join(parts)[:ENTITY_CONTEXT_MAX_CHARS]
 
 
-def _candidate_key(chunk: DocumentChunk, meta: dict) -> str:
+def _candidate_key(chunk: DocumentChunk, meta: dict, per_chunk: bool = False) -> str:
     """Schlüssel, unter dem Kandidaten zusammengeführt werden.
 
     Confluence/Notion/Git: eine Seite bzw. Datei = ein Kandidat (bester Chunk gewinnt).
@@ -309,7 +311,7 @@ def _candidate_key(chunk: DocumentChunk, meta: dict) -> str:
     Code-Elementen verknüpft werden können und der Link auf einen Zeilenbereich zeigt.
     """
     title = meta.get("title") or chunk.file_path
-    return f"{title}#{chunk.id}" if meta.get("source_type") == "Local" else title
+    return f"{title}#{chunk.id}" if per_chunk or meta.get("source_type") == "Local" else title
 
 
 async def _pass_semantic(
@@ -320,6 +322,9 @@ async def _pass_semantic(
     candidate_chunk_ids: set[int] | None = None,
     entity_context: str | None = None,
     embedding: list[float] | None = None,
+    top_k: int | None = None,
+    min_score: float | None = None,
+    per_chunk: bool = False,
 ) -> dict[str, tuple]:
     """Pass 1: cosine similarity between entity context and doc chunk embeddings.
 
@@ -344,23 +349,78 @@ async def _pass_semantic(
     )
     if candidate_chunk_ids is not None:
         query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
-    rows = query.order_by(dist_expr).limit(TOP_CHUNKS_SEMANTIC).all()
+    rows = query.order_by(dist_expr).limit(top_k or TOP_CHUNKS_SEMANTIC).all()
+    threshold = MIN_SCORE_SEMANTIC if min_score is None else min_score
 
     result: dict[str, tuple] = {}
     for chunk, dist in rows:
         score = max(0.0, 1.0 - float(dist))
-        if score < MIN_SCORE_SEMANTIC:
+        if score < threshold:
             continue
         meta = chunk.metadata_json or {}
-        title = _candidate_key(chunk, meta)
+        title = _candidate_key(chunk, meta, per_chunk)
         if title not in result or score > result[title][1]:
             result[title] = (chunk, score)
     return result
 
 
+_DEFAULT_EMBED_WINDOW = max(1, min(int(os.getenv("LINK_EMBED_WINDOW", "16")), 20))
+
+
+@dataclass(frozen=True)
+class LinkRunParams:
+    """Parameter eines Entity-Link-Laufs. Fehlende Werte fallen auf die Modulkonstanten zurück (O-183).
+
+    Sie stehen in ``LinkBuilderRun.scope_json["params"]``; der Lauf-Eintrag zeigt damit, womit er lief,
+    und ein fortgesetzter Lauf übernimmt dieselben Werte.
+    """
+
+    top_k_semantic: int = TOP_CHUNKS_SEMANTIC
+    top_k_keyword: int = TOP_CHUNKS_KEYWORD
+    min_score_semantic: float = MIN_SCORE_SEMANTIC
+    min_score_keyword: float = MIN_SCORE_KEYWORD
+    merge_threshold: float = MERGE_SCORE_THRESHOLD
+    min_confidence: int = LLM_MIN_CONFIDENCE
+    dedupe_by_chunk: bool = False
+    review_batch_size: int = 0  # Kandidaten je Modellaufruf; 0 = alle Kandidaten einer Entity in einem Aufruf
+    review_concurrency: int = 1  # Entities, deren Bewertung gleichzeitig läuft
+    embed_window: int = _DEFAULT_EMBED_WINDOW
+
+    # (Mindestwert, Höchstwert) je Feld; die API prüft dieselben Grenzen.
+    LIMITS = {
+        "top_k_semantic": (1, 200), "top_k_keyword": (1, 500),
+        "min_score_semantic": (0.0, 1.0), "min_score_keyword": (0.0, 1.0), "merge_threshold": (0.0, 1.0),
+        "min_confidence": (0, 100), "review_batch_size": (0, 50), "review_concurrency": (1, 8), "embed_window": (1, 20),
+    }
+
+    @classmethod
+    def from_scope(cls, scope: dict | None, min_confidence: int | None = None) -> "LinkRunParams":
+        raw = dict((scope or {}).get("params") or {})
+        if min_confidence is not None and "min_confidence" not in raw:
+            raw["min_confidence"] = min_confidence
+        values: dict = {}
+        for name, default in cls.__dataclass_fields__.items():
+            if name == "LIMITS" or name not in raw or raw[name] is None:
+                continue
+            value = raw[name]
+            if name == "dedupe_by_chunk":
+                values[name] = bool(value)
+                continue
+            low, high = cls.LIMITS[name]
+            try:
+                value = type(default.default)(value)
+            except (TypeError, ValueError):
+                continue
+            values[name] = min(max(value, low), high)
+        return cls(**values)
+
+    def as_dict(self) -> dict:
+        return {name: getattr(self, name) for name in self.__dataclass_fields__ if name != "LIMITS"}
+
+
 # Kontexte, deren Embeddings der Lauf gebündelt vorausberechnet (ein Aufruf statt einem je Entity;
 # gemessen mit bge-m3 auf der GPU: 23 ms statt 179 ms je Kontext bei 16 Texten).
-LINK_EMBED_WINDOW = max(1, min(int(os.getenv("LINK_EMBED_WINDOW", "16")), 20))
+LINK_EMBED_WINDOW = _DEFAULT_EMBED_WINDOW
 
 
 async def _embed_context_window(contexts: dict[int, str], embedding_model: str | None) -> dict[int, list[float]]:
@@ -420,6 +480,9 @@ def _pass_keyword(
     embedding_model: str | None = None,
     candidate_chunk_ids: set[int] | None = None,
     corpus: "KeywordCorpus | None" = None,
+    top_k: int | None = None,
+    min_score: float | None = None,
+    per_chunk: bool = False,
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -433,6 +496,9 @@ def _pass_keyword(
     if not keywords:
         return {}
 
+    limit = top_k or TOP_CHUNKS_KEYWORD
+    threshold = MIN_SCORE_KEYWORD if min_score is None else min_score
+
     if corpus is not None and corpus.items is not None:
         matched: list[tuple[int, float]] = []
         for chunk_id, text in corpus.items:
@@ -441,10 +507,10 @@ def _pass_keyword(
             hits = sum(1 for kw in keywords if kw in text)
             if hits == 0:
                 continue
-            if len(matched) + 1 > TOP_CHUNKS_KEYWORD:
+            if len(matched) + 1 > limit:
                 break
             matched.append((chunk_id, hits / len(keywords)))
-        wanted = [(chunk_id, score) for chunk_id, score in matched if score >= MIN_SCORE_KEYWORD]
+        wanted = [(chunk_id, score) for chunk_id, score in matched if score >= threshold]
         if not wanted:
             return {}
         by_id = {
@@ -456,7 +522,7 @@ def _pass_keyword(
             chunk = by_id.get(chunk_id)
             if chunk is None:
                 continue
-            title = _candidate_key(chunk, chunk.metadata_json or {})
+            title = _candidate_key(chunk, chunk.metadata_json or {}, per_chunk)
             if title not in result or score > result[title][1]:
                 result[title] = (chunk, score)
         return result
@@ -479,19 +545,19 @@ def _pass_keyword(
         if matched == 0:
             continue
         matched_chunks += 1
-        if matched_chunks > TOP_CHUNKS_KEYWORD:
+        if matched_chunks > limit:
             break
         score = matched / len(keywords)
-        if score < MIN_SCORE_KEYWORD:
+        if score < threshold:
             continue
         meta = chunk.metadata_json or {}
-        title = _candidate_key(chunk, meta)
+        title = _candidate_key(chunk, meta, per_chunk)
         if title not in result or score > result[title][1]:
             result[title] = (chunk, score)
     return result
 
 
-def _merge_passes(*passes) -> list[tuple[DocumentChunk, float, str]]:
+def _merge_passes(*passes, threshold: float | None = None) -> list[tuple[DocumentChunk, float, str]]:
     merged: dict[str, tuple[DocumentChunk, float, str]] = {}
     for data, name in passes:
         for title, (chunk, score) in data.items():
@@ -499,7 +565,8 @@ def _merge_passes(*passes) -> list[tuple[DocumentChunk, float, str]]:
                 merged[title] = (chunk, score, name)
 
     sorted_pages = sorted(merged.values(), key=lambda x: x[1], reverse=True)
-    return [page for page in sorted_pages if page[1] > MERGE_SCORE_THRESHOLD]
+    limit = MERGE_SCORE_THRESHOLD if threshold is None else threshold
+    return [page for page in sorted_pages if page[1] > limit]
 
 
 def _exclude_own_source(entity: CodeEntity, pages: list) -> list:
@@ -533,6 +600,31 @@ def _document_names_field(entity: CodeEntity, content: str, entity_context: str 
 
 
 async def _llm_review(
+    entity: CodeEntity,
+    top_pages: list[tuple[DocumentChunk, float, str]],
+    min_confidence: int = LLM_MIN_CONFIDENCE,
+    entity_context: str | None = None,
+    batch_size: int = 0,
+) -> list[tuple[DocumentChunk, float, str, str]]:
+    """Bewertet die Kandidaten einer Entity; ``batch_size`` teilt sie auf mehrere Modellaufrufe auf (0 = ein Aufruf).
+
+    Kleine Modelle bewerten bei vielen Kandidaten in einem Aufruf oft nur den ersten."""
+    if top_pages and entity.type in _FIELD_LEVEL_TYPES:
+        top_pages = [
+            page for page in top_pages
+            if _document_names_field(entity, page[0].content, entity_context)
+        ]
+    if not batch_size or len(top_pages) <= batch_size:
+        return await _llm_review_once(entity, top_pages, min_confidence, entity_context)
+    reviewed: list[tuple[DocumentChunk, float, str, str]] = []
+    for start in range(0, len(top_pages), batch_size):
+        reviewed.extend(
+            await _llm_review_once(entity, top_pages[start : start + batch_size], min_confidence, entity_context)
+        )
+    return reviewed
+
+
+async def _llm_review_once(
     entity: CodeEntity,
     top_pages: list[tuple[DocumentChunk, float, str]],
     min_confidence: int = LLM_MIN_CONFIDENCE,
@@ -646,6 +738,54 @@ def _is_auto_link(link: EntityDocLink) -> bool:
     return link.created_by == "auto" and link.link_type in {"semantic", "keyword", "syntactic"}
 
 
+def _undecided_pages(db, entity: CodeEntity, top_pages: list) -> list:
+    """Kandidaten ohne bestehende Entscheidung; eine Abfrage je Entity statt einer je Kandidat."""
+    if not top_pages:
+        return []
+    decided = {
+        chunk_id
+        for (chunk_id,) in db.query(EntityDocLink.chunk_id).filter(
+            EntityDocLink.entity_id == entity.id,
+            EntityDocLink.chunk_id.in_([page[0].id for page in top_pages]),
+            EntityDocLink.status.in_(["approved", "rejected"]),
+        )
+    }
+    return [page for page in top_pages if page[0].id not in decided]
+
+
+def _store_reviewed_links(db, project_id: int, entity: CodeEntity, reviewed: list, embedding_model: str) -> None:
+    """Legt bewertete Vorschläge an oder aktualisiert sie; bestehende Links werden gebündelt gelesen."""
+    if not reviewed:
+        return
+    existing = {
+        link.chunk_id: link
+        for link in db.query(EntityDocLink).filter(
+            EntityDocLink.entity_id == entity.id,
+            EntityDocLink.chunk_id.in_([chunk.id for chunk, _score, _type, _context in reviewed]),
+        )
+    }
+    for chunk, score, link_type, context in reviewed:
+        link = existing.get(chunk.id)
+        if link is not None and link.status in {"approved", "rejected"}:
+            continue
+        meta = chunk.metadata_json or {}
+        if link is None:
+            link = EntityDocLink(
+                project_id=project_id, entity_id=entity.id, chunk_id=chunk.id, status="pending", created_by="auto",
+            )
+            db.add(link)
+            existing[chunk.id] = link
+        if _is_auto_link(link) or link.created_by == "auto":
+            link.doc_title = meta.get("title") or chunk.file_path
+            link.doc_url = meta.get("url")
+            link.source_type = meta.get("source_type")
+            link.score = round(score, 4)
+            link.link_type = link_type
+            link.context = context
+            link.status = "pending"
+            _stamp_link_snapshot(link, entity, chunk, embedding_model)
+
+
 async def compute_entity_links_async(
     run_id: int,
     project_id: int,
@@ -689,6 +829,8 @@ async def compute_entity_links_async(
         embedding_model or run.embedding_model or config.EMBED_MODEL
     ).strip()
     run.embedding_model = selected_embedding_model
+    params = LinkRunParams.from_scope(run.scope_json, min_confidence)
+    effective_min_confidence = params.min_confidence
 
     # Try to acquire the Redis lock with run_id as owner, renewed per entity below.
     acquired = redis_client.set(lock_key, str(run_id), ex=LOCK_LEASE_SECONDS, nx=True)
@@ -822,7 +964,7 @@ async def compute_entity_links_async(
         processed_before = int(scope.get("processed_items") or 0) if resume_after_id else 0
         max_items = max(1, min(5000, int(scope.get("max_items") or 200)))
         total_items = int(scope.get("total_items") or len(entities)) if resume_after_id else len(entities)
-        scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items)
+        scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items, params=params.as_dict())
         run.scope_json = scope
         run.progress_message = f"{processed_before} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
         db.commit()
@@ -846,149 +988,105 @@ async def compute_entity_links_async(
 
         await ensure_model_pulled(selected_embedding_model)
         keyword_corpus = KeywordCorpus(db, project_id, selected_embedding_model)
-        window_contexts: dict[int, str] = {}
-        window_embeddings: dict[int, list[float]] = {}
+        # Offene Queue-Einträge je Entity einmal indexieren (vorher je Entity eine Abfrage je Eintrag: quadratisch).
+        dirty_by_entity: dict[int, list[int]] = {}
+        for item in dirty_items:
+            if item.entity_id is not None and not bootstrap:
+                dirty_by_entity.setdefault(item.entity_id, []).append(item.id)
 
-        for processed_index, entity in enumerate(entities, start=1):
-            if (processed_index - 1) % LINK_EMBED_WINDOW == 0:
-                # Kontexte des nächsten Fensters bauen und gemeinsam einbetten; Entities, die der Lauf
-                # überspringt, brauchen kein Embedding.
-                window_contexts, window_embeddings = {}, {}
-                for upcoming in entities[processed_index - 1 : processed_index - 1 + LINK_EMBED_WINDOW]:
-                    if bootstrap or upcoming.id in dirty_entity_ids or dirty_chunk_ids:
-                        window_contexts[upcoming.id] = _build_entity_context(
-                            upcoming, project_id, db, breadcrumbs_by_entity.get(upcoming.id, ""),
-                            relationships_by_entity, chunks_by_file_window,
-                        )
-                window_embeddings = await _embed_context_window(window_contexts, selected_embedding_model)
+        position = 0
+        while position < len(entities):
+            # Fenster: Kontexte bauen und gemeinsam einbetten, Kandidaten lesen, Bewertungen (parallel) abwarten,
+            # danach der Reihe nach speichern. Das Budget begrenzt das Fenster, der Lauf überschreitet es nie.
             db.refresh(run)
             if run.status == "cancelled":
                 logger.info(f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen.")
                 return
-            # Heartbeat: renew the lock lease as long as we're still making
-            # progress, so a genuinely long-running scan (many entities)
-            # never loses its lock mid-run.
             redis_client.expire(lock_key, LOCK_LEASE_SECONDS)
-
-            if not bootstrap and entity.id not in dirty_entity_ids and dirty_chunk_ids:
-                candidate_chunk_ids = dirty_chunk_ids
-            elif bootstrap or entity.id in dirty_entity_ids:
-                candidate_chunk_ids = None
-            else:
-                continue
-
-            # Replace stale automatic suggestions only for this entity. A
-            # budgeted or failed run must preserve links for untouched entities.
-            if not bootstrap and (entity.id in dirty_entity_ids or dirty_chunk_ids):
-                stale_query = db.query(EntityDocLink).filter(
-                    EntityDocLink.project_id == project_id,
-                    EntityDocLink.entity_id == entity.id,
-                    EntityDocLink.status == "pending",
+            window = entities[position : min(position + params.embed_window, max_items)]
+            if not window:
+                break
+            todo = [e for e in window if bootstrap or e.id in dirty_entity_ids or dirty_chunk_ids]
+            contexts = {
+                e.id: _build_entity_context(
+                    e, project_id, db, breadcrumbs_by_entity.get(e.id, ""), relationships_by_entity, chunks_by_file_window
                 )
-                if entity.id not in dirty_entity_ids:
-                    stale_query = stale_query.filter(EntityDocLink.chunk_id.in_(dirty_chunk_ids))
-                for link in stale_query.all():
-                    if _is_auto_link(link):
-                        db.delete(link)
-                db.flush()
+                for e in todo
+            }
+            embeddings = await _embed_context_window(contexts, selected_embedding_model)
 
-            entity_context = window_contexts.get(entity.id) or _build_entity_context(
-                entity,
-                project_id,
-                db,
-                breadcrumbs_by_entity.get(entity.id, ""),
-                relationships_by_entity,
-                chunks_by_file_window,
-            )
+            prepared = []
+            for entity in todo:
+                candidate_chunk_ids = None if (bootstrap or entity.id in dirty_entity_ids) else dirty_chunk_ids
+                semantic = await _pass_semantic(
+                    entity, project_id, db, selected_embedding_model, candidate_chunk_ids,
+                    entity_context=contexts[entity.id], embedding=embeddings.get(entity.id),
+                    top_k=params.top_k_semantic, min_score=params.min_score_semantic, per_chunk=params.dedupe_by_chunk,
+                )
+                keyword = _pass_keyword(
+                    entity, project_id, db, selected_embedding_model, candidate_chunk_ids, corpus=keyword_corpus,
+                    top_k=params.top_k_keyword, min_score=params.min_score_keyword, per_chunk=params.dedupe_by_chunk,
+                )
+                top_pages = _exclude_own_source(entity, _merge_passes(
+                    (semantic, "semantic"), (keyword, "keyword"), threshold=params.merge_threshold,
+                ))
+                prepared.append((entity, contexts[entity.id], _undecided_pages(db, entity, top_pages)))
 
-            semantic = await _pass_semantic(
-                entity,
-                project_id,
-                db,
-                selected_embedding_model,
-                candidate_chunk_ids,
-                entity_context=entity_context,
-                embedding=window_embeddings.get(entity.id),
-            )
-            keyword = _pass_keyword(
-                entity, project_id, db, selected_embedding_model, candidate_chunk_ids, corpus=keyword_corpus
-            )
+            gate = asyncio.Semaphore(params.review_concurrency)
 
-            top_pages = _exclude_own_source(entity, _merge_passes(
-                (semantic, "semantic"),
-                (keyword, "keyword"),
-            ))
+            async def review(item):
+                entity, context, pages = item
+                if not pages:
+                    return []
+                async with gate:
+                    return await _llm_review(
+                        entity, pages, min_confidence=params.min_confidence, entity_context=context,
+                        batch_size=params.review_batch_size,
+                    )
 
-            # Optimization: filter out candidates that are already approved or rejected before sending to LLM.
-            undecided_pages = []
-            for chunk, score, link_type in top_pages:
-                already_decided = (
-                    db.query(EntityDocLink)
-                    .filter(
+            reviews = await asyncio.gather(*(review(item) for item in prepared), return_exceptions=True)
+
+            for offset, ((entity, _context, _pages), reviewed) in enumerate(zip(prepared, reviews)):
+                if isinstance(reviewed, BaseException):
+                    raise reviewed  # frühere Entities des Fensters sind bereits gespeichert
+                db.refresh(run)
+                if run.status == "cancelled":
+                    logger.info(f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen.")
+                    return
+                # Veraltete automatische Vorschläge nur dieser Entity ersetzen; ein begrenzter oder
+                # fehlgeschlagener Lauf lässt die Links unberührter Entities stehen.
+                if not bootstrap and (entity.id in dirty_entity_ids or dirty_chunk_ids):
+                    stale_query = db.query(EntityDocLink).filter(
+                        EntityDocLink.project_id == project_id,
                         EntityDocLink.entity_id == entity.id,
-                        EntityDocLink.chunk_id == chunk.id,
-                        EntityDocLink.status.in_(["approved", "rejected"]),
+                        EntityDocLink.status == "pending",
                     )
-                    .first()
-                )
-                if not already_decided:
-                    undecided_pages.append((chunk, score, link_type))
+                    if entity.id not in dirty_entity_ids:
+                        stale_query = stale_query.filter(EntityDocLink.chunk_id.in_(dirty_chunk_ids))
+                    for link in stale_query.all():
+                        if _is_auto_link(link):
+                            db.delete(link)
+                    db.flush()
 
-            # Only invoke the LLM if there are undecided candidates
-            reviewed_pages = []
-            if undecided_pages:
-                reviewed_pages = await _llm_review(
-                    entity,
-                    undecided_pages,
-                    min_confidence=effective_min_confidence,
-                    entity_context=entity_context,
-                )
-
-            for chunk, score, link_type, context in reviewed_pages:
-                existing_link = (
-                    db.query(EntityDocLink)
-                    .filter(
-                        EntityDocLink.entity_id == entity.id,
-                        EntityDocLink.chunk_id == chunk.id,
+                _store_reviewed_links(db, project_id, entity, reviewed, selected_embedding_model)
+                entity.embedding_model = selected_embedding_model
+                done_ids = dirty_by_entity.pop(entity.id, [])
+                if done_ids:
+                    db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id.in_(done_ids)).delete(
+                        synchronize_session=False
                     )
-                    .first()
-                )
-                if existing_link and existing_link.status in {"approved", "rejected"}:
-                    continue
-                meta = chunk.metadata_json or {}
-                link = existing_link
-                if link is None:
-                    link = EntityDocLink(
-                        project_id=project_id,
-                        entity_id=entity.id,
-                        chunk_id=chunk.id,
-                        status="pending",
-                        created_by="auto",
-                    )
-                    db.add(link)
-                if _is_auto_link(link) or link.created_by == "auto":
-                    link.doc_title = meta.get("title") or chunk.file_path
-                    link.doc_url = meta.get("url")
-                    link.source_type = meta.get("source_type")
-                    link.score = round(score, 4)
-                    link.link_type = link_type
-                    link.context = context
-                    link.status = "pending"
-                    _stamp_link_snapshot(link, entity, chunk, selected_embedding_model)
 
-            entity.embedding_model = selected_embedding_model
-            for item_id in queue_ids:
-                item = db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id == item_id).first()
-                if item is not None and item.entity_id == entity.id:
-                    db.delete(item)
+                processed_index = position + window.index(entity) + 1
+                scope = dict(run.scope_json or {})
+                overall_processed = processed_before + processed_index
+                scope.update(processed_items=overall_processed, resume_after_id=entity.id)
+                run.scope_json = scope
+                run.progress_message = f"{overall_processed} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
+                db.commit()
 
-            scope = dict(run.scope_json or {})
-            overall_processed = processed_before + processed_index
-            scope.update(processed_items=overall_processed, resume_after_id=entity.id)
-            run.scope_json = scope
-            run.progress_message = f"{overall_processed} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
-            db.commit()
-            if processed_index >= max_items and overall_processed < total_items:
+            position += len(window)
+            overall_processed = processed_before + position
+            if position >= max_items and overall_processed < total_items:
                 run.status = "cancelled"
                 run.progress_message = f"Budget nach {overall_processed} von {total_items} Entitäten erreicht; im Job Center fortsetzen."
                 run.links_created = db.query(EntityDocLink).filter(
@@ -1055,6 +1153,7 @@ async def compute_entity_links_async(
                         "project_id": project_id,
                         "max_items": max(1, min(5000, int(requeue_scope.get("max_items") or 200))),
                         "min_confidence": effective_min_confidence,
+                        "params": requeue_scope.get("params") or {},
                     },
                     progress_message="Erneuter Durchlauf wegen Änderungen während der letzten Berechnung.",
                 )

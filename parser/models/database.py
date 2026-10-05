@@ -670,6 +670,10 @@ class EntityDocLink(Base):
     entity_link_revision = Column(Integer, nullable=True)
     chunk_link_revision = Column(Integer, nullable=True)
 
+    __table_args__ = (
+        UniqueConstraint("entity_id", "chunk_id", name="uq_entity_doc_links_entity_chunk"),
+    )
+
     project = relationship("Project", backref="entity_doc_links")
     entity = relationship("CodeEntity", backref="doc_links")
     chunk = relationship("DocumentChunk", backref="entity_links")
