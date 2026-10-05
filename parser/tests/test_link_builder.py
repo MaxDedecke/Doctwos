@@ -338,3 +338,50 @@ def test_keyword_corpus_over_the_memory_cap_falls_back_to_the_scan(db_session, t
     db_session.commit()
     monkeypatch.setattr(link_builder, "KEYWORD_CORPUS_MAX_CHARS", 3)
     assert link_builder.KeywordCorpus(db_session, project_id).items is None
+
+
+def test_embed_context_window_batches_and_degrades_to_single_calls(monkeypatch):
+    import asyncio
+
+    import tasks.link_builder as link_builder
+
+    calls = []
+
+    async def batch(texts, model=None, **kwargs):
+        calls.append(list(texts))
+        return [[float(len(text))] for text in texts]
+
+    monkeypatch.setattr(link_builder, "get_embeddings_batch", batch)
+    vectors = asyncio.run(link_builder._embed_context_window({1: "aa", 2: "bbbb", 3: "c"}, "bge-m3"))
+    assert calls == [["aa", "bbbb", "c"]] and vectors == {1: [2.0], 2: [4.0], 3: [1.0]}
+    # Ein einzelner Kontext braucht kein Bündel.
+    assert asyncio.run(link_builder._embed_context_window({1: "aa"}, "bge-m3")) == {}
+
+    async def broken(texts, model=None, **kwargs):
+        raise RuntimeError("Embedding-Server nicht erreichbar")
+
+    monkeypatch.setattr(link_builder, "get_embeddings_batch", broken)
+    assert asyncio.run(link_builder._embed_context_window({1: "a", 2: "b"}, "bge-m3")) == {}
+
+    async def short(texts, model=None, **kwargs):
+        return [[1.0]]
+
+    monkeypatch.setattr(link_builder, "get_embeddings_batch", short)
+    assert asyncio.run(link_builder._embed_context_window({1: "a", 2: "b"}, "bge-m3")) == {}
+
+
+def test_pass_semantic_uses_a_precomputed_embedding(db_session, test_project, monkeypatch):
+    import asyncio
+
+    import tasks.link_builder as link_builder
+
+    project_id, _source_id = test_project
+    entity = CodeEntity(project_id=project_id, file_path="src/a.py", name="calc", type="function")
+    db_session.add(entity)
+    db_session.commit()
+
+    async def must_not_be_called(*args, **kwargs):
+        raise AssertionError("das Embedding ist schon berechnet")
+
+    monkeypatch.setattr(link_builder, "get_embedding", must_not_be_called)
+    assert asyncio.run(link_builder._pass_semantic(entity, project_id, db_session, embedding=[0.0] * 1024)) == {}
