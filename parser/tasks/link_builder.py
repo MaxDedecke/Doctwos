@@ -127,8 +127,10 @@ def _entity_code_excerpt(
     window_start = entity.start_line
     bucket_start = ((window_start - 1) // 100) * 100 + 1
     bucket_end = bucket_start + 99
+    # Ein Feld endet an seiner Deklarationszeile; ein `COPY`/`REDEFINES` direkt darunter gehört dazu.
+    trailing = 2 if entity.type in _FIELD_LEVEL_TYPES and entity.end_line else 0
     window_end = min(
-        entity.end_line or (window_start + ENTITY_EXCERPT_MAX_LINES - 1),
+        (entity.end_line + trailing) if entity.end_line else (window_start + ENTITY_EXCERPT_MAX_LINES - 1),
         window_start + ENTITY_EXCERPT_MAX_LINES - 1,
         bucket_end,
     )
@@ -418,12 +420,39 @@ def _exclude_own_source(entity: CodeEntity, pages: list) -> list:
     ]
 
 
+# Felder und Variablen tragen selten eigene Dokumentation; ein Dokument, das nur das umgebende Programm
+# nennt, belegt sie nicht (beobachtet: 3 von 5 Vorschlägen eines kleinen Modells waren solche Übergriffe).
+_FIELD_LEVEL_TYPES = {"data_item", "field", "local_variable", "parameter", "record_component", "constant"}
+_CODE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)+|[A-Z][A-Z0-9_]{5,}")
+
+
+def _document_names_field(entity: CodeEntity, content: str, entity_context: str | None) -> bool:
+    """Whether a document passage names a field itself or a name used in the field's own code.
+
+    The check is deliberately mechanical: the entity name, or a code name (``CIPAUSMY``, ``WS-A-B``)
+    that occurs both in the passage and in the entity's indexed code excerpt. Names from the header
+    lines (qualified name, file, breadcrumb) do not count, otherwise the program name would match.
+    """
+    text = content or ""
+    if entity.name and re.search(rf"(?<![\w-]){re.escape(entity.name)}(?![\w-])", text, flags=re.I):
+        return True
+    excerpt = (entity_context or "").split("Indexed code excerpt:\n", 1)[-1] if "Indexed code excerpt:" in (entity_context or "") else ""
+    own = {name.casefold() for name in re.findall(r"[\w-]+", f"{entity.qualified_name or ''} {entity.file_path or ''}")}
+    excerpt_names = {name.casefold() for name in _CODE_NAME.findall(excerpt)} - own
+    return any(name.casefold() in excerpt_names for name in _CODE_NAME.findall(text))
+
+
 async def _llm_review(
     entity: CodeEntity,
     top_pages: list[tuple[DocumentChunk, float, str]],
     min_confidence: int = LLM_MIN_CONFIDENCE,
     entity_context: str | None = None,
 ) -> list[tuple[DocumentChunk, float, str, str]]:
+    if top_pages and entity.type in _FIELD_LEVEL_TYPES:
+        top_pages = [
+            page for page in top_pages
+            if _document_names_field(entity, page[0].content, entity_context)
+        ]
     if not top_pages:
         return []
 
@@ -448,11 +477,13 @@ async def _llm_review(
         prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'{f' ({place})' if place else ''}\nInhalt: {(chunk.content or '')[:900]}\n\n"
 
     prompt += (
+        "Regeln: Verknüpfe nur, wenn der Abschnitt genau dieses Element betrifft. Dass er das umgebende Programm oder die "
+        "Datei erwähnt, genügt bei Feldern und Variablen nicht. Bewerte nicht passende Kandidaten mit einem Wert unter 30.\n"
         "Gib deine Bewertung als valides JSON-Array von Objekten zurück (eines pro Kandidat, in derselben Reihenfolge):\n"
         "[\n"
         "  {\n"
         '    "index": 0,\n'
-        '    "confidence": 85, // Ganzzahl 0-100, wie sicher bist du bezüglich der Relevanz\n'
+        '    "confidence": <Ganzzahl 0-100, deine eigene Einschätzung der Relevanz; vergib nicht für alle Kandidaten denselben Wert>,\n'
         '    "reason": "Erkläre in 2-4 Sätzen, welche konkrete Stelle der Entity mit welchem Detail des Dokuments verbunden ist und was ungewiss bleibt. Keine bloße Ähnlichkeitsaussage."\n'
         "  }\n"
         "]\n"
@@ -466,10 +497,14 @@ async def _llm_review(
         # Array steckt dann in irgendeinem Wert des Objekts.
         if isinstance(response, dict):
             response_arr = next((v for v in response.values() if isinstance(v, list)), [])
+            if not response_arr and "index" in response:
+                # Kleine Modelle liefern bei einem einzelnen Kandidaten das Objekt selbst
+                # statt eines Arrays (beobachtet mit qwen3:8b).
+                response_arr = [response]
         else:
             response_arr = response if isinstance(response, list) else []
         if not response_arr:
-            raise ValueError("LLM lieferte keine Kandidatenbewertung")
+            raise ValueError(f"LLM lieferte keine Kandidatenbewertung (Antwort: {json.dumps(response, ensure_ascii=False)[:300]})")
         reviewed = []
         for r in response_arr:
             if not isinstance(r, dict):

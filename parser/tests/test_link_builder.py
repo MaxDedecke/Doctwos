@@ -207,3 +207,89 @@ def test_chunks_of_the_entitys_own_source_file_are_not_documentation_candidates(
     kept = _exclude_own_source(entity, [(own, 1.0, "keyword"), (readme, 0.98, "keyword"), (other_source_same_path, 0.9, "semantic")])
 
     assert [page[0] for page in kept] == [readme, other_source_same_path]
+
+
+def _review_with(monkeypatch, response):
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    async def fake_chat_json(prompt, model, **kwargs):
+        return response
+
+    monkeypatch.setattr(link_builder, "get_chat_json", fake_chat_json)
+    entity = SimpleNamespace(type="data_item", name="WS-AUTH-DATE", file_path="CBPAUP0C.cbl")
+    chunk = SimpleNamespace(content="Text", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
+    return asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))
+
+
+_REASON = "Die README nennt das Programm ausdrücklich und beschreibt dessen Zweck; die genaue Rolle des Feldes bleibt unklar."
+
+
+def test_llm_review_accepts_bare_object_for_single_candidate(monkeypatch):
+    reviewed = _review_with(monkeypatch, {"index": 0, "confidence": 85, "reason": _REASON})
+    assert [(item[1], item[3]) for item in reviewed] == [(0.85, _REASON)]
+
+
+def test_llm_review_accepts_wrapped_array(monkeypatch):
+    reviewed = _review_with(monkeypatch, {"results": [{"index": 0, "confidence": 70, "reason": _REASON}]})
+    assert len(reviewed) == 1
+
+
+def test_llm_review_still_rejects_answer_without_candidates(monkeypatch):
+    with pytest.raises(RuntimeError, match="keine Kandidatenbewertung"):
+        _review_with(monkeypatch, {"hinweis": "nichts gefunden"})
+
+
+def _field(name="WS-AUTH-DATE", qualified="CBPAUP0C.WS-AUTH-DATE"):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        type="data_item", name=name, qualified_name=qualified, file_path="cbl/CBPAUP0C.cbl", start_line=45, end_line=45
+    )
+
+
+def test_field_needs_its_own_name_or_a_name_from_its_code():
+    from tasks.link_builder import _document_names_field
+
+    program_only = "| CBPAUP0J | CBPAUP0C | Purge Expired Authorizations |"
+    assert not _document_names_field(_field(), program_only, "Indexed code excerpt:\n 05 WS-AUTH-DATE PIC 9(05).")
+    assert _document_names_field(_field(), "WS-AUTH-DATE hält das Datum.", None)
+    copybook_doc = "| CIPAUSMY | Pending Authorization Summary IMS Segment |"
+    summary = _field("PENDING-AUTH-SUMMARY", "CBPAUP0C.PENDING-AUTH-SUMMARY")
+    assert _document_names_field(summary, copybook_doc, "Indexed code excerpt:\n 01 PENDING-AUTH-SUMMARY.\n COPY CIPAUSMY.")
+    assert not _document_names_field(summary, copybook_doc, "Indexed code excerpt:\n 01 PENDING-AUTH-SUMMARY.")
+
+
+def test_llm_review_skips_model_for_field_without_document_evidence(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    async def must_not_be_called(prompt, model, **kwargs):
+        raise AssertionError("LLM darf ohne Beleg nicht gefragt werden")
+
+    monkeypatch.setattr(link_builder, "get_chat_json", must_not_be_called)
+    chunk = SimpleNamespace(content="| CBPAUP0J | CBPAUP0C |", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
+    assert asyncio.run(link_builder._llm_review(_field(), [(chunk, 0.8, "semantic")], entity_context="Indexed code excerpt:\n x")) == []
+
+
+def test_llm_review_prompt_has_no_example_confidence(monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    seen = {}
+
+    async def capture(prompt, model, **kwargs):
+        seen["prompt"] = prompt
+        return {"index": 0, "confidence": 60, "reason": "Die README beschreibt dieses Programm und nennt dessen Zweck ausdrücklich im Detail."}
+
+    monkeypatch.setattr(link_builder, "get_chat_json", capture)
+    entity = SimpleNamespace(type="program", name="CBPAUP0C", qualified_name="CBPAUP0C", file_path="CBPAUP0C.cbl")
+    chunk = SimpleNamespace(content="CBPAUP0C", metadata_json={}, file_path="README.md", start_line=0, end_line=0)
+    asyncio.run(link_builder._llm_review(entity, [(chunk, 0.8, "semantic")], min_confidence=50))
+    assert '"confidence": 85' not in seen["prompt"] and "nicht für alle Kandidaten denselben Wert" in seen["prompt"]
