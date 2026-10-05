@@ -1273,6 +1273,47 @@ def test_research_project_reports_signature_mismatch_with_existing_overloads(
     assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
 
 
+def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
+    db_session, mcp_project_context, monkeypatch
+):
+    """O-346/Q4: Aufgelöste, externe (Systemziel) und unaufgelöste COPY-Kanten stehen gruppiert im Beweispaket."""
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    program = _method(project_id, "PAYPROG", "PAYPROG", "src/PAYPROG.cbl", 1, 90, kind="program")
+    paragraph = _method(project_id, "MAIN-PARA", "PAYPROG.MAIN-PARA", "src/PAYPROG.cbl", 40, 60, kind="paragraph")
+    copybook = _method(project_id, "CPYREC", "CPYREC", "src/CPYREC.cpy", 1, 10, kind="copybook")
+    db_session.add_all([program, paragraph, copybook])
+    db_session.flush()
+
+    def copy_edge(source, name, line, resolution, target=None, external=None, kind="COPY"):
+        return CodeEdge(project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
+                        dst_name=name, type=kind, resolution=resolution, src_start_line=line, src_end_line=line,
+                        meta_json={"external": external} if external else None)
+
+    db_session.add_all([
+        copy_edge(program, "CPYREC", 10, "resolved", copybook),
+        copy_edge(program, "CMQV", 20, "unresolved", external={"category": "mq", "kind": "system_copybook"}),
+        copy_edge(paragraph, "LOSTCPY", 45, "unresolved"),  # COPY in einem Absatz derselben Datei zählt mit
+        copy_edge(program, "CMQV", 20, "unresolved", external={"category": "mq", "kind": "system_copybook"}),  # Dublette
+    ])
+    db_session.commit()
+    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
+        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+
+    asked = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
+                                      question="Welche Copybooks bindet PAYPROG ein?")
+    copies = asked["evidence"][0]["copybooks"]
+    assert copies["counts"] == {"resolved": 1, "external": 1, "unresolved": 1}
+    assert copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10" and copies["resolved"][0]["file"] == "src/CPYREC.cpy"
+    assert (copies["external"][0]["name"], copies["external"][0]["category"]) == ("CMQV", "mq")
+    assert copies["unresolved"][0]["name"] == "LOSTCPY"
+    assert "cite" in asked["notice"]
+
+    plain = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
+                                      question="Was macht PAYPROG?")
+    assert "copybooks" not in plain["evidence"][0]  # ohne COPY-Frage keine zusätzliche Last im Paket
+
+
 def test_answer_context_follows_a_data_field_back_to_its_origin(db_session, mcp_project_context, monkeypatch):
     """O-346/Q6: Die Herkunftskette eines Feldes steht im Beweispaket, nicht nur seine Deklaration."""
     _use_test_session(monkeypatch, db_session)

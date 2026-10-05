@@ -281,6 +281,15 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
                 numbers = [int(n) for n in re.findall(r"(?m)^(\d+):", site.get("text") or "")] if isinstance(site, dict) else []
                 if isinstance(site, dict) and site.get("file") and numbers:
                     _record_agent_source(agent_sources, site["file"], min(numbers), max(numbers), source_id)
+            # Herkunftskette und COPY-Liste tragen ihre Fundstellen selbst; sie werden zu klickbaren Quellen.
+            for step in entry.get("data_origin") or []:
+                if isinstance(step, dict) and step.get("file") and step.get("line"):
+                    _record_agent_source(agent_sources, step["file"], int(step["line"]), int(step["line"]), source_id)
+            for group in ("resolved", "external", "unresolved"):
+                for item in (entry.get("copybooks") or {}).get(group) or []:
+                    match = _FILE_LINE_RE.match(str(item.get("cite") or "")) if isinstance(item, dict) else None
+                    if match:
+                        _record_agent_source(agent_sources, match.group(1), int(match.group(2)), int(match.group(2)), source_id)
             for key in ("expanded", "helper_methods", "callee_chain"):
                 for part in entry.get(key) or []:
                     text = (part.get("source") or {})

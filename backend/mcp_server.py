@@ -946,6 +946,8 @@ def _fit_evidence(evidence: list[dict], limit: int) -> None:
         lambda e: e.get("helper_methods") and len(e["helper_methods"]) > 1 and e["helper_methods"].pop(),
         lambda e: e.pop("callees", None),
         lambda e: e.get("data_origin") and len(e["data_origin"]) > 5 and e["data_origin"].pop(),
+        lambda e: e.get("copybooks") and any(len(e["copybooks"][k]) > 14 for k in ("resolved", "external", "unresolved"))
+        and [e["copybooks"][k].__delitem__(slice(14, None)) for k in ("resolved", "external", "unresolved")],
     ]
     for step in steps:
         for entry in reversed(evidence):
@@ -1002,6 +1004,47 @@ def _resolve_chain_target(db: Session, project_id: int, name: str) -> CodeEntity
     rows = db.query(CodeEntity).filter(CodeEntity.project_id == project_id, CodeEntity.qualified_name == name).limit(4).all()
     structural = [e for e in rows if e.type in _STRUCTURAL]
     return (structural or rows or [None])[0]
+
+
+def _copy_edges(db: Session, user: User, project_id: int, entity: CodeEntity, limit: int = 60) -> dict | None:
+    """COPY and SQL INCLUDE relations of one program file, grouped the way a question about copybooks asks for them.
+
+    ``resolved`` copybooks exist in the repository, ``external`` ones are system copybooks the index recognises
+    (MQ, CICS, DB2 ...), ``unresolved`` ones are real gaps. Every item carries its source line as ``cite``."""
+    if not _source_visible(db, user, entity.source_id):
+        return None
+    rows = db.query(CodeEdge).join(CodeEntity, CodeEntity.id == CodeEdge.src_entity_id).filter(
+        CodeEdge.project_id == project_id, CodeEdge.type.in_(["COPY", "INCLUDES"]),
+        CodeEntity.project_id == project_id, CodeEntity.source_id == entity.source_id,
+        CodeEntity.file_path == entity.file_path,
+    ).order_by(CodeEdge.src_start_line, CodeEdge.id).limit(limit + 1).all()
+    targets = {
+        target.id: target for target in db.query(CodeEntity).filter(
+            CodeEntity.project_id == project_id, CodeEntity.id.in_([row.dst_entity_id for row in rows if row.dst_entity_id])
+        )
+    } if rows else {}
+    groups: dict[str, list[dict]] = {"resolved": [], "external": [], "unresolved": []}
+    seen: set[tuple[str, int]] = set()
+    for row in rows[:limit]:
+        line = row.src_start_line or 0
+        if (row.dst_name, line) in seen:
+            continue
+        seen.add((row.dst_name, line))
+        item = {"name": row.dst_name, "line": line, "cite": f"{entity.file_path}:{line}",
+                "kind": "sql_include" if row.type == "INCLUDES" else "copy"}
+        external = (row.meta_json or {}).get("external")
+        target = targets.get(row.dst_entity_id) if row.dst_entity_id else None
+        if row.resolution == "resolved" and target is not None:
+            groups["resolved"].append({**item, "file": target.file_path})
+        elif isinstance(external, dict) and external:
+            groups["external"].append({**item, "category": external.get("category"), "system_kind": external.get("kind")})
+        else:
+            groups["unresolved"].append(item)
+    if not any(groups.values()):
+        return None
+    return {**groups, "counts": {name: len(items) for name, items in groups.items()}, "truncated": len(rows) > limit,
+            "notice": "COPY and SQL INCLUDE statements of this file from the index; `external` names are system copybooks "
+                      "the index recognises, `unresolved` is a genuine gap."}
 
 
 def _data_origin_chain(
@@ -1089,6 +1132,7 @@ def build_answer_context(
         r"aufrufer|wer ruft|ruft .{0,90}auf|rufen .{0,90}auf|welche (klasse|klassen|programm|programme|methode|methoden|modul|module)|binden .{0,60}ein|einbind|"
         r"verwendet von|verwenden|nutzen|callers?|called by|included? by|who calls|which (classes|programs)",
         text.lower()))
+    copy_intent = bool(re.search(r"copy|copybook|include|einbind|binden .{0,40}ein", text.lower()))
     given = [s.strip() for s in (symbols or []) if isinstance(s, str) and 2 < len(s.strip()) <= 160][:8]
     terms = given or _extract_symbols(text)
     resolved: list[tuple[str, CodeEntity, list[CodeEntity], str]] = []
@@ -1123,6 +1167,10 @@ def build_answer_context(
     for term, entity, others, mode in primary:
         entry = _explain_entity(db, user, project_id, entity, others, mode, term, per_entity, None, None,
                                 with_context=True, used_by_limit=40 if callers_intent else 12, compact=True)
+        if copy_intent and entity.type in {"program", "cobol_program"}:
+            copies = _copy_edges(db, user, project_id, entity)
+            if copies:
+                entry["copybooks"] = copies
         if entity.type == "data_item":
             origin = _data_origin_chain(db, user, project_id, entity)
             if origin:
@@ -1236,7 +1284,8 @@ def build_answer_context(
         "resolved": [{"symbol": e.qualified_name, "type": e.type, "location": f"{e.file_path}:{e.start_line}-{e.end_line}"}
                      for _t, e, _o, _m in primary],
         "unresolved_terms": unresolved, "evidence": evidence,
-        "notice": "Evidence assembled by the server from the index. Cite the file:line numbers; call explain_symbol for any other symbol.",
+        "notice": "Evidence assembled by the server from the index. Cite every fact as `path/file.ext:line` in backticks, "
+                  "copying the `cite` fields where present; never write 'line N of file'. Call explain_symbol for any other symbol.",
     }
 
 

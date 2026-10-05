@@ -423,3 +423,33 @@ def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
 def test_answer_source_validation_skips_file_name_check_without_tool_evidence():
     answer = "Siehe `Irgendwo.cbl`."
     assert _validate_answer_sources(answer, [], evidence_text=None) == (answer, True)
+
+
+def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
+    """Fundstellen aus Herkunftskette und COPY-Liste landen in der Quellenliste (Datei und Zeile)."""
+    agent_sources: list = []
+    event = {
+        "type": "tool_result",
+        "name": "answer_context",
+        "result": {"evidence": [{
+            "entity": {"file_path": "cpy/AMT.cpy", "start_line": 34, "end_line": 34},
+            "data_origin": [
+                {"field": "AMT-OUT", "file": "cbl/PROG.cbl", "line": 885, "cite": "cbl/PROG.cbl:885"},
+                {"field": "AMT-RAW", "file": "cbl/PROG.cbl", "line": 376, "cite": "cbl/PROG.cbl:376"},
+            ],
+            "copybooks": {
+                "resolved": [{"name": "CPYREC", "line": 178, "cite": "cbl/PROG.cbl:178", "file": "cpy/CPYREC.cpy"}],
+                "external": [{"name": "CMQV", "line": 161, "cite": "cbl/PROG.cbl:161", "category": "mq"}],
+                "unresolved": [],
+            },
+        }]},
+    }
+
+    _extract_tool_sources(event, agent_sources, source_id=7)
+
+    cited = {(item["file"], tuple(item["lines"])) for item in agent_sources}
+    assert {("cbl/PROG.cbl", (885, 885)), ("cbl/PROG.cbl", (376, 376)), ("cbl/PROG.cbl", (178, 178)),
+            ("cbl/PROG.cbl", (161, 161)), ("cpy/AMT.cpy", (34, 34))} <= cited
+    # Eine solche Zitatform besteht die Validierung gegen die abgerufenen Quellen.
+    answer, consistent = _validate_answer_sources("Zuweisung in `cbl/PROG.cbl:885` und `cbl/PROG.cbl:376`.", agent_sources)
+    assert consistent and "nicht belegt" not in answer
