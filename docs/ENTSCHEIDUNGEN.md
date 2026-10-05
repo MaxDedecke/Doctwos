@@ -649,3 +649,12 @@ vollständige Inventarisierung der bestehenden Graph-, Chat- und
 Navigationsaktionen sind hier verbindlich festgelegt. O-291 und O-292 dürfen
 nun den Process-Vertrag und die begrenzte Backend-Projektion implementieren;
 O-296 setzt die angegebenen sichtbaren Umbenennungen um.
+
+## E-14 — Erkenntnisstatus nur im Evidenzmodus; kein PR-/MR-Connector ohne Pilotbedarf (O-276, O-274)
+
+**Entscheidung vom 05.10.2026 (Vorschlag der Entwicklung, vom Auftraggeber zur Bearbeitung übergeben; jederzeit revidierbar).**
+
+1. **O-276 – Provenienz und „Als Erkenntnis speichern“ bleiben auf den Evidenzmodus beschränkt.** Nur dort sind Quellen gelesen, Zeilen und Kanten validiert (O-318) und Zitate geprüft. Eine Antwort des normalen Chats hat keinen Beleg-Snapshot; ein Status oder ein Speichern-Knopf an ihr würde eine Prüfung suggerieren, die nicht stattgefunden hat. Erkenntnisstatus (`draft`, `verified`, `outdated`), Widerspruch und Prüfliste sind in den Ansichten und der Prüfansicht (O-272, O-302, O-303) abgenommen. Wer eine Chatantwort als Erkenntnis sichern will, wechselt in den Evidenzmodus.
+2. **O-274 – kein GitHub-/GitLab-Connector für PR-/MR-Diskussionen auf Vorrat.** ADRs, die als Markdown im Repository liegen, werden bereits mit Quelle, Revision und Zeilen indexiert. PR-/MR-Diskussionen brauchen API-Zugang, Rechtemodell, Löschung und Prüfstatus je Beitrag und sind damit ein eigener Connector. Das ist an den Zielkundenbedarf gebunden (siehe O-045 bis O-049) und wird erst gebaut, wenn ein Pilot ihn bestätigt.
+
+**Wann neu entscheiden:** Ein Pilot nennt PR-/MR-Diskussionen als Wissensquelle, oder Nutzer verlangen den Status an normalen Chatantworten.
