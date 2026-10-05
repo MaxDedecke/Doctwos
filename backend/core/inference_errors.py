@@ -6,9 +6,15 @@ import json
 
 import httpx
 
+from core.llm_providers import is_self_hosted_openai, provider_label
+
 
 class VllmCapacityError(RuntimeError):
-    """vLLM rejected inference because the serving capacity is exhausted."""
+    """A self-hosted server (vLLM, llama.cpp) rejected inference for lack of capacity.
+
+    The name is kept for existing callers; it covers every provider in
+    ``SELF_HOSTED_OPENAI_PROVIDERS``.
+    """
 
 
 _VLLM_MEMORY_MARKERS = (
@@ -21,6 +27,14 @@ _VLLM_MEMORY_MARKERS = (
     "failed to allocate",
     "memory exhausted",
     "torch.cuda",
+    # Request larger than the context the server was started with
+    # (vLLM --max-model-len, llama-server -c / --ctx-size).
+    "maximum context length",
+    "exceed_context_size",
+    "available context size",
+    # llama-server while the model is still loading or no slot is free.
+    "loading model",
+    "no slot available",
 )
 
 
@@ -41,14 +55,15 @@ def _response_detail(response: httpx.Response) -> str:
 
 
 def raise_for_inference_status(response: httpx.Response, provider: str | None) -> None:
-    """Raise an actionable vLLM capacity error, otherwise preserve HTTPX errors."""
+    """Raise an actionable capacity error for self-hosted servers, otherwise preserve HTTPX errors."""
     if response.is_success:
         return
-    if (provider or "").lower() == "vllm":
+    if is_self_hosted_openai(provider):
         detail = _response_detail(response).lower()
         if response.status_code in {429, 503} or any(marker in detail for marker in _VLLM_MEMORY_MARKERS):
             raise VllmCapacityError(
-                "vLLM ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher für diese Anfrage. "
-                "Bitte erneut versuchen oder Kontextlänge, Parallelität bzw. Modellgröße reduzieren."
+                f"{provider_label(provider)} ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher "
+                "bzw. Kontext für diese Anfrage. Bitte erneut versuchen oder Kontextlänge, "
+                "Parallelität bzw. Modellgröße reduzieren."
             )
     response.raise_for_status()

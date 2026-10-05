@@ -457,6 +457,10 @@ class AIProfile(Base):
     embedding_dimension = Column(Integer, nullable=False, server_default="1024")
     embedding_context_length = Column(Integer, nullable=False, server_default="8192")
     llm_context_length = Column(Integer, nullable=False, server_default="8192")
+    # Parallel requests the LLM endpoint accepts; NULL keeps the global default.
+    llm_max_concurrency = Column(Integer, nullable=True)
+    # Default sampling temperature when a chat request does not set one.
+    llm_temperature = Column(Float, nullable=True)
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

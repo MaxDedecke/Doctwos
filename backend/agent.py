@@ -9,6 +9,7 @@ from sqlalchemy import func
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from xml.sax.saxutils import escape
 import core.config as cfg
+from core.llm_providers import is_self_hosted_openai
 from core.inference_admission import admitted_post, admitted_stream
 from core.inference_errors import raise_for_inference_status
 from mcp_client import MCPClient
@@ -1765,7 +1766,7 @@ async def run_agent_loop(
         }
         return
 
-    if provider in {"openai", "ollama", "vllm"}:
+    if provider in {"openai", "ollama"} or is_self_hosted_openai(provider):
         # Both support standard OpenAI-like JSON interface
         is_ollama = provider == "ollama"
 

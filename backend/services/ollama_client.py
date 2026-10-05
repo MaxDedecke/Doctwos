@@ -22,6 +22,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
+from core.llm_providers import is_self_hosted_openai
 from core.inference_admission import admitted_post
 from core.inference_errors import raise_for_inference_status
 from models.database import DocumentChunk, KnowledgeSource
@@ -268,7 +269,7 @@ async def ask_llm_json_for_profile(
             resp.raise_for_status()
             return _extract_json_object(resp.json()["message"]["content"])
 
-    if provider in {"openai", "vllm"}:
+    if provider == "openai" or is_self_hosted_openai(provider):
         base = (base_url or "https://api.openai.com/v1").rstrip("/")
         if protocol == "openai_responses":
             url = f"{base}/{(path or '/responses').lstrip('/')}"

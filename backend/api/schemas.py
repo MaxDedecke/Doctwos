@@ -79,7 +79,8 @@ class ChatRequest(BaseModel):
     pinned_source_id: Optional[int] = None
     # Stable language-neutral CodeEntity focus; legacy clients may omit it.
     pinned_entity_id: Optional[int] = None
-    temperature: Optional[float] = 0.7
+    # None: the active profile's default (or 0.7) applies.
+    temperature: Optional[float] = None
     system_prompt: Optional[str] = None
     llm_provider: Optional[str] = "ollama"
     llm_model: Optional[str] = None
@@ -279,6 +280,8 @@ class AIProfileCreate(BaseModel):
     embedding_dimension: int = 1024
     embedding_context_length: int = 8192
     llm_context_length: int = 8192
+    llm_max_concurrency: Optional[int] = None
+    llm_temperature: Optional[float] = None
 
 
 class AIProfileUpdate(BaseModel):
@@ -298,6 +301,8 @@ class AIProfileUpdate(BaseModel):
     embedding_dimension: Optional[int] = None
     embedding_context_length: Optional[int] = None
     llm_context_length: Optional[int] = None
+    llm_max_concurrency: Optional[int] = None
+    llm_temperature: Optional[float] = None
 
 
 class EmbeddingProfileCreate(BaseModel):

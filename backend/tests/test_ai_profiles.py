@@ -181,3 +181,37 @@ def test_profile_test_rejects_reachable_endpoint_without_configured_model(
     assert "qwen3:32b" in response.json()["detail"]
     db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
     db_session.commit()
+
+
+def test_llamacpp_profile_and_serving_limits_round_trip(client, db_session):
+    created = client.post(
+        "/ai-profiles",
+        json=_payload(
+            name="llama.cpp", provider="llamacpp", llm_base_url="http://llamacpp:8080/v1",
+            llm_max_concurrency=4, llm_temperature=0.2,
+        ),
+    )
+    assert created.status_code == 201, created.text
+    profile = created.json()
+    assert (profile["llm_max_concurrency"], profile["llm_temperature"]) == (4, 0.2)
+
+    # Explizites null stellt den globalen Standard wieder her.
+    reset = client.patch(
+        f"/ai-profiles/{profile['id']}", json={"llm_max_concurrency": None, "llm_temperature": None}
+    )
+    assert reset.status_code == 200, reset.text
+    assert (reset.json()["llm_max_concurrency"], reset.json()["llm_temperature"]) == (None, None)
+
+    db_session.query(AIProfile).filter(AIProfile.id == profile["id"]).delete()
+    db_session.commit()
+
+
+def test_llamacpp_profile_requires_remote_chat_completions(client):
+    response = client.post("/ai-profiles", json=_payload(provider="llamacpp", kind="local"))
+    assert response.status_code == 400
+    assert "llama.cpp" in response.json()["detail"]
+
+
+def test_serving_limits_are_validated(client):
+    assert client.post("/ai-profiles", json=_payload(llm_max_concurrency=1)).status_code == 400
+    assert client.post("/ai-profiles", json=_payload(llm_temperature=2.5)).status_code == 400

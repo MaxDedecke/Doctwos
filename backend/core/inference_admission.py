@@ -115,6 +115,10 @@ redis.call('EXPIRE', metrics_key, 2592000)
 return {0, active_total, active_chat, active_batch}
 """
 
+_GET_LIMIT_SCRIPT = """
+return redis.call('GET', KEYS[1])
+"""
+
 _RENEW_SCRIPT = """
 local time_parts = redis.call('TIME')
 local now_ms = (tonumber(time_parts[1]) * 1000) + math.floor(tonumber(time_parts[2]) / 1000)
@@ -193,11 +197,56 @@ async def _eval(script: str, keys: tuple[str, ...], *args: Any) -> Any:
     return await asyncio.to_thread(_client().eval, script, len(keys), *keys, *args)
 
 
-def _class_settings(kind: str) -> tuple[int, int]:
+def _limit_key(pool_id: str) -> str:
+    return f"doctus:inference:v1:{{{pool_id}}}:limit"
+
+
+def set_endpoint_limit(endpoint: str, limit: int | None) -> None:
+    """Publish a profile's concurrency limit for one endpoint to all containers.
+
+    vLLM batches continuously and tolerates far more parallel requests than
+    Ollama, llama.cpp only as many as it has ``--parallel`` slots. The active
+    profile therefore carries the value; ``None`` returns to the default.
+    """
+    key = _limit_key(_pool_id(endpoint))
+    try:
+        if limit and int(limit) >= 2:
+            _client().set(key, int(limit))
+        else:
+            _client().delete(key)
+    except Exception:
+        logger.warning("Could not publish inference concurrency limit", exc_info=True)
+
+
+_LIMIT_CACHE_SECONDS = 5.0
+_limit_cache: dict[str, tuple[int, float]] = {}
+
+
+async def _max_for(pool_id: str) -> int:
+    """Effective slot count of an endpoint: profile limit, else the global default."""
+    cached = _limit_cache.get(pool_id)
+    now = time.monotonic()
+    if cached and now - cached[1] < _LIMIT_CACHE_SECONDS:
+        return cached[0]
+    value = MAX_CONCURRENCY
+    try:
+        raw = await _eval(_GET_LIMIT_SCRIPT, (_limit_key(pool_id),))
+        if raw is not None and int(raw) >= 2:
+            value = int(raw)
+    except Exception:
+        value = MAX_CONCURRENCY
+    _limit_cache[pool_id] = (value, now)
+    return value
+
+
+def _class_settings(kind: str, max_concurrency: int | None = None) -> tuple[int, int]:
+    total = max_concurrency or MAX_CONCURRENCY
+    chat_reserve = min(total - 1, CHAT_RESERVE)
+    batch_reserve = min(total - 1, BATCH_RESERVE)
     if kind == "chat":
-        return 1, MAX_CONCURRENCY - BATCH_RESERVE
+        return 1, total - batch_reserve
     if kind == "batch":
-        return 2, MAX_CONCURRENCY - CHAT_RESERVE
+        return 2, total - chat_reserve
     raise ValueError(f"Unbekannte Inference-Klasse: {kind!r}")
 
 
@@ -212,7 +261,10 @@ async def _renew(key: str, token: str) -> None:
             logger.warning("Inference admission lease renewal failed", exc_info=True)
 
 
-def _log_metrics(pool_id: str, kind: str, active: int, waited_ms: int) -> None:
+def _log_metrics(
+    pool_id: str, kind: str, active: int, waited_ms: int, max_concurrency: int | None = None
+) -> None:
+    max_concurrency = max_concurrency or MAX_CONCURRENCY
     now = time.monotonic()
     key = (pool_id, kind)
     previous = _last_metrics_log.get(key, 0.0)
@@ -225,8 +277,8 @@ def _log_metrics(pool_id: str, kind: str, active: int, waited_ms: int) -> None:
             pool_id,
             waited_ms,
             active,
-            MAX_CONCURRENCY,
-            int(active * 100 / MAX_CONCURRENCY),
+            max_concurrency,
+            int(active * 100 / max_concurrency),
         )
 
 
@@ -247,8 +299,9 @@ async def inference_slot(
             tracker.append(0)
         yield
         return
-    class_index, class_limit = _class_settings(kind)
     pool_id = _pool_id(endpoint)
+    max_concurrency = await _max_for(pool_id)
+    class_index, class_limit = _class_settings(kind, max_concurrency)
     chat_key, batch_key, metrics_key = _keys(pool_id)
     class_key = chat_key if kind == "chat" else batch_key
     token = f"{os.getpid()}:{uuid.uuid4().hex}"
@@ -269,7 +322,7 @@ async def inference_slot(
                 keys,
                 token,
                 LEASE_MS,
-                MAX_CONCURRENCY,
+                max_concurrency,
                 class_limit,
                 class_index,
                 waited_ms,
@@ -290,7 +343,7 @@ async def inference_slot(
 
         acquired, active, _, _ = map(int, result)
         if acquired:
-            _log_metrics(pool_id, kind, active, waited_ms)
+            _log_metrics(pool_id, kind, active, waited_ms, max_concurrency)
             tracker = admission_wait_tracker.get()
             if tracker is not None:
                 tracker.append(waited_ms)
@@ -308,7 +361,7 @@ async def inference_slot(
                         _RELEASE_SCRIPT,
                         (class_key, chat_key, batch_key, metrics_key),
                         token,
-                        MAX_CONCURRENCY,
+                        max_concurrency,
                     )
                 except Exception:
                     logger.warning("Inference admission lease release failed", exc_info=True)
@@ -322,7 +375,7 @@ async def inference_slot(
                 kind,
                 pool_id,
                 active,
-                MAX_CONCURRENCY,
+                max_concurrency,
                 wait_limit,
             )
             warned_waiting = True

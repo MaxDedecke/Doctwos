@@ -31,6 +31,13 @@ from api.schemas import (
 from core.auth_dependency import get_current_user
 from core.inference_admission import InferenceAdmissionTimeout, admitted_post
 from core.inference_errors import VllmCapacityError, raise_for_inference_status
+from core.llm_providers import (
+    DEFAULT_BASE_URLS,
+    SELF_HOSTED_OPENAI_PROVIDERS,
+    TOOL_CALLING_HINTS,
+    is_self_hosted_openai,
+    provider_label,
+)
 from core.teams import require_admin
 from core.db_setup import engine, get_db
 from models.database import AIProfile, EmbeddingProfile, User
@@ -130,10 +137,10 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
         raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine Embedding-URL")
     if protocol == "ollama" and provider != "ollama":
         raise HTTPException(status_code=400, detail="Ollama-Protokoll benötigt den Ollama-Provider")
-    if protocol == "openai_chat" and provider not in {"openai", "vllm"}:
+    if protocol == "openai_chat" and provider not in {"openai", *SELF_HOSTED_OPENAI_PROVIDERS}:
         raise HTTPException(
             status_code=400,
-            detail="Chat-Completions benötigen OpenAI, vLLM oder einen kompatiblen Provider",
+            detail="Chat-Completions benötigen OpenAI, vLLM, llama.cpp oder einen kompatiblen Provider",
         )
     if protocol == "openai_responses" and provider != "openai":
         raise HTTPException(status_code=400, detail="Responses-Protokoll benötigt den OpenAI-Provider")
@@ -144,10 +151,13 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
             status_code=400,
             detail="Remote-Profile unterstützen Ollama oder OpenAI-kompatible APIs",
         )
-    if provider == "vllm" and (kind != "remote" or protocol != "openai_chat"):
+    if provider in SELF_HOSTED_OPENAI_PROVIDERS and (kind != "remote" or protocol != "openai_chat"):
         raise HTTPException(
             status_code=400,
-            detail="vLLM-Profile benötigen Remote und das Chat-Completions-Protokoll",
+            detail=(
+                f"{provider_label(provider)}-Profile benötigen Remote und das "
+                "Chat-Completions-Protokoll"
+            ),
         )
     if kind == "cloud" and provider not in cfg.CLOUD_LLM_PROVIDERS:
         raise HTTPException(status_code=400, detail="Unbekannter Cloud-Provider")
@@ -164,6 +174,18 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
         value = values.get(field, getattr(existing, field, None) if existing else None)
         if value is not None and value < 1:
             raise HTTPException(status_code=400, detail=f"{field} muss größer als 0 sein")
+    concurrency = values.get(
+        "llm_max_concurrency", getattr(existing, "llm_max_concurrency", None) if existing else None
+    )
+    if concurrency is not None and not 2 <= concurrency <= 256:
+        raise HTTPException(
+            status_code=400, detail="llm_max_concurrency muss zwischen 2 und 256 liegen"
+        )
+    temperature = values.get(
+        "llm_temperature", getattr(existing, "llm_temperature", None) if existing else None
+    )
+    if temperature is not None and not 0.0 <= temperature <= 2.0:
+        raise HTTPException(status_code=400, detail="llm_temperature muss zwischen 0 und 2 liegen")
     for field in ("name", "provider", "llm_model", "embedding_provider", "embedding_model"):
         value = values.get(field, getattr(existing, field, None) if existing else None)
         if not isinstance(value, str) or not value.strip():
@@ -230,23 +252,28 @@ async def health(response: Response):
     try:
         discovery_url, headers = _active_discovery_request()
         async with httpx.AsyncClient(timeout=3.0) as client:
-            if getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama") == "vllm":
+            active_provider = getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama")
+            if is_self_hosted_openai(active_provider):
                 base = cfg.OLLAMA_BASE_URL.rstrip("/")
                 root_url = base[:-3] if base.endswith("/v1") else base
                 health_resp = await client.get(_joined_url(root_url, "/health"), headers=headers)
                 if health_resp.status_code == 200:
                     resp = await client.get(discovery_url, headers=headers)
-                    checks["vllm"] = "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+                    checks[active_provider] = (
+                        "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
+                    )
                 else:
-                    checks["vllm"] = f"error: health HTTP {health_resp.status_code}"
+                    checks[active_provider] = f"error: health HTTP {health_resp.status_code}"
             else:
                 resp = await client.get(discovery_url, headers=headers)
                 checks["ollama"] = (
                     "ok" if resp.status_code == 200 else f"error: HTTP {resp.status_code}"
                 )
     except Exception as e:
-        key = "vllm" if getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama") == "vllm" else "ollama"
-        checks[key] = f"error: {e}"
+        active_provider = getattr(cfg, "ACTIVE_LLM_PROVIDER", "ollama")
+        checks[active_provider if is_self_hosted_openai(active_provider) else "ollama"] = (
+            f"error: {e}"
+        )
 
     healthy = all(v == "ok" for v in checks.values())
     if not healthy:
@@ -462,6 +489,9 @@ def update_ai_profile(
         if field in {"llm_api_key", "embedding_api_key"}:
             if value is not None:
                 setattr(profile, field, value or None)
+        elif field in {"llm_max_concurrency", "llm_temperature"}:
+            # Explicit null returns to the global default.
+            setattr(profile, field, value)
         elif value is not None:
             setattr(profile, field, value.strip() if isinstance(value, str) else value)
     db.commit()
@@ -519,10 +549,14 @@ async def test_ai_profile(
     if profile is None:
         raise HTTPException(status_code=404, detail="AI-Profil nicht gefunden")
     probes: list[tuple[str, str, str | None]] = []
-    if profile.provider == "vllm":
-        vllm_base = (profile.llm_base_url or "http://vllm:8000/v1").rstrip("/")
-        vllm_root = vllm_base[:-3] if vllm_base.endswith("/v1") else vllm_base
-        probes.append(("health", _joined_url(vllm_root, "/health"), profile.llm_api_key))
+    self_hosted = is_self_hosted_openai(profile.provider)
+    label_name = provider_label(profile.provider)
+    if self_hosted:
+        server_base = (
+            profile.llm_base_url or DEFAULT_BASE_URLS[profile.provider]
+        ).rstrip("/")
+        server_root = server_base[:-3] if server_base.endswith("/v1") else server_base
+        probes.append(("health", _joined_url(server_root, "/health"), profile.llm_api_key))
     if profile.protocol == "ollama":
         probes.append(
             (
@@ -572,12 +606,12 @@ async def test_ai_profile(
                         response, profile.embedding_model, profile.embedding_provider, label
                     )
                 results[label] = "reachable"
-            if profile.provider == "vllm":
+            if self_hosted:
                 label = "tool_calling"
                 response = await admitted_post(
                     client,
                     _joined_url(
-                        profile.llm_base_url or "http://vllm:8000/v1",
+                        profile.llm_base_url or DEFAULT_BASE_URLS[profile.provider],
                         profile.llm_path or "/chat/completions",
                     ),
                     kind="chat",
@@ -614,8 +648,8 @@ async def test_ai_profile(
                     for call in tool_calls if isinstance(call, dict)
                 ):
                     raise ValueError(
-                        "vLLM hat keinen Tool-Aufruf zurückgegeben. Prüfe --enable-auto-tool-choice, "
-                        "--tool-call-parser und das Chat-Template des Modells."
+                        f"{label_name} hat keinen Tool-Aufruf zurückgegeben. "
+                        f"{TOOL_CALLING_HINTS[profile.provider]}"
                     )
                 results[label] = "supported"
         return {"ok": True, **results}
@@ -624,7 +658,7 @@ async def test_ai_profile(
     except InferenceAdmissionTimeout as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except httpx.HTTPStatusError as exc:
-        if profile.provider == "vllm":
+        if self_hosted:
             try:
                 detail = exc.response.json().get("error", {}).get("message", "")
             except (ValueError, AttributeError):
@@ -632,15 +666,15 @@ async def test_ai_profile(
             if any(marker in str(detail).lower() for marker in ("out of memory", "kv cache", "cuda", "gpu memory")):
                 raise HTTPException(
                     status_code=503,
-                    detail="vLLM ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher. "
+                    detail=f"{label_name} ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher. "
                     "Bitte Parallelität, Kontextlänge oder Modellgröße reduzieren.",
                 ) from exc
-        if profile.provider == "vllm" and label == "tool_calling":
+        if self_hosted and label == "tool_calling":
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    "vLLM hat den Tool-Calling-Test abgelehnt. Prüfe vLLM >= 0.8.3, "
-                    "--enable-auto-tool-choice, --tool-call-parser und das Chat-Template."
+                    f"{label_name} hat den Tool-Calling-Test abgelehnt. "
+                    f"{TOOL_CALLING_HINTS[profile.provider]}"
                 ),
             ) from exc
         raise HTTPException(

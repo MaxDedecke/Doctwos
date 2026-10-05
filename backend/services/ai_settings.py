@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import core.config as cfg
+from core.inference_admission import set_endpoint_limit
 from models.database import AIProfile, AISettings, EmbeddingProfile
 from sqlalchemy.orm import Session
 
@@ -136,6 +137,8 @@ def serialize_profile(profile: AIProfile, *, active_id: int | None = None) -> di
         "embedding_dimension": profile.embedding_dimension,
         "embedding_context_length": profile.embedding_context_length,
         "llm_context_length": profile.llm_context_length,
+        "llm_max_concurrency": profile.llm_max_concurrency,
+        "llm_temperature": profile.llm_temperature,
         "is_system": profile.is_system,
         "is_active": active_id == profile.id,
     }
@@ -212,6 +215,21 @@ def apply_profile(settings: AISettings, profile: AIProfile) -> None:
     apply_runtime_settings(settings)
     cfg.ACTIVE_LLM_PROTOCOL = profile.protocol
     cfg.ACTIVE_LLM_PATH = profile.llm_path
+    cfg.ACTIVE_LLM_TEMPERATURE = profile.llm_temperature
+    cfg.ACTIVE_LLM_MAX_CONCURRENCY = profile.llm_max_concurrency
+    publish_endpoint_limit(profile)
+
+
+def publish_endpoint_limit(profile: AIProfile) -> None:
+    """Share the profile's slot limit with API and workers through Redis."""
+    endpoint = profile.llm_base_url
+    if not endpoint:
+        return
+    previous = getattr(cfg, "_PUBLISHED_LLM_LIMIT_ENDPOINT", None)
+    if previous and previous != endpoint:
+        set_endpoint_limit(previous, None)
+    set_endpoint_limit(endpoint, profile.llm_max_concurrency)
+    cfg._PUBLISHED_LLM_LIMIT_ENDPOINT = endpoint
 
 
 def initialize_runtime_settings(session_factory) -> None:

@@ -62,6 +62,8 @@ OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
 # an Ollama-native or OpenAI-compatible endpoint.
 ACTIVE_LLM_PROTOCOL: str = "ollama"
 ACTIVE_LLM_PATH: str = "/api/chat"
+ACTIVE_LLM_TEMPERATURE: float | None = None
+ACTIVE_LLM_MAX_CONCURRENCY: int | None = None
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 # Embeddings may be served separately from chat by a managed Ollama/OpenAI API.
 EMBEDDING_BASE_URL: str = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")

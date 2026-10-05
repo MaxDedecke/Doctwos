@@ -1531,7 +1531,9 @@ async def chat(
                         base_url=selected_profile.llm_base_url,
                         system_prompt=full_system_prompt_for_chat,
                         prompt=prompt,
-                        temperature=request.temperature,
+                        temperature=(
+                            request.temperature if request.temperature is not None else selected_profile.llm_temperature
+                        ),
                         repository_id=resolved_repo_id,
                         db=db,
                         mcp_clients=mcp_clients,
@@ -1651,7 +1653,9 @@ async def chat(
                     model=selected_profile.llm_model,
                     api_key=selected_profile.llm_api_key,
                     base_url=selected_profile.llm_base_url,
-                    temperature=request.temperature,
+                    temperature=(
+                        request.temperature if request.temperature is not None else selected_profile.llm_temperature
+                    ),
                     system_prompt=full_system_prompt_for_chat,
                     history=history_messages,
                     prompt=prompt,

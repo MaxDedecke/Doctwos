@@ -9,6 +9,7 @@ import httpx
 from typing import Dict, List, Any, Optional
 
 import core.config as cfg
+from core.llm_providers import is_self_hosted_openai
 from core.inference_errors import raise_for_inference_status
 
 logger = logging.getLogger(__name__)
@@ -335,7 +336,7 @@ async def execute_chat_with_mcp(
     print(f"MCP: Registered {len(mcp_tools)} tools for execution", file=sys.stderr)
     sys.stderr.flush()
 
-    if provider in {"openai", "vllm"}:
+    if provider == "openai" or is_self_hosted_openai(provider):
         url = base_url or "https://api.openai.com/v1"
         if url.endswith("/"):
             url = url[:-1]
