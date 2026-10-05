@@ -81,11 +81,36 @@ def _research_terms(query: str) -> list[str]:
             any(mark in part for mark in ".#:()_$")
             or re.search(r"[a-z][A-Z]", part)
             or re.fullmatch(r"[A-Z0-9]+(?:-[A-Z0-9]+)+", part)
+            # COBOL-Programm- und Copybook-Namen ohne Bindestrich (COSGN00C, CBTRN03C): Großbuchstaben mit Ziffer.
+            or re.fullmatch(r"(?=[A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z])[A-Z][A-Z0-9]{3,}", part)
         )
 
     if len(pieces) > 1 and all(symbol_like(part) for part in pieces):
         return pieces[:8]
     return [term] if term else []
+
+
+_MENTION_PATTERNS = (
+    re.compile(r"\b(?=[A-Z0-9-]*[0-9])(?=[A-Z0-9-]*[A-Z])[A-Z][A-Z0-9-]{3,}\b"),  # COSGN00C, CBTRN03C
+    re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b"),  # PA-TRANSACTION-AMT
+    re.compile(r"\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]*)+\b"),  # UserLogic
+    re.compile(r"\b[a-z]+(?:[A-Z][a-z0-9]+)+\b"),  # doCreate
+    re.compile(r"\b[A-Za-z_]\w*(?:[#.][A-Za-z_]\w*)+\b"),  # UserLogic.create, Class#method
+)
+
+
+def _mentioned_symbols(text: str, limit: int = 4) -> list[str]:
+    """Symbol-like names inside a prose question (``Welche Rolle spielt COSGN00C bei der Anmeldung?``).
+
+    The names are only candidates: ``research_project`` keeps those that resolve to an indexed entity."""
+    plain = text.replace("`", " ")
+    found: list[str] = []
+    for pattern in _MENTION_PATTERNS:
+        for token in pattern.findall(plain):
+            token = token.rstrip(".")
+            if len(token) >= 4 and token.casefold() not in {item.casefold() for item in found}:
+                found.append(token)
+    return found[:limit]
 
 
 def _symbol_key(value: str | None) -> str:
@@ -1401,6 +1426,17 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
             raise ValueError("invalid query")
         _project(db, user, project_id)
         terms = _research_terms(query)
+        prose_query: str | None = None
+        if len(terms) == 1 and re.search(r"\s", terms[0]):
+            # Freitext mit Symbolen: die benannten Symbole auflösen und die Frage selbst weiter an die Inhaltssuche
+            # verweisen. Löst keines auf, bleibt es bei der Freitext-Antwort (no_exact_match samt Folgeaktionen).
+            resolved_mentions = []
+            for mention in _mentioned_symbols(terms[0]):
+                mentioned, _suggestions, _mode = _find_entities(db, user, project_id, mention, limit)
+                if any(_symbol_matches(entity, mention) for entity in mentioned):
+                    resolved_mentions.append(mention)
+            if resolved_mentions:
+                prose_query, terms = terms[0], resolved_mentions
         by_id: dict[int, CodeEntity] = {}
         visible_teams = get_visible_team_ids(user, db)
         visible_projects = get_visible_project_ids(user, db)
@@ -1496,6 +1532,14 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
                 "candidates_truncated": len(candidates) > limit,
                 "notice": "Jedes explizite Symbol wurde getrennt aufgelöst; Mehrdeutigkeit bleibt pro Symbol sichtbar.",
             }
+        if prose_query is not None:
+            response["query_interpretation"] = "symbols_in_text"
+            response["original_query"] = prose_query
+            response["follow_up_actions"] = [*(response.get("follow_up_actions") or []), {
+                "tool": "search_knowledge",
+                "arguments": {"project_id": project_id, "query": prose_query, "limit": 5},
+                "reason": "The question is prose; the named symbols were resolved above, search project knowledge for the wording itself.",
+            }]
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 

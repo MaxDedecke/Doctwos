@@ -52,7 +52,10 @@ def evaluate(case, response):
     expect = case["expect"]
     if "error" in response:
         return False, f"Fehler: {str(response['error'])[:120]}"
-    rows = response.get("results") or response.get("candidates") or []
+    rows = list(response.get("results") or response.get("candidates") or [])
+    # research_project mit mehreren Symbolen: die Auflösung je Symbol steht in `matches`.
+    for match in response.get("matches") or []:
+        rows.extend(item for item in match.get("candidates") or [] if item not in rows)
     if "resolution" in expect and response.get("resolution") != expect["resolution"]:
         return False, f"resolution={response.get('resolution')!r}, erwartet {expect['resolution']!r}"
     if expect.get("empty"):

@@ -12,7 +12,8 @@
     },
     "doku_test": {
       "name": "Doku-Testprojekt (O-284)",
-      "revision": "synthetische Testdokumente (drei Markdown-Dateien, siehe backend/tests/fixtures/eval_doc_sources/)"
+      "synthetic": true,
+      "note": "synthetische Testdokumente (drei Markdown-Dateien, siehe backend/tests/fixtures/eval_doc_sources/)"
     }
   },
   "cases": [
@@ -285,6 +286,110 @@
       "kind": "negative",
       "expect": {
         "absent": "Limit pro Karte"
+      }
+    },
+    {
+      "id": "S-P01",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "Welche Rolle spielt COSGN00C bei der Anmeldung?",
+      "kind": "prose_with_symbol",
+      "expect": {
+        "resolution": "unique_exact_match",
+        "hit": {
+          "qualified_name": "COSGN00C",
+          "file": "app/cbl/COSGN00C.cbl",
+          "top": 1
+        }
+      }
+    },
+    {
+      "id": "S-P02",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "COSGN00C COMEN01C",
+      "kind": "symbol_list_spaces",
+      "expect": {
+        "resolution": "multiple_queries",
+        "hit": {
+          "qualified_name": "COMEN01C",
+          "file": "app/cbl/COMEN01C.cbl",
+          "top": 40
+        }
+      }
+    },
+    {
+      "id": "S-P03",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "Was macht PA-TRANSACTION-AMT in COPAUA0C?",
+      "kind": "prose_with_symbols",
+      "expect": {
+        "resolution": "multiple_queries",
+        "hit": {
+          "qualified_name": "COPAUA0C",
+          "file": "app/app-authorization-ims-db2-mq/cbl/COPAUA0C.cbl",
+          "top": 6
+        }
+      }
+    },
+    {
+      "id": "S-P04",
+      "project": "syncope",
+      "tool": "research_project",
+      "query": "Wie funktioniert UserLogic.create beim Anlegen eines Benutzers?",
+      "kind": "prose_with_symbols",
+      "expect": {
+        "resolution": "multiple_queries",
+        "hit": {
+          "qualified_name": "org.apache.syncope.core.logic.UserLogic#create(UserCR,boolean)",
+          "file": "core/idrepo/logic/",
+          "top": 40
+        }
+      }
+    },
+    {
+      "id": "S-PN1",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "how does approval/decline work in the authorization flow",
+      "kind": "prose_negative",
+      "expect": {
+        "resolution": "no_exact_match",
+        "empty": true
+      }
+    },
+    {
+      "id": "S-PN2",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "Was passiert bei Abbruch des Berichts?",
+      "kind": "prose_negative",
+      "expect": {
+        "resolution": "no_exact_match",
+        "empty": true
+      }
+    },
+    {
+      "id": "S-PN3",
+      "project": "carddemo",
+      "tool": "research_project",
+      "query": "COBOL CICS MQ",
+      "kind": "acronyms_stay_prose",
+      "expect": {
+        "resolution": "no_exact_match",
+        "empty": true
+      }
+    },
+    {
+      "id": "S-PN4",
+      "project": "syncope",
+      "tool": "research_project",
+      "query": "create/update of users",
+      "kind": "prose_negative",
+      "expect": {
+        "resolution": "no_exact_match",
+        "empty": true
       }
     }
   ],

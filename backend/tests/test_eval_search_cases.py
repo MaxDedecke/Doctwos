@@ -13,6 +13,9 @@ def test_catalogue_pins_a_source_revision_per_project():
     assert CATALOGUE["projects"]
     for project in CATALOGUE["projects"].values():
         assert project["name"]
+        if project.get("synthetic"):  # Testdokumente aus dem Repository (O-284), keine Git-Revision
+            assert project["note"]
+            continue
         assert len(project["revision"]) == 40 and set(project["revision"]) <= set("0123456789abcdef")
 
 
@@ -27,10 +30,13 @@ def test_every_case_declares_a_checkable_expectation(case):
     assert case["tool"] in {"search_code", "research_project", "search_knowledge"}
     assert case["query"].strip()
     expect = case["expect"]
-    hit = expect.get("hit")
-    assert bool(hit) != bool(expect.get("empty")), "genau ein Erwartungstyp: Treffer oder leer"
+    hit, passage = expect.get("hit"), expect.get("passage")
+    kinds = [bool(hit), bool(expect.get("empty")), bool(passage), "absent" in expect]
+    assert sum(kinds) == 1, "genau ein Erwartungstyp: Treffer, leer, Passage oder nicht belegt"
     if hit:
         assert hit["qualified_name"] and hit["file"] and hit["top"] >= 1
+    if passage:
+        assert passage["file"] and passage["contains"] and passage["top"] >= 1
 
 
 def test_catalogue_covers_symbols_wording_entry_points_and_negatives_in_both_languages():

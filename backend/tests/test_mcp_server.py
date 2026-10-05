@@ -708,6 +708,53 @@ def test_research_terms_keep_prose_but_split_symbol_lists():
     assert terms("src/Foo.java src/Bar.java") == ["src/Foo.java", "src/Bar.java"]
 
 
+def test_research_terms_treat_cobol_names_with_digits_as_symbols_but_not_plain_words():
+    terms = mcp_server._research_terms
+    assert terms("COSGN00C COMEN01C") == ["COSGN00C", "COMEN01C"]
+    assert terms("COBOL CICS MQ") == ["COBOL CICS MQ"]  # Akronyme ohne Ziffer bleiben Prosa
+    assert terms("how does approval/decline work") == ["how does approval/decline work"]
+    assert terms("create/update of users") == ["create/update of users"]
+
+
+def test_mentioned_symbols_come_from_prose_and_ignore_plain_words():
+    mentioned = mcp_server._mentioned_symbols
+    assert mentioned("Welche Rolle spielt COSGN00C bei der Anmeldung?") == ["COSGN00C"]
+    assert mentioned("Was macht PA-TRANSACTION-AMT in COPAUA0C?") == ["COPAUA0C", "PA-TRANSACTION-AMT"]
+    assert set(mentioned("Wie funktioniert `UserLogic.create` und doCreate?")) == {"UserLogic", "doCreate", "UserLogic.create"}
+    assert mentioned("Wie wird ein Benutzer provisioniert?") == []
+    assert mentioned("how does approval/decline work") == []
+    assert len(mentioned("A1B2C3D4 E5F6G7H8 I9J0K1L2 M3N4O5P6 Q7R8S9T0")) == 4
+
+
+def test_research_project_resolves_a_symbol_named_inside_a_prose_question(
+    db_session, mcp_project_context, monkeypatch
+):
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign_project_id = mcp_project_context
+    db_session.add(CodeEntity(project_id=project_id, name="COSGN00C", type="program", file_path="app/cbl/COSGN00C.cbl",
+                              qualified_name="COSGN00C", start_line=1, end_line=50))
+    db_session.commit()
+    monkeypatch.setattr(
+        mcp_server, "trace_call_flow",
+        lambda *_a, **_k: {"status": "ok", "root": {}, "nodes": [], "edges": [], "entry_candidates": []},
+    )
+
+    named = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="Welche Rolle spielt COSGN00C bei der Anmeldung?"
+    )
+    assert named["resolution"] == "unique_exact_match" and named["query_interpretation"] == "symbols_in_text"
+    assert [item["qualified_name"] for item in named["candidates"]] == ["COSGN00C"]
+    assert [action["tool"] for action in named["follow_up_actions"]][-1] == "search_knowledge"
+    assert named["original_query"] == "Welche Rolle spielt COSGN00C bei der Anmeldung?"
+
+    # Ein Name, den der Index nicht kennt, ändert nichts: Freitext bleibt Freitext.
+    unknown = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="Welche Rolle spielt UNBEKANNT9X bei der Anmeldung?"
+    )
+    assert unknown["resolution"] == "no_exact_match" and "query_interpretation" not in unknown
+    assert [action["tool"] for action in unknown["follow_up_actions"]] == ["search_code", "search_knowledge"]
+
+
 def test_research_project_prose_without_symbol_offers_code_and_knowledge_search(
     db_session, mcp_project_context, monkeypatch
 ):
