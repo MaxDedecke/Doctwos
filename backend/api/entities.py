@@ -15,6 +15,7 @@ from core.projects import (
     assert_project_visible,
 )
 from core.teams import assert_team_visible
+from services import drop as drop_view
 from models.database import (
     CodeEdge,
     CodeEntity,
@@ -292,6 +293,29 @@ def _doc_link_item(
         "start_line": None,
         "end_line": None,
     }
+
+
+@router.get("/{entity_id}/drop")
+def get_drop(
+    entity_id: int,
+    direction: str = Query(default="down", pattern="^(down|up)$"),
+    layers: int = Query(default=3, ge=1, le=drop_view.MAX_LAYERS),
+    kinds: list[str] = Query(default=["control"]),
+    expand: list[int] = Query(default=[]),
+    include_tests: bool = False,
+    project_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Drop view (O-387): hop layers below or above one entity, same payload as the MCP tool ``drop``."""
+    entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity nicht gefunden")
+    _assert_entity_visible(entity, user, db, project_id)
+    return drop_view.drop(
+        db, user, entity.project_id, entity, direction=direction, layers=layers,
+        kinds=[k for item in kinds for k in item.split(",")], expand=expand, include_tests=include_tests,
+    )
 
 
 @router.get("/{entity_id}/neighbors")

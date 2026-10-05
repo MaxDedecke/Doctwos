@@ -1528,7 +1528,8 @@
     },
     "tabs": {
       "flow": "Ablauf",
-      "network": "Netz"
+      "network": "Netz",
+      "drop": "Tropfen"
     }
   },
   "callGraphView": {
@@ -1751,5 +1752,27 @@
     "skipped": "Analyse übersprungen",
     "error": "Analyse fehlgeschlagen",
     "tooltipWithReasons": "{{label}}: {{reasons}}"
+  },
+  "dropView": {
+    "title": "Tropfen: Ebenen um den Startpunkt",
+    "showUp": "Aufwärts zeigen: wer nutzt den Startpunkt",
+    "showDown": "Abwärts zeigen: was nutzt der Startpunkt",
+    "kinds": {
+      "control": "Kontrollfluss",
+      "data": "Daten",
+      "includes": "Einbindungen"
+    },
+    "layers": "Ebenen",
+    "layerLabel": "Ebene {{layer}} · {{count}}",
+    "unresolved": "{{count}} nicht aufgelöst",
+    "unresolvedHint": "Kanten, die der Index nicht auflösen konnte; sie werden gezählt, nicht gezeigt",
+    "truncated": "gekürzt",
+    "expand": "{{count}} Knoten anzeigen",
+    "restart": "{{name}} als neuen Startpunkt",
+    "loading": "Lädt",
+    "loadError": "Die Ebenen konnten nicht geladen werden.",
+    "noFocus": "Wähle einen Startpunkt (Programm, Klasse, Methode oder Feld), um seine Ebenen zu sehen.",
+    "end": "Darunter folgt nichts mehr.",
+    "empty": "Für diese Auswahl gibt es keine belegten Verbindungen."
   }
 }

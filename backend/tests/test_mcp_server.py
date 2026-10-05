@@ -1548,3 +1548,49 @@ def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_call
     ]
     assert steps[1]["reads"] == ["validate(…)", "net (Argument von validate)"]
     assert steps[3]["passed_by"] == "run" and steps[3]["reads"] == ["seed"]
+
+
+@pytest.mark.parametrize("container_type, routine_type, edge_type", [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")])
+def test_drop_view_layers_directions_kinds_and_collapse(
+    db_session, mcp_project_context, monkeypatch, container_type, routine_type, edge_type
+):
+    """O-387: Ebenen nach unten und oben, Kantenarten wählbar, große Ebene eingeklappt und auf Anfrage geöffnet."""
+    from services import drop
+
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    unit, (main, init, work, leaf) = _flow_entities(
+        db_session, project_id, container_type, routine_type, "src/Unit.src", ["main", "init", "work", "leaf"])
+    other = _method(project_id, "other", "OTHER.other", "src/Other.src", 1, 9, kind=routine_type)
+    db_session.add(other)
+    db_session.flush()
+    for routine in (main, init, work, leaf):
+        routine.parent_id = unit.id
+    _control(db_session, project_id, edge_type, main, init, 12)
+    _control(db_session, project_id, edge_type, main, work, 14)
+    _control(db_session, project_id, edge_type, init, leaf, 22)
+    _control(db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call")
+    _control(db_session, project_id, "READS", leaf, other, 40)
+    db_session.commit()
+    user_obj = db_session.get(type(user), user.id)
+
+    down = drop.drop(db_session, user_obj, project_id, main, layers=3)
+    assert [(l["layer"], l["count"]) for l in down["layers"]] == [(0, 1), (1, 2), (2, 1), (3, 0)]
+    assert down["layers"][1]["edges"][0]["cite"] == "src/Unit.src:12"
+    assert down["layers"][2]["unresolved"] == 1 and down["layers"][1]["unresolved"] == 0
+    assert down["layers"][2]["nodes"][0]["name"] == "leaf" and down["stopped"] == "end"
+
+    with_data = drop.drop(db_session, user_obj, project_id, main, layers=4, kinds=["control", "data"])
+    assert [l["count"] for l in with_data["layers"]] == [1, 2, 1, 1, 0]  # leaf -> other nur mit der Art "data"
+
+    up = drop.drop(db_session, user_obj, project_id, leaf, direction="up", layers=3)
+    assert [n["name"] for l in up["layers"][1:] for n in l["nodes"]] == ["init", "main"]
+
+    collapsed = drop.drop(db_session, user_obj, project_id, main, layers=3, collapse_above=1)
+    assert collapsed["layers"][1] == {"layer": 1, "count": 2, "unresolved": 0, "collapsed": True, "nodes": [], "edges": []}
+    assert collapsed["stopped"] == "collapsed" and len(collapsed["layers"]) == 2
+    reopened = drop.drop(db_session, user_obj, project_id, main, layers=3, collapse_above=1, expand=[1])
+    assert reopened["layers"][1]["count"] == 2 and reopened["layers"][1]["nodes"] and len(reopened["layers"]) == 4
+
+    from_container = drop.drop(db_session, user_obj, project_id, unit, layers=2, kinds=["data"])
+    assert [n["name"] for n in from_container["layers"][1]["nodes"]] == ["other"]  # Kanten der Mitglieder zählen zum Container

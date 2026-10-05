@@ -48,6 +48,7 @@ from services.mcp_tokens import find_token_user
 from services.ollama_client import embed_text, search_project_chunks
 from services.search import search_nodes
 from core.language_profile import role_of
+from services import drop as drop_view
 from services import evidence as evidence_blocks
 from services.source_access import COMMENT_START as _COMMENT_START
 from services.source_access import numbered as _numbered
@@ -2066,6 +2067,37 @@ def get_call_flow(
         response = _call_flow_page(
             db, user, project_id, entity_id, hops=hops, direction=direction, scope=scope,
             page_size=page_size, cursor=cursor, include_source=include_source,
+            include_tests=include_tests,
+        )
+        _capture_mcp_result(ctx, db, project_id, response)
+        return response
+
+
+@mcp.tool(annotations=READ_ONLY)
+def drop(
+    ctx: Context,
+    project_id: int,
+    entity_id: int,
+    direction: Literal["down", "up"] = "down",
+    layers: Annotated[int, Field(description="Hop layers 1-6, larger clamped to 6.")] = 3,
+    kinds: Annotated[list[Literal["control", "data", "includes"]], Field(
+        description="Edge kinds: control (calls, PERFORM), data (reads, writes, type use), includes (COPY, import, extends)."
+    )] = ["control"],
+    expand: Annotated[list[int], Field(description="Layer numbers returned collapsed before; lists their nodes and goes on below.")] = [],
+    include_tests: bool = False,
+) -> dict:
+    """Pyramid around one entity: layer 0 is the start point, each further layer the new nodes one hop away.
+
+    ``down`` follows what the entity uses, ``up`` who uses it. A layer above 40 nodes is returned collapsed
+    (``count`` only, ``collapsed: true``) and nothing below it is computed until it is listed again via ``expand``.
+    Every node and edge carries ``cite``; edges the index could not resolve are counted in ``unresolved``.
+    """
+    with _tool_context(ctx, "drop", project_id, {
+        "entity_id": entity_id, "direction": direction, "layers": layers, "kinds": kinds,
+    }) as (db, user):
+        root = _entity(db, user, project_id, entity_id)
+        response = drop_view.drop(
+            db, user, project_id, root, direction=direction, layers=layers, kinds=kinds, expand=expand,
             include_tests=include_tests,
         )
         _capture_mcp_result(ctx, db, project_id, response)

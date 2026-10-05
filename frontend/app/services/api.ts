@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
+import type { DropDirection, DropKind, DropResult } from '@/lib/dropView';
 
 declare global {
     interface Window {
@@ -154,6 +155,18 @@ export const api = {
                 group: options?.group,
                 after: options?.after ?? undefined,
             },
+        }),
+    /** Drop-Ansicht (O-387): Ebenen unter (`down`) oder über (`up`) einem Objekt; eingeklappte Ebenen über `expand` öffnen. */
+    getEntityDrop: (id: number, options: { projectId?: number | null; direction?: DropDirection; layers?: number; kinds?: DropKind[]; expand?: number[] }) =>
+        axios.get<DropResult>(`${API_URL}/entities/${id}/drop`, {
+            params: {
+                project_id: options.projectId ?? undefined,
+                direction: options.direction,
+                layers: options.layers,
+                kinds: options.kinds?.join(','),
+                expand: options.expand,
+            },
+            paramsSerializer: { indexes: null },
         }),
     syncProjectRepository: (id: number) => axios.post(`${API_URL}/projects/${id}/sync`),
     syncKnowledgeSource: (id: number | string) => axios.post(`${API_URL}/knowledge-sources/${id}/sync`),

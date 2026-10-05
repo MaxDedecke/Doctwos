@@ -1528,7 +1528,8 @@
     },
     "tabs": {
       "flow": "Flow",
-      "network": "Network"
+      "network": "Network",
+      "drop": "Drop"
     }
   },
   "callGraphView": {
@@ -1751,5 +1752,27 @@
     "skipped": "Analysis skipped",
     "error": "Analysis failed",
     "tooltipWithReasons": "{{label}}: {{reasons}}"
+  },
+  "dropView": {
+    "title": "Drop: layers around the start point",
+    "showUp": "Show upward: who uses the start point",
+    "showDown": "Show downward: what the start point uses",
+    "kinds": {
+      "control": "Control flow",
+      "data": "Data",
+      "includes": "Includes"
+    },
+    "layers": "Layers",
+    "layerLabel": "Layer {{layer}} · {{count}}",
+    "unresolved": "{{count}} unresolved",
+    "unresolvedHint": "Edges the index could not resolve; they are counted, not shown",
+    "truncated": "truncated",
+    "expand": "Show {{count}} nodes",
+    "restart": "{{name}} as new start point",
+    "loading": "Loading",
+    "loadError": "The layers could not be loaded.",
+    "noFocus": "Pick a start point (program, class, method or field) to see its layers.",
+    "end": "Nothing follows below.",
+    "empty": "No evidenced connections for this selection."
   }
 }

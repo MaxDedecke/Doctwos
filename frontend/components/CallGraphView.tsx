@@ -18,6 +18,7 @@ import { ProvenanceDisclosure } from './ProvenanceDisclosure';
 import { AlertTriangle, Compass, FileCode, LayoutGrid, Loader2, Maximize2, Pause, Play, RefreshCw, X, ZoomIn, ZoomOut } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { DropView } from './DropView';
 import { ProcessFlow } from './ProcessFlow';
 
 export type CallNode = {
@@ -1097,13 +1098,13 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
  */
 export function ProcessView(props: React.ComponentProps<typeof ProcessNetworkView>) {
   const { t } = useLanguage();
-  const [mode, setMode] = useState<'flow' | 'network'>('flow');
+  const [mode, setMode] = useState<'flow' | 'network' | 'drop'>('flow');
   if (props.customFlow) return <ProcessNetworkView {...props} />;
   const isDark = props.theme === 'dark';
   return (
     <div className="h-full flex flex-col">
       <div role="tablist" aria-label={t('callGraphView.processTitle')} className={cn('flex shrink-0 items-center gap-1 border-b px-3 pt-1.5', isDark ? 'border-ds-zinc-800 bg-ds-zinc-950' : 'border-ds-zinc-200 bg-ds-white')}>
-        {(['flow', 'network'] as const).map(tab => (
+        {(['flow', 'network', 'drop'] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -1122,7 +1123,9 @@ export function ProcessView(props: React.ComponentProps<typeof ProcessNetworkVie
       <div className="min-h-0 flex-1">
         {mode === 'flow'
           ? <ProcessFlow theme={props.theme} focusedEntity={props.focusedEntity} projectId={props.projectId} onFileSelect={props.onFileSelect} />
-          : <ProcessNetworkView {...props} />}
+          : mode === 'drop'
+            ? <DropView key={props.focusedEntity?.id ?? 'none'} theme={props.theme} focusedEntity={props.focusedEntity} projectId={props.projectId} onFileSelect={props.onFileSelect} />
+            : <ProcessNetworkView {...props} />}
       </div>
     </div>
   );

@@ -49,6 +49,9 @@ JCL = LanguageProfile(
     include_edges=frozenset(),
 )
 
+# Use of values and types (reads, writes, dataset use, type use); the "data" kind of the drop view.
+DATA_EDGES = frozenset({"READS", "WRITES", "USES", "USES_DATASET", "ASSIGNED_DATASET", "USES_TYPE", "INSTANTIATES"})
+
 PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL)
 
 CONTROL_EDGES = frozenset().union(*(profile.control_edges for profile in PROFILES))
