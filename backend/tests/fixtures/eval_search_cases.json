@@ -9,6 +9,10 @@
     "syncope": {
       "name": "Apache Syncope",
       "revision": "c550d2f547910b28754abef9768074af10cf1212"
+    },
+    "doku_test": {
+      "name": "Doku-Testprojekt (O-284)",
+      "revision": "synthetische Testdokumente (drei Markdown-Dateien, siehe backend/tests/fixtures/eval_doc_sources/)"
     }
   },
   "cases": [
@@ -177,6 +181,110 @@
       "expect": {
         "resolution": "none",
         "empty": true
+      }
+    },
+    {
+      "id": "D-01",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Wohin wird ein Administrator nach der Anmeldung weitergeleitet?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "ADR-001-Anmeldung-und-Rollenweiche",
+          "contains": "COADM01C",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-02",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Welche Dateien liest der Transaktionsdetailbericht?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "Betriebshandbuch-Transaktionsbericht",
+          "contains": "TRANFILE",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-03",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Wie schnell soll die Kartenautorisierung antworten?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "Fachkonzept-Kartenautorisierung",
+          "contains": "500 Millisekunden",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-04",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Was passiert bei Abbruch des Berichts?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "Betriebshandbuch-Transaktionsbericht",
+          "contains": "vollständig neu erzeugt",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-05",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Wie wird das Passwort gespeichert?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "ADR-001-Anmeldung-und-Rollenweiche",
+          "contains": "Klartext",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-06",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Über welche Warteschlangenaufrufe läuft die Autorisierung?",
+      "kind": "passage",
+      "expect": {
+        "passage": {
+          "file": "Fachkonzept-Kartenautorisierung",
+          "contains": "MQGET",
+          "top": 3
+        }
+      }
+    },
+    {
+      "id": "D-N1",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Welche Verschlüsselung schützt die Anmeldung?",
+      "kind": "negative",
+      "expect": {
+        "absent": "Verschlüsselung"
+      }
+    },
+    {
+      "id": "D-N2",
+      "project": "doku_test",
+      "tool": "search_knowledge",
+      "query": "Wie hoch ist das tägliche Autorisierungslimit pro Karte?",
+      "kind": "negative",
+      "expect": {
+        "absent": "Limit pro Karte"
       }
     }
   ],
@@ -530,6 +638,126 @@
       "expect": {
         "type": "WRITES",
         "target_name": "PA-TRANSACTION-AMT",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8a",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: COMPUTE schreibt das umgerechnete Autorisierungsdatum",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "WS-AUTH-DATE",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8b",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: Quelle ist das Autorisierungsdatum des Segments (99999 minus PA-AUTH-DATE-9C)",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "READS",
+        "target_name": "PA-AUTH-DATE-9C",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8c",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: Altersdifferenz in Tagen wird geschrieben",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "WS-DAY-DIFF",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8d",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: Differenz gegen das heutige Datum (CURRENT-YYDDD)",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "READS",
+        "target_name": "CURRENT-YYDDD",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8e",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: Ablaufgrenze aus WS-EXPIRY-DAYS gelesen",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "READS",
+        "target_name": "WS-EXPIRY-DAYS",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8f",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Datumsregel: Standard (5 Tage) und Parameter schreiben WS-EXPIRY-DAYS",
+      "entity": "CBPAUP0C.1000-INITIALIZE",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "WS-EXPIRY-DAYS",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8g",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Batch-Nachwirkung: genehmigter Betrag wird vom Summary abgezogen",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "PA-APPROVED-AUTH-AMT",
+        "resolution": "resolved"
+      }
+    },
+    {
+      "id": "A-C8h",
+      "project": "carddemo",
+      "kind": "flow_edge",
+      "case": "O-353 Batch-Nachwirkung: abgelehnte Anzahl wird im Summary vermindert",
+      "entity": "CBPAUP0C.4000-CHECK-IF-EXPIRED",
+      "direction": "outgoing",
+      "scope": "all",
+      "hops": 1,
+      "expect": {
+        "type": "WRITES",
+        "target_name": "PA-DECLINED-AUTH-CNT",
         "resolution": "resolved"
       }
     }

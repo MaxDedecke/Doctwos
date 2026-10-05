@@ -57,6 +57,15 @@ def evaluate(case, response):
         return False, f"resolution={response.get('resolution')!r}, erwartet {expect['resolution']!r}"
     if expect.get("empty"):
         return (not rows), f"{len(rows)} Treffer, erwartet 0" if rows else "leer"
+    passage = expect.get("passage")
+    if passage:
+        for rank, row in enumerate(rows[: passage["top"]], start=1):
+            if row.get("file_path") == passage["file"] and passage["contains"] in (row.get("content") or ""):
+                return True, f"Rang {rank}"
+        return False, f"Passage {passage['contains']!r} in {passage['file']} nicht in den ersten {passage['top']} Treffern"
+    if "absent" in expect:
+        found = [row.get("file_path") for row in rows if expect["absent"].lower() in (row.get("content") or "").lower()]
+        return (not found), f"{expect['absent']!r} fälschlich belegt in {found}" if found else f"{expect['absent']!r} nirgends belegt"
     hit = expect.get("hit")
     if hit:
         for rank, row in enumerate(rows[: hit["top"]], start=1):
@@ -146,6 +155,8 @@ def main():
         arguments = {"project_id": project_ids[name], "query": case["query"]}
         if case["tool"] == "search_code":
             arguments["limit"] = 10
+        elif case["tool"] == "search_knowledge":
+            arguments["limit"] = 5
         ok, detail = evaluate(case, client.call(case["tool"], arguments))
         failed += not ok
         print(f"{'PASS' if ok else 'FAIL'} {case['id']} [{case['kind']}] {case['query']!r}: {detail}")
