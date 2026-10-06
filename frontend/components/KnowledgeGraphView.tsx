@@ -35,6 +35,7 @@ import {
   radialRadius,
 } from '@/lib/graphLayout';
 import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -555,6 +556,19 @@ export function KnowledgeGraphView({
       setIsLoadingMore(false);
     }
   }, [neighborhoodFocusNode, neighborhoodCursor, isLoadingMore, neighborhoodProjectId, neighborhoodRelationships, neighborhoodLimit, t, traversalDirection, traversalHops]);
+
+  const closeLinkPicker = useCallback(() => {
+    setIsLinkPickerOpen(false);
+    setLinkPickerTargetId(null);
+    setLinkCreateError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!isLinkPickerOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') closeLinkPicker(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isLinkPickerOpen, closeLinkPicker]);
 
   const createManualLink = useCallback(async (sourceNode: GraphNode, targetNode: GraphNode) => {
     /** Connects two currently-loaded nodes via a manual KnowledgeLink (see backend/api/knowledge_links.py). */
@@ -1509,23 +1523,41 @@ export function KnowledgeGraphView({
               {t('knowledgeGraphView.createLink')}
             </button>
 
-            {isLinkPickerOpen && (
-              <div className={cn('p-2 rounded border space-y-2', border, isDark ? 'bg-ds-zinc-800/60' : 'bg-ds-zinc-50')}>
-                <div className="flex items-center gap-1.5">
-                  <Search className="w-3 h-3 shrink-0 text-ds-zinc-500" />
+            {isLinkPickerOpen && typeof document !== 'undefined' && createPortal(
+              <div
+                className="fixed inset-0 z-[110] flex items-center justify-center bg-ds-black/70 p-4 backdrop-blur-sm"
+                onMouseDown={(event) => { if (event.target === event.currentTarget) closeLinkPicker(); }}
+              >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t('knowledgeGraphView.createLink')}
+                className={cn('flex max-h-[85vh] w-full max-w-lg flex-col gap-3 rounded-lg border p-5 shadow-2xl', border, isDark ? 'bg-ds-zinc-900 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{t('knowledgeGraphView.createLink')}</div>
+                    <div className={cn('truncate text-xs', textMuted)}>{selectedNode.label}</div>
+                  </div>
+                  <button onClick={closeLinkPicker} aria-label={t('knowledgeGraphView.createLinkCancel')} className={cn('shrink-0 rounded p-1 transition-colors', textMuted, 'hover:text-ds-zinc-400')}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className={cn('flex items-center gap-2 rounded border px-2.5 py-2', border, isDark ? 'bg-ds-zinc-950' : 'bg-ds-zinc-50')}>
+                  <Search className="w-3.5 h-3.5 shrink-0 text-ds-zinc-500" />
                   <input
                     autoFocus
                     value={linkPickerQuery}
                     onChange={e => { setLinkPickerQuery(e.target.value); setLinkPickerTargetId(null); }}
                     placeholder={t('knowledgeGraphView.createLinkTargetPlaceholder')}
-                    className={cn('w-full bg-transparent text-[0.6875rem] outline-none', textMain)}
+                    className={cn('w-full bg-transparent text-xs outline-none', textMain)}
                   />
                 </div>
-                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                <div className="min-h-32 max-h-72 flex-1 overflow-y-auto space-y-0.5">
                   {linkPickerCandidates.map(n => (
                     <button key={n.id}
                       onClick={() => setLinkPickerTargetId(n.id)}
-                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors',
+                      className={cn('w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors',
                         linkPickerTargetId === n.id ? (isDark ? 'bg-ds-indigo-500/20' : 'bg-ds-indigo-100') : connRow)}>
                       <KnowledgeNodeIcon node={n} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                       <span className={cn('truncate', textMain)}>{n.label}</span>
@@ -1533,7 +1565,7 @@ export function KnowledgeGraphView({
                     </button>
                   ))}
                   {linkPickerCandidates.length === 0 && (
-                    <p className={cn('text-[0.625rem] px-1.5 py-1', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
+                    <p className={cn('text-xs px-2 py-1.5', textMuted)}>{t('knowledgeGraphView.createLinkNoMatches')}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -1552,8 +1584,8 @@ export function KnowledgeGraphView({
                 </div>
                 {linkCreateError && <p className="text-[0.625rem] text-ds-red-400">{linkCreateError}</p>}
                 <div className="flex items-center gap-2 justify-end">
-                  <button onClick={() => { setIsLinkPickerOpen(false); setLinkPickerTargetId(null); setLinkCreateError(null); }}
-                    className={cn('text-[0.625rem] px-2 py-1 rounded transition-colors', textMuted, 'hover:text-ds-zinc-200')}>
+                  <button onClick={closeLinkPicker}
+                    className={cn('text-xs px-3 py-1.5 rounded transition-colors', textMuted, 'hover:text-ds-zinc-400')}>
                     {t('knowledgeGraphView.createLinkCancel')}
                   </button>
                   <button
@@ -1562,12 +1594,14 @@ export function KnowledgeGraphView({
                       const target = rawNodes.find(n => n.id === linkPickerTargetId);
                       if (target) createManualLink(selectedNode, target);
                     }}
-                    className={cn('text-[0.625rem] px-2 py-1 rounded font-medium transition-colors',
+                    className={cn('text-xs px-3 py-1.5 rounded font-medium transition-colors',
                       !linkPickerTargetId || isCreatingLink ? 'opacity-40 cursor-not-allowed bg-ds-indigo-500/40 text-ds-white' : 'bg-ds-indigo-500 hover:bg-ds-indigo-400 text-ds-white')}>
                     {isCreatingLink ? t('knowledgeGraphView.createLinkSaving') : t('knowledgeGraphView.createLinkConfirm')}
                   </button>
                 </div>
               </div>
+              </div>,
+              document.body
             )}
 
             {selectedNode.url && (
