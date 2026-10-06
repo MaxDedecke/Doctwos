@@ -4,12 +4,12 @@ import type { CodeEntity } from '@/types/domain';
 import { api } from '@/app/services/api';
 import {
   DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, layerWidthPercent, toggleExpanded, toggleKind,
-  type DropDirection, type DropKind, type DropNode, type DropResult,
+  type DropDirection, type DropEdge, type DropKind, type DropNode, type DropResult,
 } from '@/lib/dropView';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Droplet, FileCode, Loader2, Target } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
   theme: string;
@@ -24,6 +24,17 @@ const ROLE_STYLE: Record<string, string> = {
   data: 'border-ds-amber-500/60',
 };
 
+/** Farbe einer Verbindung nach Art: Daten cyan, Einbindung orange, Kontrollfluss blau. */
+const EDGE_DATA = new Set(['READS', 'WRITES', 'USES', 'USES_DATASET', 'USES_TYPE', 'ASSIGNED_DATASET']);
+const EDGE_INCLUDE = new Set(['COPY', 'INCLUDES', 'IMPORTS', 'EXTENDS', 'IMPLEMENTS', 'DEPENDS_ON']);
+function edgeColor(type: string): string {
+  if (EDGE_DATA.has(type)) return '#06b6d4';
+  if (EDGE_INCLUDE.has(type)) return '#f59e0b';
+  return '#6366f1';
+}
+
+interface Connector { key: string; d: string; color: string; from: number; to: number; reversed: boolean; type: string }
+
 export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
@@ -32,6 +43,10 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   const [kinds, setKinds] = useState<DropKind[]>(['control']);
   const [layers, setLayers] = useState(DROP_DEFAULT_LAYERS);
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const nodeRefs = useRef<Map<number, HTMLElement>>(new Map());
+  const [connectors, setConnectors] = useState<Connector[]>([]);
 
   // Jede Auswahl (Richtung, Kantenarten, Tiefe, geöffnete Ebenen) wird erst beim Umschalten geladen, nicht vorab.
   const requestKey = JSON.stringify([startId, projectId, direction, layers, kinds, expanded]);
@@ -51,8 +66,11 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   const open = (node: DropNode) => onFileSelect(node.file_path, node.start_line, node.source_id);
   const restart = (node: DropNode) => { setStartId(node.id); setExpanded([]); };
   const chip = (node: DropNode, isRoot = false) => (
-    <div key={node.id} data-testid={`drop-node-${node.id}`} className={cn(
-      'group flex max-w-[16rem] items-center gap-1 rounded-md border px-2 py-1 text-[0.6875rem]',
+    <div key={node.id} data-testid={`drop-node-${node.id}`}
+      ref={element => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id); }}
+      onMouseEnter={() => setHoveredId(node.id)} onMouseLeave={() => setHoveredId(null)}
+      className={cn(
+      'group relative z-10 flex max-w-[16rem] items-center gap-1 rounded-md border px-2 py-1 text-[0.6875rem]',
       ROLE_STYLE[node.role ?? ''] ?? 'border-ds-zinc-500/60',
       isRoot ? 'border-2 font-semibold' : '',
       isDark ? 'bg-ds-zinc-900 text-ds-zinc-100' : 'bg-ds-white text-ds-zinc-900',
@@ -91,6 +109,56 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
     </div>
   );
 
+  // Verbindungen zwischen den Ebenen: Kurven vom unteren Rand des oberen zum oberen Rand des unteren Knotens.
+  const allEdges = useMemo<DropEdge[]>(() => {
+    const seen = new Set<string>();
+    const edges: DropEdge[] = [];
+    for (const layer of result?.layers ?? []) {
+      for (const edge of layer.edges ?? []) {
+        const key = `${edge.from}>${edge.to}:${edge.type}`;
+        if (!seen.has(key)) { seen.add(key); edges.push(edge); }
+      }
+    }
+    return edges;
+  }, [result]);
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) { setConnectors([]); return; }
+    const measure = () => {
+      const base = canvas.getBoundingClientRect();
+      const next: Connector[] = [];
+      for (const edge of allEdges) {
+        const a = nodeRefs.current.get(edge.from);
+        const b = nodeRefs.current.get(edge.to);
+        if (!a || !b) continue;
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+        // Oben/unten richtet sich nach der Lage, nicht nach der Kantenrichtung.
+        const reversed = ra.top > rb.top;
+        const upper = reversed ? rb : ra;
+        const lower = reversed ? ra : rb;
+        const x1 = upper.left + upper.width / 2 - base.left;
+        const y1 = upper.bottom - base.top;
+        const x2 = lower.left + lower.width / 2 - base.left;
+        const y2 = lower.top - base.top;
+        if (y2 <= y1) continue;
+        const bend = (y2 - y1) / 2;
+        next.push({
+          key: `${edge.from}>${edge.to}:${edge.type}`,
+          d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`,
+          color: edgeColor(edge.type), from: edge.from, to: edge.to, reversed, type: edge.type,
+        });
+      }
+      setConnectors(next);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [allEdges, expanded, result]);
+
   let body: React.ReactNode;
   if (startId == null) {
     body = <p className="p-6 text-center text-xs text-ds-zinc-500">{t('dropView.noFocus')}</p>;
@@ -99,9 +167,30 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   } else if (result) {
     const lastLayer = result.layers[result.layers.length - 1]?.layer ?? 0;
     body = (
-      <div className="flex flex-col items-center gap-3 p-4" data-testid="drop-pyramid">
+      <div ref={canvasRef} className="relative flex flex-col items-center gap-8 p-4" data-testid="drop-pyramid">
+        <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden="true" data-testid="drop-connectors">
+          <defs>
+            {['#6366f1', '#06b6d4', '#f59e0b'].map(color => (
+              <marker key={color} id={`drop-arrow-${color.slice(1)}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L8,4 L0,8 z" fill={color} />
+              </marker>
+            ))}
+          </defs>
+          {connectors.map(connector => {
+            const active = hoveredId == null || connector.from === hoveredId || connector.to === hoveredId;
+            return (
+              <path key={connector.key} d={connector.d} fill="none" stroke={connector.color}
+                strokeWidth={active && hoveredId != null ? 2.5 : 1.5} strokeOpacity={active ? 0.85 : 0.12}
+                markerEnd={connector.reversed ? undefined : `url(#drop-arrow-${connector.color.slice(1)})`}
+                markerStart={connector.reversed ? `url(#drop-arrow-${connector.color.slice(1)})` : undefined}
+                data-edge={connector.key}>
+                <title>{connector.type}</title>
+              </path>
+            );
+          })}
+        </svg>
         {result.layers.map(layer => (
-          <div key={layer.layer} data-testid={`drop-layer-${layer.layer}`} className="flex flex-col items-center gap-1" style={{ width: `${layerWidthPercent(layer.layer, Math.max(lastLayer, 1))}%` }}>
+          <div key={layer.layer} data-testid={`drop-layer-${layer.layer}`} className="relative z-10 flex flex-col items-center gap-1" style={{ width: `${layerWidthPercent(layer.layer, Math.max(lastLayer, 1))}%` }}>
             {layer.layer > 0 && (
               <div className="flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
                 <span>{t('dropView.layerLabel', { layer: layer.layer, count: layer.count })}</span>

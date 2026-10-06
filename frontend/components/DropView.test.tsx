@@ -28,6 +28,8 @@ describe('DropView', () => {
     await screen.findByTestId('drop-node-2');
     expect(spy).toHaveBeenCalledWith(1, expect.objectContaining({ direction: 'down', layers: 3, kinds: ['control'], expand: [] }));
     expect(screen.getByTestId('drop-layer-0')).toBeTruthy();
+    // Die Verbindungen zwischen den Ebenen liegen als SVG-Ebene hinter den Knoten.
+    expect(screen.getByTestId('drop-connectors').tagName.toLowerCase()).toBe('svg');
     expect(screen.getByText(/3 nicht aufgelöst/)).toBeTruthy();
     fireEvent.click(screen.getByText('doCreate'));
     expect(onFileSelect).toHaveBeenCalledWith('src/doCreate.java', 10, 8);

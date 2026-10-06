@@ -105,7 +105,7 @@
       "doc": "📖 Doku Viewer",
       "graph": "🕸️ Wissensgraph",
       "callgraph": "🔀 Prozess Viewer",
-      "dropview": "💧 Tropfen",
+      "dropview": "💧 Flow Viewer",
       "webview": "🌐 Web Viewer",
       "linkmanager": "🔗 Link Manager",
       "insights": "💡 Erkenntnisse"
@@ -1678,7 +1678,7 @@
     "tabs": {
       "flow": "Ablauf",
       "network": "Netz",
-      "drop": "Tropfen"
+      "drop": "Flow Viewer"
     }
   },
   "callGraphView": {
@@ -1903,7 +1903,7 @@
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
   "dropView": {
-    "title": "Tropfen: Ebenen um den Startpunkt",
+    "title": "Flow Viewer: Ebenen um den Startpunkt",
     "showUp": "Aufwärts zeigen: wer nutzt den Startpunkt",
     "showDown": "Abwärts zeigen: was nutzt der Startpunkt",
     "kinds": {

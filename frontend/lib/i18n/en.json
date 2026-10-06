@@ -105,7 +105,7 @@
       "doc": "📖 Doc viewer",
       "graph": "🕸️ Knowledge graph",
       "callgraph": "🔀 Process viewer",
-      "dropview": "💧 Drop",
+      "dropview": "💧 Flow viewer",
       "webview": "🌐 Web viewer",
       "linkmanager": "🔗 Link manager",
       "insights": "💡 Insights"
@@ -1678,7 +1678,7 @@
     "tabs": {
       "flow": "Flow",
       "network": "Network",
-      "drop": "Drop"
+      "drop": "Flow viewer"
     }
   },
   "callGraphView": {
@@ -1903,7 +1903,7 @@
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
   "dropView": {
-    "title": "Drop: layers around the start point",
+    "title": "Flow viewer: layers around the start point",
     "showUp": "Show upward: who uses the start point",
     "showDown": "Show downward: what the start point uses",
     "kinds": {
