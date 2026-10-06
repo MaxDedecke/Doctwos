@@ -182,3 +182,53 @@ async def test_jira_server_uses_api_v2_without_backoff_and_reports_auth_errors(d
     with patch_http(denied):
         with pytest.raises(RuntimeError, match="Anmeldung abgelehnt"):
             [doc async for doc in connector2.fetch_documents()]
+
+
+@pytest.mark.anyio
+async def test_deleted_issues_are_removed_after_the_key_list_confirms_they_are_gone(db_session, test_source):
+    import httpx
+
+    db_session.add_all([
+        DocumentChunk(project_id=test_source.project_id, source_id=test_source.id, file_path=key, content="x",
+                      start_line=1, end_line=1, embedding=[0.0] * 1024)
+        for key in ("PRJ-1", "PRJ-2")
+    ])
+    db_session.commit()
+    connector = JiraConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        params = kwargs.get("params") or {}
+        if params.get("fields") == "key":
+            return httpx.Response(200, json={"total": 1, "issues": [{"key": "PRJ-1"}]}, request=httpx.Request("GET", url))
+        return httpx.Response(200, json={"total": 0, "issues": []}, request=httpx.Request("GET", url))
+
+    with patch_http(handler):
+        [doc async for doc in connector.fetch_documents()]
+    assert connector._crawl_complete is True and connector._all_keys == {"PRJ-1"}
+    assert connector._remove_orphans(connector._all_keys) == 1
+    db_session.expire_all()
+    assert {k for (k,) in db_session.query(DocumentChunk.file_path).filter(DocumentChunk.source_id == test_source.id)} == {"PRJ-1"}
+
+
+@pytest.mark.anyio
+async def test_a_failing_key_list_means_no_cleanup(db_session, test_source):
+    import httpx
+
+    connector = JiraConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        if (kwargs.get("params") or {}).get("fields") == "key":
+            return httpx.Response(500, request=httpx.Request("GET", url))
+        return httpx.Response(200, json={"total": 0, "issues": []}, request=httpx.Request("GET", url))
+
+    import asyncio as _asyncio
+    real_sleep = _asyncio.sleep
+
+    async def no_wait(_seconds):
+        await real_sleep(0)
+
+    with patch_http(handler), patch("asyncio.sleep", no_wait):
+        [doc async for doc in connector.fetch_documents()]
+    assert connector._crawl_complete is False
