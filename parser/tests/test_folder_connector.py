@@ -221,3 +221,121 @@ async def test_folder_connector_logs_exception_type_when_a_chunk_fails_to_embed(
         .all()
     )
     assert len(chunks) == 0
+
+
+# --- Scan-Sicherheit, Kodierung, Vorfilter, Ausschlüsse --------------------------------------
+
+import os  # noqa: E402
+
+from connectors import folder as folder_module  # noqa: E402
+from connectors.textio import decode_text  # noqa: E402
+
+
+def test_decode_text_handles_utf8_bom_utf16_cp1252_and_latin1():
+    assert decode_text("Größe €".encode("utf-8")) == "Größe €"
+    assert decode_text(b"\xef\xbb\xbfStra\xc3\x9fe") == "Straße"
+    assert decode_text("Müller".encode("utf-16")) == "Müller"
+    # Windows-Export: Umlaute und Euro-Zeichen waren mit errors="ignore" verloren
+    assert decode_text("Müller zahlt 5 €".encode("cp1252")) == "Müller zahlt 5 €"
+    # 0x81 ist in cp1252 undefiniert -> Latin-1 statt Fehler
+    assert decode_text(b"a\x81b") == "a\x81b"
+
+
+def test_scan_skips_system_and_temp_files_and_hidden_folders(tmp_path):
+    (tmp_path / "ok.txt").write_text("a")
+    (tmp_path / "~$ok.docx").write_text("lock")
+    (tmp_path / "Thumbs.db").write_text("x")
+    (tmp_path / "notizen.tmp").write_text("x")
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config.txt").write_text("x")
+    (tmp_path / "@eaDir").mkdir()
+    (tmp_path / "@eaDir" / "vorschau.txt").write_text("x")
+    (tmp_path / "unterordner").mkdir()
+    (tmp_path / "unterordner" / "b.md").write_text("b")
+
+    scan = folder_module._scan_folder(str(tmp_path))
+    assert {os.path.basename(p) for p in scan.files} == {"ok.txt", "b.md"}
+    assert scan.complete is True
+
+
+def test_scan_reuses_the_stored_hash_when_size_and_mtime_are_unchanged(tmp_path, monkeypatch):
+    path = tmp_path / "gross.txt"
+    path.write_text("inhalt")
+    first = folder_module._scan_folder(str(tmp_path))
+    size, mtime_ns = first.stats[str(path)]
+
+    def must_not_read(_path):
+        raise AssertionError("unveraenderte Datei darf nicht erneut gelesen werden")
+
+    monkeypatch.setattr(folder_module, "_md5", must_not_read)
+    second = folder_module._scan_folder(str(tmp_path), {str(path): (size, mtime_ns, first.files[str(path)])})
+    assert second.files == first.files and second.reused_hashes == 1
+
+    # Geänderte Größe -> wird neu gelesen
+    monkeypatch.setattr(folder_module, "_md5", lambda _p: "neu")
+    third = folder_module._scan_folder(str(tmp_path), {str(path): (size + 1, mtime_ns, "alt")})
+    assert third.files[str(path)] == "neu"
+
+
+def test_unreadable_directory_makes_the_scan_incomplete(tmp_path, monkeypatch):
+    (tmp_path / "a.txt").write_text("a")
+    real_walk = os.walk
+
+    def flaky_walk(top, onerror=None, **kwargs):
+        yield from real_walk(top, onerror=onerror, **kwargs)
+        if onerror:
+            onerror(PermissionError(13, "Permission denied", str(tmp_path / "gesperrt")))
+
+    monkeypatch.setattr(folder_module.os, "walk", flaky_walk)
+    scan = folder_module._scan_folder(str(tmp_path))
+    assert scan.complete is False and "gesperrt" in scan.errors[0]
+    assert len(scan.files) == 1
+
+
+def test_files_over_the_size_limit_are_reported_not_indexed(tmp_path, monkeypatch):
+    (tmp_path / "klein.txt").write_text("a")
+    (tmp_path / "riesig.txt").write_text("x" * 100)
+    monkeypatch.setattr(folder_module, "MAX_FILE_BYTES", 10)
+    scan = folder_module._scan_folder(str(tmp_path))
+    assert {os.path.basename(p) for p in scan.files} == {"klein.txt"}
+    assert [os.path.basename(p) for p in scan.too_large] == ["riesig.txt"]
+
+
+@pytest.mark.anyio
+async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_see(db_session, test_source, tmp_path, monkeypatch):
+    keep = tmp_path / "bleibt.txt"
+    keep.write_text("bleibt")
+    gone = tmp_path / "unlesbar.txt"
+    gone.write_text("war da")
+    mock_embedding = AsyncMock(return_value=[0.1] * 1024)
+
+    first = FolderConnector(test_source.id)
+    first.source = test_source
+    with patch("connectors.base.get_embedding", mock_embedding):
+        [doc async for doc in first.fetch_documents()]
+        await first.sync()
+    db_session.commit()
+
+    # Zweiter Lauf: unlesbar.txt fehlt im Scan, weil ein Verzeichnis nicht lesbar war.
+    real_walk = os.walk
+
+    def flaky_walk(top, onerror=None, **kwargs):
+        for root, dirs, files in real_walk(top, onerror=onerror, **kwargs):
+            yield root, dirs, [f for f in files if f != "unlesbar.txt"]
+        if onerror:
+            onerror(PermissionError(13, "Permission denied", str(tmp_path / "unlesbar.txt")))
+
+    monkeypatch.setattr(folder_module.os, "walk", flaky_walk)
+    second = FolderConnector(test_source.id)
+    second.source = test_source
+    with patch("connectors.base.get_embedding", mock_embedding):
+        [doc async for doc in second.fetch_documents()]
+        await second.sync()
+
+    db_session.expire_all()
+    paths = {r.file_path for r in db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id)}
+    assert str(gone) in paths and str(keep) in paths
+    chunk_paths = {c.file_path for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)}
+    assert str(gone) in chunk_paths
+    stored = db_session.query(SourceScanFile).filter(SourceScanFile.file_path == str(keep)).one()
+    assert stored.size_bytes == len("bleibt") and stored.mtime_ns

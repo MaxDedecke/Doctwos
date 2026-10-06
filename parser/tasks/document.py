@@ -2,6 +2,7 @@ import logging
 import os
 from chunk_reindex import reindex_chunks_preserving_links
 from connectors.folder import extract_docx_text, extract_pdf_pages
+from connectors.textio import read_text_file
 from core import config
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
@@ -84,8 +85,7 @@ async def process_local_document_async(source_id: int, file_path: str):
             except Exception as e:
                 log_event(f"Fehler beim Lesen der PDF-Datei, versuche Plaintext-Fallback: {e}")
                 try:
-                    with open(file_path, "r", errors="ignore") as f:
-                        fallback = f.read()
+                    fallback = read_text_file(file_path)
                     if fallback:
                         pages.append((None, fallback))
                 except Exception:
@@ -99,8 +99,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         else:
             try:
                 log_event("Lese Textdatei ein...")
-                with open(file_path, "r", errors="ignore") as f:
-                    pages.append((None, f.read()))
+                pages.append((None, read_text_file(file_path)))
             except Exception as e:
                 log_event(f"Fehler beim Lesen der Datei: {e}")
 

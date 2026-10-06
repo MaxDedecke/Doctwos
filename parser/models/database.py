@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -791,6 +792,10 @@ class SourceScanFile(Base):
     # vorhandenen Strukturparser.
     language = Column(String(50), nullable=True)
     encoding = Column(String(50), nullable=True)
+    # Größe und Änderungszeit (ns) beim letzten Einlesen: Folder-Scan überspringt das erneute Hashen,
+    # solange beide unverändert sind.
+    size_bytes = Column(BigInteger, nullable=True)
+    mtime_ns = Column(BigInteger, nullable=True)
     # O-137: {pfad: content_hash} der beim letzten erfolgreichen Parsen
     # eindeutig aufgelösten, (transitiv) verwendeten Copybooks - ermöglicht
     # connectors/git.py eine präzise statt konservative (voller Bestand)
