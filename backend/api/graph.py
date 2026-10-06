@@ -517,6 +517,9 @@ def _sample_representative_code_edges(
         "CALL",
         "PERFORM",
         "INSTANTIATES",
+        # Dokumentation: Abschnitte verweisen auf Code, Dokumente binden Dokumente ein.
+        "DOCUMENTS",
+        "INCLUDES",
     ]
     remaining = limit - len(selected_edges)
     if remaining > 0:

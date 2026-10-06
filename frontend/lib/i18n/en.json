@@ -1212,6 +1212,10 @@
       "implementsOut": "Implements",
       "usesTypeIn": "Used by (type)",
       "usesTypeOut": "Uses type",
+      "documentsIn": "Documented by",
+      "documentsOut": "Documents",
+      "includesIn": "Included by",
+      "includesOut": "Includes",
       "containsIn": "Contained in"
     }
   },
@@ -1257,6 +1261,8 @@
       "extends": "Extends",
       "implements": "Implements",
       "usesType": "Uses type",
+      "documents": "Documents",
+      "includesDoc": "Includes",
       "imports": "Imports",
       "reads": "Reads",
       "writes": "Writes",

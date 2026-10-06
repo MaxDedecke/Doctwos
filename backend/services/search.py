@@ -19,7 +19,7 @@ ALL_TYPES = "project,entity,document,knowledge_source"
 ROOT_ENTITY_TYPES = (
     "program", "copybook", "compilation_unit", "jcl_file", "jcl_job", "xml_document", "xslt_stylesheet",
     "html_document", "jsp_page", "shell_script", "properties_file", "groovy_file", "javascript_file",
-    "sql_script", "maven_project",
+    "sql_script", "maven_project", "asciidoc_document",
 )
 _TOKEN_SPLIT = re.compile(r"[\s.#]+|::")
 _MAX_TOKENS = 6

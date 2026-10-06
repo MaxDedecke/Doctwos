@@ -19,6 +19,7 @@ import re
 # the smallest safe structure parser available (XSLT/XML in O-247, HTML/JSP in
 # O-249) without pretending that every vocabulary has full semantic support.
 DEFAULT_LANGUAGE_EXTENSIONS: dict[str, set[str]] = {
+    "asciidoc": {".adoc", ".asciidoc"},
     "c": {".c", ".h"},
     "cpp": {".cc", ".cpp", ".cxx", ".hxx", ".hpp"},
     "csharp": {".cs"},

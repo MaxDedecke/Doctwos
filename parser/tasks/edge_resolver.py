@@ -31,6 +31,7 @@ from cobol.copybook import strip_copybook_extension
 from core.model import Entity, ParseResult, ParsedEdge
 from core.external_targets import classify_external
 from core.dataset_assignment import EDGE_TYPE as ASSIGNED_DATASET, assignment_key, derive_assignments
+from core.doc_resolution import RESOLUTION_TARGET_TYPES, DOC_EDGE_TYPES, FILE_ROOT_TYPES, resolve_documentation_edges
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
@@ -510,6 +511,25 @@ def _resolve_maven_edges(db: Session, source_id: int) -> int:
     return resolved
 
 
+def _resolve_documentation_edges(db: Session, source_id: int) -> int:
+    """AsciiDoc-Abschnitte verweisen auf Code-Objekte und Dateien des Projekts (nur eindeutige Ziele)."""
+    edges = (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.type.in_(DOC_EDGE_TYPES))
+        .all()
+    )
+    edges = [edge for edge in edges if (edge.meta_json or {}).get("language") == "asciidoc"]
+    if not edges:
+        return 0
+    project_ids = {edge.project_id for edge in edges}
+    query = db.query(CodeEntity).filter(CodeEntity.type.in_(RESOLUTION_TARGET_TYPES | FILE_ROOT_TYPES))
+    if None in project_ids:
+        query = query.filter(CodeEntity.source_id == source_id)
+    else:
+        query = query.filter(CodeEntity.project_id.in_(project_ids))
+    return resolve_documentation_edges(query.all(), edges)
+
+
 def _derive_dataset_assignments(db: Session, source_id: int) -> int:
     """O-147: `ASSIGNED_DATASET`-Kanten Datei → Dataset neu ableiten (idempotent). Gibt neue Kanten zurück."""
     entities = db.query(CodeEntity).filter(
@@ -593,6 +613,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += _resolve_shell_edges(db, source_id)
     resolved += _resolve_jcl_edges(db, source_id)
     resolved += _resolve_maven_edges(db, source_id)
+    resolved += _resolve_documentation_edges(db, source_id)
     _derive_dataset_assignments(db, source_id)
     _mark_external_targets(db, source_id)
     resolved += resolve_resource_edges(

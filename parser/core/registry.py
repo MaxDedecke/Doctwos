@@ -15,6 +15,7 @@ from jcl.parse import parse_jcl_file
 from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
+from resources.asciidoc import parse_asciidoc_file
 from resources.groovy import parse_groovy_file
 from resources.javascript import parse_javascript_file
 from resources.properties import parse_properties_file
@@ -135,6 +136,11 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=parse_sql_file,
         root_entity_types=("sql_script",),
         parser_version="sql-structure-1",
+    ),
+    "asciidoc": ParserEntry(
+        parse=parse_asciidoc_file,
+        root_entity_types=("asciidoc_document",),
+        parser_version="asciidoc-structure-1",
     ),
     "shell": ParserEntry(
         parse=parse_shell_file,

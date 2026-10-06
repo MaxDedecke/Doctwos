@@ -129,6 +129,8 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   jsp_el_expression: { de: 'JSP-EL-Ausdruck', en: 'JSP EL expression' },
   html_document: { de: 'HTML-Dokument', en: 'HTML document' },
   html_form: { de: 'HTML-Formular', en: 'HTML form' },
+  asciidoc_document: { de: 'AsciiDoc-Dokument', en: 'AsciiDoc document' },
+  doc_section: { de: 'Doku-Abschnitt', en: 'Doc section' },
   shell_script: { de: 'Shell-Skript', en: 'Shell script' },
   shell_function: { de: 'Shell-Funktion', en: 'Shell function' },
   jcl_job: { de: 'JCL-Job', en: 'JCL job' },
@@ -203,6 +205,8 @@ const EDGE_TYPE_LABEL_KEYS: Record<string, string> = {
   WRITES: 'graphLabels.linkTypes.writes',
   EXECUTES: 'graphLabels.linkTypes.executes',
   USES_DATASET: 'graphLabels.linkTypes.usesDataset',
+  DOCUMENTS: 'graphLabels.linkTypes.documents',
+  INCLUDES: 'graphLabels.linkTypes.includesDoc',
 };
 
 const CODE_ENTITY_TYPES = new Set([

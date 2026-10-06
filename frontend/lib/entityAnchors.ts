@@ -26,14 +26,14 @@ export interface EntityAnchor {
 /** Objekte, die eine ganze Datei darstellen: kein Textanker, Zugriff über die Dateikopfzeile. */
 export const FILE_LEVEL_TYPES = new Set([
   'compilation_unit', 'properties_file', 'html_document', 'xml_document', 'groovy_file',
-  'javascript_file', 'shell_script', 'sql_script', 'jcl_file', 'copybook', 'maven_project',
+  'javascript_file', 'shell_script', 'sql_script', 'jcl_file', 'copybook', 'maven_project', 'asciidoc_document',
   'maven_source_root',
 ]);
 
 /** Reihenfolge, in der ein Dateiobjekt als „das“ Objekt der Datei gewählt wird. */
 const FILE_LEVEL_PRIORITY = [
   'compilation_unit', 'copybook', 'jcl_file', 'maven_project', 'properties_file', 'html_document',
-  'xml_document', 'groovy_file', 'javascript_file', 'shell_script', 'sql_script',
+  'xml_document', 'groovy_file', 'javascript_file', 'shell_script', 'sql_script', 'asciidoc_document',
 ];
 
 export function pickFileLevelEntity<T extends AnchorEntity>(entities: T[]): T | null {

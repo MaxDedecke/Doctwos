@@ -396,6 +396,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     'USES_TYPE:in': t('splitPane.neighborGroupLabels.usesTypeIn'),
     'USES_TYPE:out': t('splitPane.neighborGroupLabels.usesTypeOut'),
     'CONTAINS:in': t('splitPane.neighborGroupLabels.containsIn'),
+    'DOCUMENTS:in': t('splitPane.neighborGroupLabels.documentsIn'),
+    'DOCUMENTS:out': t('splitPane.neighborGroupLabels.documentsOut'),
+    'INCLUDES:in': t('splitPane.neighborGroupLabels.includesIn'),
+    'INCLUDES:out': t('splitPane.neighborGroupLabels.includesOut'),
   };
 
   const localEditorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);

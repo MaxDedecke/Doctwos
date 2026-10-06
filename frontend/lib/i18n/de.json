@@ -1212,6 +1212,10 @@
       "implementsOut": "Implementiert",
       "usesTypeIn": "Verwendet von (Typ)",
       "usesTypeOut": "Verwendet Typ",
+      "documentsIn": "Dokumentiert von",
+      "documentsOut": "Dokumentiert",
+      "includesIn": "Eingebunden von",
+      "includesOut": "Bindet ein",
       "containsIn": "Enthalten in"
     }
   },
@@ -1257,6 +1261,8 @@
       "extends": "Erbt von",
       "implements": "Implementiert",
       "usesType": "Verwendet Typ",
+      "documents": "Dokumentiert",
+      "includesDoc": "Bindet ein",
       "imports": "Importiert",
       "reads": "Liest",
       "writes": "Schreibt",
