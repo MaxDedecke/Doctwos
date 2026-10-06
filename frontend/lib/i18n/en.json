@@ -664,10 +664,14 @@
       "fontSizePlaceholder": "Font size",
       "fontFamilyLabel": "Font family",
       "fontFamilyPlaceholder": "Choose font",
+      "fontSystemMono": "System monospace",
       "minimapLabel": "Show minimap",
       "minimapDesc": "Compact scroll overview for longer code."
     },
     "layoutTab": {
+      "appearanceTitle": "Appearance",
+      "themeDark": "Dark",
+      "themeLight": "Light",
       "colorThemeTitle": "Color theme",
       "lightModeLabel": "Enable light mode",
       "lightModeDesc": "Switches between dark and light user interface.",
@@ -675,7 +679,7 @@
       "languageDesc": "Choose the interface display language.",
       "languageGerman": "German",
       "languageEnglish": "English",
-      "workspaceSplitTitle": "Workspace layout split",
+      "workspaceSplitTitle": "Chat / workspace split",
       "splits": {
         "narrowChat": {
           "label": "Narrow chat",

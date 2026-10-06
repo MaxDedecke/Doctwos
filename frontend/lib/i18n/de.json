@@ -664,10 +664,14 @@
       "fontSizePlaceholder": "Schriftgröße",
       "fontFamilyLabel": "Schriftart",
       "fontFamilyPlaceholder": "Schriftart wählen",
+      "fontSystemMono": "System-Monospace",
       "minimapLabel": "Minimap anzeigen",
       "minimapDesc": "Kompakte Scroll-Übersicht für längeren Code."
     },
     "layoutTab": {
+      "appearanceTitle": "Darstellung",
+      "themeDark": "Dunkel",
+      "themeLight": "Hell",
       "colorThemeTitle": "Farbthema",
       "lightModeLabel": "Hellmodus aktivieren",
       "lightModeDesc": "Wechselt zwischen dunkler und heller Benutzeroberfläche.",
@@ -675,7 +679,7 @@
       "languageDesc": "Wähle die Anzeigesprache der Benutzeroberfläche.",
       "languageGerman": "Deutsch",
       "languageEnglish": "Englisch",
-      "workspaceSplitTitle": "Workspace Layout Split",
+      "workspaceSplitTitle": "Aufteilung Chat / Arbeitsbereich",
       "splits": {
         "narrowChat": {
           "label": "Schmaler Chat",

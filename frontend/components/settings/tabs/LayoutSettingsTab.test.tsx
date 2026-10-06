@@ -52,7 +52,7 @@ afterEach(() => {
 describe('LayoutSettingsTab Farbthema', () => {
   it('switches from dark to light and shows the light-mode toast', () => {
     render(<LayoutSettingsTab />);
-    fireEvent.click(document.getElementById('theme-toggle-switch')!);
+    fireEvent.click(document.getElementById('theme-light')!);
 
     expect(settingsState.setTheme).toHaveBeenCalledWith('light');
     expect(settingsState.showToast).toHaveBeenCalledWith('settings.toast.lightModeEnabled', 'success');
@@ -61,7 +61,7 @@ describe('LayoutSettingsTab Farbthema', () => {
   it('switches from light to dark and shows the dark-mode toast', () => {
     settingsState.theme = 'light';
     render(<LayoutSettingsTab />);
-    fireEvent.click(document.getElementById('theme-toggle-switch')!);
+    fireEvent.click(document.getElementById('theme-dark')!);
 
     expect(settingsState.setTheme).toHaveBeenCalledWith('dark');
     expect(settingsState.showToast).toHaveBeenCalledWith('settings.toast.darkModeEnabled', 'success');
@@ -134,12 +134,19 @@ describe('LayoutSettingsTab Editor-Einstellungen', () => {
 
   it('toggles the minimap', () => {
     render(<LayoutSettingsTab />);
-    const minimapToggle = within(
-      screen.getByText('settings.editorTab.minimapLabel').closest('div')!.parentElement as HTMLElement
-    ).getByRole('button');
+    const minimapToggle = screen.getByRole('switch', { name: 'settings.editorTab.minimapLabel' });
+    expect(minimapToggle.getAttribute('aria-checked')).toBe('true');
 
     fireEvent.click(minimapToggle);
     expect(settingsState.setEditorMinimap).toHaveBeenCalledWith(false);
+  });
+
+  it('previews the chosen font size and family', () => {
+    settingsState.editorFontSize = 16;
+    render(<LayoutSettingsTab />);
+    const preview = screen.getByTestId('editor-preview').querySelector('pre')!;
+    expect(preview.style.fontSize).toBe('16px');
+    expect(preview.style.fontFamily).toContain('JetBrains Mono');
   });
 });
 
