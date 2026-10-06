@@ -83,3 +83,14 @@ def _isolate_from_server_ai_profile(monkeypatch):
     import ollama_client
 
     monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: None)
+
+
+@pytest.fixture(autouse=True)
+def _batch_embeddings_follow_the_single_embedding_mock(monkeypatch):
+    """Connector-Tests ersetzen ``connectors.base.get_embedding``; der gebündelte Aufruf folgt diesem Mock."""
+    import connectors.base as base
+
+    async def fake_batch(texts, model=None, retries=3):
+        return [await base.get_embedding(text, model=model) for text in texts]
+
+    monkeypatch.setattr(base, "get_embeddings_batch", fake_batch)

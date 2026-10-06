@@ -339,3 +339,50 @@ async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_s
     assert str(gone) in chunk_paths
     stored = db_session.query(SourceScanFile).filter(SourceScanFile.file_path == str(keep)).one()
     assert stored.size_bytes == len("bleibt") and stored.mtime_ns
+
+
+# --- Gebündelte Embeddings und Fehlerbehandlung ----------------------------------------------
+
+@pytest.mark.anyio
+async def test_all_chunks_of_a_document_are_embedded_in_one_batch_call(db_session, test_source, tmp_path):
+    (tmp_path / "lang.txt").write_text("\n".join(f"Zeile {i} " + "x" * 80 for i in range(400)))
+    calls = []
+
+    async def batch(texts, model=None, retries=3):
+        calls.append(len(texts))
+        return [[0.1] * 1024 for _ in texts]
+
+    connector = FolderConnector(test_source.id)
+    with patch("connectors.base.get_embeddings_batch", side_effect=batch):
+        await connector.sync()
+
+    assert len(calls) == 1 and calls[0] > 1
+    db_session.expire_all()
+    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == calls[0]
+
+
+@pytest.mark.anyio
+async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_time(db_session, test_source, tmp_path):
+    (tmp_path / "a.txt").write_text("Inhalt A")
+    failing = AsyncMock(side_effect=RuntimeError("Embedding-Dienst down"))
+
+    connector = FolderConnector(test_source.id)
+    with patch("connectors.base.get_embedding", failing):
+        await connector.sync()
+
+    db_session.expire_all()
+    source = db_session.get(KnowledgeSource, test_source.id)
+    assert source.sync_status == "error" and "nicht eingebettet" in source.last_error
+    assert source.last_synced_at is None  # Zeitstempel bleibt stehen
+    # Kein halbes Dokument im Index und die Datei gilt nicht als erledigt.
+    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == 0
+    assert db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).count() == 0
+
+    db_session.commit()
+    healthy = AsyncMock(return_value=[0.1] * 1024)
+    again = FolderConnector(test_source.id)
+    with patch("connectors.base.get_embedding", healthy):
+        await again.sync()
+    db_session.expire_all()
+    assert db_session.get(KnowledgeSource, test_source.id).sync_status == "completed"
+    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == 1

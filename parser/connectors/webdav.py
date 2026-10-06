@@ -352,6 +352,8 @@ class WebdavConnector(BaseConnector):
             for path, content_hash in self._current_scan.items():
                 if path in self._new_or_changed and path not in self._successful_files:
                     continue
+                if any(key.split("#", 1)[0] == path for key in self._embed_failures):
+                    continue  # nicht vollständig eingebettet: nächster Lauf versucht es erneut
 
                 if path in existing_records:
                     existing_records[path].content_hash = content_hash

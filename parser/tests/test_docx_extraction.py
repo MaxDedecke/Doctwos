@@ -59,14 +59,22 @@ def test_extract_docx_text_includes_table_cells():
     assert content == "Einleitung\nSpalte A | Spalte B"
 
 
-def test_folder_extract_text_uses_extract_docx_text_for_doc_and_docx():
-    with patch(
-        "connectors.folder.extract_docx_text", return_value="geteilter Word-Text"
-    ) as mock_extract:
-        content = _extract_text("/tmp/vertrag.doc")
+def test_folder_extract_text_uses_extract_docx_text_for_doc_and_docx(tmp_path):
+    # Eine als .doc benannte .docx-Datei (ZIP) wird wie .docx gelesen; echtes Word 97 meldet einen Fehler
+    # (siehe test_office_formats.py::test_legacy_doc_is_not_guessed_but_renamed_docx_works).
+    import zipfile
 
-    mock_extract.assert_called_once_with("/tmp/vertrag.doc")
-    assert content == "geteilter Word-Text"
+    for name in ("vertrag.doc", "vertrag.docx"):
+        path = tmp_path / name
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("word/document.xml", "<x/>")
+        with patch(
+            "connectors.folder.extract_docx_text", return_value="geteilter Word-Text"
+        ) as mock_extract:
+            content = _extract_text(str(path))
+
+        mock_extract.assert_called_once_with(str(path))
+        assert content == "geteilter Word-Text"
 
 
 @pytest.fixture

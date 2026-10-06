@@ -307,6 +307,8 @@ class FolderConnector(BaseConnector):
             for path, content_hash in self._current_scan.items():
                 if path in self._new_or_changed and path not in self._successful_files:
                     continue
+                if path in self._embed_failures:
+                    continue  # nicht vollständig eingebettet: nächster Lauf versucht es erneut
                 size, mtime_ns = self._scan_stats.get(path, (None, None))
 
                 if path in existing_records:

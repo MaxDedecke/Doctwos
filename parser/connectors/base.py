@@ -44,7 +44,7 @@ from core import config
 from db import SessionLocal, REDIS_URL
 from models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
-from ollama_client import ensure_model_pulled, get_embedding
+from ollama_client import ensure_model_pulled, get_embedding, get_embeddings_batch
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +131,9 @@ class BaseConnector(ABC):
         self.embedding_model = config.EMBED_MODEL
         self._sync_start_time: datetime | None = None
         self.has_changes = False
+        # Dokumente, deren Chunks nicht vollständig eingebettet werden konnten (Schlüssel -> Chunk-Anzahl).
+        # Sie werden nicht als erledigt gewertet, damit der nächste Lauf sie erneut versucht.
+        self._embed_failures: dict[str, int] = {}
 
     # ── Logging ──────────────────────────────────────────────────────────────
 
@@ -246,10 +249,27 @@ class BaseConnector(ABC):
         async def embed_content(content):
             return await get_embedding(content, model=self.embedding_model)
 
+        failures = 0
+
         def on_embed_error(chunk, e):
+            nonlocal failures
+            failures += 1
             # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
             # Exception-Typname macht die Meldung erst brauchbar.
             self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
+
+        # Alle Chunks eines Dokuments gebündelt einbetten (ein Aufruf je Batch statt je Chunk). Schlägt das fehl,
+        # versucht reindex_chunks_preserving_links es unten einzeln und meldet jeden fehlgeschlagenen Chunk.
+        if chunks:
+            try:
+                vectors = await get_embeddings_batch(
+                    [chunk["content"] for chunk in chunks], model=self.embedding_model
+                )
+                if len(vectors) == len(chunks) and all(vectors):
+                    for chunk, vector in zip(chunks, vectors):
+                        chunk["embedding"] = vector
+            except Exception as exc:
+                logger.info(f"Gebündeltes Embedding für '{doc['title']}' fehlgeschlagen, wechsle auf Einzelaufrufe: {exc}")
 
         count = await reindex_chunks_preserving_links(
             self.db,
@@ -260,6 +280,16 @@ class BaseConnector(ABC):
             embed_content=embed_content,
             on_embed_error=on_embed_error,
         )
+        if failures:
+            # Alles oder nichts je Dokument: Ein Dokument mit fehlenden Chunks würde sonst von der
+            # zeitbasierten Änderungserkennung als erledigt gelten und nie vervollständigt.
+            self._embed_failures[doc["storage_key"]] = failures
+            self.db.query(DocumentChunk).filter(
+                DocumentChunk.source_id == self.source.id,
+                DocumentChunk.file_path == doc["storage_key"],
+            ).delete(synchronize_session=False)
+            self.db.commit()
+            return 0
         return count
 
     # ── Aufräumen ─────────────────────────────────────────────────────────────
@@ -389,12 +419,23 @@ class BaseConnector(ABC):
                 self.has_changes = True
                 self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
 
-            # Sync-Zeitstempel erst nach erfolgreichem Durchlauf setzen, damit
-            # bei einem Abbruch der nächste Sync alle Dokumente erneut prüft
-            self.source.last_synced_at = self._sync_start_time
-            self.source.sync_status = "completed"
+            if self._embed_failures:
+                # Zeitstempel bleibt stehen: der nächste Lauf prüft diese Dokumente erneut.
+                total_failed = sum(self._embed_failures.values())
+                self.source.sync_status = "error"
+                self.source.last_error = (
+                    f"{total_failed} Chunk(s) in {len(self._embed_failures)} Dokument(en) konnten nicht eingebettet "
+                    "werden (Embedding-Dienst prüfen). Betroffene Dokumente fehlen im Index; der nächste Sync "
+                    "versucht sie erneut."
+                )
+                self.source.progress_message = "Mit Fehlern abgeschlossen"
+            else:
+                # Sync-Zeitstempel erst nach erfolgreichem Durchlauf setzen, damit
+                # bei einem Abbruch der nächste Sync alle Dokumente erneut prüft
+                self.source.last_synced_at = self._sync_start_time
+                self.source.sync_status = "completed"
+                self.source.progress_message = "Synchronisierung abgeschlossen"
             self.source.progress = 100
-            self.source.progress_message = "Synchronisierung abgeschlossen"
             if self.has_changes and had_previous_sync:
                 escalated = mark_source_insights_outdated(self.db, self.source)
                 if escalated:
