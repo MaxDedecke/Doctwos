@@ -8,7 +8,6 @@ import {
   buildNormalQuestions,
   detectStacks,
   hasPulseContent,
-  pulseTypesToShow,
   shuffle,
   type ProjectPulse,
 } from '@/lib/chatStarters';
@@ -179,36 +178,6 @@ function useTypedHeadline(questions: string[], t: (key: string) => string, enabl
   return { text, isTyping, next: () => setNonce(n => n + 1) };
 }
 
-function useCountUp(target: number, durationMs = 700): number {
-  const [animated, setAnimated] = React.useState(0);
-  const instant = target === 0 || prefersReducedMotion();
-  React.useEffect(() => {
-    if (instant) return;
-    let frame = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - start) / durationMs);
-      setAnimated(Math.round(target * (1 - Math.pow(1 - progress, 3))));
-      if (progress < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [target, durationMs, instant]);
-  return instant ? target : animated;
-}
-
-function PulseStat({ value, label, theme }: { value: number; label: string; theme: string }) {
-  const shown = useCountUp(value);
-  return (
-    <span className="inline-flex items-baseline gap-1.5">
-      <span className={cn('tabular-nums font-semibold', theme === 'dark' ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}>
-        {shown.toLocaleString()}
-      </span>
-      <span>{label}</span>
-    </span>
-  );
-}
-
 export function ChatEmptyState({
   theme,
   chatMode,
@@ -303,8 +272,6 @@ export function ChatEmptyState({
         promptScenario('brainstorm', <Lightbulb className="w-4 h-4" />),
       ];
 
-  const stats = isEvidence && hasPulseContent(pulse) ? pulse : null;
-
   return (
     <div className="flex-1 flex flex-col items-center justify-start text-center gap-5 @3xl/chat:gap-6 pt-2 pb-4 relative">
       <div className="relative z-10 w-full max-w-3xl space-y-3">
@@ -361,16 +328,6 @@ export function ChatEmptyState({
         {/* Nur im Evidenz-Modus: leere Lücke statt der früheren Linie mit Quadrat, damit der Abstand zu den Karten gleich bleibt. */}
         {isEvidence && <div aria-hidden="true" className="mx-auto h-1.5" key={`gap-${chatMode}`} />}
 
-        {stats && (
-          <div
-            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-ds-zinc-500 animate-in fade-in duration-300 motion-reduce:animate-none"
-            aria-label={selectedProject?.name}
-          >
-            {pulseTypesToShow(stats).map(type => (
-              <PulseStat key={type} value={stats.counts[type]} label={t(`chatView.empty.counts.${type}`)} theme={theme} />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Szenario-Karten: neu aufgebaut beim Moduswechsel, damit der Wechsel sichtbar wird. */}

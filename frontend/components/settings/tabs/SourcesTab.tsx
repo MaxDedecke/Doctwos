@@ -32,6 +32,7 @@ import {
   Trash2
 } from 'lucide-react';
 import React from 'react';
+import { GitSourcePulse } from '@/components/settings/GitSourcePulse';
 import { SourceNetworkGraph } from './SourceNetworkGraph';
 
 interface SourcesTabProps {
@@ -359,6 +360,9 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                           <span className="opacity-50">{t('settings.sourcesTab.branchLabelColon')}</span>
                           <span className="font-mono text-sm font-bold">{inst.branch || (!Array.isArray(inst.spaces) ? inst.spaces?.branch : undefined)}</span>
                         </div>
+                      )}
+                      {inst.type?.toLowerCase() === 'git' && inst.project_id != null && (
+                        <GitSourcePulse projectId={Number(inst.project_id)} theme={theme} />
                       )}
                       <div className="flex items-center gap-1.5">
                         <span className="opacity-50">{t('settings.sourcesTab.embeddingModelLabel')}</span>

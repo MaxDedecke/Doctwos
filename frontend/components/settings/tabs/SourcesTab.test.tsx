@@ -11,6 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   deleteKnowledgeSource: vi.fn(),
   updateKnowledgeSourceInterval: vi.fn(),
   updateKnowledgeSourceContextNote: vi.fn(),
+  getProjectPulse: vi.fn().mockResolvedValue({ data: { counts: {}, samples: {} } }),
 }));
 
 vi.mock('@/app/services/api', () => ({ API_URL: 'http://api.test', api: apiMocks }));

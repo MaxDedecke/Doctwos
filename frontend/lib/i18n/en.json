@@ -388,6 +388,7 @@
       }
     },
     "sourcesTab": {
+      "pulseLabel": "Project figures",
       "title": "Knowledge Sources & Integrations",
       "description": "Extend Doctus's RAG knowledge base with additional company sources alongside Git code.",
       "linkedProjectLabel": "Linked Project",

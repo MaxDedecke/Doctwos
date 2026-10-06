@@ -388,6 +388,7 @@
       }
     },
     "sourcesTab": {
+      "pulseLabel": "Projekt-Kennzahlen",
       "title": "Wissensquellen & Integrationen",
       "description": "Erweitere die RAG-Wissensbasis von Doctus um zusätzliche Firmenquellen neben Git-Code.",
       "linkedProjectLabel": "Verknüpftes Projekt",
