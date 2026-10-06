@@ -1273,7 +1273,7 @@ export function ChatView({
                       "h-8 w-8 rounded-lg transition-all font-semibold",
                       currentMessage.trim()
                         ? (theme === 'dark'
-                            ? "bg-ds-zinc-100 text-ds-zinc-900 hover:bg-ds-white shadow-lg shadow-ds-white/10"
+                            ? "bg-ds-zinc-800 text-ds-zinc-100 hover:bg-ds-zinc-700"
                             : "bg-transparent text-ds-zinc-900 hover:bg-ds-zinc-900/10")
                         : (theme === 'dark'
                             ? "bg-ds-zinc-800 text-ds-zinc-650 opacity-50 cursor-not-allowed"
