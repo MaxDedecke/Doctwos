@@ -14,7 +14,7 @@ import {
   pointerToPercent,
   pointerToWorkspacePercent,
 } from '@/lib/workspaceResize';
-import { getSelectionViewType } from '@/lib/workspaceSelection';
+import { getSelectionViewType, seedSelectionForPanelType } from '@/lib/workspaceSelection';
 import type { ChatSession, CodeEntity, FocusObject, KnowledgeSource, Project, WorkspaceDocument, WorkspaceSnapshot } from '@/types/domain';
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -283,10 +283,11 @@ export function useWorkspaceLayout({
     pendingPanelCountRef.current += 1;
     setPanelFrozen((previous) => [...previous, frozenOverride ?? false]);
     setPanelFocusObject((previous) => [...previous, null]);
+    const seeded = seedSelectionForPanelType(type, { selectedFile, selectedDoc, selectedEntity });
     setPanelSelections((previous) => [...previous, {
-      selectedFile: selectionOverride?.selectedFile ?? selectedFile,
-      selectedDoc: selectionOverride?.selectedDoc ?? selectedDoc,
-      selectedEntity: selectionOverride?.selectedEntity ?? selectedEntity,
+      selectedFile: selectionOverride?.selectedFile ?? seeded.selectedFile,
+      selectedDoc: selectionOverride?.selectedDoc ?? seeded.selectedDoc,
+      selectedEntity: selectionOverride?.selectedEntity ?? seeded.selectedEntity,
       selectedLine: selectionOverride?.selectedLine ?? null,
       customCallFlow: selectionOverride?.customCallFlow ?? null,
       graphNeighborhood: selectionOverride?.graphNeighborhood ?? null,
