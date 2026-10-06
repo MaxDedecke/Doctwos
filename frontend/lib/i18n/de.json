@@ -1919,6 +1919,7 @@
     "truncated": "gekürzt",
     "expand": "{{count}} Knoten anzeigen",
     "restart": "{{name}} als neuen Startpunkt",
+    "openSource": "Quellcode von {{name}} öffnen",
     "loading": "Lädt",
     "loadError": "Die Ebenen konnten nicht geladen werden.",
     "noFocus": "Wähle einen Startpunkt (Programm, Klasse, Methode oder Feld), um seine Ebenen zu sehen.",

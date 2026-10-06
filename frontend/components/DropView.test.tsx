@@ -31,7 +31,7 @@ describe('DropView', () => {
     // Die Verbindungen zwischen den Ebenen liegen als SVG-Ebene hinter den Knoten.
     expect(screen.getByTestId('drop-connectors').tagName.toLowerCase()).toBe('svg');
     expect(screen.getByText(/3 nicht aufgelöst/)).toBeTruthy();
-    fireEvent.click(screen.getByText('doCreate'));
+    fireEvent.click(screen.getByRole('button', { name: /Quellcode von doCreate/ }));
     expect(onFileSelect).toHaveBeenCalledWith('src/doCreate.java', 10, 8);
   });
 

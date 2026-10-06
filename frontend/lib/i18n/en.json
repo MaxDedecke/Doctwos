@@ -1919,6 +1919,7 @@
     "truncated": "truncated",
     "expand": "Show {{count}} nodes",
     "restart": "{{name}} as new start point",
+    "openSource": "Open source of {{name}}",
     "loading": "Loading",
     "loadError": "The layers could not be loaded.",
     "noFocus": "Pick a start point (program, class, method or field) to see its layers.",

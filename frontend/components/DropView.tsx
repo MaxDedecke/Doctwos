@@ -8,7 +8,7 @@ import {
 } from '@/lib/dropView';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Droplet, FileCode, Loader2, Target } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Droplet, FileCode, Loader2, Target, ExternalLink } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -44,6 +44,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   const [layers, setLayers] = useState(DROP_DEFAULT_LAYERS);
   const [expanded, setExpanded] = useState<number[]>([]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [connectors, setConnectors] = useState<Connector[]>([]);
@@ -63,8 +64,40 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   const result = loaded?.data ?? null;
   const error = loaded?.key === requestKey && loaded.failed;
 
+  // Lauf eines gewählten Knotens: alles darüber bis zum Start und alles darunter, entlang der Verbindungen.
+  const run = useMemo(() => {
+    if (selectedId == null || !result) return null;
+    const layerOf = new Map<number, number>();
+    result.layers.forEach(layer => layer.nodes.forEach(node => layerOf.set(node.id, layer.layer)));
+    if (!layerOf.has(selectedId)) return null;
+    const edges: DropEdge[] = [];
+    const seen = new Set<string>();
+    for (const layer of result.layers) for (const edge of layer.edges ?? []) {
+      const key = `${edge.from}>${edge.to}:${edge.type}`;
+      if (!seen.has(key)) { seen.add(key); edges.push(edge); }
+    }
+    const nodes = new Set<number>([selectedId]);
+    const keys = new Set<string>();
+    for (const sign of [-1, 1]) {
+      const queue = [selectedId];
+      while (queue.length) {
+        const current = queue.pop()!;
+        for (const edge of edges) {
+          const other = edge.from === current ? edge.to : edge.to === current ? edge.from : null;
+          if (other == null || !layerOf.has(other)) continue;
+          const delta = Math.sign((layerOf.get(other) ?? 0) - (layerOf.get(current) ?? 0));
+          if (delta !== sign) continue;
+          keys.add(`${edge.from}>${edge.to}:${edge.type}`);
+          if (!nodes.has(other)) { nodes.add(other); queue.push(other); }
+        }
+      }
+    }
+    return { nodes, keys };
+  }, [selectedId, result]);
+
   const open = (node: DropNode) => onFileSelect(node.file_path, node.start_line, node.source_id);
-  const restart = (node: DropNode) => { setStartId(node.id); setExpanded([]); };
+  const restart = (node: DropNode) => { setStartId(node.id); setExpanded([]); setSelectedId(null); };
+  const select = (node: DropNode) => setSelectedId(previous => (previous === node.id ? null : node.id));
   const chip = (node: DropNode, isRoot = false) => (
     <div key={node.id} data-testid={`drop-node-${node.id}`}
       ref={element => { if (element) nodeRefs.current.set(node.id, element); else nodeRefs.current.delete(node.id); }}
@@ -73,11 +106,16 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
       'group relative z-10 flex max-w-[16rem] items-center gap-1 rounded-md border px-2 py-1 text-[0.6875rem]',
       ROLE_STYLE[node.role ?? ''] ?? 'border-ds-zinc-500/60',
       isRoot ? 'border-2 font-semibold' : '',
+      selectedId === node.id && 'ring-2 ring-ds-indigo-500/70',
+      run && !run.nodes.has(node.id) && 'opacity-40',
       isDark ? 'bg-ds-zinc-900 text-ds-zinc-100' : 'bg-ds-white text-ds-zinc-900',
     )}>
-      <button type="button" className="flex min-w-0 items-center gap-1 text-left" title={node.cite} onClick={() => open(node)}>
+      <button type="button" className="flex min-w-0 items-center gap-1 text-left" title={node.cite} aria-pressed={selectedId === node.id} onClick={() => select(node)}>
         <FileCode className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
         <span className="truncate">{node.name}</span>
+      </button>
+      <button type="button" className="opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100" aria-label={t('dropView.openSource', { name: node.name })} title={t('dropView.openSource', { name: node.name })} onClick={() => open(node)}>
+        <ExternalLink className="h-3 w-3" aria-hidden />
       </button>
       {!isRoot && (
         <button type="button" className="opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100" aria-label={t('dropView.restart', { name: node.name })} title={t('dropView.restart', { name: node.name })} onClick={() => restart(node)}>
@@ -177,10 +215,12 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
             ))}
           </defs>
           {connectors.map(connector => {
-            const active = hoveredId == null || connector.from === hoveredId || connector.to === hoveredId;
+            const focus = run != null;
+            const active = focus ? run.keys.has(connector.key) : hoveredId == null || connector.from === hoveredId || connector.to === hoveredId;
+            const emphasized = focus ? active : active && hoveredId != null;
             return (
               <path key={connector.key} d={connector.d} fill="none" stroke={connector.color}
-                strokeWidth={active && hoveredId != null ? 2.5 : 1.5} strokeOpacity={active ? 0.85 : 0.12}
+                strokeWidth={emphasized ? 2.5 : 1.5} strokeOpacity={active ? 0.85 : 0.12}
                 markerEnd={connector.reversed ? undefined : `url(#drop-arrow-${connector.color.slice(1)})`}
                 markerStart={connector.reversed ? `url(#drop-arrow-${connector.color.slice(1)})` : undefined}
                 data-edge={connector.key}>
