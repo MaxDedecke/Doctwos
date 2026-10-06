@@ -168,9 +168,22 @@ export function GlobalSearch({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Das Filter-Menü wird in ein Portal gerendert und liegt damit außerhalb des Containers.
+  // Klicks darauf (Auswahl, erneuter Klick auf das Icon, Overlay) dürfen die Leiste nicht
+  // einklappen; nach dem Schließen gilt noch kurz eine Schonfrist, weil das Schließen vor dem
+  // zugehörigen mousedown ausgelöst werden kann.
+  const filterOpenRef = useRef(false);
+  const filterClosedAtRef = useRef(0);
+  const handleFilterOpenChange = (open: boolean) => {
+    filterOpenRef.current = open;
+    if (!open) filterClosedAtRef.current = Date.now();
+  };
+
   // Trefferliste schließen bei Klick außerhalb; eine leere Suchleiste klappt dabei wieder ein.
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
+      if (filterOpenRef.current || Date.now() - filterClosedAtRef.current < 300) return;
+      if (e.target instanceof Element && e.target.closest('[data-radix-popper-content-wrapper], [role="listbox"]')) return;
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
         if (!query.trim()) setIsSearchExpanded(false);
@@ -433,7 +446,7 @@ export function GlobalSearch({
                 </button>
               ))}
               {isSearchExpanded && (
-                <Select value={scope} onValueChange={setScope}>
+                <Select value={scope} onValueChange={setScope} onOpenChange={handleFilterOpenChange}>
                   <SelectTrigger className={cn(
                     "h-9 w-9 shrink-0 rounded-none border-0 border-l bg-transparent p-0 flex items-center justify-center [&>svg:last-child]:hidden",
                     theme === 'dark' ? "border-ds-zinc-800 text-ds-zinc-300" : "border-ds-zinc-200 text-ds-zinc-700"
