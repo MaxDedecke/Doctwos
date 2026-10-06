@@ -1243,7 +1243,7 @@ export function ChatView({
                     }}
                   >
                     <SelectTrigger aria-label={t('chatView.selectModel')} className={cn(
-                      "h-7 w-7 @sm/chat:w-auto @sm/chat:max-w-[160px] @sm/chat:min-w-[110px] text-xs border focus:ring-0 shrink-0 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center @sm/chat:justify-between gap-1 px-0 @sm/chat:px-2.5",
+                      "h-7 w-7 @sm/chat:w-auto @sm/chat:max-w-[160px] @sm/chat:min-w-[110px] text-xs border focus:ring-0 shrink-0 rounded-lg font-medium shadow-sm transition-all flex items-center justify-center @sm/chat:justify-between gap-1 px-0 @sm/chat:px-2.5 [&>svg]:hidden @sm/chat:[&>svg]:block",
                       theme === 'dark' ? "bg-ds-zinc-900/80 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800/40" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-50"
                     )}>
                       <div className="flex items-center gap-1.5 truncate">
@@ -1274,7 +1274,7 @@ export function ChatView({
                       currentMessage.trim()
                         ? (theme === 'dark'
                             ? "bg-ds-zinc-100 text-ds-zinc-900 hover:bg-ds-white shadow-lg shadow-ds-white/10"
-                            : "bg-transparent text-ds-zinc-900 hover:bg-ds-indigo-650 hover:text-ds-white hover:shadow-lg hover:shadow-ds-indigo-655/20")
+                            : "bg-transparent text-ds-zinc-900 hover:bg-ds-zinc-900/10")
                         : (theme === 'dark'
                             ? "bg-ds-zinc-800 text-ds-zinc-650 opacity-50 cursor-not-allowed"
                             : "bg-ds-zinc-100 text-ds-zinc-400 opacity-50 cursor-not-allowed")
