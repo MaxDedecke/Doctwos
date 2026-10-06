@@ -307,7 +307,7 @@ export function KnowledgeGraphView({
   const [hiddenLinkTypes, setHiddenLinkTypes] = useState<Set<string>>(new Set());
   const [hiddenEdgeDirections, setHiddenEdgeDirections] = useState<Set<GraphEdgeDirection>>(new Set());
   const [linkFilterResetToken, setLinkFilterResetToken] = useState(0);
-  const [isLegendOpen, setIsLegendOpen] = useState(true);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
 
   const handleZoomIn = () => {
     if (!graphRef.current) return;
