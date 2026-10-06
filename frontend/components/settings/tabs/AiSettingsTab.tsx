@@ -165,7 +165,7 @@ export const AiSettingsTab: React.FC = () => {
           {kind === 'remote' && <SelectField label={t('settings.profilesTab.protocol')}>
             <Select value={provider === 'vllm' ? 'vllm' : protocol} onValueChange={value => { if (value === 'vllm') { setProvider('vllm'); setProtocol('openai_chat'); setBaseUrl(current => current.trim() || 'http://vllm:8000/v1'); setLlmPath('/chat/completions'); } else { const next = value as LlmProfile['protocol']; setProtocol(next); setProvider(next === 'ollama' ? 'ollama' : 'openai'); setLlmPath(next === 'ollama' ? '/api/chat' : '/chat/completions'); } }}>
               <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="ollama">Ollama API</SelectItem><SelectItem value="openai_chat">OpenAI-kompatibel</SelectItem><SelectItem value="vllm">vLLM (OpenAI API)</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="ollama">{t('settings.profilesTab.protocolOllama')}</SelectItem><SelectItem value="openai_chat">{t('settings.profilesTab.protocolOpenai')}</SelectItem><SelectItem value="vllm">{t('settings.profilesTab.protocolVllm')}</SelectItem></SelectContent>
             </Select>
           </SelectField>}
           {kind === 'remote' && provider === 'vllm' && <p className={helpTextClass}>{t('settings.profilesTab.vllmHint')}</p>}
@@ -185,16 +185,16 @@ export const AiSettingsTab: React.FC = () => {
               <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />{t('settings.profilesTab.advanced')}
             </summary>
             <div className="grid sm:grid-cols-2 gap-3 mt-3">
-              <Field label="Chat path" value={llmPath} set={setLlmPath} />
-              <Field label="Embedding model" value={embeddingModel} set={setEmbeddingModel} />
+              <Field label={t('settings.profilesTab.chatPathLabel')} value={llmPath} set={setLlmPath} />
+              <Field label={t('settings.profilesTab.embeddingModelShortLabel')} value={embeddingModel} set={setEmbeddingModel} />
               {kind === 'remote' && <>
-                <Field label="Embedding URL" value={embeddingBaseUrl} set={setEmbeddingBaseUrl} />
-                <Field label="Embedding path" value={embeddingPath} set={setEmbeddingPath} />
-                <Field label="Embedding API key" value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} />
+                <Field label={t('settings.profilesTab.embeddingUrlLabel')} value={embeddingBaseUrl} set={setEmbeddingBaseUrl} />
+                <Field label={t('settings.profilesTab.embeddingPathLabel')} value={embeddingPath} set={setEmbeddingPath} />
+                <Field label={t('settings.profilesTab.embeddingApiKeyLabel')} value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} />
               </>}
-              <NumberField label="Embedding dimension" value={dimension} set={setDimension} />
-              <NumberField label="Embedding context" value={embeddingContext} set={setEmbeddingContext} />
-              <NumberField label="LLM context" value={llmContext} set={setLlmContext} />
+              <NumberField label={t('settings.profilesTab.embeddingDimensionLabel')} value={dimension} set={setDimension} />
+              <NumberField label={t('settings.profilesTab.embeddingContextLabel')} value={embeddingContext} set={setEmbeddingContext} />
+              <NumberField label={t('settings.profilesTab.llmContextLabel')} value={llmContext} set={setLlmContext} />
             </div>
           </details>
           <div className="flex justify-end gap-2">
@@ -224,6 +224,7 @@ function EmbeddingProfilesPanel({
   activeProfileId: string;
   setActiveProfileId: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   const [editing, setEditing] = useState<EmbeddingProfile | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -253,53 +254,53 @@ function EmbeddingProfilesPanel({
         : await api.createEmbeddingProfile(payload);
       const saved = embeddingProfileFromApi(response.data as Record<string, unknown>);
       setProfiles(editing ? profiles.map(item => item.id === saved.id ? saved : item) : [...profiles, saved]);
-      setShowForm(false); reset(); showToast('Embedding-Profil gespeichert', 'success');
-    } catch (error) { showToast('Embedding-Profil konnte nicht gespeichert werden', 'error', error); }
+      setShowForm(false); reset(); showToast(t('settings.embeddingTab.saved'), 'success');
+    } catch (error) { showToast(t('settings.embeddingTab.saveFailed'), 'error', error); }
   };
   const activate = async (profile: EmbeddingProfile) => {
     try {
       await api.activateEmbeddingProfile(Number(profile.id));
       setActiveProfileId(profile.id);
       setProfiles(profiles.map(item => ({ ...item, isActive: item.id === profile.id })));
-      showToast('Embedding-Profil aktiviert', 'success');
-    } catch (error) { showToast('Embedding-Profil konnte nicht aktiviert werden', 'error', error); }
+      showToast(t('settings.embeddingTab.activated'), 'success');
+    } catch (error) { showToast(t('settings.embeddingTab.activateFailed'), 'error', error); }
   };
   const test = async (profile: EmbeddingProfile) => {
-    try { await api.testEmbeddingProfile(Number(profile.id)); showToast('Embedding-Endpunkt erreichbar', 'success'); }
-    catch (error) { showToast('Embedding-Endpunkt nicht erreichbar oder Dimension falsch', 'error', error); }
+    try { await api.testEmbeddingProfile(Number(profile.id)); showToast(t('settings.embeddingTab.testSuccess'), 'success'); }
+    catch (error) { showToast(t('settings.embeddingTab.testFailed'), 'error', error); }
   };
 
   return <section className="space-y-4">
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0 space-y-1">
-        <h4 className={sectionTitleClass(theme)}>Embedding-Profile</h4>
-        <p className={helpTextClass}>Unabhängig vom LLM. Das aktive Profil wird für Import und semantische Suche verwendet.</p>
+        <h4 className={sectionTitleClass(theme)}>{t('settings.embeddingTab.title')}</h4>
+        <p className={helpTextClass}>{t('settings.embeddingTab.description')}</p>
       </div>
-      {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />Embedding-Profil hinzufügen</Button>}
+      {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />{t('settings.embeddingTab.addProfile')}</Button>}
     </div>
     {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
       <div className="flex-1 min-w-0">
         <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}</div>
         <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
       </div>
-      <Button variant="ghost" size="icon" onClick={() => test(profile)} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
-      {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>Aktivieren</Button>}
-      <Button variant="ghost" size="icon" onClick={() => edit(profile)} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
-      <Button variant="ghost" size="icon" disabled={profile.isSystem || profile.id === activeProfileId} onClick={async () => { await api.deleteEmbeddingProfile(Number(profile.id)); setProfiles(profiles.filter(item => item.id !== profile.id)); }} className={dangerIconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
+      <Button variant="ghost" size="icon" onClick={() => test(profile)} title={t('settings.embeddingTab.testTitle')} aria-label={t('settings.embeddingTab.testTitle')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
+      {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>{t('settings.embeddingTab.activate')}</Button>}
+      <Button variant="ghost" size="icon" onClick={() => edit(profile)} title={t('settings.embeddingTab.editTitle')} aria-label={t('settings.embeddingTab.editTitle')} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
+      <Button variant="ghost" size="icon" disabled={profile.isSystem || profile.id === activeProfileId} onClick={async () => { await api.deleteEmbeddingProfile(Number(profile.id)); setProfiles(profiles.filter(item => item.id !== profile.id)); }} title={t('settings.embeddingTab.deleteTitle')} aria-label={t('settings.embeddingTab.deleteTitle')} className={dangerIconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
     </div>)}</div> : <div className={cn(cardClass(theme), 'p-4 grid sm:grid-cols-2 gap-3')}>
-      <Field label="Name" value={name} set={setName} />
-      <SelectField label="Provider">
+      <Field label={t('settings.embeddingTab.nameLabel')} value={name} set={setName} />
+      <SelectField label={t('settings.embeddingTab.providerLabel')}>
         <Select value={provider} onValueChange={value => { const next = value as 'ollama' | 'openai'; setProvider(next); setPath(next === 'openai' ? '/embeddings' : '/api/embed'); }}>
           <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="openai">OpenAI-kompatibel</SelectItem><SelectItem value="ollama">Ollama API</SelectItem></SelectContent>
+          <SelectContent><SelectItem value="openai">{t('settings.embeddingTab.providerOpenai')}</SelectItem><SelectItem value="ollama">{t('settings.embeddingTab.providerOllama')}</SelectItem></SelectContent>
         </Select>
       </SelectField>
-      <Field label="Modell" value={model} set={setModel} /><Field label="Base-URL" value={baseUrl} set={setBaseUrl} placeholder="https://host.example/v1" />
-      <Field label="Embedding-Pfad" value={path} set={setPath} /><Field label="API-Key" value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />
-      <NumberField label="Dimension" value={dimension} set={setDimension} /><NumberField label="Context-Länge" value={contextLength} set={setContextLength} />
+      <Field label={t('settings.embeddingTab.modelLabel')} value={model} set={setModel} /><Field label={t('settings.embeddingTab.baseUrlLabel')} value={baseUrl} set={setBaseUrl} placeholder="https://host.example/v1" />
+      <Field label={t('settings.embeddingTab.pathLabel')} value={path} set={setPath} /><Field label={t('settings.embeddingTab.apiKeyLabel')} value={apiKey} set={setApiKey} secret placeholder={editing?.apiKeySet ? '••••••••' : ''} />
+      <NumberField label={t('settings.embeddingTab.dimensionLabel')} value={dimension} set={setDimension} /><NumberField label={t('settings.embeddingTab.contextLengthLabel')} value={contextLength} set={setContextLength} />
       <div className="sm:col-span-2 flex justify-end gap-2">
-        <Button variant="outline" onClick={() => { setShowForm(false); reset(); }} className={cn(secondaryButtonClass(theme), 'h-9 text-xs')}>Abbrechen</Button>
-        <Button onClick={save} className={primaryButtonClass}>Speichern</Button>
+        <Button variant="outline" onClick={() => { setShowForm(false); reset(); }} className={cn(secondaryButtonClass(theme), 'h-9 text-xs')}>{t('common.cancel')}</Button>
+        <Button onClick={save} className={primaryButtonClass}>{t('common.save')}</Button>
       </div>
     </div>}
   </section>;

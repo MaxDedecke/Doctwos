@@ -77,14 +77,14 @@ export const ConfigSettingsTab: React.FC = () => {
       const res = await api.testOidcConnection();
       setConnectionResult(res.data);
       if (res.data.success) {
-        showToast("IdP-Verbindungstest erfolgreich", "success");
+        showToast(t('settings.configTab.connectionTestOk'), "success");
       } else {
-        showToast("IdP-Verbindungstest fehlgeschlagen", "error");
+        showToast(t('settings.configTab.connectionTestFailed'), "error");
       }
     } catch (err) {
       console.error("Connection test failed", err);
       setConnectionResult({ success: false, error: String(err) });
-      showToast("IdP-Verbindungstest fehlgeschlagen", "error", err);
+      showToast(t('settings.configTab.connectionTestFailed'), "error", err);
     } finally {
       setIsTestingConnection(false);
     }
@@ -107,7 +107,7 @@ export const ConfigSettingsTab: React.FC = () => {
       setSimulationResult(res.data);
     } catch (err) {
       console.error("Simulation failed", err);
-      showToast("Simulation fehlgeschlagen", "error", err);
+      showToast(t('settings.configTab.simulationFailed'), "error", err);
     } finally {
       setIsSimulating(false);
     }
@@ -155,7 +155,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h4 className="font-bold text-sm tracking-tight">
-                {sso?.enabled ? "Single Sign-On (OIDC) ist aktiv" : "Single Sign-On (OIDC) ist nicht aktiviert"}
+                {sso?.enabled ? t('settings.configTab.ssoActiveTitle') : t('settings.configTab.ssoInactiveTitle')}
               </h4>
               <span
                 className={cn(
@@ -165,13 +165,13 @@ export const ConfigSettingsTab: React.FC = () => {
                     : "bg-ds-zinc-500/20 text-ds-zinc-600 dark:text-ds-zinc-400"
                 )}
               >
-                {sso?.enabled ? "Aktiv" : "Inaktiv"}
+                {sso?.enabled ? t('settings.configTab.badgeActive') : t('settings.configTab.badgeInactive')}
               </span>
             </div>
             <p className="text-xs text-ds-zinc-500 dark:text-ds-zinc-400 leading-relaxed max-w-2xl">
               {sso?.enabled
-                ? `Angemeldet an ${sso.issuer}. Benutzer können sich per OpenID Connect einloggen; lokaler Passwort-Login bleibt als Fallback verfügbar.`
-                : "Doctus läuft im reinen lokalen Passwort-Modus. Um SSO einzurichten, hinterlege OIDC_ISSUER, OIDC_CLIENT_ID und OIDC_CLIENT_SECRET in der .env-Datei."}
+                ? t('settings.configTab.ssoActiveDesc', { issuer: sso.issuer ?? '' })
+                : t('settings.configTab.ssoInactiveDesc')}
             </p>
           </div>
         </div>
@@ -184,7 +184,7 @@ export const ConfigSettingsTab: React.FC = () => {
           className={cn(secondaryButtonClass(theme), "self-start md:self-auto")}
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Aktualisieren
+          {t('settings.configTab.refresh')}
         </Button>
       </div>
 
@@ -193,7 +193,7 @@ export const ConfigSettingsTab: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <KeyRound className="w-3.5 h-3.5 text-ds-indigo-500" />
           <h4 className={sectionTitleClass(theme)}>
-            OpenID Connect / IdP-Konfiguration
+            {t('settings.configTab.idpSection')}
           </h4>
         </div>
 
@@ -204,36 +204,36 @@ export const ConfigSettingsTab: React.FC = () => {
           >
             <div>
               <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-                OIDC Issuer (IdP-URL)
+                {t('settings.configTab.issuerLabel')}
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
-                {sso?.issuer || "— (Nicht gesetzt)"}
+                {sso?.issuer || t('settings.configTab.notSet')}
               </div>
             </div>
 
             <div>
               <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-                Client ID
+                {t('settings.configTab.clientId')}
               </span>
               <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate mt-0.5">
-                {sso?.client_id || "— (Nicht gesetzt)"}
+                {sso?.client_id || t('settings.configTab.notSet')}
               </div>
             </div>
 
             <div>
               <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-                Client Secret Status
+                {t('settings.configTab.clientSecretStatus')}
               </span>
               <div className="text-xs font-semibold flex items-center gap-1.5 mt-0.5">
                 {sso?.client_secret_configured ? (
                   <>
                     <span className="w-2 h-2 rounded-full bg-ds-emerald-500" />
-                    <span className="text-ds-emerald-600 dark:text-ds-emerald-400">Konfiguriert (verborgen)</span>
+                    <span className="text-ds-emerald-600 dark:text-ds-emerald-400">{t('settings.configTab.secretConfigured')}</span>
                   </>
                 ) : (
                   <>
                     <span className="w-2 h-2 rounded-full bg-ds-amber-500" />
-                    <span className="text-ds-amber-600 dark:text-ds-amber-400">Nicht konfiguriert</span>
+                    <span className="text-ds-amber-600 dark:text-ds-amber-400">{t('settings.configTab.secretMissing')}</span>
                   </>
                 )}
               </div>
@@ -254,7 +254,7 @@ export const ConfigSettingsTab: React.FC = () => {
                   ) : (
                     <Play className="w-3.5 h-3.5 text-ds-indigo-500" />
                   )}
-                  IdP-Verbindung testen (.well-known)
+                  {t('settings.configTab.testConnection')}
                 </Button>
               </div>
             )}
@@ -267,13 +267,13 @@ export const ConfigSettingsTab: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-                  Erforderliche Redirect-URI
+                  {t('settings.configTab.requiredRedirect')}
                 </span>
-                <span className="text-[0.625rem] text-ds-indigo-500 font-semibold">Für IdP-Client</span>
+                <span className="text-[0.625rem] text-ds-indigo-500 font-semibold">{t('settings.configTab.forIdpClient')}</span>
               </div>
 
               <p className="text-[0.6875rem] text-ds-zinc-500 dark:text-ds-zinc-400">
-                Trage diese exakte URL im Kunden-IdP (Keycloak, Microsoft Entra ID, Okta) als erlaubte Callback-URI ein:
+                {t('settings.configTab.redirectHint')}
               </p>
 
               <div
@@ -289,7 +289,7 @@ export const ConfigSettingsTab: React.FC = () => {
                   variant="ghost"
                   onClick={handleCopyRedirect}
                   className={cn(ghostIconButtonClass, "h-7 w-7 shrink-0")}
-                  title="Redirect-URI kopieren"
+                  title={t('settings.configTab.copyRedirectTitle')}
                 >
                   {copiedRedirect ? <Check className="w-3.5 h-3.5 text-ds-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                 </Button>
@@ -297,7 +297,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
 
             <div className="text-[0.6875rem] text-ds-zinc-500">
-              Wichtig: Muss im Browser und vom IdP exakt so erreichbar sein.
+              {t('settings.configTab.redirectImportant')}
             </div>
           </div>
         </div>
@@ -320,12 +320,12 @@ export const ConfigSettingsTab: React.FC = () => {
               {connectionResult.success ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-ds-emerald-500" />
-                  <span>IdP Discovery erfolgreich ({connectionResult.duration_ms} ms)</span>
+                  <span>{t('settings.configTab.discoverySuccess', { ms: connectionResult.duration_ms ?? 0 })}</span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-4 h-4 text-ds-red-500" />
-                  <span>IdP Discovery fehlgeschlagen ({connectionResult.duration_ms} ms)</span>
+                  <span>{t('settings.configTab.discoveryFailed', { ms: connectionResult.duration_ms ?? 0 })}</span>
                 </>
               )}
             </div>
@@ -357,7 +357,7 @@ export const ConfigSettingsTab: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-ds-indigo-500" />
           <h4 className={sectionTitleClass(theme)}>
-            Rollen- & Team-Zuordnung (O-164)
+            {t('settings.configTab.mappingSection')}
           </h4>
         </div>
 
@@ -367,26 +367,26 @@ export const ConfigSettingsTab: React.FC = () => {
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
             <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-              Automatisches Standard-Team
+              {t('settings.configTab.defaultTeamLabel')}
             </span>
             <div className="flex items-center gap-2">
               <span className="font-semibold text-xs text-ds-zinc-900 dark:text-ds-zinc-100">
-                {sso?.default_team || "Keines (ohne Team)"}
+                {sso?.default_team || t('settings.configTab.noTeam')}
               </span>
               {sso?.default_team && (
                 sso.default_team_exists ? (
                   <span className={badgeClass('success')}>
-                    Existiert
+                    {t('settings.configTab.teamExists')}
                   </span>
                 ) : (
                   <span className={badgeClass('warning')}>
-                    Team fehlt in Doctus
+                    {t('settings.configTab.teamMissing')}
                   </span>
                 )
               )}
             </div>
             <p className="text-[0.6875rem] text-ds-zinc-500">
-              Jeder neue SSO-Nutzer tritt diesem Team automatisch bei.
+              {t('settings.configTab.defaultTeamHint')}
             </p>
           </div>
 
@@ -395,7 +395,7 @@ export const ConfigSettingsTab: React.FC = () => {
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
             <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-              Superuser-Rollen (Admin)
+              {t('settings.configTab.adminRolesLabel')}
             </span>
             <div className="flex flex-wrap gap-1">
               {sso?.admin_roles && sso.admin_roles.length > 0 ? (
@@ -408,11 +408,11 @@ export const ConfigSettingsTab: React.FC = () => {
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-ds-zinc-500">Keine Rollen gemappt (nur manuelle Admin-Vergabe)</span>
+                <span className="text-xs text-ds-zinc-500">{t('settings.configTab.noRolesMapped')}</span>
               )}
             </div>
             <p className="text-[0.6875rem] text-ds-zinc-500">
-              Nutzer mit diesen IdP-Rollen erhalten automatisch Superuser-Rechte.
+              {t('settings.configTab.adminRolesHint')}
             </p>
           </div>
 
@@ -421,14 +421,14 @@ export const ConfigSettingsTab: React.FC = () => {
             className={cn(cardClass(theme), "p-4 space-y-1.5")}
           >
             <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">
-              Geprüfte IdP-Claims
+              {t('settings.configTab.claimsLabel')}
             </span>
             <div className="text-xs font-mono space-y-0.5">
-              <div><span className="text-ds-zinc-500">Rollen:</span> {sso?.roles_claim || "roles"} (inkl. realm_access.roles)</div>
-              <div><span className="text-ds-zinc-500">Gruppen:</span> {sso?.groups_claim || "groups"}</div>
+              <div><span className="text-ds-zinc-500">{t('settings.configTab.rolesLabel')}</span> {sso?.roles_claim || "roles"} {t('settings.configTab.rolesClaimSuffix')}</div>
+              <div><span className="text-ds-zinc-500">{t('settings.configTab.groupsLabel')}</span> {sso?.groups_claim || "groups"}</div>
             </div>
             <p className="text-[0.6875rem] text-ds-zinc-500">
-              Keycloak, Azure Entra ID und Okta Standardpfade werden automatisch durchsucht.
+              {t('settings.configTab.claimsHint')}
             </p>
           </div>
         </div>
@@ -439,10 +439,10 @@ export const ConfigSettingsTab: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <span className={sectionTitleClass(theme)}>
-              Konfiguriertes Team-Mapping (OIDC_TEAM_MAPPING)
+              {t('settings.configTab.teamMappingTitle')}
             </span>
             <span className="text-[0.6875rem] text-ds-zinc-500">
-              {Object.keys(sso?.team_mapping || {}).length} Mappings konfiguriert
+              {t('settings.configTab.mappingsCount', { count: Object.keys(sso?.team_mapping || {}).length })}
             </span>
           </div>
 
@@ -451,10 +451,10 @@ export const ConfigSettingsTab: React.FC = () => {
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="border-b border-ds-zinc-200 dark:border-ds-zinc-800 text-ds-zinc-500">
-                    <th className="pb-2 font-semibold">IdP Gruppe / Rolle</th>
+                    <th className="pb-2 font-semibold">{t('settings.configTab.colIdp')}</th>
                     <th className="pb-2 font-semibold w-8 text-center">➔</th>
-                    <th className="pb-2 font-semibold">Doctus Team</th>
-                    <th className="pb-2 font-semibold text-right">Team-Status</th>
+                    <th className="pb-2 font-semibold">{t('settings.configTab.colTeam')}</th>
+                    <th className="pb-2 font-semibold text-right">{t('settings.configTab.colStatus')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ds-zinc-200/60 dark:divide-ds-zinc-800/60 font-mono">
@@ -468,11 +468,11 @@ export const ConfigSettingsTab: React.FC = () => {
                         <td className="py-2 text-right">
                           {exists ? (
                             <span className={cn(badgeClass('success'), "font-sans")}>
-                              Existiert in Doctus
+                              {t('settings.configTab.existsInDoctus')}
                             </span>
                           ) : (
                             <span className={cn(badgeClass('warning'), "font-sans")}>
-                              Noch nicht angelegt
+                              {t('settings.configTab.notCreated')}
                             </span>
                           )}
                         </td>
@@ -484,7 +484,7 @@ export const ConfigSettingsTab: React.FC = () => {
             </div>
           ) : (
             <div className="text-xs text-ds-zinc-500 py-2">
-              Kein Team-Mapping definiert. Nutzer werden keinem spezifischen Gruppen-Team zugewiesen.
+              {t('settings.configTab.noMapping')}
             </div>
           )}
         </div>
@@ -496,10 +496,10 @@ export const ConfigSettingsTab: React.FC = () => {
           <div className="space-y-1">
             <h5 className={cn(sectionTitleClass(theme), "flex items-center gap-1.5")}>
               <Play className="w-3.5 h-3.5 text-ds-indigo-500" />
-              Interaktiver Mapping-Simulator
+              {t('settings.configTab.simTitle')}
             </h5>
             <p className="text-[0.6875rem] text-ds-zinc-500">
-              Prüfe vorab, welche Rolle und Teams ein Nutzer bei der Anmeldung erhält:
+              {t('settings.configTab.simHint')}
             </p>
           </div>
 
@@ -507,11 +507,11 @@ export const ConfigSettingsTab: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className={sectionTitleClass(theme)}>
-                  IdP Rollen (z. B. doctus-admin, tester)
+                  {t('settings.configTab.simRolesLabel')}
                 </label>
                 <input
                   type="text"
-                  placeholder="Kommagetrennte Rollen..."
+                  placeholder={t('settings.configTab.simRolesPlaceholder')}
                   value={simRoles}
                   onChange={(e) => setSimRoles(e.target.value)}
                   className={cn(inputClass(theme), "font-mono")}
@@ -520,11 +520,11 @@ export const ConfigSettingsTab: React.FC = () => {
 
               <div className="space-y-1.5">
                 <label className={sectionTitleClass(theme)}>
-                  IdP Gruppen (z. B. /dev, security)
+                  {t('settings.configTab.simGroupsLabel')}
                 </label>
                 <input
                   type="text"
-                  placeholder="Kommagetrennte Gruppen..."
+                  placeholder={t('settings.configTab.simGroupsPlaceholder')}
                   value={simGroups}
                   onChange={(e) => setSimGroups(e.target.value)}
                   className={cn(inputClass(theme), "font-mono")}
@@ -539,7 +539,7 @@ export const ConfigSettingsTab: React.FC = () => {
               className={cn(primaryButtonClass, "h-8")}
             >
               {isSimulating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              Mapping simulieren
+              {t('settings.configTab.simSubmit')}
             </Button>
           </form>
 
@@ -551,7 +551,7 @@ export const ConfigSettingsTab: React.FC = () => {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-ds-zinc-500">Berechnete Doctus-Rolle:</span>
+                <span className="font-semibold text-ds-zinc-500">{t('settings.configTab.computedRole')}</span>
                 <span
                   className={cn(
                     "px-2 py-0.5 rounded font-bold uppercase text-[0.625rem]",
@@ -560,31 +560,31 @@ export const ConfigSettingsTab: React.FC = () => {
                       : "bg-ds-zinc-500/20 text-ds-zinc-400 border border-ds-zinc-500/30"
                   )}
                 >
-                  {simulationResult.computed_role === 'superuser' ? "Administrator (Superuser)" : "Normaler Nutzer (User)"}
+                  {simulationResult.computed_role === 'superuser' ? t('settings.configTab.roleAdmin') : t('settings.configTab.roleUser')}
                 </span>
               </div>
 
               <div className="space-y-1">
-                <span className="font-semibold text-ds-zinc-500">Zugeordnete Teams:</span>
+                <span className="font-semibold text-ds-zinc-500">{t('settings.configTab.assignedTeams')}</span>
                 {simulationResult.teams.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {simulationResult.teams.map((t) => (
+                    {simulationResult.teams.map((team) => (
                       <span
-                        key={t.name}
+                        key={team.name}
                         className={cn(
                           "px-2 py-0.5 rounded font-mono text-[0.6875rem] font-semibold border flex items-center gap-1",
-                          t.exists
+                          team.exists
                             ? "bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border-ds-emerald-500/20"
                             : "bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border-ds-amber-500/20"
                         )}
                       >
-                        {t.name}
-                        {!t.exists && <span className="text-[0.5625rem] opacity-70">(fehlt in DB)</span>}
+                        {team.name}
+                        {!team.exists && <span className="text-[0.5625rem] opacity-70">{t('settings.configTab.missingInDb')}</span>}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-ds-zinc-500 italic">Keine Teams zugewiesen</div>
+                  <div className="text-ds-zinc-500 italic">{t('settings.configTab.noTeams')}</div>
                 )}
               </div>
             </div>
@@ -597,7 +597,7 @@ export const ConfigSettingsTab: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <Server className="w-3.5 h-3.5 text-ds-indigo-500" />
           <h4 className={sectionTitleClass(theme)}>
-            System- & Laufzeit-Konfiguration
+            {t('settings.configTab.systemSection')}
           </h4>
         </div>
 
@@ -605,7 +605,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Version</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">{t('settings.configTab.version')}</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.version || "latest"}
             </div>
@@ -614,7 +614,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Log-Level</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">{t('settings.configTab.logLevel')}</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
               {sys?.log_level || "INFO"}
             </div>
@@ -623,7 +623,7 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">KI Modell</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">{t('settings.configTab.aiModel')}</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100 truncate">
               {sys?.llm_model || "disabled"}
             </div>
@@ -632,9 +632,9 @@ export const ConfigSettingsTab: React.FC = () => {
           <div
             className={cn(cardClass(theme), "p-3.5 space-y-1")}
           >
-            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">Kontextfenster</span>
+            <span className="text-[0.625rem] font-bold uppercase tracking-wide text-ds-zinc-500">{t('settings.configTab.contextWindow')}</span>
             <div className="font-mono text-xs font-semibold text-ds-zinc-900 dark:text-ds-zinc-100">
-              {sys?.context_window || 8192} Tokens
+              {t('settings.configTab.tokens', { count: sys?.context_window || 8192 })}
             </div>
           </div>
         </div>
@@ -644,21 +644,21 @@ export const ConfigSettingsTab: React.FC = () => {
           className={cn(cardClass(theme), "p-4 space-y-2.5")}
         >
           <span className={sectionTitleClass(theme)}>
-            Sicherheit & Verschlüsselung
+            {t('settings.configTab.securityTitle')}
           </span>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div className="flex items-center justify-between p-2.5 rounded-lg border border-ds-zinc-200 dark:border-ds-zinc-800">
-              <span className="text-ds-zinc-600 dark:text-ds-zinc-400">Master Encryption Key (Fernet):</span>
+              <span className="text-ds-zinc-600 dark:text-ds-zinc-400">{t('settings.configTab.masterKey')}</span>
               <span className="flex items-center gap-1 font-semibold text-ds-emerald-600 dark:text-ds-emerald-400">
-                <Check className="w-3.5 h-3.5" /> Aktiv & geschützt
+                <Check className="w-3.5 h-3.5" /> {t('settings.configTab.activeProtected')}
               </span>
             </div>
 
             <div className="flex items-center justify-between p-2.5 rounded-lg border border-ds-zinc-200 dark:border-ds-zinc-800">
-              <span className="text-ds-zinc-600 dark:text-ds-zinc-400">Session Secret Key (HMAC):</span>
+              <span className="text-ds-zinc-600 dark:text-ds-zinc-400">{t('settings.configTab.sessionKey')}</span>
               <span className="flex items-center gap-1 font-semibold text-ds-emerald-600 dark:text-ds-emerald-400">
-                <Check className="w-3.5 h-3.5" /> Aktiv & geschützt
+                <Check className="w-3.5 h-3.5" /> {t('settings.configTab.activeProtected')}
               </span>
             </div>
           </div>
