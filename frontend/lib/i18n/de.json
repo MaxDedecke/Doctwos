@@ -214,6 +214,8 @@
       "userCreateFailed": "Nutzer konnte nicht angelegt werden",
       "userUpdateFailed": "Änderung fehlgeschlagen",
       "userDeactivated": "Nutzer deaktiviert",
+      "userDeleted": "Nutzer gelöscht",
+      "userDeleteFailed": "Nutzer konnte nicht gelöscht werden",
       "userActivated": "Nutzer aktiviert",
       "userUnlocked": "Sperre aufgehoben",
       "userRoleChanged": "Rolle geändert",
@@ -229,7 +231,8 @@
       "fullReindexSource": "Möchtest du die Git-Wissensquelle \"{{name}}\" vollständig neu analysieren? Alle Dateien werden erneut geparst und eingebettet.",
       "deleteTeam": "Möchtest du das Team \"{{name}}\" wirklich löschen? Das ist nur möglich, wenn ihm keine Projekte oder Wissensquellen zugeordnet sind.",
       "resetPassword": "Passwort von \"{{name}}\" zurücksetzen? Das bisherige Passwort wird sofort ungültig.",
-      "deactivateUser": "Nutzer \"{{name}}\" deaktivieren? Die Anmeldung ist danach gesperrt; Chatverlauf und Mitgliedschaften bleiben erhalten."
+      "deactivateUser": "Nutzer \"{{name}}\" deaktivieren? Die Anmeldung ist danach gesperrt; Chatverlauf und Mitgliedschaften bleiben erhalten.",
+      "deleteUser": "Nutzer \"{{name}}\" endgültig löschen? Konto, Mitgliedschaften, Tokens und nicht geteilte Chats werden entfernt; geteilte Chats bleiben ohne Eigentümer. Das lässt sich nicht rückgängig machen. Zum bloßen Sperren lieber deaktivieren."
     },
     "teams": {
       "title": "Teams",
@@ -779,6 +782,7 @@
       "resetPasswordTitle": "Passwort zurücksetzen",
       "unlockTitle": "Sperre aufheben",
       "deactivateTitle": "Nutzer deaktivieren",
+      "deleteTitle": "Nutzer löschen",
       "activateTitle": "Nutzer aktivieren"
     },
     "embeddingTab": {

@@ -214,6 +214,8 @@
       "userCreateFailed": "Could not create user",
       "userUpdateFailed": "Update failed",
       "userDeactivated": "User deactivated",
+      "userDeleted": "User deleted",
+      "userDeleteFailed": "Could not delete the user",
       "userActivated": "User activated",
       "userUnlocked": "Account unlocked",
       "userRoleChanged": "Role changed",
@@ -229,7 +231,8 @@
       "fullReindexSource": "Do you want to fully re-analyze the Git knowledge source \"{{name}}\"? All files will be parsed and embedded again.",
       "deleteTeam": "Do you really want to delete the team \"{{name}}\"? This is only possible if no projects or knowledge sources are assigned to it.",
       "resetPassword": "Reset the password of \"{{name}}\"? The current password stops working immediately.",
-      "deactivateUser": "Deactivate user \"{{name}}\"? Login is blocked afterwards; chat history and memberships are kept."
+      "deactivateUser": "Deactivate user \"{{name}}\"? Login is blocked afterwards; chat history and memberships are kept.",
+      "deleteUser": "Permanently delete user \"{{name}}\"? The account, memberships, tokens and unshared chats are removed; shared chats stay without an owner. This cannot be undone. To just block access, deactivate instead."
     },
     "teams": {
       "title": "Teams",
@@ -779,6 +782,7 @@
       "resetPasswordTitle": "Reset password",
       "unlockTitle": "Unlock account",
       "deactivateTitle": "Deactivate user",
+      "deleteTitle": "Delete user",
       "activateTitle": "Activate user"
     },
     "embeddingTab": {

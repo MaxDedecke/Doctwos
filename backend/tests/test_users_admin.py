@@ -196,3 +196,77 @@ def test_users_endpoints_require_admin(client, cleanup_user):
         assert plain_user.get("/users").status_code == 403
         assert plain_user.post("/users", json={"username": "x-nope"}).status_code == 403
         assert plain_user.post(f"/users/{user_id}/unlock").status_code == 403
+
+
+# --- Löschen ----------------------------------------------------------------------------------
+
+def _user_id(client):
+    return next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
+
+
+def test_admin_can_delete_a_user_and_their_private_chats_but_not_shared_ones(client, db_session, cleanup_user):
+    from models.database import ChatSession
+
+    _create(client)
+    user_id = _user_id(client)
+    private = ChatSession(title="privat", owner_id=user_id, is_public=False)
+    shared = ChatSession(title="geteilt", owner_id=user_id, is_public=True)
+    db_session.add_all([private, shared])
+    db_session.commit()
+    private_id, shared_id = private.id, shared.id
+    try:
+        assert client.delete(f"/users/{user_id}").status_code == 204
+        assert all(u["username"] != NEW_USERNAME for u in client.get("/users").json())
+        db_session.expire_all()
+        assert db_session.get(ChatSession, private_id) is None
+        survivor = db_session.get(ChatSession, shared_id)
+        assert survivor is not None and survivor.owner_id is None
+    finally:
+        db_session.query(ChatSession).filter(ChatSession.id.in_([private_id, shared_id])).delete()
+        db_session.commit()
+
+
+def test_admin_cannot_delete_their_own_account(client, cleanup_user):
+    me = client.get("/auth/me").json()
+    assert client.delete(f"/users/{me['id']}").status_code == 400
+    assert any(u["id"] == me["id"] for u in client.get("/users").json())
+
+
+def test_delete_unknown_user_is_404(client):
+    assert client.delete("/users/99999999").status_code == 404
+
+
+def test_user_with_authored_insights_cannot_be_deleted(client, db_session, cleanup_user):
+    from models.database import Insight, Project, Team
+
+    _create(client)
+    user_id = _user_id(client)
+    team = Team(name="loesch-test-team")
+    db_session.add(team)
+    db_session.commit()
+    project = Project(name="loesch-test-projekt", team_id=team.id)
+    db_session.add(project)
+    db_session.commit()
+    insight = Insight(project_id=project.id, title="t", content="c", origin_kind="chat", evidence_json={}, created_by_id=user_id)
+    db_session.add(insight)
+    db_session.commit()
+    try:
+        response = client.delete(f"/users/{user_id}")
+        assert response.status_code == 409 and "deaktiv" in response.json()["detail"].lower()
+        assert any(u["username"] == NEW_USERNAME for u in client.get("/users").json())
+    finally:
+        db_session.query(Insight).filter(Insight.id == insight.id).delete()
+        db_session.query(Project).filter(Project.id == project.id).delete()
+        db_session.query(Team).filter(Team.id == team.id).delete()
+        db_session.commit()
+
+
+def test_only_admins_may_delete_users(client, cleanup_user):
+    from core.auth_dependency import create_session_cookie_value
+
+    _create(client)
+    user_id = _user_id(client)
+    with as_nobody(client) as plain_user:
+        plain_user.cookies.set(SESSION_COOKIE_NAME, create_session_cookie_value(user_id))
+        assert plain_user.delete(f"/users/{user_id}").status_code == 403
+    assert any(u["username"] == NEW_USERNAME for u in client.get("/users").json())

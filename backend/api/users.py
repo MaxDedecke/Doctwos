@@ -5,9 +5,11 @@ Nutzerverwaltung für Administratoren (F-004): anlegen, deaktivieren, Rolle
 ändern, Passwort zurücksetzen, Sperre aufheben.
 
 Alles hier ist `superuser`-only (Router-weite `require_admin`-Dependency).
-Gelöscht wird nie — ein Nutzer hängt an Chatverläufen, Projekt- und
-Teammitgliedschaften; `is_active=False` ist die Deaktivierung, die den Login
-sperrt und die Historie erhält.
+`is_active=False` ist die Deaktivierung: sie sperrt den Login und erhält die
+Historie. Endgültiges Löschen (`DELETE /users/{id}`) entfernt das Konto samt
+Mitgliedschaften, Tokens und seinen nicht geteilten Chats; geteilte Chats bleiben
+ohne Eigentümer erhalten. Wer Erkenntnisse angelegt oder verifiziert hat, lässt
+sich nicht löschen (Prüfpfad), dann bleibt nur die Deaktivierung.
 
 Ein neu vergebenes Passwort wird genau einmal in der Antwort zurückgegeben und
 nirgends gespeichert oder geloggt (F-005). Der Passwort-Hash verlässt diesen
@@ -25,7 +27,8 @@ from core.db_setup import get_db
 from core.passwords import MIN_PASSWORD_LENGTH
 from core.teams import require_admin
 from core.users import create_local_user, set_password, unlock
-from models.database import User
+from models.database import ChatSession, User
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(require_admin)])
 
@@ -84,7 +87,7 @@ def _get_user(user_id: int, db: Session) -> User:
 
 def _assert_not_last_superuser(target: User, db: Session) -> None:
     """Verhindert, dass sich die Installation selbst aussperrt: die letzte aktive
-    Superuser-Zeile darf weder deaktiviert noch zurückgestuft werden."""
+    Superuser-Zeile darf weder deaktiviert, zurückgestuft noch gelöscht werden."""
     if target.role != "superuser" or not target.is_active:
         return
     remaining = (
@@ -95,7 +98,7 @@ def _assert_not_last_superuser(target: User, db: Session) -> None:
     if remaining == 0:
         raise HTTPException(
             status_code=400,
-            detail="Der letzte aktive Administrator kann weder deaktiviert noch zurückgestuft werden.",
+            detail="Der letzte aktive Administrator kann weder deaktiviert, zurückgestuft noch gelöscht werden.",
         )
 
 
@@ -160,6 +163,36 @@ def update_user(
     db.commit()
     db.refresh(user)
     return _serialize(user)
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Löscht ein Konto endgültig. Abhängige Zeilen räumt die Datenbank über ihre
+    Fremdschlüssel auf (Mitgliedschaften, Tokens: CASCADE; Verweise wie `created_by`: SET NULL)."""
+    user = _get_user(user_id, db)
+    if user.id == admin.id:
+        raise HTTPException(status_code=400, detail="Das eigene Konto kann nicht gelöscht werden.")
+    _assert_not_last_superuser(user, db)
+    try:
+        # Nicht geteilte Chats gehören nur diesem Nutzer; ohne Eigentümer wären sie für niemanden
+        # mehr erreichbar. Geteilte (`is_public`) bleiben bestehen.
+        db.query(ChatSession).filter(
+            ChatSession.owner_id == user.id, ChatSession.is_public.is_(False)
+        ).delete(synchronize_session=False)
+        # Bulk-Delete statt `db.delete(user)`: die ORM-Beziehungen würden sonst versuchen, Kinder
+        # mit NOT-NULL-Fremdschlüssel selbst auszunullen, statt die DB-Regeln (ON DELETE) wirken zu lassen.
+        db.query(User).filter(User.id == user.id).delete(synchronize_session=False)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Dieser Nutzer hat Erkenntnisse angelegt oder verifiziert und kann nicht gelöscht werden. Deaktiviere das Konto stattdessen.",
+        )
 
 
 @router.post("/{user_id}/reset-password")

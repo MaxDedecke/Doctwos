@@ -15,7 +15,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
 import { InitialsAvatar } from '@/components/settings/InitialsAvatar';
 import { badgeClass, cardClass, emptyStateClass, inputClass as fieldClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass } from '@/components/settings/settingsStyles';
-import { Copy, KeyRound, Loader2, Lock, Plus, Unlock, UserCheck, UserX, X } from 'lucide-react';
+import { Copy, KeyRound, Loader2, Lock, Plus, Trash2, Unlock, UserCheck, UserX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 // Nutzerverwaltung (F-004), Admin-only — Gegenstück zu backend/api/users.py.
@@ -128,6 +128,21 @@ export const UsersSettingsTab: React.FC = () => {
     } catch (err) {
       console.error(err);
       showToast(apiErrorDetail(err) || t('settings.toast.userUpdateFailed'), "error", err);
+    } finally {
+      setBusyUserId(null);
+    }
+  };
+
+  const handleDelete = async (user: ManagedUser) => {
+    if (!confirm(t('settings.confirm.deleteUser', { name: user.username }))) return;
+    setBusyUserId(user.id);
+    try {
+      await api.deleteUser(user.id);
+      showToast(t('settings.toast.userDeleted'), "success");
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      showToast(apiErrorDetail(err) || t('settings.toast.userDeleteFailed'), "error", err);
     } finally {
       setBusyUserId(null);
     }
@@ -380,6 +395,19 @@ export const UsersSettingsTab: React.FC = () => {
                     )}
                   >
                     {user.is_active ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={isSelf || isBusy}
+                    onClick={() => handleDelete(user)}
+                    title={t('settings.users.deleteTitle')}
+                    aria-label={t('settings.users.deleteTitle')}
+                    className="h-8 w-8 rounded-lg text-ds-red-500 hover:bg-ds-red-500/10"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>

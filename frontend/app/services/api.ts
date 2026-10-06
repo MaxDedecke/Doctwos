@@ -257,6 +257,7 @@ export const api = {
     resetUserPassword: (id: number, password?: string) =>
         axios.post(`${API_URL}/users/${id}/reset-password`, { password: password || null }),
     unlockUser: (id: number) => axios.post(`${API_URL}/users/${id}/unlock`),
+    deleteUser: (id: number) => axios.delete(`${API_URL}/users/${id}`),
     getDiscoverableProjects: () => axios.get(`${API_URL}/projects/discoverable`),
     requestProjectAccess: (projectId: number) => axios.post(`${API_URL}/projects/${projectId}/request-access`),
     getProjectAccessRequests: (projectId: number) => axios.get(`${API_URL}/projects/${projectId}/access-requests`),

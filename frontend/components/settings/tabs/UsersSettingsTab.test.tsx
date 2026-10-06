@@ -10,6 +10,7 @@ const apiMocks = vi.hoisted(() => ({
   updateUser: vi.fn(),
   resetUserPassword: vi.fn(),
   unlockUser: vi.fn(),
+  deleteUser: vi.fn(),
 }));
 const utilsMocks = vi.hoisted(() => ({ copyToClipboard: vi.fn() }));
 
@@ -312,6 +313,52 @@ describe('UsersSettingsTab', () => {
 
       // Zweite Combobox: die erste ist die Rollen-Auswahl im "Neu anlegen"-Formular oben.
       expect(screen.getAllByRole('combobox')[1].getAttribute('data-disabled')).not.toBeNull();
+    });
+  });
+
+  describe('Löschen', () => {
+    it('asks for confirmation and does not delete when declined', async () => {
+      vi.stubGlobal('confirm', vi.fn(() => false));
+      apiMocks.getUsers.mockResolvedValue(axiosResponse([managedUser({ id: 2, username: 'bob' })]));
+      render(<UsersSettingsTab />);
+      await waitFor(() => expect(screen.getByText('bob')).toBeTruthy());
+
+      fireEvent.click(screen.getByTitle('settings.users.deleteTitle'));
+      expect(apiMocks.deleteUser).not.toHaveBeenCalled();
+    });
+
+    it('deletes exactly the targeted user once confirmed and refreshes the list', async () => {
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      apiMocks.getUsers.mockResolvedValueOnce(axiosResponse([managedUser({ id: 2, username: 'bob' })]))
+        .mockResolvedValueOnce(axiosResponse([]));
+      apiMocks.deleteUser.mockResolvedValue(axiosResponse({}));
+      render(<UsersSettingsTab />);
+      await waitFor(() => expect(screen.getByText('bob')).toBeTruthy());
+
+      fireEvent.click(screen.getByTitle('settings.users.deleteTitle'));
+      await waitFor(() => expect(apiMocks.deleteUser).toHaveBeenCalledWith(2));
+      expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.userDeleted', 'success');
+      await waitFor(() => expect(apiMocks.getUsers).toHaveBeenCalledTimes(2));
+    });
+
+    it('shows the server reason when deletion is refused', async () => {
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      apiMocks.getUsers.mockResolvedValue(axiosResponse([managedUser({ id: 2, username: 'bob' })]));
+      apiMocks.deleteUser.mockRejectedValue(axiosError('Deaktiviere das Konto stattdessen.'));
+      render(<UsersSettingsTab />);
+      await waitFor(() => expect(screen.getByText('bob')).toBeTruthy());
+
+      fireEvent.click(screen.getByTitle('settings.users.deleteTitle'));
+      await waitFor(() => expect(settingsValue.showToast).toHaveBeenCalledWith('Deaktiviere das Konto stattdessen.', 'error', expect.anything()));
+    });
+
+    it('does not offer deleting your own account', async () => {
+      settingsValue = createSettingsContextValue({ currentUser: { id: 2, username: 'admin', is_admin: true } });
+      apiMocks.getUsers.mockResolvedValue(axiosResponse([managedUser({ id: 2, username: 'admin' })]));
+      render(<UsersSettingsTab />);
+      await waitFor(() => expect(screen.getByText('admin')).toBeTruthy());
+
+      expect((screen.getByTitle('settings.users.deleteTitle') as HTMLButtonElement).disabled).toBe(true);
     });
   });
 });
