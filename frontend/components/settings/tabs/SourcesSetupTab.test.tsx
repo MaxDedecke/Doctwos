@@ -9,6 +9,7 @@ const apiMocks = vi.hoisted(() => ({
   createFolderWatchSource: vi.fn(),
   uploadLocalDocument: vi.fn(),
   testConnector: vi.fn(),
+  listConfluenceSpaces: vi.fn(),
 }));
 
 vi.mock('@/app/services/api', () => ({ API_URL: 'http://api.test', api: apiMocks }));
@@ -359,6 +360,30 @@ describe('SourcesSetupTab', () => {
       await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(
         expect.objectContaining({ spaces: { ids: ['ALL'], verify_ssl: false } }),
       ));
+    });
+  });
+
+  describe('Space-Auswahl (Confluence)', () => {
+    it('loads the spaces of the instance and writes the selection into the spaces field', async () => {
+      apiMocks.listConfluenceSpaces.mockResolvedValue(axiosResponse({ spaces: [{ key: 'DOCS', name: 'Doku' }, { key: 'OPS', name: 'Betrieb' }] }));
+      render(<SourcesSetupTab {...baseProps} />);
+      fireEvent.change(screen.getByText('settings.sourcesSetup.serverUrlLabel').closest('div')!.querySelector('input')!, { target: { value: 'https://wiki.intern' } });
+      fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.tokenPlaceholder'), { target: { value: 'pat' } });
+      fireEvent.click(screen.getByText('settings.sourcesSetup.loadSpaces'));
+
+      expect(await screen.findByText('Doku')).toBeTruthy();
+      fireEvent.click(screen.getByText('Doku').closest('label')!.querySelector('input')!);
+      fireEvent.click(screen.getByText('Betrieb').closest('label')!.querySelector('input')!);
+      expect((screen.getByPlaceholderText('settings.sourcesSetup.spacesProjectKeysPlaceholder') as HTMLInputElement).value).toBe('DOCS, OPS');
+      fireEvent.click(screen.getByText('Doku').closest('label')!.querySelector('input')!);
+      expect((screen.getByPlaceholderText('settings.sourcesSetup.spacesProjectKeysPlaceholder') as HTMLInputElement).value).toBe('OPS');
+    });
+
+    it('asks for URL and token before loading', () => {
+      render(<SourcesSetupTab {...baseProps} />);
+      fireEvent.click(screen.getByText('settings.sourcesSetup.loadSpaces'));
+      expect(apiMocks.listConfluenceSpaces).not.toHaveBeenCalled();
+      expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.serverUrlRequired', 'error');
     });
   });
 });

@@ -124,6 +124,47 @@ def _check_ascii(value: str | None, field_name: str) -> dict | None:
     return None
 
 
+@router.post("/confluence/spaces")
+async def list_confluence_spaces(req: ConnectorTestRequest):
+    """Spaces einer Confluence-Instanz (Schlüssel und Name) für die Auswahl im Dialog."""
+    for value, name in [(req.token, "Token"), (req.url, "URL"), (req.username, "Username")]:
+        err = _check_ascii(value, name)
+        if err:
+            raise HTTPException(status_code=400, detail=err["message"])
+    if not req.url:
+        raise HTTPException(status_code=400, detail="Server-URL ist für Confluence erforderlich.")
+    base_url = req.url.rstrip("/")
+    auth, auth_headers = _atlassian_auth(req.username, req.token)
+    headers = {"User-Agent": _USER_AGENT, **auth_headers}
+    async with httpx.AsyncClient(timeout=30.0, verify=_http_verify(req.verify_ssl)) as client:
+        try:
+            for root, _flavour in _CONFLUENCE_API_ROOTS:
+                spaces: list[dict] = []
+                start, limit = 0, 100
+                while True:
+                    resp = await client.get(
+                        f"{base_url}{root}/space",
+                        params={"limit": limit, "start": start, "type": "global"},
+                        auth=auth,
+                        headers=headers,
+                    )
+                    if resp.status_code != 200:
+                        break
+                    results = resp.json().get("results", [])
+                    spaces.extend({"key": item.get("key"), "name": item.get("name") or item.get("key")} for item in results)
+                    if len(results) < limit or len(spaces) >= 2000:
+                        return {"spaces": spaces}
+                    start += len(results)
+                if resp.status_code == 200:
+                    return {"spaces": spaces}
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Netzwerkfehler: {e}{_tls_hint(e)}")
+    raise HTTPException(
+        status_code=502,
+        detail="Spaces konnten nicht geladen werden. Prüfe Server-URL, Zugangsdaten und Leserechte.",
+    )
+
+
 @router.post("/test")
 async def test_connector(req: ConnectorTestRequest):
     for value, name in [(req.token, "Token"), (req.url, "URL"), (req.username, "Username")]:

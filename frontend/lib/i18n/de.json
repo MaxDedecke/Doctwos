@@ -529,6 +529,8 @@
       "patHint": "Ohne Benutzername wird der Token als Personal Access Token (Bearer) verwendet, wie bei Confluence/Jira Server und Data Center. Mit Benutzername gilt Basic Auth (Cloud: E-Mail + API-Token).",
       "skipTls": "Zertifikatsprüfung abschalten",
       "skipTlsHint": "Nur zum Testen bei selbst signiertem Zertifikat. Für den Dauerbetrieb die interne CA über CUSTOM_CA_FILE in der .env hinterlegen.",
+      "loadSpaces": "Spaces aus Confluence laden",
+      "spacesLoadFailed": "Spaces konnten nicht geladen werden",
       "spacesProjectKeysLabel": "Spaces / Projekt-Keys (Optional, Komma-separiert)",
       "spacesProjectKeysPlaceholder": "z.B. ENG, PROD oder leer lassen für alle",
       "checking": "Prüfen...",

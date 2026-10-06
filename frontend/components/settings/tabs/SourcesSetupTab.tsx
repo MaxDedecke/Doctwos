@@ -36,6 +36,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
   const [sourceSpaces, setSourceSpaces] = useState("");
   // Nur für Server mit internem/selbst signiertem Zertifikat und nur zum Testen; besser ist eine CA (CUSTOM_CA_FILE).
   const [skipTlsVerify, setSkipTlsVerify] = useState(false);
+  const [availableSpaces, setAvailableSpaces] = useState<Array<{ key: string; name: string }>>([]);
+  const [isLoadingSpaces, setIsLoadingSpaces] = useState(false);
   const [isConnectingSource, setIsConnectingSource] = useState(false);
   const [isTestingSourceConn, setIsTestingSourceConn] = useState(false);
   const [sourceConnStatus, setSourceConnStatus] = useState<'success' | 'error' | null>(null);
@@ -92,6 +94,30 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       showToast(apiErrorDetail(err) || t('settings.toast.sourceConnectFailed', { type: activeSourceType }), "error", err);
     } finally {
       setIsConnectingSource(false);
+    }
+  };
+
+  const selectedSpaceKeys = sourceSpaces.split(",").map(item => item.trim()).filter(Boolean);
+  const toggleSpace = (key: string) => {
+    const next = selectedSpaceKeys.includes(key) ? selectedSpaceKeys.filter(item => item !== key) : [...selectedSpaceKeys, key];
+    setSourceSpaces(next.join(", "));
+  };
+
+  const handleLoadSpaces = async () => {
+    if (!sourceUrl || !sourceToken) {
+      showToast(sourceUrl ? t('settings.toast.apiTokenRequired') : t('settings.toast.serverUrlRequired'), "error");
+      return;
+    }
+    setIsLoadingSpaces(true);
+    try {
+      const res = await api.listConfluenceSpaces({
+        url: sourceUrl, token: sourceToken, username: sourceUsername || undefined, ...(skipTlsVerify ? { verify_ssl: false } : {}),
+      });
+      setAvailableSpaces((res.data as { spaces: Array<{ key: string; name: string }> }).spaces ?? []);
+    } catch (err) {
+      showToast(apiErrorDetail(err) || t('settings.sourcesSetup.spacesLoadFailed'), "error", err);
+    } finally {
+      setIsLoadingSpaces(false);
     }
   };
 
@@ -463,6 +489,27 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                         : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                     )}
                   />
+                  {activeSourceType === "Confluence" && (
+                    <div className="space-y-2 pt-1">
+                      <Button type="button" variant="ghost" disabled={isLoadingSpaces} onClick={handleLoadSpaces}
+                        className="h-7 px-2 text-[0.6875rem] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10">
+                        {isLoadingSpaces && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}{t('settings.sourcesSetup.loadSpaces')}
+                      </Button>
+                      {availableSpaces.length > 0 && (
+                        <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-ds-zinc-800/40 p-2" data-testid="space-list">
+                          {availableSpaces.map(space => (
+                            <li key={space.key}>
+                              <label className="flex items-center gap-2 text-[0.6875rem]">
+                                <input type="checkbox" checked={selectedSpaceKeys.includes(space.key)} onChange={() => toggleSpace(space.key)} />
+                                <span className="font-mono text-ds-zinc-500">{space.key}</span>
+                                <span className="truncate">{space.name}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-ds-zinc-800/10 w-full">

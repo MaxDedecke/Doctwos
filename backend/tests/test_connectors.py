@@ -124,3 +124,27 @@ def test_source_http_verify_reads_the_stored_source_configuration(monkeypatch, t
     assert connectors.source_http_verify({"ca_bundle": "/certs/x.pem", "verify_ssl": False}) == "/certs/x.pem"
     monkeypatch.setenv("CUSTOM_CA_BUNDLE", str(bundle))
     assert connectors.source_http_verify({}) == str(bundle)
+
+
+@pytest.mark.anyio
+async def test_confluence_spaces_are_listed_across_pages(monkeypatch):
+    def handler(request):
+        if request.url.path != "/rest/api/space":
+            return httpx.Response(404)
+        start = int(request.url.params.get("start", 0))
+        items = [{"key": f"S{i}", "name": f"Space {i}"} for i in range(start, min(start + 100, 130))]
+        return httpx.Response(200, json={"results": items})
+
+    _install_transport(monkeypatch, handler)
+    result = await connectors.list_confluence_spaces(ConnectorTestRequest(type="confluence", token="pat", url="https://w"))
+    assert len(result["spaces"]) == 130 and result["spaces"][0] == {"key": "S0", "name": "Space 0"}
+
+
+@pytest.mark.anyio
+async def test_confluence_spaces_report_failure_clearly(monkeypatch):
+    from fastapi import HTTPException
+
+    _install_transport(monkeypatch, lambda request: httpx.Response(401))
+    with pytest.raises(HTTPException) as excinfo:
+        await connectors.list_confluence_spaces(ConnectorTestRequest(type="confluence", token="x", url="https://w"))
+    assert excinfo.value.status_code == 502
