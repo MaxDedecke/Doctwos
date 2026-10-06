@@ -13,6 +13,10 @@
     "blocking": false,
     "license": "MIT (PyPI-Metadaten unvollstaendig, verifiziert gegen https://github.com/sooperset/mcp-atlassian/blob/main/LICENSE)",
     "rationale": "pip-licenses meldet \"UNKNOWN\", weil das Paket keinen License-Classifier in den PyPI-Metadaten traegt. Die tatsaechliche LICENSE-Datei im Quell-Repo ist MIT. Kein Policy-Verstoss, nur eine Metadatenluecke beim Upstream-Projekt."
+  },
+  "pypdfium2": {
+    "blocking": false,
+    "license": "BSD-3-Clause, Apache-2.0 (+ gebuendelte permissive Fremdlizenzen; reported as \"BSD-3-Clause, Apache-2.0, dependency licenses\")",
+    "rationale": "PDF-Rendering fuer den OCR-Pfad (parser/utils.py), ersetzt pdf2image/poppler-utils (GPL). Das Wheel buendelt PDFium (BSD-3/Apache-2.0) samt abseil, agg, lcms, libjpeg-turbo, libpng, zlib, OpenJPEG, ICU, LLVM-libc, simdutf, fast_float - alle permissiv, geprueft am 06.10.2026 anhand der mitgelieferten BUILD_LICENSES. Kein GPL/LGPL. Die Metadaten-Zeichenkette ist nur nicht in der Allowlist, weil sie mehrere Lizenzen aufzaehlt."
   }
 }
-

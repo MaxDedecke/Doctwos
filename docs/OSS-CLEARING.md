@@ -74,16 +74,24 @@ HPND), `argon2-cffi` 25.1.0 (MIT), `joserfc` 1.7.5 (BSD), `itsdangerous` 2.2.0 (
 
 ## 2. Python — Parser (`parser/requirements.txt`)
 
-Gleiche Prüfung, 60 installierte Pakete (Stand 06.10.2026, grün). Zwei Ausnahmen, beide bereits oben
-begründet und hier ebenfalls akzeptiert: `psycopg2-binary` (LGPL-3.0),
-`certifi` (MPL-2.0). `mcp-atlassian`/`unidecode` sind hier **nicht**
+Gleiche Prüfung, 60 installierte Pakete (Stand 06.10.2026, grün). Drei Ausnahmen: `psycopg2-binary`
+(LGPL-3.0) und `certifi` (MPL-2.0), beide oben begründet, sowie `pypdfium2` (siehe unten). `mcp-atlassian`/`unidecode` sind hier **nicht**
 installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 
 **Office-Formate (06.10.2026):** `openpyxl==3.1.5` (MIT) mit `et_xmlfile` (MIT) für Excel und `python-pptx==1.0.2`
 (MIT) mit `lxml` (BSD-3-Clause) und `XlsxWriter` (BSD) für PowerPoint; Versionen und Lizenzen mit `pip-licenses`
 im Parser-Image geprüft, alle auf der Allowlist. Ebenfalls geprüft: `pytesseract` 0.3.13 (Apache-2.0),
-`pdf2image` 1.17.0 (MIT) und `psutil` 7.2.2 (BSD-3-Clause). `pytesseract` und `pdf2image` sind nur
-Python-Wrapper um die Systemprogramme `tesseract` und `pdftoppm` (siehe „Nicht automatisch geprüft"). Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
+und `psutil` 7.2.2 (BSD-3-Clause). `pytesseract` ist nur ein Python-Wrapper um das Systemprogramm
+`tesseract` (siehe „Nicht automatisch geprüft").
+
+**PDF-Rendering (06.10.2026):** `pypdfium2==5.14.0` ersetzt `pdf2image` (MIT) samt dem GPL-lizenzierten
+Debian-Paket `poppler-utils`, damit das Parser-Image kein GPL-Programm für PDFs mehr enthält.
+`pip-licenses` meldet `BSD-3-Clause, Apache-2.0, dependency licenses`; das steht deshalb als begründete
+Ausnahme in `scripts/license_exceptions_python.json`. Das Wheel bündelt PDFium (BSD-3-Clause/Apache-2.0)
+und dessen Fremdbibliotheken (abseil, agg, lcms, libjpeg-turbo, libpng, zlib, OpenJPEG, ICU, LLVM-libc,
+simdutf, fast_float); alle mitgelieferten `BUILD_LICENSES` am 06.10.2026 geprüft, kein GPL/LGPL.
+Verwendet nur in `parser/utils.py` (OCR-Fallback für Bild-PDFs); Ende-zu-Ende-Test:
+`parser/tests/test_pdf_ocr_render.py`. Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
 Upload, Confluence-Anhänge). `olefile==0.47` (BSD-2-Clause) liest den OLE-Container des binären Word-Formats
 (`parser/connectors/msdoc.py`); den RTF-Leser (`rtf.py`) hat Doctus selbst geschrieben, er hat keine Abhängigkeit. Bewusst
 kein antiword/catdoc (GPL) und kein LibreOffice (Größe, MPL/LGPL-Mischlizenz) als Konverter.
@@ -213,21 +221,16 @@ Runtime-Abhängigkeiten begrenzt.
   Ausbauschritt. Ein Rohscan der Distribution-Basis und der darin enthaltenen
   Systembibliotheken kann zusätzliche LGPL-/GPL-Befunde liefern; bis dieser
   Lauf erfolgt ist, gibt es dafür keinen vollständigen „keine Treffer"-Nachweis.
-- **Betriebssystempaket `git`** (Debian, GPL-2.0-only) steht im Backend- und im Parser-Image. Das
+- **Betriebssystempaket `git`** (Debian, GPL-2.0-only) — das einzige verbliebene GPL-Programm in den Images — steht im Backend- und im Parser-Image. Das
   Programm wird nur als eigener Prozess aufgerufen (Subprozess `git rev-parse`/`git diff` im
   lokalen Worktree), nicht gelinkt und nicht verändert; es liegt weder in `requirements.txt` noch
   im Doctwos-Code. Im Backend seit 03.10.2026, weil die Änderungsfolgenanalyse im Git-Diff-Modus
   (O-273) Revisionen auflöst. Die Einordnung als „Aufruf eines separaten GPL-Programms" ist
   vor produktiver Auslieferung vom Lizenzverantwortlichen zu bestätigen.
-- **Betriebssystempakete im Parser-Image für OCR** (Debian 13 „trixie", Lizenzen aus
+- **Betriebssystempaket `tesseract-ocr`** im Parser-Image (Debian 13 „trixie", Lizenzen aus
   `/usr/share/doc/*/copyright` geprüft am 06.10.2026): `tesseract-ocr` 5.5.0 samt
-  `tesseract-ocr-deu` (Apache-2.0, vereinzelt MIT) — unkritisch. `poppler-utils` 25.03.0
-  (liefert `pdftoppm` für `pdf2image`) steht unter **GPL-2/GPL-3** (Teile Apache-2.0). Es wird nur als
-  eigener Prozess aufgerufen, nicht gelinkt und nicht verändert — gleiche Einordnung wie bei `git`
-  (siehe unten). Wird das Parser-Image an Kunden weitergegeben (z. B. Offline-Bundle,
-  NF-002), gelten für die GPL-Pakete die Weitergabepflichten: Lizenztexte beilegen und
-  Quellcode-Angebot (bzw. Quellen der Debian-Pakete). Muss vom Lizenzverantwortlichen
-  bestätigt werden. Alternative ohne GPL wäre ein anderer PDF-Renderer (z. B. `pypdfium2`, Apache/BSD).
+  `tesseract-ocr-deu` (Apache-2.0, vereinzelt MIT) — unkritisch. `poppler-utils` (GPL) ist seit
+  06.10.2026 **nicht mehr** im Image (ersetzt durch `pypdfium2`, siehe Abschnitt 2).
 - **Modelllizenzen**: ändern sich mit jedem `OLLAMA_MODEL`-Wechsel in
   `.env` — bei Modellwechsel diesen Abschnitt manuell nachziehen.
 - **Transitive Docker-Build-Werkzeuge** (z.B. `build-essential` im

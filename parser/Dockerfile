@@ -27,14 +27,13 @@ FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627a
 
 WORKDIR /app
 
-# git/tesseract/poppler are used at runtime (Git-Connector per Subprozess,
-# OCR-Pfad) und bleiben deshalb in dieser Stage - anders als build-essential/
+# git/tesseract are used at runtime (Git-Connector per Subprozess,
+# OCR-Pfad; PDF-Rendering macht pypdfium2, kein poppler mehr) und bleiben deshalb in dieser Stage - anders als build-essential/
 # libpq-dev, die nur die Builder-Stage braucht.
 RUN apt-get update && apt-get install -y \
     git \
     tesseract-ocr \
     tesseract-ocr-deu \
-    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /root/.local /root/.local
