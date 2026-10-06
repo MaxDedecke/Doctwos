@@ -1,6 +1,6 @@
 # Doctus – priorisierte TODO-Liste
 
-Stand: 05.10.2026
+Stand: 06.10.2026
 
 Diese Datei ist die kanonische Liste der noch offenen Arbeit. Die Reihenfolge
 innerhalb einer Priorität ist zugleich die empfohlene Ausführungsreihenfolge.
@@ -12,12 +12,13 @@ Git-Historie und in den verlinkten Fachunterlagen erhalten.
 Projektisolation der Wissenssuche und unbeschränkter Call-Flow-Abfrage wurden
 behoben; 27 isolierte Sicherheitsprüfungen sowie 9 MCP-Regressionen bestanden.
 
-## Reihenfolge der offenen Arbeit (Stand 05.10.2026)
+## Reihenfolge der offenen Arbeit (Stand 06.10.2026)
 
 Abgeschlossene Punkte stehen nicht mehr in dieser Datei (siehe „Pflege“); ihr Nachweis liegt in der Git-Historie
 (Commit „docs(todo): abgeschlossene Punkte entfernt, Stand bereinigt“). Verbleibende Punkte sind teilweise
 umgesetzt oder haben einen offenen Abnahmeschritt.
 
+0. **Als Erstes (ab 07.10.2026) – Lizenz-/Sicherheitsabschluss aus dem SBOM-Scan:** O-388 bis O-392.
 1. **Messung mit einem stärkeren Chatmodell (der lokale `qwen3:8b` liefert nur eine Untergrenze):** O-304, O-346/O-347, O-318/O-322, O-320, O-354, O-358, O-356, O-353 (Rest), O-279/O-280.
 2. **Kleine Abschlüsse ohne Dritte:** O-369, O-349 bis O-351, O-272/O-302, O-303, O-299 (Rest), O-194, O-186 (Benchmark versionieren).
 3. **Braucht den Remote-Endpunkt oder echte Clients:** O-187/O-259, O-250/O-260 bis O-263, O-251, O-199 (Streaming am Ziel-Qwen), O-254 (Betreibergrenzwerte), O-258, O-325 (VS Code im Editor, JetBrains, Eclipse).
@@ -40,6 +41,20 @@ umgesetzt oder haben einen offenen Abnahmeschritt.
 | 11 | O-387 | **Drop-Ansicht (Tropfen)** in UI und als MCP-Werkzeug `drop`: Startpunkt (Programm, Klasse, Methode, Feld) oben, darunter pyramidenförmig verbreiternde Hop-Ebenen. | **Umgesetzt 05.10.2026, Abnahme offen:** `services/drop.py`, MCP-Werkzeug `drop`, `GET /entities/{id}/drop`, Tab „Tropfen“ im Prozess-Panel (`DropView.tsx`); Unit-Tests COBOL/Java (Backend, Frontend), live per REST und MCP geprüft (Syncope `UserLogic#create`, CardDemo). Offen: Sicht im Browser prüfen (Frontend-Image neu bauen), Eval-Fall für `drop`, ggf. Aufnahme in Chat-Werkzeuge. **Entscheidungen:** (1) Standard abwärts, per Icon auf aufwärts umschaltbar, die Gegenrichtung wird nachgeladen; (2) Kantenarten wählbar (Kontrollfluss, Daten, Einbindungen); (3) Standard 3 Ebenen, Ebenen über 40 Knoten werden eingeklappt. Sprachneutral über `LanguageProfile`-Rollen, jeder Knoten trägt `cite`. |
 
 ## P1 – danach umsetzen
+
+### Lizenz- und Sicherheitsabschluss aus dem SBOM-Scan vom 06.10.2026 (zuerst, ab 07.10.2026)
+
+Grundlage: `scripts/sbom-scan.sh`, Bericht `~/doctus-berichte/doctus_sbom_scan_2026-10-06.html`, Befund in
+[OSS-CLEARING.md](OSS-CLEARING.md) („Nicht automatisch geprüft“). Nach jedem Punkt Images neu bauen, Tests laufen lassen,
+`scripts/sbom-scan.sh` erneut ausführen und den Bericht nachziehen.
+
+| Rang | ID | Ergebnis | Abhängigkeit / Abnahme |
+|---:|---|---|---|
+| 1 | O-388 | Anwendungspakete mit verfügbarem Fix anheben: `next` 16.3.3 → ≥ 16.3.6 (kritisch), `axios` 1.18.1 → ≥ 1.20.0, `pypdf` 6.16.1 → ≥ 6.19.0, `fastmcp` 2.14.7 → 3.2.0 (transitiv über `mcp-atlassian`, Kompatibilität prüfen). | Backend-/Parser-/Frontend-Tests, E2E-Smoke; erneuter `grype`-Lauf ohne diese Funde. |
+| 2 | O-389 | Frontend-Runner ohne `devDependencies` bauen (`npm prune --omit=dev` im Builder vor dem Kopieren); aktuell liegen 510 Pakete inkl. Playwright und `axe-core` (MPL-2.0) im Image. | Frontend startet (`next start`), Lizenzaussage in OSS-CLEARING Abschnitt 3 wieder wahr. |
+| 3 | O-390 | Python-Basisimage-Digest (3.11.15 → ≥ 3.11.17) in Backend-, Parser- und Deployer-Dockerfile erneuern; `setuptools` aktualisieren (vendored `wheel`, `jaraco.context`, `autocommand` LGPL-3.0). | Image-Rebuild, `grype` ohne die Python-/setuptools-Funde. |
+| 4 | O-391 | Quellcode-Angebot in `THIRD-PARTY-NOTICES.txt` (`scripts/gen-third-party-notices.sh`) auf alle GPL-/LGPL-Pakete der Debian-/Alpine-Basis ausweiten; Kontaktadresse für das Angebot eintragen. | Bestätigung durch den Lizenzverantwortlichen (auch: `git` als eigener Prozess). |
+| 5 | O-392 | Optional: CI-Job, der `scripts/sbom-scan.sh` ausführt und die SBOMs als Artefakt ablegt. | Entscheidung, ob Funde den Build blockieren sollen. |
 
 ### MCP-Erkenntnisqualität aus dem Codex-Benchmark vom 28.09.2026
 
