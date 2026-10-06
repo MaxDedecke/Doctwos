@@ -35,6 +35,7 @@ import { MarkdownContent } from "@/components/MarkdownContent";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
+import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
 
@@ -600,6 +601,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     entity: CodeEntity;
   } | null>(null);
   const entityMenuRef = useRef<HTMLDivElement>(null);
+  // Menü zu einer angeklickten PERFORM-/MOVE-Anweisung: Anweisung anpinnen sowie die darin
+  // genannten Absätze bzw. Datenfelder (aus den vorhandenen Entities) erfragen oder ansteuern.
+  const [statementMenu, setStatementMenu] = useState<{
+    x: number;
+    y: number;
+    statement: CobolStatement;
+    entities: CodeEntity[];
+  } | null>(null);
+  const statementMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     onGutterClickRef.current = onGutterClick;
@@ -637,6 +647,28 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [gutterMenu]);
+
+  useEffect(() => {
+    if (!statementMenu) return;
+    const handlePointerDown = (ev: MouseEvent) => {
+      if (statementMenuRef.current && !statementMenuRef.current.contains(ev.target as Node)) {
+        setStatementMenu(null);
+      }
+    };
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setStatementMenu(null);
+    };
+    // Attach after the opening click has finished propagating through Monaco.
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handlePointerDown);
+      document.addEventListener('keydown', handleKeyDown);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [statementMenu]);
 
   useEffect(() => {
     if (!entityMenu) return;
@@ -754,6 +786,39 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       }
     };
   }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t, selectedEntity]);
+
+  // PERFORM-/MOVE-Schlüsselwörter in COBOL-Dateien als klickbare Anweisungen markieren.
+  const statementDecorationsRef = useRef<string[]>([]);
+  useEffect(() => {
+    const editor = activeEditorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco || !selectedFile || detectLanguage(selectedFile) !== 'cobol') return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    const decorations: MonacoEditor.IModelDeltaDecoration[] = [];
+    for (let lineNumber = 1; lineNumber <= model.getLineCount(); lineNumber++) {
+      for (const keyword of findStatementKeywords(model.getLineContent(lineNumber))) {
+        decorations.push({
+          range: new monaco.Range(lineNumber, keyword.startColumn, lineNumber, keyword.endColumn),
+          options: {
+            inlineClassName: 'doctus-statement-keyword',
+            hoverMessage: { value: t('splitPane.statementHover', { verb: keyword.verb }) },
+          },
+        });
+      }
+    }
+    statementDecorationsRef.current = editor.deltaDecorations(statementDecorationsRef.current, decorations);
+
+    return () => {
+      try {
+        editor.deltaDecorations(statementDecorationsRef.current, []);
+      } catch {
+        // Editor bereits entsorgt.
+      }
+      statementDecorationsRef.current = [];
+    };
+  }, [selectedFile, contentToUse, activeEditorRef, editorMountTick, t]);
 
   const handleEditorDidMountLocal = (editor: MonacoEditor.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
     // Assign through the concrete ref rather than the `editorRef || localEditorRef`
@@ -948,6 +1013,34 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             x: native?.clientX ?? e.event?.posx ?? 0,
             y: native?.clientY ?? e.event?.posy ?? 0,
             entity: clickedEntity,
+          });
+          return;
+        }
+      }
+
+      // Klick auf PERFORM/MOVE: die Anweisung wird zum anpinnbaren Objekt.
+      if (!isGutterClick && detectLanguage(selectedFileRef.current) === 'cobol') {
+        const model = editor.getModel();
+        const keyword = model ? keywordAtColumn(model.getLineContent(lineNumber), column) : null;
+        if (model && keyword) {
+          const lines = Array.from({ length: model.getLineCount() }, (_, i) => model.getLineContent(i + 1));
+          const statement = readStatement(lines, lineNumber, keyword);
+          const wantedTypes = statement.verb === 'PERFORM' ? ['paragraph', 'section'] : ['data_item'];
+          const allEntities = projectEntitiesRef.current || [];
+          const entities: CodeEntity[] = [];
+          for (const name of statement.names) {
+            const candidates = allEntities.filter(
+              (ent: CodeEntity) => ent.type != null && wantedTypes.includes(ent.type) && ent.name?.toUpperCase() === name
+            );
+            const match = candidates.find((ent: CodeEntity) => ent.file_path === selectedFileRef.current) ?? candidates[0];
+            if (match && !entities.includes(match)) entities.push(match);
+          }
+          const native = e.event?.browserEvent;
+          setStatementMenu({
+            x: native?.clientX ?? e.event?.posx ?? 0,
+            y: native?.clientY ?? e.event?.posy ?? 0,
+            statement,
+            entities: entities.slice(0, 4),
           });
           return;
         }
@@ -1928,6 +2021,63 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: gutterMenu.entity.name })}</span>
           </button>
         )}
+      </div>,
+      document.body
+    )}
+    {statementMenu && typeof document !== 'undefined' && createPortal(
+      <div
+        ref={statementMenuRef}
+        style={{ position: 'fixed', left: statementMenu.x + 10, top: statementMenu.y - 8, zIndex: 10000 }}
+        className={cn(
+          "min-w-[220px] max-w-[320px] rounded-[3px] text-xs shadow-lg border py-1 overflow-hidden",
+          theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-300 border-ds-zinc-700 shadow-ds-black" : "bg-ds-white text-ds-zinc-800 border-ds-zinc-200 shadow-ds-zinc-300"
+        )}
+      >
+        <button
+          onClick={() => {
+            onGutterClickRef.current?.(statementMenu.statement.startLine, statementMenu.statement.text);
+            setStatementMenu(null);
+          }}
+          className={cn(
+            "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+            theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+          )}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-ds-emerald-400 shrink-0" />
+          <span className="truncate">{t('splitPane.askAboutStatementMenuItem', { verb: statementMenu.statement.verb, line: statementMenu.statement.startLine })}</span>
+        </button>
+        {statementMenu.entities.map((entity) => (
+          <React.Fragment key={entity.id ?? `${entity.file_path}:${entity.start_line}:${entity.name}`}>
+            <button
+              onClick={() => {
+                onGutterAskEntityRef.current?.(entity);
+                setStatementMenu(null);
+              }}
+              className={cn(
+                "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+                theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5 text-ds-indigo-400 shrink-0" />
+              <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: entity.name })}</span>
+            </button>
+            {entity.type !== 'data_item' && (
+              <button
+                onClick={() => {
+                  handleEntitySelectRef.current?.(entity);
+                  setStatementMenu(null);
+                }}
+                className={cn(
+                  "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+                  theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+                )}
+              >
+                <ChevronRight className="w-3.5 h-3.5 text-ds-zinc-500 shrink-0" />
+                <span className="truncate">{t('splitPane.jumpToEntityMenuItem', { name: entity.name })}</span>
+              </button>
+            )}
+          </React.Fragment>
+        ))}
       </div>,
       document.body
     )}
