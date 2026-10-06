@@ -342,7 +342,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 type="button"
                 disabled={!selectedUploadFile || isUploading}
                 onClick={handleFileUpload}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
+                className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-6 h-9 text-xs font-semibold flex items-center gap-2"
               >
                 {isUploading ? (
                   <>
@@ -492,7 +492,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     type="button"
                     disabled={isConnectingSource}
                     onClick={handleConnectSource}
-                    className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-md flex items-center gap-2"
+                    className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-6 h-9 text-xs font-semibold flex items-center gap-2"
                   >
                     {isConnectingSource ? (
                       <>

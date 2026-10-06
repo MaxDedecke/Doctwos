@@ -297,7 +297,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                             type="button"
                             size="sm"
                             onClick={() => onNewProject()}
-                            className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-8 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
+                            className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-3.5 h-8 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>{t('settings.projects.newProject')}</span>
@@ -423,7 +423,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                             setIsSavingProject(false);
                                           }
                                         }}
-                                        className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-8 text-xs font-bold"
+                                        className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-3.5 h-8 text-xs font-bold"
                                       >
                                         {isSavingProject ? <Loader2 className="w-3 h-3 animate-spin" /> : "Speichern"}
                                       </Button>
@@ -479,8 +479,8 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                                     ? "bg-ds-zinc-800 border-ds-zinc-700/50 text-ds-zinc-500 cursor-not-allowed"
                                                     : "bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-400 cursor-not-allowed")
                                                 : (theme === 'dark'
-                                                    ? "bg-ds-indigo-600 border-ds-indigo-600 text-ds-white hover:bg-ds-indigo-500 hover:border-ds-indigo-500"
-                                                    : "bg-ds-indigo-600 border-ds-indigo-600 text-ds-white hover:bg-ds-indigo-700 hover:border-ds-indigo-700"))
+                                                    ? "bg-transparent border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10"
+                                                    : "bg-transparent border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10"))
                                         )}
                                       >
                                         {project.url && project.status === 'parsing'
@@ -721,7 +721,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                               size="sm"
                                               disabled={!addProjectMemberUserId}
                                               onClick={() => handleAddProjectMember(project.id)}
-                                              className="h-8 px-2.5 rounded-lg bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white shrink-0"
+                                              className="h-8 px-2.5 rounded-lg bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 shrink-0"
                                             >
                                               <UserPlus className="w-3.5 h-3.5" />
                                             </Button>
@@ -848,7 +848,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                       "h-8 text-xs font-bold px-3 rounded-lg shrink-0",
                                       pendingAccessProjectIds.has(project.id)
                                         ? (theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-500" : "bg-ds-zinc-100 text-ds-zinc-450")
-                                        : "bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white"
+                                        : "bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10"
                                     )}
                                   >
                                     {requestingAccessProjectId === project.id ? (

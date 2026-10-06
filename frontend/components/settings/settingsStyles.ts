@@ -43,7 +43,7 @@ export const inputClass = (theme: Theme) =>
 
 /** Primäraktion. */
 export const primaryButtonClass =
-  'bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-9 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0';
+  'bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-3.5 h-9 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0';
 
 /** Sekundäraktion (Outline). */
 export const secondaryButtonClass = (theme: Theme) =>

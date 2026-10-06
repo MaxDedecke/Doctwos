@@ -340,7 +340,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     isCompleted
                       ? "bg-ds-indigo-500 border-ds-indigo-500 text-ds-white"
                       : isActive
-                        ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-indigo-500 text-ds-indigo-400 scale-110 shadow-ds-indigo-500/10" : "bg-ds-white border-ds-indigo-600 text-ds-indigo-650 scale-110 shadow-ds-indigo-650/10")
+                        ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-indigo-500 text-ds-indigo-400 scale-110" : "bg-ds-white border-ds-indigo-600 text-ds-indigo-650 scale-110")
                         : (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-500" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-400")
                   )}>
                     {isCompleted ? (
@@ -394,7 +394,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-lg border text-center transition-all group",
                       isSel
-                        ? (theme === 'dark' ? "border-ds-indigo-500 bg-ds-indigo-500/5 text-ds-indigo-400" : "border-ds-indigo-600 bg-ds-indigo-50/50 text-ds-indigo-650 shadow-md shadow-ds-indigo-600/5")
+                        ? (theme === 'dark' ? "border-ds-indigo-500 bg-ds-indigo-500/5 text-ds-indigo-400" : "border-ds-indigo-600 bg-ds-indigo-50/50 text-ds-indigo-650")
                         : (theme === 'dark' ? "bg-ds-zinc-900/40 border-ds-zinc-800/80 text-ds-zinc-400 hover:border-ds-zinc-700/80 hover:bg-ds-zinc-900" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:border-ds-zinc-300 hover:bg-ds-zinc-50")
                     )}
                   >
@@ -415,7 +415,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
+                className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1"
               >
                 <span>{t('common.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -583,7 +583,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                     "h-8 text-xs font-bold px-3.5 rounded-lg flex items-center gap-1.5 transition-all shadow-md",
                     connectionStatus === 'success'
                       ? "bg-ds-zinc-800/20 text-ds-zinc-500 border border-ds-zinc-700/30 hover:bg-ds-zinc-850 cursor-default"
-                      : "bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white shadow-ds-indigo-650/10"
+                      : "bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10"
                   )}
                 >
                   {isTestingConnection ? (
@@ -600,7 +600,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                   type="button"
                   disabled={connectionStatus !== 'success'}
                   onClick={handleNextStep}
-                  className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
+                  className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 disabled:opacity-40 rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1"
                 >
                   <span>{t('common.next')}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -693,7 +693,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 type="button"
                 disabled={!selectedRepoFullName}
                 onClick={handleNextStep}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1 shadow-lg shadow-ds-indigo-600/10"
+                className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 disabled:opacity-40 rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1"
               >
                 <span>{t('common.next')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -814,7 +814,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 type="button"
                 disabled={Boolean(teamGateBlocking)}
                 onClick={handleWizardSubmit}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 disabled:opacity-40 text-ds-white rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-ds-indigo-600/10"
+                className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 disabled:opacity-40 rounded-lg px-4 h-8 text-xs font-semibold flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{t('settings.gitSetup.step4.addAndIndex')}</span>
@@ -871,7 +871,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               <Button
                 type="button"
                 onClick={onDone}
-                className="bg-ds-indigo-650 hover:bg-ds-indigo-600 text-ds-white rounded-lg px-6 h-9 text-xs font-semibold shadow-lg shadow-ds-indigo-655/15 transition-all"
+                className="bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 rounded-lg px-6 h-9 text-xs font-semibold transition-all"
               >
                 {t('settings.gitSetup.step5.finishAndClose')}
               </Button>

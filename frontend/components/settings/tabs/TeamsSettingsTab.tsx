@@ -345,7 +345,7 @@ export const TeamsSettingsTab: React.FC = () => {
                           size="sm"
                           disabled={!addMemberUserId}
                           onClick={() => handleAddMember(team.id)}
-                          className="h-8 px-2.5 rounded-lg bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white shrink-0"
+                          className="h-8 px-2.5 rounded-lg bg-transparent border border-ds-zinc-300 dark:border-ds-zinc-700 text-ds-zinc-800 dark:text-ds-zinc-100 hover:bg-ds-zinc-500/10 shrink-0"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
                         </Button>
