@@ -522,7 +522,7 @@ async def test_each_selected_space_is_requested_from_the_server(db_session, test
 
     with patch_http(handler):
         docs = [doc async for doc in connector.fetch_documents()]
-    assert seen_space_keys == ["DOCS", "OPS"] and len(docs) == 2
+    assert list(dict.fromkeys(seen_space_keys)) == ["DOCS", "OPS"] and len(docs) == 2
 
 
 @pytest.mark.anyio
@@ -592,3 +592,92 @@ async def test_restricted_pages_can_be_included_explicitly(db_session, test_sour
     with patch_http(_server_handler([], [_page(), _restricted_page()])):
         docs = [doc async for doc in connector.fetch_documents()]
     assert {doc["title"] for doc in docs} == {"Runbook", "Geheim"}
+
+
+# --- Vererbte Einschränkungen, Blogposts, Pfad, Kommentare -----------------------------------
+
+def _tree_page(page_id, title, ancestors=(), restricted=False, content_type="page"):
+    page = _page(title=title)
+    page["id"] = page_id
+    page["type"] = content_type
+    page["ancestors"] = [{"id": a_id, "title": a_title} for a_id, a_title in ancestors]
+    if restricted:
+        page["restrictions"] = {"read": {"restrictions": {"user": {"results": [{"username": "chef"}]}, "group": {"results": []}}}}
+    return page
+
+
+def _typed_handler(pages_by_type, comments=None, calls=None):
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 200, {"results": []})
+        if "child/comment" in url:
+            return _response(url, 200, {"results": (comments or {}).get(url.split("/content/")[1].split("/")[0], []), "_links": {}})
+        params = kwargs.get("params") or {}
+        if calls is not None:
+            calls.append(params)
+        return _response(url, 200, {"results": pages_by_type.get(params.get("type"), []), "_links": {}})
+
+    return handler
+
+
+@pytest.mark.anyio
+async def test_children_of_a_restricted_page_are_skipped_too(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    pages = {"page": [
+        _tree_page("1", "Offen"),
+        _tree_page("2", "Vorstand", restricted=True),
+        _tree_page("3", "Protokoll", ancestors=[("2", "Vorstand")]),
+        _tree_page("4", "Anhang zum Protokoll", ancestors=[("2", "Vorstand"), ("3", "Protokoll")]),
+    ]}
+    with patch_http(_typed_handler(pages)):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert [doc["title"] for doc in docs] == ["Offen"]
+    assert connector._skipped_restricted == 3
+
+
+@pytest.mark.anyio
+async def test_blogposts_are_indexed_next_to_pages(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    pages = {"page": [_tree_page("1", "Seite")], "blogpost": [_tree_page("9", "Release 5.2 ist da", content_type="blogpost")]}
+    with patch_http(_typed_handler(pages)):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert {doc["storage_key"] for doc in docs} == {"DOCS/1", "DOCS/9"}
+    assert next(d for d in docs if d["storage_key"] == "DOCS/9")["extra_meta"]["content_type"] == "blogpost"
+
+
+@pytest.mark.anyio
+async def test_page_tree_position_is_part_of_the_document(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    pages = {"page": [_tree_page("3", "Runbook", ancestors=[("1", "Betrieb"), ("2", "Notfall")])]}
+    with patch_http(_typed_handler(pages)):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert docs[0]["content"].startswith("Pfad: Betrieb > Notfall > Runbook\n")
+    assert docs[0]["extra_meta"]["ancestors"] == ["Betrieb", "Notfall"]
+    assert len(docs[0]["content"].split("\n")) == len(docs[0]["line_sections"])
+
+
+@pytest.mark.anyio
+async def test_comments_are_appended_only_when_requested(db_session, test_source):
+    comment = {"body": {"view": {"value": "<p>Bitte <b>aktualisieren</b></p>"}}, "version": {"by": {"displayName": "Anna"}}}
+    pages = {"page": [_tree_page("1", "Seite")]}
+
+    off = ConfluenceConnector(test_source.id)
+    off.source = test_source
+    with patch_http(_typed_handler(pages, comments={"1": [comment]})):
+        plain = [doc async for doc in off.fetch_documents()]
+    assert "Kommentar von" not in plain[0]["content"]
+
+    test_source.spaces = {"ids": ["ALL"], "include_comments": True}
+    db_session.commit()
+    on = ConfluenceConnector(test_source.id)
+    on.source = test_source
+    with patch_http(_typed_handler(pages, comments={"1": [comment]})):
+        with_comments = [doc async for doc in on.fetch_documents()]
+    content = with_comments[0]["content"]
+    assert "Kommentar von Anna: Bitte aktualisieren" in content
+    assert len(content.split("\n")) == len(with_comments[0]["line_sections"])

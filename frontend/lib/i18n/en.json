@@ -533,6 +533,8 @@
       "spacesLoadFailed": "Could not load spaces",
       "includeRestricted": "Include pages with read restrictions",
       "includeRestrictedHint": "Skipped by default, because otherwise every project member in Doctus could read what only a few may see in Confluence. Restrictions inherited from parent pages are not detected.",
+      "includeComments": "Index comments too",
+      "includeCommentsHint": "Appends a page's comments as a section. Costs one more request per page; new comments show up once the page itself changes.",
       "spacesProjectKeysLabel": "Spaces / project keys (optional, comma-separated)",
       "spacesProjectKeysPlaceholder": "e.g. ENG, PROD or leave empty for all",
       "checking": "Checking...",

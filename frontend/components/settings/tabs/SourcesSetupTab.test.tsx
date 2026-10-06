@@ -397,9 +397,10 @@ describe('SourcesSetupTab', () => {
       const box = screen.getByLabelText(/settings.sourcesSetup.includeRestricted/) as HTMLInputElement;
       expect(box.checked).toBe(false);
       fireEvent.click(box);
+      fireEvent.click(screen.getByLabelText(/settings.sourcesSetup.includeComments/));
       fireEvent.click(screen.getByText('settings.sourcesSetup.connect'));
       await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(
-        expect.objectContaining({ spaces: { ids: ['ALL'], include_restricted: true } }),
+        expect.objectContaining({ spaces: { ids: ['ALL'], include_restricted: true, include_comments: true } }),
       ));
     });
   });

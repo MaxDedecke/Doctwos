@@ -533,6 +533,8 @@
       "spacesLoadFailed": "Spaces konnten nicht geladen werden",
       "includeRestricted": "Seiten mit Leseeinschränkung einbeziehen",
       "includeRestrictedHint": "Standardmäßig werden sie übersprungen, weil sonst alle Projektmitglieder in Doctus lesen könnten, was in Confluence nur wenigen erlaubt ist. Von Elternseiten geerbte Einschränkungen werden nicht erkannt.",
+      "includeComments": "Kommentare mitindizieren",
+      "includeCommentsHint": "Fügt die Kommentare einer Seite als Abschnitt an. Kostet einen Abruf mehr je Seite; neue Kommentare erscheinen, sobald die Seite selbst geändert wird.",
       "spacesProjectKeysLabel": "Spaces / Projekt-Keys (Optional, Komma-separiert)",
       "spacesProjectKeysPlaceholder": "z.B. ENG, PROD oder leer lassen für alle",
       "checking": "Prüfen...",

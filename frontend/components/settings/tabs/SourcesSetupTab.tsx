@@ -38,6 +38,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
   const [skipTlsVerify, setSkipTlsVerify] = useState(false);
   // Confluence: Seiten mit Leseeinschränkung sind standardmäßig ausgeschlossen (sonst sähen alle Projektmitglieder sie).
   const [includeRestricted, setIncludeRestricted] = useState(false);
+  // Confluence: Kommentare der Seiten mitindizieren (ein Abruf mehr je Seite).
+  const [includeComments, setIncludeComments] = useState(false);
   const [availableSpaces, setAvailableSpaces] = useState<Array<{ key: string; name: string }>>([]);
   const [isLoadingSpaces, setIsLoadingSpaces] = useState(false);
   const [isConnectingSource, setIsConnectingSource] = useState(false);
@@ -77,6 +79,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       const options = {
         ...(skipTlsVerify ? { verify_ssl: false } : {}),
         ...(includeRestricted && typeCode === "confluence" ? { include_restricted: true } : {}),
+        ...(includeComments && typeCode === "confluence" ? { include_comments: true } : {}),
       };
       const spacesPayload = Object.keys(options).length > 0 ? { ids: parsedSpaces, ...options } : parsedSpaces;
 
@@ -471,6 +474,15 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 </div>
 
                 <p className="text-[0.625rem] leading-relaxed text-ds-zinc-500">{t('settings.sourcesSetup.patHint')}</p>
+                {activeSourceType === "Confluence" && (
+                  <label className="flex items-start gap-2 text-[0.6875rem] text-ds-zinc-500">
+                    <input type="checkbox" className="mt-0.5" checked={includeComments} onChange={e => setIncludeComments(e.target.checked)} />
+                    <span>
+                      <span className="font-semibold">{t('settings.sourcesSetup.includeComments')}</span>
+                      <span className="block">{t('settings.sourcesSetup.includeCommentsHint')}</span>
+                    </span>
+                  </label>
+                )}
                 {activeSourceType === "Confluence" && (
                   <label className="flex items-start gap-2 text-[0.6875rem] text-ds-zinc-500">
                     <input type="checkbox" className="mt-0.5" checked={includeRestricted} onChange={e => setIncludeRestricted(e.target.checked)} />

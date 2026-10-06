@@ -305,6 +305,75 @@ class ConfluenceConnector(BaseConnector):
         self._incomplete = False
         self._skipped_restricted = 0
 
+    # Seiten und Blogposts liegen in Confluence als getrennte Inhaltstypen.
+    _CONTENT_TYPES = ("page", "blogpost")
+    _PAGE_EXPAND = "body.view,version,space,ancestors"
+    _RESTRICTION_EXPAND = "restrictions.read.restrictions.user,restrictions.read.restrictions.group,ancestors"
+
+    async def _iter_content(self, client, base_url, auth, headers, space_key, content_type, limit, expand):
+        """Alle Inhalte eines Typs (und optional eines Spaces) seitenweise; Fehler werden weitergereicht."""
+        start = 0
+        while True:
+            data = await self._fetch_pages(client, base_url, auth, headers, space_key, start, limit, content_type, expand)
+            results = data.get("results", [])
+            if not results:
+                return
+            for page in results:
+                # Absicherung, falls ein Server den Space-Filter ignoriert.
+                if space_key is not None and page.get("space", {}).get("key") not in (space_key, None):
+                    continue
+                yield page
+            start += len(results)
+            # Ende: weniger Ergebnisse als erwartet oder kein "next"-Link in der Antwort
+            if len(results) < limit or "next" not in data.get("_links", {}):
+                return
+
+    async def _collect_restricted_ids(self, client, base_url, auth, headers, space_keys, limit) -> set[str]:
+        ids: set[str] = set()
+        for space_key in space_keys:
+            for content_type in self._CONTENT_TYPES:
+                async for page in self._iter_content(
+                    client, base_url, auth, headers, space_key, content_type, 100, self._RESTRICTION_EXPAND
+                ):
+                    if self._is_restricted(page):
+                        ids.add(str(page.get("id")))
+        return ids
+
+    @classmethod
+    def _is_restricted_in_tree(cls, page: dict, restricted_ids: set[str]) -> bool:
+        """Selbst eingeschränkt oder unterhalb einer eingeschränkten Elternseite (Einschränkungen werden vererbt)."""
+        if not restricted_ids:
+            return False
+        if str(page.get("id")) in restricted_ids:
+            return True
+        return any(str(ancestor.get("id")) in restricted_ids for ancestor in page.get("ancestors") or [])
+
+    async def _append_comments(self, client, base_url, auth, headers, page, doc) -> None:
+        """Hängt die Kommentare der Seite als eigenen Abschnitt an (nur auf Wunsch: ein Abruf mehr je Seite)."""
+        start, limit, lines = 0, 50, []
+        while True:
+            try:
+                data = await self._get_json(
+                    client, f"{base_url}{self._api_root}/content/{page.get('id')}/child/comment",
+                    auth, headers, {"limit": limit, "start": start, "expand": "body.view,version"},
+                )
+            except httpx.HTTPError as exc:
+                self._log(f"Kommentare von '{page.get('title')}' nicht abrufbar: {exc}")
+                return
+            results = data.get("results", [])
+            for comment in results:
+                text, _sections = _html_to_text(comment.get("body", {}).get("view", {}).get("value", ""))
+                if text:
+                    author = (comment.get("version", {}).get("by") or {}).get("displayName") or "Unbekannt"
+                    lines.append(f"Kommentar von {author}: " + " ".join(text.split()))
+            if len(results) < limit or "next" not in data.get("_links", {}):
+                break
+            start += len(results)
+        if lines:
+            doc["content"] += "\n\nKommentare\n" + "\n".join(lines)
+            if doc.get("line_sections") is not None:
+                doc["line_sections"] = list(doc["line_sections"]) + [None, "Kommentare"] + ["Kommentare"] * len(lines)
+
     async def _discover_api_root(self, client, base_url, auth, headers) -> str:
         """Findet die REST-Wurzel dieser Installation (Server/DC oder Cloud) mit je einer Anfrage.
 
@@ -361,34 +430,38 @@ class ConfluenceConnector(BaseConnector):
         # laden und clientseitig auszusortieren); "ALL" ist ein einzelner Durchlauf ohne Filter.
         space_keys: list[str | None] = [None] if "ALL" in spaces else list(spaces)
 
+        skipped_keys: set[str] = set()
+        config = self._spaces_config()
+        include_comments = config.get("include_comments") is True
+
         async with httpx.AsyncClient(verify=self._http_verify()) as client:
             self._api_root = await self._discover_api_root(client, base_url, auth, headers)
             counter = 0
 
+            # Leseeinschränkungen gelten auch für Unterseiten. Dafür vorab (ohne Seitentext, also leicht) alle
+            # eingeschränkten Seiten sammeln; im Hauptlauf zählt eine Seite als eingeschränkt, wenn sie selbst oder
+            # eine ihrer Elternseiten dazugehört.
+            restricted_ids: set[str] = set()
+            if not include_restricted:
+                restricted_ids = await self._collect_restricted_ids(
+                    client, base_url, auth, headers, space_keys, page_limit
+                )
+
             for space_key in space_keys:
-                start = 0
-                while True:
-                    pages_data = await self._fetch_pages(
-                        client, base_url, auth, headers, space_key, start, page_limit
-                    )
-
-                    results = pages_data.get("results", [])
-                    if not results:
-                        break
-
-                    for page in results:
-                        # Absicherung, falls ein Server den Space-Filter ignoriert.
-                        page_space = page.get("space", {}).get("key")
-                        if space_key is not None and page_space != space_key:
-                            continue
-
-                        if self._is_restricted(page) and not include_restricted:
+                for content_type in self._CONTENT_TYPES:
+                    async for page in self._iter_content(
+                        client, base_url, auth, headers, space_key, content_type, page_limit, self._PAGE_EXPAND
+                    ):
+                        if self._is_restricted_in_tree(page, restricted_ids):
                             # Alle Projektmitglieder in Doctus sähen sonst, was in Confluence nur wenigen erlaubt ist.
-                            self._skipped_restricted += 1
+                            skipped_keys.add(self._page_key(page))
+                            self._skipped_restricted = len(skipped_keys)
                             continue
 
-                        counter += 1
                         key = self._page_key(page)
+                        if key in self._seen_keys:
+                            continue  # derselbe Inhalt, den die API ein zweites Mal geliefert hat
+                        counter += 1
                         self._seen_keys.add(key)
                         doc = self._build_document(page, base_url)
                         self._update_progress(
@@ -397,18 +470,14 @@ class ConfluenceConnector(BaseConnector):
                         )
 
                         if doc is not None:
+                            if include_comments:
+                                await self._append_comments(client, base_url, auth, headers, page, doc)
                             yield doc
 
                         async for att_doc in self._fetch_attachments(
                             client, base_url, auth, headers, page
                         ):
                             yield att_doc
-
-                    start += len(results)
-                    # Pagination: Ende erreicht wenn weniger Ergebnisse als erwartet
-                    # oder kein "next"-Link in der Antwort
-                    if len(results) < page_limit or "next" not in pages_data.get("_links", {}):
-                        break
 
         if self._skipped_restricted:
             self._log(
@@ -430,14 +499,14 @@ class ConfluenceConnector(BaseConnector):
     # ── Interne Hilfsmethoden ────────────────────────────────────────────────
 
     async def _fetch_pages(
-        self, client, base_url, auth, headers, space_key, start, limit
+        self, client, base_url, auth, headers, space_key, start, limit, content_type="page", expand=None
     ) -> dict:
         """Ruft eine Seite der Content-API ab (Fehler werden weitergereicht, damit der Sync nicht still endet)."""
         params = {
-            "type": "page",
+            "type": content_type,
             "start": start,
             "limit": limit,
-            "expand": "body.view,version,space,restrictions.read.restrictions.user,restrictions.read.restrictions.group",
+            "expand": expand or self._PAGE_EXPAND,
         }
         if space_key is not None:
             params["spaceKey"] = space_key
@@ -528,6 +597,13 @@ class ConfluenceConnector(BaseConnector):
             self._log(f"Seite '{title}' hat keinen Textinhalt. Überspringe.")
             return None
 
+        # Position im Seitenbaum: hilft bei der Suche ("Betrieb > Notfall > Runbook") und im Quellenverweis.
+        ancestor_titles = [a.get("title") for a in page.get("ancestors") or [] if a.get("title")]
+        if ancestor_titles:
+            breadcrumb = " > ".join([*ancestor_titles, title])
+            plain_text = f"Pfad: {breadcrumb}\n{plain_text}"
+            line_sections = [None, *line_sections]
+
         # URL aufbauen — Confluence liefert relative Links in _links.webui
         webui = page.get("_links", {}).get("webui", "")
         if "/wiki" in page.get("_links", {}).get("base", ""):
@@ -543,7 +619,12 @@ class ConfluenceConnector(BaseConnector):
             url=original_url,
             source_type="Confluence",
             storage_key=key,
-            extra_meta={"page_id": page.get("id"), "space_key": page.get("space", {}).get("key")},
+            extra_meta={
+                "page_id": page.get("id"),
+                "space_key": page.get("space", {}).get("key"),
+                "content_type": page.get("type") or "page",
+                "ancestors": [a.get("title") for a in page.get("ancestors") or [] if a.get("title")],
+            },
             line_sections=line_sections,
         )
 

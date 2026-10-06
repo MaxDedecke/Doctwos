@@ -93,7 +93,12 @@ flowchart TD
   Spaces der Instanz laden und anhaken (`POST /connectors/confluence/spaces`).
 - **Leseeinschränkungen:** Seiten mit direkt gesetzter Leseeinschränkung werden standardmäßig übersprungen (sonst sähen alle
   Projektmitglieder in Doctus, was in Confluence nur wenigen erlaubt ist); `include_restricted` in der Quellenkonfiguration
-  schaltet das ein. Von Elternseiten geerbte Einschränkungen liefert die API hier nicht mit und werden nicht erkannt.
+  schaltet das ein. Einschränkungen gelten auch für Unterseiten: ein Vorlauf ohne Seitentext sammelt alle eingeschränkten
+  Seiten (`_collect_restricted_ids`), im Hauptlauf zählt eine Seite als eingeschränkt, wenn sie selbst oder eine ihrer
+  Elternseiten (`expand=ancestors`) dazugehört.
+- **Blogposts, Pfad, Kommentare:** Neben Seiten werden Blogposts indiziert. Jedes Dokument beginnt bei Seiten mit Elternseiten mit
+  einer Zeile `Pfad: A > B > Titel` (auch in `metadata.ancestors`). Kommentare sind opt-in (`include_comments`): ein Abruf mehr
+  je Seite; da ein neuer Kommentar `version.when` der Seite nicht ändert, erscheint er erst mit der nächsten Seitenänderung.
 - **TLS:** `verify_ssl: false` oder `ca_bundle` in der Quellenkonfiguration, `CUSTOM_CA_FILE` in der `.env` für ein CA-Bundle
   aller Quellen (`parser/connectors/tls.py`).
 - **Delta-Sync ist zeitbasiert**, nicht inhaltsbasiert: eine Seite/ein Anhang
