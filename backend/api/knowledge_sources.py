@@ -788,6 +788,47 @@ def get_knowledge_source_raw(
     return FileResponse(file_path, media_type=media_type, headers={"Content-Disposition": "inline"})
 
 
+# Wurzel, unterhalb der Ordnerquellen liegen dürfen (Mount WATCHED_FOLDER, siehe docker-compose.yml).
+WATCHED_ROOT = os.getenv("WATCHED_ROOT", "/watched")
+
+
+def _resolve_watched_path(path: str | None) -> str:
+    """Normalisiert einen Pfad und stellt sicher, dass er unterhalb von WATCHED_ROOT liegt.
+
+    Ohne diese Prüfung könnte jeder angemeldete Nutzer beliebige Verzeichnisse des Containers
+    (Quellcode, andere Repositories, Konfiguration) als "Ordner" einbinden und einlesen lassen.
+    Symlinks werden aufgelöst, damit ein Link aus dem Mount heraus nicht durchrutscht.
+    """
+    root = os.path.realpath(WATCHED_ROOT)
+    resolved = os.path.realpath(path or root)
+    if resolved != root and not resolved.startswith(root.rstrip(os.sep) + os.sep):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Der Ordner muss unterhalb von {WATCHED_ROOT} liegen (Mount WATCHED_FOLDER).",
+        )
+    return resolved
+
+
+@router.get("/folders")
+def list_watched_folders(path: str | None = None, user: User = Depends(get_current_user)):
+    """Unterordner eines Verzeichnisses unterhalb von WATCHED_ROOT für die Ordnerauswahl im Dialog."""
+    current = _resolve_watched_path(path)
+    if not os.path.isdir(current):
+        raise HTTPException(status_code=404, detail="Ordner nicht gefunden.")
+    root = os.path.realpath(WATCHED_ROOT)
+    try:
+        entries = sorted(os.scandir(current), key=lambda entry: entry.name.lower())
+    except OSError as exc:
+        raise HTTPException(status_code=403, detail=f"Ordner nicht lesbar: {exc.strerror or exc}") from exc
+    folders = [
+        {"name": entry.name, "path": os.path.join(current, entry.name)}
+        for entry in entries
+        if entry.is_dir(follow_symlinks=False) and not entry.name.startswith(".")
+    ]
+    parent = None if current == root else os.path.dirname(current)
+    return {"root": root, "path": current, "parent": parent, "folders": folders}
+
+
 @router.post("/folder")
 def create_folder_watch_source(
     source: FolderWatchCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
@@ -798,7 +839,7 @@ def create_folder_watch_source(
     db_source = KnowledgeSource(
         name=source.name,
         type="FolderWatch",
-        url=source.folder_path,
+        url=_resolve_watched_path(source.folder_path),
         project_id=source.project_id,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
         embedding_model=_validate_embedding_model(source.embedding_model),

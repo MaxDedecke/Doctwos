@@ -1,0 +1,41 @@
+# Optional overlay: shares that are mounted on the host *after* the stack started show up inside the containers
+# without a restart ("rslave" bind propagation). Enable by adding it to COMPOSE_FILE in .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.watch-live.yml
+#
+# Requirement: the host directory in WATCHED_FOLDER must sit on a shared or slave mount (the default for systemd
+# hosts). Without it Docker refuses to start the containers with "is not a shared or slave mount"; then either make
+# the mount shared (`mount --make-rshared /mnt/doctus-watched`) or leave this overlay out and restart the stack after
+# adding a share (see docs/FOLDER_WATCH.md).
+services:
+  backend-api:
+    volumes:
+      - type: bind
+        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        target: /watched
+        read_only: true
+        bind:
+          propagation: rslave
+  parser-worker:
+    volumes:
+      - type: bind
+        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        target: /watched
+        read_only: true
+        bind:
+          propagation: rslave
+  parser-beat:
+    volumes:
+      - type: bind
+        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        target: /watched
+        read_only: true
+        bind:
+          propagation: rslave
+  link-worker:
+    volumes:
+      - type: bind
+        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        target: /watched
+        read_only: true
+        bind:
+          propagation: rslave

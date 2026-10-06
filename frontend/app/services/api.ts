@@ -129,6 +129,7 @@ export const api = {
             'Content-Type': 'multipart/form-data',
         },
     }),
+    listWatchedFolders: (path?: string) => axios.get(`${API_URL}/knowledge-sources/folders`, { params: path ? { path } : {} }),
     createFolderWatchSource: (data: { name: string; folder_path: string; project_id?: number | null; embedding_model?: string }) =>
         axios.post(`${API_URL}/knowledge-sources/folder`, data),
     createGitSource: (data: { name: string; url: string; branch?: string; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null; embedding_model?: string }) =>

@@ -7,6 +7,7 @@ import React from 'react';
 const apiMocks = vi.hoisted(() => ({
   createKnowledgeSource: vi.fn(),
   createFolderWatchSource: vi.fn(),
+  listWatchedFolders: vi.fn(),
   uploadLocalDocument: vi.fn(),
   testConnector: vi.fn(),
   listConfluenceSpaces: vi.fn(),
@@ -402,6 +403,24 @@ describe('SourcesSetupTab', () => {
       await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(
         expect.objectContaining({ spaces: { ids: ['ALL'], include_restricted: true, include_comments: true } }),
       ));
+    });
+  });
+
+  describe('Ordnerauswahl (FolderWatch)', () => {
+    it('browses the folders below the mount and takes the chosen path', async () => {
+      apiMocks.listWatchedFolders
+        .mockResolvedValueOnce(axiosResponse({ path: '/watched', parent: null, folders: [{ name: 'normen', path: '/watched/normen' }] }))
+        .mockResolvedValueOnce(axiosResponse({ path: '/watched/normen', parent: '/watched', folders: [] }));
+      render(<SourcesSetupTab {...baseProps} activeSourceType="settings.sourcesTab.types.folderwatch.name" />);
+      fireEvent.click(screen.getByText('settings.sourcesSetup.browseFolders'));
+
+      fireEvent.click(await screen.findByText('normen'));
+      expect(await screen.findByText('settings.sourcesSetup.noSubfolders')).toBeTruthy();
+      expect(apiMocks.listWatchedFolders).toHaveBeenLastCalledWith('/watched/normen');
+      fireEvent.click(screen.getByText('settings.sourcesSetup.selectThisFolder'));
+
+      expect((screen.getByPlaceholderText('settings.sourcesSetup.folderPathPlaceholder') as HTMLInputElement).value).toBe('/watched/normen');
+      expect(screen.queryByTestId('folder-browser')).toBeNull();
     });
   });
 });

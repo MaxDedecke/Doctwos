@@ -48,6 +48,20 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
   const [sourceConnError, setSourceConnError] = useState("");
   const [folderPath, setFolderPath] = useState("/watched");
   const [folderName, setFolderName] = useState("");
+  const [folderBrowser, setFolderBrowser] = useState<{ path: string; parent: string | null; folders: Array<{ name: string; path: string }> } | null>(null);
+  const [isBrowsingFolders, setIsBrowsingFolders] = useState(false);
+
+  const loadFolders = async (path?: string) => {
+    setIsBrowsingFolders(true);
+    try {
+      const res = await api.listWatchedFolders(path);
+      setFolderBrowser(res.data as { path: string; parent: string | null; folders: Array<{ name: string; path: string }> });
+    } catch (err) {
+      showToast(apiErrorDetail(err) || t('settings.sourcesSetup.foldersLoadFailed'), "error", err);
+    } finally {
+      setIsBrowsingFolders(false);
+    }
+  };
   const [isConnectingFolder, setIsConnectingFolder] = useState(false);
 
   const handleConnectSource = async () => {
@@ -299,6 +313,32 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                       : "bg-ds-white border-ds-zinc-200 text-ds-zinc-900 placeholder-zinc-400 focus:border-ds-zinc-300"
                   )}
                 />
+                <div className="flex items-center gap-2 pt-1">
+                  <Button type="button" variant="ghost" disabled={isBrowsingFolders} onClick={() => loadFolders(folderPath.trim() || undefined)}
+                    className="h-7 px-2 text-[0.6875rem] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10">
+                    {isBrowsingFolders && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}{t('settings.sourcesSetup.browseFolders')}
+                  </Button>
+                </div>
+                {folderBrowser && (
+                  <div className="space-y-1 rounded-lg border border-ds-zinc-800/40 p-2" data-testid="folder-browser">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono text-[0.6875rem] text-ds-zinc-500">{folderBrowser.path}</span>
+                      <Button type="button" variant="ghost" onClick={() => { setFolderPath(folderBrowser.path); setFolderBrowser(null); }}
+                        className="h-7 shrink-0 px-2 text-[0.6875rem] font-semibold text-ds-indigo-400 hover:bg-ds-indigo-500/10">
+                        {t('settings.sourcesSetup.selectThisFolder')}
+                      </Button>
+                    </div>
+                    <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+                      {folderBrowser.parent && (
+                        <li><button type="button" onClick={() => loadFolders(folderBrowser.parent as string)} className="w-full rounded px-2 py-1 text-left text-[0.6875rem] hover:bg-ds-zinc-500/10">..</button></li>
+                      )}
+                      {folderBrowser.folders.map(entry => (
+                        <li key={entry.path}><button type="button" onClick={() => loadFolders(entry.path)} className="w-full truncate rounded px-2 py-1 text-left text-[0.6875rem] hover:bg-ds-zinc-500/10">{entry.name}</button></li>
+                      ))}
+                      {folderBrowser.folders.length === 0 && <li className="px-2 py-1 text-[0.6875rem] text-ds-zinc-500">{t('settings.sourcesSetup.noSubfolders')}</li>}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end pt-2 border-t border-ds-zinc-800/10">

@@ -51,6 +51,22 @@ The first scan starts immediately in the background. Progress and logs are visib
 
 ---
 
+## Choosing a folder in the dialog
+
+In the dialog **"Ordner verbinden"** the button *Browse folders* lists the sub-folders below the mount (`/watched`), so nobody
+has to know or type container paths. Only paths below `/watched` are accepted, both when creating a source (API) and when
+syncing it (parser): this keeps users from registering arbitrary container directories such as `/app` or other
+repositories. Symlinks that point out of the mount are refused. `WATCHED_ROOT` changes the root if the mount target differs.
+
+### New shares without a restart (optional)
+
+A new share mounted on the host *after* the stack started is normally invisible inside the containers until a restart. The
+overlay `docker-compose.watch-live.yml` mounts `WATCHED_FOLDER` with `rslave` propagation so new sub-mounts show up
+immediately; add it to `COMPOSE_FILE` in `.env`. It requires that the host directory sits on a shared or slave mount
+(default on systemd hosts); otherwise Docker refuses to start with "is not a shared or slave mount" — then run
+`mount --make-rshared <path>` on the host or leave the overlay out. Not verified on a systemd host yet (the development
+machine is WSL2, where `/tmp` is a private mount).
+
 ## Multiple folders / multiple NAS shares
 
 A single `WATCHED_FOLDER` mount covers one host path. To index documents from **multiple locations**, there are two approaches depending on what the customer's infrastructure allows.

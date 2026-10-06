@@ -19,6 +19,14 @@ def configure_test_encryption_key(monkeypatch):
     )
 
 
+@pytest.fixture(autouse=True)
+def folder_sources_may_live_anywhere_in_tests(monkeypatch):
+    """Die Wurzel-Prüfung für Ordnerquellen (``WATCHED_ROOT``) hat eigene Tests; sonst liegen Testordner in tmp_path."""
+    import connectors.folder as folder
+
+    monkeypatch.setattr(folder, "WATCHED_ROOT", "/")
+
+
 @pytest.fixture(scope="module")
 def anyio_backend():
     """Parser-Connectoren laufen produktiv in asyncio/Celery.

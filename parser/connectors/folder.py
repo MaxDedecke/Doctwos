@@ -37,6 +37,9 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"} | OFFICE_EXTENSIONS
 
+# Ordnerquellen dürfen nur unterhalb dieser Wurzel liegen (Mount WATCHED_FOLDER); die API prüft dasselbe beim Anlegen.
+WATCHED_ROOT = os.getenv("WATCHED_ROOT", "/watched")
+
 # Dateien über dieser Größe werden nicht indiziert (Speicher/Laufzeit); der Wert ist je Betrieb einstellbar.
 MAX_FILE_BYTES = int(os.getenv("FOLDER_MAX_FILE_MB", "200")) * 1024 * 1024
 
@@ -205,6 +208,14 @@ class FolderConnector(BaseConnector):
             raise ValueError(
                 f"Ordnerpfad '{folder_path}' nicht gefunden oder kein Verzeichnis. "
                 "Bitte prüfe, ob der Pfad im Container korrekt gemountet ist."
+            )
+
+        root = os.path.realpath(WATCHED_ROOT)
+        resolved = os.path.realpath(folder_path)
+        if resolved != root and not resolved.startswith(root.rstrip(os.sep) + os.sep):
+            raise ValueError(
+                f"Ordner '{folder_path}' liegt außerhalb von {WATCHED_ROOT} und wird nicht gelesen. "
+                "Lege die Quelle mit einem Pfad unterhalb des eingebundenen Ordners neu an."
             )
 
         self._log(f"Scanne Ordner: {folder_path}")

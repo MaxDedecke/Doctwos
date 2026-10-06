@@ -386,3 +386,39 @@ async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_tim
     db_session.expire_all()
     assert db_session.get(KnowledgeSource, test_source.id).sync_status == "completed"
     assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == 1
+
+
+@pytest.mark.anyio
+async def test_folder_outside_the_watched_root_is_refused(db_session, test_source, tmp_path, monkeypatch):
+    root = tmp_path / "watched"
+    root.mkdir()
+    monkeypatch.setattr(folder_module, "WATCHED_ROOT", str(root))
+    test_source.url = str(tmp_path)  # liegt neben, nicht unter der Wurzel
+    connector = FolderConnector(test_source.id)
+    connector.source = test_source
+    with pytest.raises(ValueError, match="außerhalb"):
+        [doc async for doc in connector.fetch_documents()]
+
+    inside = root / "projekt"
+    inside.mkdir()
+    (inside / "a.txt").write_text("ok")
+    test_source.url = str(inside)
+    connector2 = FolderConnector(test_source.id)
+    connector2.source = test_source
+    assert len([doc async for doc in connector2.fetch_documents()]) == 1
+
+
+@pytest.mark.anyio
+async def test_symlink_out_of_the_watched_root_does_not_slip_through(db_session, test_source, tmp_path, monkeypatch):
+    root = tmp_path / "watched"
+    root.mkdir()
+    secret = tmp_path / "geheim"
+    secret.mkdir()
+    (secret / "pw.txt").write_text("x")
+    (root / "link").symlink_to(secret)
+    monkeypatch.setattr(folder_module, "WATCHED_ROOT", str(root))
+    test_source.url = str(root / "link")
+    connector = FolderConnector(test_source.id)
+    connector.source = test_source
+    with pytest.raises(ValueError, match="außerhalb"):
+        [doc async for doc in connector.fetch_documents()]
