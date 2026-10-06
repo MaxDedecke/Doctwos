@@ -15,6 +15,7 @@ from unittest.mock import patch, MagicMock
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
 from connectors.jira import JiraConnector
+from http_mocks import patch_http
 
 
 @pytest.fixture
@@ -114,7 +115,7 @@ async def test_jira_connector_fetches_issue_with_adf_description_and_comments(
         resp.json = MagicMock(return_value=search_response)
         return resp
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+    with patch_http(mock_get):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert len(docs) == 1
@@ -147,3 +148,37 @@ def test_jira_build_jql_falls_back_to_30_days_without_filters():
     connector.source = type("FakeSource", (), {"last_synced_at": None})()
 
     assert connector._build_jql(["ALL"]) == "created >= -30d"
+
+
+@pytest.mark.anyio
+async def test_jira_server_uses_api_v2_without_backoff_and_reports_auth_errors(db_session, test_source, monkeypatch):
+    import httpx
+
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr("asyncio.sleep", fake_sleep)
+    connector = JiraConnector(test_source.id)
+    connector.source = test_source
+    calls = []
+
+    async def handler(url, **kwargs):
+        calls.append(url)
+        if "/rest/api/3/" in url:
+            return httpx.Response(404, request=httpx.Request("GET", url))
+        return httpx.Response(200, json={"total": 0, "issues": []}, request=httpx.Request("GET", url))
+
+    with patch_http(handler):
+        assert [doc async for doc in connector.fetch_documents()] == []
+    assert sum(sleeps) < 1 and connector._search_path == "/rest/api/2/search"
+
+    async def denied(url, **kwargs):
+        return httpx.Response(401, request=httpx.Request("GET", url))
+
+    connector2 = JiraConnector(test_source.id)
+    connector2.source = test_source
+    with patch_http(denied):
+        with pytest.raises(RuntimeError, match="Anmeldung abgelehnt"):
+            [doc async for doc in connector2.fetch_documents()]

@@ -27,6 +27,7 @@ import asyncio
 import httpx
 
 from connectors.base import BaseConnector, Document
+from connectors.http_retry import request_with_retry
 
 
 class JiraConnector(BaseConnector):
@@ -36,6 +37,10 @@ class JiraConnector(BaseConnector):
     Jedes Issue (Titel + Beschreibung + Kommentare) wird als ein Document
     geliefert, das anschließend in der Basisklasse in Chunks aufgeteilt wird.
     """
+
+    def __init__(self, source_id: int) -> None:
+        super().__init__(source_id)
+        self._search_path: str | None = None
 
     async def fetch_documents(self):
         spaces = self._parse_spaces()
@@ -51,7 +56,7 @@ class JiraConnector(BaseConnector):
         jql = self._build_jql(spaces)
         self._log(f"Jira Delta-Sync JQL: {jql}")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=self._http_verify()) as client:
             start = 0
             batch_size = 50
             connection_verified = False
@@ -116,12 +121,14 @@ class JiraConnector(BaseConnector):
     # ── API-Aufruf ────────────────────────────────────────────────────────────
 
     async def _search_issues(
-        self, client, base_url, auth, headers, jql, start, limit, max_retries: int = 5
-    ) -> dict | None:
+        self, client, base_url, auth, headers, jql, start, limit
+    ) -> dict:
         """
         Führt eine Jira-Issue-Suche durch.
-        Versucht beide API-Versionen (/rest/api/3 und /rest/api/2),
-        da Jira Cloud v3 und Jira Server v2 nutzt.
+
+        Server/Data Center bietet /rest/api/2, Cloud zusätzlich /rest/api/3. Der erste Pfad, der antwortet,
+        wird für den Rest des Syncs gemerkt; ein 404 wird ohne Wartezeit mit dem nächsten Pfad beantwortet.
+        Anmeldefehler (401/403) und Serverfehler werden weitergereicht statt den Sync still zu beenden.
         """
         params = {
             "jql": jql,
@@ -129,44 +136,35 @@ class JiraConnector(BaseConnector):
             "maxResults": limit,
             "fields": "summary,description,comment,status,priority,assignee",
         }
-
-        for path in ["/rest/api/3/search", "/rest/api/2/search"]:
+        paths = [self._search_path] if self._search_path else ["/rest/api/2/search", "/rest/api/3/search"]
+        for path in paths:
             try:
-                return await self._fetch_with_retry(
-                    client, f"{base_url}{path}", auth, headers, params, max_retries
-                )
-            except Exception as e:
-                self._log(f"Jira API-Pfad {path} fehlgeschlagen: {e}. Versuche Alternative...")
-
-        self._log("Keine erreichbare Jira-API gefunden.")
-        return None
-
-    async def _fetch_with_retry(
-        self, client, url, auth, headers, params, max_retries: int = 5
-    ) -> dict:
-        """GET-Request mit exponentiellem Backoff bei Rate-Limiting (HTTP 429)."""
-        backoff = 1.0
-        for attempt in range(max_retries):
-            try:
-                response = await client.get(
-                    url, auth=auth, headers=headers, params=params, timeout=30.0
-                )
-                if response.status_code == 429:
-                    wait = float(response.headers.get("Retry-After", backoff))
-                    self._log(f"Rate Limit (429). Warte {wait}s...")
-                    await asyncio.sleep(wait)
-                    backoff *= 2.0
+                data = await self._get_json(client, f"{base_url}{path}", auth, headers, params)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in (404, 410):
+                    self._log(f"Jira API-Pfad {path} nicht vorhanden. Versuche Alternative...")
                     continue
-                response.raise_for_status()
-                await asyncio.sleep(0.2)
-                return response.json()
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    self._log(f"Anfrage fehlgeschlagen: {e}. Retry in {backoff}s...")
-                    await asyncio.sleep(backoff)
-                    backoff *= 2.0
-                else:
-                    raise
+                if exc.response.status_code in (401, 403):
+                    raise RuntimeError(
+                        f"Anmeldung abgelehnt (HTTP {exc.response.status_code}). Prüfe Benutzername, "
+                        "Passwort bzw. Personal Access Token."
+                    ) from exc
+                raise
+            self._search_path = path
+            return data
+        raise RuntimeError(
+            f"Keine Jira-REST-API unter {base_url} gefunden (geprüft: /rest/api/2, /rest/api/3). "
+            "Prüfe die Server-URL einschließlich eines evtl. Kontextpfads."
+        )
+
+    async def _get_json(self, client, url, auth, headers, params) -> dict:
+        """GET mit Backoff nur bei 429/5xx/Netzwerkfehlern; 4xx werden sofort gemeldet."""
+        response = await request_with_retry(
+            client, "GET", url, headers_fn=lambda: headers, auth=auth, params=params,
+            timeout=30.0, log=self._log,
+        )
+        await asyncio.sleep(0.05)
+        return response.json()
 
     # ── Dokument aufbauen ────────────────────────────────────────────────────
 

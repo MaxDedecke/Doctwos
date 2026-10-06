@@ -137,6 +137,8 @@ class ConnectorTestRequest(BaseModel):
     username: Optional[str] = None
     token: str
     url: Optional[str] = None
+    # False nur als ausdrücklicher Opt-out für Server mit internem/selbst signiertem Zertifikat.
+    verify_ssl: bool = True
 
 
 class ConnectorReposRequest(BaseModel):

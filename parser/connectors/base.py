@@ -38,6 +38,7 @@ from typing import NotRequired, TypedDict
 import redis
 
 from chunk_reindex import reindex_chunks_preserving_links
+from connectors.tls import resolve_verify
 from code_parser import CodeParser
 from core import config
 from db import SessionLocal, REDIS_URL
@@ -154,6 +155,23 @@ class BaseConnector(ABC):
             self.db.commit()
 
     # ── Hilfs-Methoden ────────────────────────────────────────────────────────
+
+    def _spaces_config(self) -> dict:
+        """Die als Objekt gespeicherte Quell-Konfiguration (``spaces``), sonst ein leeres Dict.
+
+        Neben den Space-/Projekt-IDs trägt sie Verbindungsoptionen wie ``verify_ssl``/``ca_bundle``.
+        """
+        spaces = self.source.spaces if self.source else None
+        if isinstance(spaces, str):
+            try:
+                spaces = json.loads(spaces)
+            except Exception:
+                spaces = None
+        return spaces if isinstance(spaces, dict) else {}
+
+    def _http_verify(self):
+        """TLS-Prüfung für HTTP-Clients dieser Quelle (siehe connectors/tls.py)."""
+        return resolve_verify(self._spaces_config())
 
     def _parse_spaces(self) -> list[str]:
         """

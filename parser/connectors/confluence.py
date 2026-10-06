@@ -30,6 +30,7 @@ from html.parser import HTMLParser
 import httpx
 
 from connectors.base import BaseConnector, Document
+from connectors.http_retry import request_with_retry
 from models.database import DocumentChunk
 
 ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
@@ -260,6 +261,47 @@ class ConfluenceConnector(BaseConnector):
     damit Entities korrekt dekodiert werden und Code-Blöcke lesbar bleiben.
     """
 
+    # Server/Data Center liefert die REST-API unter /rest/api, Cloud unter /wiki/rest/api. Beide werden einmal
+    # je Sync geprüft; der Treffer gilt dann für alle weiteren Aufrufe (kein Probieren pro Seite).
+    _API_ROOTS = ("/rest/api", "/wiki/rest/api")
+
+    def __init__(self, source_id: int) -> None:
+        super().__init__(source_id)
+        self._api_root: str | None = None
+
+    async def _discover_api_root(self, client, base_url, auth, headers) -> str:
+        """Findet die REST-Wurzel dieser Installation (Server/DC oder Cloud) mit je einer Anfrage.
+
+        401/403 auf einem Pfad heißt nicht zwingend "falsche Zugangsdaten": Cloud antwortet auf dem
+        falschen Pfad teils ebenso. Erst wenn kein Pfad antwortet, wird der Auth-Fehler gemeldet.
+        """
+        auth_error: str | None = None
+        last_error: Exception | None = None
+        for root in self._API_ROOTS:
+            try:
+                response = await client.get(
+                    f"{base_url}{root}/space", params={"limit": 1}, auth=auth, headers=headers, timeout=30.0
+                )
+            except httpx.HTTPError as exc:
+                last_error = exc
+                continue
+            if response.status_code == 200:
+                self._log(f"Confluence-API gefunden: {base_url}{root}")
+                return root
+            if response.status_code in (401, 403):
+                auth_error = (
+                    f"Anmeldung abgelehnt (HTTP {response.status_code}). Prüfe Benutzername, Passwort "
+                    "bzw. Personal Access Token."
+                )
+        if auth_error:
+            raise RuntimeError(auth_error)
+        if last_error is not None:
+            raise RuntimeError(f"Confluence nicht erreichbar: {type(last_error).__name__}: {last_error}")
+        raise RuntimeError(
+            f"Keine Confluence-REST-API unter {base_url} gefunden (geprüft: {', '.join(self._API_ROOTS)}). "
+            "Prüfe die Server-URL einschließlich eines evtl. Kontextpfads (z. B. /confluence)."
+        )
+
     async def fetch_documents(self):
         spaces = self._parse_spaces()
         self._log(f"Verbinde mit Confluence unter {self.source.url} (Spaces: {spaces})...")
@@ -274,22 +316,15 @@ class ConfluenceConnector(BaseConnector):
 
         base_url = self.source.url.rstrip("/")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=self._http_verify()) as client:
+            self._api_root = await self._discover_api_root(client, base_url, auth, headers)
             start = 0
             page_limit = 25
-            connection_verified = False
 
             while True:
                 pages_data = await self._fetch_pages(
                     client, base_url, auth, headers, spaces, start, page_limit
                 )
-                if pages_data is None:
-                    if not connection_verified:
-                        raise RuntimeError(
-                            "Verbindung zur Confluence-API fehlgeschlagen. Bitte überprüfe die Server-URL und die API-Logins."
-                        )
-                    break
-                connection_verified = True
 
                 results = pages_data.get("results", [])
                 if not results:
@@ -327,12 +362,8 @@ class ConfluenceConnector(BaseConnector):
 
     async def _fetch_pages(
         self, client, base_url, auth, headers, spaces, start, limit
-    ) -> dict | None:
-        """
-        Ruft eine Seite der Confluence-Content-API ab.
-        Versucht beide bekannten API-Pfade (/wiki/rest/api und /rest/api),
-        da der korrekte Pfad je nach Confluence-Installation variiert.
-        """
+    ) -> dict:
+        """Ruft eine Seite der Content-API ab (Fehler werden weitergereicht, damit der Sync nicht still endet)."""
         params = {
             "type": "page",
             "start": start,
@@ -341,48 +372,16 @@ class ConfluenceConnector(BaseConnector):
         }
         if "ALL" not in spaces and len(spaces) == 1:
             params["spaceKey"] = spaces[0]
+        return await self._get_json(client, f"{base_url}{self._api_root}/content", auth, headers, params)
 
-        for path in ["/wiki/rest/api/content", "/rest/api/content"]:
-            try:
-                return await self._fetch_with_retry(
-                    client, f"{base_url}{path}", auth, headers, params
-                )
-            except Exception as e:
-                self._log(f"API-Pfad {path} fehlgeschlagen: {e}. Versuche Alternative...")
-
-        self._log("Keine gültige Confluence-API gefunden.")
-        return None
-
-    async def _fetch_with_retry(
-        self, client, url, auth, headers, params, max_retries: int = 5
-    ) -> dict:
-        """
-        GET-Request mit exponentiellem Backoff bei Rate-Limiting (HTTP 429)
-        und transientes Fehler-Retries.
-        """
-        backoff = 1.0
-        for attempt in range(max_retries):
-            try:
-                response = await client.get(
-                    url, auth=auth, headers=headers, params=params, timeout=30.0
-                )
-                if response.status_code == 429:
-                    # Confluence gibt manchmal Retry-After vor, sonst exponentiell warten
-                    wait = float(response.headers.get("Retry-After", backoff))
-                    self._log(f"Rate Limit (429). Warte {wait}s...")
-                    await asyncio.sleep(wait)
-                    backoff *= 2.0
-                    continue
-                response.raise_for_status()
-                await asyncio.sleep(0.2)  # Höflichkeits-Pause zwischen Requests
-                return response.json()
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    self._log(f"Anfrage an {url} fehlgeschlagen: {e}. Retry in {backoff}s...")
-                    await asyncio.sleep(backoff)
-                    backoff *= 2.0
-                else:
-                    raise
+    async def _get_json(self, client, url, auth, headers, params) -> dict:
+        """GET mit Backoff nur bei 429/5xx/Netzwerkfehlern; 4xx (z. B. 404) werden sofort gemeldet."""
+        response = await request_with_retry(
+            client, "GET", url, headers_fn=lambda: headers, auth=auth, params=params,
+            timeout=30.0, log=self._log,
+        )
+        await asyncio.sleep(0.05)  # Höflichkeits-Pause zwischen Requests
+        return response.json()
 
     def _build_document(self, page: dict, base_url: str) -> Document | None:
         """
@@ -444,18 +443,13 @@ class ConfluenceConnector(BaseConnector):
         page_id = page.get("id")
         page_title = page.get("title", "Unbekannte Seite")
 
-        for path in [
-            f"/wiki/rest/api/content/{page_id}/child/attachment",
-            f"/rest/api/content/{page_id}/child/attachment",
-        ]:
-            try:
-                resp = await self._fetch_with_retry(
-                    client, f"{base_url}{path}", auth, headers, {"limit": 50, "expand": "version"}
-                )
-                break
-            except Exception:
-                resp = None
-        else:
+        try:
+            resp = await self._get_json(
+                client, f"{base_url}{self._api_root}/content/{page_id}/child/attachment",
+                auth, headers, {"limit": 50, "expand": "version"},
+            )
+        except httpx.HTTPError as exc:
+            self._log(f"Anhänge von '{page_title}' nicht abrufbar: {exc}")
             return
 
         for att in (resp or {}).get("results", []):
@@ -494,14 +488,10 @@ class ConfluenceConnector(BaseConnector):
                 continue
 
             try:
-                dl_resp = await client.get(
-                    f"{base_url}{download_path}",
-                    auth=auth,
-                    headers=headers,
-                    follow_redirects=True,
-                    timeout=60.0,
+                dl_resp = await request_with_retry(
+                    client, "GET", f"{base_url}{download_path}", headers_fn=lambda: headers, auth=auth,
+                    follow_redirects=True, timeout=60.0, log=self._log,
                 )
-                dl_resp.raise_for_status()
             except Exception as e:
                 self._log(f"Download-Fehler für '{filename}': {e}")
                 continue

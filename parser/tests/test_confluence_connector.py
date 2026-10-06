@@ -15,6 +15,7 @@ from unittest.mock import patch, AsyncMock, MagicMock
 from db import SessionLocal
 from models.database import KnowledgeSource, DocumentChunk
 from connectors.confluence import ConfluenceConnector
+from http_mocks import patch_http
 
 
 @pytest.fixture
@@ -89,7 +90,7 @@ async def test_confluence_connector_fetches_page_as_plaintext(db_session, test_s
             resp.json = MagicMock(return_value=page_response)
         return resp
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+    with patch_http(mock_get):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert len(docs) == 1
@@ -131,7 +132,7 @@ async def test_confluence_connector_skips_unchanged_page_since_last_sync(db_sess
             resp.json = MagicMock(return_value=page_response)
         return resp
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+    with patch_http(mock_get):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert docs == []
@@ -159,7 +160,7 @@ async def test_confluence_connector_filters_by_space(db_session, test_source):
             resp.json = MagicMock(return_value=page_response)
         return resp
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+    with patch_http(mock_get):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert len(docs) == 1
@@ -186,7 +187,7 @@ async def test_confluence_connector_attaches_line_sections(db_session, test_sour
             resp.json = MagicMock(return_value=page_response)
         return resp
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+    with patch_http(mock_get):
         docs = [doc async for doc in connector.fetch_documents()]
 
     assert len(docs) == 1
@@ -304,3 +305,111 @@ async def test_confluence_connector_process_document_cuts_at_section_boundary(
     assert "Betrieb" not in chunks[0].content
     assert chunks[1].metadata_json["section"] == "Betrieb"
     assert "Setup" not in chunks[1].content
+
+
+# --- Server/Data Center, Pfaderkennung, Wiederholungen (On-Prem) -----------------------------
+
+import httpx  # noqa: E402
+
+
+def _response(url, status=200, payload=None):
+    return httpx.Response(status, json=payload if payload is not None else {}, request=httpx.Request("GET", url))
+
+
+def _server_handler(calls, pages):
+    """Confluence Server/DC: nur /rest/api existiert, /wiki/... liefert 404."""
+
+    async def handler(url, **kwargs):
+        calls.append(url)
+        if "/wiki/" in url:
+            return _response(url, 404)
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 200, {"results": []})
+        return _response(url, 200, {"results": pages, "_links": {}})
+
+    return handler
+
+
+@pytest.mark.anyio
+async def test_server_dc_uses_rest_api_without_waiting_on_the_cloud_path(db_session, test_source, monkeypatch):
+    test_source.url = "https://wiki.intern/confluence"
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr("asyncio.sleep", fake_sleep)
+    calls = []
+    with patch_http(_server_handler(calls, [_page()])):
+        docs = [doc async for doc in connector.fetch_documents()]
+
+    assert len(docs) == 1
+    # Regression: früher 15 s Backoff je Listen- und Anhangsabruf, weil /wiki/... erst fünfmal wiederholt wurde.
+    assert sum(sleeps) < 1
+    assert not any("/wiki/" in url for url in calls)
+    assert connector._api_root == "/rest/api"
+
+
+@pytest.mark.anyio
+async def test_cloud_is_detected_by_its_wiki_prefix(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        if "/wiki/rest/api/" not in url:
+            return _response(url, 404)
+        if url.endswith("/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 200, {"results": []})
+        return _response(url, 200, {"results": [_page()], "_links": {}})
+
+    with patch_http(handler):
+        docs = [doc async for doc in connector.fetch_documents()]
+
+    assert len(docs) == 1 and connector._api_root == "/wiki/rest/api"
+
+
+@pytest.mark.anyio
+async def test_rejected_credentials_give_a_clear_error(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        return _response(url, 401)
+
+    with patch_http(handler):
+        with pytest.raises(RuntimeError, match="Anmeldung abgelehnt"):
+            [doc async for doc in connector.fetch_documents()]
+
+
+@pytest.mark.anyio
+async def test_unknown_url_reports_where_it_looked(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        return _response(url, 404)
+
+    with patch_http(handler):
+        with pytest.raises(RuntimeError, match="Kontextpfad"):
+            [doc async for doc in connector.fetch_documents()]
+
+
+@pytest.mark.anyio
+async def test_a_failing_page_request_aborts_instead_of_ending_the_crawl_silently(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        return _response(url, 403)
+
+    with patch_http(handler):
+        with pytest.raises(httpx.HTTPStatusError):
+            [doc async for doc in connector.fetch_documents()]

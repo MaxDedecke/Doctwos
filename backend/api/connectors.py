@@ -21,6 +21,7 @@ Sicherheitshinweis:
     da Copy-Paste-Fehler aus PDFs oder Slack dort häufig auftreten.
 """
 
+import os
 from urllib.parse import quote_plus
 
 import httpx
@@ -31,6 +32,9 @@ from api.schemas import ConnectorBranchesRequest, ConnectorReposRequest, Connect
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
 _USER_AGENT = "Doctus-AI-Backend"
+
+# Reihenfolge: Server/Data Center zuerst, dann Cloud (dort liegt die API unter /wiki).
+_CONFLUENCE_API_ROOTS = (("/rest/api", "Server/Data Center"), ("/wiki/rest/api", "Cloud"))
 
 # Kyrillisches 'с' (U+0441) wird oft fälschlich statt lateinischem 'c' eingefügt (Copy-Paste aus PDFs)
 _CYRILLIC_C = 0x0441
@@ -67,6 +71,34 @@ def _default_branch_first(branches: list[str], default_branch: str | None) -> li
     return [default_branch, *(branch for branch in branches if branch != default_branch)]
 
 
+def _http_verify(verify_ssl: bool = True):
+    """TLS-Prüfung für ausgehende Verbindungstests: Opt-out, Worker-weites CA-Bundle oder Standard."""
+    if not verify_ssl:
+        return False
+    bundle = os.getenv("CUSTOM_CA_BUNDLE")
+    if bundle and os.path.isfile(bundle):
+        return bundle
+    return True
+
+
+def _atlassian_auth(username: str | None, token: str):
+    """Basic Auth mit Benutzername (Cloud-API-Token, Server-Passwort), sonst Personal Access Token als Bearer."""
+    if username:
+        return (username, token), {}
+    return None, {"Authorization": f"Bearer {token}"}
+
+
+def _tls_hint(error: Exception) -> str:
+    text = str(error)
+    if "CERTIFICATE_VERIFY_FAILED" in text or "certificate verify failed" in text.lower():
+        return (
+            " Das Zertifikat des Servers wird nicht als vertrauenswürdig erkannt. Hinterlege die interne CA "
+            "(Umgebungsvariable CUSTOM_CA_BUNDLE, siehe docs/DEPLOYMENT.md) oder deaktiviere die "
+            "Zertifikatsprüfung ausdrücklich nur für Tests."
+        )
+    return ""
+
+
 def _check_ascii(value: str | None, field_name: str) -> dict | None:
     """Gibt einen Fehler-Response zurück wenn value Nicht-ASCII-Zeichen enthält, sonst None."""
     if not value:
@@ -92,7 +124,7 @@ async def test_connector(req: ConnectorTestRequest):
             return err
 
     headers = {"User-Agent": _USER_AGENT}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, verify=_http_verify(req.verify_ssl)) as client:
         try:
             if req.type == "github":
                 headers["Authorization"] = f"Bearer {req.token}"
@@ -165,49 +197,63 @@ async def test_connector(req: ConnectorTestRequest):
                         "success": False,
                         "message": "Server-URL ist für Confluence erforderlich.",
                     }
-                if not req.username:
+                base_url = req.url.rstrip("/")
+                auth, auth_headers = _atlassian_auth(req.username, req.token)
+                statuses: list[int] = []
+                for root, flavour in _CONFLUENCE_API_ROOTS:
+                    resp = await client.get(
+                        f"{base_url}{root}/space?limit=1",
+                        auth=auth,
+                        headers={**headers, **auth_headers},
+                    )
+                    if resp.status_code == 200:
+                        return {
+                            "success": True,
+                            "message": f"Verbindung zu Confluence ({flavour}) erfolgreich hergestellt!",
+                        }
+                    statuses.append(resp.status_code)
+                if any(code in (401, 403) for code in statuses):
                     return {
                         "success": False,
-                        "message": "E-Mail/Username ist für Confluence erforderlich.",
-                    }
-                base_url = req.url.rstrip("/")
-                resp = await client.get(
-                    f"{base_url}/wiki/rest/api/space?limit=1",
-                    auth=(req.username, req.token),
-                    headers=headers,
-                )
-                if resp.status_code == 200:
-                    return {
-                        "success": True,
-                        "message": "Verbindung zu Confluence erfolgreich hergestellt!",
+                        "message": (
+                            "Confluence hat die Anmeldung abgelehnt. Mit Benutzername wird Basic Auth "
+                            "verwendet, ohne Benutzername ein Personal Access Token."
+                        ),
                     }
                 return {
                     "success": False,
-                    "message": f"Confluence-Fehler ({resp.status_code}): {resp.text}",
+                    "message": (
+                        f"Keine Confluence-REST-API unter {base_url} gefunden (HTTP {', '.join(map(str, statuses))}). "
+                        "Prüfe die Server-URL einschließlich eines evtl. Kontextpfads (z. B. /confluence)."
+                    ),
                 }
 
             elif req.type == "jira":
                 if not req.url:
                     return {"success": False, "message": "Server-URL ist für Jira erforderlich."}
-                if not req.username:
-                    return {
-                        "success": False,
-                        "message": "E-Mail/Username ist für Jira erforderlich.",
-                    }
                 base_url = req.url.rstrip("/")
+                auth, auth_headers = _atlassian_auth(req.username, req.token)
                 resp = await client.get(
                     f"{base_url}/rest/api/2/project?maxResults=1",
-                    auth=(req.username, req.token),
-                    headers=headers,
+                    auth=auth,
+                    headers={**headers, **auth_headers},
                 )
                 if resp.status_code == 200:
                     return {
                         "success": True,
                         "message": "Verbindung zu Jira erfolgreich hergestellt!",
                     }
+                if resp.status_code in (401, 403):
+                    return {
+                        "success": False,
+                        "message": (
+                            "Jira hat die Anmeldung abgelehnt. Mit Benutzername wird Basic Auth "
+                            "verwendet, ohne Benutzername ein Personal Access Token."
+                        ),
+                    }
                 return {
                     "success": False,
-                    "message": f"Jira-Fehler ({resp.status_code}): {resp.text}",
+                    "message": f"Jira-Fehler ({resp.status_code}): {resp.text[:300]}",
                 }
 
             else:
@@ -215,7 +261,7 @@ async def test_connector(req: ConnectorTestRequest):
         except HTTPException:
             raise
         except Exception as e:
-            return {"success": False, "message": f"Netzwerkfehler: {str(e)}"}
+            return {"success": False, "message": f"Netzwerkfehler: {str(e)}{_tls_hint(e)}"}
 
 
 @router.post("/repos")

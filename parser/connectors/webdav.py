@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 import httpx
 from sqlalchemy import or_
 
+from connectors.tls import resolve_verify
 from connectors.base import BaseConnector, Document
 from connectors.extract import extract_cloud_file
 from db import SessionLocal
@@ -41,16 +42,8 @@ _DOWNLOAD_CHUNK = 1024 * 1024  # 1 MiB Chunks auf Platte statt Gesamtdatei in RA
 
 
 def _resolve_verify(spaces_config: dict):
-    """TLS-Verifikation für httpx aus der Quell-Konfiguration ableiten.
-
-    Standard ist verify=True (Sicherheit per Default). Für self-hosted Server (Nextcloud/
-    ownCloud/SharePoint) mit interner CA kann ``spaces.ca_bundle`` auf ein CA-Bundle zeigen;
-    nur als ausdrücklicher Opt-out schaltet ``spaces.verify_ssl = false`` die Prüfung ab.
-    """
-    ca_bundle = spaces_config.get("ca_bundle")
-    if ca_bundle:
-        return ca_bundle
-    return bool(spaces_config.get("verify_ssl", True))
+    """TLS-Prüfung aus der Quell-Konfiguration; Regeln und Reihenfolge in connectors/tls.py."""
+    return resolve_verify(spaces_config)
 
 
 def _get_webdav_hash(item: dict) -> str:
