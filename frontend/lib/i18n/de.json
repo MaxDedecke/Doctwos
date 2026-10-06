@@ -85,7 +85,7 @@
       "graph": "Graph"
     },
     "workspace": {
-      "addView": "Ansicht zeigen",
+      "addView": "Ansicht",
       "addViewMenuTitle": "Ansicht auswählen",
       "maxViewsReached": "Maximal 4 Ansichten",
       "closeView": "Ansicht schließen",
@@ -100,12 +100,12 @@
       "updateSessionTitle": "Sitzung mit aktuellem Stand aktualisieren"
     },
     "viewTypes": {
-      "chat": "💬 Chat-Ansicht",
+      "chat": "💬 Chat",
       "code": "💻 Code-Viewer",
-      "doc": "📖 Dokumentation",
-      "graph": "🕸️ Wissensnetz (Graph)",
-      "callgraph": "🔀 Process View",
-      "webview": "🌐 Web-Vorschau",
+      "doc": "📖 Doku Viewer",
+      "graph": "🕸️ Wissensgraph",
+      "callgraph": "🔀 Prozess Viewer",
+      "webview": "🌐 Web Viewer",
       "linkmanager": "🔗 Link Manager",
       "insights": "💡 Erkenntnisse"
     },
@@ -924,12 +924,12 @@
     "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit.",
     "askDirectlyTitle": "Frage direkt stellen",
     "userAvatarAlt": "Beispielavatar für eigene Nachricht",
-    "callGraphPrompt": "Darf ich die Process View öffnen, um dir diesen Ablauf zu zeigen?",
+    "callGraphPrompt": "Darf ich den Prozess Viewer öffnen, um dir diesen Ablauf zu zeigen?",
     "callGraphOpenButton": "Ja, öffnen",
     "callGraphInvestigateButton": "Ablauf untersuchen",
     "callGraphDismissButton": "Nein",
-    "callGraphOpened": "In der Process View geöffnet",
-    "callGraphReopen": "Ablauf in Process View öffnen",
+    "callGraphOpened": "Im Prozess Viewer geöffnet",
+    "callGraphReopen": "Ablauf in Prozess Viewer öffnen",
     "callGraphNoSpace": "Kein Platz mehr im Workspace für ein weiteres Panel (maximal 4). Bitte schließe zuerst ein Panel.",
     "changeImpactTitle": "Auswirkungsanalyse",
     "changeImpactNodeCount": "{{count}} Knoten",
@@ -1050,7 +1050,7 @@
     "noDirectLinksInGraph": "Keine direkten Verknüpfungen für dieses Element im Graph vorhanden.",
     "unresolvedLabel": "Nicht aufgelöst",
     "externalLabel": "Extern ({{category}})",
-    "webPreviewFallbackTitle": "Web-Vorschau",
+    "webPreviewFallbackTitle": "Web Viewer",
     "localSourceBadge": "Lokal",
     "openReferenceAtLine": "Referenz in {{file}} öffnen (Zeile {{line}})",
     "neighborGroupLabels": {
@@ -1535,7 +1535,7 @@
     }
   },
   "callGraphView": {
-    "processTitle": "Process View",
+    "processTitle": "Prozess Viewer",
     "focusFirst": "Bitte zuerst ein Code-Objekt fokussieren.",
     "inheritanceLabel": "Vererbung",
     "hopUnit": "Hop",
@@ -1547,7 +1547,7 @@
     "resetLayoutTitle": "Zonen-Layout zurücksetzen",
     "truncatedNotice": "Auf 500 Knoten begrenzt",
     "noConnections": "Keine Prozessübergänge für diesen Fokus.",
-    "loadError": "Process View konnte nicht geladen werden",
+    "loadError": "Prozess Viewer konnte nicht geladen werden",
     "exportError": "Export fehlgeschlagen (HTTP {{status}})",
     "flowTitle": "Ablauf",
     "impactTitle": "Betroffenengraph",
@@ -1557,7 +1557,7 @@
     "switchToFocusView": "Fokusansicht laden",
     "investigateFromHere": "Ab hier untersuchen",
     "investigateFromHereTitle": "Diesen Schritt als neue Prozesswurzel untersuchen",
-    "flowLoadedToast": "Ablauf für {{name}} in der Process View geöffnet",
+    "flowLoadedToast": "Ablauf für {{name}} im Prozess Viewer geöffnet",
     "flowAnimation": {
       "label": "Fluss",
       "play": "Fluss-Animation starten: zeigt die Wege über die Knoten nacheinander in Dauerschleife",

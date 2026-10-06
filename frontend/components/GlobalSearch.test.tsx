@@ -214,14 +214,14 @@ describe('GlobalSearch privileged views', () => {
   it('hides the Link-Manager from non-admin users even when the feature is enabled', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ currentUser: { is_admin: false } });
-    fireEvent.click(screen.getByTitle('Ansicht zeigen'));
+    fireEvent.click(screen.getByTitle('Ansicht'));
     expect(screen.queryByText('🔗 Link Manager')).toBeNull();
   });
 
   it('shows the Link-Manager only to admins', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ currentUser: { is_admin: true } });
-    fireEvent.click(screen.getByTitle('Ansicht zeigen'));
+    fireEvent.click(screen.getByTitle('Ansicht'));
     expect(screen.getByText('🔗 Link Manager')).toBeTruthy();
   });
 });
@@ -234,11 +234,11 @@ describe('GlobalSearch add-view menu', () => {
   it('offers the same view types as the type selector inside a view, including Erkenntnisse', () => {
     vi.spyOn(api, 'getJobs').mockResolvedValue(axiosResponse({ jobs: [], active_count: 0 }));
     renderGlobalSearch({ currentUser: { is_admin: true }, panelConfigs: ['code'] });
-    fireEvent.click(screen.getByTitle('Ansicht zeigen'));
+    fireEvent.click(screen.getByTitle('Ansicht'));
 
     for (const label of [
-      '💬 Chat-Ansicht', '💻 Code-Viewer', '📖 Dokumentation', '🕸️ Wissensnetz (Graph)',
-      '🔀 Process View', '🌐 Web-Vorschau', '🔗 Link Manager', '💡 Erkenntnisse',
+      '💬 Chat', '💻 Code-Viewer', '📖 Doku Viewer', '🕸️ Wissensgraph',
+      '🔀 Prozess Viewer', '🌐 Web Viewer', '🔗 Link Manager', '💡 Erkenntnisse',
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
@@ -249,7 +249,7 @@ describe('GlobalSearch add-view menu', () => {
     const onAddPanel = vi.fn();
     renderGlobalSearch({ currentUser: { is_admin: false }, panelConfigs: ['chat'], onAddPanel });
 
-    fireEvent.click(screen.getByTitle('Ansicht zeigen'));
+    fireEvent.click(screen.getByTitle('Ansicht'));
     expect(screen.queryByText('🔎 Agentensuche')).toBeNull();
     fireEvent.click(screen.getByText('💡 Erkenntnisse'));
     expect(onAddPanel).toHaveBeenLastCalledWith('insights');

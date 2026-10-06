@@ -1,7 +1,7 @@
 /**
  * Regressionstest: der Chat-Panel-Einklapp-Mechanismus ("Chat einklappen"/
  * "Chat ausklappen") ist ein Relikt aus der Zeit vor der vollständigen
- * Panel-Schließen-/Wiedereröffnen-Funktion (Header-Bar "Ansicht zeigen")
+ * Panel-Schließen-/Wiedereröffnen-Funktion (Header-Bar "Ansicht")
  * und wurde entfernt. Dieser Test stellt sicher, dass er nicht wieder
  * auftaucht -- kein Einklapp-Button, keine Platzhalter-Darstellung.
  */

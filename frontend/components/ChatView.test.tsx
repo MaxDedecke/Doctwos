@@ -511,7 +511,7 @@ describe('ChatView', () => {
       renderChat({ chatMessages: [TRACE_MESSAGE] });
 
       expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
-      expect(screen.getByText(/Darf ich die Process View öffnen/)).toBeTruthy();
+      expect(screen.getByText(/Darf ich den Prozess Viewer öffnen/)).toBeTruthy();
       expect(screen.getByText('Ablauf untersuchen')).toBeTruthy();
       expect(screen.getByText('Nein')).toBeTruthy();
     });
