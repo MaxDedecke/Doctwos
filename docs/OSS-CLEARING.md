@@ -77,7 +77,9 @@ installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 **Office-Formate (06.10.2026):** `openpyxl==3.1.5` (MIT) mit `et_xmlfile` (MIT) für Excel und `python-pptx==1.0.2`
 (MIT) mit `lxml` (BSD-3-Clause) und `XlsxWriter` (BSD) für PowerPoint; Versionen und Lizenzen mit `pip-licenses`
 im Parser-Image geprüft, alle auf der Allowlist. Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
-Upload, Confluence-Anhänge).
+Upload, Confluence-Anhänge). `olefile==0.47` (BSD-2-Clause) liest den OLE-Container des binären Word-Formats
+(`parser/connectors/msdoc.py`); den RTF-Leser (`rtf.py`) hat Doctus selbst geschrieben, er hat keine Abhängigkeit. Bewusst
+kein antiword/catdoc (GPL) und kein LibreOffice (Größe, MPL/LGPL-Mischlizenz) als Konverter.
 
 ### Python-Entwicklungswerkzeuge (O-064, 06.09.2026)
 

@@ -16,7 +16,7 @@ Ignored automatically: hidden files and folders (`.git`, `.foo`), Office lock fi
 
 The resulting chunks land in pgvector and are immediately available for RAG queries in the chat.
 
-**Supported formats:** `.pdf` (text-layer, with OCR fallback for scans — see [Limitations](#limitations)), `.docx`, `.xlsx`, `.pptx`, `.odt`/`.ods`/`.odp`, `.html`/`.htm`, `.csv`, `.txt`, `.md`. Text files are decoded as UTF-8, UTF-16 (with BOM), Windows-1252 or Latin-1, so umlauts from Windows exports survive. A `.doc` is read only if it is really a renamed `.docx`; real Word 97–2003 files are reported as unsupported (save them as `.docx`).
+**Supported formats:** `.pdf` (text-layer, with OCR fallback for scans — see [Limitations](#limitations)), `.docx`, `.xlsx`, `.pptx`, `.odt`/`.ods`/`.odp`, `.html`/`.htm`, `.csv`, `.txt`, `.md`. Text files are decoded as UTF-8, UTF-16 (with BOM), Windows-1252 or Latin-1, so umlauts from Windows exports survive. Real Word 97–2003 files (`.doc`) and `.rtf` are read without external converters (`olefile` plus an own parser); a `.doc` that is really a renamed `.docx` or RTF works too. Not readable (the log says so and asks for `.docx`): Word 6/95, password-protected and damaged files.
 
 A manual re-scan can be triggered at any time via the sync button in the UI (Settings → Knowledge Sources).
 
@@ -121,7 +121,7 @@ Use this when the customer doesn't need per-folder access control or separate sy
 
 **CAD and BIM files:** `.dwg`, `.ifc`, `.rvt`, `.dxf` are binary formats and are **not** read by Folder Watch. There are no dedicated IFC/DWG connectors in the code base today (an earlier version of this document claimed otherwise). If the relevant knowledge lives in accompanying PDFs, Word or Excel files, those are indexed normally.
 
-**Legacy Word format:** real `.doc` (Word 97–2003) cannot be read without an external converter; the sync log names the file and asks for `.docx`.
+**Legacy Word format:** `.doc` text is extracted from the main text and footnotes (tables as `a | b`, field codes reduced to their result). Text boxes, headers/footers and comments are not included. Tested with files written by LibreOffice, not yet with a corpus of files saved by Word itself.
 
 **No real-time watching:** The scanner runs on a fixed hourly schedule (top of the hour, via Celery Beat). A file added at 00:01 will be indexed by 01:00 at the latest. If the customer needs faster updates, the manual sync button in the UI triggers an immediate re-scan of that specific source.
 
@@ -139,7 +139,7 @@ The path entered in the UI is not accessible inside the container. Check that:
 
 **Files present in the folder but not appearing in search results**
 Open the knowledge source card → sync log. Common causes:
-- File extension not in the supported list, or the file is a real `.doc` (see Limitations), or it matches an ignore rule above.
+- File extension not in the supported list, or the file is a Word 6/95 / encrypted `.doc` (see Limitations), or it matches an ignore rule above.
 - PDF has no text layer (see Limitations above).
 - File is currently open/locked by another process and couldn't be read.
 - The embedding model (`bge-m3`) hasn't been pulled yet — the log will show an Ollama pull in progress.

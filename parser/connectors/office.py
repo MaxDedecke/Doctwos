@@ -16,7 +16,7 @@ from xml.etree import ElementTree as ET
 # Obergrenze gelesener Zellen je Arbeitsmappe: sehr große Exporte würden sonst Speicher und Embedding-Zeit sprengen.
 XLSX_MAX_CELLS = 500_000
 
-OFFICE_EXTENSIONS = {".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv"}
+OFFICE_EXTENSIONS = {".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv", ".rtf"}
 
 
 class UnsupportedFormat(ValueError):
@@ -120,9 +120,15 @@ def extract_odf_text(file_path: str) -> str:
 
 
 def extract_legacy_doc(file_path: str, extract_docx) -> str:
-    """``.doc`` ist oft ein umbenanntes .docx (ZIP); das echte Word-97-Format lässt sich nicht lesen."""
+    """``.doc`` kann vieles sein: umbenanntes .docx (ZIP), umbenanntes RTF oder echtes Word 97–2003 (OLE)."""
     if zipfile.is_zipfile(file_path):
         return extract_docx(file_path)
-    raise UnsupportedFormat(
-        "Binäres Word-Format (.doc, Word 97–2003) wird nicht unterstützt. Bitte in Word als .docx speichern."
-    )
+    with open(file_path, "rb") as handle:
+        head = handle.read(8)
+    if head.lstrip().startswith(b"{\\rtf"):
+        from connectors.rtf import extract_rtf_text
+
+        return extract_rtf_text(file_path)
+    from connectors.msdoc import extract_doc_text
+
+    return extract_doc_text(file_path)

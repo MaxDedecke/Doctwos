@@ -897,7 +897,7 @@ def create_git_source(
 UPLOAD_MAX_BYTES = int(os.getenv("UPLOAD_MAX_MB", "100")) * 1024 * 1024
 
 _ALLOWED_UPLOAD_EXTENSIONS = {
-    ".pdf", ".md", ".txt", ".docx", ".doc", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv",
+    ".pdf", ".md", ".txt", ".docx", ".doc", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv", ".rtf",
 }
 
 

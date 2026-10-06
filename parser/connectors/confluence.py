@@ -38,12 +38,14 @@ ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 _SUPPORTED_MIME_PREFIXES = ("text/",)
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+_RTF_MIMES = {"application/rtf", "text/rtf"}
 _SUPPORTED_MIME_EXACT = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
     _XLSX_MIME,
     _PPTX_MIME,
+    *_RTF_MIMES,
 }
 
 
@@ -227,14 +229,16 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
         except Exception:
             return None
 
-    if mime in (_XLSX_MIME, _PPTX_MIME):
+    suffix = {_XLSX_MIME: ".xlsx", _PPTX_MIME: ".pptx", "application/msword": ".doc"}.get(mime)
+    if suffix is None and mime in _RTF_MIMES:
+        suffix = ".rtf"
+    if suffix:
         # Die Bibliotheken lesen Dateien; deshalb über eine Temp-Datei mit passender Endung.
         import os
         import tempfile
 
         from connectors.folder import _extract_text
 
-        suffix = ".xlsx" if mime == _XLSX_MIME else ".pptx"
         try:
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
                 handle.write(data)
@@ -251,11 +255,7 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
 
         return html_to_text(data.decode("utf-8", errors="replace")) or None
 
-    if mime in (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/msword",
-    ):
-        # "application/msword" ist meist echtes Word 97 (nicht lesbar); python-docx liest nur ZIP-basierte Dateien.
+    if mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         try:
             from docx import Document as DocxDoc
 

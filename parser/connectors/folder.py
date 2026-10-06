@@ -126,6 +126,10 @@ def _extract_text(file_path: str) -> str:
         return extract_xlsx_text(file_path)
     if ext == ".pptx":
         return extract_pptx_text(file_path)
+    if ext == ".rtf":
+        from connectors.rtf import extract_rtf_text
+
+        return extract_rtf_text(file_path)
     if ext in (".odt", ".ods", ".odp"):
         return extract_odf_text(file_path)
     if ext in (".html", ".htm"):
