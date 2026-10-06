@@ -430,6 +430,7 @@ export function ChatView({
                           {m.metadata?.chat_mode === 'evidence' && m.content && (!isLoading || i !== chatMessages.length - 1) && (
                             <ProvenanceDisclosure
                               theme={theme}
+                              variant="dialog"
                               className="mt-2"
                               provenance={{
                                 kind: 'model_inference',
@@ -949,6 +950,7 @@ export function ChatView({
                                     {m.metadata?.chat_mode === 'evidence' && (
                                       <ProvenanceDisclosure
                                         theme={theme}
+                                        variant="dialog"
                                         provenance={src.provenance ?? {
                                           kind: 'unknown',
                                           verification_status: 'unavailable',

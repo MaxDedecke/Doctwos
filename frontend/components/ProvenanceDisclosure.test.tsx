@@ -42,4 +42,25 @@ describe('ProvenanceDisclosure', () => {
     fireEvent.click(screen.getAllByText(/Automatisch analysierter Codefakt/)[0]);
     expect(screen.getAllByText('Nicht verfügbar oder nicht erfasst').length).toBeGreaterThanOrEqual(2);
   });
+
+  it('dialog variant shows only the info icon and opens the details in a dialog', () => {
+    render(
+      <LanguageProvider>
+        <ProvenanceDisclosure
+          theme="dark"
+          variant="dialog"
+          provenance={{ kind: 'document_claim', verification_status: 'unverified', source_name: 'Payment manual', source_type: 'Confluence' }}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.queryByText('Payment manual · Confluence')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Dokumentaussage/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('Payment manual · Confluence')).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

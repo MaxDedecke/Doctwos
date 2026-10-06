@@ -1,8 +1,9 @@
 'use client';
 
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { ChevronDown, Info } from 'lucide-react';
+import { ChevronDown, Info, X } from 'lucide-react';
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 type RecordValue = Record<string, unknown>;
 
@@ -40,11 +41,23 @@ interface Props {
   provenance?: unknown;
   theme: string;
   className?: string;
+  /**
+   * `dropdown`: Kurzzeile mit Aufklappbereich (Standard). `dialog`: nur das Info-Symbol, die Details
+   * öffnen in einem Dialog – spart in Chat-Antworten Platz und gibt den Details mehr Raum.
+   */
+  variant?: 'dropdown' | 'dialog';
 }
 
 /** Compact, shared disclosure for source, revision, review state, and locator. */
-export function ProvenanceDisclosure({ provenance, theme, className = '' }: Props) {
+export function ProvenanceDisclosure({ provenance, theme, className = '', variant = 'dropdown' }: Props) {
   const { t, language } = useLanguage();
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!dialogOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setDialogOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [dialogOpen]);
   const data = record(provenance);
   if (!Object.keys(data).length) return null;
 
@@ -82,16 +95,10 @@ export function ProvenanceDisclosure({ provenance, theme, className = '' }: Prop
   };
   const dateValue = (value: string | null) => value ? formatDate(value, language === 'de' ? 'de-DE' : 'en-US') : t('provenance.notAvailable');
 
-  return (
-    <details className={`group min-w-0 max-w-full ${className}`}>
-      <summary className={`inline-flex max-w-full cursor-pointer list-none items-center gap-1 rounded px-1.5 py-1 text-[0.625rem] ${summaryText} [&::-webkit-details-marker]:hidden`}>
-        <Info className="h-3 w-3 shrink-0" />
-        <span className="truncate">{valueFor('kind')}</span>
-        <span className="truncate">· {valueFor('status')}</span>
-        <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-180" />
-      </summary>
-      <div className={`mt-1 w-[min(22rem,calc(100vw-2rem))] max-w-full rounded-md border p-2.5 shadow-xl ${panel}`}>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[0.625rem]">
+  const textSize = variant === 'dialog' ? 'text-xs' : 'text-[0.625rem]';
+  const details = (
+    <>
+        <dl className={`grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 ${textSize}`}>
           <dt className={subtle}>{t('provenance.kindLabel')}</dt><dd>{valueFor('kind')}</dd>
           <dt className={subtle}>{t('provenance.statusLabel')}</dt><dd>{valueFor('status')}</dd>
           <dt className={subtle}>{t('provenance.sourceLabel')}</dt><dd>{[sourceName, sourceType].filter(Boolean).join(' · ') || t('provenance.notAvailable')}</dd>
@@ -108,8 +115,69 @@ export function ProvenanceDisclosure({ provenance, theme, className = '' }: Prop
           {analysisStatus && <><dt className={subtle}>{t('provenance.analysisStatusLabel')}</dt><dd>{analysisStatus}</dd></>}
           <dt className={subtle}>{t('provenance.locatorLabel')}</dt><dd className="min-w-0 break-words">{locator ?? t('provenance.notAvailable')}</dd>
         </dl>
-        {analysisReasons.length > 0 && <ul className={`mt-2 list-disc space-y-0.5 pl-4 text-[0.625rem] ${subtle}`}>{analysisReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
-        {detail && <p className={`mt-2 border-t pt-2 text-[0.625rem] ${subtle} ${isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200'}`}>{detail}</p>}
+        {analysisReasons.length > 0 && <ul className={`mt-3 list-disc space-y-0.5 pl-4 ${textSize} ${subtle}`}>{analysisReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
+        {detail && <p className={`mt-3 border-t pt-3 ${textSize} ${subtle} ${isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200'}`}>{detail}</p>}
+    </>
+  );
+
+  if (variant === 'dialog') {
+    const label = `${valueFor('kind')} · ${valueFor('status')}`;
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setDialogOpen(true)}
+          title={label}
+          aria-label={label}
+          aria-haspopup="dialog"
+          className={`inline-flex shrink-0 items-center justify-center rounded p-1 transition-colors ${className} ${summaryText}`}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+        {dialogOpen && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-ds-black/70 p-4 backdrop-blur-sm"
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setDialogOpen(false); }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={label}
+              className={`max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border p-5 shadow-2xl ${panel}`}
+            >
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className={`text-sm font-semibold ${isDark ? 'text-ds-zinc-100' : 'text-ds-zinc-900'}`}>{valueFor('kind')}</div>
+                  <div className={`text-xs ${subtle}`}>{valueFor('status')}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDialogOpen(false)}
+                  aria-label={t('common.close')}
+                  className={`shrink-0 rounded p-1 transition-colors ${summaryText}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {details}
+            </div>
+          </div>,
+          document.body,
+        )}
+      </>
+    );
+  }
+
+  return (
+    <details className={`group min-w-0 max-w-full ${className}`}>
+      <summary className={`inline-flex max-w-full cursor-pointer list-none items-center gap-1 rounded px-1.5 py-1 text-[0.625rem] ${summaryText} [&::-webkit-details-marker]:hidden`}>
+        <Info className="h-3 w-3 shrink-0" />
+        <span className="truncate">{valueFor('kind')}</span>
+        <span className="truncate">· {valueFor('status')}</span>
+        <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className={`mt-1 w-[min(22rem,calc(100vw-2rem))] max-w-full rounded-md border p-2.5 shadow-xl ${panel}`}>
+        {details}
       </div>
     </details>
   );
