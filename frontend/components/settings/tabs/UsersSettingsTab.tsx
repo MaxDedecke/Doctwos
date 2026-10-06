@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
-import { Copy, KeyRound, Loader2, Lock, Plus, ShieldCheck, Unlock, UserCheck, UserX } from 'lucide-react';
+import { InitialsAvatar } from '@/components/settings/InitialsAvatar';
+import { badgeClass, cardClass, emptyStateClass, inputClass as fieldClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass } from '@/components/settings/settingsStyles';
+import { Copy, KeyRound, Loader2, Lock, Plus, Unlock, UserCheck, UserX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 // Nutzerverwaltung (F-004), Admin-only — Gegenstück zu backend/api/users.py.
@@ -42,6 +44,7 @@ export const UsersSettingsTab: React.FC = () => {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [busyUserId, setBusyUserId] = useState<number | null>(null);
   const [newUsername, setNewUsername] = useState("");
   const [newName, setNewName] = useState("");
@@ -81,6 +84,7 @@ export const UsersSettingsTab: React.FC = () => {
       setNewUsername("");
       setNewName("");
       setNewRole('user');
+      setShowForm(false);
       showToast(t('settings.toast.userCreated'), "success");
       await refresh();
     } catch (err) {
@@ -89,6 +93,13 @@ export const UsersSettingsTab: React.FC = () => {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setNewUsername("");
+    setNewName("");
+    setNewRole('user');
   };
 
   const handleResetPassword = async (user: ManagedUser) => {
@@ -157,84 +168,94 @@ export const UsersSettingsTab: React.FC = () => {
     showToast(t(ok ? 'settings.toast.passwordCopied' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
   };
 
-  const inputClass = cn(
-    "w-full h-9 rounded-lg text-xs font-semibold px-3 border transition-colors outline-none",
-    theme === 'dark'
-      ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-zinc-700"
-      : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 focus:border-ds-zinc-300"
-  );
+  const dark = theme === 'dark';
+  const labelClass = sectionTitleClass(theme);
 
   return (
-    <div className="space-y-6 w-full min-w-0 animate-in fade-in duration-200">
-      <form onSubmit={handleCreate} className="space-y-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
-              {t('settings.users.usernameLabel')}
-            </label>
-            <input
-              type="text"
-              required
-              autoComplete="off"
-              placeholder={t('settings.users.usernamePlaceholder')}
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
-              {t('settings.users.nameLabel')}
-            </label>
-            <input
-              type="text"
-              autoComplete="off"
-              placeholder={t('settings.users.namePlaceholder')}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1.5 w-full sm:w-40 shrink-0">
-            <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
-              {t('settings.users.roleLabel')}
-            </label>
-            <Select value={newRole} onValueChange={(v) => setNewRole(v as 'superuser' | 'user')}>
-              <SelectTrigger className="h-9 text-xs font-semibold">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">{t('settings.users.roleUser')}</SelectItem>
-                <SelectItem value="superuser">{t('settings.users.roleSuperuser')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            type="submit"
-            disabled={isCreating || !newUsername.trim()}
-            className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-9 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
-          >
-            {isCreating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            <span>{t('settings.users.createButton')}</span>
-          </Button>
+    <div className="space-y-5 w-full min-w-0 animate-in fade-in duration-200">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h4 className={labelClass}>{t('settings.users.title')}</h4>
+          {users.length > 0 && <span className={badgeClass('neutral')}>{users.length}</span>}
         </div>
-        <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
-          {t('settings.users.createHint')}
-        </p>
-      </form>
+        {showForm ? (
+          <Button type="button" variant="outline" onClick={closeForm} className={secondaryButtonClass(theme)}>
+            <X className="w-3.5 h-3.5" />
+            <span>{t('common.cancel')}</span>
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => setShowForm(true)} className={primaryButtonClass}>
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t('settings.users.addButton')}</span>
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <form
+          onSubmit={handleCreate}
+          className={cn(cardClass(theme), 'p-4 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none')}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_10rem] gap-3">
+            <div className="space-y-1.5 min-w-0">
+              <label className={labelClass}>{t('settings.users.usernameLabel')}</label>
+              <input
+                type="text"
+                required
+                autoFocus
+                autoComplete="off"
+                placeholder={t('settings.users.usernamePlaceholder')}
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className={fieldClass(theme)}
+              />
+            </div>
+            <div className="space-y-1.5 min-w-0">
+              <label className={labelClass}>{t('settings.users.nameLabel')}</label>
+              <input
+                type="text"
+                autoComplete="off"
+                placeholder={t('settings.users.namePlaceholder')}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className={fieldClass(theme)}
+              />
+            </div>
+            <div className="space-y-1.5 min-w-0">
+              <label className={labelClass}>{t('settings.users.roleLabel')}</label>
+              <Select value={newRole} onValueChange={(v) => setNewRole(v as 'superuser' | 'user')}>
+                <SelectTrigger className="h-9 text-xs font-semibold">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">{t('settings.users.roleUser')}</SelectItem>
+                  <SelectItem value="superuser">{t('settings.users.roleSuperuser')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-[0.6875rem] leading-relaxed text-ds-zinc-500">{t('settings.users.createHint')}</p>
+            <Button type="submit" disabled={isCreating || !newUsername.trim()} className={primaryButtonClass}>
+              {isCreating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>{t('settings.users.createButton')}</span>
+            </Button>
+          </div>
+        </form>
+      )}
 
       {issuedPassword && (
         <div className={cn(
-          "rounded-lg border p-3.5 space-y-2",
-          theme === 'dark' ? "bg-ds-amber-500/5 border-ds-amber-500/30" : "bg-ds-amber-50 border-ds-amber-200"
+          "rounded-lg border p-3.5 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none",
+          dark ? "bg-ds-amber-500/5 border-ds-amber-500/30" : "bg-ds-amber-50 border-ds-amber-200"
         )}>
-          <div className={cn("text-xs font-bold", theme === 'dark' ? "text-ds-amber-400" : "text-ds-amber-700")}>
+          <div className={cn("text-xs font-bold", dark ? "text-ds-amber-400" : "text-ds-amber-700")}>
             {t('settings.users.passwordTitle', { name: issuedPassword.username })}
           </div>
           <div className="flex items-center gap-2">
             <code className={cn(
               "flex-1 min-w-0 px-2.5 py-1.5 rounded-lg text-xs font-mono break-all",
-              theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-white text-ds-zinc-800 border border-ds-zinc-200"
+              dark ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-white text-ds-zinc-800 border border-ds-zinc-200"
             )}>
               {issuedPassword.password}
             </code>
@@ -243,7 +264,7 @@ export const UsersSettingsTab: React.FC = () => {
             </Button>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-[0.6875rem]", theme === 'dark' ? "text-ds-amber-400/80" : "text-ds-amber-700/90")}>
+            <p className={cn("text-[0.6875rem]", dark ? "text-ds-amber-400/80" : "text-ds-amber-700/90")}>
               {t('settings.users.passwordHint')}
             </p>
             <Button type="button" variant="ghost" size="sm" onClick={() => setIssuedPassword(null)} className="h-7 text-[0.6875rem] font-bold shrink-0">
@@ -258,6 +279,8 @@ export const UsersSettingsTab: React.FC = () => {
           <div className="flex items-center justify-center py-6">
             <Loader2 className="w-4 h-4 animate-spin text-ds-zinc-500" />
           </div>
+        ) : users.length === 0 ? (
+          <div className={emptyStateClass(theme)}>{t('settings.users.empty')}</div>
         ) : (
           users.map((user) => {
             const isSelf = currentUser?.id === user.id;
@@ -266,43 +289,40 @@ export const UsersSettingsTab: React.FC = () => {
               <div
                 key={user.id}
                 className={cn(
-                  "rounded-lg border p-3.5 flex flex-col sm:flex-row sm:items-center gap-3 w-full min-w-0 transition-all",
-                  theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/80" : "bg-ds-zinc-50 border-ds-zinc-200",
+                  cardClass(theme),
+                  "p-3.5 flex flex-col sm:flex-row sm:items-center gap-3 w-full min-w-0",
+                  dark ? "hover:border-ds-zinc-700" : "hover:border-ds-zinc-300",
                   !user.is_active && "opacity-60"
                 )}
               >
-                <div className="flex-1 min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
-                      {user.username}
-                    </span>
-                    {user.role === 'superuser' && (
-                      <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" aria-label={t('settings.users.roleSuperuser')} />
-                    )}
-                    {user.auth_provider === 'oidc' && (
-                      <span className="px-1.5 py-0.5 rounded text-[0.5625rem] font-bold uppercase tracking-wider bg-ds-sky-500/10 text-ds-sky-600 dark:text-ds-sky-400 border border-ds-sky-500/20 shrink-0">
-                        SSO
+                <div className="flex flex-1 items-center gap-3 min-w-0">
+                  <InitialsAvatar label={user.name || user.username} />
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                      <span className={cn("font-semibold text-xs truncate", dark ? "text-ds-zinc-100" : "text-ds-zinc-800")}>
+                        {user.username}
                       </span>
-                    )}
-                    {user.is_locked && (
-                      <span className="flex items-center gap-1 text-[0.625rem] font-bold text-ds-red-500 shrink-0">
-                        <Lock className="w-3 h-3" />
-                        {t('settings.users.statusLocked')}
-                      </span>
-                    )}
-                    {!user.is_active && (
-                      <span className="text-[0.625rem] font-bold text-ds-zinc-500 shrink-0">{t('settings.users.statusInactive')}</span>
-                    )}
-                  </div>
-                  <div className={cn("text-[0.6875rem] truncate", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
-                    {user.name || user.email || '—'}
-                    {user.last_login_at
-                      ? ` · ${t('settings.users.lastLogin', { date: new Date(user.last_login_at).toLocaleString() })}`
-                      : ` · ${t('settings.users.neverLoggedIn')}`}
+                      {isSelf && <span className={badgeClass('neutral')}>{t('settings.users.you')}</span>}
+                      {user.role === 'superuser' && <span className={badgeClass('accent')}>{t('settings.users.roleSuperuser')}</span>}
+                      {user.auth_provider === 'oidc' && <span className={badgeClass('neutral')}>SSO</span>}
+                      {user.is_locked && (
+                        <span className={cn(badgeClass('warning'), 'inline-flex items-center gap-1')}>
+                          <Lock className="w-2.5 h-2.5" />
+                          {t('settings.users.statusLocked')}
+                        </span>
+                      )}
+                      {!user.is_active && <span className={badgeClass('neutral')}>{t('settings.users.statusInactive')}</span>}
+                    </div>
+                    <div className="text-[0.6875rem] truncate text-ds-zinc-500">
+                      {user.name || user.email || '—'}
+                      {user.last_login_at
+                        ? ` · ${t('settings.users.lastLogin', { date: new Date(user.last_login_at).toLocaleString() })}`
+                        : ` · ${t('settings.users.neverLoggedIn')}`}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 sm:pl-3 sm:border-l sm:border-ds-zinc-500/15">
                   <Select
                     value={user.role}
                     onValueChange={(v) => handleRoleChange(user, v as 'superuser' | 'user')}

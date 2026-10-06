@@ -58,6 +58,7 @@ describe('UsersSettingsTab', () => {
   describe('Anlegen', () => {
     it('disables the submit button until a username is entered', () => {
       render(<UsersSettingsTab />);
+      fireEvent.click(screen.getByText('settings.users.addButton'));
       expect(screen.getByText('settings.users.createButton').closest('button')!.hasAttribute('disabled')).toBe(true);
       fireEvent.change(screen.getByPlaceholderText('settings.users.usernamePlaceholder'), { target: { value: 'kim' } });
       expect(screen.getByText('settings.users.createButton').closest('button')!.hasAttribute('disabled')).toBe(false);
@@ -69,6 +70,7 @@ describe('UsersSettingsTab', () => {
       render(<UsersSettingsTab />);
       await waitFor(() => expect(apiMocks.getUsers).toHaveBeenCalledOnce());
 
+      fireEvent.click(screen.getByText('settings.users.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.users.usernamePlaceholder'), { target: { value: 'kim' } });
       fireEvent.change(screen.getByPlaceholderText('settings.users.namePlaceholder'), { target: { value: 'Kim' } });
       fireEvent.click(screen.getByText('settings.users.createButton'));
@@ -76,13 +78,14 @@ describe('UsersSettingsTab', () => {
       await waitFor(() => expect(apiMocks.createUser).toHaveBeenCalledWith({ username: 'kim', name: 'Kim', role: 'user' }));
       expect(screen.getByText('S3cret!23')).toBeTruthy();
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.userCreated', 'success');
-      expect((screen.getByPlaceholderText('settings.users.usernamePlaceholder') as HTMLInputElement).value).toBe('');
+      expect(screen.queryByPlaceholderText('settings.users.usernamePlaceholder')).toBeNull(); // Formular schließt sich nach dem Anlegen
       await waitFor(() => expect(apiMocks.getUsers).toHaveBeenCalledTimes(2));
     });
 
     it('shows the server error detail on a failed creation, without an issued password', async () => {
       apiMocks.createUser.mockRejectedValue(axiosError('Nutzername bereits vergeben'));
       render(<UsersSettingsTab />);
+      fireEvent.click(screen.getByText('settings.users.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.users.usernamePlaceholder'), { target: { value: 'kim' } });
       fireEvent.click(screen.getByText('settings.users.createButton'));
 
@@ -93,6 +96,7 @@ describe('UsersSettingsTab', () => {
     it('closing the issued-password banner clears it', async () => {
       apiMocks.createUser.mockResolvedValue(axiosResponse({ username: 'kim', initial_password: 'S3cret!23' }));
       render(<UsersSettingsTab />);
+      fireEvent.click(screen.getByText('settings.users.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.users.usernamePlaceholder'), { target: { value: 'kim' } });
       fireEvent.click(screen.getByText('settings.users.createButton'));
 
@@ -105,6 +109,7 @@ describe('UsersSettingsTab', () => {
       apiMocks.createUser.mockResolvedValue(axiosResponse({ username: 'kim', initial_password: 'S3cret!23' }));
       utilsMocks.copyToClipboard.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
       render(<UsersSettingsTab />);
+      fireEvent.click(screen.getByText('settings.users.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.users.usernamePlaceholder'), { target: { value: 'kim' } });
       fireEvent.click(screen.getByText('settings.users.createButton'));
       await waitFor(() => expect(screen.getByText('S3cret!23')).toBeTruthy());

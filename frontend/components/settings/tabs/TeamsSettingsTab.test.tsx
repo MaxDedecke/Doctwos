@@ -61,6 +61,7 @@ describe('TeamsSettingsTab', () => {
     it('disables the submit button until a name is entered', async () => {
       apiMocks.getTeams.mockResolvedValue(axiosResponse([]));
       render(<TeamsSettingsTab />);
+      fireEvent.click(screen.getByText('settings.teams.addButton'));
       expect(screen.getByText('settings.teams.createButton').closest('button')!.hasAttribute('disabled')).toBe(true);
       fireEvent.change(screen.getByPlaceholderText('settings.teams.newTeamPlaceholder'), { target: { value: 'Neu' } });
       expect(screen.getByText('settings.teams.createButton').closest('button')!.hasAttribute('disabled')).toBe(false);
@@ -72,12 +73,13 @@ describe('TeamsSettingsTab', () => {
       render(<TeamsSettingsTab />);
       await waitFor(() => expect(apiMocks.getTeams).toHaveBeenCalledOnce());
 
+      fireEvent.click(screen.getByText('settings.teams.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.teams.newTeamPlaceholder'), { target: { value: '  Neues Team  ' } });
       fireEvent.click(screen.getByText('settings.teams.createButton'));
 
       await waitFor(() => expect(apiMocks.createTeam).toHaveBeenCalledWith('Neues Team'));
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.teamCreated', 'success');
-      expect((screen.getByPlaceholderText('settings.teams.newTeamPlaceholder') as HTMLInputElement).value).toBe('');
+      expect(screen.queryByPlaceholderText('settings.teams.newTeamPlaceholder')).toBeNull(); // Formular schließt sich nach dem Anlegen
       await waitFor(() => expect(apiMocks.getTeams).toHaveBeenCalledTimes(2));
     });
 
@@ -86,6 +88,7 @@ describe('TeamsSettingsTab', () => {
       apiMocks.createTeam.mockRejectedValue(axiosError('Name bereits vergeben'));
       render(<TeamsSettingsTab />);
 
+      fireEvent.click(screen.getByText('settings.teams.addButton'));
       fireEvent.change(screen.getByPlaceholderText('settings.teams.newTeamPlaceholder'), { target: { value: 'Doppelt' } });
       fireEvent.click(screen.getByText('settings.teams.createButton'));
 

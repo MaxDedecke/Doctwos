@@ -231,6 +231,8 @@
       "deactivateUser": "Nutzer \"{{name}}\" deaktivieren? Die Anmeldung ist danach gesperrt; Chatverlauf und Mitgliedschaften bleiben erhalten."
     },
     "teams": {
+      "title": "Teams",
+      "addButton": "Team hinzufügen",
       "newTeamLabel": "Neues Team",
       "newTeamPlaceholder": "z.B. Tragwerksplanung",
       "createButton": "Team anlegen",
@@ -690,6 +692,10 @@
       "exportError": "Export fehlgeschlagen"
     },
     "users": {
+      "title": "Nutzer",
+      "addButton": "Nutzer hinzufügen",
+      "empty": "Noch keine Nutzer vorhanden.",
+      "you": "Du",
       "usernameLabel": "Benutzername",
       "usernamePlaceholder": "z.B. m.mustermann",
       "nameLabel": "Name (optional)",

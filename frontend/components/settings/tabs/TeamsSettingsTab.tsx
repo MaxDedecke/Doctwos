@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
+import { InitialsAvatar } from '@/components/settings/InitialsAvatar';
+import { badgeClass, cardClass, dividerClass, emptyStateClass, inputClass as fieldClass, primaryButtonClass, secondaryButtonClass, sectionTitleClass } from '@/components/settings/settingsStyles';
 import { Check, ChevronRight, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -31,6 +33,7 @@ export const TeamsSettingsTab: React.FC = () => {
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [expandedTeamId, setExpandedTeamId] = useState<number | null>(null);
   const [addMemberUserId, setAddMemberUserId] = useState<string>("");
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
@@ -85,6 +88,7 @@ export const TeamsSettingsTab: React.FC = () => {
     try {
       await api.createTeam(newTeamName.trim());
       setNewTeamName("");
+      setShowForm(false);
       showToast(t('settings.toast.teamCreated'), "success");
       await refreshTeams();
     } catch (err) {
@@ -150,36 +154,56 @@ export const TeamsSettingsTab: React.FC = () => {
     }
   };
 
+  const dark = theme === 'dark';
+
   return (
-    <div className="space-y-6 w-full min-w-0 animate-in fade-in duration-200">
-      <form onSubmit={handleCreateTeam} className="flex items-end gap-2">
-        <div className="space-y-1.5 flex-1 min-w-0">
-          <label className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
-            {t('settings.teams.newTeamLabel')}
-          </label>
-          <input
-            type="text"
-            required
-            placeholder={t('settings.teams.newTeamPlaceholder')}
-            value={newTeamName}
-            onChange={(e) => setNewTeamName(e.target.value)}
-            className={cn(
-              "w-full h-9 rounded-lg text-xs font-semibold px-3 border transition-colors outline-none",
-              theme === 'dark'
-                ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-100 focus:border-ds-zinc-700"
-                : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 focus:border-ds-zinc-300"
-            )}
-          />
+    <div className="space-y-5 w-full min-w-0 animate-in fade-in duration-200">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h4 className={sectionTitleClass(theme)}>{t('settings.teams.title')}</h4>
+          {teams.length > 0 && <span className={badgeClass('neutral')}>{teams.length}</span>}
         </div>
-        <Button
-          type="submit"
-          disabled={isCreatingTeam || !newTeamName.trim()}
-          className="bg-ds-indigo-650 hover:bg-ds-indigo-700 text-ds-white rounded-lg px-3.5 h-9 text-xs font-bold shadow-md shadow-ds-indigo-600/15 flex items-center gap-1.5 transition-all shrink-0"
+        {showForm ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => { setShowForm(false); setNewTeamName(""); }}
+            className={secondaryButtonClass(theme)}
+          >
+            <X className="w-3.5 h-3.5" />
+            <span>{t('common.cancel')}</span>
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => setShowForm(true)} className={primaryButtonClass}>
+            <Plus className="w-3.5 h-3.5" />
+            <span>{t('settings.teams.addButton')}</span>
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <form
+          onSubmit={handleCreateTeam}
+          className={cn(cardClass(theme), 'p-4 flex items-end gap-3 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none')}
         >
-          {isCreatingTeam ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-          <span>{t('settings.teams.createButton')}</span>
-        </Button>
-      </form>
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <label className={sectionTitleClass(theme)}>{t('settings.teams.newTeamLabel')}</label>
+            <input
+              type="text"
+              required
+              autoFocus
+              placeholder={t('settings.teams.newTeamPlaceholder')}
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              className={fieldClass(theme)}
+            />
+          </div>
+          <Button type="submit" disabled={isCreatingTeam || !newTeamName.trim()} className={primaryButtonClass}>
+            {isCreatingTeam ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            <span>{t('settings.teams.createButton')}</span>
+          </Button>
+        </form>
+      )}
 
       <div className="space-y-2">
         {isLoadingTeams ? (
@@ -187,12 +211,7 @@ export const TeamsSettingsTab: React.FC = () => {
             <Loader2 className="w-4 h-4 animate-spin text-ds-zinc-500" />
           </div>
         ) : teams.length === 0 ? (
-          <div className={cn(
-            "text-xs italic p-3.5 border rounded-lg transition-colors",
-            theme === 'dark' ? "text-ds-zinc-500 bg-ds-zinc-950/40 border-ds-zinc-800/60" : "text-ds-zinc-500 bg-ds-zinc-50 border-ds-zinc-200"
-          )}>
-            {t('settings.teams.empty')}
-          </div>
+          <div className={emptyStateClass(theme)}>{t('settings.teams.empty')}</div>
         ) : (
           teams.map((team: Team) => {
             const isExpanded = expandedTeamId === team.id;
@@ -203,11 +222,12 @@ export const TeamsSettingsTab: React.FC = () => {
               <div
                 key={team.id}
                 className={cn(
-                  "rounded-lg border transition-all w-full min-w-0 overflow-hidden",
-                  theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/80" : "bg-ds-zinc-50 border-ds-zinc-200"
+                  cardClass(theme),
+                  "w-full min-w-0 overflow-hidden",
+                  isExpanded ? (dark ? "border-ds-zinc-700" : "border-ds-zinc-300") : (dark ? "hover:border-ds-zinc-700" : "hover:border-ds-zinc-300")
                 )}
               >
-                <div className="p-4 flex items-center justify-between gap-3">
+                <div className="p-3.5 flex items-center justify-between gap-3">
                   {editingTeamId === team.id ? (
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <input
@@ -216,12 +236,7 @@ export const TeamsSettingsTab: React.FC = () => {
                         value={editTeamNameInput}
                         onChange={(e) => setEditTeamNameInput(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRenameTeam(team.id); } if (e.key === 'Escape') setEditingTeamId(null); }}
-                        className={cn(
-                          "flex-1 min-w-0 h-8 rounded-lg text-xs font-semibold px-2.5 border transition-colors outline-none",
-                          theme === 'dark'
-                            ? "bg-ds-zinc-950 border-ds-zinc-700 text-ds-zinc-100 focus:border-ds-zinc-600"
-                            : "bg-ds-white border-ds-zinc-300 text-ds-zinc-800 focus:border-ds-zinc-400"
-                        )}
+                        className={cn(fieldClass(theme), 'flex-1 min-w-0 h-8 px-2.5')}
                       />
                       <Button type="button" variant="ghost" size="icon" onClick={() => handleRenameTeam(team.id)} className="h-8 w-8 rounded-lg text-ds-emerald-500 hover:bg-ds-emerald-500/10 shrink-0">
                         <Check className="w-4 h-4" />
@@ -234,11 +249,19 @@ export const TeamsSettingsTab: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleToggleTeamExpand(team.id)}
-                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
                     >
+                      <InitialsAvatar label={team.name} className="rounded-lg" />
+                      <span className="flex-1 min-w-0 flex items-center gap-2">
+                        <span className={cn("font-semibold text-xs truncate", dark ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{team.name}</span>
+                        {teamMembers[team.id] && (
+                          <span className={cn(badgeClass('neutral'), 'inline-flex items-center gap-1')}>
+                            <Users className="w-2.5 h-2.5" />
+                            {members.length}
+                          </span>
+                        )}
+                      </span>
                       <ChevronRight className={cn("w-3.5 h-3.5 shrink-0 transition-transform text-ds-zinc-500", isExpanded && "rotate-90")} />
-                      <Users className="w-3.5 h-3.5 shrink-0 text-ds-zinc-500" />
-                      <span className={cn("font-semibold text-xs truncate", theme === 'dark' ? "text-ds-zinc-100" : "text-ds-zinc-800")}>{team.name}</span>
                     </button>
                   )}
 
@@ -269,13 +292,10 @@ export const TeamsSettingsTab: React.FC = () => {
                 </div>
 
                 {isExpanded && (
-                  <div className={cn(
-                    "px-4 pb-4 pt-1 border-t space-y-3",
-                    theme === 'dark' ? "border-ds-zinc-800/60" : "border-ds-zinc-200/80"
-                  )}>
+                  <div className={cn("px-3.5 pb-3.5 pt-3 space-y-3 animate-in fade-in duration-150 motion-reduce:animate-none", dividerClass(theme))}>
                     <div className="space-y-1.5">
                       {members.length === 0 ? (
-                        <div className={cn("text-[0.6875rem] italic py-1.5", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
+                        <div className="text-[0.6875rem] italic py-1.5 text-ds-zinc-500">
                           {t('settings.teams.noMembers')}
                         </div>
                       ) : (
@@ -284,11 +304,14 @@ export const TeamsSettingsTab: React.FC = () => {
                             key={member.id}
                             className={cn(
                               "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs",
-                              theme === 'dark' ? "bg-ds-zinc-900/60" : "bg-ds-white border border-ds-zinc-200"
+                              dark ? "bg-ds-zinc-900/60" : "bg-ds-white border border-ds-zinc-200"
                             )}
                           >
-                            <span className={cn("truncate font-medium", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
-                              {member.name || member.email}
+                            <span className="flex items-center gap-2.5 min-w-0">
+                              <InitialsAvatar label={member.name || member.email || '?'} className="h-6 w-6 text-[0.5625rem]" />
+                              <span className={cn("truncate font-medium", dark ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
+                                {member.name || member.email}
+                              </span>
                             </span>
                             <Button
                               type="button"

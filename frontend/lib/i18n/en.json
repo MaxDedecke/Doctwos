@@ -231,6 +231,8 @@
       "deactivateUser": "Deactivate user \"{{name}}\"? Login is blocked afterwards; chat history and memberships are kept."
     },
     "teams": {
+      "title": "Teams",
+      "addButton": "Add team",
       "newTeamLabel": "New team",
       "newTeamPlaceholder": "e.g. Structural Engineering",
       "createButton": "Create team",
@@ -690,6 +692,10 @@
       "exportError": "Export failed"
     },
     "users": {
+      "title": "Users",
+      "addButton": "Add user",
+      "empty": "No users yet.",
+      "you": "You",
       "usernameLabel": "Username",
       "usernamePlaceholder": "e.g. j.doe",
       "nameLabel": "Name (optional)",

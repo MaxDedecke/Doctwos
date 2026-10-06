@@ -115,7 +115,7 @@ export const McpSettingsTab: React.FC = () => {
         ) : rows.length === 0 ? (
           <div className={emptyStateClass(theme)}>Noch keine Tokens vorhanden.</div>
         ) : (
-          <div className="space-y-2">
+          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
             {rows.map((row) => {
               const expired = new Date(row.expires_at).getTime() <= now;
               return (
