@@ -764,65 +764,8 @@ export function KnowledgeGraphView({
     return degrees;
   }, [filteredData.links]);
 
-  // Camera centering on node/edge selection
-  useEffect(() => {
-    if (!graphRef.current) return;
-
-    if (selectedNodeId) {
-      const node = rawNodes.find(n => n.id === selectedNodeId);
-      if (node && node.x !== undefined && node.y !== undefined) {
-        graphRef.current.centerAt(node.x, node.y, 800);
-        graphRef.current.zoom(2.0, 800);
-      } else {
-        const timer = setTimeout(() => {
-          if (!graphRef.current) return;
-          const currentNodes = filteredData.nodes;
-          const found = currentNodes.find((n: GraphNode) => n.id === selectedNodeId);
-          if (found && found.x !== undefined && found.y !== undefined) {
-            graphRef.current.centerAt(found.x, found.y, 800);
-            graphRef.current.zoom(2.0, 800);
-          }
-        }, 300);
-        return () => clearTimeout(timer);
-      }
-    } else if (selectedEdgeId) {
-      const edge = rawEdges.find(e => e.id === selectedEdgeId);
-      if (edge) {
-        const srcId = typeof edge.source === 'object' ? edge.source.id : edge.source;
-        const tgtId = typeof edge.target === 'object' ? edge.target.id : edge.target;
-
-        const srcNode = rawNodes.find(n => n.id === srcId);
-        const tgtNode = rawNodes.find(n => n.id === tgtId);
-
-        if (srcNode && tgtNode && srcNode.x !== undefined && srcNode.y !== undefined && tgtNode.x !== undefined && tgtNode.y !== undefined) {
-          const centerX = (srcNode.x + tgtNode.x) / 2;
-          const centerY = (srcNode.y + tgtNode.y) / 2;
-          graphRef.current.centerAt(centerX, centerY, 800);
-          graphRef.current.zoom(2.0, 800);
-        } else {
-          const timer = setTimeout(() => {
-            if (!graphRef.current) return;
-            const currentNodes = filteredData.nodes;
-            const currentEdges = filteredData.links;
-            const foundEdge = currentEdges.find((e: GraphEdge) => e.id === selectedEdgeId);
-            if (foundEdge) {
-              const sId = typeof foundEdge.source === 'object' ? foundEdge.source.id : foundEdge.source;
-              const tId = typeof foundEdge.target === 'object' ? foundEdge.target.id : foundEdge.target;
-              const sNode = currentNodes.find((n: GraphNode) => n.id === sId);
-              const tNode = currentNodes.find((n: GraphNode) => n.id === tId);
-              if (sNode && tNode && sNode.x !== undefined && sNode.y !== undefined && tNode.x !== undefined && tNode.y !== undefined) {
-                const centerX = (sNode.x + tNode.x) / 2;
-                const centerY = (sNode.y + tNode.y) / 2;
-                graphRef.current.centerAt(centerX, centerY, 800);
-                graphRef.current.zoom(2.0, 800);
-              }
-            }
-          }, 300);
-          return () => clearTimeout(timer);
-        }
-      }
-    }
-  }, [selectedNodeId, selectedEdgeId, rawNodes, rawEdges, filteredData]);
+  // Keine Kamerabewegung bei der Auswahl: Zoom und Ausschnitt bleiben, nur die Hervorhebung
+  // (Ausgrauen der übrigen Knoten) ändert sich.
 
   // Available node/link types for filter chips
   const nodeTypes = useMemo(() => {
@@ -1623,9 +1566,11 @@ export function KnowledgeGraphView({
             <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
               {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
             </span>
-            <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
-              {t(EDGE_DIRECTION_TAXONOMY[graphEdgeDirection(selectedEdge)].labelKey)}
-            </span>
+            {graphEdgeDirection(selectedEdge) !== 'directed' && (
+              <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
+                {t(EDGE_DIRECTION_TAXONOMY[graphEdgeDirection(selectedEdge)].labelKey)}
+              </span>
+            )}
             {selectedEdge.score !== null && (
               <span className="text-[0.625rem] font-mono text-ds-emerald-500">
                 {Math.round((selectedEdge.score ?? 0) * 100)}%
@@ -1753,12 +1698,12 @@ export function KnowledgeGraphView({
           </div>
         )}
 
-        {linkTypes.length > 0 && edgeDirections.length > 0 && (
+        {linkTypes.length > 0 && edgeDirections.length > 1 && (
           <div className={cn('h-4 w-px shrink-0', border)} />
         )}
 
         {/* Direction filter for the currently focused graph data */}
-        {edgeDirections.length > 0 && (
+        {edgeDirections.length > 1 && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>
               {t('knowledgeGraphView.directionFilterLabel')}

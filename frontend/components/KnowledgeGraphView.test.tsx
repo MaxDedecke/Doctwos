@@ -112,7 +112,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     vi.unstubAllGlobals();
   });
 
-  it('centers a selected node once simulation coordinates arrive, without a graphData ref method', async () => {
+  it('keeps the camera still when a node is selected (no centering, no zoom change)', async () => {
     const node: GraphNode = { id: 'entity:1', type: 'entity', label: 'PROG1' };
     const docNode: GraphNode = { id: 'doc:1', type: 'document', label: 'DOC1' };
     const edge: GraphEdge = { id: 'link:1', source: 'entity:1', target: 'doc:1', link_type: 'semantic', score: 0.9, context: null };
@@ -125,7 +125,9 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     // The force simulation mutates these same objects after the initial selection.
     node.x = 12;
     node.y = 34;
-    await waitFor(() => expect(centerAt).toHaveBeenCalledWith(12, 34, 800));
+    // Auswahl blendet nur die übrigen Knoten aus; der Ausschnitt bleibt unverändert.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(centerAt).not.toHaveBeenCalled();
   });
 
   it('shows a code node language and parser limitation in its details (O-253)', async () => {
