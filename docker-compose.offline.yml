@@ -109,6 +109,9 @@ services:
       EMBEDDING_CONTEXT_LENGTH: ${EMBEDDING_CONTEXT_LENGTH:-8100}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       SESSION_SECRET_KEY: ${SESSION_SECRET_KEY}
       BOOTSTRAP_SUPERUSER: ${BOOTSTRAP_SUPERUSER:-admin}
       BOOTSTRAP_SUPERUSER_PASSWORD: ${BOOTSTRAP_SUPERUSER_PASSWORD:-}
@@ -133,6 +136,9 @@ services:
       OIDC_TEAM_MAPPING: ${OIDC_TEAM_MAPPING:-}
     volumes:
       - ./repos:/repos
+      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
+      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./data/logs/backend-api:/var/log/doctus/backend-api
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
@@ -178,11 +184,17 @@ services:
       EMBED_BATCH_MAX_CHUNKS: ${EMBED_BATCH_MAX_CHUNKS:-20}
       EMBED_BATCH_TIMEOUT: ${EMBED_BATCH_TIMEOUT:-120}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
       LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
     volumes:
       - ./repos:/repos
+      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
+      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./data/logs:/var/log/doctus
     command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=celery"]
     healthcheck:
