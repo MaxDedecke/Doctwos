@@ -347,6 +347,9 @@ function AppContent() {
   }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
   const handleProjectSelect = useCallback(async (project: { id: number; name: string; status?: string | null; url?: string | null } | null) => {
+    // Dasselbe Projekt noch einmal zu wählen (z. B. beim Wechsel zwischen Chats desselben Projekts) ändert
+    // nichts: keine Meldung, kein Neuladen der Dateien.
+    if (project ? selectedProject?.id === project.id : !selectedProject) return;
     if (!project) {
       const activeSession = sessions.find(s => s.id === activeSessionId);
       if (activeSessionId && activeSession && activeSession.project_id !== null) {
@@ -368,7 +371,15 @@ function AppContent() {
     }
 
     await selectProject(project);
-  }, [activeSessionId, resetChatSession, selectProject, sessions, showToast, t]);
+  }, [activeSessionId, resetChatSession, selectProject, selectedProject, sessions, showToast, t]);
+
+  // Projektwechsel über die Auswahl in der Kopfzeile: Die geöffneten Ansichten gehören zum alten Projekt und
+  // werden geschlossen; im neuen Projekt beginnt ein neuer Chat.
+  const handleProjectSwitch = useCallback(async (project: { id: number; name: string; status?: string | null; url?: string | null } | null) => {
+    const changes = project ? selectedProject?.id !== project.id : Boolean(selectedProject);
+    if (changes && !(project?.url && project.status !== 'completed')) startNewChat();
+    await handleProjectSelect(project);
+  }, [handleProjectSelect, selectedProject, startNewChat]);
 
   useEffect(() => {
     if (!isLoggedIn || !ideLink || !ideLinkKey || projects.length === 0 || openedIdeLinkRef.current === ideLinkKey) return;
@@ -1004,7 +1015,7 @@ function AppContent() {
       theme={theme}
       isSidebarOpen={isSidebarOpen}
       selectedProject={selectedProject}
-      handleProjectSelect={handleProjectSelect}
+      handleProjectSelect={handleProjectSwitch}
       pinnedCode={pinnedCode}
       setPinnedCode={setPinnedCode}
       chatMessages={chatMessages}
@@ -1162,7 +1173,7 @@ function AppContent() {
         panelConfigs={panelConfigs}
         onAddPanel={addPanel}
         selectedProject={selectedProject}
-        onProjectSelect={handleProjectSelect}
+        onProjectSelect={handleProjectSwitch}
         onShareChat={handleShareChat}
         canSaveSessionWithoutChat={chatMessages.length === 0 && panelConfigs.length >= 2}
         hasActiveSessionWithoutChat={chatMessages.length === 0 && activeSessionId !== null}
