@@ -37,6 +37,9 @@ const editorStub = {
   onMouseMove: vi.fn(() => ({ dispose: vi.fn() })),
   onMouseLeave: vi.fn(() => ({ dispose: vi.fn() })),
   onMouseDown: vi.fn(() => ({ dispose: vi.fn() })),
+  onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+  getDomNode: () => null,
+  getTargetAtClientPoint: () => null,
   onDidChangeModel: vi.fn(() => ({ dispose: vi.fn() })),
   onDidScrollChange: vi.fn(() => ({ dispose: vi.fn() })),
   onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
@@ -87,6 +90,7 @@ vi.mock('@/app/services/api', () => ({
   API_URL: 'http://backend',
   api: {
     getEntityNeighbors: vi.fn().mockResolvedValue({ data: { groups: {} } }),
+    getFileReferences: vi.fn().mockResolvedValue({ data: { references: [], truncated: false } }),
     getProjectReferences: vi.fn().mockResolvedValue({ data: [] }),
     getProjectReferencesPage: vi.fn().mockResolvedValue({ data: { references: [], total: 0, has_more: false, offset: 0, limit: 15 } }),
     getKnowledgeSourceContent: vi.fn().mockResolvedValue({ data: { content: '', format: 'text' } }),
