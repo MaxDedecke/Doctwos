@@ -45,9 +45,10 @@ FastMCP upgrade or the `orjson`/`pathspec` dependencies deferred in O-158.
 
 Geprüft mit `pip-licenses` gegen `scripts/license_allowlist_python.txt`
 (alle MIT-/BSD-/Apache-2.0-Varianten plus PSF-2.0 und Unlicense/Public
-Domain, wie sie pip-licenses tatsächlich meldet). 143 installierte Pakete
-(inkl. transitiver Abhängigkeiten), davon drei Ausnahmen (Stand 08.08.2026,
-nach der E-7-Lösung — vorher vier, siehe unten):
+Domain, wie sie pip-licenses tatsächlich meldet). 145 installierte Pakete
+(inkl. transitiver Abhängigkeiten), davon drei Ausnahmen (Stand 06.10.2026,
+CI-Skript im `python:3.11-slim`-Container erneut gelaufen, grün; seit der
+E-7-Lösung vom 08.08.2026 unverändert drei statt vorher vier, siehe unten):
 
 | Paket | Lizenz | Status | Begründung |
 |---|---|---|---|
@@ -64,19 +65,25 @@ das echte PyPI-Paket zu laden. `pip-licenses` meldet seitdem `unidecode`/MIT
 (Teil der normalen Allowlist, keine Ausnahme mehr nötig). Details:
 `docs/ENTSCHEIDUNGEN.md` E-7, `backend/vendor/unidecode_shim/README.md`.
 
-Alle übrigen 140 Pakete tragen eine erlaubte Lizenz (MIT/BSD/Apache-2.0 oder
+Alle übrigen 142 Pakete tragen eine erlaubte Lizenz (MIT/BSD/Apache-2.0 oder
 gleichwertige Varianten wie `MIT-0`, `MIT-CMU`, `PSF-2.0`, `The Unlicense`).
+Seit dem letzten Stand dazugekommen, alle auf der Allowlist: `mammoth` 1.12.0
+(BSD-2-Clause), `Markdown` 3.10.2 (BSD-3-Clause), `Pillow` 12.3.0 (MIT-CMU, früher
+HPND), `argon2-cffi` 25.1.0 (MIT), `joserfc` 1.7.5 (BSD), `itsdangerous` 2.2.0 (BSD),
+`python-docx` 1.2.0 (MIT), `pypdf` 6.16.1 (BSD-3-Clause), `redis` (Client) 8.0.1 (MIT).
 
 ## 2. Python — Parser (`parser/requirements.txt`)
 
-Gleiche Prüfung, 57 installierte Pakete. Zwei Ausnahmen, beide bereits oben
+Gleiche Prüfung, 60 installierte Pakete (Stand 06.10.2026, grün). Zwei Ausnahmen, beide bereits oben
 begründet und hier ebenfalls akzeptiert: `psycopg2-binary` (LGPL-3.0),
 `certifi` (MPL-2.0). `mcp-atlassian`/`unidecode` sind hier **nicht**
 installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 
 **Office-Formate (06.10.2026):** `openpyxl==3.1.5` (MIT) mit `et_xmlfile` (MIT) für Excel und `python-pptx==1.0.2`
 (MIT) mit `lxml` (BSD-3-Clause) und `XlsxWriter` (BSD) für PowerPoint; Versionen und Lizenzen mit `pip-licenses`
-im Parser-Image geprüft, alle auf der Allowlist. Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
+im Parser-Image geprüft, alle auf der Allowlist. Ebenfalls geprüft: `pytesseract` 0.3.13 (Apache-2.0),
+`pdf2image` 1.17.0 (MIT) und `psutil` 7.2.2 (BSD-3-Clause). `pytesseract` und `pdf2image` sind nur
+Python-Wrapper um die Systemprogramme `tesseract` und `pdftoppm` (siehe „Nicht automatisch geprüft"). Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
 Upload, Confluence-Anhänge). `olefile==0.47` (BSD-2-Clause) liest den OLE-Container des binären Word-Formats
 (`parser/connectors/msdoc.py`); den RTF-Leser (`rtf.py`) hat Doctus selbst geschrieben, er hat keine Abhängigkeit. Bewusst
 kein antiword/catdoc (GPL) und kein LibreOffice (Größe, MPL/LGPL-Mischlizenz) als Konverter.
@@ -93,7 +100,7 @@ Die Runtime-Lizenzprüfung bleibt auf die ausgelieferten Abhängigkeiten begrenz
 ## 3. Node — Frontend (`frontend/package.json`, nur `dependencies`)
 
 Geprüft mit `license-checker --production` gegen
-`scripts/license_allowlist_node.txt`. 325 Pakete (05.09.2026: `@tanstack/react-virtual`
+`scripts/license_allowlist_node.txt`. 327 Pakete (Stand 06.10.2026, grün; 05.09.2026: `@tanstack/react-virtual`
 + `@tanstack/virtual-core` für O-036 hinzugekommen, beide MIT, keine neue
 Ausnahme nötig), vier Ausnahmen:
 
@@ -212,6 +219,15 @@ Runtime-Abhängigkeiten begrenzt.
   im Doctwos-Code. Im Backend seit 03.10.2026, weil die Änderungsfolgenanalyse im Git-Diff-Modus
   (O-273) Revisionen auflöst. Die Einordnung als „Aufruf eines separaten GPL-Programms" ist
   vor produktiver Auslieferung vom Lizenzverantwortlichen zu bestätigen.
+- **Betriebssystempakete im Parser-Image für OCR** (Debian 13 „trixie", Lizenzen aus
+  `/usr/share/doc/*/copyright` geprüft am 06.10.2026): `tesseract-ocr` 5.5.0 samt
+  `tesseract-ocr-deu` (Apache-2.0, vereinzelt MIT) — unkritisch. `poppler-utils` 25.03.0
+  (liefert `pdftoppm` für `pdf2image`) steht unter **GPL-2/GPL-3** (Teile Apache-2.0). Es wird nur als
+  eigener Prozess aufgerufen, nicht gelinkt und nicht verändert — gleiche Einordnung wie bei `git`
+  (siehe unten). Wird das Parser-Image an Kunden weitergegeben (z. B. Offline-Bundle,
+  NF-002), gelten für die GPL-Pakete die Weitergabepflichten: Lizenztexte beilegen und
+  Quellcode-Angebot (bzw. Quellen der Debian-Pakete). Muss vom Lizenzverantwortlichen
+  bestätigt werden. Alternative ohne GPL wäre ein anderer PDF-Renderer (z. B. `pypdfium2`, Apache/BSD).
 - **Modelllizenzen**: ändern sich mit jedem `OLLAMA_MODEL`-Wechsel in
   `.env` — bei Modellwechsel diesen Abschnitt manuell nachziehen.
 - **Transitive Docker-Build-Werkzeuge** (z.B. `build-essential` im
