@@ -1003,6 +1003,7 @@
     "statementHover": "{{verb}} statement – click to pin or look up",
     "askAboutStatementMenuItem": "Ask about this {{verb}} statement (line {{line}})",
     "jumpToEntityMenuItem": "Jump to {{name}}",
+    "fileObjectTitle": "File object {{name}} ({{type}}) – click to pin or look up",
     "askAboutEntityMenuItem": "Ask about {{name}}",
     "openReferencesMenuItem": "Open references",
     "exportCypherTitle": "Export as Cypher (Neo4j)",

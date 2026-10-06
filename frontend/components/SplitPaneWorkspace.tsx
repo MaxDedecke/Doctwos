@@ -35,6 +35,7 @@ import { MarkdownContent } from "@/components/MarkdownContent";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
+import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
 import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
@@ -700,7 +701,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     selectedFileRef.current = selectedFile;
   }, [selectedFile]);
 
+  // Dateiobjekt der geöffneten Datei (Compilation-Unit, Copybook, JCL-Datei, Properties …).
+  const fileLevelEntity = useMemo(
+    () => (selectedFile && projectEntities
+      ? pickFileLevelEntity(projectEntities.filter((ent: CodeEntity) => ent.file_path === selectedFile))
+      : null),
+    [selectedFile, projectEntities]
+  );
   const entityDecorationsRef = useRef<string[]>([]);
+  const entityAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
   useEffect(() => {
     const editor = activeEditorRef.current;
     const monaco = monacoRef.current;
@@ -720,20 +729,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       ? (selectedEntity.id ?? `${selectedEntity.file_path}:${selectedEntity.start_line}:${selectedEntity?.name}`)
       : null;
 
+    const anchors: Array<{ ent: CodeEntity; anchor: EntityAnchor }> = [];
     fileEntities.forEach((ent: CodeEntity) => {
       const lineNum = ent.start_line;
       if (!lineNum || lineNum > model.getLineCount()) return;
+      // Dateiobjekte (Compilation-Unit, Copybook, JCL-Datei …) haben keine Textstelle; sie sind
+      // über die Kopfzeile der Datei erreichbar.
+      if (ent.type && FILE_LEVEL_TYPES.has(ent.type)) return;
 
-      const lineContent = model.getLineContent(lineNum);
-      const nameIndex = lineContent.toLowerCase().indexOf(ent.name.toLowerCase());
-
-      let startCol = 1;
-      let endCol = lineContent.length + 1;
-
-      if (nameIndex !== -1) {
-        startCol = nameIndex + 1;
-        endCol = startCol + ent.name.length;
-      }
+      const anchor = computeEntityAnchor(ent, (n) => model.getLineContent(n), model.getLineCount());
+      if (anchor) anchors.push({ ent, anchor });
 
       const entKey = ent.id ?? `${ent.file_path}:${ent.start_line}:${ent.name}`;
       const isSelected = selectedKey !== null && entKey === selectedKey;
@@ -752,20 +757,29 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         });
       }
 
-      newDecorations.push({
-        range: new monaco.Range(lineNum, startCol, lineNum, endCol),
-        options: {
-          inlineClassName: isSelected ? 'doctus-selected-entity' : 'doctus-clickable-entity',
-          hoverMessage: {
-            value: `**${ent.name}** (${ent.type})\n\n${t('splitPane.clickToSelectReferences')}`
-          },
-          glyphMarginClassName: 'doctus-entity-glyph-margin',
-          glyphMarginHoverMessage: {
-            value: t('splitPane.codeObjectHover', { name: ent.name, type: ent.type || 'entity' })
-          }
+      const glyph = {
+        glyphMarginClassName: 'doctus-entity-glyph-margin',
+        glyphMarginHoverMessage: {
+          value: t('splitPane.codeObjectHover', { name: ent.name, type: ent.type || 'entity' })
         }
-      });
+      };
+      if (anchor) {
+        newDecorations.push({
+          range: new monaco.Range(anchor.line, anchor.startColumn, anchor.line, anchor.endColumn),
+          options: {
+            inlineClassName: isSelected ? 'doctus-selected-entity' : 'doctus-clickable-entity',
+            hoverMessage: {
+              value: `**${ent.name}** (${ent.type})\n\n${t('splitPane.clickToSelectReferences')}`
+            },
+            ...glyph
+          }
+        });
+      } else {
+        // Ohne Textstelle (z. B. Name nur implizit): nur die Randmarke, über sie öffnet das Menü.
+        newDecorations.push({ range: new monaco.Range(lineNum, 1, lineNum, 1), options: glyph });
+      }
     });
+    entityAnchorsRef.current = anchors;
 
     entityDecorationsRef.current = editor.deltaDecorations(
       entityDecorationsRef.current,
@@ -784,6 +798,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         }
         entityDecorationsRef.current = [];
       }
+      entityAnchorsRef.current = [];
     };
   }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t, selectedEntity]);
 
@@ -989,22 +1004,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       // name starts at column 1 (common for un-indented COBOL paragraphs/
       // sections) and hijack the gutter menu below.
       if (!isGutterClick) {
-        const clickedEntity = fileEntities.find((ent: CodeEntity) => {
-          if (ent.start_line !== lineNumber) return false;
-
-          const model = editor.getModel();
-          if (!model) return false;
-
-          const lineContent = model.getLineContent(lineNumber);
-          const nameIndex = lineContent.toLowerCase().indexOf(ent.name.toLowerCase());
-          if (nameIndex === -1) {
-            return true;
-          }
-
-          const startCol = nameIndex + 1;
-          const endCol = startCol + ent.name.length;
-          return column >= startCol && column <= endCol;
-        });
+        const clickedEntity = entityAnchorsRef.current
+          .filter(({ anchor }) => anchor.line === lineNumber && column >= anchor.startColumn && column <= anchor.endColumn)
+          .sort((x, y) => (x.anchor.endColumn - x.anchor.startColumn) - (y.anchor.endColumn - y.anchor.startColumn))[0]?.ent;
 
         if (clickedEntity) {
           handleEntitySelectRef.current?.(clickedEntity);
@@ -1165,6 +1167,26 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   ? (fileNavStack.length > 0 ? selectedFile?.split('/').pop() : selectedFile)
                   : (selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback'))}
               </span>
+              {activeRightTab === 'code' && fileLevelEntity && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
+                  }}
+                  title={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
+                  aria-label={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
+                  className={cn(
+                    "ml-1 flex items-center gap-1 h-6 px-1.5 rounded-md border text-[0.625rem] font-semibold shrink-0 transition-colors",
+                    theme === 'dark'
+                      ? "border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
+                      : "border-ds-zinc-300 text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+                  )}
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>{fileLevelEntity.type}</span>
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {activeRightTab === 'code' && selectedFile && selectedProject && (
