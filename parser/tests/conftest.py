@@ -102,3 +102,11 @@ def _batch_embeddings_follow_the_single_embedding_mock(monkeypatch):
         return [await base.get_embedding(text, model=model) for text in texts]
 
     monkeypatch.setattr(base, "get_embeddings_batch", fake_batch)
+
+
+@pytest.fixture(autouse=True)
+def documents_are_processed_one_at_a_time_unless_a_test_says_otherwise(monkeypatch):
+    """Ohne diese Festlegung fragt die automatische Wahl der Parallelität ein echtes Ollama ab (is_gpu_accelerated)."""
+    from core import config
+
+    monkeypatch.setattr(config, "DOC_CONCURRENCY", 1)

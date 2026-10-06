@@ -28,6 +28,7 @@ Ablauf eines sync()-Aufrufs
     → link_builder_dirty_items erfasst Änderungen (Link-Build erfordert expliziten Nutzerauftrag, O-315)
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -44,7 +45,13 @@ from core import config
 from db import SessionLocal, REDIS_URL
 from models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
-from ollama_client import ensure_model_pulled, get_embedding, get_embeddings_batch
+from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY
+from ollama_client import (
+    ensure_model_pulled,
+    get_embedding,
+    get_embeddings_batch,
+    is_gpu_accelerated,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +141,9 @@ class BaseConnector(ABC):
         # Dokumente, deren Chunks nicht vollständig eingebettet werden konnten (Schlüssel -> Chunk-Anzahl).
         # Sie werden nicht als erledigt gewertet, damit der nächste Lauf sie erneut versucht.
         self._embed_failures: dict[str, int] = {}
+        # Plain-Werte der Quelle für die parallele Verarbeitung (siehe _process_document).
+        self._source_id = source_id
+        self._project_id: int | None = None
 
     # ── Logging ──────────────────────────────────────────────────────────────
 
@@ -194,9 +204,13 @@ class BaseConnector(ABC):
 
     # ── Embed + Store (gemeinsam für alle Connectoren) ────────────────────────
 
-    async def _process_document(self, doc: Document) -> int:
+    async def _process_document(self, doc: Document, db=None, log=None) -> int:
         """
         Chunked, embeddet und speichert ein einzelnes Document in der Datenbank.
+
+        ``db`` und ``log`` erlauben der parallelen Verarbeitung, je Dokument eine eigene Session und einen eigenen
+        Meldungspuffer zu nutzen: Die Hauptsession (``self.db``) gehört dem Crawl und dem Sync-Log und darf nicht
+        gleichzeitig von mehreren Dokumenten benutzt werden. Ohne Angabe gilt das bisherige Verhalten.
 
         Ersetzt bestehende Chunks für denselben storage_key (Delta-Sync), dabei
         bleiben EntityDocLinks auf unverändert gebliebene Passagen erhalten --
@@ -205,6 +219,12 @@ class BaseConnector(ABC):
         Returns:
             Anzahl erfolgreich gespeicherter Chunks
         """
+        db = db or self.db
+        log = log or self._log
+        # Werte einmal lesen: ein Zugriff auf self.source von mehreren Tasks aus könnte nach einem Commit der
+        # Hauptsession eine Nachladeabfrage auf genau dieser Session auslösen.
+        project_id = self._project_id if self._project_id is not None else (self.source.project_id if self.source else None)
+        source_id = self._source_id
         lang = doc.get("extra_meta", {}).get("language", "text")
         parser = CodeParser(lang)
 
@@ -228,8 +248,8 @@ class BaseConnector(ABC):
 
         def build_chunk(chunk, embedding):
             return DocumentChunk(
-                project_id=self.source.project_id,
-                source_id=self.source.id,
+                project_id=project_id,
+                source_id=source_id,
                 file_path=doc["storage_key"],
                 content=chunk["content"],
                 start_line=chunk["start_line"],
@@ -256,7 +276,7 @@ class BaseConnector(ABC):
             failures += 1
             # str(e) ist bei httpx.TimeoutException & Co. oft leer -- der
             # Exception-Typname macht die Meldung erst brauchbar.
-            self._log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
+            log(f"Embedding-Fehler für '{doc['title']}': {type(e).__name__}: {e}")
 
         # Alle Chunks eines Dokuments gebündelt einbetten (ein Aufruf je Batch statt je Chunk). Schlägt das fehl,
         # versucht reindex_chunks_preserving_links es unten einzeln und meldet jeden fehlgeschlagenen Chunk.
@@ -272,8 +292,8 @@ class BaseConnector(ABC):
                 logger.info(f"Gebündeltes Embedding für '{doc['title']}' fehlgeschlagen, wechsle auf Einzelaufrufe: {exc}")
 
         count = await reindex_chunks_preserving_links(
-            self.db,
-            source_id=self.source.id,
+            db,
+            source_id=source_id,
             file_path=doc["storage_key"],
             chunks=chunks,
             build_chunk=build_chunk,
@@ -284,13 +304,46 @@ class BaseConnector(ABC):
             # Alles oder nichts je Dokument: Ein Dokument mit fehlenden Chunks würde sonst von der
             # zeitbasierten Änderungserkennung als erledigt gelten und nie vervollständigt.
             self._embed_failures[doc["storage_key"]] = failures
-            self.db.query(DocumentChunk).filter(
-                DocumentChunk.source_id == self.source.id,
+            db.query(DocumentChunk).filter(
+                DocumentChunk.source_id == source_id,
                 DocumentChunk.file_path == doc["storage_key"],
             ).delete(synchronize_session=False)
-            self.db.commit()
+            db.commit()
             return 0
         return count
+
+    # ── Parallelität ──────────────────────────────────────────────────────────
+
+    async def _doc_concurrency(self) -> int:
+        """Wie viele Dokumente gleichzeitig verarbeitet werden.
+
+        Dieselbe Regel wie bei Git: ``EMBED_CONCURRENCY``, bei einem CPU-only-Ollama auf ``EMBED_CONCURRENCY_CPU_ONLY``
+        gedrosselt (dort rechnet der Server Batches ohnehin nacheinander), nie mehr als die freien Batch-Slots der
+        Inferenz-Steuerung. ``DOC_CONCURRENCY`` > 0 legt den Wert fest.
+        """
+        available = max(1, MAX_CONCURRENCY - CHAT_RESERVE)
+        if config.DOC_CONCURRENCY > 0:
+            return max(1, min(config.DOC_CONCURRENCY, available))
+        try:
+            if await is_gpu_accelerated(self.embedding_model):
+                return max(1, min(config.EMBED_CONCURRENCY, available))
+            return max(1, min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY, available))
+        except Exception:  # noqa: BLE001 - im Zweifel nacheinander
+            return 1
+
+    async def _process_one(self, doc: Document) -> tuple[Document, int, list[str]]:
+        """Ein Dokument mit eigener DB-Session und eigenem Meldungspuffer (läuft parallel zu anderen)."""
+        session = SessionLocal()
+        messages: list[str] = []
+        try:
+            count = await self._process_document(doc, db=session, log=messages.append)
+            session.commit()
+            return doc, count, messages
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     # ── Aufräumen ─────────────────────────────────────────────────────────────
 
@@ -388,6 +441,7 @@ class BaseConnector(ABC):
                 return
             had_previous_sync = self.source.last_synced_at is not None
             self.embedding_model = self.source.embedding_model or config.EMBED_MODEL
+            self._project_id = self.source.project_id
 
             self._sync_start_time = datetime.now(timezone.utc)
             self.source.sync_status = "syncing"
@@ -406,18 +460,41 @@ class BaseConnector(ABC):
 
             processed = 0
             total_chunks = 0
+            concurrency = await self._doc_concurrency()
+            if concurrency > 1:
+                self._log(f"Verarbeite bis zu {concurrency} Dokumente parallel.")
+            in_flight: set[asyncio.Task] = set()
 
-            async for doc in self.fetch_documents():
-                # Heartbeat: Lease erneuern, solange sichtbar Fortschritt gemacht wird,
-                # damit ein legitim langer Sync (viele/große BIM-Downloads) die Sperre
-                # nicht mitten im Lauf verliert.
-                redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
-                chunk_count = await self._process_document(doc)
-                self.db.commit()
-                total_chunks += chunk_count
-                processed += 1
-                self.has_changes = True
-                self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+            def collect(finished) -> None:
+                nonlocal processed, total_chunks
+                for task in finished:
+                    doc, chunk_count, messages = task.result()  # wirft, wenn die Verarbeitung scheiterte
+                    for message in messages:
+                        self._log(message)
+                    total_chunks += chunk_count
+                    processed += 1
+                    self.has_changes = True
+                    self._log(f"'{doc['title']}' indexiert ({chunk_count} Chunks).")
+
+            try:
+                async for doc in self.fetch_documents():
+                    # Heartbeat: Lease erneuern, solange sichtbar Fortschritt gemacht wird,
+                    # damit ein legitim langer Sync (viele/große BIM-Downloads) die Sperre
+                    # nicht mitten im Lauf verliert.
+                    redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
+                    in_flight.add(asyncio.create_task(self._process_one(doc)))
+                    if len(in_flight) >= concurrency:
+                        # Rückstau: der Crawl holt erst weitere Dokumente, wenn ein Platz frei wird.
+                        finished, in_flight = await asyncio.wait(in_flight, return_when=asyncio.FIRST_COMPLETED)
+                        collect(finished)
+                if in_flight:
+                    finished, in_flight = await asyncio.wait(in_flight)
+                    collect(finished)
+            finally:
+                for task in in_flight:
+                    task.cancel()
+                if in_flight:
+                    await asyncio.gather(*in_flight, return_exceptions=True)
 
             if self._embed_failures:
                 # Zeitstempel bleibt stehen: der nächste Lauf prüft diese Dokumente erneut.

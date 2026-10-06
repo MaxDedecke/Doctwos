@@ -70,3 +70,7 @@ EMBED_CONCURRENCY: int = int(os.getenv("EMBED_CONCURRENCY", "3"))
 # CPU-only per ollama_client.is_gpu_accelerated() und drosselt dann auf
 # diesen Wert statt EMBED_CONCURRENCY.
 EMBED_CONCURRENCY_CPU_ONLY: int = int(os.getenv("EMBED_CONCURRENCY_CPU_ONLY", "2"))
+# Wie viele Dokumente Confluence, Jira, Ordner und WebDAV gleichzeitig verarbeiten (Chunking, Embedding, Speichern).
+# 0 = automatisch wie bei Git (EMBED_CONCURRENCY, bei CPU-only-Ollama gedrosselt, höchstens die freien Batch-Slots);
+# eine Zahl > 0 setzt den Wert fest (weiterhin begrenzt durch die Batch-Slots der Inferenz-Steuerung).
+DOC_CONCURRENCY: int = int(os.getenv("DOC_CONCURRENCY", "0"))

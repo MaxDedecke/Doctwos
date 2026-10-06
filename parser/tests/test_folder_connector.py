@@ -422,3 +422,98 @@ async def test_symlink_out_of_the_watched_root_does_not_slip_through(db_session,
     connector.source = test_source
     with pytest.raises(ValueError, match="außerhalb"):
         [doc async for doc in connector.fetch_documents()]
+
+
+# --- Parallele Dokumentverarbeitung ----------------------------------------------------------
+
+import asyncio  # noqa: E402
+
+from core import config as parser_config  # noqa: E402
+
+
+@pytest.mark.anyio
+async def test_documents_are_processed_in_parallel_up_to_the_limit(db_session, test_source, tmp_path, monkeypatch):
+    for i in range(8):
+        (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
+    monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
+    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    running = 0
+    peak = 0
+
+    async def slow_batch(texts, model=None, retries=3):
+        nonlocal running, peak
+        running += 1
+        peak = max(peak, running)
+        await asyncio.sleep(0.05)
+        running -= 1
+        return [[0.1] * 1024 for _ in texts]
+
+    connector = FolderConnector(test_source.id)
+    with patch("connectors.base.get_embeddings_batch", side_effect=slow_batch):
+        await connector.sync()
+
+    assert 2 <= peak <= 3
+    db_session.expire_all()
+    paths = {c.file_path for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)}
+    assert len(paths) == 8
+    source = db_session.get(KnowledgeSource, test_source.id)
+    assert source.sync_status == "completed" and source.sync_log.count("indexiert") == 8
+    assert "parallel" in source.sync_log
+
+
+@pytest.mark.anyio
+async def test_concurrency_is_capped_by_the_free_batch_slots(db_session, test_source, monkeypatch):
+    monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 10)
+    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 4)
+    monkeypatch.setattr("connectors.base.CHAT_RESERVE", 1)
+    connector = FolderConnector(test_source.id)
+    assert await connector._doc_concurrency() == 3
+
+
+@pytest.mark.anyio
+async def test_automatic_concurrency_follows_the_gpu_and_never_exceeds_the_cpu_limit(db_session, test_source, monkeypatch):
+    monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 0)
+    monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY", 3)
+    monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY_CPU_ONLY", 2)
+    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    connector = FolderConnector(test_source.id)
+    for gpu, expected in ((True, 3), (False, 2)):
+        monkeypatch.setattr("connectors.base.is_gpu_accelerated", AsyncMock(return_value=gpu))
+        assert await connector._doc_concurrency() == expected
+    monkeypatch.setattr("connectors.base.is_gpu_accelerated", AsyncMock(side_effect=RuntimeError("weg")))
+    assert await connector._doc_concurrency() == 1
+
+
+@pytest.mark.anyio
+async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(db_session, test_source, tmp_path, monkeypatch):
+    for i in range(5):
+        (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
+    monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
+    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    import connectors.base as base_module
+
+    real_reindex = base_module.reindex_chunks_preserving_links
+    calls = 0
+
+    async def broken_reindex(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("kaputt")  # Datenbankfehler o. ä.: kein Embedding-Fehler, der Lauf muss abbrechen
+        await asyncio.sleep(0.02)
+        return await real_reindex(*args, **kwargs)
+
+    async def batch(texts, model=None, retries=3):
+        return [[0.1] * 1024 for _ in texts]
+
+    connector = FolderConnector(test_source.id)
+    with patch("connectors.base.get_embeddings_batch", side_effect=batch), patch(
+        "connectors.base.reindex_chunks_preserving_links", side_effect=broken_reindex
+    ):
+        await connector.sync()
+
+    db_session.expire_all()
+    source = db_session.get(KnowledgeSource, test_source.id)
+    assert source.sync_status == "error" and "kaputt" in (source.last_error or "")
+    leftover = [t for t in asyncio.all_tasks() if not t.done() and "_process_one" in getattr(t.get_coro(), "__qualname__", "")]
+    assert leftover == []

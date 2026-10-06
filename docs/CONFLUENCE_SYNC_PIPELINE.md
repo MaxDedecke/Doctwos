@@ -71,12 +71,13 @@ flowchart TD
 
 ## Kernpunkte
 
-- **Keine Nebenläufigkeit:** anders als `GitConnector` (Semaphore-gesteuerte
-  Parallelverarbeitung, siehe `docs/GIT_SYNC_PIPELINE.md`) verarbeitet
-  `BaseConnector.sync()` — und damit Confluence, Jira, WebDAV, FolderWatch —
-  Dokumente strikt **sequentiell**, eine Datei nach der anderen. Kein
-  `EMBED_CONCURRENCY`/GPU-CPU-Umschalten nötig, dafür auch kein Parallelitäts-
-  Speedup möglich.
+- **Parallele Verarbeitung:** `BaseConnector.sync()` verarbeitet mehrere Dokumente gleichzeitig (Chunking, gebündeltes
+  Embedding, Speichern), wie `GitConnector`, nur ohne Strukturparsing. Der Crawl läuft weiter nacheinander und holt erst
+  neue Dokumente, wenn ein Platz frei wird (Rückstau, begrenzter Speicher). Jedes Dokument hat eine eigene DB-Session und
+  einen eigenen Meldungspuffer; Sync-Log, Fortschritt und Aufräumen laufen über die Hauptsession. Anzahl:
+  `DOC_CONCURRENCY` (0 = automatisch: `EMBED_CONCURRENCY`, bei CPU-only-Ollama `EMBED_CONCURRENCY_CPU_ONLY`, höchstens die
+  freien Batch-Slots der Inferenz-Steuerung). Scheitert ein Dokument anders als durch einen Embedding-Fehler (z. B.
+  Datenbank), werden die übrigen Aufgaben abgebrochen und der Sync endet mit Status *error*.
 - **API-Wurzel wird einmal erkannt:** Server/Data Center liefert die REST-API unter `/rest/api`, Cloud unter
   `/wiki/rest/api`. `_discover_api_root()` prüft beide mit je einer Anfrage und merkt sich den Treffer für den ganzen
   Sync. Wiederholungen mit Wartezeit gibt es nur bei 429, 5xx und Netzwerkfehlern (`http_retry.request_with_retry`),
