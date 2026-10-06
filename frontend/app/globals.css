@@ -84,17 +84,36 @@
   }
 
   .dark {
-    --ds-background: 6 18 18;
-    --ds-surface: 11 27 26;
-    --ds-surface-muted: 18 43 40;
-    --ds-foreground: 231 244 238;
-    --ds-foreground-muted: 147 174 164;
-    --ds-border: 38 67 62;
-    --ds-input: 49 82 75;
+    /* Dark Mode bewusst nicht ganz schwarz: Flächen, Rahmen und gedämpfter Text sind gegenüber
+       dem ersten Entwurf aufgehellt, damit Komponentengrenzen sichtbar bleiben und sekundärer
+       Text lesbar ist. Die Neutral-Skala wird nur hier überschrieben (Light Mode unverändert);
+       die Reihenfolge der Stufen bleibt monoton. */
+    --ds-background: 14 30 30;
+    --ds-surface: 20 40 39;
+    --ds-surface-muted: 30 58 54;
+    --ds-foreground: 236 247 242;
+    --ds-foreground-muted: 172 197 188;
+    --ds-border: 58 92 86;
+    --ds-input: 70 106 98;
     --ds-accent: 96 165 250;
     --ds-on-accent: 8 18 33;
     --ds-focus: 96 165 250;
     --ds-danger: 248 113 113;
+
+    --ds-neutral-300: 189 197 210;
+    --ds-neutral-350: 172 181 196;
+    --ds-neutral-400: 158 168 184;
+    --ds-neutral-450: 146 156 172;
+    --ds-neutral-500: 134 144 160;
+    --ds-neutral-550: 118 128 144;
+    --ds-neutral-600: 98 107 124;
+    --ds-neutral-650: 80 89 106;
+    --ds-neutral-700: 66 74 90;
+    --ds-neutral-750: 56 63 78;
+    --ds-neutral-800: 47 53 67;
+    --ds-neutral-850: 38 43 55;
+    --ds-neutral-900: 30 35 46;
+    --ds-neutral-950: 22 26 35;
   }
 }
 
