@@ -8,6 +8,7 @@ import {
   ARROW_LENGTH_SELECTED,
   CHARGE_DISTANCE_MAX,
   GRAPH_COOLDOWN_MS,
+  NODE_RADIUS_SCALE,
   NEIGHBORHOOD_LAYER_GAP,
   NEIGHBORHOOD_ROW_GAP,
   chargeStrength,
@@ -100,3 +101,18 @@ describe('arrow length', () => {
     expect(at(0.1, { exposedLength: null })).toBeGreaterThan(100);
   });
 });
+
+describe('node-relative arrow cap', () => {
+  it('never lets an arrow be larger than the given node radius, even when zoomed far out', () => {
+    for (const zoom of [1, 0.3, 0.05]) {
+      expect(arrowLength({ selected: false, lineWidth: 1.5, zoom, maxLength: 20 })).toBeLessThanOrEqual(20);
+    }
+    expect(arrowLength({ selected: false, lineWidth: 1.5, zoom: 0.05 })).toBeGreaterThan(20);
+  });
+
+  it('scales nodes up (2-3x) with NODE_RADIUS_SCALE', () => {
+    expect(NODE_RADIUS_SCALE).toBeGreaterThanOrEqual(2);
+    expect(NODE_RADIUS_SCALE).toBeLessThanOrEqual(3);
+  });
+});
+

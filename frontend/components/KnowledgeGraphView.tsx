@@ -24,6 +24,7 @@ import {
   CHARGE_DISTANCE_MAX,
   GRAPH_ALPHA_DECAY,
   GRAPH_COOLDOWN_MS,
+  NODE_RADIUS_SCALE,
   NEIGHBORHOOD_LAYER_GAP,
   NEIGHBORHOOD_ROW_GAP,
   arrowLength,
@@ -79,7 +80,7 @@ export function withKeptAnchor(
 // (radius too large).
 function nodeRadius(node: GraphNode, degree = 0): number {
   const baseRadius = node?.type === 'entity' || node?.type === 'code_file' ? 8 : 7;
-  return baseRadius + Math.min(9, Math.sqrt(degree) * 1.8);
+  return (baseRadius + Math.min(9, Math.sqrt(degree) * 1.8)) * NODE_RADIUS_SCALE;
 }
 
 export const LINK_COLORS = EDGE_TYPE_COLORS;
@@ -989,7 +990,17 @@ export function KnowledgeGraphView({
         - nodeRadius(source, nodeDegrees.get(source.id) ?? 0)
         - nodeRadius(target, nodeDegrees.get(target.id) ?? 0);
     }
-    return arrowLength({ selected, lineWidth: edgeLineWidth(selected, l.score), zoom: zoomRef.current, exposedLength });
+    const smallestRadius = Math.min(
+      source ? nodeRadius(source, nodeDegrees.get(source.id) ?? 0) : Infinity,
+      target ? nodeRadius(target, nodeDegrees.get(target.id) ?? 0) : Infinity,
+    );
+    return arrowLength({
+      selected,
+      lineWidth: edgeLineWidth(selected, l.score),
+      zoom: zoomRef.current,
+      exposedLength,
+      maxLength: Number.isFinite(smallestRadius) ? smallestRadius : null,
+    });
   }, [selectedEdgeId, nodeDegrees]);
 
   const getLinkArrowLength = useCallback((l: GraphEdge) => {
@@ -1153,7 +1164,7 @@ export function KnowledgeGraphView({
     ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI);
     ctx.fillStyle = color;
     ctx.fill();
-    drawKnowledgeNodeIcon(node, ctx, globalScale);
+    drawKnowledgeNodeIcon(node, ctx, globalScale, NODE_RADIUS_SCALE);
 
     if (isPrimary) {
       ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';

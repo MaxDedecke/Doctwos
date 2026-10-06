@@ -35,6 +35,12 @@ export function edgeLineWidth(selected: boolean, score: number | null | undefine
   return selected ? 4.5 : Math.max(1.2, (score ?? 0.5) * 3);
 }
 
+/**
+ * Knotengröße: Radius und Symbole werden mit diesem Faktor skaliert (früher 1). Größere Knoten
+ * bieten mehr Fläche für die Kantenansätze und bleiben auch herausgezoomt vor den Pfeilen lesbar.
+ */
+export const NODE_RADIUS_SCALE = 2.5;
+
 export function arrowLength(options: {
   selected: boolean;
   lineWidth: number;
@@ -42,15 +48,18 @@ export function arrowLength(options: {
   zoom: number;
   /** Sichtbare Kantenlänge zwischen den Knotenrändern; unbekannt = kein Deckel. */
   exposedLength?: number | null;
+  /** Obergrenze, z. B. der Radius des Zielknotens: Der Pfeil soll nie größer als der Knoten sein. */
+  maxLength?: number | null;
 }): number {
-  const { selected, lineWidth, zoom, exposedLength } = options;
+  const { selected, lineWidth, zoom, exposedLength, maxLength } = options;
   const base = Math.max(selected ? ARROW_LENGTH_SELECTED : ARROW_LENGTH, lineWidth * ARROW_LINE_WIDTH_RATIO);
   const minScreen = ARROW_MIN_SCREEN_PX * (selected ? ARROW_MIN_SCREEN_PX_SELECTED_FACTOR : 1);
   const zoomed = Math.max(base, minScreen / Math.max(zoom, 0.02));
+  const capped = maxLength != null && maxLength > 0 ? Math.min(zoomed, maxLength) : zoomed;
   if (exposedLength != null && exposedLength > 0) {
-    return Math.min(zoomed, exposedLength * ARROW_MAX_EDGE_FRACTION);
+    return Math.min(capped, exposedLength * ARROW_MAX_EDGE_FRACTION);
   }
-  return zoomed;
+  return capped;
 }
 
 /** Abstand der Schichten und Zeilen im festen Nachbarschaftslayout. */

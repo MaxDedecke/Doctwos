@@ -26,12 +26,12 @@ export function KnowledgeNodeIcon({ node, className, title }: KnowledgeNodeIconP
 }
 
 /** Draw the same icon family inside a force-graph canvas node. */
-export function drawKnowledgeNodeIcon(node: IconNode | null | undefined, ctx: CanvasRenderingContext2D, globalScale: number) {
+export function drawKnowledgeNodeIcon(node: IconNode | null | undefined, ctx: CanvasRenderingContext2D, globalScale: number, sizeScale = 1) {
   const kind = getKnowledgeNodeIconKind(node);
   const x = node?.x ?? 0;
   const y = node?.y ?? 0;
-  const size = Math.max(5, Math.min(8, 7 / Math.max(globalScale, 0.01)));
-  const strokeWidth = Math.max(0.7, 1.1 / Math.max(globalScale, 0.01));
+  const size = Math.max(5, Math.min(8, 7 / Math.max(globalScale, 0.01))) * sizeScale;
+  const strokeWidth = Math.max(0.7, 1.1 / Math.max(globalScale, 0.01)) * Math.sqrt(sizeScale);
 
   ctx.save();
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.94)';
