@@ -170,6 +170,7 @@ services:
       EMBEDDING_CONTEXT_LENGTH: ${EMBEDDING_CONTEXT_LENGTH:-8100}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
       SESSION_SECRET_KEY: ${SESSION_SECRET_KEY}
       BOOTSTRAP_SUPERUSER: ${BOOTSTRAP_SUPERUSER:-admin}
       BOOTSTRAP_SUPERUSER_PASSWORD: ${BOOTSTRAP_SUPERUSER_PASSWORD:-}
@@ -197,6 +198,8 @@ services:
     volumes:
       - ./repos:/repos
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
+      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./config:/config:ro
       # Own app-log file, additive to the json-file driver above — lets a
       # diagnostics bundle collect this service's logs by reading a file, not
@@ -251,6 +254,7 @@ services:
       EMBEDDING_CONTEXT_LENGTH: ${EMBEDDING_CONTEXT_LENGTH:-8100}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
       LLM_MODEL: ${LLM_MODEL:-disabled}
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
       LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
@@ -258,6 +262,8 @@ services:
     volumes:
       - ./repos:/repos
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
+      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       # Whole logs tree (not just its own subdir, unlike every other service
       # here): the diagnostics-bundle Celery task runs in this container and
       # reads every service's log file directly off disk, since parser-worker
@@ -310,10 +316,13 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
       LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/doctus/parser-beat/parser-beat.log
     volumes:
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
+      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./data/logs/parser-beat:/var/log/doctus/parser-beat
     healthcheck:
       test: ["CMD", "python3", "healthcheck_beat.py"]

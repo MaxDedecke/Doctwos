@@ -81,6 +81,14 @@ def _http_verify(verify_ssl: bool = True):
     return True
 
 
+def source_http_verify(spaces) -> bool | str:
+    """TLS-Prüfung für Aufrufe, die eine gespeicherte Wissensquelle nutzen (Regeln wie parser/connectors/tls.py)."""
+    config = spaces if isinstance(spaces, dict) else {}
+    if config.get("ca_bundle"):
+        return config["ca_bundle"]
+    return _http_verify(config.get("verify_ssl") is not False)
+
+
 def _atlassian_auth(username: str | None, token: str):
     """Basic Auth mit Benutzername (Cloud-API-Token, Server-Passwort), sonst Personal Access Token als Bearer."""
     if username:

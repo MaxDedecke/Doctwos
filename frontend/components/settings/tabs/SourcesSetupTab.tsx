@@ -34,6 +34,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
   const [sourceUsername, setSourceUsername] = useState("");
   const [sourceToken, setSourceToken] = useState("");
   const [sourceSpaces, setSourceSpaces] = useState("");
+  // Nur für Server mit internem/selbst signiertem Zertifikat und nur zum Testen; besser ist eine CA (CUSTOM_CA_FILE).
+  const [skipTlsVerify, setSkipTlsVerify] = useState(false);
   const [isConnectingSource, setIsConnectingSource] = useState(false);
   const [isTestingSourceConn, setIsTestingSourceConn] = useState(false);
   const [sourceConnStatus, setSourceConnStatus] = useState<'success' | 'error' | null>(null);
@@ -68,7 +70,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         ? sourceSpaces.split(",").map(s => s.trim()).filter(Boolean)
         : ["ALL"];
 
-      const spacesPayload = parsedSpaces;
+      const spacesPayload = skipTlsVerify ? { ids: parsedSpaces, verify_ssl: false } : parsedSpaces;
 
       const payload = {
         name: sourceInstanceName,
@@ -126,7 +128,8 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
         type: typeCode,
         url: sourceUrl || undefined,
         username: sourceUsername || undefined,
-        token: sourceToken
+        token: sourceToken,
+        ...(skipTlsVerify ? { verify_ssl: false } : {}),
       });
 
       if (res.data && res.data.success) {
@@ -434,6 +437,15 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                     )}
                   />
                 </div>
+
+                <p className="text-[0.625rem] leading-relaxed text-ds-zinc-500">{t('settings.sourcesSetup.patHint')}</p>
+                <label className="flex items-start gap-2 text-[0.6875rem] text-ds-zinc-500">
+                  <input type="checkbox" className="mt-0.5" checked={skipTlsVerify} onChange={e => setSkipTlsVerify(e.target.checked)} />
+                  <span>
+                    <span className="font-semibold">{t('settings.sourcesSetup.skipTls')}</span>
+                    <span className="block">{t('settings.sourcesSetup.skipTlsHint')}</span>
+                  </span>
+                </label>
 
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">

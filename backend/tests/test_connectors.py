@@ -113,3 +113,14 @@ def test_http_verify_prefers_opt_out_then_ca_bundle(monkeypatch, tmp_path):
     assert connectors._http_verify(True) == str(bundle)
     monkeypatch.delenv("CUSTOM_CA_BUNDLE")
     assert connectors._http_verify(True) is True
+
+
+def test_source_http_verify_reads_the_stored_source_configuration(monkeypatch, tmp_path):
+    bundle = tmp_path / "ca.pem"
+    bundle.write_text("x")
+    monkeypatch.delenv("CUSTOM_CA_BUNDLE", raising=False)
+    assert connectors.source_http_verify(["ALL"]) is True
+    assert connectors.source_http_verify({"ids": ["A"], "verify_ssl": False}) is False
+    assert connectors.source_http_verify({"ca_bundle": "/certs/x.pem", "verify_ssl": False}) == "/certs/x.pem"
+    monkeypatch.setenv("CUSTOM_CA_BUNDLE", str(bundle))
+    assert connectors.source_http_verify({}) == str(bundle)

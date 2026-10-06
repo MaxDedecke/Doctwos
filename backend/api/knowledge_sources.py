@@ -44,6 +44,7 @@ from api.schemas import (
     GitSourceCreate,
 )
 from api.serializers import serialize_source
+from api.connectors import source_http_verify
 from core.config import UPLOADS_DIR, REPOS_ROOT
 import core.config as cfg
 from core.db_setup import get_db
@@ -430,10 +431,11 @@ def resolve_knowledge_source_url(
     try:
         source_type = (db_source.type or "").lower()
 
+        verify = source_http_verify(db_source.spaces)
         if source_type == "confluence":
-            return _resolve_confluence(url, db_source.url, auth, headers, theme)
+            return _resolve_confluence(url, db_source.url, auth, headers, theme, verify)
         elif source_type == "jira":
-            return _resolve_jira(url, db_source.url, auth, headers, theme)
+            return _resolve_jira(url, db_source.url, auth, headers, theme, verify)
         else:
             raise HTTPException(
                 status_code=400,
@@ -942,7 +944,7 @@ html { scrollbar-width: thin; scrollbar-color: rgba(161, 161, 170, 0.5) transpar
 </style>"""
 
 
-def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str = "dark") -> dict:
+def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True) -> dict:
     import urllib.parse as urlparse
 
     parsed = urlparse.urlparse(url)
@@ -962,7 +964,7 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
                     break
 
     html_content = None
-    with httpx.Client(timeout=15.0) as client:
+    with httpx.Client(timeout=15.0, verify=verify) as client:
         if page_id:
             for prefix in ["/wiki/rest/api/content", "/rest/api/content"]:
                 try:
@@ -1000,7 +1002,7 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
     }
 
 
-def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "dark") -> dict:
+def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True) -> dict:
     import urllib.parse as urlparse
 
     parsed = urlparse.urlparse(url)
@@ -1024,7 +1026,7 @@ def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "da
         raise HTTPException(status_code=400, detail="Kein Jira-Issue Key in der URL gefunden.")
 
     issue_data = None
-    with httpx.Client(timeout=15.0) as client:
+    with httpx.Client(timeout=15.0, verify=verify) as client:
         for prefix in ["/rest/api/3/issue", "/rest/api/2/issue"]:
             try:
                 resp = client.get(

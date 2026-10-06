@@ -327,4 +327,38 @@ describe('SourcesSetupTab', () => {
       await waitFor(() => expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.documentUploadFailed', 'error', expect.any(Error)));
     });
   });
+
+  describe('Zertifikatsprüfung', () => {
+    const fill = () => {
+      fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.integrationNamePlaceholder:Confluence'), { target: { value: 'Intern' } });
+      fireEvent.change(screen.getByText('settings.sourcesSetup.serverUrlLabel').closest('div')!.querySelector('input')!, { target: { value: 'https://wiki.intern' } });
+      fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.tokenPlaceholder'), { target: { value: 'pat' } });
+    };
+
+    it('verifies certificates by default and passes the opt-out to the connection test', async () => {
+      apiMocks.testConnector.mockResolvedValue(axiosResponse({ success: true, message: 'ok' }));
+      render(<SourcesSetupTab {...baseProps} />);
+      fill();
+      fireEvent.click(screen.getByText('settings.sourcesSetup.testConnection'));
+      await waitFor(() => expect(apiMocks.testConnector).toHaveBeenCalledTimes(1));
+      expect(apiMocks.testConnector.mock.calls[0][0]).not.toHaveProperty('verify_ssl');
+
+      fireEvent.click(screen.getByLabelText(/settings.sourcesSetup.skipTls/));
+      // Nach einem erfolgreichen Test zeigt der Knopf das Ergebnis, bleibt aber klickbar.
+      fireEvent.click(await screen.findByText('settings.sourcesSetup.connectionSuccess'));
+      await waitFor(() => expect(apiMocks.testConnector).toHaveBeenCalledTimes(2));
+      expect(apiMocks.testConnector.mock.calls[1][0]).toMatchObject({ verify_ssl: false });
+    });
+
+    it('stores the opt-out in the source configuration next to the spaces', async () => {
+      apiMocks.createKnowledgeSource.mockResolvedValue(axiosResponse({ id: 1, name: 'Intern', type: 'confluence' }));
+      render(<SourcesSetupTab {...baseProps} />);
+      fill();
+      fireEvent.click(screen.getByLabelText(/settings.sourcesSetup.skipTls/));
+      fireEvent.click(screen.getByText('settings.sourcesSetup.connect'));
+      await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(
+        expect.objectContaining({ spaces: { ids: ['ALL'], verify_ssl: false } }),
+      ));
+    });
+  });
 });
