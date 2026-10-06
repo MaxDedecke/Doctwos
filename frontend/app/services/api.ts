@@ -1,5 +1,6 @@
 import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
+import type { UsageReference } from '@/lib/usageAnchors';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
@@ -131,6 +132,8 @@ export const api = {
         axios.post(`${API_URL}/knowledge-sources/folder`, data),
     createGitSource: (data: { name: string; url: string; branch?: string; username?: string | null; token?: string | null; project_id?: number | null; team_id?: number | null; sparse_paths?: string[] | null; embedding_model?: string }) =>
         axios.post(`${API_URL}/knowledge-sources/git`, data),
+    getFileReferences: (id: number, filePath: string, sourceId?: number | null) =>
+      axios.get<{ references: UsageReference<CodeEntity>[]; truncated: boolean }>(`${API_URL}/projects/${id}/file-references`, { params: { file_path: filePath, ...(sourceId != null ? { source_id: sourceId } : {}) } }),
     getProjectEntities: (id: number) => axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`),
     // projectId ist der aktuelle Projekt-Kontext des Aufrufers (Code-Editor etc.) --
     // fehlt er (Allgemein-Modus), gilt serverseitig das Default-Deny-Opt-in für

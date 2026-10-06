@@ -36,6 +36,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
 import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
+import { computeUsageAnchor, type UsageReference } from '@/lib/usageAnchors';
 import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
@@ -600,6 +601,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     x: number;
     y: number;
     entity: CodeEntity;
+    /** Verwendung (Aufruf, Typname, Import …) statt Deklaration: bietet zusätzlich „zur Definition“. */
+    usage?: boolean;
   } | null>(null);
   const entityMenuRef = useRef<HTMLDivElement>(null);
   // Menü zu einer angeklickten PERFORM-/MOVE-Anweisung: Anweisung anpinnen sowie die darin
@@ -701,6 +704,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     selectedFileRef.current = selectedFile;
   }, [selectedFile]);
 
+  // Verwendungen in der geöffneten Datei (Aufrufe, Typnamen, Imports, COPY, Feldzugriffe …) aus den
+  // Kanten des Projekts; sie werden im Editor zusätzlich zu den Deklarationen klickbar.
+  const [fileUsages, setFileUsages] = useState<{ file: string; references: UsageReference<CodeEntity>[] } | null>(null);
+  useEffect(() => {
+    if (!selectedProject?.id || !selectedFile) return;
+    let cancelled = false;
+    api.getFileReferences(selectedProject.id, selectedFile)
+      .then((res) => { if (!cancelled) setFileUsages({ file: selectedFile, references: res.data.references }); })
+      .catch(() => { if (!cancelled) setFileUsages({ file: selectedFile, references: [] }); });
+    return () => { cancelled = true; };
+  }, [selectedProject?.id, selectedFile]);
+
   // Dateiobjekt der geöffneten Datei (Compilation-Unit, Copybook, JCL-Datei, Properties …).
   const fileLevelEntity = useMemo(
     () => (selectedFile && projectEntities
@@ -710,6 +725,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   );
   const entityDecorationsRef = useRef<string[]>([]);
   const entityAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
+  const usageAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
   useEffect(() => {
     const editor = activeEditorRef.current;
     const monaco = monacoRef.current;
@@ -781,6 +797,30 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     });
     entityAnchorsRef.current = anchors;
 
+    // Verwendungen: nur dort markieren, wo nicht schon eine Deklaration liegt.
+    const usageAnchors: Array<{ ent: CodeEntity; anchor: EntityAnchor }> = [];
+    const taken = new Set(anchors.map(({ anchor }) => `${anchor.line}:${anchor.startColumn}`));
+    if (fileUsages && fileUsages.file === selectedFile) {
+      for (const reference of fileUsages.references) {
+        const anchor = computeUsageAnchor(reference, (n) => model.getLineContent(n), model.getLineCount());
+        if (!anchor) continue;
+        const key = `${anchor.line}:${anchor.startColumn}`;
+        if (taken.has(key)) continue;
+        taken.add(key);
+        usageAnchors.push({ ent: reference.target, anchor });
+        newDecorations.push({
+          range: new monaco.Range(anchor.line, anchor.startColumn, anchor.line, anchor.endColumn),
+          options: {
+            inlineClassName: 'doctus-usage-reference',
+            hoverMessage: {
+              value: `**${reference.target.name}** (${reference.target.type}) · ${reference.type}\n\n${t('splitPane.clickToSelectReferences')}`
+            },
+          },
+        });
+      }
+    }
+    usageAnchorsRef.current = usageAnchors;
+
     entityDecorationsRef.current = editor.deltaDecorations(
       entityDecorationsRef.current,
       newDecorations
@@ -799,8 +839,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         entityDecorationsRef.current = [];
       }
       entityAnchorsRef.current = [];
+      usageAnchorsRef.current = [];
     };
-  }, [selectedFile, contentToUse, projectEntities, activeEditorRef, editorMountTick, t, selectedEntity]);
+  }, [selectedFile, contentToUse, projectEntities, fileUsages, activeEditorRef, editorMountTick, t, selectedEntity]);
 
   // PERFORM-/MOVE-Schlüsselwörter in COBOL-Dateien als klickbare Anweisungen markieren.
   const statementDecorationsRef = useRef<string[]>([]);
@@ -984,44 +1025,24 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
       }
     });
 
-    editor.onMouseDown((e) => {
-      const position = e.target.position;
-      if (!position) return;
+    // Was liegt unter dem Mauszeiger? Ein Objekt (Deklaration oder Verwendung) oder eine
+    // PERFORM-/MOVE-Anweisung. Linksklick wechselt nur den Fokus, das Menü gibt es per Rechtsklick.
+    type CodeHit =
+      | { kind: 'entity'; entity: CodeEntity; usage: boolean }
+      | { kind: 'statement'; statement: CobolStatement; entities: CodeEntity[] };
+    const hitTest = (lineNumber: number, column: number): CodeHit | null => {
+      const width = (a: EntityAnchor) => a.endColumn - a.startColumn;
+      const declared = entityAnchorsRef.current
+        .filter(({ anchor }) => anchor.line === lineNumber && column >= anchor.startColumn && column <= anchor.endColumn)
+        .sort((x, y) => width(x.anchor) - width(y.anchor))[0];
+      if (declared) return { kind: 'entity', entity: declared.ent, usage: false };
 
-      const lineNumber = position.lineNumber;
-      const column = position.column;
+      const used = usageAnchorsRef.current
+        .filter(({ anchor }) => anchor.line === lineNumber && column >= anchor.startColumn && column <= anchor.endColumn)
+        .sort((x, y) => width(x.anchor) - width(y.anchor))[0];
+      if (used) return { kind: 'entity', entity: used.ent, usage: true };
 
-      const fileEntities = (projectEntitiesRef.current || []).filter(
-        (ent: CodeEntity) => ent.file_path === selectedFileRef.current
-      );
-
-      // Gutter click detection: type 2 (glyph margin), type 3 (line numbers), type 4 (line decorations)
-      const isGutterClick = e.target.type === 2 || e.target.type === 3 || e.target.type === 4;
-
-      // Clicking the entity's own name text jumps straight to it — but only
-      // for genuine text/content clicks. Gutter clicks report a column too
-      // (often 1), which would otherwise spuriously "hit" any entity whose
-      // name starts at column 1 (common for un-indented COBOL paragraphs/
-      // sections) and hijack the gutter menu below.
-      if (!isGutterClick) {
-        const clickedEntity = entityAnchorsRef.current
-          .filter(({ anchor }) => anchor.line === lineNumber && column >= anchor.startColumn && column <= anchor.endColumn)
-          .sort((x, y) => (x.anchor.endColumn - x.anchor.startColumn) - (y.anchor.endColumn - y.anchor.startColumn))[0]?.ent;
-
-        if (clickedEntity) {
-          handleEntitySelectRef.current?.(clickedEntity);
-          const native = e.event?.browserEvent;
-          setEntityMenu({
-            x: native?.clientX ?? e.event?.posx ?? 0,
-            y: native?.clientY ?? e.event?.posy ?? 0,
-            entity: clickedEntity,
-          });
-          return;
-        }
-      }
-
-      // Klick auf PERFORM/MOVE: die Anweisung wird zum anpinnbaren Objekt.
-      if (!isGutterClick && detectLanguage(selectedFileRef.current) === 'cobol') {
+      if (detectLanguage(selectedFileRef.current) === 'cobol') {
         const model = editor.getModel();
         const keyword = model ? keywordAtColumn(model.getLineContent(lineNumber), column) : null;
         if (model && keyword) {
@@ -1037,13 +1058,58 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             const match = candidates.find((ent: CodeEntity) => ent.file_path === selectedFileRef.current) ?? candidates[0];
             if (match && !entities.includes(match)) entities.push(match);
           }
-          const native = e.event?.browserEvent;
-          setStatementMenu({
-            x: native?.clientX ?? e.event?.posx ?? 0,
-            y: native?.clientY ?? e.event?.posy ?? 0,
-            statement,
-            entities: entities.slice(0, 4),
-          });
+          return { kind: 'statement', statement, entities: entities.slice(0, 4) };
+        }
+      }
+      return null;
+    };
+
+    const openObjectMenu = (hit: CodeHit, x: number, y: number) => {
+      if (hit.kind === 'entity') setEntityMenu({ x, y, entity: hit.entity, usage: hit.usage });
+      else setStatementMenu({ x, y, statement: hit.statement, entities: hit.entities });
+    };
+
+    // Rechtsklick: Menü. Im Capture-Handler, damit Monacos eigenes Kontextmenü nur dort entfällt,
+    // wo ein Objekt getroffen wurde; sonst bleibt es (Kopieren usw.).
+    const dom = editor.getDomNode();
+    const onContextMenu = (ev: MouseEvent) => {
+      const target = editor.getTargetAtClientPoint(ev.clientX, ev.clientY);
+      if (!target?.position || target.type === 2 || target.type === 3 || target.type === 4) return;
+      const hit = hitTest(target.position.lineNumber, target.position.column);
+      if (!hit) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openObjectMenu(hit, ev.clientX, ev.clientY);
+    };
+    dom?.addEventListener('contextmenu', onContextMenu, true);
+    editor.onDidDispose(() => dom?.removeEventListener('contextmenu', onContextMenu, true));
+
+    editor.onMouseDown((e) => {
+      const position = e.target.position;
+      if (!position) return;
+
+      const lineNumber = position.lineNumber;
+      const column = position.column;
+
+      const fileEntities = (projectEntitiesRef.current || []).filter(
+        (ent: CodeEntity) => ent.file_path === selectedFileRef.current
+      );
+
+      // Gutter click detection: type 2 (glyph margin), type 3 (line numbers), type 4 (line decorations)
+      const isGutterClick = e.target.type === 2 || e.target.type === 3 || e.target.type === 4;
+
+      // Linksklick auf Text: nur das Fokusobjekt wechseln (kein Menü). Gutter-Klicks melden
+      // ebenfalls eine Spalte (oft 1) und würden sonst Objekte ab Spalte 1 treffen.
+      if (!isGutterClick) {
+        if (!e.event.leftButton) return;
+        const hit = hitTest(lineNumber, column);
+        if (hit?.kind === 'entity') {
+          handleEntitySelectRef.current?.(hit.entity);
+          return;
+        }
+        if (hit?.kind === 'statement') {
+          // PERFORM: zum genannten Absatz wechseln; MOVE hat kein einzelnes Fokusobjekt.
+          if (hit.statement.verb === 'PERFORM' && hit.entities[0]) handleEntitySelectRef.current?.(hit.entities[0]);
           return;
         }
       }
@@ -2125,6 +2191,21 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           <Sparkles className="w-3.5 h-3.5 text-ds-emerald-400 shrink-0" />
           <span className="truncate">{t('splitPane.askAboutEntityMenuItem', { name: entityMenu.entity.name })}</span>
         </button>
+        {entityMenu.usage && handleEntitySelectAndOpen && (
+          <button
+            onClick={() => {
+              handleEntitySelectAndOpen(entityMenu.entity);
+              setEntityMenu(null);
+            }}
+            className={cn(
+              "w-full text-left px-2.5 py-1.5 flex items-center gap-2 transition-colors",
+              theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-100"
+            )}
+          >
+            <ChevronRight className="w-3.5 h-3.5 text-ds-zinc-500 shrink-0" />
+            <span className="truncate">{t('splitPane.jumpToEntityMenuItem', { name: entityMenu.entity.name })}</span>
+          </button>
+        )}
         <button
           onClick={() => {
             // The object was focused when the menu opened; this reuses the

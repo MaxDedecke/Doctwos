@@ -227,6 +227,18 @@ html {
   transform: scale(1.15);
 }
 
+.doctus-usage-reference {
+  text-decoration: underline dotted;
+  text-decoration-color: rgb(var(--ds-accent) / 0.5);
+  text-underline-offset: 3px;
+  cursor: pointer !important;
+}
+
+.doctus-usage-reference:hover {
+  background-color: rgb(var(--ds-accent) / 0.14);
+  border-radius: 2px;
+}
+
 .doctus-statement-keyword {
   text-decoration: underline dotted;
   text-decoration-color: rgb(var(--ds-accent) / 0.55);

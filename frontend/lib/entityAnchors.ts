@@ -61,7 +61,7 @@ function nameCandidates(ent: AnchorEntity): string[] {
   return [name];
 }
 
-function wordRegex(name: string): RegExp {
+export function wordRegex(name: string): RegExp {
   return new RegExp(`(?<![\\w$-])${escapeRegex(name)}(?![\\w$-])`, 'i');
 }
 

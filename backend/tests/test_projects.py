@@ -775,3 +775,64 @@ def test_get_project_references_requires_project_membership(
         f"/projects/{test_project}/references", params={"file_path": "ACCOUNT.cbl"}
     )
     assert res.status_code == 403
+
+
+# ── GET /{id}/file-references ────────────────────────────────────────────────
+
+
+def test_get_file_references_returns_resolved_usages_of_this_file_only(client, db_session, test_project):
+    from models.database import CodeEdge
+
+    caller = None
+    callee = None
+    try:
+        caller = CodeEntity(project_id=test_project, file_path="A.java", name="A", type="class", start_line=1, end_line=20)
+        callee = CodeEntity(project_id=test_project, file_path="B.java", name="B", type="class", start_line=1, end_line=5)
+        db_session.add_all([caller, callee])
+        db_session.commit()
+        usage = CodeEdge(
+            project_id=test_project, src_entity_id=caller.id, dst_entity_id=callee.id, dst_name="B", type="USES_TYPE",
+            resolution="resolved", src_start_line=7, src_end_line=7,
+            meta_json={"src_start_column": 4, "src_end_column": 5},
+        )
+        structural = CodeEdge(
+            project_id=test_project, src_entity_id=caller.id, dst_entity_id=callee.id, dst_name="B", type="CONTAINS",
+            resolution="resolved", src_start_line=2, src_end_line=2,
+        )
+        unresolved = CodeEdge(
+            project_id=test_project, src_entity_id=caller.id, dst_entity_id=None, dst_name="String", type="USES_TYPE",
+            resolution="unresolved", src_start_line=8, src_end_line=8,
+        )
+        foreign_evidence = CodeEdge(
+            project_id=test_project, src_entity_id=caller.id, dst_entity_id=callee.id, dst_name="B", type="COPY",
+            resolution="resolved", src_start_line=3, src_end_line=3,
+            meta_json={"evidence": {"source": {"file_path": "OTHER.cpy"}}},
+        )
+        db_session.add_all([usage, structural, unresolved, foreign_evidence])
+        db_session.commit()
+
+        res = client.get(f"/projects/{test_project}/file-references", params={"file_path": "A.java"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["truncated"] is False
+        assert len(body["references"]) == 1
+        ref = body["references"][0]
+        assert (ref["type"], ref["line"], ref["start_column"], ref["end_column"]) == ("USES_TYPE", 7, 4, 5)
+        assert ref["target"]["name"] == "B" and ref["target"]["file_path"] == "B.java"
+
+        empty = client.get(f"/projects/{test_project}/file-references", params={"file_path": "B.java"})
+        assert empty.json()["references"] == []
+    finally:
+        entity_ids = [e.id for e in (caller, callee) if e is not None]
+        db_session.query(CodeEdge).filter(CodeEdge.src_entity_id.in_(entity_ids)).delete(synchronize_session=False)
+        db_session.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).delete(synchronize_session=False)
+        db_session.commit()
+
+
+def test_get_file_references_requires_project_membership(
+    unauthenticated_client, test_project, team_member_without_project
+):
+    res = _as(unauthenticated_client, team_member_without_project).get(
+        f"/projects/{test_project}/file-references", params={"file_path": "A.java"}
+    )
+    assert res.status_code == 403

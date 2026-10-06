@@ -27,6 +27,7 @@ from models.database import (
     KnowledgeSource,
     SourceScanFile,
     DocumentChunk,
+    CodeEdge,
     CodeEntity,
     EntityDocLink,
     KnowledgeLink,
@@ -422,6 +423,81 @@ def get_project_entities(
         }
         for e in q.all()
     ]
+
+
+# Strukturelle Kanten gehören zum Aufbau der Objekte, nicht zu einer Verwendung im Text.
+_NON_USAGE_EDGE_TYPES = {"CONTAINS", "DEFINES", "DECLARES_SOURCE_ROOT", "CONTAINS_MODULE"}
+_MAX_FILE_REFERENCES = 6000
+
+
+@router.get("/{id}/file-references")
+def get_file_references(
+    id: int,
+    file_path: str,
+    source_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Verwendungen in einer Datei: Stellen im Text (Aufruf, Typname, Import, COPY, Feldzugriff …),
+    die auf ein bereits aufgelöstes Objekt des Projekts zeigen. Der Editor macht sie klickbar.
+
+    Java-Kanten tragen Spalten (`src_start_column`/`src_end_column`, 0-basiert), COBOL/JCL-Kanten
+    nur Zeilen; dort sucht der Editor den Namen in der Zeile. Kanten, deren Beleg in einer anderen
+    Datei liegt (z. B. aus einem eingebundenen Copybook), gehören nicht zu dieser Datei.
+    """
+    proj = db.query(Project).filter(Project.id == id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_project_visible(id, user, db)
+
+    src = aliased(CodeEntity)
+    dst = aliased(CodeEntity)
+    query = (
+        db.query(CodeEdge, dst)
+        .join(src, src.id == CodeEdge.src_entity_id)
+        .join(dst, dst.id == CodeEdge.dst_entity_id)
+        .filter(
+            src.project_id == id,
+            dst.project_id == id,
+            src.file_path == file_path,
+            CodeEdge.src_start_line > 0,
+            CodeEdge.type.notin_(_NON_USAGE_EDGE_TYPES),
+        )
+    )
+    if source_id is not None:
+        query = query.filter(src.source_id == source_id)
+    rows = query.order_by(CodeEdge.src_start_line, CodeEdge.id).limit(_MAX_FILE_REFERENCES + 1).all()
+
+    references = []
+    for edge, target in rows[:_MAX_FILE_REFERENCES]:
+        meta = edge.meta_json or {}
+        evidence_file = ((meta.get("evidence") or {}).get("source") or {}).get("file_path")
+        if evidence_file and evidence_file != file_path:
+            continue
+        references.append(
+            {
+                "edge_id": edge.id,
+                "type": edge.type,
+                "dst_name": edge.dst_name,
+                "resolution": edge.resolution,
+                "line": edge.src_start_line,
+                "end_line": edge.src_end_line,
+                "start_column": meta.get("src_start_column"),
+                "end_column": meta.get("src_end_column"),
+                "target": {
+                    "id": target.id,
+                    "name": target.name,
+                    "type": target.type,
+                    "file_path": target.file_path,
+                    "start_line": target.start_line,
+                    "end_line": target.end_line,
+                    "project_id": target.project_id,
+                    "source_id": target.source_id,
+                    "variant_key": target.variant_key,
+                },
+            }
+        )
+    return {"references": references, "truncated": len(rows) > _MAX_FILE_REFERENCES}
 
 
 _EXT_LANG_MAP = {
