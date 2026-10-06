@@ -73,19 +73,23 @@ def gpu_available() -> bool:
         return False
 
 
+def _answers(container_name: str, engine: str) -> bool:
+    """True, wenn der Server im Container auf seinen Health-/Discovery-Pfad antwortet."""
+    port = {"ollama": 11434, "vllm": 8000, "llamacpp": 8080}.get(engine, 0)
+    health = "/api/tags" if engine == "ollama" else "/health"
+    try:
+        return bool(port) and httpx.get(f"http://{container_name}:{port}{health}", timeout=1.5).status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
 def _describe(container, *, include_health: bool = True) -> dict[str, Any]:
     labels = container.labels or {}
     name = labels.get(LABEL, "")
     engine = labels.get("doctus.engine", "")
     state = container.status
     port = {"ollama": 11434, "vllm": 8000, "llamacpp": 8080}.get(engine, 0)
-    ready = False
-    if include_health and state == "running" and port:
-        health = {"ollama": "/api/tags"}.get(engine, "/health")
-        try:
-            ready = httpx.get(f"http://{container.name}:{port}{health}", timeout=1.5).status_code == 200
-        except httpx.HTTPError:
-            ready = False
+    ready = include_health and state == "running" and _answers(container.name, engine)
     pull = _pull_state.get(name, {})
     if state in {"created", "restarting"}:
         status = "starting"
@@ -123,7 +127,8 @@ def _pull_ollama(name: str, model: str) -> None:
     try:
         container = _find(name)
         for _ in range(60):
-            if _describe(container)["status"] in {"ready", "starting"}:
+            container.reload()
+            if container.status == "running" and _answers(container.name, "ollama"):
                 result = container.exec_run(["ollama", "pull", model])
                 if result.exit_code == 0:
                     _pull_state.pop(name, None)
@@ -202,6 +207,7 @@ def create_deployment(request: DeploymentRequest) -> dict[str, Any]:
 @app.post("/deployments/{name}/start", dependencies=[Depends(require_token)])
 def start_deployment(name: str) -> dict[str, Any]:
     container = _find(name)
+    _pull_state.pop(name, None)
     container.start()
     container.reload()
     return _describe(container, include_health=False)

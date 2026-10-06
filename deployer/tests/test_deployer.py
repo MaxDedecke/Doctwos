@@ -137,3 +137,22 @@ def test_foreign_containers_are_not_managed(api):
     client, fake, _ = api
     fake.containers.get.return_value = SimpleNamespace(name="doctus-llm-db", labels={}, status="running")
     assert client.delete("/deployments/db", headers=HEAD).status_code == 404
+
+
+def test_ollama_pull_waits_for_the_server_and_marks_failures(api, monkeypatch):
+    """Regression: der Pull-Thread darf nicht auf seinen eigenen "pulling"-Status warten."""
+    _, fake, app_module = api
+    container = MagicMock()
+    container.name = "doctus-llm-x"
+    container.status = "running"
+    container.labels = {engines.LABEL: "x", "doctus.engine": "ollama"}
+    container.exec_run.return_value = SimpleNamespace(exit_code=0, output=b"")
+    fake.containers.get.return_value = container
+    monkeypatch.setattr(app_module, "_answers", lambda name, engine: True)
+    app_module._pull_ollama("x", "qwen3:8b")
+    container.exec_run.assert_called_once_with(["ollama", "pull", "qwen3:8b"])
+    assert "x" not in app_module._pull_state
+
+    container.exec_run.return_value = SimpleNamespace(exit_code=1, output=b"manifest unknown")
+    app_module._pull_ollama("x", "nope")
+    assert app_module._pull_state["x"]["status"] == "failed" and "manifest" in app_module._pull_state["x"]["detail"]

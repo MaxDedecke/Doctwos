@@ -25,6 +25,10 @@ const { apiMocks, showToastMock, settingsState, defaultCurrentUser } = vi.hoiste
     generateDiagnosticsBundle: vi.fn().mockResolvedValue({ data: {} }),
     getDiagnosticsRuns: vi.fn().mockResolvedValue({ data: [] }),
     syncKnowledgeSource: vi.fn().mockResolvedValue({ data: {} }),
+    getLlmDeployments: vi.fn().mockResolvedValue({ data: { capabilities: { gpu: false }, deployments: [] } }),
+    getLlmDeploymentLogs: vi.fn().mockResolvedValue({ data: { logs: '' } }),
+    controlLlmDeployment: vi.fn().mockResolvedValue({ data: {} }),
+    fetch: vi.fn().mockResolvedValue({ json: async () => ({ checks: {} }) }),
   } };
 });
 
@@ -205,5 +209,47 @@ describe('LogsSettingsTab knowledge source sync (O-100)', () => {
     fireEvent.click(syncButton);
 
     await waitFor(() => expect(showToastMock).toHaveBeenCalledWith('settings.logsTab.syncStartFailedToast', 'error', expect.any(Error)));
+  });
+});
+
+describe('LogsSettingsTab live status', () => {
+  it('shows the real health checks instead of fixed service entries', async () => {
+    apiMocks.fetch.mockResolvedValue({ json: async () => ({ checks: { database: 'ok', redis: 'error: down', ollama: 'ok' } }) });
+    render(<LogsSettingsTab />);
+    expect(await screen.findByText('PostgreSQL')).toBeTruthy();
+    expect(screen.getByText('Redis').parentElement!.textContent).toContain('settings.logsTab.statusError');
+    expect(screen.getByText('Ollama').parentElement!.textContent).toContain('settings.logsTab.statusOnline');
+  });
+
+  it('lists local deployments with their container status and shows the container log on selection', async () => {
+    apiMocks.getLlmDeployments.mockResolvedValue({ data: {
+      capabilities: { gpu: true },
+      deployments: [{ name: 'qwen-lokal', engine: 'llamacpp', role: 'chat', model: 'org/m', gpu: true, status: 'pulling', base_url: 'http://x' }],
+    } });
+    apiMocks.getLlmDeploymentLogs.mockResolvedValue({ data: { logs: 'loading model\nlistening' } });
+    render(<LogsSettingsTab />);
+    const row = await screen.findByText('qwen-lokal');
+    expect(screen.getByText('settings.deployments.status.pulling')).toBeTruthy();
+    fireEvent.click(row);
+    await waitFor(() => expect(apiMocks.getLlmDeploymentLogs).toHaveBeenCalledWith('qwen-lokal', 300));
+    expect((await screen.findByTestId('sync-log-scroll')).textContent).toContain('listening');
+  });
+
+  it('stops a running deployment from the status list', async () => {
+    apiMocks.getLlmDeployments.mockResolvedValue({ data: {
+      capabilities: { gpu: false },
+      deployments: [{ name: 'emb', engine: 'ollama', role: 'embedding', model: 'bge-m3', gpu: false, status: 'ready', base_url: 'http://x' }],
+    } });
+    render(<LogsSettingsTab />);
+    fireEvent.click(await screen.findByTitle('settings.deployments.stop'));
+    await waitFor(() => expect(apiMocks.controlLlmDeployment).toHaveBeenCalledWith('emb', 'stop'));
+  });
+
+  it('hides deployments and the deployer entry from non-admin users', async () => {
+    settingsState.currentUser = { id: 2, username: 'viewer', is_admin: false };
+    render(<LogsSettingsTab />);
+    await waitFor(() => expect(apiMocks.fetch).toHaveBeenCalled());
+    expect(screen.queryByTestId('deployment-status-list')).toBeNull();
+    expect(apiMocks.getLlmDeployments).not.toHaveBeenCalled();
   });
 });

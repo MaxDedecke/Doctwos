@@ -6,6 +6,8 @@ import { useSettings } from '@/components/settings/SettingsContext';
 import { activeCardClass, badgeClass, cardClass, emptyStateClass, secondaryButtonClass, sectionTitleClass } from '@/components/settings/settingsStyles';
 import { SyncLogViewer } from '@/components/settings/SyncLogViewer';
 import { Button } from "@/components/ui/button";
+import { useLlmDeployments, type LlmDeployment } from '@/hooks/useLlmDeployments';
+import { useServiceHealth } from '@/hooks/useServiceHealth';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
 import {
@@ -15,7 +17,9 @@ import {
   Download,
   FileText,
   Loader2,
+  Play,
   RefreshCw,
+  Square,
   Terminal,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -36,7 +40,12 @@ export const LogsSettingsTab: React.FC = () => {
     showToast,
   } = useSettings();
 
-  const [activeLogSourceId, setActiveLogSourceId] = useState<KnowledgeSource['id'] | null>(null);
+  // Gewählter Eintrag der linken Spalte: Quelle (Sync-Log) oder lokales Deployment (Container-Log).
+  const [selected, setSelected] = useState<{ kind: 'source' | 'deployment'; id: string } | null>(null);
+  const isAdmin = Boolean(currentUser?.is_admin);
+  const { deployments, error: deployerError, refresh: refreshDeployments } = useLlmDeployments(isAdmin);
+  const health = useServiceHealth(true);
+  const [containerLog, setContainerLog] = useState('');
   const [refreshingLogs, setRefreshingLogs] = useState<boolean>(false);
   const [diagnosticsRun, setDiagnosticsRun] = useState<DiagnosticsRun | null>(null);
   const [diagnosticsGenerating, setDiagnosticsGenerating] = useState<boolean>(false);
@@ -68,7 +77,28 @@ export const LogsSettingsTab: React.FC = () => {
 
   // Ohne Auswahl (oder nach dem Entfernen der gewählten Quelle) zeigt der Log-Bereich die erste Quelle,
   // damit er beim Öffnen nie leer bleibt, solange es Quellen gibt.
-  const activeLogSource = connectedSources.find((src) => src.id === activeLogSourceId) ?? connectedSources[0] ?? null;
+  const activeDeployment = selected?.kind === 'deployment' ? deployments.find((item) => item.name === selected.id) ?? null : null;
+  const activeLogSource = activeDeployment
+    ? null
+    : connectedSources.find((src) => selected?.kind === 'source' && String(src.id) === selected.id) ?? connectedSources[0] ?? null;
+
+  // Container-Log des gewählten Deployments, solange es angezeigt wird.
+  const deploymentName = activeDeployment?.name;
+  useEffect(() => {
+    if (!deploymentName) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await api.getLlmDeploymentLogs(deploymentName, 300);
+        if (!cancelled) setContainerLog((response.data as { logs?: string }).logs ?? '');
+      } catch {
+        if (!cancelled) setContainerLog('');
+      }
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [deploymentName]);
 
   const handleGenerateDiagnostics = async () => {
     setDiagnosticsGenerating(true);
@@ -104,11 +134,17 @@ export const LogsSettingsTab: React.FC = () => {
   };
 
   const dark = theme === 'dark';
-  const services = [
-    { label: 'Backend-API', value: API_URL, ok: backendStatus === 'connected', text: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusError') },
-    { label: 'Ollama', value: 'http://ollama:11434', ok: backendStatus === 'connected', text: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusChecking') },
-    { label: 'PostgreSQL', value: 'db:5432', ok: true, text: t('settings.logsTab.statusReady') },
-    { label: 'Redis', value: 'redis:6379', ok: true, text: t('settings.logsTab.statusConnected') },
+  // Dienste mit echtem Status: Backend aus der Verbindung, Datenbank/Redis/aktives LLM aus /health,
+  // Deployer und lokale Deployments aus dem Deployer (nur Administratoren).
+  const checkText = (value: string | undefined) => (value === 'ok' ? t('settings.logsTab.statusOnline') : value ? t('settings.logsTab.statusError') : t('settings.logsTab.statusChecking'));
+  const services: Array<{ key: string; label: string; value: string; ok: boolean; pending?: boolean; text: string }> = [
+    { key: 'backend', label: 'Backend-API', value: API_URL, ok: backendStatus === 'connected', text: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusError') },
+    ...Object.entries(health ?? {}).map(([name, value]) => ({
+      key: `health-${name}`, label: HEALTH_LABEL[name] ?? name, value: value === 'ok' ? '' : value, ok: value === 'ok', text: checkText(value),
+    })),
+    ...(isAdmin ? [{
+      key: 'deployer', label: 'Deployer', value: deployerError ?? '', ok: !deployerError, text: deployerError ? t('settings.logsTab.statusError') : t('settings.logsTab.statusOnline'),
+    }] : []),
   ];
 
   const sourceStatus = (src: KnowledgeSource) => {
@@ -147,7 +183,7 @@ export const LogsSettingsTab: React.FC = () => {
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         <h4 className={cn(sectionTitleClass(theme), 'mr-1')}>{t('settings.logsTab.systemEnvTitle')}</h4>
         {services.map((service) => (
-          <span key={service.label} title={service.value} className={cn(cardClass(theme), 'inline-flex items-center gap-2 px-2.5 py-1 text-[0.6875rem]')}>
+          <span key={service.key} title={service.value} className={cn(cardClass(theme), 'inline-flex items-center gap-2 px-2.5 py-1 text-[0.6875rem]')}>
             <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', service.ok ? 'bg-ds-emerald-500' : 'bg-ds-amber-500')} />
             <span className={cn('font-semibold', dark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}>{service.label}</span>
             <span className="text-ds-zinc-500">{service.text}</span>
@@ -191,7 +227,7 @@ export const LogsSettingsTab: React.FC = () => {
               const selected = activeLogSource?.id === src.id;
               return (
                 <div key={src.id} className={cn(selected ? activeCardClass(theme) : cardClass(theme), 'flex items-center gap-1 p-1.5')}>
-                  <button type="button" aria-pressed={selected} onClick={() => setActiveLogSourceId(src.id)}
+                  <button type="button" aria-pressed={selected} onClick={() => setSelected({ kind: 'source', id: String(src.id) })}
                     className="min-w-0 flex-1 rounded-md px-1.5 py-1 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-ds-indigo-500">
                     <div className="flex items-center gap-2">
                       <span className={cn('truncate text-xs font-bold', dark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}>{src.name}</span>
@@ -215,6 +251,25 @@ export const LogsSettingsTab: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Lokale Deployments (Ollama, vLLM, llama.cpp) mit laufend aktualisiertem Status */}
+          {isAdmin && (
+            <div className="flex max-h-[45%] shrink-0 flex-col gap-2" data-testid="deployment-status-list">
+              <h4 className={sectionTitleClass(theme)}>{t('settings.logsTab.deploymentsTitle')}</h4>
+              <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain pr-1">
+                {deployerError && <p role="alert" className={cn(emptyStateClass(theme), 'border-dashed text-ds-amber-500')}>{t('settings.deployments.deployerUnavailable', { error: deployerError })}</p>}
+                {!deployerError && deployments.length === 0 && <p className={cn(emptyStateClass(theme), 'border-dashed text-center')}>{t('settings.logsTab.noDeployments')}</p>}
+                {deployments.map((item) => (
+                  <DeploymentRow key={item.name} item={item} selected={activeDeployment?.name === item.name} theme={theme}
+                    onSelect={() => setSelected({ kind: 'deployment', id: item.name })}
+                    onToggle={async () => {
+                      try { await api.controlLlmDeployment(item.name, item.status === 'stopped' ? 'start' : 'stop'); refreshDeployments(); }
+                      catch (err) { showToast(t('settings.deployments.controlFailed'), 'error', err); }
+                    }} />
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className={cn(cardClass(theme), 'flex min-h-0 min-w-0 flex-col gap-3 p-3')}>
@@ -255,6 +310,22 @@ export const LogsSettingsTab: React.FC = () => {
                 <SyncLogViewer key={activeLogSource.id} log={activeLogSource.sync_log} />
               </div>
             </>
+          ) : activeDeployment ? (
+            <>
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Terminal className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
+                  <h4 className={cn(sectionTitleClass(theme), 'truncate')}>{t('settings.logsTab.containerLogTitle', { name: activeDeployment.name })}</h4>
+                  <DeploymentStatusBadge status={activeDeployment.status} detail={activeDeployment.detail} />
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={refreshDeployments} className={secondaryButtonClass(theme)}>
+                  <RefreshCw className="w-3 h-3" />{t('common.refresh')}
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">
+                <SyncLogViewer key={activeDeployment.name} log={containerLog} />
+              </div>
+            </>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-xs text-ds-zinc-500">
               <Terminal className="w-5 h-5 opacity-40" />
@@ -266,3 +337,45 @@ export const LogsSettingsTab: React.FC = () => {
     </div>
   );
 };
+
+const HEALTH_LABEL: Record<string, string> = { database: 'PostgreSQL', redis: 'Redis', ollama: 'Ollama', vllm: 'vLLM', llamacpp: 'llama.cpp' };
+const ENGINE_LABEL: Record<string, string> = { ollama: 'Ollama', vllm: 'vLLM', llamacpp: 'llama.cpp' };
+
+function DeploymentStatusBadge({ status, detail }: { status: string; detail?: string }) {
+  const { t } = useLanguage();
+  const tone = status === 'ready' ? 'success' : status === 'failed' ? 'danger' : status === 'stopped' ? 'neutral' : 'accent';
+  const busy = status === 'starting' || status === 'pulling';
+  return (
+    <span className={cn(badgeClass(tone), 'inline-flex shrink-0 items-center gap-1')} title={detail}>
+      {busy && <Loader2 className="w-3 h-3 animate-spin" />}
+      {t(`settings.deployments.status.${status}`)}
+    </span>
+  );
+}
+
+function DeploymentRow({ item, selected, theme, onSelect, onToggle }: { item: LlmDeployment; selected: boolean; theme: string; onSelect: () => void; onToggle: () => void }) {
+  const { t } = useLanguage();
+  const stopped = item.status === 'stopped';
+  return (
+    <div className={cn(selected ? activeCardClass(theme) : cardClass(theme), 'flex items-center gap-1 p-1.5')}>
+      <button type="button" aria-pressed={selected} onClick={onSelect}
+        className="min-w-0 flex-1 rounded-md px-1.5 py-1 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-ds-indigo-500">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-xs font-bold">{item.name}</span>
+          <span className={badgeClass('neutral')}>{ENGINE_LABEL[item.engine] ?? item.engine}</span>
+          {item.role === 'embedding' && <span className={badgeClass('accent')}>{t('settings.logsTab.roleEmbedding')}</span>}
+          {item.gpu && <span className={badgeClass('neutral')}>GPU</span>}
+        </div>
+        <div className="mt-1 flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
+          <DeploymentStatusBadge status={item.status} detail={item.detail} />
+          <span className="truncate font-mono">{item.model}</span>
+        </div>
+      </button>
+      <Button type="button" size="icon" variant="ghost" onClick={onToggle}
+        title={t(stopped ? 'settings.deployments.start' : 'settings.deployments.stop')} aria-label={t(stopped ? 'settings.deployments.start' : 'settings.deployments.stop')}
+        className="h-8 w-8 shrink-0 rounded-lg text-ds-zinc-500 hover:bg-ds-zinc-500/10">
+        {stopped ? <Play className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+      </Button>
+    </div>
+  );
+}
