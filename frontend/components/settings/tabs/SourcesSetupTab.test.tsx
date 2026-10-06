@@ -386,4 +386,21 @@ describe('SourcesSetupTab', () => {
       expect(settingsValue.showToast).toHaveBeenCalledWith('settings.toast.serverUrlRequired', 'error');
     });
   });
+
+  describe('Eingeschränkte Seiten (Confluence)', () => {
+    it('keeps restricted pages out by default and stores the explicit opt-in in the source configuration', async () => {
+      apiMocks.createKnowledgeSource.mockResolvedValue(axiosResponse({ id: 1, name: 'X', type: 'confluence' }));
+      render(<SourcesSetupTab {...baseProps} />);
+      fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.integrationNamePlaceholder:Confluence'), { target: { value: 'X' } });
+      fireEvent.change(screen.getByText('settings.sourcesSetup.serverUrlLabel').closest('div')!.querySelector('input')!, { target: { value: 'https://wiki.intern' } });
+      fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.tokenPlaceholder'), { target: { value: 'pat' } });
+      const box = screen.getByLabelText(/settings.sourcesSetup.includeRestricted/) as HTMLInputElement;
+      expect(box.checked).toBe(false);
+      fireEvent.click(box);
+      fireEvent.click(screen.getByText('settings.sourcesSetup.connect'));
+      await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(
+        expect.objectContaining({ spaces: { ids: ['ALL'], include_restricted: true } }),
+      ));
+    });
+  });
 });

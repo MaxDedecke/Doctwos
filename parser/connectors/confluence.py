@@ -303,6 +303,7 @@ class ConfluenceConnector(BaseConnector):
         self._crawl_complete = False
         # Gesetzt, sobald etwas nicht abrufbar war: dann darf dieser Lauf nichts als gelöscht werten.
         self._incomplete = False
+        self._skipped_restricted = 0
 
     async def _discover_api_root(self, client, base_url, auth, headers) -> str:
         """Findet die REST-Wurzel dieser Installation (Server/DC oder Cloud) mit je einer Anfrage.
@@ -354,6 +355,8 @@ class ConfluenceConnector(BaseConnector):
 
         base_url = self.source.url.rstrip("/")
         page_limit = 25
+        include_restricted = self._spaces_config().get("include_restricted") is True
+        self._skipped_restricted = 0
         # Ein Durchlauf je gewähltem Space, damit der Server filtert (statt die ganze Instanz zu
         # laden und clientseitig auszusortieren); "ALL" ist ein einzelner Durchlauf ohne Filter.
         space_keys: list[str | None] = [None] if "ALL" in spaces else list(spaces)
@@ -379,6 +382,11 @@ class ConfluenceConnector(BaseConnector):
                         if space_key is not None and page_space != space_key:
                             continue
 
+                        if self._is_restricted(page) and not include_restricted:
+                            # Alle Projektmitglieder in Doctus sähen sonst, was in Confluence nur wenigen erlaubt ist.
+                            self._skipped_restricted += 1
+                            continue
+
                         counter += 1
                         key = self._page_key(page)
                         self._seen_keys.add(key)
@@ -402,6 +410,12 @@ class ConfluenceConnector(BaseConnector):
                     if len(results) < page_limit or "next" not in pages_data.get("_links", {}):
                         break
 
+        if self._skipped_restricted:
+            self._log(
+                f"{self._skipped_restricted} Seite(n) mit Leseeinschränkung übersprungen (nicht indiziert). "
+                "Einbeziehen lässt sich das in der Quellenkonfiguration; dann sehen alle Projektmitglieder deren Inhalt."
+            )
+
         # Nur ein bis zum Ende durchlaufener Crawl darf zum Aufräumen gelöschter Seiten führen.
         self._crawl_complete = not self._incomplete
 
@@ -423,7 +437,7 @@ class ConfluenceConnector(BaseConnector):
             "type": "page",
             "start": start,
             "limit": limit,
-            "expand": "body.view,version,space",
+            "expand": "body.view,version,space,restrictions.read.restrictions.user,restrictions.read.restrictions.group",
         }
         if space_key is not None:
             params["spaceKey"] = space_key
@@ -437,6 +451,17 @@ class ConfluenceConnector(BaseConnector):
         )
         await asyncio.sleep(0.05)  # Höflichkeits-Pause zwischen Requests
         return response.json()
+
+    @staticmethod
+    def _is_restricted(page: dict) -> bool:
+        """Seite mit Leseeinschränkung (nur bestimmte Personen/Gruppen dürfen sie sehen).
+
+        Erkannt wird nur die direkt an der Seite gesetzte Einschränkung; von Elternseiten geerbte Einschränkungen
+        liefert die API hier nicht mit.
+        """
+        read = (page.get("restrictions") or {}).get("read") or {}
+        restrictions = read.get("restrictions") or {}
+        return any((restrictions.get(kind) or {}).get("results") for kind in ("user", "group"))
 
     @staticmethod
     def _page_key(page: dict) -> str:

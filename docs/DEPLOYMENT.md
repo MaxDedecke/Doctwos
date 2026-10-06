@@ -50,6 +50,15 @@ For a delivery that enables the validated Mistral NeMo 12B model, **16GB RAM / 8
 
 If the customer's hardware has an NVIDIA GPU, wiring it up (see "GPU passthrough (Ollama)" below) improves both load time and tokens/sec substantially — worth asking about during scoping, since it changes the sizing math and the "is this fast enough" first impression. This is **not** automatic: Docker never hands a container a GPU unless a compose file explicitly requests one, so an unmodified `docker-compose.yml`/`docker-compose.offline.yml` runs Ollama CPU-only even on a GPU box.
 
+### Internal certificate authority (Confluence, Jira, WebDAV)
+
+On-premise servers usually use a certificate from the customer's own CA. Put the CA bundle (PEM) on the host and set
+`CUSTOM_CA_FILE=/path/to/ca.pem` in `.env`; it is mounted into the backend and parser containers and used for
+connection tests and syncs of all HTTP-based knowledge sources. A single source can instead carry `ca_bundle`
+(path inside the container) or, for tests only, `verify_ssl: false` (checkbox "Disable certificate verification" in the
+source dialog). The setting `FOLDER_MAX_FILE_MB` (default 200) limits files indexed from watched folders and WebDAV,
+`UPLOAD_MAX_MB` (default 100) direct uploads.
+
 ### Local LLM deployments (Ollama, vLLM, llama.cpp)
 
 The default stack contains **no LLM container**. After the first sign-in, an administrator creates one in

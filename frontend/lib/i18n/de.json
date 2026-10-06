@@ -531,6 +531,8 @@
       "skipTlsHint": "Nur zum Testen bei selbst signiertem Zertifikat. Für den Dauerbetrieb die interne CA über CUSTOM_CA_FILE in der .env hinterlegen.",
       "loadSpaces": "Spaces aus Confluence laden",
       "spacesLoadFailed": "Spaces konnten nicht geladen werden",
+      "includeRestricted": "Seiten mit Leseeinschränkung einbeziehen",
+      "includeRestrictedHint": "Standardmäßig werden sie übersprungen, weil sonst alle Projektmitglieder in Doctus lesen könnten, was in Confluence nur wenigen erlaubt ist. Von Elternseiten geerbte Einschränkungen werden nicht erkannt.",
       "spacesProjectKeysLabel": "Spaces / Projekt-Keys (Optional, Komma-separiert)",
       "spacesProjectKeysPlaceholder": "z.B. ENG, PROD oder leer lassen für alle",
       "checking": "Prüfen...",

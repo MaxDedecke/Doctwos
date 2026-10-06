@@ -531,6 +531,8 @@
       "skipTlsHint": "For testing with a self-signed certificate only. For permanent use put the internal CA in CUSTOM_CA_FILE in .env.",
       "loadSpaces": "Load spaces from Confluence",
       "spacesLoadFailed": "Could not load spaces",
+      "includeRestricted": "Include pages with read restrictions",
+      "includeRestrictedHint": "Skipped by default, because otherwise every project member in Doctus could read what only a few may see in Confluence. Restrictions inherited from parent pages are not detected.",
       "spacesProjectKeysLabel": "Spaces / project keys (optional, comma-separated)",
       "spacesProjectKeysPlaceholder": "e.g. ENG, PROD or leave empty for all",
       "checking": "Checking...",

@@ -7,14 +7,16 @@ Doctus can index documents from a local folder or network share (NAS/fileshare) 
 The `parser-beat` service (a Celery Beat scheduler) triggers a scan of every configured folder source once per hour. Each scan:
 
 1. Walks the folder recursively.
-2. Computes an MD5 hash for every supported file.
+2. Computes an MD5 hash for every supported file. Files whose size and modification time match the previous scan are not read again (the stored hash is reused), which keeps the load on a NAS small.
 3. Compares hashes against the previous scan (stored in `folder_scan_files`).
 4. Re-indexes only new or changed files — unchanged files are skipped entirely (delta sync).
-5. Removes index entries for files that have been deleted from the folder.
+5. Removes index entries for files that have been deleted from the folder — **only after a complete scan**. If a directory or file could not be read (share briefly unavailable, permissions), nothing is deleted in that run and the sync log says so.
+
+Ignored automatically: hidden files and folders (`.git`, `.foo`), Office lock files (`~$…`), `Thumbs.db`, `desktop.ini`, `.DS_Store`, `*.tmp`/`*.bak`/`*.swp`/`*.lnk`, and NAS recycle/preview folders (`#recycle`, `@eaDir`, `$RECYCLE.BIN`). Files larger than `FOLDER_MAX_FILE_MB` (default 200) are skipped and counted in the log. If a document cannot be embedded (embedding service down), the sync ends with status *error*, the document is not recorded as done and is retried by the next run.
 
 The resulting chunks land in pgvector and are immediately available for RAG queries in the chat.
 
-**Supported formats:** `.pdf` (text-layer, with OCR fallback for scans — see [Limitations](#limitations)), `.docx`, `.doc`, `.txt`, `.md`
+**Supported formats:** `.pdf` (text-layer, with OCR fallback for scans — see [Limitations](#limitations)), `.docx`, `.xlsx`, `.pptx`, `.odt`/`.ods`/`.odp`, `.html`/`.htm`, `.csv`, `.txt`, `.md`. Text files are decoded as UTF-8, UTF-16 (with BOM), Windows-1252 or Latin-1, so umlauts from Windows exports survive. A `.doc` is read only if it is really a renamed `.docx`; real Word 97–2003 files are reported as unsupported (save them as `.docx`).
 
 A manual re-scan can be triggered at any time via the sync button in the UI (Settings → Knowledge Sources).
 
@@ -101,7 +103,9 @@ Use this when the customer doesn't need per-folder access control or separate sy
 
 **Scanned PDFs (image-only):** `pypdf` extracts text from PDFs that have an embedded text layer first. If a PDF has no text layer (a pure scan), `parser/connectors/folder.py` falls back to rasterizing the pages and running Tesseract OCR (`parser/utils.py::extract_text_from_pdf_ocr`, German+English, `tesseract-ocr-deu` is installed in the parser image). OCR text quality depends on scan resolution and is slower than native text extraction, so expect indexing of large batches of scanned archives to take noticeably longer than born-digital PDFs — worth setting that expectation with the customer during scoping.
 
-**CAD and BIM files via plain folder watch:** `.dwg`, `.ifc`, `.rvt`, `.dxf` are binary formats and are **not** parsed by the generic `FolderConnector` described in this doc — only the text-based document types listed above are indexed through it. `.ifc` and `.dwg`/`.dxf` use their own dedicated connector and source type (`parser/connectors/ifc.py`, `parser/connectors/dwg.py`) through a separate UI flow, not Folder Watch. Only `.rvt` (Revit) has no connector today. Before onboarding an architecture or engineering customer, establish whether IFC/DWG files use those dedicated connectors or whether the relevant knowledge lives in accompanying PDFs/Word files indexed through Folder Watch.
+**CAD and BIM files:** `.dwg`, `.ifc`, `.rvt`, `.dxf` are binary formats and are **not** read by Folder Watch. There are no dedicated IFC/DWG connectors in the code base today (an earlier version of this document claimed otherwise). If the relevant knowledge lives in accompanying PDFs, Word or Excel files, those are indexed normally.
+
+**Legacy Word format:** real `.doc` (Word 97–2003) cannot be read without an external converter; the sync log names the file and asks for `.docx`.
 
 **No real-time watching:** The scanner runs on a fixed hourly schedule (top of the hour, via Celery Beat). A file added at 00:01 will be indexed by 01:00 at the latest. If the customer needs faster updates, the manual sync button in the UI triggers an immediate re-scan of that specific source.
 
@@ -119,7 +123,7 @@ The path entered in the UI is not accessible inside the container. Check that:
 
 **Files present in the folder but not appearing in search results**
 Open the knowledge source card → sync log. Common causes:
-- File extension not in the supported list (`.pdf`, `.docx`, `.doc`, `.txt`, `.md`).
+- File extension not in the supported list, or the file is a real `.doc` (see Limitations), or it matches an ignore rule above.
 - PDF has no text layer (see Limitations above).
 - File is currently open/locked by another process and couldn't be read.
 - The embedding model (`bge-m3`) hasn't been pulled yet — the log will show an Ollama pull in progress.

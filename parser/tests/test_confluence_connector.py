@@ -548,3 +548,47 @@ async def test_attachments_are_listed_across_pages_and_keyed_by_id(db_session, t
         docs = [doc async for doc in connector.fetch_documents()]
     keys = {doc["storage_key"] for doc in docs}
     assert "DOCS/123/attachments/a50" in keys and len(keys) == 52  # Seite + 51 Anhänge
+
+
+# --- Leseeinschränkungen ---------------------------------------------------------------------
+
+def _restricted_page(title="Geheim", page_id="900"):
+    page = _page(title=title)
+    page["id"] = page_id
+    page["restrictions"] = {"read": {"restrictions": {"user": {"results": [{"username": "chef"}]}, "group": {"results": []}}}}
+    return page
+
+
+@pytest.mark.anyio
+async def test_restricted_pages_are_skipped_by_default_and_requested_with_their_restrictions(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    expands = []
+
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 200, {"results": []})
+        expands.append((kwargs.get("params") or {}).get("expand"))
+        return _response(url, 200, {"results": [_page(), _restricted_page()], "_links": {}})
+
+    with patch_http(handler):
+        docs = [doc async for doc in connector.fetch_documents()]
+
+    assert [doc["title"] for doc in docs] == ["Runbook"]
+    assert "restrictions.read.restrictions.user" in expands[0]
+    assert connector._skipped_restricted == 1
+    assert "DOCS/900" not in connector._seen_keys  # zählt nicht als vorhanden: bereits Indiziertes wird aufgeräumt
+
+
+@pytest.mark.anyio
+async def test_restricted_pages_can_be_included_explicitly(db_session, test_source):
+    test_source.spaces = {"ids": ["ALL"], "include_restricted": True}
+    db_session.commit()
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    with patch_http(_server_handler([], [_page(), _restricted_page()])):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert {doc["title"] for doc in docs} == {"Runbook", "Geheim"}

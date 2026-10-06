@@ -77,6 +77,25 @@ flowchart TD
   Dokumente strikt **sequentiell**, eine Datei nach der anderen. Kein
   `EMBED_CONCURRENCY`/GPU-CPU-Umschalten nötig, dafür auch kein Parallelitäts-
   Speedup möglich.
+- **API-Wurzel wird einmal erkannt:** Server/Data Center liefert die REST-API unter `/rest/api`, Cloud unter
+  `/wiki/rest/api`. `_discover_api_root()` prüft beide mit je einer Anfrage und merkt sich den Treffer für den ganzen
+  Sync. Wiederholungen mit Wartezeit gibt es nur bei 429, 5xx und Netzwerkfehlern (`http_retry.request_with_retry`),
+  nicht bei 4xx — früher kostete der Cloud-Pfad auf einem Server 15 s je Listenabruf und je Seite. Anmeldefehler
+  (401/403) und unbekannte URLs enden mit einer verständlichen Meldung; Fehler beim Seitenabruf brechen den Sync ab,
+  statt ihn als vollständig erscheinen zu lassen.
+- **Schlüssel:** `storage_key` ist `<Space>/<Seiten-ID>` (Anhänge: `<Space>/<Seiten-ID>/attachments/<Anhangs-ID>`),
+  nicht mehr der Seitentitel. Titel wiederholen sich über Spaces hinweg und ändern sich beim Umbenennen. Chunks aus
+  der Titel-Zeit ziehen anhand der Seiten-ID auf den neuen Schlüssel um (`_adopt_legacy_chunks`), Verknüpfungen bleiben.
+- **Aufräumen gelöschter Seiten:** Nach einem bis zum Ende durchlaufenen Crawl entfernt `_remove_orphans()` Chunks von
+  Dokumenten, die in der Quelle nicht mehr vorkommen. Nicht bei Fehlern (`_incomplete`), nicht bei leerem Ergebnis und
+  nicht, wenn auf einmal mehr als die Hälfte (ab 20 Dokumenten) verschwände — dann nur eine Warnung im Sync-Log.
+- **Spaces:** je gewähltem Space eine Abfrage mit `spaceKey`; "ALL" lädt die ganze Instanz. Im Dialog lassen sich die
+  Spaces der Instanz laden und anhaken (`POST /connectors/confluence/spaces`).
+- **Leseeinschränkungen:** Seiten mit direkt gesetzter Leseeinschränkung werden standardmäßig übersprungen (sonst sähen alle
+  Projektmitglieder in Doctus, was in Confluence nur wenigen erlaubt ist); `include_restricted` in der Quellenkonfiguration
+  schaltet das ein. Von Elternseiten geerbte Einschränkungen liefert die API hier nicht mit und werden nicht erkannt.
+- **TLS:** `verify_ssl: false` oder `ca_bundle` in der Quellenkonfiguration, `CUSTOM_CA_FILE` in der `.env` für ein CA-Bundle
+  aller Quellen (`parser/connectors/tls.py`).
 - **Delta-Sync ist zeitbasiert**, nicht inhaltsbasiert: eine Seite/ein Anhang
   gilt als unverändert, wenn `version.when` nicht neuer ist als
   `source.last_synced_at` **und** dafür bereits Chunks existieren — anders als
@@ -120,8 +139,8 @@ flowchart TD
   Fließtext dazwischen). Das Zusammenlegen respektiert dieselben
   `boundary_lines` wie das Schneiden — zwei Chunks aus unterschiedlichen
   Sections werden nie gemischt, auch wenn beide winzig sind.
-- **Embedding läuft pro Chunk einzeln** (`get_embedding`, kein
-  `get_embeddings_batch`) — sobald eine Seite den Delta-Check nicht besteht
+- **Embedding läuft je Dokument gebündelt** (`get_embeddings_batch`, bei Fehler Einzelaufrufe als Rückfall; früher je
+  Chunk einzeln) — sobald eine Seite den Delta-Check nicht besteht
   (also neu oder geändert ist), wird **jeder** ihrer Chunks frisch embedded,
   es gibt kein Chunk-Level-Skip für unveränderte Passagen innerhalb einer
   geänderten Seite. Der Content-Fingerprint-Vergleich mit den alten Chunks
@@ -131,8 +150,8 @@ flowchart TD
   ein. Dasselbe `chunk_reindex.py`-Modul verwendet auch `GitConnector`, dort
   aber mit vorab batch-berechneten Embeddings statt Einzel-Requests.
 - **Anhänge sind eigenständige Dokumente:** jeder unterstützte Anhang (PDF,
-  DOCX/DOC, `text/*`) bekommt einen eigenen `storage_key`
-  (`"<Seite>/attachments/<Dateiname>"`) und durchläuft dieselbe Chunk-/Embed-/
+  DOCX, XLSX, PPTX, `text/*` inkl. HTML; echtes `.doc` nicht lesbar) bekommt einen eigenen `storage_key`
+  (`"<Space>/<Seiten-ID>/attachments/<Anhangs-ID>"`) und durchläuft dieselbe Chunk-/Embed-/
   Persistenz-Pipeline wie die Seite selbst — mit eigenem Delta-Sync-Check und
   einer harten 20-MB-Obergrenze.
 
