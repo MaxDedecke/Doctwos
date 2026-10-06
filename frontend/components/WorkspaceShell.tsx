@@ -24,6 +24,8 @@ interface WorkspaceShellProps {
   gridColumnPercent: number;
   gridRowPercent: number;
   isDragging: boolean;
+  /** Projektfarbe (Hex/CSS); ohne Projekt gilt das Markenblau. */
+  accentColor?: string | null;
   splitContainerRef: React.RefObject<HTMLDivElement>;
   threeColLeftPercent: number;
   threeColRightPercent: number;
@@ -35,12 +37,29 @@ interface WorkspaceShellProps {
   renderPanel: (index: number) => React.ReactNode;
 }
 
+/** Akzentfarbe der Trennleisten: Projektfarbe, im Allgemein-Kontext das Markenblau. */
+const DEFAULT_ACCENT = 'rgb(var(--ds-accent))';
+const tint = (color: string, percent: number) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
 /** Draggable divider between two workspace panels; shared by the split and 3-col layouts. */
-function WorkspaceDivider({ onPointerDown, isDragging }: { onPointerDown: (event: React.PointerEvent) => void; isDragging: boolean }) {
+function WorkspaceDivider({ onPointerDown, isDragging, accent }: { onPointerDown: (event: React.PointerEvent) => void; isDragging: boolean; accent: string }) {
+  const [hovered, setHovered] = React.useState(false);
+  const active = isDragging || hovered;
   return (
-    <div onPointerDown={onPointerDown} className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative touch-none">
-      <div className={cn('absolute inset-y-0 -left-1 -right-1', isDragging ? 'bg-ds-indigo-500/20' : 'group-hover:bg-ds-indigo-500/10')} />
-      <div className={cn('w-0.5 h-10 rounded-full transition-colors relative z-10', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-700 group-hover:bg-ds-indigo-400')} />
+    <div
+      onPointerDown={onPointerDown}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      className="hidden md:flex w-1 shrink-0 cursor-col-resize items-center justify-center group z-20 relative touch-none"
+    >
+      <div
+        className="absolute inset-y-0 -left-1 -right-1 transition-colors"
+        style={{ backgroundColor: isDragging ? tint(accent, 20) : hovered ? tint(accent, 10) : 'transparent' }}
+      />
+      <div
+        className={cn('w-0.5 h-10 rounded-full transition-colors relative z-10', !active && 'bg-ds-zinc-700')}
+        style={active ? { backgroundColor: isDragging ? accent : tint(accent, 70) } : undefined}
+      />
     </div>
   );
 }
@@ -62,6 +81,7 @@ export function WorkspaceShell({
   gridColumnPercent,
   gridRowPercent,
   isDragging,
+  accentColor,
   splitContainerRef,
   threeColLeftPercent,
   threeColRightPercent,
@@ -72,6 +92,8 @@ export function WorkspaceShell({
   cellCls,
   renderPanel,
 }: WorkspaceShellProps) {
+  const accent = accentColor || DEFAULT_ACCENT;
+  const [knobHovered, setKnobHovered] = React.useState(false);
   const gridStyle = layoutMode === '4-grid'
     ? {
         // Subtract half the gap from each track so the two percentages fill
@@ -122,12 +144,13 @@ export function WorkspaceShell({
             {panelConfigs.map((_, index) => (
               <React.Fragment key={panelIds?.[index] ?? `panel-${index}`}>
                 {layoutMode === 'split' && index === 1 && (
-                  <WorkspaceDivider onPointerDown={handleDividerMouseDown} isDragging={isDragging} />
+                  <WorkspaceDivider onPointerDown={handleDividerMouseDown} isDragging={isDragging} accent={accent} />
                 )}
                 {layoutMode === '3-col' && (index === 1 || index === 2) && (
                   <WorkspaceDivider
                     onPointerDown={index === 1 ? handleThreeColLeftDividerPointerDown : handleThreeColRightDividerPointerDown}
                     isDragging={isDragging}
+                    accent={accent}
                   />
                 )}
                 {layoutMode === 'split' && index === 0 ? (
@@ -153,15 +176,18 @@ export function WorkspaceShell({
                 onPointerDown={handleGridResizePointerDown}
                 aria-label={t('page.workspace.resizeGrid')}
                 title={t('page.workspace.resizeGrid')}
-                className={cn(
-                  'absolute z-30 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-move touch-none items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-indigo-500',
-                  isDragging ? 'bg-ds-indigo-500/25' : 'hover:bg-ds-indigo-500/15'
-                )}
-                style={{ left: `${gridColumnPercent}%`, top: `${gridRowPercent}%` }}
+                className="absolute z-30 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-move touch-none items-center justify-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ds-indigo-500"
+                style={{
+                  left: `${gridColumnPercent}%`,
+                  top: `${gridRowPercent}%`,
+                  backgroundColor: isDragging ? tint(accent, 25) : knobHovered ? tint(accent, 15) : undefined,
+                }}
+                onPointerEnter={() => setKnobHovered(true)}
+                onPointerLeave={() => setKnobHovered(false)}
               >
-                <span className={cn('absolute h-0.5 w-7 rounded-full', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-600')} />
-                <span className={cn('absolute h-7 w-0.5 rounded-full', isDragging ? 'bg-ds-indigo-500' : 'bg-ds-zinc-600')} />
-                <span className="relative h-2 w-2 rounded-full bg-ds-indigo-500" />
+                <span className={cn('absolute h-0.5 w-7 rounded-full', !isDragging && 'bg-ds-zinc-600')} style={isDragging ? { backgroundColor: accent } : undefined} />
+                <span className={cn('absolute h-7 w-0.5 rounded-full', !isDragging && 'bg-ds-zinc-600')} style={isDragging ? { backgroundColor: accent } : undefined} />
+                <span className="relative h-2 w-2 rounded-full" style={{ backgroundColor: accent }} />
               </button>
             )}
             </div>

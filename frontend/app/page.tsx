@@ -1176,6 +1176,7 @@ function AppContent() {
 
         <WorkspaceShell
           theme={theme}
+          accentColor={selectedProject?.color}
           t={t}
           isMobile={isMobile}
           selectedFile={selectedFile}
