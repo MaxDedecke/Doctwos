@@ -789,10 +789,6 @@
       "brainstorm": { "label": "Brainstorm", "desc": "Think through approaches and alternatives", "prompt": "Brainstorm ideas with me for " }
     },
     "empty": {
-      "kicker": {
-        "normal": "Normal mode · free-form answers",
-        "evidence": "Evidence mode · every answer cited"
-      },
       "shuffleTitle": "Another question",
       "counts": {
         "program": "Programs",

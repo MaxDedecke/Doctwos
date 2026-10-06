@@ -1085,8 +1085,8 @@ export function ChatView({
           not just its width, and container queries can't react to that, so this
           chrome stays small unconditionally rather than only at narrow widths. */}
       <div className={cn(
-        "px-3 pb-2 pt-1 bg-opacity-20 backdrop-blur-sm z-20 transition-colors",
-        theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-900/40" : "bg-ds-zinc-100/20 border-ds-zinc-200"
+        "px-3 pb-2 pt-1 bg-transparent z-20 transition-colors",
+        theme === 'dark' ? "border-ds-zinc-900/40" : "border-ds-zinc-200"
       )}>
         <div className="w-[92%] max-w-3xl mx-auto relative group">
 

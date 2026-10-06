@@ -153,7 +153,7 @@ export function Sidebar({
           // Transparente Hülle: gibt der Card-Sidebar rundum Abstand zum Rand.
           "h-full box-border flex flex-col transition-all duration-150 overflow-hidden",
           "fixed md:relative top-0 left-0 md:top-auto md:left-auto z-50 md:z-30",
-          isSidebarOpen ? "pointer-events-auto p-2 pr-1" : "pointer-events-none"
+          isSidebarOpen ? "pointer-events-auto p-2 pt-[9px] pr-1" : "pointer-events-none"
       )}
     >
       <div className={cn(

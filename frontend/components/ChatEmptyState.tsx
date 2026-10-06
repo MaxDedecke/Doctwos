@@ -308,19 +308,6 @@ export function ChatEmptyState({
   return (
     <div className="flex-1 flex flex-col items-center justify-start text-center gap-5 @3xl/chat:gap-6 pt-2 pb-4 relative">
       <div className="relative z-10 w-full max-w-3xl space-y-3">
-        <div
-          key={chatMode}
-          className="inline-flex items-center gap-2 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.18em] text-ds-zinc-500 animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            {isEvidence && (
-              <span className="absolute inset-0 rounded-full bg-ds-indigo-500 animate-ds-dot-pulse motion-reduce:animate-none" />
-            )}
-            <span className={cn('relative h-1.5 w-1.5 rounded-full', isEvidence ? 'bg-ds-indigo-500' : 'bg-ds-zinc-500')} />
-          </span>
-          {t(`chatView.empty.kicker.${chatMode}`)}
-        </div>
-
         <h1 className={cn(
           'text-3xl @md/chat:text-4xl font-heading font-extrabold tracking-tight leading-tight text-center min-h-[2.2em] flex items-start justify-center',
           isDark ? 'text-ds-white' : 'text-ds-zinc-900'

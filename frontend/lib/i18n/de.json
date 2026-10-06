@@ -789,10 +789,6 @@
       "brainstorm": { "label": "Ideen sammeln", "desc": "Ansätze und Alternativen durchdenken", "prompt": "Sammle mit mir Ideen für " }
     },
     "empty": {
-      "kicker": {
-        "normal": "Normaler Modus · freie Antworten",
-        "evidence": "Evidenz-Modus · jede Antwort mit Quelle"
-      },
       "shuffleTitle": "Andere Frage",
       "counts": {
         "program": "Programme",
