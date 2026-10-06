@@ -25,6 +25,13 @@ class RuntimeAISettings:
 
 
 LOCAL_OLLAMA_URL = "http://ollama:11434"
+NO_LLM_PROFILE_MESSAGE = (
+    "Kein LLM-Profil eingerichtet. Lege unter Einstellungen > KI ein Profil an "
+    "(lokales Deployment oder Remote-Endpunkt)."
+)
+NO_EMBEDDING_PROFILE_MESSAGE = (
+    "Kein Embedding-Profil eingerichtet. Lege unter Einstellungen > KI ein Embedding-Profil an."
+)
 
 
 def ensure_profiles(db: Session, settings: AISettings) -> list[AIProfile]:
@@ -33,6 +40,9 @@ def ensure_profiles(db: Session, settings: AISettings) -> list[AIProfile]:
         if settings.active_profile_id is None:
             settings.active_profile_id = profiles[0].id
         return profiles
+    if not cfg.BOOTSTRAP_LLM_ENDPOINT:
+        # Standard-Stack ohne LLM-Container: erst ein Admin legt ein Profil an.
+        return []
     local = AIProfile(
         name="Lokales Ollama",
         kind="local",
@@ -62,6 +72,8 @@ def ensure_embedding_profiles(db: Session, settings: AISettings) -> list[Embeddi
         if settings.active_embedding_profile_id is None:
             settings.active_embedding_profile_id = profiles[0].id
         return profiles
+    if not cfg.BOOTSTRAP_EMBEDDING_ENDPOINT:
+        return []
     profile = EmbeddingProfile(
         name="Standard-Embedding",
         provider=settings.embedding_provider or cfg.EMBEDDING_PROVIDER,
@@ -83,7 +95,11 @@ def get_active_profile(db: Session) -> AIProfile:
     settings = get_settings(db)
     profiles = ensure_profiles(db, settings)
     profile = next((item for item in profiles if item.id == settings.active_profile_id), None)
-    return profile or profiles[0]
+    if profile is None and profiles:
+        profile = profiles[0]
+    if profile is None:
+        raise LookupError(NO_LLM_PROFILE_MESSAGE)
+    return profile
 
 
 def get_profile(db: Session, profile_id: int | None) -> AIProfile:
@@ -99,7 +115,11 @@ def get_active_embedding_profile(db: Session) -> EmbeddingProfile:
     settings = get_settings(db)
     profiles = ensure_embedding_profiles(db, settings)
     profile = next((item for item in profiles if item.id == settings.active_embedding_profile_id), None)
-    return profile or profiles[0]
+    if profile is None and profiles:
+        profile = profiles[0]
+    if profile is None:
+        raise LookupError(NO_EMBEDDING_PROFILE_MESSAGE)
+    return profile
 
 
 def serialize_embedding_profile(profile: EmbeddingProfile, *, active_id: int | None = None) -> dict[str, Any]:
@@ -113,6 +133,7 @@ def serialize_embedding_profile(profile: EmbeddingProfile, *, active_id: int | N
         "api_key_set": bool(profile.api_key),
         "dimension": profile.dimension,
         "context_length": profile.context_length,
+        "deployment_name": profile.deployment_name,
         "is_system": profile.is_system,
         "is_active": active_id == profile.id,
     }
@@ -139,6 +160,7 @@ def serialize_profile(profile: AIProfile, *, active_id: int | None = None) -> di
         "llm_context_length": profile.llm_context_length,
         "llm_max_concurrency": profile.llm_max_concurrency,
         "llm_temperature": profile.llm_temperature,
+        "deployment_name": profile.deployment_name,
         "is_system": profile.is_system,
         "is_active": active_id == profile.id,
     }
@@ -239,13 +261,14 @@ def initialize_runtime_settings(session_factory) -> None:
     try:
         settings = get_settings(db)
         profiles = ensure_profiles(db, settings)
-        ensure_embedding_profiles(db, settings)
-        profile = next(
-            (item for item in profiles if item.id == settings.active_profile_id), profiles[0]
-        )
-        apply_profile(settings, profile)
-        embedding_profile = get_active_embedding_profile(db)
-        apply_embedding_profile(settings, embedding_profile)
+        embedding_profiles = ensure_embedding_profiles(db, settings)
+        if profiles:
+            profile = next(
+                (item for item in profiles if item.id == settings.active_profile_id), profiles[0]
+            )
+            apply_profile(settings, profile)
+        if embedding_profiles:
+            apply_embedding_profile(settings, get_active_embedding_profile(db))
         db.commit()
     except Exception:
         db.rollback()

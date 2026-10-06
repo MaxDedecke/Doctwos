@@ -17,6 +17,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
 | E-10 | Confluence/Jira-MCP-Anbindung: Cloud-vs-Server/DC-Erkennung | eigene Domain-Suffix-Heuristik statt Import aus `mcp_atlassian.utils` | umgesetzt (08.08.2026) |
 | E-11 | Bilderschließung nach O-074 | späterer lokaler Vision-Import; Open-Source-kompatible Lizenz und On-Premise-Betrieb sind Pflicht, Apache-2.0-Mistral-Modelle (z. B. Pixtral) sind Kandidaten | entschieden (06.09.2026), Umsetzung ausstehend |
+| E-16 | Lokale LLM-Deployments (Ollama, vLLM, llama.cpp) statt fest verdrahtetem Ollama-Container | Standard-Stack ohne LLM-Container; ein eigener Deployer-Dienst startet Engines auf Anforderung des Admins | umgesetzt (06.10.2026), Offline-Bundle offen |
 
 ---
 
@@ -695,3 +696,46 @@ Baustein, Eval-Fälle (`backend/tests/fixtures/eval_search_cases.json`, `eval_ch
 **Grenzen (bewusst):** Die Datenherkunft ist ein Indexbeleg je Anweisung und kein pfadsensitiver Laufzeitfluss; Aufrufe
 (`call`) und Erzeugungen (`new`) beenden die Kette, Rückgabewerte fremder Methoden werden nicht verfolgt. Konstruktor-
 Parameter folgen den Aufrufern noch nicht (`INSTANTIATES` trägt `argument_refs`, wird aber nicht zu Konstruktoren aufgelöst).
+
+---
+
+## E-16 — Lokale LLM-Deployments über einen Deployer-Dienst (Ollama, vLLM, llama.cpp)
+
+**Problem.** Der Standard-Stack brachte einen fest verdrahteten Ollama-Container mit; andere Engines
+(vLLM, llama.cpp) ließen sich nur als Remote-Profil auf fremden Hosts hinterlegen. Wer lokal vLLM oder
+llama.cpp betreiben wollte, musste Compose-Dateien selbst ändern.
+
+**Entscheidung.**
+
+1. **Kein LLM-Container im Standard-Stack.** `ollama` hängt jetzt am Compose-Profil `local-ollama`
+   (Legacy, mit `LEGACY_OLLAMA_SERVICE=true`). Ohne Umgebungs-Endpunkt legt der erste Start weder ein
+   LLM- noch ein Embedding-Profil an; `ensure_profiles` liefert dann eine leere Liste. Chat und
+   Indizierung melden in dem Zustand „Kein LLM-/Embedding-Profil eingerichtet“ statt eine Verbindung zu
+   einem nicht vorhandenen Dienst zu versuchen. Das erste angelegte Profil wird sofort aktiv.
+2. **Eigener Deployer-Dienst (`deployer/`).** Einzige Komponente mit Docker-Socket; das Backend hat
+   keinen Docker-Zugriff. Erreichbar nur im Compose-Netzwerk (kein veröffentlichter Port) und nur mit
+   `DEPLOYER_TOKEN`. Er startet ausschließlich Container aus festen Engine-Definitionen
+   (`deployer/engines.py`): feste Images (per Umgebungsvariable je Kunde festschreibbar), strukturierte
+   Parameter statt freier Kommandozeilen (Modellkennung per Regex geprüft, Tool-Parser aus einer
+   Liste), nur das Modellvolume `doctus_llm_models` als Mount, kein Privileged-Modus, kein Host-Netzwerk,
+   GPU nur über `device_requests`, Log-Rotation. Verwaltet wird nur, was das Label `doctus.deployment`
+   trägt.
+3. **Profil und Container gehören zusammen.** `POST /llm-deployments` startet den Container und legt das
+   Profil an (`kind=local`, Spalte `deployment_name`); schlägt das Profil fehl, wird der Container wieder
+   entfernt, und das Löschen eines Profils entfernt den Container. Lokale Profile dürfen nur auf
+   Deployer-Container (`http://doctus-llm-…`) oder den Legacy-Dienst zeigen, nie auf beliebige URLs.
+4. **Embeddings genauso.** Embedding-Profile bekommen dieselbe Funktion (llama.cpp mit `--embedding`,
+   vLLM mit `--task embed`, Ollama). Die Datenbank erwartet weiter 1024 Dimensionen.
+5. **Remote bleibt gleichwertig.** Ollama, OpenAI-kompatibel, vLLM und llama.cpp lassen sich auch auf
+   anderen Maschinen als Remote-Profil eintragen (Oberfläche ergänzt um llama.cpp).
+
+**Abgrenzung / bekannte Lücken.** Das Offline-Bundle (`docker-compose.offline.yml`,
+`scripts/build-offline-bundle.sh`) liefert weiter den Legacy-Ollama mit; Engine-Images und Modelle für den
+Deployer im luftdichten Betrieb sind ein Folgeschritt. Der Docker-Socket im Deployer ist root-äquivalent
+auf dem Host; die Begrenzung liegt in der schmalen API und dem Token, nicht in einer Sandbox. Images
+sind standardmäßig nicht per Digest festgeschrieben (`VLLM_IMAGE`, `LLAMACPP_IMAGE`,
+`LLAMACPP_CUDA_IMAGE`, `OLLAMA_IMAGE`).
+
+**Fundstellen.** `deployer/`, `backend/api/system.py` (`/llm-deployments`),
+`backend/services/deployer_client.py`, `backend/services/ai_settings.py`,
+`frontend/components/settings/tabs/AiSettingsTab.tsx`, `LocalDeploymentForm.tsx`.

@@ -428,6 +428,8 @@ class AIProfile(Base):
     llm_max_concurrency = Column(Integer, nullable=True)
     # Default sampling temperature when a chat request does not set one.
     llm_temperature = Column(Float, nullable=True)
+    # Name des vom Deployer verwalteten Containers (nur lokale Deployments), sonst NULL.
+    deployment_name = Column(String(64), nullable=True)
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -447,6 +449,7 @@ class EmbeddingProfile(Base):
     api_key = Column(EncryptedString, nullable=True)
     dimension = Column(Integer, nullable=False, server_default="1024")
     context_length = Column(Integer, nullable=False, server_default="8192")
+    deployment_name = Column(String(64), nullable=True)
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

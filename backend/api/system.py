@@ -26,6 +26,7 @@ from api.schemas import (
     AISettingsUpdate,
     EmbeddingProfileCreate,
     EmbeddingProfileUpdate,
+    LocalDeploymentCreate,
     ModelUpdateRequest,
 )
 from core.auth_dependency import get_current_user
@@ -41,6 +42,8 @@ from core.llm_providers import (
 from core.teams import require_admin
 from core.db_setup import engine, get_db
 from models.database import AIProfile, EmbeddingProfile, User
+from services import deployer_client
+from services.deployer_client import DeployerError
 from services.ai_settings import (
     apply_profile,
     apply_runtime_settings,
@@ -58,6 +61,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
 
 _PROFILE_KINDS = {"local", "remote", "cloud"}
+MANAGED_URL_PREFIX = "http://doctus-llm-"
 _PROFILE_PROTOCOLS = {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
 
 
@@ -122,15 +126,22 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
     embedding_base_url = values.get(
         "embedding_base_url", existing.embedding_base_url if existing else None
     )
-    if kind == "local" and (
-        provider != "ollama"
-        or protocol != "ollama"
-        or llm_base_url != "http://ollama:11434"
-        or embedding_base_url != "http://ollama:11434"
-    ):
-        raise HTTPException(
-            status_code=400, detail="Lokale Profile verwenden den internen Ollama-Dienst"
+    deployment_name = values.get(
+        "deployment_name", existing.deployment_name if existing else None
+    )
+    if kind == "local":
+        legacy_ollama = (
+            provider == "ollama"
+            and protocol == "ollama"
+            and llm_base_url == "http://ollama:11434"
+            and embedding_base_url == "http://ollama:11434"
         )
+        managed = bool(deployment_name) and (llm_base_url or "").startswith(MANAGED_URL_PREFIX)
+        if not (legacy_ollama or managed):
+            raise HTTPException(
+                status_code=400,
+                detail="Lokale Profile verweisen auf ein Deployment; lege es über 'Lokales Deployment' an",
+            )
     if kind == "remote" and not llm_base_url:
         raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine URL")
     if kind == "remote" and not embedding_base_url:
@@ -151,11 +162,13 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
             status_code=400,
             detail="Remote-Profile unterstützen Ollama oder OpenAI-kompatible APIs",
         )
-    if provider in SELF_HOSTED_OPENAI_PROVIDERS and (kind != "remote" or protocol != "openai_chat"):
+    if provider in SELF_HOSTED_OPENAI_PROVIDERS and (
+        kind not in {"local", "remote"} or protocol != "openai_chat"
+    ):
         raise HTTPException(
             status_code=400,
             detail=(
-                f"{provider_label(provider)}-Profile benötigen Remote und das "
+                f"{provider_label(provider)}-Profile benötigen Lokal oder Remote und das "
                 "Chat-Completions-Protokoll"
             ),
         )
@@ -355,6 +368,8 @@ def create_embedding_profile(
     _validate_embedding_profile_values(values)
     profile = EmbeddingProfile(**values, created_by_user_id=user.id, is_system=False)
     db.add(profile)
+    db.flush()
+    _activate_embedding_if_first(db, profile)
     db.commit()
     db.refresh(profile)
     return serialize_embedding_profile(profile)
@@ -399,6 +414,7 @@ def delete_embedding_profile(
     settings = get_settings(db)
     if profile.is_system or settings.active_embedding_profile_id == profile.id:
         raise HTTPException(status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden")
+    _remove_deployment(profile.deployment_name)
     db.delete(profile)
     db.commit()
 
@@ -468,6 +484,8 @@ def create_ai_profile(
     _validate_profile_values(values)
     profile = AIProfile(**values, created_by_user_id=user.id, is_system=False)
     db.add(profile)
+    db.flush()
+    _activate_if_first(db, profile)
     db.commit()
     db.refresh(profile)
     return serialize_profile(profile)
@@ -517,6 +535,7 @@ def delete_ai_profile(
         raise HTTPException(
             status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden"
         )
+    _remove_deployment(profile.deployment_name)
     db.delete(profile)
     db.commit()
 
@@ -573,7 +592,7 @@ async def test_ai_profile(
                 profile.llm_api_key,
             )
         )
-    if profile.embedding_provider in {"ollama", "openai"}:
+    if profile.embedding_base_url and profile.embedding_provider in {"ollama", "openai"}:
         discovery_path = "/api/tags" if profile.embedding_provider == "ollama" else "/models"
         probes.append(
             (
@@ -682,10 +701,121 @@ async def test_ai_profile(
             detail=f"{label.capitalize()}-Endpunkt fehlgeschlagen (HTTP {exc.response.status_code})",
         ) from exc
     except (httpx.HTTPError, TypeError, ValueError) as exc:
+        if label == "tool_calling" and isinstance(exc, ValueError):
+            # Der Endpunkt ist erreichbar, liefert aber keinen Tool-Aufruf: kein Verbindungsfehler.
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         raise HTTPException(
             status_code=502,
             detail=f"{label.capitalize()}-Endpunkt nicht erreichbar: {exc}",
         ) from exc
+
+
+def _activate_if_first(db: Session, profile: AIProfile) -> None:
+    """Das erste angelegte Profil wird sofort aktiv (Standard-Stack hat kein Bootstrap-Profil)."""
+    settings = get_settings(db)
+    if settings.active_profile_id is None:
+        apply_profile(settings, profile)
+
+
+def _activate_embedding_if_first(db: Session, profile: EmbeddingProfile) -> None:
+    settings = get_settings(db)
+    if settings.active_embedding_profile_id is None:
+        apply_embedding_profile(settings, profile)
+
+
+def _remove_deployment(name: str | None) -> None:
+    """Entfernt den Container eines lokalen Deployments; ein bereits fehlender gilt als erledigt."""
+    if not name:
+        return
+    try:
+        deployer_client.delete_deployment(name)
+    except DeployerError as exc:
+        if exc.status_code != 404:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+def _deployer_call(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except DeployerError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.get("/llm-deployments")
+def list_llm_deployments(_user: User = Depends(require_admin)):
+    """Status aller lokalen Deployments plus Fähigkeiten des Hosts (GPU)."""
+    caps = _deployer_call(deployer_client.capabilities)
+    return {"capabilities": caps, "deployments": _deployer_call(deployer_client.list_deployments)}
+
+
+@router.post("/llm-deployments/{name}/{action}")
+def control_llm_deployment(name: str, action: str, _user: User = Depends(require_admin)):
+    if action not in {"start", "stop"}:
+        raise HTTPException(status_code=404, detail="Unbekannte Aktion")
+    fn = deployer_client.start_deployment if action == "start" else deployer_client.stop_deployment
+    return _deployer_call(fn, name)
+
+
+@router.get("/llm-deployments/{name}/logs")
+def llm_deployment_logs(name: str, tail: int = 200, _user: User = Depends(require_admin)):
+    return {"logs": _deployer_call(deployer_client.deployment_logs, name, max(1, min(tail, 2000)))}
+
+
+@router.post("/llm-deployments", status_code=201)
+def create_llm_deployment(
+    request: LocalDeploymentCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Startet einen lokalen Container und legt das passende Profil an (LLM oder Embedding)."""
+    if request.role not in {"chat", "embedding"}:
+        raise HTTPException(status_code=400, detail="Rolle muss chat oder embedding sein")
+    deployment = _deployer_call(deployer_client.create_deployment, request.model_dump(include={
+        "name", "engine", "model", "role", "gpu", "context_length", "tool_parser"}))
+    base_url = deployment["base_url"]
+    profile_name = (request.display_name or request.name).strip()
+    try:
+        if request.role == "embedding":
+            openai_style = request.engine != "ollama"
+            values = {
+                "name": profile_name, "provider": "openai" if openai_style else "ollama",
+                "model": request.model, "base_url": base_url,
+                "path": "/embeddings" if openai_style else "/api/embed",
+                "dimension": request.dimension, "context_length": request.context_length,
+            }
+            _validate_embedding_profile_values(values)
+            profile = EmbeddingProfile(**values, deployment_name=request.name, created_by_user_id=user.id, is_system=False)
+            db.add(profile)
+            db.flush()
+            _activate_embedding_if_first(db, profile)
+            db.commit()
+            db.refresh(profile)
+            return {"deployment": deployment, "profile": serialize_embedding_profile(profile), "role": "embedding"}
+        openai_style = request.engine != "ollama"
+        values = {
+            "name": profile_name, "kind": "local", "provider": request.engine,
+            "protocol": "openai_chat" if openai_style else "ollama",
+            "llm_model": request.model, "llm_base_url": base_url,
+            "llm_path": "/chat/completions" if openai_style else "/api/chat",
+            "embedding_provider": "ollama", "embedding_model": "bge-m3",
+            "llm_context_length": request.context_length, "deployment_name": request.name,
+        }
+        _validate_profile_values(values)
+        profile = AIProfile(**values, created_by_user_id=user.id, is_system=False)
+        db.add(profile)
+        db.flush()
+        _activate_if_first(db, profile)
+        db.commit()
+        db.refresh(profile)
+        return {"deployment": deployment, "profile": serialize_profile(profile, active_id=get_settings(db).active_profile_id), "role": "chat"}
+    except Exception:
+        # Kein verwaister Container, wenn das Profil nicht angelegt werden konnte.
+        db.rollback()
+        try:
+            deployer_client.delete_deployment(request.name)
+        except DeployerError:
+            logger.warning("deployment_cleanup_failed name=%s", request.name)
+        raise
 
 
 @router.patch("/ai-settings")

@@ -8,6 +8,7 @@ import React from 'react';
 const apiMocks = vi.hoisted(() => ({
   createAiProfile: vi.fn(), updateAiProfile: vi.fn(), deleteAiProfile: vi.fn(),
   activateAiProfile: vi.fn(), testAiProfile: vi.fn(),
+  getLlmDeployments: vi.fn(), createLlmDeployment: vi.fn(), controlLlmDeployment: vi.fn(), getLlmDeploymentLogs: vi.fn(),
 }));
 vi.mock('@/app/services/api', () => ({ API_URL: 'http://api.test', api: apiMocks }));
 vi.mock('@/lib/i18n/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key }) }));
@@ -25,12 +26,13 @@ describe('AiSettingsTab server profiles', () => {
     vi.clearAllMocks();
     featuresValue = DEFAULT_FEATURES;
     settingsValue = createSettingsContextValue({ llmProfiles: [local, remote], activeProfileId: '1' });
+    apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({ capabilities: { gpu: false }, deployments: [] }));
   });
 
   it('shows the three simple deployment types only when cloud is enabled', () => {
     render(<AiSettingsTab />);
     fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getAllByRole('combobox')[0]);
     expect(within(screen.getByRole('listbox')).getByText('settings.profilesTab.local')).toBeTruthy();
     expect(within(screen.getByRole('listbox')).getByText('settings.profilesTab.remote')).toBeTruthy();
     expect(within(screen.getByRole('listbox')).queryByText('settings.profilesTab.cloud')).toBeNull();
@@ -45,12 +47,12 @@ describe('AiSettingsTab server profiles', () => {
     }));
     render(<AiSettingsTab />);
     fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
-    fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'GPU' } });
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getAllByRole('combobox')[0]);
     fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.remote'));
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'GPU' } });
     const boxes = screen.getAllByRole('combobox');
     fireEvent.click(boxes[1]);
-    fireEvent.click(within(screen.getByRole('listbox')).getByText('OpenAI-kompatibel'));
+    fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.protocolOpenai'));
     fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'qwen' } });
     fireEvent.change(screen.getByLabelText('settings.profilesTab.apiKeyLabel'), { target: { value: 'secret' } });
     fireEvent.change(screen.getByLabelText('settings.profilesTab.baseUrlLabel'), { target: { value: 'https://gpu.local/v1' } });
@@ -79,5 +81,77 @@ describe('AiSettingsTab server profiles', () => {
     render(<AiSettingsTab />);
     const trashButtons = screen.getAllByRole('button').filter(button => button.querySelector('.lucide-trash2'));
     expect(trashButtons[0].hasAttribute('disabled')).toBe(true);
+  });
+
+  describe('local deployments', () => {
+    const openLocalForm = () => {
+      render(<AiSettingsTab />);
+      fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
+    };
+
+    it('creates a llama.cpp deployment with a container name derived from the profile name', async () => {
+      apiMocks.createLlmDeployment.mockResolvedValue(axiosResponse({
+        deployment: { name: 'qwen-lokal' },
+        profile: { id: 9, name: 'Qwen lokal', kind: 'local', provider: 'llamacpp', protocol: 'openai_chat', llm_model: 'org/m', deployment_name: 'qwen-lokal' },
+      }));
+      openLocalForm();
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'Qwen lokal' } });
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'org/m' } });
+      fireEvent.click(screen.getByText('settings.deployments.create'));
+      await waitFor(() => expect(apiMocks.createLlmDeployment).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'qwen-lokal', display_name: 'Qwen lokal', engine: 'llamacpp', model: 'org/m', role: 'chat', gpu: false,
+      })));
+      await waitFor(() => expect(settingsValue.setLlmProfiles).toHaveBeenCalled());
+      expect(settingsValue.showToast).toHaveBeenCalledWith('settings.deployments.created', 'success');
+    });
+
+    it('requires a GPU for vLLM and blocks creation on hosts without one', async () => {
+      openLocalForm();
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'Schnell' } });
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'org/m' } });
+      fireEvent.click(screen.getAllByRole('combobox')[1]);
+      fireEvent.click(within(screen.getByRole('listbox')).getByText('vLLM'));
+      expect(screen.getByText('settings.deployments.gpuRequired')).toBeTruthy();
+      expect((screen.getByText('settings.deployments.create').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('explains an unavailable deployer and keeps creation disabled', async () => {
+      apiMocks.getLlmDeployments.mockRejectedValue({ response: { data: { detail: 'DEPLOYER_TOKEN fehlt' } } });
+      openLocalForm();
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'X' } });
+      fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'm' } });
+      expect(await screen.findByRole('alert')).toBeTruthy();
+      expect((screen.getByText('settings.deployments.create').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('shows status and lets you stop a running deployment', async () => {
+      settingsValue = createSettingsContextValue({
+        llmProfiles: [{ ...local, id: '5', isSystem: false, deploymentName: 'qwen-lokal', provider: 'llamacpp', protocol: 'openai_chat' as const }],
+        activeProfileId: '5',
+      });
+      apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({
+        capabilities: { gpu: true },
+        deployments: [{ name: 'qwen-lokal', engine: 'llamacpp', role: 'chat', model: 'm', gpu: false, status: 'ready', base_url: 'http://x' }],
+      }));
+      apiMocks.controlLlmDeployment.mockResolvedValue(axiosResponse({}));
+      render(<AiSettingsTab />);
+      expect(await screen.findByText('settings.deployments.status.ready')).toBeTruthy();
+      fireEvent.click(screen.getByTitle('settings.deployments.stop'));
+      await waitFor(() => expect(apiMocks.controlLlmDeployment).toHaveBeenCalledWith('qwen-lokal', 'stop'));
+    });
+
+    it('shows the container log on demand', async () => {
+      settingsValue = createSettingsContextValue({
+        llmProfiles: [{ ...local, id: '5', isSystem: false, deploymentName: 'qwen-lokal' }], activeProfileId: '5',
+      });
+      apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({
+        capabilities: { gpu: false },
+        deployments: [{ name: 'qwen-lokal', engine: 'ollama', role: 'chat', model: 'm', gpu: false, status: 'starting', base_url: 'http://x' }],
+      }));
+      apiMocks.getLlmDeploymentLogs.mockResolvedValue(axiosResponse({ logs: 'loading model' }));
+      render(<AiSettingsTab />);
+      fireEvent.click(await screen.findByTitle('settings.deployments.logs'));
+      expect((await screen.findByTestId('deployment-logs')).textContent).toBe('loading model');
+    });
   });
 });

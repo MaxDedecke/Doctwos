@@ -531,6 +531,50 @@
       "connecting": "Verbinde...",
       "connect": "Verbinden"
     },
+    "deployments": {
+      "introChat": "Doctus startet einen Container auf diesem Server und legt das Profil dazu an. Modelle werden beim ersten Start geladen und im gemeinsamen Modellvolume gespeichert.",
+      "introEmbedding": "Doctus startet einen Embedding-Container auf diesem Server und legt das Profil dazu an. Das Modell muss zum 1024-dimensionalen Vektorraum von Doctus passen.",
+      "deployerUnavailable": "Der Deployer ist nicht verfügbar ({{error}}). Lokale Deployments lassen sich erst anlegen, wenn er läuft und DEPLOYER_TOKEN gesetzt ist; Remote- und Cloud-Profile funktionieren weiterhin.",
+      "namePlaceholder": "z. B. Qwen Coder lokal",
+      "engine": "Engine",
+      "engineHint": {
+        "ollama": "Ollama: einfach, lädt Modelle selbst (Name:Tag). Läuft auch ohne GPU.",
+        "vllm": "vLLM: hoher Durchsatz für GPU-Server, benötigt eine NVIDIA-GPU und ein Hugging-Face-Modell.",
+        "llamacpp": "llama.cpp: schlank, läuft mit und ohne GPU, nutzt GGUF-Modelle."
+      },
+      "modelHint": {
+        "ollama": "Modellname mit Tag, z. B. qwen3:8b. Wird beim Start per ollama pull geladen.",
+        "vllm": "Hugging-Face-Repository, z. B. Qwen/Qwen2.5-Coder-14B-Instruct. Wird beim ersten Start geladen (HF_TOKEN für geschützte Modelle in der .env).",
+        "llamacpp": "Hugging-Face-Repository mit optionaler Quantisierung (org/repo:Q4_K_M) oder eine GGUF-Datei im Modellvolume (z. B. mein-modell.gguf)."
+      },
+      "toolParser": "Tool-Call-Parser",
+      "useGpu": "NVIDIA-GPU verwenden",
+      "noGpu": "(auf diesem Host nicht verfügbar)",
+      "gpuRequired": "Dafür ist eine NVIDIA-GPU mit Container Toolkit auf diesem Host nötig.",
+      "dimensionHint": "Die Datenbank erwartet 1024 Dimensionen; ein anderer Wert erfordert einen Reindex.",
+      "create": "Deployment erstellen",
+      "created": "Lokales Deployment gestartet",
+      "createFailed": "Lokales Deployment konnte nicht erstellt werden",
+      "controlFailed": "Deployment konnte nicht gesteuert werden",
+      "logsFailed": "Logs konnten nicht geladen werden",
+      "start": "Deployment starten",
+      "stop": "Deployment stoppen",
+      "logs": "Container-Log anzeigen",
+      "emptyLlm": "Noch kein LLM-Profil. Lege ein lokales Deployment (llama.cpp, vLLM oder Ollama) oder einen Remote-Endpunkt an, damit der Chat antworten kann.",
+      "emptyEmbedding": "Noch kein Embedding-Profil. Ohne Embeddings lassen sich Quellen nicht indizieren und die semantische Suche bleibt leer.",
+      "mode": {
+        "local": "Lokales Deployment",
+        "external": "Externer Endpunkt"
+      },
+      "status": {
+        "starting": "Startet",
+        "pulling": "Lädt Modell",
+        "ready": "Bereit",
+        "stopped": "Gestoppt",
+        "failed": "Fehlgeschlagen",
+        "missing": "Kein Container"
+      }
+    },
     "profilesTab": {
       "title": "KI-Modellprofile & API-Einstellungen",
       "description": "Hier kannst du mehrere LLM-Modelle parallel konfigurieren. Im Chat-Fenster kannst du dann einfach per Dropdown zwischen ihnen umschalten.",
@@ -544,7 +588,7 @@
       "profileNameLabel": "Profilname",
       "profileNamePlaceholder": "z.B. Firmen-GPT, Gemini Pro, Lokales Mistral",
       "profileType": "Betriebsart",
-      "local": "Lokales Ollama",
+      "local": "Lokales Deployment",
       "remote": "Remote On-Premise",
       "cloud": "Cloud-Anbieter",
       "protocol": "API-Protokoll",
@@ -579,6 +623,8 @@
       "protocolOllama": "Ollama API",
       "protocolOpenai": "OpenAI-kompatibel",
       "protocolVllm": "vLLM (OpenAI API)",
+      "protocolLlamacpp": "llama.cpp (OpenAI API)",
+      "llamacppHint": "Base-URL üblicherweise http://<Host>:8080/v1. llama-server muss mit --jinja gestartet sein, damit Tool-Aufrufe funktionieren.",
       "chatPathLabel": "Chat-Pfad",
       "embeddingModelShortLabel": "Embedding-Modell",
       "embeddingUrlLabel": "Embedding-URL",

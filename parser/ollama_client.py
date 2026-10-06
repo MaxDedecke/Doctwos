@@ -12,12 +12,12 @@ from models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL") or "http://ollama:11434"
 OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "")
 
 # A managed inference endpoint can expose embeddings independently from chat.
 # ``ollama`` uses its native /api/embed format; ``openai`` uses /embeddings.
-EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+EMBEDDING_BASE_URL = (os.getenv("EMBEDDING_BASE_URL") or OLLAMA_BASE_URL).rstrip("/")
 EMBEDDING_API_KEY = os.getenv("EMBEDDING_API_KEY", OLLAMA_API_KEY)
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
 EMBEDDING_AUTO_PULL = os.getenv("EMBEDDING_AUTO_PULL", "true").lower() in {"1", "true", "yes"}
@@ -142,8 +142,23 @@ def _load_server_settings() -> Optional[dict]:
         return None
 
 
+class EmbeddingNotConfigured(RuntimeError):
+    """Kein Embedding-Endpunkt: weder aktives Profil noch Endpunkt in der Worker-Umgebung."""
+
+
 def _effective_embedding_settings(model: Optional[str] = None) -> dict:
     settings = _load_server_settings()
+    if (
+        settings is not None
+        and not settings["embedding_base_url"]
+        and not (os.getenv("EMBEDDING_BASE_URL") or os.getenv("OLLAMA_BASE_URL"))
+    ):
+        # Standard-Stack ohne LLM-Container: statt einer Verbindung zu einem nicht vorhandenen
+        # Ollama-Dienst eine verständliche Meldung (landet im Job-Log).
+        raise EmbeddingNotConfigured(
+            "Kein Embedding-Profil eingerichtet. Lege unter Einstellungen > KI ein Embedding-Profil an "
+            "(lokales Deployment oder Remote-Endpunkt) und starte die Indizierung erneut."
+        )
     configured_model = os.getenv("EMBED_MODEL", "bge-m3")
     use_server_model = settings and (model is None or model == configured_model)
     return {
@@ -161,7 +176,11 @@ def _effective_embedding_settings(model: Optional[str] = None) -> dict:
 
 def get_embedding_input_budget(model: Optional[str] = None) -> int:
     """Input byte bound used by the active embedding profile's validation."""
-    return int(_effective_embedding_settings(model)["context"])
+    try:
+        return int(_effective_embedding_settings(model)["context"])
+    except EmbeddingNotConfigured:
+        # Chunking braucht nur die Obergrenze; ohne Profil gilt der Standardwert.
+        return int(EMBEDDING_CONTEXT_LENGTH)
 
 
 def _effective_llm_settings(model: str) -> dict:

@@ -27,23 +27,30 @@ echo "Building images..."
 docker compose build backend-api
 docker compose build parser-worker
 docker compose build frontend
+docker compose build deployer
 
 echo "Starting services (Alembic migrations run automatically on backend startup)..."
 startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 docker compose up -d
 show_bootstrap_credentials "$startup_since"
 
-# LLM_MODEL in .env picks the optional local chat/compliance model. The pilot
-# default is "disabled" so CPU-only/8GB hosts load embeddings only.
-llm_model=$(grep -E "^LLM_MODEL=" "$repo_root/.env" | cut -d= -f2-)
-if [ -n "$llm_model" ] && [ "$llm_model" != "disabled" ]; then
-    echo "Pulling optional Ollama LLM (${llm_model})..."
-    docker exec doctus-ollama ollama pull "$llm_model"
+# Der Standard-Stack startet ohne LLM-Container. Ein lokales Deployment (Ollama, vLLM oder
+# llama.cpp) und die Modelle legt man nach der ersten Anmeldung unter
+# Einstellungen > KI an (LLM-Profile und Embedding-Profile).
+# Wer den alten festen Ollama-Dienst weiter nutzen will: LEGACY_OLLAMA_SERVICE=true in .env,
+# `docker compose --profile local-ollama up -d` und die Modelle selbst ziehen, z. B.
+#   docker exec doctus-ollama ollama pull bge-m3
+if docker ps --format '{{.Names}}' | grep -qx doctus-ollama; then
+    llm_model=$(grep -E "^LLM_MODEL=" "$repo_root/.env" | cut -d= -f2-)
+    if [ -n "$llm_model" ] && [ "$llm_model" != "disabled" ]; then
+        echo "Pulling optional Ollama LLM (${llm_model})..."
+        docker exec doctus-ollama ollama pull "$llm_model"
+    fi
+    echo "Pulling Ollama embedding model (bge-m3)..."
+    docker exec doctus-ollama ollama pull bge-m3
 else
-    echo "Local Ollama LLM disabled — skipping chat/compliance model pull."
+    echo "No LLM container in the default stack — create a local deployment under Settings > AI."
 fi
-echo "Pulling Ollama embedding model (bge-m3)..."
-docker exec doctus-ollama ollama pull bge-m3
 
 check_env_ready "$repo_root"
 

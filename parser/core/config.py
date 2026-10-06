@@ -14,7 +14,7 @@ import os
 
 # ── Ollama (lokales LLM + Embedding) ─────────────────────────────────────────
 
-OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL") or "http://ollama:11434"
 
 # Modell für Vektor-Embeddings. Alle Connectoren, Tasks und der Link Builder
 # referenzieren diesen Namen — Modell-Wechsel hier, nirgendwo sonst.

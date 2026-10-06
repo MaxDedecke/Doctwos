@@ -106,6 +106,9 @@ und sind hier bewusst ausgenommen (`--production`).
 | `ankane/pgvector` | PostgreSQL-Lizenz (Kern) + PostgreSQL-Lizenz (pgvector-Extension) | Beide permissiv, BSD-/MIT-äquivalent. |
 | `valkey/valkey` | BSD-3-Clause | Bewusst statt Redis (seit dessen Lizenzwechsel auf SSPL/RSALv2) — siehe CLAUDE.md-Umgebungsabschnitt. |
 | `ollama/ollama` | MIT | Server/CLI, nicht die Modelle selbst (siehe unten). |
+| `vllm/vllm-openai` | Apache-2.0 | Nur auf Anforderung durch den Deployer gestartet (E-16), nicht im Standard-Stack; Tag, nicht digest-gepinnt (`VLLM_IMAGE` pro Kunde festschreiben). Modelle siehe unten. |
+| `ghcr.io/ggml-org/llama.cpp` (`server`, `server-cuda`) | MIT | Wie vLLM: nur durch den Deployer gestartet; `LLAMACPP_IMAGE` / `LLAMACPP_CUDA_IMAGE` pro Kunde festschreiben. Das CUDA-Image enthält NVIDIA-CUDA-Laufzeitbibliotheken (proprietäre NVIDIA-EULA, kein Copyleft) — vor Auslieferung des CUDA-Images prüfen. |
+| `docker` (PyPI, nur `deployer/`) | Apache-2.0 | Docker-SDK des Deployer-Dienstes; weitere Deployer-Abhängigkeiten (`fastapi`, `uvicorn`, `httpx`, `pydantic`) entsprechen dem Backend. |
 
 Backend-, Parser- und Frontend-Images werden selbst gebaut (kein Basisimage
 mit fremder Lizenz außer den o.g. Python-/Node-Abhängigkeiten).

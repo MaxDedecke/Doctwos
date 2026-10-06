@@ -111,14 +111,16 @@ bootstrap_env() {
     master_key=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null) \
         || master_key=$(docker run --rm python:3.11-slim sh -c "pip install -q cryptography >/dev/null 2>&1 && python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
     session_key=$(openssl rand -base64 32)
+    deployer_token=$(openssl rand -hex 32)
 
     # Portable in-place edit (BSD/GNU sed differ on -i): write to a temp file, then replace.
     sed -e "s|^MASTER_ENCRYPTION_KEY=.*|MASTER_ENCRYPTION_KEY=${master_key}|" \
         -e "s|^SESSION_SECRET_KEY=.*|SESSION_SECRET_KEY=${session_key}|" \
+        -e "s|^DEPLOYER_TOKEN=.*|DEPLOYER_TOKEN=${deployer_token}|" \
         "$repo_root/.env" > "$repo_root/.env.tmp"
     mv "$repo_root/.env.tmp" "$repo_root/.env"
 
-    echo "Generated MASTER_ENCRYPTION_KEY and SESSION_SECRET_KEY in .env."
+    echo "Generated MASTER_ENCRYPTION_KEY, SESSION_SECRET_KEY and DEPLOYER_TOKEN in .env."
     echo "Review .env now and set API_URL/FRONTEND_URL before continuing."
 }
 

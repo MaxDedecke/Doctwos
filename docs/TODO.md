@@ -252,6 +252,10 @@ Details und Checkboxen stehen ausschließlich in
 | 9 | O-334 | Inkrementelle Delta-Offline-Bundles für wartungsarme Air-Gap-Updates einführen. | Skript und Spezifikation für differenzielle Update-Archive (nur geänderte Container-Layer, DB-Migrationen und App-Assets) zur Vermeidung wiederholter 5-GB-Volltransfers. |
 | 10 | O-335 | Ressourcen-Governance und Quoten-Management (Multi-Team / Multi-Projekt) umsetzen. | Durchsetzung konfigurierbarer Quoten für Festplattenplatz, Repository-Anzahl und Inferenz-Slots pro Benutzer/Team gemäß `OPERATIONS_LIMITS.md`. |
 
+### Lokale LLM-Deployments (E-16, 06.10.2026)
+
+Standard-Stack ohne LLM-Container; Ollama, vLLM und llama.cpp lassen sich im Konfigurationsdialog unter LLM- und Embedding-Profilen als lokales Deployment anlegen (Deployer-Dienst) oder als Remote-Profil hinterlegen. Live geprüft: Deployer mit GPU-Erkennung, llama.cpp-Container (CPU und CUDA-Image) mit Modell von Hugging Face, Profil anlegen, Test, Löschen entfernt den Container. **Offen:** (a) vLLM und Ollama als Deployment live auf diesem Host abnehmen (vLLM braucht deutlich mehr VRAM als die 8-GB-Laptop-GPU); (b) Offline-Bundle für Deployer, Engine-Images und Modelle (`docker-compose.offline.yml` liefert weiter den Legacy-Ollama); (c) Images per Digest festschreiben und ins Bundle aufnehmen; (d) Modellverwaltung (heruntergeladene Modelle auflisten/löschen, Fortschrittsanzeige für vLLM/llama.cpp-Downloads); (e) Mehrere Embedding-Deployments gleichzeitig auf einer GPU (Speicherbudget); (f) Hinweis im Chat, wenn kein Profil aktiv ist.
+
 ### Introduce vLLM next to Ollama (High-Throughput Inferenz)
 
 Ollama bleibt der standardmäßige, vorkonfigurierte Container für lokale Entwicklung, CPU-only-Umgebungen und den Offline-Standby auf Machine A. Parallel dazu wird **vLLM neben Ollama** als optionale High-Throughput-Inferenzoption für dedizierte Enterprise-GPU-Umgebungen (Machine B) eingeführt, um PagedAttention, Continuous Batching, Tensor Parallelism und Automatic Prefix Caching (APC) für parallele Mehrbenutzerlasten bereitzustellen.

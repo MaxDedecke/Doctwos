@@ -1,5 +1,9 @@
 import os
 
+# Die Tests setzen das bisherige Bootstrap-Profil (lokales Ollama) voraus; der Standard-Stack legt es
+# nicht mehr an. Das Verhalten ohne Bootstrap prüft tests/test_llm_deployments.py gezielt.
+os.environ.setdefault("LEGACY_OLLAMA_SERVICE", "true")
+
 import pytest
 from fastapi.testclient import TestClient
 

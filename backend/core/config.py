@@ -55,7 +55,19 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
 
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
-OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+# Der Standard-Stack hat keinen LLM-Container mehr. Ein per Umgebung gesetzter Endpunkt (oder der
+# Legacy-Ollama-Dienst) legt beim ersten Start weiterhin ein Bootstrap-Profil an; ohne beides
+# gibt es kein Profil, bis ein Admin unter Einstellungen > KI eines anlegt.
+LEGACY_OLLAMA_SERVICE: bool = os.getenv("LEGACY_OLLAMA_SERVICE", "false").lower() in ("1", "true")
+BOOTSTRAP_LLM_ENDPOINT: bool = bool(os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
+BOOTSTRAP_EMBEDDING_ENDPOINT: bool = (
+    bool(os.getenv("EMBEDDING_BASE_URL")) or bool(os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
+)
+# Deployer-Dienst (startet lokale LLM-Container); siehe deployer/ und docs/ENTSCHEIDUNGEN.md E-12.
+DEPLOYER_URL: str = os.getenv("DEPLOYER_URL", "http://deployer:9000").rstrip("/")
+DEPLOYER_TOKEN: str = os.getenv("DEPLOYER_TOKEN", "")
+
+OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL") or "http://ollama:11434"
 OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
 # Runtime metadata for the active server-side profile.  The legacy names above
 # remain because many call sites still consume them, but they can now point to
@@ -66,7 +78,7 @@ ACTIVE_LLM_TEMPERATURE: float | None = None
 ACTIVE_LLM_MAX_CONCURRENCY: int | None = None
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 # Embeddings may be served separately from chat by a managed Ollama/OpenAI API.
-EMBEDDING_BASE_URL: str = os.getenv("EMBEDDING_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+EMBEDDING_BASE_URL: str = (os.getenv("EMBEDDING_BASE_URL") or OLLAMA_BASE_URL).rstrip("/")
 EMBEDDING_API_KEY: str = os.getenv("EMBEDDING_API_KEY", OLLAMA_API_KEY)
 EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "ollama").lower()
 # Must stay in sync with the pgvector column and parser/core/config.py.

@@ -20,6 +20,8 @@ export interface LlmProfile {
   embeddingDimension?: number;
   embeddingContextLength?: number;
   llmContextLength?: number;
+  /** Name des vom Deployer verwalteten Containers (lokale Deployments). */
+  deploymentName?: string | null;
   isSystem?: boolean;
   isActive?: boolean;
   temperature?: number;
@@ -36,6 +38,7 @@ export interface EmbeddingProfile {
   apiKeySet?: boolean;
   dimension: number;
   contextLength: number;
+  deploymentName?: string | null;
   isSystem?: boolean;
   isActive?: boolean;
 }
@@ -69,6 +72,7 @@ export function profileFromApi(profile: Record<string, unknown>): LlmProfile {
     embeddingDimension: profile.embedding_dimension as number,
     embeddingContextLength: profile.embedding_context_length as number,
     llmContextLength: profile.llm_context_length as number,
+    deploymentName: (profile.deployment_name as string | null | undefined) ?? null,
     isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
   };
 }
@@ -80,6 +84,7 @@ export function embeddingProfileFromApi(profile: Record<string, unknown>): Embed
     baseUrl: profile.base_url as string, path: profile.path as string,
     apiKeySet: Boolean(profile.api_key_set), dimension: profile.dimension as number,
     contextLength: profile.context_length as number,
+    deploymentName: (profile.deployment_name as string | null | undefined) ?? null,
     isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
   };
 }
@@ -203,8 +208,14 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     api.getAiProfiles?.()
       .then(res => {
         const profiles: LlmProfile[] = (res.data.profiles || []).map(profileFromApi);
-        if (!profiles.length) return;
         localStorage.removeItem('doctus-llm-profiles');
+        if (!profiles.length) {
+          // Standard-Stack ohne LLM-Container: erst ein Admin legt ein Profil an.
+          setLlmProfiles([]);
+          setActiveProfileIdState('');
+          localStorage.removeItem('doctus-active-profile-id');
+          return;
+        }
         const active = profiles.find(profile => profile.id === String(res.data.active_profile_id)) || profiles[0];
         setLlmProfiles(profiles);
         setActiveProfileIdState(active.id);
@@ -217,7 +228,11 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     api.getEmbeddingProfiles?.()
       .then(res => {
         const profiles: EmbeddingProfile[] = (res.data.profiles || []).map(embeddingProfileFromApi);
-        if (!profiles.length) return;
+        if (!profiles.length) {
+          setEmbeddingProfiles([]);
+          setActiveEmbeddingProfileIdState('');
+          return;
+        }
         const active = profiles.find(profile => profile.id === String(res.data.active_embedding_profile_id)) || profiles[0];
         setEmbeddingProfiles(profiles);
         setActiveEmbeddingProfileIdState(active.id);

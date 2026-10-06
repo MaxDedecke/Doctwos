@@ -9,6 +9,7 @@ vi.mock('@/app/services/api', () => ({
     getModels: vi.fn(),
     getAiSettings: vi.fn(),
     getAiProfiles: vi.fn(),
+    getEmbeddingProfiles: vi.fn(),
   },
 }));
 
@@ -24,6 +25,7 @@ describe('useAiSettings', () => {
     mockedApi.getModels.mockResolvedValue({ data: { models: ['llama3', 'qwen'] } } as never);
     mockedApi.getAiSettings.mockResolvedValue({ data: {} } as never);
     mockedApi.getAiProfiles.mockResolvedValue({ data: { active_profile_id: 1, profiles: [] } } as never);
+    mockedApi.getEmbeddingProfiles.mockResolvedValue({ data: { active_embedding_profile_id: null, profiles: [] } } as never);
   });
 
   it('migrates the legacy model settings and restores the active profile parameters', async () => {
@@ -52,6 +54,8 @@ describe('useAiSettings', () => {
       { id: 'two', name: 'Two', provider: 'ollama', model: 'two', temperature: 0.9, systemPrompt: 'two prompt' },
     ]));
     localStorage.setItem('doctus-active-profile-id', 'one');
+    // Server nicht erreichbar: die im Browser gemerkten Profile bleiben erhalten.
+    mockedApi.getAiProfiles.mockRejectedValue(new Error('offline') as never);
 
     const { result } = renderHook(() => useAiSettings({ isLoggedIn: true, t: translate }));
 
@@ -68,5 +72,17 @@ describe('useAiSettings', () => {
     expect(localStorage.getItem('doctus-active-profile-id')).toBe('two');
     expect(mockedApi.getModelInfo).toHaveBeenCalledTimes(1);
     expect(mockedApi.getModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no profile when the server has none (stack without an LLM container) and drops browser defaults', async () => {
+    localStorage.setItem('doctus-active-profile-id', 'ollama-default');
+    mockedApi.getEmbeddingProfiles.mockResolvedValue({ data: { active_embedding_profile_id: null, profiles: [] } } as never);
+
+    const { result } = renderHook(() => useAiSettings({ isLoggedIn: true, t: translate }));
+
+    await waitFor(() => expect(result.current.llmProfiles).toEqual([]));
+    expect(result.current.activeProfileId).toBe('');
+    expect(localStorage.getItem('doctus-active-profile-id')).toBeNull();
+    expect(result.current.embeddingProfiles).toEqual([]);
   });
 });

@@ -531,6 +531,50 @@
       "connecting": "Connecting...",
       "connect": "Connect"
     },
+    "deployments": {
+      "introChat": "Doctus starts a container on this server and creates the matching profile. Models are downloaded on first start and stored in the shared model volume.",
+      "introEmbedding": "Doctus starts an embedding container on this server and creates the matching profile. The model must fit Doctus' 1024-dimensional vector space.",
+      "deployerUnavailable": "The deployer is unavailable ({{error}}). Local deployments can only be created once it is running and DEPLOYER_TOKEN is set; remote and cloud profiles keep working.",
+      "namePlaceholder": "e.g. Qwen Coder local",
+      "engine": "Engine",
+      "engineHint": {
+        "ollama": "Ollama: simple, pulls models itself (name:tag). Also runs without a GPU.",
+        "vllm": "vLLM: high throughput for GPU servers, needs an NVIDIA GPU and a Hugging Face model.",
+        "llamacpp": "llama.cpp: lean, runs with or without a GPU, uses GGUF models."
+      },
+      "modelHint": {
+        "ollama": "Model name with tag, e.g. qwen3:8b. Pulled with ollama pull on start.",
+        "vllm": "Hugging Face repository, e.g. Qwen/Qwen2.5-Coder-14B-Instruct. Downloaded on first start (set HF_TOKEN in .env for gated models).",
+        "llamacpp": "Hugging Face repository with optional quantization (org/repo:Q4_K_M) or a GGUF file in the model volume (e.g. my-model.gguf)."
+      },
+      "toolParser": "Tool call parser",
+      "useGpu": "Use NVIDIA GPU",
+      "noGpu": "(not available on this host)",
+      "gpuRequired": "This needs an NVIDIA GPU with the Container Toolkit on this host.",
+      "dimensionHint": "The database expects 1024 dimensions; another value requires a reindex.",
+      "create": "Create deployment",
+      "created": "Local deployment started",
+      "createFailed": "Could not create the local deployment",
+      "controlFailed": "Could not control the deployment",
+      "logsFailed": "Could not load the logs",
+      "start": "Start deployment",
+      "stop": "Stop deployment",
+      "logs": "Show container log",
+      "emptyLlm": "No LLM profile yet. Create a local deployment (llama.cpp, vLLM or Ollama) or a remote endpoint so chat can answer.",
+      "emptyEmbedding": "No embedding profile yet. Without embeddings sources cannot be indexed and semantic search stays empty.",
+      "mode": {
+        "local": "Local deployment",
+        "external": "External endpoint"
+      },
+      "status": {
+        "starting": "Starting",
+        "pulling": "Downloading model",
+        "ready": "Ready",
+        "stopped": "Stopped",
+        "failed": "Failed",
+        "missing": "No container"
+      }
+    },
     "profilesTab": {
       "title": "AI Model Profiles & API Settings",
       "description": "Here you can configure several LLM models in parallel. In the chat window you can then simply switch between them via dropdown.",
@@ -544,7 +588,7 @@
       "profileNameLabel": "Profile name",
       "profileNamePlaceholder": "e.g. Company GPT, Gemini Pro, Local Mistral",
       "profileType": "Deployment type",
-      "local": "Local Ollama",
+      "local": "Local deployment",
       "remote": "Remote on-premises",
       "cloud": "Cloud provider",
       "protocol": "API protocol",
@@ -579,6 +623,8 @@
       "protocolOllama": "Ollama API",
       "protocolOpenai": "OpenAI-compatible",
       "protocolVllm": "vLLM (OpenAI API)",
+      "protocolLlamacpp": "llama.cpp (OpenAI API)",
+      "llamacppHint": "Base URL usually http://<host>:8080/v1. Start llama-server with --jinja so tool calls work.",
       "chatPathLabel": "Chat path",
       "embeddingModelShortLabel": "Embedding model",
       "embeddingUrlLabel": "Embedding URL",

@@ -80,9 +80,13 @@ def test_remote_openai_compatible_profile_is_not_cloud_gated(client, db_session,
     assert response.status_code == 200, response.text
     assert response.json()["is_active"] is True
 
+    # Ohne Bootstrap-Profil (Standard-Stack ohne LLM-Container) gibt es kein lokales Profil zum Zurückschalten.
     local = db_session.query(AIProfile).filter(AIProfile.kind == "local").first()
     settings = db_session.query(AISettings).order_by(AISettings.id).first()
-    apply_profile(settings, local)
+    if local is not None:
+        apply_profile(settings, local)
+    else:
+        settings.active_profile_id = None
     db_session.commit()
     db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
     db_session.commit()
@@ -111,8 +115,19 @@ def test_cloud_profile_requires_deployment_opt_in(client, db_session, monkeypatc
 def test_system_and_active_profiles_cannot_be_deleted(client, db_session):
     settings = db_session.query(AISettings).order_by(AISettings.id).first()
     profile = db_session.query(AIProfile).filter(AIProfile.id == settings.active_profile_id).first()
+    created = None
+    if profile is None:
+        # Standard-Stack ohne Bootstrap-Profil: das erste angelegte Profil wird aktiv.
+        created = client.post("/ai-profiles", json=_payload()).json()
+        profile = db_session.query(AIProfile).filter(AIProfile.id == created["id"]).first()
     response = client.delete(f"/ai-profiles/{profile.id}")
     assert response.status_code == 409
+    if created is not None:
+        settings = db_session.query(AISettings).order_by(AISettings.id).first()
+        settings.active_profile_id = None
+        db_session.commit()
+        db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
+        db_session.commit()
 
 
 def test_profile_update_preserves_omitted_secret(client, db_session):

@@ -1,3 +1,6 @@
+# DEPRECATED: the default stack no longer contains an LLM container (local deployments are created in
+# Settings > AI via the deployer). This overlay is kept for existing setups and is a no-op for the
+# default stack; the legacy `ollama` service only starts with `--profile local-ollama`.
 # Overlay for a managed remote inference service. Start with:
 #   docker compose -f docker-compose.yml -f docker-compose.remote-inference.yml up -d
 #

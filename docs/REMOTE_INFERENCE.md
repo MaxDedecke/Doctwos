@@ -9,10 +9,11 @@ browser never receives API keys.
 Open **Settings → AI**, add a profile and choose one of the three operating
 modes:
 
-- **Local Ollama** always addresses the Compose service at
-  `http://ollama:11434`.
+- **Local deployment** runs Ollama, vLLM or llama.cpp in a container started by the Doctus deployer on this host
+  (see `docs/DEPLOYMENT.md`, "Local LLM deployments"). The legacy fixed Ollama service at `http://ollama:11434` is
+  only used by profiles that already exist.
 - **Remote On-Premise** accepts a URL (including port and optional base
-  subpath), native Ollama, generic OpenAI-compatible chat, or vLLM chat, a chat path/model/key and
+  subpath), native Ollama, generic OpenAI-compatible chat, vLLM chat or llama.cpp (`llama-server --jinja`) chat, a chat path/model/key and
   an independently configurable embedding URL/path/model/key.
 - **Cloud** offers OpenAI (Responses API), Anthropic and Gemini when
   `llm.allowCloudProviders` is enabled in `config/features.json`.

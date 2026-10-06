@@ -305,6 +305,21 @@ class AIProfileUpdate(BaseModel):
     llm_temperature: Optional[float] = None
 
 
+class LocalDeploymentCreate(BaseModel):
+    """Lokales Deployment (Ollama, vLLM, llama.cpp) samt Profil, das darauf zeigt."""
+
+    name: str  # Container-Kennung (a-z, 0-9, -)
+    display_name: Optional[str] = None  # Profilname in der Oberfläche; Standard: name
+    engine: str  # ollama | vllm | llamacpp
+    model: str
+    role: str = "chat"  # chat | embedding
+    gpu: bool = False
+    context_length: int = 8192
+    tool_parser: Optional[str] = None
+    # Nur Embedding: Dimension des Modells (die Datenbank erwartet 1024).
+    dimension: int = 1024
+
+
 class EmbeddingProfileCreate(BaseModel):
     name: str
     provider: str = "ollama"

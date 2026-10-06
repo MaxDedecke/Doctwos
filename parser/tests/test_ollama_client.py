@@ -355,3 +355,23 @@ async def test_disabled_active_profile_is_not_overridden_by_the_env_model(monkey
     with pytest.raises(RuntimeError, match="deaktiviert"):
         await oc.get_chat_json("x", "qwen3:8b")
     assert not called
+
+
+def test_missing_embedding_profile_gives_a_clear_error_instead_of_a_connection_to_ollama(monkeypatch):
+    # Standard-Stack ohne LLM-Container: DB erreichbar, aber weder Profil noch Endpunkt in der Umgebung.
+    monkeypatch.delenv("EMBEDDING_BASE_URL", raising=False)
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: {"embedding_base_url": None})
+    with pytest.raises(ollama_client.EmbeddingNotConfigured, match="Kein Embedding-Profil"):
+        ollama_client._effective_embedding_settings()
+    # Chunking braucht nur die Obergrenze und darf daran nicht scheitern.
+    assert ollama_client.get_embedding_input_budget() == ollama_client.EMBEDDING_CONTEXT_LENGTH
+
+
+def test_embedding_endpoint_from_the_worker_environment_still_counts_as_configured(monkeypatch):
+    monkeypatch.setenv("OLLAMA_BASE_URL", "https://inference.internal:11434")
+    monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: {
+        "embedding_provider": "ollama", "embedding_base_url": None, "embedding_api_key": "", "embedding_path": None,
+        "embedding_model": "bge-m3", "embedding_dimension": 1024, "embedding_context_length": 8192,
+    })
+    assert ollama_client._effective_embedding_settings()["model"] == "bge-m3"
