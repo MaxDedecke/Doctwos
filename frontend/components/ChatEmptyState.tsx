@@ -55,7 +55,7 @@ interface Scenario {
 }
 
 const TYPING_MS_PER_CHAR = 45;
-const QUESTION_ROTATION_MS = 9000;
+const QUESTION_ROTATION_MS = 18000;
 const STATEMENT_POLL_MS = 60000;
 const SHIMMER_START_MS = 2500;
 const SHIMMER_STEP_MS = 450;
@@ -307,19 +307,6 @@ export function ChatEmptyState({
 
   return (
     <div className="flex-1 flex flex-col items-center justify-start text-center gap-5 @3xl/chat:gap-6 pt-2 pb-4 relative">
-      {/* Zeilenraster als ruhiger Hintergrund; nutzt die Theme-Variablen, kein Glow. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-[300px] pointer-events-none z-0"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, rgb(var(--ds-border) / 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--ds-border) / 0.22) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-          maskImage: 'radial-gradient(ellipse 65% 60% at 50% 25%, black 10%, transparent 75%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 65% 60% at 50% 25%, black 10%, transparent 75%)',
-        }}
-      />
-
       <div className="relative z-10 w-full max-w-3xl space-y-3">
         <div
           key={chatMode}
