@@ -262,6 +262,62 @@ class BaseConnector(ABC):
         )
         return count
 
+    # ── Aufräumen ─────────────────────────────────────────────────────────────
+
+    # Schutz vor einer leeren oder abgeschnittenen Antwort der Quelle ohne Fehlermeldung: Würde ein
+    # großer Teil des Index auf einmal verschwinden, wird nichts gelöscht und stattdessen gewarnt.
+    _ORPHAN_MAX_SHARE = 0.5
+    _ORPHAN_MIN_COUNT = 20
+
+    def _remove_orphans(self, seen_keys: set[str]) -> int:
+        """Entfernt Chunks dieser Quelle, deren Dokument in der Quelle nicht mehr vorkommt.
+
+        Nur nach einem vollständig durchlaufenen Crawl aufrufen. Läuft nach ``sync()`` (die dortige
+        Session ist dann geschlossen) und nutzt deshalb eine eigene.
+        """
+        db = SessionLocal()
+        try:
+            known = {
+                key
+                for (key,) in db.query(DocumentChunk.file_path)
+                .filter(DocumentChunk.source_id == self.source_id)
+                .distinct()
+            }
+            stale = known - seen_keys
+            if not stale:
+                return 0
+            if not seen_keys or (
+                len(stale) >= self._ORPHAN_MIN_COUNT and len(stale) > len(known) * self._ORPHAN_MAX_SHARE
+            ):
+                self._append_log(
+                    db,
+                    f"[WARNUNG] {len(stale)} von {len(known)} indizierten Dokumenten kamen im Crawl nicht mehr vor. "
+                    "Aus Sicherheit wird nichts gelöscht; prüfe Zugriffsrechte und Quelle.",
+                )
+                db.commit()
+                return 0
+            stale_list = sorted(stale)
+            for offset in range(0, len(stale_list), 500):
+                db.query(DocumentChunk).filter(
+                    DocumentChunk.source_id == self.source_id,
+                    DocumentChunk.file_path.in_(stale_list[offset : offset + 500]),
+                ).delete(synchronize_session=False)
+            self._append_log(db, f"{len(stale)} Dokument(e) nicht mehr in der Quelle — aus dem Index entfernt.")
+            db.commit()
+            return len(stale)
+        except Exception as exc:
+            db.rollback()
+            logger.error(f"[Connector] Aufräumen für Quelle {self.source_id} fehlgeschlagen: {exc}")
+            return 0
+        finally:
+            db.close()
+
+    def _append_log(self, db, message: str) -> None:
+        source = db.query(KnowledgeSource).filter(KnowledgeSource.id == self.source_id).first()
+        if source is not None:
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            source.sync_log = (source.sync_log or "") + f"[{timestamp}] {message}\n"
+
     # ── Abstrakte Schnittstelle ───────────────────────────────────────────────
 
     @abstractmethod

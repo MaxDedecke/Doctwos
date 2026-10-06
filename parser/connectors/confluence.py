@@ -268,6 +268,10 @@ class ConfluenceConnector(BaseConnector):
     def __init__(self, source_id: int) -> None:
         super().__init__(source_id)
         self._api_root: str | None = None
+        self._seen_keys: set[str] = set()
+        self._crawl_complete = False
+        # Gesetzt, sobald etwas nicht abrufbar war: dann darf dieser Lauf nichts als gelöscht werten.
+        self._incomplete = False
 
     async def _discover_api_root(self, client, base_url, auth, headers) -> str:
         """Findet die REST-Wurzel dieser Installation (Server/DC oder Cloud) mit je einer Anfrage.
@@ -305,6 +309,9 @@ class ConfluenceConnector(BaseConnector):
     async def fetch_documents(self):
         spaces = self._parse_spaces()
         self._log(f"Verbinde mit Confluence unter {self.source.url} (Spaces: {spaces})...")
+        self._seen_keys = set()
+        self._crawl_complete = False
+        self._incomplete = False
 
         # Auth-Setup: Basic Auth hat Vorrang vor Bearer Token
         auth = None
@@ -315,53 +322,70 @@ class ConfluenceConnector(BaseConnector):
             headers["Authorization"] = f"Bearer {self.source.token}"
 
         base_url = self.source.url.rstrip("/")
+        page_limit = 25
+        # Ein Durchlauf je gewähltem Space, damit der Server filtert (statt die ganze Instanz zu
+        # laden und clientseitig auszusortieren); "ALL" ist ein einzelner Durchlauf ohne Filter.
+        space_keys: list[str | None] = [None] if "ALL" in spaces else list(spaces)
 
         async with httpx.AsyncClient(verify=self._http_verify()) as client:
             self._api_root = await self._discover_api_root(client, base_url, auth, headers)
-            start = 0
-            page_limit = 25
+            counter = 0
 
-            while True:
-                pages_data = await self._fetch_pages(
-                    client, base_url, auth, headers, spaces, start, page_limit
-                )
-
-                results = pages_data.get("results", [])
-                if not results:
-                    break
-
-                for i, page in enumerate(results):
-                    current_count = start + i + 1
-                    # Raus, wenn die Seite nicht zum gewünschten Space gehört
-                    page_space = page.get("space", {}).get("key")
-                    if "ALL" not in spaces and page_space not in spaces:
-                        continue
-
-                    doc = self._build_document(page, base_url)
-                    self._update_progress(
-                        current_count,
-                        message=f"Verarbeite Seite '{page.get('title', '...')}' ({current_count})...",
+            for space_key in space_keys:
+                start = 0
+                while True:
+                    pages_data = await self._fetch_pages(
+                        client, base_url, auth, headers, space_key, start, page_limit
                     )
 
-                    if doc is None:
-                        continue  # Leer oder unverändert
-                    yield doc
+                    results = pages_data.get("results", [])
+                    if not results:
+                        break
 
-                    async for att_doc in self._fetch_attachments(
-                        client, base_url, auth, headers, page
-                    ):
-                        yield att_doc
+                    for page in results:
+                        # Absicherung, falls ein Server den Space-Filter ignoriert.
+                        page_space = page.get("space", {}).get("key")
+                        if space_key is not None and page_space != space_key:
+                            continue
 
-                start += len(results)
-                # Pagination: Ende erreicht wenn weniger Ergebnisse als erwartet
-                # oder kein "next"-Link in der Antwort
-                if len(results) < page_limit or "next" not in pages_data.get("_links", {}):
-                    break
+                        counter += 1
+                        key = self._page_key(page)
+                        self._seen_keys.add(key)
+                        doc = self._build_document(page, base_url)
+                        self._update_progress(
+                            counter,
+                            message=f"Verarbeite Seite '{page.get('title', '...')}' ({counter})...",
+                        )
+
+                        if doc is not None:
+                            yield doc
+
+                        async for att_doc in self._fetch_attachments(
+                            client, base_url, auth, headers, page
+                        ):
+                            yield att_doc
+
+                    start += len(results)
+                    # Pagination: Ende erreicht wenn weniger Ergebnisse als erwartet
+                    # oder kein "next"-Link in der Antwort
+                    if len(results) < page_limit or "next" not in pages_data.get("_links", {}):
+                        break
+
+        # Nur ein bis zum Ende durchlaufener Crawl darf zum Aufräumen gelöschter Seiten führen.
+        self._crawl_complete = not self._incomplete
+
+    async def sync(self, force_reindex: bool = False) -> None:
+        await super().sync()
+        if not self._crawl_complete:
+            return
+        removed = self._remove_orphans(self._seen_keys)
+        if removed:
+            self.has_changes = True
 
     # ── Interne Hilfsmethoden ────────────────────────────────────────────────
 
     async def _fetch_pages(
-        self, client, base_url, auth, headers, spaces, start, limit
+        self, client, base_url, auth, headers, space_key, start, limit
     ) -> dict:
         """Ruft eine Seite der Content-API ab (Fehler werden weitergereicht, damit der Sync nicht still endet)."""
         params = {
@@ -370,8 +394,8 @@ class ConfluenceConnector(BaseConnector):
             "limit": limit,
             "expand": "body.view,version,space",
         }
-        if "ALL" not in spaces and len(spaces) == 1:
-            params["spaceKey"] = spaces[0]
+        if space_key is not None:
+            params["spaceKey"] = space_key
         return await self._get_json(client, f"{base_url}{self._api_root}/content", auth, headers, params)
 
     async def _get_json(self, client, url, auth, headers, params) -> dict:
@@ -383,6 +407,33 @@ class ConfluenceConnector(BaseConnector):
         await asyncio.sleep(0.05)  # Höflichkeits-Pause zwischen Requests
         return response.json()
 
+    @staticmethod
+    def _page_key(page: dict) -> str:
+        """Eindeutiger, umbenennungsfester Index-Schlüssel einer Seite: Space und Seiten-ID.
+
+        Der Seitentitel taugt nicht als Schlüssel: Titel wiederholen sich über Spaces hinweg
+        (Seiten überschrieben sich gegenseitig) und ändern sich beim Umbenennen.
+        """
+        return f"{page.get('space', {}).get('key') or '_'}/{page.get('id')}"
+
+    def _adopt_legacy_chunks(self, old_key: str, new_key: str, page_id: str | None) -> None:
+        """Früher war der Seitentitel der Schlüssel. Vorhandene Chunks dieser Seite ziehen auf den neuen
+        Schlüssel um, damit weder der Index noch bestätigte Verknüpfungen neu aufgebaut werden müssen."""
+        if not page_id or old_key == new_key:
+            return
+        chunks = (
+            self.db.query(DocumentChunk)
+            .filter(DocumentChunk.source_id == self.source.id, DocumentChunk.file_path == old_key)
+            .all()
+        )
+        moved = False
+        for chunk in chunks:
+            if str((chunk.metadata_json or {}).get("page_id")) == str(page_id):
+                chunk.file_path = new_key
+                moved = True
+        if moved:
+            self.db.commit()
+
     def _build_document(self, page: dict, base_url: str) -> Document | None:
         """
         Wandelt ein Confluence-Page-Objekt in ein Document um.
@@ -392,6 +443,8 @@ class ConfluenceConnector(BaseConnector):
         - Der Seiteninhalt leer ist
         """
         title = page.get("title", "Unbekannte Seite")
+        key = self._page_key(page)
+        self._adopt_legacy_chunks(title, key, page.get("id"))
 
         # Delta-Sync: Seite überspringen wenn unverändert und bereits indiziert
         updated_at_str = page.get("version", {}).get("when")
@@ -403,7 +456,7 @@ class ConfluenceConnector(BaseConnector):
                         self.db.query(DocumentChunk)
                         .filter(
                             DocumentChunk.source_id == self.source.id,
-                            DocumentChunk.file_path == title,
+                            DocumentChunk.file_path == key,
                         )
                         .first()
                         is not None
@@ -433,26 +486,39 @@ class ConfluenceConnector(BaseConnector):
             content=plain_text,
             url=original_url,
             source_type="Confluence",
-            storage_key=title,
-            extra_meta={"page_id": page.get("id")},
+            storage_key=key,
+            extra_meta={"page_id": page.get("id"), "space_key": page.get("space", {}).get("key")},
             line_sections=line_sections,
         )
+
+    async def _list_attachments(self, client, base_url, auth, headers, page_id, page_title) -> list[dict]:
+        """Alle Anhänge einer Seite (seitenweise abgefragt, nicht nur die ersten 50)."""
+        attachments: list[dict] = []
+        start, limit = 0, 50
+        while True:
+            try:
+                resp = await self._get_json(
+                    client, f"{base_url}{self._api_root}/content/{page_id}/child/attachment",
+                    auth, headers, {"limit": limit, "start": start, "expand": "version"},
+                )
+            except httpx.HTTPError as exc:
+                self._log(f"Anhänge von '{page_title}' nicht abrufbar: {exc}")
+                # Unvollständige Liste: kein Aufräumen in diesem Lauf (sonst gingen Anhänge verloren).
+                self._incomplete = True
+                return attachments
+            results = resp.get("results", [])
+            attachments.extend(results)
+            if len(results) < limit or "next" not in resp.get("_links", {}):
+                return attachments
+            start += len(results)
 
     async def _fetch_attachments(self, client, base_url, auth, headers, page: dict):
         """Async generator: yields Document for each supported attachment on a page."""
         page_id = page.get("id")
         page_title = page.get("title", "Unbekannte Seite")
+        page_key = self._page_key(page)
 
-        try:
-            resp = await self._get_json(
-                client, f"{base_url}{self._api_root}/content/{page_id}/child/attachment",
-                auth, headers, {"limit": 50, "expand": "version"},
-            )
-        except httpx.HTTPError as exc:
-            self._log(f"Anhänge von '{page_title}' nicht abrufbar: {exc}")
-            return
-
-        for att in (resp or {}).get("results", []):
+        for att in await self._list_attachments(client, base_url, auth, headers, page_id, page_title):
             mime_type = att.get("metadata", {}).get("mediaType", "")
             if not _is_supported_mime(mime_type):
                 continue
@@ -465,18 +531,23 @@ class ConfluenceConnector(BaseConnector):
                 )
                 continue
 
+            # Schlüssel über die Anhangs-ID: stabil beim Umbenennen und eindeutig je Seite.
+            storage_key = f"{page_key}/attachments/{att.get('id') or filename}"
+            self._seen_keys.add(storage_key)
+            self._adopt_legacy_chunks(f"{page_title}/attachments/{filename}", storage_key, page_id)
+
             # Delta-Sync: Anhang überspringen wenn unverändert und bereits indiziert
-            storage_key = f"{page_title}/attachments/{filename}"
             updated_at_str = att.get("version", {}).get("when")
             if self.source.last_synced_at and updated_at_str:
                 try:
                     updated_at = datetime.fromisoformat(updated_at_str.replace("Z", "+00:00"))
                     if updated_at <= self.source.last_synced_at:
-                        from models.database import DocumentChunk as DC
-
                         if (
-                            self.db.query(DC)
-                            .filter(DC.source_id == self.source.id, DC.file_path == storage_key)
+                            self.db.query(DocumentChunk)
+                            .filter(
+                                DocumentChunk.source_id == self.source.id,
+                                DocumentChunk.file_path == storage_key,
+                            )
                             .first()
                         ):
                             continue
@@ -494,6 +565,8 @@ class ConfluenceConnector(BaseConnector):
                 )
             except Exception as e:
                 self._log(f"Download-Fehler für '{filename}': {e}")
+                # Anhang fehlt in diesem Lauf: nicht als gelöscht behandeln.
+                self._incomplete = True
                 continue
 
             text = _extract_attachment_text(dl_resp.content, mime_type)

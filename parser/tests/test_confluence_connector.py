@@ -97,7 +97,7 @@ async def test_confluence_connector_fetches_page_as_plaintext(db_session, test_s
     assert docs[0]["title"] == "Runbook"
     assert "Hallo" in docs[0]["content"] and "Welt" in docs[0]["content"]
     assert docs[0]["source_type"] == "Confluence"
-    assert docs[0]["storage_key"] == "Runbook"
+    assert docs[0]["storage_key"] == "DOCS/123"
 
 
 @pytest.mark.anyio
@@ -107,7 +107,7 @@ async def test_confluence_connector_skips_unchanged_page_since_last_sync(db_sess
         DocumentChunk(
             project_id=test_source.project_id,
             source_id=test_source.id,
-            file_path="Runbook",
+            file_path="DOCS/123",
             content="alte Fassung",
             start_line=1,
             end_line=1,
@@ -413,3 +413,138 @@ async def test_a_failing_page_request_aborts_instead_of_ending_the_crawl_silentl
     with patch_http(handler):
         with pytest.raises(httpx.HTTPStatusError):
             [doc async for doc in connector.fetch_documents()]
+
+
+# --- Schlüssel, Aufräumen, Space-Filter, Anhänge ---------------------------------------------
+
+def _chunk(source, key, page_id=None, content="x"):
+    return DocumentChunk(
+        project_id=source.project_id, source_id=source.id, file_path=key, content=content,
+        start_line=1, end_line=1, embedding=[0.0] * 1024,
+        metadata_json={"page_id": page_id} if page_id else {},
+    )
+
+
+def _paths(db_session, source):
+    return {k for (k,) in db_session.query(DocumentChunk.file_path).filter(DocumentChunk.source_id == source.id).distinct()}
+
+
+@pytest.mark.anyio
+async def test_same_title_in_two_spaces_gets_two_keys(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    other = _page(title="Runbook")
+    other["id"] = "456"
+    other["space"] = {"key": "OPS"}
+    calls = []
+    with patch_http(_server_handler(calls, [_page(), other])):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert sorted(doc["storage_key"] for doc in docs) == ["DOCS/123", "OPS/456"]
+
+
+@pytest.mark.anyio
+async def test_legacy_title_keyed_chunks_move_to_the_new_key_when_the_page_id_matches(db_session, test_source):
+    test_source.last_synced_at = datetime(2026, 7, 15, tzinfo=timezone.utc)
+    db_session.add_all([_chunk(test_source, "Runbook", page_id="123"), _chunk(test_source, "Runbook", page_id="999")])
+    db_session.commit()
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    with patch_http(_server_handler([], [_page(when="2026-07-01T10:00:00.000Z")])):
+        docs = [doc async for doc in connector.fetch_documents()]
+    # Chunk der Seite 123 zog um (unverändert -> übersprungen), der fremde Chunk blieb liegen.
+    assert docs == []
+    assert _paths(db_session, test_source) == {"DOCS/123", "Runbook"}
+
+
+@pytest.mark.anyio
+async def test_deleted_pages_are_removed_after_a_complete_crawl(db_session, test_source):
+    db_session.add_all([_chunk(test_source, "DOCS/123"), _chunk(test_source, "DOCS/777")])
+    db_session.commit()
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    connector.db = db_session
+    with patch_http(_server_handler([], [_page()])):
+        [doc async for doc in connector.fetch_documents()]
+    assert connector._crawl_complete is True
+    assert connector._remove_orphans(connector._seen_keys) == 1
+    db_session.expire_all()
+    assert _paths(db_session, test_source) == {"DOCS/123"}
+
+
+@pytest.mark.anyio
+async def test_nothing_is_removed_when_the_crawl_found_no_pages_or_too_many_would_vanish(db_session, test_source):
+    db_session.add_all([_chunk(test_source, f"DOCS/{i}") for i in range(30)])
+    db_session.commit()
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    assert connector._remove_orphans(set()) == 0
+    assert connector._remove_orphans({"DOCS/1"}) == 0  # 29 von 30 würden verschwinden
+    db_session.expire_all()
+    assert len(_paths(db_session, test_source)) == 30
+
+
+@pytest.mark.anyio
+async def test_failed_attachment_listing_marks_the_crawl_incomplete(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 403)
+        return _response(url, 200, {"results": [_page()], "_links": {}})
+
+    with patch_http(handler):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert len(docs) == 1 and connector._crawl_complete is False
+
+
+@pytest.mark.anyio
+async def test_each_selected_space_is_requested_from_the_server(db_session, test_source):
+    test_source.spaces = ["DOCS", "OPS"]
+    db_session.commit()
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    seen_space_keys = []
+
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            return _response(url, 200, {"results": []})
+        key = (kwargs.get("params") or {}).get("spaceKey")
+        seen_space_keys.append(key)
+        page = _page(title=f"Seite {key}")
+        page["id"] = key
+        page["space"] = {"key": key}
+        return _response(url, 200, {"results": [page], "_links": {}})
+
+    with patch_http(handler):
+        docs = [doc async for doc in connector.fetch_documents()]
+    assert seen_space_keys == ["DOCS", "OPS"] and len(docs) == 2
+
+
+@pytest.mark.anyio
+async def test_attachments_are_listed_across_pages_and_keyed_by_id(db_session, test_source):
+    connector = ConfluenceConnector(test_source.id)
+    connector.source = test_source
+    first = [{"id": f"a{i}", "title": f"f{i}.txt", "metadata": {"mediaType": "text/plain"},
+              "_links": {"download": f"/download/{i}"}, "version": {"when": "2026-07-20T00:00:00.000Z"}} for i in range(50)]
+    second = [{"id": "a50", "title": "letzte.txt", "metadata": {"mediaType": "text/plain"},
+               "_links": {"download": "/download/50"}, "version": {"when": "2026-07-20T00:00:00.000Z"}}]
+
+    async def handler(url, **kwargs):
+        if url.endswith("/rest/api/space"):
+            return _response(url, 200, {"results": []})
+        if "child/attachment" in url:
+            start = (kwargs.get("params") or {}).get("start", 0)
+            return _response(url, 200, {"results": first if start == 0 else second, "_links": {"next": "x"} if start == 0 else {}})
+        if "/download/" in url:
+            return httpx.Response(200, content=b"inhalt", request=httpx.Request("GET", url))
+        return _response(url, 200, {"results": [_page()], "_links": {}})
+
+    with patch_http(handler):
+        docs = [doc async for doc in connector.fetch_documents()]
+    keys = {doc["storage_key"] for doc in docs}
+    assert "DOCS/123/attachments/a50" in keys and len(keys) == 52  # Seite + 51 Anhänge
