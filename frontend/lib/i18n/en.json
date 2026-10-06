@@ -1646,6 +1646,7 @@
     "expand": "Expand {{name}}",
     "collapse": "Collapse {{name}}",
     "openSource": "Open in source",
+    "highlightRun": "Highlight whole run",
     "empty": "No calls or data accesses start here.",
     "truncated": "Incomplete: projection limit reached",
     "capped": "View capped at 800 rows – collapse steps",

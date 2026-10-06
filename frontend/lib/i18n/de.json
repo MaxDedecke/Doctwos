@@ -1646,6 +1646,7 @@
     "expand": "{{name}} aufklappen",
     "collapse": "{{name}} einklappen",
     "openSource": "Im Quellcode öffnen",
+    "highlightRun": "Gesamten Lauf hervorheben",
     "empty": "Von hier gehen keine Aufrufe oder Datenzugriffe aus.",
     "truncated": "Unvollständig: Grenze der Projektion erreicht",
     "capped": "Ansicht auf 800 Zeilen begrenzt – Schritte einklappen",

@@ -5,7 +5,7 @@ import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { buildFlowRows, type DataVerb, type FlowProjection, type FlowRow, type PathEntry } from '@/lib/processFlow';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ChevronRight, Database, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Split, Workflow } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Database, ExternalLink, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Route, Split, Workflow } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -36,6 +36,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [openData, setOpenData] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<Gate>({ truncated: false });
   const requested = useRef<Set<string>>(new Set());
@@ -71,6 +72,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       setProjections(new Map());
       setExpanded(new Set());
       setOpenData(new Set());
+      setSelectedKey(null);
       setLoadingIds(new Set());
       setGate({ truncated: false });
       setError(null);
@@ -100,6 +102,11 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
+
+  const toggleSelect = (row: FlowRow) => setSelectedKey(previous => (previous === row.key ? null : row.key));
+
+  // Der Lauf eines Schritts: alle Vorfahren (von oben), er selbst und alles darunter (nach unten).
+  const inRun = (key: string) => selectedKey != null && (key === selectedKey || selectedKey.startsWith(`${key}/`) || key.startsWith(`${selectedKey}/`));
 
   const open = (row: { filePath: string; line: number; sourceId?: number | null }) => {
     if (row.filePath && row.filePath !== '<unknown>') onFileSelect(row.filePath, row.line, row.sourceId);
@@ -175,8 +182,10 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
           const isGuard = row.lane === 'control' && Boolean(row.guard);
           const isLoopGuard = isGuard && row.guard?.type === 'LOOP';
           const indentRem = Math.max(0, row.indent - 1) * 1.1;
+          const lit = inRun(row.key);
+          const dim = selectedKey != null && !lit;
           return (
-            <div key={row.key} role="row" className="group/step flex gap-2">
+            <div key={row.key} role="row" className={cn('group/step flex gap-2 transition-opacity', dim && 'opacity-35')}>
               {/* Zeilennummer im Quelltext: die Zeitachse */}
               <div className="w-11 shrink-0 pt-1.5 text-right">
                 {row.line > 0 && (
@@ -193,19 +202,19 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
 
               {/* Zeitstrahl: durchgehende Linie mit Marker je Schritt */}
               <div className="relative w-5 shrink-0" aria-hidden="true">
-                <span className={cn('absolute left-1/2 w-0.5 -translate-x-1/2', isDark ? 'bg-ds-zinc-700' : 'bg-ds-zinc-300', isFirst ? 'top-3.5' : 'top-0', isLast ? 'h-3.5' : 'bottom-0')} />
+                <span className={cn('absolute left-1/2 w-0.5 -translate-x-1/2', lit ? 'bg-ds-indigo-500' : isDark ? 'bg-ds-zinc-700' : 'bg-ds-zinc-300', isFirst ? 'top-3.5' : 'top-0', isLast ? 'h-3.5' : 'bottom-0')} />
                 <TimelineMarker row={row} isGuard={isGuard} isLoop={isLoopGuard} isDark={isDark} />
               </div>
 
               <div className={cn('min-w-0 flex-1 pb-2.5', row.lane === 'data' && 'pt-0.5')}>
                 {row.lane === 'control' && row.guard && <GuardPill entry={row.guard} isDark={isDark} indent={row.indent} t={t} />}
-                {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
+                {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} selected={selectedKey === row.key} onToggle={toggleStep} onSelect={toggleSelect} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
                 {row.lane === 'data' && (
                   <div style={{ paddingLeft: `${indentRem + 1.25}rem` }}>
                     <DataCard row={row} isDark={isDark} isOpen={openData.has(row.key)} onToggle={() => toggleData(row.key)} onOpen={open} t={t} />
                   </div>
                 )}
-                {row.lane === 'external' && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={false} t={t} />}
+                {row.lane === 'external' && <StepPill row={row} isDark={isDark} selected={selectedKey === row.key} onToggle={toggleStep} onSelect={toggleSelect} onOpen={open} loading={false} t={t} />}
               </div>
             </div>
           );
@@ -233,9 +242,10 @@ function TimelineMarker({ row, isGuard, isLoop, isDark }: { row: FlowRow; isGuar
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
-  row: FlowRow; isDark: boolean; loading: boolean; t: Translate;
+function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, t }: {
+  row: FlowRow; isDark: boolean; selected: boolean; loading: boolean; t: Translate;
   onToggle: (row: FlowRow) => void;
+  onSelect: (row: FlowRow) => void;
   onOpen: (row: { filePath: string; line: number; sourceId?: number | null }) => void;
 }) {
   const isRoot = row.key === 'root';
@@ -255,12 +265,15 @@ function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
         </button>
       ) : <span className="w-4 shrink-0" />}
       <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1">
         <button
           type="button"
-          onClick={() => onOpen(row)}
+          onClick={() => onSelect(row)}
+          aria-pressed={selected}
           title={row.label}
           className={cn(
             'max-w-full truncate rounded-md border px-2.5 py-1 text-left text-xs font-semibold shadow-sm transition-colors',
+            selected && 'ring-2 ring-ds-indigo-500/60',
             dashed && 'border-dashed',
             isRoot
               ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400'
@@ -271,6 +284,15 @@ function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
         >
           {row.label}
         </button>
+        <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/step:opacity-100 focus-within:opacity-100">
+          <button type="button" onClick={() => onSelect(row)} title={t('processFlow.highlightRun')} aria-label={t('processFlow.highlightRun')} className="rounded p-1 text-ds-zinc-500 hover:text-ds-indigo-400">
+            <Route className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" onClick={() => onOpen(row)} title={t('processFlow.openSource')} aria-label={t('processFlow.openSource')} className="rounded p-1 text-ds-zinc-500 hover:text-ds-indigo-400">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        </span>
+        </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1 empty:hidden">
           {row.cycle && (
             <Badge tone="amber"><Repeat className="h-2.5 w-2.5" />{t(row.cycle === 'recursion' ? 'processFlow.recursion' : 'processFlow.cycle')}</Badge>
