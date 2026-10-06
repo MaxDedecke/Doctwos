@@ -1340,7 +1340,8 @@ async def chat(
             session_id=session_id,
             role="user",
             content=request.message,
-            metadata_json=request.metadata,
+            # Der Modus der ersten Nutzernachricht legt den Chat fest (Frontend: lockedChatMode).
+            metadata_json={**(request.metadata or {}), "chat_mode": request.mode},
         )
         db.add(user_msg)
         db.commit()

@@ -15,6 +15,13 @@ describe('lockedChatMode', () => {
     ])).toBe('normal');
   });
 
+  it('nimmt bei fehlendem Modus der ersten Nutzernachricht den der ersten Antwort', () => {
+    expect(lockedChatMode([
+      { role: 'user' },
+      { role: 'assistant', metadata: { chat_mode: 'evidence' } },
+    ])).toBe('evidence');
+  });
+
   it('ignoriert alte Nachrichten ohne oder mit unbekanntem Modus', () => {
     expect(lockedChatMode([{ role: 'user' }])).toBeNull();
     expect(lockedChatMode([{ role: 'user', metadata: { chat_mode: 'foo' as never } }])).toBeNull();
