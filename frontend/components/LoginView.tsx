@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { DoctusIcon, DoctusWordmark } from './Logo';
+import { NetworkLoopCanvas } from './NetworkLoopCanvas';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -123,44 +124,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
 
   return (
     <div className={cn(
-      "min-h-screen w-screen grid lg:grid-cols-[1.15fr_0.85fr] font-sans overflow-hidden",
+      "relative min-h-screen w-screen flex items-center justify-center p-6 sm:p-12 font-sans overflow-hidden doctus-canvas",
       isDark ? "bg-ds-zinc-950 text-ds-zinc-200" : "bg-ds-zinc-50 text-ds-zinc-900",
     )}>
-      <section className={cn(
-        "hidden lg:flex relative flex-col justify-between border-r p-12 doctus-canvas overflow-hidden",
-        isDark ? "border-ds-zinc-800" : "border-ds-zinc-200",
-      )}>
-        <div className="absolute left-0 top-0 h-full w-2 doctus-brand-gradient" />
-        <div className="flex items-center gap-3">
-          <DoctusIcon className="h-10 w-10" />
-          <DoctusWordmark className="h-9 w-32" theme={theme} />
-        </div>
-        <div className="max-w-2xl">
-          <p className={cn("doctus-kicker mb-5", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{t('loginView.heroKicker')}</p>
-          <h1 className={cn(
-            "font-heading text-6xl xl:text-7xl font-semibold leading-[0.95] tracking-[-0.055em]",
-            isDark ? "text-ds-zinc-100" : "text-ds-zinc-900",
-          )}>
-            {t('loginView.heroHeadline')}
-          </h1>
-          <div className={cn(
-            "mt-10 grid grid-cols-3 border-y py-5",
-            isDark ? "border-ds-zinc-800 text-ds-zinc-400" : "border-ds-zinc-200 text-ds-zinc-600",
-          )}>
-            <span className="doctus-kicker">{t('loginView.heroTraceWord')}</span>
-            <span className="doctus-kicker">{t('loginView.heroExplainWord')}</span>
-            <span className="doctus-kicker">{t('loginView.heroModernizeWord')}</span>
-          </div>
-        </div>
-        <div aria-hidden="true" />
-      </section>
+      <NetworkLoopCanvas isDark={isDark} className="absolute inset-0 h-full w-full pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-1 doctus-brand-gradient" />
+      <div className="relative z-10 w-full max-w-[420px] space-y-10">
 
-      <section className={cn(
-        "relative flex items-center justify-center p-6 sm:p-12",
-        isDark ? "bg-ds-zinc-900" : "bg-ds-white",
-      )}>
-      <div className="absolute inset-x-0 top-0 h-1 doctus-brand-gradient lg:hidden" />
-      <div className="w-full max-w-[420px] z-10">
+        <div className="flex items-center justify-center gap-4 select-none">
+          <DoctusIcon className="h-20 w-20" />
+          <DoctusWordmark className="h-20 w-48" theme={theme} />
+        </div>
 
         {/* Login Card */}
         <motion.div
@@ -174,13 +148,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
               : "border-ds-zinc-300 bg-ds-white shadow-[10px_10px_0_rgb(var(--ds-neutral-200))]",
           )}
         >
-          <div className="flex items-center justify-between lg:hidden select-none">
-            <div className="flex items-center gap-3">
-              <DoctusIcon className="h-9 w-9" />
-              <DoctusWordmark className="h-8 w-28" theme={theme} />
-            </div>
-          </div>
-
           <div className={cn("space-y-2 border-b pb-6", isDark ? "border-ds-zinc-800" : "border-ds-zinc-200")}>
             <h2 className={cn(
               "text-3xl font-heading font-semibold tracking-[-0.035em]",
@@ -301,7 +268,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
         </motion.div>
 
       </div>
-      </section>
     </div>
   );
 };

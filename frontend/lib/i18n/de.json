@@ -986,12 +986,7 @@
     "changeSubmit": "Passwort speichern",
     "ssoButton": "Mit Single Sign-On anmelden",
     "ssoDivider": "oder",
-    "oidcErrorPrefix": "SSO-Anmeldung fehlgeschlagen: {{message}}",
-    "heroKicker": "Legacy Intelligence Workspace",
-    "heroHeadline": "Verstehe die Systeme, die alles am Laufen halten.",
-    "heroTraceWord": "Nachverfolgen",
-    "heroExplainWord": "Erklären",
-    "heroModernizeWord": "Modernisieren"
+    "oidcErrorPrefix": "SSO-Anmeldung fehlgeschlagen: {{message}}"
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",

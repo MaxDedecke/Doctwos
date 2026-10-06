@@ -38,20 +38,20 @@ describe('graph layout parameters', () => {
   });
 
   it('keeps repulsion, radial ring and link distance bounded on huge graphs', () => {
-    expect(chargeStrength(1_000_000, 10_000)).toBe(-1700 - 850);
-    expect(radialRadius(1_000_000)).toBe(220 + 1300);
-    expect(linkDistance(1_000_000, 1_000_000)).toBe(170 + 440);
+    expect(chargeStrength(1_000_000, 10_000)).toBe(-2800 - 1300);
+    expect(radialRadius(1_000_000)).toBe(350 + 2000);
+    expect(linkDistance(1_000_000, 1_000_000)).toBe(270 + 700);
   });
 
   it('gives a lone node no extra spacing beyond the base values', () => {
-    expect(linkDistance(0, 0)).toBe(170);
-    expect(radialRadius(0)).toBe(220);
-    expect(collisionRadius(8, 0)).toBe(48);
+    expect(linkDistance(0, 0)).toBe(270);
+    expect(radialRadius(0)).toBe(350);
+    expect(collisionRadius(8, 0)).toBe(78);
   });
 
   it('reaches further with repulsion and needs a longer simulation to settle', () => {
-    expect(CHARGE_DISTANCE_MAX).toBeGreaterThan(1800);
-    expect(GRAPH_COOLDOWN_MS).toBeGreaterThan(3000);
+    expect(CHARGE_DISTANCE_MAX).toBeGreaterThan(3000);
+    expect(GRAPH_COOLDOWN_MS).toBeGreaterThan(6000);
   });
 
   it('spaces the fixed neighborhood layers and rows wider than before (130 / 70)', () => {

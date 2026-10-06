@@ -986,12 +986,7 @@
     "changeSubmit": "Save password",
     "ssoButton": "Sign in with Single Sign-On",
     "ssoDivider": "or",
-    "oidcErrorPrefix": "SSO sign-in failed: {{message}}",
-    "heroKicker": "Legacy intelligence workspace",
-    "heroHeadline": "Understand the systems that run everything.",
-    "heroTraceWord": "Trace",
-    "heroExplainWord": "Explain",
-    "heroModernizeWord": "Modernize"
+    "oidcErrorPrefix": "SSO sign-in failed: {{message}}"
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",
