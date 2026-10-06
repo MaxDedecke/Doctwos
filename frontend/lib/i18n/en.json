@@ -1366,6 +1366,7 @@
     "onlyLinkedElements": "Show only linked elements"
   },
   "globalSearch": {
+    "focusInGraph": "Focus in knowledge graph",
     "groups": {
       "entity": "Code",
       "document": "Documents",

@@ -765,6 +765,18 @@ export function KnowledgeGraphView({
     return degrees;
   }, [filteredData.links]);
 
+  // Von außen gesetzter Fokus (z. B. Suchtreffer): nur zentrieren, der Zoom bleibt. Ein Klick im
+  // Graph setzt den Fokus nicht, dort bewegt sich die Kamera nicht.
+  useEffect(() => {
+    if (!focusNodeId) return;
+    const timer = setTimeout(() => {
+      const node = filteredData.nodes.find((n: GraphNode) => n.id === focusNodeId);
+      if (node && node.x !== undefined && node.y !== undefined) graphRef.current?.centerAt(node.x, node.y, 600);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusNodeId]);
+
   // Keine Kamerabewegung bei der Auswahl: Zoom und Ausschnitt bleiben, nur die Hervorhebung
   // (Ausgrauen der übrigen Knoten) ändert sich.
 

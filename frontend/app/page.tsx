@@ -803,6 +803,39 @@ function AppContent() {
     }
   }, [handleEntitySelect, handleFileSelect, handleProjectSelect, pinFileFocus, projects, selectedProject, setSelectedSource, showToast, t]);
 
+  // Suchtreffer im bereits geöffneten Wissensgraph fokussieren (nur wenn eine Graph-Ansicht offen ist).
+  const handleSearchResultFocusInGraph = useCallback(async (result: SearchResult) => {
+    const graphIndex = panelConfigs.indexOf('graph');
+    if (graphIndex === -1) return;
+    const meta = result.node_meta || {};
+    const targetProjectId = meta.project_id;
+    if (targetProjectId && targetProjectId !== selectedProject?.id) {
+      const found = projects.find((p) => p.id === targetProjectId);
+      if (found) await handleProjectSelect(found);
+    }
+    if (result.node_type === 'entity') {
+      updatePanelEntitySelection(graphIndex, {
+        id: result.node_id,
+        file_path: meta.file_path || result.node_label,
+        start_line: meta.start_line ?? 1,
+        name: result.node_label,
+        type: meta.type,
+        source_id: meta.source_id,
+      });
+    } else if (result.node_type === 'document') {
+      setPanelSelections(prev => {
+        const next = [...prev];
+        next[graphIndex] = {
+          ...next[graphIndex],
+          selectedEntity: null,
+          selectedFile: null,
+          selectedDoc: { id: meta.source_id ?? result.node_id, name: result.node_label, url: meta.file_path },
+        };
+        return next;
+      });
+    }
+  }, [handleProjectSelect, panelConfigs, projects, selectedProject, setPanelSelections, updatePanelEntitySelection]);
+
   const handleOpenGraphView = useCallback(() => {
     resetChatSession();
     setActiveRightTab('graph');
@@ -1121,6 +1154,7 @@ function AppContent() {
         projects={projects}
         connectedSources={connectedSources}
         onSelectResult={handleSearchResultSelect}
+        onFocusInGraph={handleSearchResultFocusInGraph}
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
         setIsSettingsOpen={setIsSettingsOpen}

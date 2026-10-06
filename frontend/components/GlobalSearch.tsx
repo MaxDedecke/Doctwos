@@ -23,6 +23,8 @@ interface GlobalSearchProps {
   projects: Project[];
   connectedSources: KnowledgeSource[];
   onSelectResult: (result: SearchResult) => void;
+  /** Treffer im geöffneten Wissensgraph fokussieren; nur gesetzt, wenn die Seite das unterstützt. */
+  onFocusInGraph?: (result: SearchResult) => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (val: boolean) => void;
   setIsSettingsOpen: (val: boolean) => void;
@@ -64,6 +66,7 @@ export function GlobalSearch({
   projects,
   connectedSources,
   onSelectResult,
+  onFocusInGraph,
   isSidebarOpen,
   setIsSidebarOpen,
   setIsSettingsOpen,
@@ -280,6 +283,19 @@ export function GlobalSearch({
     .filter(g => g.items.length > 0);
   const flatForKeyboard = grouped.flatMap(g => g.items);
 
+  const hasGraphView = panelConfigs.includes('graph');
+  const canFocusInGraph = (result: SearchResult) =>
+    Boolean(onFocusInGraph) && hasGraphView && (result.node_type === 'entity' || result.node_type === 'document');
+
+  const handleFocusInGraph = (result: SearchResult) => {
+    onFocusInGraph?.(result);
+    setIsOpen(false);
+    setQuery('');
+    setResults([]);
+    inputRef.current?.blur();
+    setIsSearchExpanded(false);
+  };
+
   const handleSelect = (result: SearchResult) => {
     onSelectResult(result);
     setIsOpen(false);
@@ -494,14 +510,16 @@ export function GlobalSearch({
                       {group.items.map(item => {
                         const flatIdx = flatForKeyboard.indexOf(item);
                         const active = flatIdx === activeIndex;
+                        const graphEnabled = canFocusInGraph(item);
                         return (
+                          <div key={`${item.node_type}-${item.node_id}`} className="group/row relative">
                           <button
-                            key={`${item.node_type}-${item.node_id}`}
                             id={`global-search-result-${item.node_type}-${item.node_id}`}
                             onClick={() => handleSelect(item)}
                             onMouseEnter={() => setActiveIndex(flatIdx)}
                             className={cn(
                               "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
+                              graphEnabled && "pr-10",
                               active
                                 ? (theme === 'dark' ? "bg-ds-indigo-500/15 text-ds-indigo-300" : "bg-ds-indigo-50 text-ds-indigo-700")
                                 : (theme === 'dark' ? "text-ds-zinc-300 hover:bg-ds-zinc-800/60" : "text-ds-zinc-700 hover:bg-ds-zinc-50")
@@ -526,6 +544,23 @@ export function GlobalSearch({
                               )}
                             </span>
                           </button>
+                          {graphEnabled && (
+                            <button
+                              type="button"
+                              data-testid={`global-search-graph-${item.node_type}-${item.node_id}`}
+                              title={t('globalSearch.focusInGraph')}
+                              aria-label={t('globalSearch.focusInGraph')}
+                              onClick={(event) => { event.stopPropagation(); handleFocusInGraph(item); }}
+                              className={cn(
+                                "absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/row:opacity-100",
+                                active && "opacity-100",
+                                theme === 'dark' ? "text-ds-indigo-300 hover:bg-ds-zinc-700/60" : "text-ds-indigo-700 hover:bg-ds-indigo-100"
+                              )}
+                            >
+                              <Network className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          </div>
                         );
                       })}
                       {(counts[group.type] || 0) > group.items.length && (

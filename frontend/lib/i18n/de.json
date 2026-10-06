@@ -1366,6 +1366,7 @@
     "onlyLinkedElements": "Nur verlinkte Elemente anzeigen"
   },
   "globalSearch": {
+    "focusInGraph": "Im Wissensgraph fokussieren",
     "groups": {
       "entity": "Code",
       "document": "Dokumente",
