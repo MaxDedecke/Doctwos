@@ -1339,6 +1339,8 @@
     "loadMoreConnectionsTitle": "Lädt weitere Nachbarschafts-Knoten und Kanten für diesen Fokusbereich aus der Datenbank",
     "backToOverview": "Zurück zur Übersicht",
     "createLink": "Verknüpfung erstellen",
+    "createLinkDescriptionLabel": "Beschreibung (optional)",
+    "createLinkDescriptionPlaceholder": "Wie hängen die Objekte zusammen? z. B. fachlicher Bezug, Aufrufer → Funktion, Quelle der Anforderung …",
     "createLinkTargetPlaceholder": "Ziel-Objekt suchen…",
     "createLinkDirectionLabel": "Richtung (Start → Ziel)",
     "createLinkNoMatches": "Keine passenden Objekte gefunden",

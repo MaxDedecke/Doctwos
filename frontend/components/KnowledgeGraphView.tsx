@@ -286,6 +286,7 @@ export function KnowledgeGraphView({
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
   const [linkPickerQuery, setLinkPickerQuery] = useState('');
   const [linkPickerTargetId, setLinkPickerTargetId] = useState<string | null>(null);
+  const [linkDescription, setLinkDescription] = useState('');
   const [manualLinkDirection, setManualLinkDirection] = useState<GraphEdgeDirection>('undirected');
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [linkCreateError, setLinkCreateError] = useState<string | null>(null);
@@ -560,6 +561,7 @@ export function KnowledgeGraphView({
   const closeLinkPicker = useCallback(() => {
     setIsLinkPickerOpen(false);
     setLinkPickerTargetId(null);
+    setLinkDescription('');
     setLinkCreateError(null);
   }, []);
 
@@ -594,6 +596,7 @@ export function KnowledgeGraphView({
           source_a_type: a.type, source_a_entity_id: a.entity_id, source_a_title: a.title, source_a_url: a.url, source_a_source_type: a.source_type,
           source_b_type: b.type, source_b_entity_id: b.entity_id, source_b_title: b.title, source_b_url: b.url, source_b_source_type: b.source_type,
           link_type: 'manual', direction: manualLinkDirection, status: 'approved',
+          context: linkDescription.trim() || null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -605,11 +608,12 @@ export function KnowledgeGraphView({
         link_type: 'manual',
         direction: manualLinkDirection,
         score: null,
-        context: null,
+        context: linkDescription.trim() || null,
       }]);
       setIsLinkPickerOpen(false);
       setLinkPickerQuery('');
       setLinkPickerTargetId(null);
+      setLinkDescription('');
       setManualLinkDirection('undirected');
     } catch (e) {
       console.error('[KnowledgeGraph] manual link creation failed', e);
@@ -617,7 +621,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsCreatingLink(false);
     }
-  }, [t, manualLinkDirection]);
+  }, [t, manualLinkDirection, linkDescription]);
 
   // Reset the link-creation picker whenever the selection changes so it doesn't
   // linger open/stale against a now-different node. Done during render
@@ -629,6 +633,7 @@ export function KnowledgeGraphView({
     setIsLinkPickerOpen(false);
     setLinkPickerQuery('');
     setLinkPickerTargetId(null);
+    setLinkDescription('');
     setLinkCreateError(null);
   }
 
@@ -1392,30 +1397,43 @@ export function KnowledgeGraphView({
 
           {/* Connected nodes */}
           <div className={cn('pt-3 border-t', border)}>
-            <p className={cn('text-[0.625rem] font-medium mb-2', textMuted)}>{t('knowledgeGraphView.connectionsLabel')}</p>
-            <div className="space-y-0.5">
-              {filteredData.links
-                .filter((l: GraphEdge) => {
-                  const s = typeof l.source === 'object' ? l.source.id : l.source;
-                  const t = typeof l.target === 'object' ? l.target.id : l.target;
-                  return s === selectedNode.id || t === selectedNode.id;
-                })
-                .slice(0, 10)
-                .map((l: GraphEdge, i: number) => {
-                  const src = resolveNode(l.source);
-                  const tgt = resolveNode(l.target);
-                  const other = src?.id === selectedNode.id ? tgt : src;
-                  if (!other) return null;
-                  return (
-                    <button key={i}
-                      onClick={() => { setSelectedNodeId(other.id); setSelectedEdgeId(null); }}
-                      className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors', connRow)}>
-                      <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(l)), display: 'inline-block', borderRadius: 1 }} />
-                      <span className={cn('truncate', textMain)}>{other.label}</span>
-                    </button>
-                  );
-                })}
-            </div>
+            {(() => {
+              const nodeLinks = filteredData.links.filter((l: GraphEdge) => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return sourceId === selectedNode.id || targetId === selectedNode.id;
+              });
+              return (
+                <>
+                  <p className={cn('text-[0.625rem] font-medium mb-2', textMuted)}>{t('knowledgeGraphView.connectionsLabel')} ({nodeLinks.length})</p>
+                  <div className="max-h-56 overflow-y-auto space-y-0.5 pr-1" data-testid="node-connections">
+                    {nodeLinks.map((l: GraphEdge) => {
+                      const src = resolveNode(l.source);
+                      const tgt = resolveNode(l.target);
+                      const other = src?.id === selectedNode.id ? tgt : src;
+                      if (!other) return null;
+                      return (
+                        <button key={l.id}
+                          onClick={() => {
+                            // Die Verbindung wird im Graph ausgewählt (Kante hervorgehoben, übrige ausgegraut) und
+                            // in den Ausschnitt gerückt; der Zoom bleibt.
+                            setSelectedNodeId(null);
+                            setSelectedEdgeId(l.id);
+                            if (src && tgt && src.x != null && src.y != null && tgt.x != null && tgt.y != null) {
+                              graphRef.current?.centerAt((src.x + tgt.x) / 2, (src.y + tgt.y) / 2, 500);
+                            }
+                          }}
+                          title={getLinkLabel(t, graphEdgeType(l)) ?? graphEdgeType(l)}
+                          className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors', connRow)}>
+                          <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(l)), display: 'inline-block', borderRadius: 1 }} />
+                          <span className={cn('truncate', textMain)}>{other.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Aktionen */}
@@ -1582,7 +1600,21 @@ export function KnowledgeGraphView({
                     <option value="bidirectional">{t(EDGE_DIRECTION_TAXONOMY.bidirectional.labelKey)}</option>
                   </select>
                 </div>
-                {linkCreateError && <p className="text-[0.625rem] text-ds-red-400">{linkCreateError}</p>}
+                <div className="space-y-1">
+                  <label htmlFor="manual-link-description" className={cn('text-xs', textMuted)}>
+                    {t('knowledgeGraphView.createLinkDescriptionLabel')}
+                  </label>
+                  <textarea
+                    id="manual-link-description"
+                    value={linkDescription}
+                    onChange={event => setLinkDescription(event.target.value)}
+                    rows={3}
+                    maxLength={1000}
+                    placeholder={t('knowledgeGraphView.createLinkDescriptionPlaceholder')}
+                    className={cn('w-full resize-y rounded border px-2.5 py-2 text-xs outline-none', chipBase, isDark ? 'bg-ds-zinc-950 text-ds-zinc-200 placeholder:text-ds-zinc-500' : 'bg-ds-white text-ds-zinc-700 placeholder:text-ds-zinc-400')}
+                  />
+                </div>
+                {linkCreateError && <p className="text-xs text-ds-red-400">{linkCreateError}</p>}
                 <div className="flex items-center gap-2 justify-end">
                   <button onClick={closeLinkPicker}
                     className={cn('text-xs px-3 py-1.5 rounded transition-colors', textMuted, 'hover:text-ds-zinc-400')}>

@@ -1339,6 +1339,8 @@
     "loadMoreConnectionsTitle": "Loads additional neighborhood nodes and edges for this focus area from the database",
     "backToOverview": "Back to overview",
     "createLink": "Create link",
+    "createLinkDescriptionLabel": "Description (optional)",
+    "createLinkDescriptionPlaceholder": "How are the objects related? e.g. business relation, caller → function, source of the requirement …",
     "createLinkTargetPlaceholder": "Search target object…",
     "createLinkDirectionLabel": "Direction (start → target)",
     "createLinkNoMatches": "No matching objects found",
