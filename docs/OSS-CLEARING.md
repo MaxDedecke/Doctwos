@@ -227,6 +227,10 @@ Runtime-Abhängigkeiten begrenzt.
   im Doctwos-Code. Im Backend seit 03.10.2026, weil die Änderungsfolgenanalyse im Git-Diff-Modus
   (O-273) Revisionen auflöst. Die Einordnung als „Aufruf eines separaten GPL-Programms" ist
   vor produktiver Auslieferung vom Lizenzverantwortlichen zu bestätigen.
+  Die GPL-Weitergabepflichten für das Offline-Bundle (NF-002) sind umgesetzt: `scripts/build-offline-bundle.sh`
+  erzeugt über `scripts/gen-third-party-notices.sh` eine `THIRD-PARTY-NOTICES.txt` im Bundle (git-Version und
+  Copyright-Datei aus den gebauten Images, GPL-2-Volltext, schriftliches Quellcode-Angebot für drei Jahre).
+  Kommt ein weiteres GPL-Paket in ein Image, muss es in `gpl_packages` des Skripts ergänzt werden.
 - **Betriebssystempaket `tesseract-ocr`** im Parser-Image (Debian 13 „trixie", Lizenzen aus
   `/usr/share/doc/*/copyright` geprüft am 06.10.2026): `tesseract-ocr` 5.5.0 samt
   `tesseract-ocr-deu` (Apache-2.0, vereinzelt MIT) — unkritisch. `poppler-utils` (GPL) ist seit

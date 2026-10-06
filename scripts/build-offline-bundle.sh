@@ -99,6 +99,9 @@ cp scripts/lib/env-bootstrap.sh "$bundle_dir/scripts/lib/"
 [ -f docs/DEPLOYMENT.md ] && cp docs/DEPLOYMENT.md "$bundle_dir/"
 [ -f docs/REMOTE_INFERENCE.md ] && cp docs/REMOTE_INFERENCE.md "$bundle_dir/"
 [ -f docs/OSS-CLEARING.md ] && cp docs/OSS-CLEARING.md "$bundle_dir/"
+# GPL-Pflichten (Lizenztext, Version, Quellcode-Angebot) fuer die Debian-Pakete in den Images.
+scripts/gen-third-party-notices.sh "$bundle_dir/THIRD-PARTY-NOTICES.txt" \
+    "doctus-backend-api:${DOCTUS_VERSION}" "doctus-parser-worker:${DOCTUS_VERSION}"
 
 # Pin DOCTUS_VERSION and LLM_MODEL in the shipped .env.example to whatever was
 # actually built/pulled, so the customer's generated .env can't drift from the
