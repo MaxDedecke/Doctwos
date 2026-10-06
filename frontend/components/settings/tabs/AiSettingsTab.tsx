@@ -136,7 +136,7 @@ export const AiSettingsTab: React.FC = () => {
         </div>
         {!showForm && <Button size="sm" onClick={startAdd} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />{t('settings.profilesTab.addProfile')}</Button>}
       </div>
-      {!showForm ? <div className="space-y-2">{llmProfiles.map(profile =>
+      {!showForm ? <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">{llmProfiles.map(profile =>
         <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
           <div className="flex-1 min-w-0">
             <div className="flex gap-2 items-center">
@@ -278,7 +278,7 @@ function EmbeddingProfilesPanel({
       </div>
       {!showForm && <Button size="sm" onClick={() => { reset(); setShowForm(true); }} className={primaryButtonClass}><Plus className="w-3.5 h-3.5" />{t('settings.embeddingTab.addProfile')}</Button>}
     </div>
-    {!showForm ? <div className="space-y-2">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
+    {!showForm ? <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex items-center gap-2')}>
       <div className="flex-1 min-w-0">
         <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}</div>
         <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
