@@ -66,8 +66,8 @@ export const SyncLogViewer: React.FC<SyncLogViewerProps> = ({ log }) => {
   }
 
   return (
-    <div className="rounded-lg border bg-ds-zinc-950 border-ds-zinc-800 overflow-hidden" data-testid="sync-log-viewer">
-      <div className="flex items-center justify-between gap-2 border-b border-ds-zinc-800 px-3 py-1.5 text-[0.625rem] text-ds-zinc-500">
+    <div className="flex h-full min-h-0 flex-col rounded-lg border bg-ds-zinc-950 border-ds-zinc-800 overflow-hidden" data-testid="sync-log-viewer">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-ds-zinc-800 px-3 py-1.5 text-[0.625rem] text-ds-zinc-500">
         <span data-testid="sync-log-range">{t('settings.logsTab.logRange', { from: firstShown + 1, to: lines.length, total: lines.length })}</span>
         {hiddenCount > 0 && (
           <Button type="button" size="sm" variant="outline" onClick={loadOlder}
@@ -76,7 +76,7 @@ export const SyncLogViewer: React.FC<SyncLogViewerProps> = ({ log }) => {
           </Button>
         )}
       </div>
-      <div ref={scrollRef} onScroll={handleScroll} className="max-h-72 overflow-y-auto overscroll-contain p-4 font-mono text-[0.625rem] leading-relaxed text-ds-zinc-300" data-testid="sync-log-scroll">
+      <div ref={scrollRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 font-mono text-[0.625rem] leading-relaxed text-ds-zinc-300" data-testid="sync-log-scroll">
         <pre className="whitespace-pre-wrap break-words font-mono">{text}</pre>
       </div>
     </div>

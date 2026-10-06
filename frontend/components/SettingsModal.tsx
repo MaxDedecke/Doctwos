@@ -179,6 +179,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* Scrollable Contents */}
+              {settingsTab === 'logs' ? (
+                <div className="flex-1 min-h-0 w-full min-w-0 p-4 sm:p-6"><LogsSettingsTab /></div>
+              ) : (
               <ScrollArea className="flex-1 w-full min-w-0 p-4 sm:p-6">
                 <div className="space-y-6">
                   {/* Tab 1: Projects list and management */}
@@ -225,7 +228,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {settingsTab === 'ai' && <AiSettingsTab />}
 
                   {/* Tab 4: Logs & Status */}
-                  {settingsTab === 'logs' && <LogsSettingsTab />}
 
                   {/* Tab: Negative feedback review and evaluation settings */}
                   {settingsTab === 'evaluation' && <EvaluationSettingsTab />}
@@ -234,6 +236,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {settingsTab === 'layout' && <LayoutSettingsTab />}
                 </div>
               </ScrollArea>
+              )}
 
               {/* Footer */}
               <div className={cn("px-6 py-4 border-t flex justify-end", theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800/60" : "bg-ds-zinc-50 border-ds-zinc-200")}>

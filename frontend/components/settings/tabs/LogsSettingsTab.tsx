@@ -3,6 +3,7 @@ import type { DiagnosticsRun, KnowledgeSource } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
+import { activeCardClass, badgeClass, cardClass, emptyStateClass, secondaryButtonClass, sectionTitleClass } from '@/components/settings/settingsStyles';
 import { SyncLogViewer } from '@/components/settings/SyncLogViewer';
 import { Button } from "@/components/ui/button";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -11,7 +12,6 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  ClipboardList,
   Download,
   FileText,
   Loader2,
@@ -36,7 +36,7 @@ export const LogsSettingsTab: React.FC = () => {
     showToast,
   } = useSettings();
 
-  const [activeLogSource, setActiveLogSource] = useState<KnowledgeSource | null>(null);
+  const [activeLogSourceId, setActiveLogSourceId] = useState<KnowledgeSource['id'] | null>(null);
   const [refreshingLogs, setRefreshingLogs] = useState<boolean>(false);
   const [diagnosticsRun, setDiagnosticsRun] = useState<DiagnosticsRun | null>(null);
   const [diagnosticsGenerating, setDiagnosticsGenerating] = useState<boolean>(false);
@@ -46,12 +46,6 @@ export const LogsSettingsTab: React.FC = () => {
     try {
       const res = await api.getKnowledgeSources();
       setConnectedSources(res.data);
-      if (activeLogSource) {
-        const updatedSource = res.data.find((s) => s.id === activeLogSource?.id);
-        if (updatedSource) {
-          setActiveLogSource(updatedSource);
-        }
-      }
     } catch (err) {
       console.error("Failed to reload knowledge sources", err);
     } finally {
@@ -70,7 +64,11 @@ export const LogsSettingsTab: React.FC = () => {
     }, 5000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLogSource?.id]);
+  }, []);
+
+  // Ohne Auswahl (oder nach dem Entfernen der gewählten Quelle) zeigt der Log-Bereich die erste Quelle,
+  // damit er beim Öffnen nie leer bleibt, solange es Quellen gibt.
+  const activeLogSource = connectedSources.find((src) => src.id === activeLogSourceId) ?? connectedSources[0] ?? null;
 
   const handleGenerateDiagnostics = async () => {
     setDiagnosticsGenerating(true);
@@ -105,262 +103,166 @@ export const LogsSettingsTab: React.FC = () => {
     }
   };
 
-  return (
-    <div className="space-y-6 animate-in fade-in duration-200">
-      {/* System status */}
-      <div className="space-y-3">
-        <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.systemEnvTitle')}</h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          {[
-            { label: 'FastAPI Backend-API', value: 'http://82.165.216.180:8000', status: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusError') },
-            { label: 'Ollama LLM-Service', value: 'http://ollama:11434', status: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusChecking') },
-            { label: 'PostgreSQL Vector-DB', value: 'postgresql://admin:***@db:5432/doctus', status: t('settings.logsTab.statusReady') },
-            { label: 'Redis Celery Broker', value: 'redis://redis:6379/0', status: t('settings.logsTab.statusConnected') }
-          ].map((item, idx) => (
-            <div key={idx} className={cn(
-              "p-3 border rounded-lg space-y-1 transition-colors",
-              theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
-            )}>
-              <div className="flex items-center justify-between text-[0.5625rem]">
-                <span className="text-ds-zinc-500 font-bold uppercase">{item.label}</span>
-                <span className={cn(
-                  "font-bold uppercase tracking-wider text-[0.5rem] px-1 rounded-sm",
-                  item.status === t('settings.logsTab.statusOnline') || item.status === t('settings.logsTab.statusReady') || item.status === t('settings.logsTab.statusConnected')
-                    ? "bg-ds-emerald-500/10 text-ds-emerald-505"
-                    : "bg-ds-amber-500/10 text-ds-amber-505"
-                )}>{item.status}</span>
-              </div>
-              <p className={cn("font-mono text-[0.625rem] truncate", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+  const dark = theme === 'dark';
+  const services = [
+    { label: 'Backend-API', value: API_URL, ok: backendStatus === 'connected', text: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusError') },
+    { label: 'Ollama', value: 'http://ollama:11434', ok: backendStatus === 'connected', text: backendStatus === 'connected' ? t('settings.logsTab.statusOnline') : t('settings.logsTab.statusChecking') },
+    { label: 'PostgreSQL', value: 'db:5432', ok: true, text: t('settings.logsTab.statusReady') },
+    { label: 'Redis', value: 'redis:6379', ok: true, text: t('settings.logsTab.statusConnected') },
+  ];
 
-      {/* Diagnostics bundle (admin-only: contains DB metadata + service logs) */}
-      {currentUser?.is_admin && (
-        <div className={cn(
-          "p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors",
-          theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200"
-        )}>
-          <div className="space-y-0.5">
-            <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>
-              {t('settings.logsTab.diagnosticsTitle')}
-            </h4>
-            <p className={cn("text-[0.625rem]", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-500")}>
-              {t('settings.logsTab.diagnosticsDescription')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+  const sourceStatus = (src: KnowledgeSource) => {
+    const status = src.sync_status || 'pending';
+    if (status === 'syncing') {
+      return {
+        status, tone: 'accent' as const, label: src.progress_message || t('settings.logsTab.statusSyncingDefault'),
+        icon: <Loader2 className="w-3 h-3 animate-spin shrink-0" />, progress: src.progress ?? 0,
+      };
+    }
+    if (status === 'completed') return { status, tone: 'success' as const, label: t('settings.logsTab.statusSuccess'), icon: <CheckCircle2 className="w-3 h-3 shrink-0" />, progress: 0 };
+    if (status === 'error') return { status, tone: 'danger' as const, label: t('settings.logsTab.statusErrorLabel'), icon: <AlertTriangle className="w-3 h-3 shrink-0" />, progress: 0 };
+    return { status, tone: 'neutral' as const, label: t('settings.logsTab.statusPending'), icon: <Activity className="w-3 h-3 shrink-0" />, progress: 0 };
+  };
+
+  const formatTime = (src: KnowledgeSource) => src.last_synced_at
+    ? new Date(src.last_synced_at).toLocaleString(language === 'de' ? 'de-DE' : 'en-US')
+    : t('settings.logsTab.neverSynced');
+
+  const startSync = async (src: KnowledgeSource) => {
+    try {
+      await api.syncKnowledgeSource(Number(src.id));
+      showToast(t('settings.logsTab.syncStartedToast'), "success");
+      refreshKnowledgeSources();
+    } catch (err) {
+      showToast(t('settings.logsTab.syncStartFailedToast'), "error", err);
+    }
+  };
+
+  const activeStatus = activeLogSource ? sourceStatus(activeLogSource) : null;
+
+  // Feste Höhe: Der Tab füllt den Dialog, die Quellenliste und das Log scrollen jeweils in sich.
+  return (
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 animate-in fade-in duration-200">
+      {/* Systemstatus und Diagnose in einer Zeile */}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <h4 className={cn(sectionTitleClass(theme), 'mr-1')}>{t('settings.logsTab.systemEnvTitle')}</h4>
+        {services.map((service) => (
+          <span key={service.label} title={service.value} className={cn(cardClass(theme), 'inline-flex items-center gap-2 px-2.5 py-1 text-[0.6875rem]')}>
+            <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', service.ok ? 'bg-ds-emerald-500' : 'bg-ds-amber-500')} />
+            <span className={cn('font-semibold', dark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}>{service.label}</span>
+            <span className="text-ds-zinc-500">{service.text}</span>
+          </span>
+        ))}
+
+        {/* Diagnose-Bundle (nur Admin: enthält DB-Metadaten und Service-Logs) */}
+        {currentUser?.is_admin && (
+          <div className="ml-auto flex items-center gap-2" title={t('settings.logsTab.diagnosticsDescription')}>
+            <span className={cn(sectionTitleClass(theme), 'hidden lg:inline')}>{t('settings.logsTab.diagnosticsTitle')}</span>
             {diagnosticsRun?.status === 'completed' && (
               <a href={`${API_URL}/diagnostics/runs/${diagnosticsRun.id}/download`} download
-                className={cn("h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 rounded-md border font-medium", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
+                className={cn(secondaryButtonClass(theme), 'border font-medium')}>
                 <Download className="w-3 h-3" />{t('settings.logsTab.diagnosticsDownload')}
               </a>
             )}
-            <Button type="button" size="sm" variant="outline" disabled={diagnosticsGenerating} onClick={handleGenerateDiagnostics}
-              className={cn("h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 focus:ring-0", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700")}>
+            <Button type="button" size="sm" variant="outline" disabled={diagnosticsGenerating} onClick={handleGenerateDiagnostics} className={secondaryButtonClass(theme)}>
               {diagnosticsGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
               {diagnosticsGenerating ? t('settings.logsTab.diagnosticsGenerating') : t('settings.logsTab.diagnosticsGenerate')}
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Knowledge source log statuses */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500")}>{t('settings.logsTab.indexingLogsTitle')}</h4>
-          {refreshingLogs && (
-            <span className="text-[0.625rem] text-ds-zinc-500 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> {t('settings.logsTab.refreshing')}
-            </span>
-          )}
-        </div>
-        <div className="space-y-2.5">
-          {connectedSources.length === 0 ? (
-            <p className={cn(
-              "text-xs italic p-4 border rounded-lg border-dashed text-center",
-              theme === 'dark' ? "text-ds-zinc-500 border-ds-zinc-800" : "text-ds-zinc-400 border-ds-zinc-200"
-            )}>
-              {t('settings.logsTab.noSourcesConfigured')}
-            </p>
-          ) : (
-            connectedSources.map((src) => {
-              const status = src.sync_status || 'pending';
-              let statusLabel = t('settings.logsTab.statusPending');
-              let statusColorClass = theme === 'dark'
-                ? 'bg-ds-zinc-800 text-ds-zinc-400 border-ds-zinc-700/50'
-                : 'bg-ds-zinc-100 text-ds-zinc-500 border-ds-zinc-200';
-              let statusIcon = <Activity className="w-3 h-3 shrink-0" />;
-
-              if (status === 'syncing') {
-                statusLabel = src.progress_message || t('settings.logsTab.statusSyncingDefault');
-                statusColorClass = 'bg-ds-blue-500/10 text-ds-blue-450 border-ds-blue-500/20';
-                statusIcon = (
-                  <div className="flex items-center gap-1.5">
-                    <Loader2 className="w-3 h-3 animate-spin shrink-0 text-ds-blue-500" />
-                    {(src.progress ?? 0) > 0 && <span className="font-bold text-[0.5625rem]">{src.progress}%</span>}
-                  </div>
-                );
-              } else if (status === 'completed') {
-                statusLabel = t('settings.logsTab.statusSuccess');
-                statusColorClass = 'bg-ds-emerald-500/10 text-ds-emerald-455 border-ds-emerald-500/20';
-                statusIcon = <CheckCircle2 className="w-3 h-3 shrink-0 text-ds-emerald-400" />;
-              } else if (status === 'error') {
-                statusLabel = t('settings.logsTab.statusErrorLabel');
-                statusColorClass = 'bg-ds-rose-500/10 text-ds-rose-455 border-ds-rose-500/20';
-                statusIcon = <AlertTriangle className="w-3 h-3 shrink-0 text-ds-rose-400" />;
-              }
-
-              const formattedTime = src.last_synced_at
-                ? new Date(src.last_synced_at).toLocaleString(language === 'de' ? 'de-DE' : 'en-US')
-                : t('settings.logsTab.neverSynced');
-
-              return (
-                <div
-                  key={src.id}
-                  className={cn(
-                    "p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors",
-                    theme === 'dark' ? "bg-ds-zinc-950/20 border-ds-zinc-800" : "bg-ds-zinc-50 border-ds-zinc-200",
-                    activeLogSource?.id === src.id && (theme === 'dark' ? "border-ds-indigo-500/40 bg-ds-indigo-500/5" : "border-ds-indigo-400 bg-ds-indigo-50/20")
-                  )}
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("font-bold text-xs", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>{src.name}</span>
-                      <span className={cn("text-[0.5625rem] uppercase font-bold px-1.5 py-0.5 rounded border leading-none",
-                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400" : "bg-ds-zinc-150 border-ds-zinc-200 text-ds-zinc-500"
-                      )}>
-                        {src.type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[0.625rem] text-ds-zinc-500">
-                      <span>{t('settings.logsTab.lastSyncLabel', { time: formattedTime })}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                    <div className={cn("flex items-center gap-1 text-[0.625rem] font-bold px-2.5 py-0.5 rounded-sm border", statusColorClass)}>
-                      {statusIcon}
-                      <span>{statusLabel}</span>
-                    </div>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setActiveLogSource(activeLogSource?.id === src.id ? null : src)}
-                      className={cn(
-                        "h-7 text-[0.625rem] px-2.5 flex items-center gap-1.5 focus:ring-0",
-                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
-                      )}
-                    >
-                      <ClipboardList className="w-3 h-3" />
-                      {activeLogSource?.id === src.id ? t('settings.logsTab.hideLog') : t('settings.logsTab.showLog')}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={status === 'syncing'}
-                      onClick={async () => {
-                        try {
-                          await api.syncKnowledgeSource(Number(src.id));
-                          showToast(t('settings.logsTab.syncStartedToast'), "success");
-                          refreshKnowledgeSources();
-                        } catch (err) {
-                          showToast(t('settings.logsTab.syncStartFailedToast'), "error", err);
-                        }
-                      }}
-                      className={cn(
-                        "h-7 w-7 p-0 flex items-center justify-center focus:ring-0",
-                        theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 hover:bg-ds-zinc-800 text-ds-zinc-300" : "bg-ds-white border-ds-zinc-200 hover:bg-ds-zinc-100 text-ds-zinc-700"
-                      )}
-                      title={t('settings.logsTab.syncNowTitle')}
-                    >
-                      <RefreshCw className={cn("w-3 h-3", status === 'syncing' && "animate-spin")} />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Log details terminal */}
-      {activeLogSource && (
-        <div className={cn(
-          "space-y-3 pt-4 border-t animate-in slide-in-from-bottom duration-250",
-          theme === 'dark' ? "border-ds-zinc-800/80" : "border-ds-zinc-200"
-        )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5 text-ds-indigo-500" />
-              <h4 className={cn("text-xs font-bold uppercase tracking-wide", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-700")}>
-                {t('settings.logsTab.logTitle', { name: activeLogSource.name })}
-              </h4>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  const ok = await copyToClipboard(activeLogSource.sync_log || '');
-                  showToast(t(ok ? 'settings.logsTab.logCopiedToast' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
-                }}
-                className={cn(
-                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
-                )}
-              >
-                {t('common.copy')}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={refreshKnowledgeSources}
-                disabled={refreshingLogs}
-                className={cn(
-                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
-                )}
-              >
-                {refreshingLogs ? <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> : <RefreshCw className="w-3 h-3" />}
-                {t('common.refresh')}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setActiveLogSource(null)}
-                className={cn(
-                  "h-7 text-[0.625rem] px-2 flex items-center gap-1 focus:ring-0",
-                  theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-100"
-                )}
-              >
-                {t('common.close')}
-              </Button>
-            </div>
+      {/* Quellen links, Log rechts */}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,11rem)_minmax(0,1fr)] gap-4 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] md:grid-rows-1">
+        <section className="flex min-h-0 flex-col gap-2" aria-label={t('settings.logsTab.indexingLogsTitle')}>
+          <div className="flex shrink-0 items-center justify-between gap-2">
+            <h4 className={sectionTitleClass(theme)}>{t('settings.logsTab.indexingLogsTitle')}</h4>
+            {refreshingLogs && (
+              <span className="flex items-center gap-1 text-[0.625rem] text-ds-zinc-500">
+                <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> {t('settings.logsTab.refreshing')}
+              </span>
+            )}
           </div>
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+            {connectedSources.length === 0 ? (
+              <p className={cn(emptyStateClass(theme), 'border-dashed text-center')}>{t('settings.logsTab.noSourcesConfigured')}</p>
+            ) : connectedSources.map((src) => {
+              const info = sourceStatus(src);
+              const selected = activeLogSource?.id === src.id;
+              return (
+                <div key={src.id} className={cn(selected ? activeCardClass(theme) : cardClass(theme), 'flex items-center gap-1 p-1.5')}>
+                  <button type="button" aria-pressed={selected} onClick={() => setActiveLogSourceId(src.id)}
+                    className="min-w-0 flex-1 rounded-md px-1.5 py-1 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-ds-indigo-500">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('truncate text-xs font-bold', dark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}>{src.name}</span>
+                      <span className={badgeClass('neutral')}>{src.type}</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
+                      <span className={cn(badgeClass(info.tone), 'inline-flex max-w-[11rem] items-center gap-1 normal-case tracking-normal')}>
+                        {info.icon}
+                        <span className="truncate">{info.label}</span>
+                        {info.progress > 0 && <span>{info.progress}%</span>}
+                      </span>
+                      <span className="truncate">{t('settings.logsTab.lastSyncLabel', { time: formatTime(src) })}</span>
+                    </div>
+                  </button>
+                  <Button type="button" size="icon" variant="ghost" disabled={info.status === 'syncing'} onClick={() => startSync(src)}
+                    title={t('settings.logsTab.syncNowTitle')} aria-label={t('settings.logsTab.syncNowTitle')}
+                    className="h-8 w-8 shrink-0 rounded-lg text-ds-zinc-500 hover:bg-ds-zinc-500/10">
+                    <RefreshCw className={cn('w-3.5 h-3.5', info.status === 'syncing' && 'animate-spin')} />
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
-          {activeLogSource.last_error && (
-            <div className="p-3.5 bg-ds-rose-500/10 border border-ds-rose-500/20 text-ds-rose-500 rounded-lg text-xs flex gap-2.5">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-ds-rose-500 mt-0.5" />
-              <div className="min-w-0">
-                <p className="font-bold uppercase tracking-wide text-[0.5625rem] text-ds-rose-455">{t('settings.logsTab.lastErrorLabel')}</p>
-                <p className="font-mono text-[0.625rem] mt-0.5 leading-relaxed break-all">{activeLogSource.last_error}</p>
+        <section className={cn(cardClass(theme), 'flex min-h-0 min-w-0 flex-col gap-3 p-3')}>
+          {activeLogSource ? (
+            <>
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Terminal className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
+                  <h4 className={cn(sectionTitleClass(theme), 'truncate')}>{t('settings.logsTab.logTitle', { name: activeLogSource.name })}</h4>
+                  {activeStatus && <span className={cn(badgeClass(activeStatus.tone), 'hidden shrink-0 sm:inline-flex')}>{activeStatus.label}</span>}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button type="button" size="sm" variant="outline" className={secondaryButtonClass(theme)}
+                    onClick={async () => {
+                      const ok = await copyToClipboard(activeLogSource.sync_log || '');
+                      showToast(t(ok ? 'settings.logsTab.logCopiedToast' : 'settings.toast.passwordCopyFailed'), ok ? "success" : "error");
+                    }}>
+                    {t('common.copy')}
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={refreshKnowledgeSources} disabled={refreshingLogs} className={secondaryButtonClass(theme)}>
+                    {refreshingLogs ? <Loader2 className="w-3 h-3 animate-spin text-ds-indigo-500" /> : <RefreshCw className="w-3 h-3" />}
+                    {t('common.refresh')}
+                  </Button>
+                </div>
               </div>
+
+              {activeLogSource.last_error && (
+                <div className="flex shrink-0 gap-2.5 rounded-lg border border-ds-rose-500/20 bg-ds-rose-500/10 p-3 text-xs text-ds-rose-500">
+                  <AlertTriangle className="mt-0.5 w-4 h-4 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[0.5625rem] font-bold uppercase tracking-wide">{t('settings.logsTab.lastErrorLabel')}</p>
+                    <p className="mt-0.5 max-h-20 overflow-y-auto break-all font-mono text-[0.625rem] leading-relaxed">{activeLogSource.last_error}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="min-h-0 flex-1">
+                <SyncLogViewer key={activeLogSource.id} log={activeLogSource.sync_log} />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-xs text-ds-zinc-500">
+              <Terminal className="w-5 h-5 opacity-40" />
+              <p>{t('settings.logsTab.selectSourcePrompt')}</p>
             </div>
           )}
-
-          <SyncLogViewer key={activeLogSource.id} log={activeLogSource.sync_log} />
-        </div>
-      )}
+        </section>
+      </div>
     </div>
   );
 };

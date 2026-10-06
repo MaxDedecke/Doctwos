@@ -69,11 +69,12 @@ export const emptyStateClass = (theme: Theme) =>
 export const dividerClass = (theme: Theme) => cn('border-t', isDark(theme) ? 'border-ds-zinc-800/60' : 'border-ds-zinc-200/80');
 
 /** Kleines Statusabzeichen (nur für Status, siehe Design Guidelines). */
-export const badgeClass = (tone: 'neutral' | 'success' | 'warning' | 'accent') =>
+export const badgeClass = (tone: 'neutral' | 'success' | 'warning' | 'accent' | 'danger') =>
   cn(
     'px-1.5 py-0.5 rounded text-[0.5625rem] font-bold uppercase tracking-wider border leading-none',
     tone === 'success' && 'bg-ds-emerald-500/10 text-ds-emerald-600 dark:text-ds-emerald-400 border-ds-emerald-500/20',
     tone === 'warning' && 'bg-ds-amber-500/10 text-ds-amber-600 dark:text-ds-amber-400 border-ds-amber-500/20',
     tone === 'accent' && 'bg-ds-indigo-500/10 text-ds-indigo-600 dark:text-ds-indigo-400 border-ds-indigo-500/20',
+    tone === 'danger' && 'bg-ds-red-500/10 text-ds-red-600 dark:text-ds-red-400 border-ds-red-500/20',
     tone === 'neutral' && 'bg-ds-zinc-500/10 text-ds-zinc-500 border-ds-zinc-500/20',
   );
