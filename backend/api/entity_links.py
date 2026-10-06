@@ -595,12 +595,20 @@ def search_doc_chunks(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
-    source_ids = (
-        db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).subquery()
+    # Dokumente sind Inhalte nicht-Git-Quellen sowie Dokumentationsdateien in Git-Quellen (AsciiDoc,
+    # Markdown/Text). Quellcode-Dateien einer Git-Quelle sind keine Dokumente und gehören in die
+    # Code-Objekte des Pickers.
+    query = (
+        db.query(DocumentChunk.file_path, DocumentChunk.metadata_json, DocumentChunk.source_id)
+        .join(KnowledgeSource, KnowledgeSource.id == DocumentChunk.source_id)
+        .filter(
+            KnowledgeSource.project_id == project_id,
+            or_(
+                KnowledgeSource.type != "Git",
+                DocumentChunk.metadata_json["language"].as_string().in_(("asciidoc", "markdown", "text")),
+            ),
+        )
     )
-    query = db.query(
-        DocumentChunk.file_path, DocumentChunk.metadata_json, DocumentChunk.source_id
-    ).filter(DocumentChunk.source_id.in_(source_ids))
     if q:
         query = query.filter(
             or_(

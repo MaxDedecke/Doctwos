@@ -222,6 +222,9 @@ const CODE_ENTITY_TYPES = new Set([
   'shell_script', 'shell_function',
 ]);
 
+/** Dokumentations-Objekte (AsciiDoc): keine Code-Objekte, z. B. nicht im Code-Picker des Link Managers. */
+export const DOCUMENTATION_ENTITY_TYPES = new Set(['asciidoc_document', 'doc_section']);
+
 const WEB_SOURCE_TYPES = new Set([
   'confluence', 'jira', 'web', 'webpage', 'webdav', 'url', 'http', 'https',
 ]);

@@ -48,6 +48,7 @@ from models.database import (
 )
 from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, ensure_model_pulled
 from core import config
+from core.doc_resolution import DOC_ENTITY_TYPES
 from chunk_reindex import content_fingerprint
 import httpx
 import redis
@@ -926,7 +927,11 @@ async def compute_entity_links_async(
         run.status = "running"
         db.commit()
 
-        all_entities = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).all()
+        all_entities = (
+            db.query(CodeEntity)
+            .filter(CodeEntity.project_id == project_id, CodeEntity.type.notin_(DOC_ENTITY_TYPES))
+            .all()
+        )
         if not all_entities:
             logger.info(
                 f"[LinkBuilder] Projekt {project_id}: keine Code-Entities gefunden — übersprungen."

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { formatDocLocation, type DocLocation } from '@/lib/docLocation';
+import { DOCUMENTATION_ENTITY_TYPES } from '@/lib/graphTaxonomy';
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -397,7 +398,9 @@ export function LinkManagerView({
   useEffect(() => {
     if (projectId && manualKind === 'entity' && entities.length === 0) {
       api.fetch(`${API_URL}/projects/${projectId}/entities`)
-        .then(r => r.json()).then(setEntities).catch(() => {});
+        .then(r => r.json())
+        .then((all: Array<{ type?: string | null }>) => setEntities(all.filter(e => !(e.type && DOCUMENTATION_ENTITY_TYPES.has(e.type))) as PickerEntity[]))
+        .catch(() => {});
     }
   }, [projectId, manualKind, entities.length]);
 

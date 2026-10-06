@@ -10,6 +10,9 @@ from __future__ import annotations
 from collections import defaultdict
 
 DOC_EDGE_TYPES = frozenset({"DOCUMENTS", "INCLUDES"})
+# Dokumentations-Objekte sind Quelle für Verknüpfungen, selbst aber keine Code-Objekte: Sie werden
+# weder im Link-Builder noch im Code-Picker des Link Managers als Code geführt.
+DOC_ENTITY_TYPES = frozenset({"asciidoc_document", "doc_section"})
 TYPE_ENTITY_TYPES = frozenset({"class", "interface", "enum", "record", "annotation_type"})
 # Typen, die der Auflöser als Ziele braucht; der Aufrufer lädt nur diese aus der Datenbank.
 RESOLUTION_TARGET_TYPES = TYPE_ENTITY_TYPES | {"property", "asciidoc_document"}
