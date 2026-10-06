@@ -215,10 +215,19 @@ Runtime-Abhängigkeiten begrenzt.
   Versionsbereichs an. Vor produktiver Auslieferung separat bewerten und
   testen.
 
+- **Container-Images / SBOM (06.10.2026, erster Lauf):** `scripts/sbom-scan.sh` erzeugt per `syft` ein
+  CycloneDX-SBOM und per `grype` einen Schwachstellenbericht je Image (Ergebnisse und Bewertung liegen
+  außerhalb des Repos in `~/doctus-berichte/`). Lizenzbefund: Die Debian-/Alpine-Basis der Images enthält
+  erwartungsgemäß GPL-/LGPL-Systempakete (bash, coreutils, glibc, libgmp, busybox …), die Doctus nicht
+  linkt; hinzu kommen in den Python-Images `autocommand` (LGPL-3.0, von `setuptools/_vendor` mitgebracht,
+  von `pip-licenses` nicht erfasst, nicht von Doctus genutzt). Im Frontend-Image liegen die
+  `devDependencies` (u. a. `@axe-core/playwright`, `axe-core` MPL-2.0), weil die Runner-Stage das komplette
+  `node_modules` kopiert — das widerspricht der Aussage in Abschnitt 3, dass sie nicht ausgeliefert werden.
+  Schwachstellen mit verfügbarem Fix: `pypdf` 6.16.1 → ≥ 6.19.0, `axios` 1.18.1 → ≥ 1.20.0, `next` 16.3.3 →
+  ≥ 16.3.6 (kritisch), `fastmcp` 2.14.7 → 3.2.0 (transitiv über `mcp-atlassian`), Python-Basisimage 3.11.15 →
+  ≥ 3.11.17. Für die Debian-Basis ist ein Großteil „wont-fix". Vor Auslieferung bewerten und beheben.
 - **Container-Basisimages**: keine automatisierte Lizenzprüfung der
-  Image-Inhalte (nur der oben dokumentierte manuelle Check). Ein
-  `syft`/`grype`-SBOM-Lauf gegen die gebauten Images wäre der nächste
-  Ausbauschritt. Ein Rohscan der Distribution-Basis und der darin enthaltenen
+  Image-Inhalte in der CI (nur manueller Lauf, siehe oben). Ein Rohscan der Distribution-Basis und der darin enthaltenen
   Systembibliotheken kann zusätzliche LGPL-/GPL-Befunde liefern; bis dieser
   Lauf erfolgt ist, gibt es dafür keinen vollständigen „keine Treffer"-Nachweis.
 - **Betriebssystempaket `git`** (Debian, GPL-2.0-only) — das einzige verbliebene GPL-Programm in den Images — steht im Backend- und im Parser-Image. Das
