@@ -17,7 +17,6 @@ interface Props {
 
 type Gate = { truncated: boolean };
 const VERB_ORDER: DataVerb[] = ['read', 'write', 'use'];
-const LANE_COLUMNS = 'grid-cols-[3.25rem_minmax(0,1.5fr)_minmax(0,1.15fr)_minmax(0,1fr)]';
 
 async function fetchProjection(entityId: number, projectId: number | null | undefined): Promise<{ projection: FlowProjection; truncated: boolean }> {
   const projectParam = projectId ? `&project_id=${projectId}` : '';
@@ -111,8 +110,6 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   }
 
   const rootLoaded = projections.has(`entity:${rootEntityId}`);
-  const laneHead = cn('px-2 py-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em] border-l', isDark ? 'border-ds-zinc-800 text-ds-zinc-400' : 'border-ds-zinc-200 text-ds-zinc-500');
-  const cellBorder = isDark ? 'border-ds-zinc-800/70' : 'border-ds-zinc-200';
 
   return (
     <div className={cn('h-full flex flex-col', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
@@ -156,49 +153,82 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
         </div>
       )}
 
-      <div className={cn('grid shrink-0 border-b', LANE_COLUMNS, isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/40' : 'border-ds-zinc-200 bg-ds-zinc-50')}>
-        <div className="px-2 py-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-ds-zinc-500">{t('processFlow.line')}</div>
-        <div className={laneHead}><Workflow className="mr-1 inline h-3 w-3 -translate-y-px" />{t('processFlow.laneControl')}</div>
-        <div className={laneHead}><Database className="mr-1 inline h-3 w-3 -translate-y-px" />{t('processFlow.laneData')}</div>
-        <div className={laneHead}><GitBranch className="mr-1 inline h-3 w-3 -translate-y-px" />{t('processFlow.laneExternal')}</div>
+      {/* Legende der Markierungen auf dem Zeitstrahl */}
+      <div className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-1.5 text-[0.625rem] uppercase tracking-[0.12em]', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/40 text-ds-zinc-400' : 'border-ds-zinc-200 bg-ds-zinc-50 text-ds-zinc-500')}>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-ds-indigo-500" /><Workflow className="h-3 w-3" />{t('processFlow.laneControl')}</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-ds-cyan-500" /><Database className="h-3 w-3" />{t('processFlow.laneData')}</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-dashed border-ds-amber-500" /><GitBranch className="h-3 w-3" />{t('processFlow.laneExternal')}</span>
+        <span className="flex items-center gap-1.5"><span className="h-2 w-2 rotate-45 bg-ds-amber-500" /><Split className="h-3 w-3" />{t('processFlow.laneGuard')}</span>
+        <span className="ml-auto normal-case tracking-normal">{t('processFlow.line')} ↓</span>
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-y-auto" role="table" aria-label={t('processFlow.subtitle')}>
+      <div className="relative flex-1 min-h-0 overflow-y-auto px-3 py-3" role="table" aria-label={t('processFlow.subtitle')}>
         {!rootLoaded && loadingIds.size > 0 && (
           <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-ds-indigo-500" /></div>
         )}
         {rootLoaded && rows.length <= 1 && (
           <div className="py-10 text-center text-xs text-ds-zinc-500">{t('processFlow.empty')}</div>
         )}
-        {rows.map(row => (
-          <div key={row.key} role="row" className={cn('grid border-b', LANE_COLUMNS, cellBorder)}>
-            <div className="px-2 py-1.5">
-              {row.line > 0 && (
-                <button
-                  type="button"
-                  onClick={() => open(row)}
-                  title={t('processFlow.openSource')}
-                  className="font-mono text-[0.625rem] tabular-nums text-ds-zinc-500 hover:text-ds-indigo-400"
-                >
-                  {row.line}
-                </button>
-              )}
+        {rows.map((row, index) => {
+          const isFirst = index === 0;
+          const isLast = index === rows.length - 1;
+          const isGuard = row.lane === 'control' && Boolean(row.guard);
+          const isLoopGuard = isGuard && row.guard?.type === 'LOOP';
+          const indentRem = Math.max(0, row.indent - 1) * 1.1;
+          return (
+            <div key={row.key} role="row" className="group/step flex gap-2">
+              {/* Zeilennummer im Quelltext: die Zeitachse */}
+              <div className="w-11 shrink-0 pt-1.5 text-right">
+                {row.line > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => open(row)}
+                    title={t('processFlow.openSource')}
+                    className="font-mono text-[0.625rem] tabular-nums text-ds-zinc-500 hover:text-ds-indigo-400"
+                  >
+                    {row.line}
+                  </button>
+                )}
+              </div>
+
+              {/* Zeitstrahl: durchgehende Linie mit Marker je Schritt */}
+              <div className="relative w-5 shrink-0" aria-hidden="true">
+                <span className={cn('absolute left-1/2 w-0.5 -translate-x-1/2', isDark ? 'bg-ds-zinc-700' : 'bg-ds-zinc-300', isFirst ? 'top-3.5' : 'top-0', isLast ? 'h-3.5' : 'bottom-0')} />
+                <TimelineMarker row={row} isGuard={isGuard} isLoop={isLoopGuard} isDark={isDark} />
+              </div>
+
+              <div className={cn('min-w-0 flex-1 pb-2.5', row.lane === 'data' && 'pt-0.5')}>
+                {row.lane === 'control' && row.guard && <GuardPill entry={row.guard} isDark={isDark} indent={row.indent} t={t} />}
+                {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
+                {row.lane === 'data' && (
+                  <div style={{ paddingLeft: `${indentRem + 1.25}rem` }}>
+                    <DataCard row={row} isDark={isDark} isOpen={openData.has(row.key)} onToggle={() => toggleData(row.key)} onOpen={open} t={t} />
+                  </div>
+                )}
+                {row.lane === 'external' && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={false} t={t} />}
+              </div>
             </div>
-            <div className={cn('border-l px-2 py-1', cellBorder)}>
-              {row.lane === 'control' && row.guard && <GuardPill entry={row.guard} isDark={isDark} indent={row.indent} t={t} />}
-              {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
-            </div>
-            <div className={cn('border-l px-2 py-1', cellBorder)}>
-              {row.lane === 'data' && <DataCard row={row} isDark={isDark} isOpen={openData.has(row.key)} onToggle={() => toggleData(row.key)} onOpen={open} t={t} />}
-            </div>
-            <div className={cn('border-l px-2 py-1', cellBorder)}>
-              {row.lane === 'external' && <StepPill row={row} isDark={isDark} onToggle={toggleStep} onOpen={open} loading={false} t={t} />}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
+}
+
+function TimelineMarker({ row, isGuard, isLoop, isDark }: { row: FlowRow; isGuard: boolean; isLoop: boolean; isDark: boolean }) {
+  const page = isDark ? 'bg-ds-zinc-950' : 'bg-ds-white';
+  const base = 'absolute left-1/2 top-1.5 z-10 -translate-x-1/2';
+  if (row.key === 'root') {
+    return <span className={cn(base, 'h-3.5 w-3.5 rounded-full border-2 border-ds-indigo-500 bg-ds-indigo-500 ring-4 ring-ds-indigo-500/20')} />;
+  }
+  if (isGuard) {
+    return isLoop
+      ? <span className={cn(base, 'h-3 w-3 rounded-full border-2 border-ds-indigo-400', page)} />
+      : <span className={cn(base, 'top-2 h-2.5 w-2.5 rotate-45 bg-ds-amber-500')} />;
+  }
+  if (row.lane === 'data') return <span className={cn(base, 'top-2 h-2.5 w-2.5 rounded-sm bg-ds-cyan-500')} />;
+  if (row.lane === 'external') return <span className={cn(base, 'h-3 w-3 rounded-full border-2 border-dashed border-ds-amber-500', page)} />;
+  return <span className={cn(base, 'h-3 w-3 rounded-full border-2', row.certainty === 'certain' ? 'border-ds-indigo-500' : 'border-dashed border-ds-zinc-500', page)} />;
 }
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
@@ -230,7 +260,7 @@ function StepPill({ row, isDark, onToggle, onOpen, loading, t }: {
           onClick={() => onOpen(row)}
           title={row.label}
           className={cn(
-            'max-w-full truncate rounded-md border px-2 py-0.5 text-left text-[0.6875rem] font-semibold transition-colors',
+            'max-w-full truncate rounded-md border px-2.5 py-1 text-left text-xs font-semibold shadow-sm transition-colors',
             dashed && 'border-dashed',
             isRoot
               ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400'

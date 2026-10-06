@@ -199,14 +199,14 @@ export function useWorkspaceLayout({
       if (explicitlySeededPanelIdsRef.current.has(panelIds[index])) return selection;
       const panelType = panelConfigs[index];
       const shouldSync = (
-        panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph'
+        panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph' || panelType === 'dropview'
         || incomingType === null || incomingType === panelType
       );
       if (!shouldSync) return selection;
       // D-3: der Call-Graph zeigt ein Objekt, keine Datei. Eine eingehende
       // Auswahl ohne Objektbezug (Dokument, Webseite, geleerte Auswahl) würde
       // ihn nur leeren -- er behält stattdessen seinen Fokus.
-      if (panelType === 'callgraph' && (selection.customCallFlow || !selectedEntity)) return selection;
+      if ((panelType === 'callgraph' || panelType === 'dropview') && (selection.customCallFlow || !selectedEntity)) return selection;
       if (
         selection.selectedFile !== selectedFile ||
         selection.selectedDoc !== selectedDoc ||

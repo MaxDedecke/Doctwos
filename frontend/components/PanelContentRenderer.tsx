@@ -7,6 +7,7 @@ import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata,
 import { ProcessView } from '@/components/CallGraphView';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
+import { DropView } from '@/components/DropView';
 import { InsightReviewView } from '@/components/InsightReviewView';
 import { SplitPaneWorkspace } from '@/components/SplitPaneWorkspace';
 import type { CallFlowData } from '@/lib/callFlow';
@@ -183,6 +184,19 @@ export function PanelContentRenderer({
         }}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
         onOpenDoc={handleDocFocusRequest}
+      />
+    );
+  }
+
+  if (contentType === 'dropview') {
+    return (
+      <DropView
+        // Neu starten, sobald ein anderes Objekt fokussiert wird (der Start steckt im lokalen Zustand).
+        key={selection.selectedEntity?.id ?? 'none'}
+        theme={theme}
+        focusedEntity={selection.selectedEntity}
+        projectId={selectedProject?.id}
+        onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
       />
     );
   }

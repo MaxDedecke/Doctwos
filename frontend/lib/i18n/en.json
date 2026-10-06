@@ -105,6 +105,7 @@
       "doc": "📖 Doc viewer",
       "graph": "🕸️ Knowledge graph",
       "callgraph": "🔀 Process viewer",
+      "dropview": "💧 Drop",
       "webview": "🌐 Web viewer",
       "linkmanager": "🔗 Link manager",
       "insights": "💡 Insights"
@@ -1638,6 +1639,7 @@
     "subtitle": "Flow top to bottom · order of call sites in the source",
     "line": "Line",
     "laneControl": "Flow",
+    "laneGuard": "Condition / loop",
     "laneData": "Data",
     "laneExternal": "External / open",
     "collapseAll": "Collapse all",

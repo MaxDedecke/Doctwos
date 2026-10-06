@@ -105,6 +105,7 @@
       "doc": "📖 Doku Viewer",
       "graph": "🕸️ Wissensgraph",
       "callgraph": "🔀 Prozess Viewer",
+      "dropview": "💧 Tropfen",
       "webview": "🌐 Web Viewer",
       "linkmanager": "🔗 Link Manager",
       "insights": "💡 Erkenntnisse"
@@ -1638,6 +1639,7 @@
     "subtitle": "Ablauf von oben nach unten · Reihenfolge der Aufrufstellen im Quellcode",
     "line": "Zeile",
     "laneControl": "Ablauf",
+    "laneGuard": "Bedingung / Schleife",
     "laneData": "Daten",
     "laneExternal": "Extern / offen",
     "collapseAll": "Alles einklappen",

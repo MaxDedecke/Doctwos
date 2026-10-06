@@ -1,5 +1,6 @@
 import type { ChatView } from './ChatView';
 import type { CallGraphView } from './CallGraphView';
+import type { DropView } from './DropView';
 import type { LinkManagerView } from './LinkManagerView';
 import type { SplitPaneWorkspace } from './SplitPaneWorkspace';
 /**
@@ -25,6 +26,7 @@ import { PanelContentRenderer } from './PanelContentRenderer';
 type CapturedProps = {
   'chat-view': React.ComponentProps<typeof ChatView>;
   'callgraph-view': React.ComponentProps<typeof CallGraphView>;
+  'drop-view': React.ComponentProps<typeof DropView>;
   'linkmanager-view': React.ComponentProps<typeof LinkManagerView>;
   'split-pane': React.ComponentProps<typeof SplitPaneWorkspace>;
 };
@@ -50,6 +52,7 @@ vi.mock('@/components/CallGraphView', () => ({
   CallGraphView: stub('callgraph-view'),
   ProcessView: stub('callgraph-view'),
 }));
+vi.mock('@/components/DropView', () => ({ DropView: stub('drop-view') }));
 vi.mock('@/components/LinkManagerView', () => ({ LinkManagerView: stub('linkmanager-view') }));
 vi.mock('@/components/SplitPaneWorkspace', () => ({ SplitPaneWorkspace: stub('split-pane') }));
 
@@ -129,6 +132,14 @@ describe('PanelContentRenderer', () => {
       expect(screen.getByTestId('chat-view')).toBeTruthy();
       expect(screen.queryByTestId('split-pane')).toBeNull();
       expect(getCaptured('chat-view').onOpenCallFlow).toBe(onOpenCallFlow);
+    });
+
+    it('rendert für "dropview" die eigenständige Tropfen-Ansicht mit dem fokussierten Objekt', () => {
+      renderPanel({ contentType: 'dropview' });
+
+      expect(screen.getByTestId('drop-view')).toBeTruthy();
+      expect(getCaptured('drop-view').focusedEntity).toBe(SELECTION.selectedEntity);
+      expect(getCaptured('drop-view').projectId).toBe(3);
     });
 
     it('rendert für "callgraph" die Call-Graph-Ansicht mit dem fokussierten Objekt und optionalem customFlow', () => {
