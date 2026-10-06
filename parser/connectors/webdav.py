@@ -26,12 +26,13 @@ from sqlalchemy import or_
 from connectors.tls import resolve_verify
 from connectors.base import BaseConnector, Document
 from connectors.extract import extract_cloud_file
+from connectors.folder import SUPPORTED_EXTENSIONS as FOLDER_SUPPORTED_EXTENSIONS
 from db import SessionLocal
 from models.database import CodeEntity, DocumentChunk, SourceScanFile, KnowledgeSource
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"}
+SUPPORTED_EXTENSIONS = FOLDER_SUPPORTED_EXTENSIONS
 
 # PROPFIND-/List-Aufrufe (XML, klein): großzügiger Read-Timeout statt httpx-Default (5 s).
 _API_TIMEOUT = httpx.Timeout(connect=10.0, read=60.0, write=60.0, pool=10.0)

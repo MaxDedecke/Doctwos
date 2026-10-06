@@ -20,6 +20,14 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator
 
 from connectors.base import BaseConnector, Document
+from connectors.office import (
+    OFFICE_EXTENSIONS,
+    extract_legacy_doc,
+    extract_odf_text,
+    extract_pptx_text,
+    extract_xlsx_text,
+    html_to_text,
+)
 from connectors.textio import read_text_file
 from db import SessionLocal
 from models.database import DocumentChunk, KnowledgeSource, SourceScanFile
@@ -27,7 +35,7 @@ from utils import extract_text_from_pdf_ocr
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".md"} | OFFICE_EXTENSIONS
 
 # Dateien über dieser Größe werden nicht indiziert (Speicher/Laufzeit); der Wert ist je Betrieb einstellbar.
 MAX_FILE_BYTES = int(os.getenv("FOLDER_MAX_FILE_MB", "200")) * 1024 * 1024
@@ -107,8 +115,18 @@ def _extract_text(file_path: str) -> str:
             except Exception:
                 pass
             raise e
-    if ext in (".docx", ".doc"):
+    if ext == ".docx":
         return extract_docx_text(file_path)
+    if ext == ".doc":
+        return extract_legacy_doc(file_path, extract_docx_text)
+    if ext == ".xlsx":
+        return extract_xlsx_text(file_path)
+    if ext == ".pptx":
+        return extract_pptx_text(file_path)
+    if ext in (".odt", ".ods", ".odp"):
+        return extract_odf_text(file_path)
+    if ext in (".html", ".htm"):
+        return html_to_text(read_text_file(file_path))
     return read_text_file(file_path)
 
 

@@ -74,6 +74,11 @@ begründet und hier ebenfalls akzeptiert: `psycopg2-binary` (LGPL-3.0),
 `certifi` (MPL-2.0). `mcp-atlassian`/`unidecode` sind hier **nicht**
 installiert — der Parser-Service braucht keinen Confluence-/Jira-Client.
 
+**Office-Formate (06.10.2026):** `openpyxl==3.1.5` (MIT) mit `et_xmlfile` (MIT) für Excel und `python-pptx==1.0.2`
+(MIT) mit `lxml` (BSD-3-Clause) und `XlsxWriter` (BSD) für PowerPoint; Versionen und Lizenzen mit `pip-licenses`
+im Parser-Image geprüft, alle auf der Allowlist. Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
+Upload, Confluence-Anhänge).
+
 ### Python-Entwicklungswerkzeuge (O-064, 06.09.2026)
 
 | Paket | Version | Lizenz | Herkunft / Verwendung |

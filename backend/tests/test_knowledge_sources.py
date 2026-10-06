@@ -453,3 +453,33 @@ def test_upload_local_document_sanitizes_path_traversal_in_filename(
     os.remove(expected_path)
     db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
     db_session.commit()
+
+
+def test_upload_local_document_accepts_office_formats(client, make_project, db_session):
+    project_id = make_project()
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "Preise.xlsx", "project_id": str(project_id)},
+        files={"file": ("Preise.xlsx", b"nur fuer den Allowlist-Check", "application/octet-stream")},
+    )
+    assert resp.status_code == 200, resp.text
+    source_id = resp.json()["id"]
+    path = os.path.join(UPLOADS_DIR, f"{source_id}_Preise.xlsx")
+    os.remove(path)
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).delete()
+    db_session.commit()
+
+
+def test_upload_larger_than_the_limit_is_rejected_and_leaves_nothing_behind(client, make_project, db_session, monkeypatch):
+    from api import knowledge_sources
+
+    monkeypatch.setattr(knowledge_sources, "UPLOAD_MAX_BYTES", 10)
+    project_id = make_project()
+    resp = client.post(
+        "/knowledge-sources/upload",
+        data={"name": "gross.txt", "project_id": str(project_id)},
+        files={"file": ("gross.txt", b"x" * 100, "text/plain")},
+    )
+    assert resp.status_code == 413 and "UPLOAD_MAX_MB" in resp.json()["detail"]
+    assert db_session.query(KnowledgeSource).filter(KnowledgeSource.name == "gross.txt").first() is None
+    assert not [f for f in os.listdir(UPLOADS_DIR) if f.endswith("_gross.txt")]

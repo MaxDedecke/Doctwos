@@ -852,7 +852,12 @@ def create_git_source(
 # (parser/connectors/folder.py::SUPPORTED_EXTENSIONS) -- vorher konnte ein
 # Kunde .docx nur über den Ordner-Watch-Connector einbinden, obwohl der lokale
 # Upload-Pfad (parser/tasks/document.py) .docx längst extrahieren konnte.
-_ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".md", ".txt", ".docx", ".doc"}
+# Obergrenze je hochgeladener Datei; je Betrieb über UPLOAD_MAX_MB einstellbar.
+UPLOAD_MAX_BYTES = int(os.getenv("UPLOAD_MAX_MB", "100")) * 1024 * 1024
+
+_ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf", ".md", ".txt", ".docx", ".doc", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv",
+}
 
 
 @router.post("/upload")
@@ -892,8 +897,22 @@ async def upload_local_document(
     db.commit()
 
     file_dest = os.path.join(UPLOADS_DIR, f"{db_source.id}_{safe_filename}")
+    written = 0
     with open(file_dest, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        while chunk := file.file.read(1024 * 1024):
+            written += len(chunk)
+            if written > UPLOAD_MAX_BYTES:
+                break
+            buffer.write(chunk)
+    if written > UPLOAD_MAX_BYTES:
+        # Keine halbe Datei und keine leere Quelle zurücklassen.
+        os.remove(file_dest)
+        db.delete(db_source)
+        db.commit()
+        raise HTTPException(
+            status_code=413,
+            detail=f"Die Datei ist größer als {UPLOAD_MAX_BYTES // (1024 * 1024)} MB (UPLOAD_MAX_MB).",
+        )
 
     send_tracked_task(
         db,

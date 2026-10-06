@@ -1,7 +1,8 @@
 import logging
 import os
 from chunk_reindex import reindex_chunks_preserving_links
-from connectors.folder import extract_docx_text, extract_pdf_pages
+from connectors.folder import _extract_text, extract_docx_text, extract_pdf_pages
+from connectors.office import OFFICE_EXTENSIONS, extract_legacy_doc
 from connectors.textio import read_text_file
 from core import config
 from db import SessionLocal
@@ -92,10 +93,16 @@ async def process_local_document_async(source_id: int, file_path: str):
                     pass
         elif ext in [".docx", ".doc"]:
             try:
-                log_event("Lese Word-Dokument (.docx) ein...")
-                pages.append((None, extract_docx_text(file_path)))
+                log_event("Lese Word-Dokument ein...")
+                pages.append((None, extract_legacy_doc(file_path, extract_docx_text) if ext == ".doc" else extract_docx_text(file_path)))
             except Exception as e:
                 log_event(f"Fehler beim Lesen des Word-Dokuments: {e}")
+        elif ext in OFFICE_EXTENSIONS:
+            try:
+                log_event(f"Lese Dokument ({ext}) ein...")
+                pages.append((None, _extract_text(file_path)))
+            except Exception as e:
+                log_event(f"Fehler beim Lesen des Dokuments: {e}")
         else:
             try:
                 log_event("Lese Textdatei ein...")

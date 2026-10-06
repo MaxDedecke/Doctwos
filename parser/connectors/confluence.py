@@ -36,10 +36,14 @@ from models.database import DocumentChunk
 ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
 _SUPPORTED_MIME_PREFIXES = ("text/",)
+_XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 _SUPPORTED_MIME_EXACT = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/msword",
+    _XLSX_MIME,
+    _PPTX_MIME,
 }
 
 
@@ -223,10 +227,35 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
         except Exception:
             return None
 
+    if mime in (_XLSX_MIME, _PPTX_MIME):
+        # Die Bibliotheken lesen Dateien; deshalb über eine Temp-Datei mit passender Endung.
+        import os
+        import tempfile
+
+        from connectors.folder import _extract_text
+
+        suffix = ".xlsx" if mime == _XLSX_MIME else ".pptx"
+        try:
+            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
+                handle.write(data)
+                temp_path = handle.name
+            try:
+                return _extract_text(temp_path).strip() or None
+            finally:
+                os.unlink(temp_path)
+        except Exception:
+            return None
+
+    if mime == "text/html":
+        from connectors.office import html_to_text
+
+        return html_to_text(data.decode("utf-8", errors="replace")) or None
+
     if mime in (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/msword",
     ):
+        # "application/msword" ist meist echtes Word 97 (nicht lesbar); python-docx liest nur ZIP-basierte Dateien.
         try:
             from docx import Document as DocxDoc
 
@@ -238,7 +267,9 @@ def _extract_attachment_text(data: bytes, mime_type: str) -> str | None:
 
     if mime.startswith("text/"):
         try:
-            return data.decode("utf-8", errors="replace").strip() or None
+            from connectors.textio import decode_text
+
+            return decode_text(data).strip() or None
         except Exception:
             return None
 
