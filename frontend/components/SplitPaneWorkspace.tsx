@@ -773,12 +773,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         });
       }
 
-      const glyph = {
-        glyphMarginClassName: 'doctus-entity-glyph-margin',
-        glyphMarginHoverMessage: {
-          value: t('splitPane.codeObjectHover', { name: ent.name, type: ent.type || 'entity' })
-        }
-      };
+      // Kein eigener Hover-Text: Die Randmarke der Zeile zeigt schon „Anpinnen“ (siehe unten); zwei
+      // Texte würden als doppeltes Menü übereinanderliegen. Das Menü öffnet erst der Klick.
+      const glyph = { glyphMarginClassName: 'doctus-entity-glyph-margin' };
       if (anchor) {
         newDecorations.push({
           range: new monaco.Range(anchor.line, anchor.startColumn, anchor.line, anchor.endColumn),
@@ -985,7 +982,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             range: new monaco.Range(lineNumber, 1, lineNumber, 1),
             options: {
               glyphMarginClassName: 'doctus-ask-glyph-margin',
-              glyphMarginHoverMessage: { value: t('splitPane.askDoctusAi') }
+              glyphMarginHoverMessage: { value: t('splitPane.pinGlyphHover') }
             }
           }
         ]);

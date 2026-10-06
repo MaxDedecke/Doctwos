@@ -998,6 +998,7 @@
     "autoFoundDocs": "Automatically found documentation for {{name}}.",
     "clickToSelectReferences": "Click to select, right-click for menu (pin, references)",
     "codeObjectHover": "Code object: {{name}} ({{type}})",
+    "pinGlyphHover": "Pin",
     "askDoctusAi": "Ask Doctus AI",
     "askAboutLineMenuItem": "Ask about line {{line}}",
     "statementHover": "{{verb}} statement – right-click to pin or look up",

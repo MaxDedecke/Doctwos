@@ -998,6 +998,7 @@
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",
     "clickToSelectReferences": "Klicken zum Auswählen, Rechtsklick für Menü (anpinnen, Referenzen)",
     "codeObjectHover": "Code-Objekt: {{name}} ({{type}})",
+    "pinGlyphHover": "Anpinnen",
     "askDoctusAi": "Doctus AI fragen",
     "askAboutLineMenuItem": "Nach Zeile {{line}} fragen",
     "statementHover": "{{verb}}-Anweisung – Rechtsklick zum Anpinnen oder Nachschlagen",
