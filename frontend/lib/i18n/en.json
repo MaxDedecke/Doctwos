@@ -81,11 +81,11 @@
     },
     "mobileTab": {
       "chat": "Chat",
-      "editor": "Editor",
+      "editor": "Code viewer",
       "graph": "Graph"
     },
     "workspace": {
-      "addView": "Add view",
+      "addView": "View",
       "addViewMenuTitle": "Select a view",
       "maxViewsReached": "Maximum of 4 views",
       "closeView": "Close view",
@@ -101,7 +101,7 @@
     },
     "viewTypes": {
       "chat": "💬 Chat view",
-      "code": "💻 Code editor",
+      "code": "💻 Code viewer",
       "doc": "📖 Documentation",
       "graph": "🕸️ Knowledge graph",
       "callgraph": "🔀 Process View",
@@ -648,7 +648,7 @@
       "diagnosticsDeleteFailed": "Could not delete diagnostic data"
     },
     "editorTab": {
-      "title": "Monaco Editor Options",
+      "title": "Code viewer options",
       "fontSizeLabel": "Font size (px)",
       "fontSizePlaceholder": "Font size",
       "fontFamilyLabel": "Font family",
@@ -944,8 +944,8 @@
     "graphNeighborhoodOpenButton": "Open graph",
     "graphNeighborhoodReopen": "Reopen graph",
     "graphNeighborhoodOpened": "Opened in the knowledge graph",
-    "codeLocationPrompt": "May I open this code location in the editor?",
-    "codeLocationOpened": "Opened in the editor",
+    "codeLocationPrompt": "May I open this code location in the code viewer?",
+    "codeLocationOpened": "Opened in the code viewer",
     "codeLocationReopen": "Show code location",
     "codeLocationNoSpace": "No space in workspace for another panel. Please close a panel first.",
     "agentViewUnavailable": "This view no longer matches the current project context. Ask again from the intended project.",
@@ -1030,7 +1030,7 @@
     "tryGlobalSearch": "Try the global search in the top right.",
     "showSplitScreenTitle": "Show split screen",
     "fullscreenModeTitle": "Fullscreen mode",
-    "closeEditorTitle": "Close editor",
+    "closeEditorTitle": "Close code viewer",
     "loadingCodeFile": "Loading code file...",
     "loadingWebOrigin": "Loading web original source...",
     "loadingDocument": "Loading document...",
@@ -1038,7 +1038,7 @@
     "openInBrowser": "Open in browser",
     "knowledgeSourceLabel": "Knowledge source",
     "documentViewerLabel": "Document viewer",
-    "editorLoading": "Loading editor...",
+    "editorLoading": "Loading code viewer...",
     "referencesPanelTitle": "References & linked documents",
     "loadMore": "Load more …",
     "loadMoreCount": "Load {{count}} more … ({{remaining}} left)",

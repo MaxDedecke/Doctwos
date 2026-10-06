@@ -81,11 +81,11 @@
     },
     "mobileTab": {
       "chat": "Chat",
-      "editor": "Editor",
+      "editor": "Code-Viewer",
       "graph": "Graph"
     },
     "workspace": {
-      "addView": "Ansicht hinzufügen",
+      "addView": "Ansicht zeigen",
       "addViewMenuTitle": "Ansicht auswählen",
       "maxViewsReached": "Maximal 4 Ansichten",
       "closeView": "Ansicht schließen",
@@ -101,7 +101,7 @@
     },
     "viewTypes": {
       "chat": "💬 Chat-Ansicht",
-      "code": "💻 Code-Editor",
+      "code": "💻 Code-Viewer",
       "doc": "📖 Dokumentation",
       "graph": "🕸️ Wissensnetz (Graph)",
       "callgraph": "🔀 Process View",
@@ -648,7 +648,7 @@
       "diagnosticsDeleteFailed": "Diagnosedaten konnten nicht gelöscht werden"
     },
     "editorTab": {
-      "title": "Monaco Editor Optionen",
+      "title": "Code-Viewer Optionen",
       "fontSizeLabel": "Schriftgröße (px)",
       "fontSizePlaceholder": "Schriftgröße",
       "fontFamilyLabel": "Schriftart",
@@ -944,8 +944,8 @@
     "graphNeighborhoodOpenButton": "Graph öffnen",
     "graphNeighborhoodReopen": "Graph erneut öffnen",
     "graphNeighborhoodOpened": "Im Wissensgraphen geöffnet",
-    "codeLocationPrompt": "Darf ich diese Code-Stelle im Editor öffnen?",
-    "codeLocationOpened": "Im Editor geöffnet",
+    "codeLocationPrompt": "Darf ich diese Code-Stelle im Code-Viewer öffnen?",
+    "codeLocationOpened": "Im Code-Viewer geöffnet",
     "codeLocationReopen": "Code-Stelle anzeigen",
     "codeLocationNoSpace": "Kein Platz mehr im Workspace für ein weiteres Panel. Bitte schließe zuerst ein Panel.",
     "agentViewUnavailable": "Diese Ansicht passt nicht mehr zum aktuellen Projektkontext. Bitte frage im gewünschten Projekt erneut.",
@@ -1030,7 +1030,7 @@
     "tryGlobalSearch": "Versuche es über die globale Suche oben rechts.",
     "showSplitScreenTitle": "Splitscreen anzeigen",
     "fullscreenModeTitle": "Vollbildmodus",
-    "closeEditorTitle": "Editor schließen",
+    "closeEditorTitle": "Code-Viewer schließen",
     "loadingCodeFile": "Code-Datei wird geladen...",
     "loadingWebOrigin": "Web-Originalquelle wird geladen...",
     "loadingDocument": "Dokument wird geladen...",
@@ -1038,7 +1038,7 @@
     "openInBrowser": "Im Browser öffnen",
     "knowledgeSourceLabel": "Wissensquelle",
     "documentViewerLabel": "Dokumenten-Viewer",
-    "editorLoading": "Editor wird geladen...",
+    "editorLoading": "Code-Viewer wird geladen...",
     "referencesPanelTitle": "Referenzen & Verknüpfte Dokumente",
     "loadMore": "Weitere laden …",
     "loadMoreCount": "{{count}} weitere laden … ({{remaining}} übrig)",
