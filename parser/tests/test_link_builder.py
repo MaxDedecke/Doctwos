@@ -105,6 +105,61 @@ def test_pass_keyword_matches_decrypted_content(db_session, test_project):
     assert score >= MIN_SCORE_KEYWORD
 
 
+def test_pass_keyword_ignores_git_code_chunks_but_keeps_git_documentation(db_session, test_project):
+    project_id, _local_source_id = test_project
+    team_id = db_session.execute(
+        text("SELECT team_id FROM projects WHERE id = :id"), {"id": project_id}
+    ).scalar_one()
+    git_source_id = db_session.execute(
+        text(
+            "INSERT INTO knowledge_sources (name, type, team_id, project_id, created_at) "
+            "VALUES ('link-builder-test-git', 'Git', :team_id, :project_id, now()) RETURNING id"
+        ),
+        {"team_id": team_id, "project_id": project_id},
+    ).scalar_one()
+    try:
+        entity = CodeEntity(
+            project_id=project_id,
+            source_id=git_source_id,
+            file_path="src/PayrollCalculator.java",
+            name="calculatePayroll",
+            type="method",
+        )
+        db_session.add(entity)
+        db_session.add_all(
+            [
+                DocumentChunk(
+                    project_id=project_id,
+                    source_id=git_source_id,
+                    file_path="src/PayrollRunner.java",
+                    content="class PayrollRunner { void run() { calculatePayroll(); } }",
+                    metadata_json={"language": "java"},
+                ),
+                DocumentChunk(
+                    project_id=project_id,
+                    source_id=git_source_id,
+                    file_path="docs/payroll.adoc",
+                    content="The method calculatePayroll computes the monthly payroll.",
+                    metadata_json={"language": "asciidoc"},
+                ),
+            ]
+        )
+        db_session.commit()
+        db_session.refresh(entity)
+
+        result = _pass_keyword(entity, project_id, db_session)
+
+        assert "docs/payroll.adoc" in result
+        assert "src/PayrollRunner.java" not in result
+    finally:
+        db_session.query(DocumentChunk).filter(DocumentChunk.source_id == git_source_id).delete()
+        db_session.query(CodeEntity).filter(CodeEntity.source_id == git_source_id).delete()
+        db_session.execute(
+            text("DELETE FROM knowledge_sources WHERE id = :id"), {"id": git_source_id}
+        )
+        db_session.commit()
+
+
 def test_entity_context_uses_bounded_repository_excerpt_and_direct_edges(db_session, test_project):
     project_id, source_id = test_project
     service = CodeEntity(

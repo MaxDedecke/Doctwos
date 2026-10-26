@@ -43,6 +43,7 @@ from models.database import (
     CodeEdge,
     DocumentChunk,
     EntityDocLink,
+    KnowledgeSource,
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
@@ -53,7 +54,7 @@ from chunk_reindex import content_fingerprint
 import httpx
 import redis
 from celery import current_app
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,22 @@ def _embedding_model_filter(model: str):
     if model == config.EMBED_MODEL:
         return or_(DocumentChunk.embedding_model == model, DocumentChunk.embedding_model.is_(None))
     return DocumentChunk.embedding_model == model
+
+
+_DOC_LANGUAGES = ("asciidoc", "markdown", "text")
+
+
+def _documentation_filter():
+    """Nur Dokumentation ist Kandidat: Inhalte nicht-Git-Quellen sowie Doku-Dateien in Git-Quellen.
+
+    Quellcode-Abschnitte einer Git-Quelle sind der Code selbst; Code-zu-Code-Beziehungen gehören in den
+    Aufrufgraphen (gleiche Regel wie api/entity_links.py::search_doc_chunks).
+    """
+    non_git = DocumentChunk.source_id.in_(
+        select(KnowledgeSource.id).where(KnowledgeSource.type != "Git")
+    )
+    doc_language = DocumentChunk.metadata_json["language"].as_string().in_(_DOC_LANGUAGES)
+    return or_(non_git, doc_language)
 
 
 def _keywords_from_entity(entity: CodeEntity) -> list[str]:
@@ -352,6 +369,7 @@ async def _pass_semantic(
         DocumentChunk.project_id == project_id,
         DocumentChunk.source_id.isnot(None),
         model_filter,
+        _documentation_filter(),
         DocumentChunk.embedding_dimension == len(embedding),
     )
     if candidate_chunk_ids is not None:
@@ -589,6 +607,7 @@ def _pass_keyword(
         DocumentChunk.project_id == project_id,
         DocumentChunk.source_id.isnot(None),
         model_filter,
+        _documentation_filter(),
     )
     if candidate_chunk_ids is not None:
         query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
@@ -1029,6 +1048,7 @@ async def compute_entity_links_async(
                 DocumentChunk.project_id == project_id,
                 DocumentChunk.source_id.isnot(None),
                 _embedding_model_filter(selected_embedding_model),
+                _documentation_filter(),
             )
             .count()
         )
