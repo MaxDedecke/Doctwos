@@ -666,7 +666,12 @@ def search_doc_chunks(
     # Markdown/Text). Quellcode-Dateien einer Git-Quelle sind keine Dokumente und gehören in die
     # Code-Objekte des Pickers.
     query = (
-        db.query(DocumentChunk.file_path, DocumentChunk.metadata_json, DocumentChunk.source_id)
+        db.query(
+            DocumentChunk.file_path,
+            DocumentChunk.metadata_json,
+            DocumentChunk.source_id,
+            DocumentChunk.id,
+        )
         .join(KnowledgeSource, KnowledgeSource.id == DocumentChunk.source_id)
         .filter(
             KnowledgeSource.project_id == project_id,
@@ -689,13 +694,15 @@ def search_doc_chunks(
 
     results = []
     seen: set[str] = set()
-    for file_path, meta, source_id in rows:
+    for file_path, meta, source_id, chunk_id in rows:
         title = (meta or {}).get("title") or file_path
         if title not in seen:
             seen.add(title)
             results.append(
                 {
                     "title": title,
+                    "chunk_id": chunk_id,
+                    "source_id": source_id,
                     "url": (meta or {}).get("url"),
                     "source_type": (meta or {}).get("source_type"),
                 }

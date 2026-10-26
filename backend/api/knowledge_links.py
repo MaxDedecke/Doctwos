@@ -25,6 +25,11 @@ from services.link_builder_runs import (
     find_active_knowledge_link_run,
     reconcile_knowledge_link_runs,
 )
+from services.link_project_scope import (
+    assert_link_project,
+    assert_link_sides_in_project,
+    filter_project_links,
+)
 from sqlalchemy import or_
 from sqlalchemy.sql import func
 
@@ -266,8 +271,14 @@ class LinkVisibilityIndex:
 
 @router.post("")
 def create_knowledge_link(
-    link: KnowledgeLinkCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    link: KnowledgeLinkCreate,
+    project_id: Optional[int] = Query(None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
+        assert_link_sides_in_project(link, project_id, db)
     if not (
         is_side_visible(
             link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id, user, db
@@ -279,6 +290,7 @@ def create_knowledge_link(
         raise HTTPException(status_code=403, detail="Kein Zugriff auf eine der verknüpften Quellen")
 
     db_link = KnowledgeLink(
+        project_id=project_id,
         source_a_type=link.source_a_type,
         source_a_entity_id=link.source_a_entity_id,
         source_a_chunk_id=link.source_a_chunk_id,
@@ -336,10 +348,15 @@ def list_knowledge_links(
     status: Optional[str] = None,
     source_type: Optional[str] = None,
     min_score: Optional[float] = None,
+    project_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    query = _knowledge_link_filters(db.query(KnowledgeLink), status, source_type, min_score)
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
+    query = _knowledge_link_filters(
+        filter_project_links(db.query(KnowledgeLink), project_id), status, source_type, min_score
+    )
     links = query.order_by(KnowledgeLink.created_at.desc()).all()
     visibility = LinkVisibilityIndex(links, user, db)
     return [
@@ -358,6 +375,7 @@ def list_knowledge_links(
 def count_knowledge_links(
     source_type: Optional[str] = None,
     min_score: Optional[float] = None,
+    project_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -366,11 +384,15 @@ def count_knowledge_links(
     Vorher holte sich das Frontend dafür alle drei Statuslisten komplett --
     beim Offen-Tab also die über 1000 Vorschläge gleich zweimal (einmal als
     Liste, einmal nur, um sie zu zählen). Hier zählt die Datenbank."""
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
     counts = {"pending": 0, "approved": 0, "rejected": 0}
 
     if get_visible_team_ids(user, db) is None:  # Admin: keine Sichtbarkeitsfilterung nötig
         rows = _knowledge_link_filters(
-            db.query(KnowledgeLink.status, func.count(KnowledgeLink.id)),
+            filter_project_links(
+                db.query(KnowledgeLink.status, func.count(KnowledgeLink.id)), project_id
+            ),
             None,
             source_type,
             min_score,
@@ -383,7 +405,10 @@ def count_knowledge_links(
     # Sonst muss jede Zeile durch die Sichtbarkeitsprüfung -- dafür reichen die
     # wenigen dafür nötigen Spalten statt der vollen Link-Objekte.
     rows = _knowledge_link_filters(
-        db.query(*_VISIBILITY_COLUMNS), None, source_type, min_score
+        filter_project_links(db.query(*_VISIBILITY_COLUMNS), project_id),
+        None,
+        source_type,
+        min_score,
     ).all()
     visibility = LinkVisibilityIndex(rows, user, db)
     for row in rows:
@@ -396,10 +421,15 @@ def count_knowledge_links(
 def update_knowledge_link_status(
     link_id: int,
     update: KnowledgeLinkUpdate,
+    project_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    db_link = db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id).first()
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
+    db_link = filter_project_links(
+        db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id), project_id
+    ).first()
     if not db_link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
 
@@ -431,6 +461,7 @@ def update_knowledge_link_status(
 async def llm_review_knowledge_link(
     link_id: int,
     body: LlmReviewRequest = LlmReviewRequest(),
+    project_id: Optional[int] = Query(None, ge=1),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -458,7 +489,11 @@ async def llm_review_knowledge_link(
             ),
         )
 
-    db_link = db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id).first()
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
+    db_link = filter_project_links(
+        db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id), project_id
+    ).first()
     if not db_link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
 
@@ -523,9 +558,16 @@ async def llm_review_knowledge_link(
 
 @router.delete("/{link_id}")
 def delete_knowledge_link(
-    link_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    link_id: int,
+    project_id: Optional[int] = Query(None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    db_link = db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id).first()
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
+    db_link = filter_project_links(
+        db.query(KnowledgeLink).filter(KnowledgeLink.id == link_id), project_id
+    ).first()
     if not db_link:
         raise HTTPException(status_code=404, detail="Link nicht gefunden")
 
@@ -709,7 +751,11 @@ def trigger_knowledge_link_computation(
 
 
 @router.get("/runs")
-def list_knowledge_link_runs(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def list_knowledge_link_runs(
+    project_id: Optional[int] = Query(None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """
     History of /knowledge-links/compute invocations (most recent first) —
     including runs that crashed or found 0 new links, so a silent failure
@@ -717,10 +763,13 @@ def list_knowledge_link_runs(db: Session = Depends(get_db), user: User = Depends
     """
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
+    if project_id is not None:
+        assert_link_project(project_id, user, db)
     reconcile_knowledge_link_runs(db)
     runs = (
         db.query(LinkBuilderRun)
         .filter(LinkBuilderRun.task_type == "knowledge_links")
+        .filter(True if project_id is None else LinkBuilderRun.project_id == project_id)
         .order_by(LinkBuilderRun.created_at.desc())
         .all()
     )

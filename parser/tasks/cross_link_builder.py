@@ -97,8 +97,8 @@ async def compute_knowledge_links_async(
 ):
     """
     run_id points at a LinkBuilderRun row (created by the caller as "pending",
-    task_type="knowledge_links", project_id=None since this scans across all
-    projects/sources) that this function updates to running/completed/failed —
+    task_type="knowledge_links", scoped to the selected project and sources)
+    that this function updates to running/completed/failed —
     without it, a crash here previously only produced a logger.error line with
     no queryable trace.
 
@@ -275,6 +275,7 @@ async def compute_knowledge_links_async(
 
                     db.add(
                         KnowledgeLink(
+                            project_id=selected_project_id,
                             source_a_type="entity" if entity_a else "document",
                             source_a_entity_id=entity_a.id if entity_a else None,
                             source_a_chunk_id=chunk.id,

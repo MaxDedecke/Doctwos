@@ -769,6 +769,9 @@ class LinkBuilderDirtyItem(Base):
 class Topic(Base):
     __tablename__ = "topics"
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     name = Column(String(200), nullable=False, index=True)
     description = Column(Text, nullable=True)
     color = Column(String(20), default="indigo")
@@ -863,8 +866,10 @@ class SourceScanFile(Base):
 class KnowledgeLink(Base):
     __tablename__ = "knowledge_links"
     id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
+    )
 
-    # Source A (can be Code-Entity OR DocumentChunk)
     source_a_type = Column(String(20), nullable=False)  # 'entity' | 'document'
     source_a_entity_id = Column(
         Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True
@@ -876,7 +881,6 @@ class KnowledgeLink(Base):
     source_a_url = Column(Text, nullable=True)
     source_a_source_type = Column(String(50), nullable=True)  # 'Git', 'Confluence', 'Jira', 'Local'
 
-    # Source B (can be Code-Entity OR DocumentChunk)
     source_b_type = Column(String(20), nullable=False)  # 'entity' | 'document'
     source_b_entity_id = Column(
         Integer, ForeignKey("code_entities.id", ondelete="CASCADE"), nullable=True
@@ -888,7 +892,6 @@ class KnowledgeLink(Base):
     source_b_url = Column(Text, nullable=True)
     source_b_source_type = Column(String(50), nullable=True)
 
-    # Link Metadata
     score = Column(Float, nullable=True)
     link_type = Column(String(20), default="semantic")  # 'semantic', 'keyword', 'chat', 'manual'
     # O-264: Directionality of the relationship ('undirected' | 'directed' | 'bidirectional')
@@ -907,7 +910,6 @@ class KnowledgeLink(Base):
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships
     source_a_entity = relationship("CodeEntity", foreign_keys=[source_a_entity_id])
     source_a_chunk = relationship("DocumentChunk", foreign_keys=[source_a_chunk_id])
     source_b_entity = relationship("CodeEntity", foreign_keys=[source_b_entity_id])
@@ -924,10 +926,7 @@ class KnowledgeLink(Base):
 
 class LinkBuilderRun(Base):
     """
-    One invocation of compute_entity_links (per-project) or compute_knowledge_links
-    (global, project_id null). Persisted regardless of outcome — previously these
-    tasks only surfaced crashes via logger.error with no queryable trace, making a
-    silent failure indistinguishable from "ran fine, found nothing new".
+    A project-scoped link analysis, persisted regardless of outcome.
     """
 
     __tablename__ = "link_builder_runs"

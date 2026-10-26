@@ -37,73 +37,18 @@ import {
   Tag,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { TopicsPanel } from './TopicsPanel';
 import type { KnowledgeSource } from '@/types/domain';
+import type { CodeRef, LinkCounts } from '@/lib/linkManagerTypes';
+import { useProjectLinks } from '@/hooks/useProjectLinks';
 import { LINK_RUN_OPTION_FIELDS, clampRunOption, linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface PickerDocument { title: string; url?: string | null; source_type?: string | null }
+interface PickerDocument { chunk_id?: number; title: string; url?: string | null; source_type?: string | null }
 interface PickerEntity { id: string | number; name: string; file_path: string; type?: string; start_line?: number }
-
-// O-114: Navigationsziel einer Code-Seite — dieselben drei Felder, die
-// handlePanelFileSelect(index, filePath, line, sourceId) sonst aus einer
-// CodeEntity bekommt.
-interface CodeRef { file_path: string; line: number | null; source_id: number | string | null }
-
-interface EntityDocLink {
-  id: number;
-  entity_id: number;
-  entity?: {
-    id: number;
-    name: string;
-    type: string;
-    file_path: string;
-    start_line: number;
-    end_line: number;
-    source_id?: number | string | null;
-  };
-  doc_title: string;
-  doc_url: string | null;
-  // O-114: Wissensquelle der Doku-Seite — None bei manuell angelegten Links
-  // ohne Chunk-Bezug, dann bleibt "Doku-Seite öffnen" aus.
-  doc_source_id?: number | string | null;
-  // Abschnitt/Seite/Zeilen der verknüpften Dokumentstelle (nur bei Verknüpfungen mit Chunk).
-  doc_location?: DocLocation | null;
-  source_type: string | null;
-  score: number | null;
-  link_type: string;
-  direction?: 'directed' | 'undirected' | 'bidirectional';
-  status: string;
-  context: string | null;
-  created_by: string;
-}
-
-interface KnowledgeLinkSide {
-  type: string;
-  title: string;
-  url: string | null;
-  source_type: string | null;
-  code_ref?: CodeRef | null;
-  doc_source_id?: number | string | null;
-  doc_location?: DocLocation | null;
-}
-
-interface KnowledgeLink {
-  id: number;
-  source_a: KnowledgeLinkSide;
-  source_b: KnowledgeLinkSide;
-  score: number | null;
-  link_type: string;
-  direction?: 'directed' | 'undirected' | 'bidirectional';
-  status: string;
-  context: string | null;
-  created_by: string;
-}
-
-interface LinkCounts { pending: number; approved: number; rejected: number; }
 
 interface LinkManagerViewProps {
   selectedProject: { id: number; name: string } | null;
@@ -190,7 +135,11 @@ function ScoreBadge({ score, isDark }: { score: number | null; isDark: boolean }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function LinkManagerView({
+export function LinkManagerView(props: LinkManagerViewProps) {
+  return <ProjectLinkManagerView key={props.selectedProject?.id ?? 'no-project'} {...props} />;
+}
+
+function ProjectLinkManagerView({
   selectedProject, theme, currentUser,
   llmProfiles = [], activeProfileId, activeEmbeddingModel, setActiveProfileId, showToast,
   onOpenCode, onOpenDoc,
@@ -211,7 +160,6 @@ export function LinkManagerView({
   const [maxItems, setMaxItems] = useState(200);
   const [runOptions, setRunOptions] = useState<LinkRunOptions>({});
   const [search, setSearch] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isComputing, setIsComputing] = useState(false);
   const [isAcceptingAll, setIsAcceptingAll] = useState(false);
   const [projectSources, setProjectSources] = useState<KnowledgeSource[]>([]);
@@ -221,14 +169,6 @@ export function LinkManagerView({
   const [showManualForm, setShowManualForm] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPendingRef = useRef(0);
-
-  // Entity-Links data
-  const [entityLinks, setEntityLinks] = useState<EntityDocLink[]>([]);
-  const [entityCounts, setEntityCounts] = useState<LinkCounts>({ pending: 0, approved: 0, rejected: 0 });
-
-  // Knowledge-Links data
-  const [knowledgeLinks, setKnowledgeLinks] = useState<KnowledgeLink[]>([]);
-  const [knowledgeCounts, setKnowledgeCounts] = useState<LinkCounts>({ pending: 0, approved: 0, rejected: 0 });
 
   // Manual link form state
   const [manualKind, setManualKind] = useState<'entity' | 'knowledge' | null>(null);
@@ -320,53 +260,11 @@ export function LinkManagerView({
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
-  const fetchEntityLinks = useCallback(async (silent = false) => {
-    if (!projectId) return null;
-    if (!silent) setIsLoading(true);
-    try {
-      const params = new URLSearchParams({ status: tab });
-      if (minScore > 0) params.set('min_score', String(minScore / 100));
-      const res = await api.fetch(`${API_URL}/projects/${projectId}/link-recommendations?${params}`);
-      const data = await res.json();
-      setEntityLinks(data.links || []);
-      setEntityCounts(data.counts || { pending: 0, approved: 0, rejected: 0 });
-      return data;
-    } catch { return null; }
-    finally { if (!silent) setIsLoading(false); }
-  }, [projectId, tab, minScore]);
-
-  const fetchKnowledgeLinks = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    try {
-      // Die Tab-Zähler kommen vom eigenen /counts-Endpunkt. Vorher wurden dafür
-      // alle drei Statuslisten vollständig geladen und nur ausgezählt — im
-      // Offen-Tab also dieselben (real >1000) Vorschläge gleich zweimal.
-      const filters = new URLSearchParams();
-      if (minScore > 0) filters.set('min_score', String(minScore / 100));
-      const [listRes, countsRes] = await Promise.all([
-        api.fetch(`${API_URL}/knowledge-links?status=${tab}&${filters}`),
-        api.fetch(`${API_URL}/knowledge-links/counts?${filters}`),
-      ]);
-      const [list, counts] = await Promise.all([listRes.json(), countsRes.json()]);
-      setKnowledgeLinks(list || []);
-      const safeCounts: LinkCounts = {
-        pending: counts?.pending ?? 0,
-        approved: counts?.approved ?? 0,
-        rejected: counts?.rejected ?? 0,
-      };
-      setKnowledgeCounts(safeCounts);
-      return { links: list, counts: safeCounts };
-    } catch { return null; }
-    finally { if (!silent) setIsLoading(false); }
-  }, [tab, minScore]);
-
-  useEffect(() => {
-    if (segment === 'links') {
-      (async () => {
-        await Promise.all([fetchEntityLinks(), fetchKnowledgeLinks()]);
-      })();
-    }
-  }, [segment, fetchEntityLinks, fetchKnowledgeLinks]);
+  const {
+    entityLinks, entityCounts, setEntityLinks, setEntityCounts,
+    knowledgeLinks, knowledgeCounts, setKnowledgeLinks, setKnowledgeCounts,
+    isLoading, fetchEntityLinks, fetchKnowledgeLinks, isActive,
+  } = useProjectLinks(projectId, tab, minScore, segment === 'links');
 
   // O-177: Cross-source analysis is always visibly scoped to the selected
   // project and an explicit set of its knowledge sources. Selecting all
@@ -485,6 +383,7 @@ export function LinkManagerView({
       knowledgeCount: knowledgeEstimate ? Math.min(limit, knowledgeEstimate.chunk_count) : 0,
       limit,
     });
+    if (!isActive()) return;
     const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
@@ -509,6 +408,7 @@ export function LinkManagerView({
       calls.push(api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }));
     }
     const started = await Promise.allSettled(calls);
+    if (!isActive()) return;
     const runIds: number[] = [];
     for (const result of started) {
       if (result.status !== 'fulfilled' || !result.value.ok) continue;
@@ -524,8 +424,10 @@ export function LinkManagerView({
     }
 
     const poll = async () => {
+      if (!isActive()) return;
       try {
         const jobs = (await api.getJobs(projectId)).data.jobs as Array<{ id: number; kind: string; status: string; progress: number | null }>;
+        if (!isActive()) return;
         const active = jobs.filter(job => job.kind === 'link_builder' && runIds.includes(job.id));
         if (active.length === runIds.length && active.every(job => ['completed', 'cancelled', 'failed', 'skipped'].includes(job.status))) {
           const [entityData, knowledgeData] = await Promise.all([fetchEntityLinks(true), fetchKnowledgeLinks(true)]);
@@ -547,7 +449,7 @@ export function LinkManagerView({
   };
 
   const updateLinkStatus = async (link: UnifiedLink, status: 'approved' | 'rejected') => {
-    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}?project_id=${projectId}`;
     let ok = false;
     try {
       const res = await api.fetch(url, {
@@ -588,7 +490,7 @@ export function LinkManagerView({
     setIsAcceptingAll(true);
     const targets = perfectPendingLinks;
     const results = await Promise.all(targets.map(async link => {
-      const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+      const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}?project_id=${projectId}`;
       try {
         const res = await api.fetch(url, {
           method: 'PATCH',
@@ -630,7 +532,7 @@ export function LinkManagerView({
     setReviewingLinkIds(prev => new Set(prev).add(link.id));
     const url = link.kind === 'entity'
       ? `${API_URL}/entity-doc-links/${link.rawId}/llm-review`
-      : `${API_URL}/knowledge-links/${link.rawId}/llm-review`;
+      : `${API_URL}/knowledge-links/${link.rawId}/llm-review?project_id=${projectId}`;
     try {
       const res = await api.fetch(url, {
         method: 'POST',
@@ -671,7 +573,7 @@ export function LinkManagerView({
   const commitLinkContext = async (link: UnifiedLink, context: string) => {
     setEditingContextId(null);
     if (context === (link.context || '')) return;
-    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}?project_id=${projectId}`;
     try {
       const res = await api.fetch(url, {
         method: 'PATCH',
@@ -690,7 +592,7 @@ export function LinkManagerView({
   };
 
   const deleteLink = async (link: UnifiedLink) => {
-    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}`;
+    const url = link.kind === 'entity' ? `${API_URL}/entity-doc-links/${link.rawId}` : `${API_URL}/knowledge-links/${link.rawId}?project_id=${projectId}`;
     await api.fetch(url, { method: 'DELETE' });
     if (link.kind === 'entity') {
       setEntityLinks(prev => prev.filter(l => l.id !== link.rawId));
@@ -735,12 +637,13 @@ export function LinkManagerView({
         setTab('approved');
         fetchEntityLinks();
       } else if (manualKind === 'knowledge') {
-        if (!selectedDocA || !selectedDocB) return;
-        const res = await api.fetch(`${API_URL}/knowledge-links`, {
+        if (!projectId || !selectedDocA || !selectedDocB) return;
+        const res = await api.fetch(`${API_URL}/knowledge-links?project_id=${projectId}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            source_a_chunk_id: selectedDocA.chunk_id, source_b_chunk_id: selectedDocB.chunk_id,
             source_a_type: 'document', source_a_title: selectedDocA.title, source_a_url: selectedDocA.url || null, source_a_source_type: selectedDocA.source_type || null,
             source_b_type: 'document', source_b_title: selectedDocB.title, source_b_url: selectedDocB.url || null, source_b_source_type: selectedDocB.source_type || null,
             link_type: 'manual', direction: manualDirection, status: 'approved', context: manualDescription.trim() || null,
@@ -1120,7 +1023,7 @@ export function LinkManagerView({
         </div>
 
         {/* ── Topics segment (admin-only, mirrors backend require_admin on /topics) ── */}
-        {segment === 'topics' && isAdmin && <TopicsPanel theme={theme} />}
+        {segment === 'topics' && isAdmin && projectId && <TopicsPanel theme={theme} projectId={projectId} />}
 
         {/* ── Links segment ── */}
         {segment === 'links' && (

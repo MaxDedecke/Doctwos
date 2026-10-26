@@ -165,7 +165,7 @@ flowchart TD
     LinkBuilder --> EDL["EntityDocLink<br/>status=pending"]
     EDL -->|manuelle Pruefung im Link Manager| EDLApproved["status=approved"]
 
-    CrossLink["compute_knowledge_links (Celery)<br/>HNSW-Nearest-Neighbor ueber ALLE Chunks<br/>quellenuebergreifend + LLM-Review"]
+    CrossLink["compute_knowledge_links (Celery)<br/>HNSW-Nearest-Neighbor im Projekt<br/>und den ausgewaehlten Quellen<br/>quellenuebergreifend + LLM-Review"]
     CrossLink --> KLAuto["KnowledgeLink (auto)<br/>status=pending"]
     KLAuto -->|manuelle Pruefung| KLApproved["status=approved"]
     ManualUI["Link Manager UI<br/>manuell verknuepftes Paar"] --> KLManual["KnowledgeLink (manual)<br/>status=approved sofort"]
@@ -189,6 +189,26 @@ flowchart TD
 `undirected` (keine Flussrichtung) oder `bidirectional` (Fluss in beide
 Richtungen). Neue manuelle Links beginnen standardmäßig ungerichtet; die
 Graph- und Link-Manager-Dialoge können die Richtung beim Erstellen setzen.
+
+## Projektbezug im Link-Manager
+
+Listen, Statuszähler, Analysehistorie und Themen gehören zum ausgewählten Projekt.
+Ohne Projektauswahl lädt der Link-Manager keine Verknüpfungen. Beim Projektwechsel
+werden Listen, Picker, Auswahl und Laufmeldungen neu initialisiert; verspätete
+Antworten des vorherigen Projekts werden verworfen.
+
+Neue `KnowledgeLink`- und `Topic`-Einträge speichern `project_id`. Manuelle Links
+übernehmen das Projekt des Managers und die Chunk-IDs der ausgewählten Dokumente;
+der Cross-Source-Worker speichert das Projekt des beauftragten Laufs. Listen,
+Zähler und Link-Aktionen verwenden denselben serverseitigen Projektfilter.
+Themen lassen nur Knoten ihres eigenen Projekts zu.
+
+Migration `0037_link_manager_projects` ordnet Altverknüpfungen nur zu, wenn beide
+Seiten dasselbe Projekt belegen. Alte Themen werden nur bei eindeutigem Projekt
+aller angehängten Knoten zugeordnet. Unbekannte oder projektübergreifende Altbestände
+bleiben erhalten, erscheinen aber nicht im Link-Manager eines beliebigen Projekts.
+Globale API-Abfragen ohne Projektparameter bleiben für bestehende Verbraucher
+verfügbar und unterliegen weiterhin deren Zugriffsprüfung.
 
 ## Wie daraus ein Graph wird — drei unabhängige Verbraucher
 

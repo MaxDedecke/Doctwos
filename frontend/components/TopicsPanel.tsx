@@ -44,6 +44,7 @@ interface SearchResult {
 
 interface TopicsPanelProps {
   theme: string;
+  projectId?: number;
 }
 
 // ── Color palette ─────────────────────────────────────────────────────────────
@@ -80,9 +81,11 @@ type NodeTypeKey = typeof NODE_TYPES[number]['key'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TopicsPanel({ theme }: TopicsPanelProps) {
+export function TopicsPanel({ theme, projectId }: TopicsPanelProps) {
   const isDark = theme === 'dark';
   const { t } = useLanguage();
+
+  const scope = projectId ? `?project_id=${projectId}` : '';
 
   // Topic list
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -150,21 +153,21 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
   const fetchTopics = useCallback(async () => {
     setIsLoadingTopics(true);
     try {
-      const res = await api.fetch(`${API_URL}/topics`);
+      const res = await api.fetch(`${API_URL}/topics${scope}`);
       const data = await res.json();
       setTopics(data);
     } catch { /* silent */ }
     finally { setIsLoadingTopics(false); }
-  }, []);
+  }, [scope]);
 
   const fetchNodes = useCallback(async (topicId: number) => {
     setIsLoadingNodes(true);
     try {
-      const res = await api.fetch(`${API_URL}/topics/${topicId}/nodes`);
+      const res = await api.fetch(`${API_URL}/topics/${topicId}/nodes${scope}`);
       setNodes(await res.json());
     } catch { /* silent */ }
     finally { setIsLoadingNodes(false); }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     (async () => {
@@ -193,13 +196,14 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
       setIsSearching(true);
       try {
         const params = new URLSearchParams({ q: addNodeSearch, types: addNodeType });
+        if (projectId) params.set('project_id', String(projectId));
         const res = await api.fetch(`${API_URL}/topics/search-nodes?${params}`);
         setSearchResults(await res.json());
       } catch { /* silent */ }
       finally { setIsSearching(false); }
     }, 250);
     return () => clearTimeout(t);
-  }, [addNodeSearch, addNodeType, showAddNode]);
+  }, [addNodeSearch, addNodeType, showAddNode, projectId]);
 
   // Trigger search immediately when type changes or panel opens — done
   // during render (guarded by state comparisons) rather than in an effect.
@@ -218,7 +222,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     setIsCreating(true);
     setCreateError('');
     try {
-      const res = await api.fetch(`${API_URL}/topics`, {
+      const res = await api.fetch(`${API_URL}/topics${scope}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || null, color: newColor }),
@@ -234,7 +238,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
   };
 
   const deleteTopic = async (topicId: number) => {
-    await api.fetch(`${API_URL}/topics/${topicId}`, { method: 'DELETE' });
+    await api.fetch(`${API_URL}/topics/${topicId}${scope}`, { method: 'DELETE' });
     setTopics(prev => prev.filter(t => t.id !== topicId));
     if (selectedTopicId === topicId) setSelectedTopicId(null);
   };
@@ -250,7 +254,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     if (!selectedTopicId || !editName.trim()) return;
     setIsSavingEdit(true);
     try {
-      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}`, {
+      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}${scope}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editName.trim(), description: editDesc.trim() || null, color: editColor }),
@@ -266,7 +270,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
     if (!selectedTopicId) return;
     setAddNodeError('');
     try {
-      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes`, {
+      const res = await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes${scope}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -289,7 +293,7 @@ export function TopicsPanel({ theme }: TopicsPanelProps) {
 
   const detachNode = async (nodeId: number) => {
     if (!selectedTopicId) return;
-    await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes/${nodeId}`, { method: 'DELETE' });
+    await api.fetch(`${API_URL}/topics/${selectedTopicId}/nodes/${nodeId}${scope}`, { method: 'DELETE' });
     setNodes(prev => prev.filter(n => n.id !== nodeId));
     setTopics(prev => prev.map(t => t.id === selectedTopicId ? { ...t, node_count: Math.max(0, t.node_count - 1) } : t));
   };
