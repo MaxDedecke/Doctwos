@@ -8,7 +8,9 @@ Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
-**Vor jeder Arbeit lesen:** `docs/TODO.md` (zentrale, priorisierte Liste
+**Vor jeder Arbeit lesen:** zuerst `docs/ARBEITSLEITLINIE.md` (zentrale
+Arbeitsleitlinie mit Feature-Stopp und Wochenplan; hat Vorrang vor der
+Reihenfolge in der TODO-Liste), dann `docs/TODO.md` (priorisierte Liste
 offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 
 ## Architekturprinzipien
